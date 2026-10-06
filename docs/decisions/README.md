@@ -29,3 +29,4 @@ recommended option.
 | [0018](0018-incremental-scanning-change-feeds.md) | Scan incrementally from persisted change feeds with periodic full sweeps | Accepted |
 | [0019](0019-staged-duplicate-detection.md) | Detect duplicates in stages with a cryptographic content ID | Accepted |
 | [0020](0020-jev-evidence-only-judge.md) | Integrate Jev as an optional, evidence-only judge behind a port | Accepted |
+| [0021](0021-developer-artifact-knowledge-base.md) | Drive Developer Mode from a researched knowledge base that prefers tool-native cleanup | Accepted |
