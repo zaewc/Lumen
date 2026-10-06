@@ -35,3 +35,4 @@ recommended option.
 | [0024](0024-polyglot-monorepo-tooling.md) | Use pnpm workspaces, Turborepo and a justfile alongside the Cargo workspace | Accepted |
 | [0025](0025-code-quality-tooling.md) | Enforce code quality with rustfmt/clippy/nextest and Biome/oxlint/Steiger on TypeScript 7 | Accepted |
 | [0026](0026-ci-and-supply-chain-security.md) | Gate merges on hardened GitHub Actions CI with supply-chain checks | Accepted |
+| [0027](0027-atomic-commit-pr-workflow.md) | Ship every atomic change as one Conventional Commit in one pull request | Accepted |
