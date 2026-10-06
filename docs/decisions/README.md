@@ -22,3 +22,4 @@ recommended option.
 | [0011](0011-contracts-and-schema-sharing.md) | Make Rust the source of truth for versioned contracts | Accepted |
 | [0012](0012-local-persistence-sqlite.md) | Persist locally in SQLite with separate index and ledger databases | Accepted |
 | [0013](0013-evidence-graph-relational.md) | Store the evidence graph relationally with immutable, hashed evidence | Accepted |
+| [0014](0014-deterministic-safety-policy-engine.md) | Decide every action with a deterministic, versioned safety policy | Accepted |
