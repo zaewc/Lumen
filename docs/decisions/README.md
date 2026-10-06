@@ -20,3 +20,4 @@ recommended option.
 | [0009](0009-frontend-vite-react-spa.md) | Build the UI as one Vite + React SPA with Feature-Sliced Design | Accepted |
 | [0010](0010-web-dashboard-role.md) | Make the web dashboard local-only and off by default; defer any cloud backend | Proposed |
 | [0011](0011-contracts-and-schema-sharing.md) | Make Rust the source of truth for versioned contracts | Accepted |
+| [0012](0012-local-persistence-sqlite.md) | Persist locally in SQLite with separate index and ledger databases | Accepted |
