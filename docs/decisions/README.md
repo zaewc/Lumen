@@ -16,3 +16,4 @@ recommended option.
 | [0005](0005-process-topology-and-privilege.md) | Run user-scope only in v1; add an agent and a privileged helper later | Accepted |
 | [0006](0006-desktop-distribution-and-signing.md) | Distribute desktop builds outside the app stores, signed and notarized | Proposed |
 | [0007](0007-mobile-expo-native-modules-uniffi.md) | Build mobile with Expo, native Expo Modules, and the Rust core via UniFFI | Accepted |
+| [0008](0008-capability-model-and-coverage.md) | Model platform capabilities and scan coverage explicitly | Accepted |
