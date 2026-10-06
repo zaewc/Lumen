@@ -27,3 +27,4 @@ recommended option.
 | [0016](0016-single-handle-relative-executor.md) | Route every destructive filesystem operation through one handle-relative executor | Accepted |
 | [0017](0017-scan-engine-and-size-accounting.md) | Scan with native batch enumerators on a work-stealing pool and account sizes precisely | Accepted |
 | [0018](0018-incremental-scanning-change-feeds.md) | Scan incrementally from persisted change feeds with periodic full sweeps | Accepted |
+| [0019](0019-staged-duplicate-detection.md) | Detect duplicates in stages with a cryptographic content ID | Accepted |
