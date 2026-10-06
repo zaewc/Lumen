@@ -18,3 +18,4 @@ recommended option.
 | [0007](0007-mobile-expo-native-modules-uniffi.md) | Build mobile with Expo, native Expo Modules, and the Rust core via UniFFI | Accepted |
 | [0008](0008-capability-model-and-coverage.md) | Model platform capabilities and scan coverage explicitly | Accepted |
 | [0009](0009-frontend-vite-react-spa.md) | Build the UI as one Vite + React SPA with Feature-Sliced Design | Accepted |
+| [0010](0010-web-dashboard-role.md) | Make the web dashboard local-only and off by default; defer any cloud backend | Proposed |
