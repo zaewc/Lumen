@@ -31,3 +31,4 @@ recommended option.
 | [0020](0020-jev-evidence-only-judge.md) | Integrate Jev as an optional, evidence-only judge behind a port | Accepted |
 | [0021](0021-developer-artifact-knowledge-base.md) | Drive Developer Mode from a researched knowledge base that prefers tool-native cleanup | Accepted |
 | [0022](0022-privacy-preserving-observability.md) | Observe locally with tracing; make OpenTelemetry export opt-in and content-free | Accepted |
+| [0023](0023-ipc-security.md) | Secure every IPC boundary with authenticated peers and plan-ID commands | Accepted |
