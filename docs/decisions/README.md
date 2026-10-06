@@ -21,3 +21,4 @@ recommended option.
 | [0010](0010-web-dashboard-role.md) | Make the web dashboard local-only and off by default; defer any cloud backend | Proposed |
 | [0011](0011-contracts-and-schema-sharing.md) | Make Rust the source of truth for versioned contracts | Accepted |
 | [0012](0012-local-persistence-sqlite.md) | Persist locally in SQLite with separate index and ledger databases | Accepted |
+| [0013](0013-evidence-graph-relational.md) | Store the evidence graph relationally with immutable, hashed evidence | Accepted |
