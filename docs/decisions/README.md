@@ -14,3 +14,4 @@ recommended option.
 | [0003](0003-rust-workspace-and-toolchain.md) | Use a flat Cargo workspace on Rust 2024 with a pinned toolchain | Accepted |
 | [0004](0004-desktop-shell-tauri.md) | Use Tauri 2 as the desktop shell with the core in the host process | Accepted |
 | [0005](0005-process-topology-and-privilege.md) | Run user-scope only in v1; add an agent and a privileged helper later | Accepted |
+| [0006](0006-desktop-distribution-and-signing.md) | Distribute desktop builds outside the app stores, signed and notarized | Proposed |
