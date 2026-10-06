@@ -19,3 +19,4 @@ recommended option.
 | [0008](0008-capability-model-and-coverage.md) | Model platform capabilities and scan coverage explicitly | Accepted |
 | [0009](0009-frontend-vite-react-spa.md) | Build the UI as one Vite + React SPA with Feature-Sliced Design | Accepted |
 | [0010](0010-web-dashboard-role.md) | Make the web dashboard local-only and off by default; defer any cloud backend | Proposed |
+| [0011](0011-contracts-and-schema-sharing.md) | Make Rust the source of truth for versioned contracts | Accepted |
