@@ -23,3 +23,4 @@ recommended option.
 | [0012](0012-local-persistence-sqlite.md) | Persist locally in SQLite with separate index and ledger databases | Accepted |
 | [0013](0013-evidence-graph-relational.md) | Store the evidence graph relationally with immutable, hashed evidence | Accepted |
 | [0014](0014-deterministic-safety-policy-engine.md) | Decide every action with a deterministic, versioned safety policy | Accepted |
+| [0015](0015-quarantine-and-reversible-cleanup.md) | Quarantine by journaled same-volume rename into a Lumen-owned store | Accepted |
