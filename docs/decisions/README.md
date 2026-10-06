@@ -34,3 +34,4 @@ recommended option.
 | [0023](0023-ipc-security.md) | Secure every IPC boundary with authenticated peers and plan-ID commands | Accepted |
 | [0024](0024-polyglot-monorepo-tooling.md) | Use pnpm workspaces, Turborepo and a justfile alongside the Cargo workspace | Accepted |
 | [0025](0025-code-quality-tooling.md) | Enforce code quality with rustfmt/clippy/nextest and Biome/oxlint/Steiger on TypeScript 7 | Accepted |
+| [0026](0026-ci-and-supply-chain-security.md) | Gate merges on hardened GitHub Actions CI with supply-chain checks | Accepted |
