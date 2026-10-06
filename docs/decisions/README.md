@@ -10,3 +10,4 @@ recommended option.
 | ADR | Title | Status |
 | --- | --- | --- |
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions | Accepted |
+| [0002](0002-modular-monolith-hexagonal-rust-core.md) | Build a modular monolith with a hexagonal Rust core | Accepted |
