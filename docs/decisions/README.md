@@ -24,3 +24,4 @@ recommended option.
 | [0013](0013-evidence-graph-relational.md) | Store the evidence graph relationally with immutable, hashed evidence | Accepted |
 | [0014](0014-deterministic-safety-policy-engine.md) | Decide every action with a deterministic, versioned safety policy | Accepted |
 | [0015](0015-quarantine-and-reversible-cleanup.md) | Quarantine by journaled same-volume rename into a Lumen-owned store | Accepted |
+| [0016](0016-single-handle-relative-executor.md) | Route every destructive filesystem operation through one handle-relative executor | Accepted |
