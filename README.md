@@ -11,9 +11,20 @@ Target platforms: macOS, Windows, Android, iOS, and a web dashboard.
 
 ## Status
 
-Pre-alpha. The project is in its research and architecture phase; no product code
-exists yet. Research notes live in [`docs/research/`](docs/research/) and
-architecture decisions in [`docs/decisions/`](docs/decisions/).
+Pre-alpha. Research (Phase 1) and architecture (Phase 2) are complete; no product
+code exists yet. Repository bootstrap (Phase 3) is next; see the
+[roadmap](docs/architecture/roadmap.md).
+
+## Documentation
+
+| Topic | Where |
+| --- | --- |
+| Architecture overview | [`ARCHITECTURE.md`](ARCHITECTURE.md), [system](docs/architecture/system.md), [platforms](docs/architecture/platforms.md) |
+| Decisions | [`docs/decisions/`](docs/decisions/README.md) |
+| Research | [`docs/research/`](docs/research/) |
+| Security | [`SECURITY.md`](SECURITY.md), [threat model](docs/security/threat-model.md) |
+| AI (Jev) | [`docs/ai/`](docs/ai/architecture.md) |
+| Contributing | [`CONTRIBUTING.md`](CONTRIBUTING.md), [`AGENTS.md`](AGENTS.md) |
 
 ## Principles
 
