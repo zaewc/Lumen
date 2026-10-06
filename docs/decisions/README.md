@@ -33,3 +33,4 @@ recommended option.
 | [0022](0022-privacy-preserving-observability.md) | Observe locally with tracing; make OpenTelemetry export opt-in and content-free | Accepted |
 | [0023](0023-ipc-security.md) | Secure every IPC boundary with authenticated peers and plan-ID commands | Accepted |
 | [0024](0024-polyglot-monorepo-tooling.md) | Use pnpm workspaces, Turborepo and a justfile alongside the Cargo workspace | Accepted |
+| [0025](0025-code-quality-tooling.md) | Enforce code quality with rustfmt/clippy/nextest and Biome/oxlint/Steiger on TypeScript 7 | Accepted |
