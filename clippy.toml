@@ -1,0 +1,11 @@
+# Destructive filesystem operations are allowed only inside crates/lumen-fs-exec,
+# which acts through verified directory handles (ADR-0016). Anywhere else, an
+# exception needs a local #[allow(clippy::disallowed_methods)] with a justification.
+disallowed-methods = [
+  { path = "std::fs::remove_file", reason = "destructive: use lumen-fs-exec (ADR-0016)" },
+  { path = "std::fs::remove_dir", reason = "destructive: use lumen-fs-exec (ADR-0016)" },
+  { path = "std::fs::remove_dir_all", reason = "destructive: use lumen-fs-exec (ADR-0016)" },
+  { path = "std::fs::rename", reason = "destructive: use lumen-fs-exec (ADR-0016)" },
+  { path = "std::fs::copy", reason = "overwrites the destination: use lumen-fs-exec (ADR-0016)" },
+  { path = "std::fs::set_permissions", reason = "mutates user files: use lumen-fs-exec (ADR-0016)" },
+]

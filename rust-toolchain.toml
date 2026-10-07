@@ -1,0 +1,5 @@
+[toolchain]
+# Upgrades are their own pull requests (ADR-0003).
+channel = "1.99.0"
+profile = "minimal"
+components = ["clippy", "rustfmt"]
