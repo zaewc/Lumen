@@ -17,10 +17,12 @@
 
 mod id;
 mod path;
+mod size;
 mod version;
 
 pub use id::{
     DeviceId, FileId, FileIdentity, IdError, OperationId, PlanId, ScanId, SnapshotId, VolumeId,
 };
 pub use path::{PathError, PathFlavor, RawPath};
+pub use size::{ByteCount, CloneId, ReclaimEstimate, SizeFacts, SizeFlags};
 pub use version::{PolicyVersion, PromptVersion, SchemaVersion, VersionError};
