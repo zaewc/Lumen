@@ -26,6 +26,7 @@ mod id;
 mod inventory;
 mod name;
 mod path;
+mod quarantine;
 mod relationship;
 mod size;
 mod text;
@@ -63,6 +64,9 @@ pub use inventory::{
     ServiceKind, ServiceScope, SignatureCheck,
 };
 pub use path::{PathError, PathFlavor, RawPath};
+pub use quarantine::{
+    ItemLocation, QuarantineEvent, QuarantineFailure, QuarantineState, TransitionError,
+};
 pub use relationship::{RelationKind, Relationship, RelationshipError, SubjectType};
 pub use size::{ByteCount, CloneId, ReclaimEstimate, SizeFacts, SizeFlags};
 pub use text::{UntrustedText, UntrustedTextTooLong};
