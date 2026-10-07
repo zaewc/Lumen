@@ -1,0 +1,27 @@
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.webp binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+
+# Generated files: excluded from language statistics. Lockfile diffs stay visible
+# on purpose: new dependencies are review items (ADR-0026).
+Cargo.lock linguist-generated=true
+pnpm-lock.yaml linguist-generated=true
+schemas/** linguist-generated=true
+packages/api-client/src/generated/** linguist-generated=true

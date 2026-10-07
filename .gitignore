@@ -1,0 +1,57 @@
+# Rust
+/target/
+**/*.rs.bk
+*.profraw
+*.profdata
+
+# Node / pnpm
+node_modules/
+.pnpm-store/
+.turbo/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# Expo / React Native
+apps/mobile/.expo/
+apps/mobile/ios/
+apps/mobile/android/
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+
+# Xcode
+xcuserdata/
+DerivedData/
+*.xcuserstate
+
+# Gradle / Android
+.gradle/
+local.properties
+*.apk
+*.aab
+
+# Local databases and fixtures created by tests or dev runs
+*.db
+*.db-shm
+*.db-wal
+/.lumen-dev/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
