@@ -14,3 +14,9 @@
 //! See `docs/architecture/system.md` for the model this crate implements.
 
 #![forbid(unsafe_code)]
+
+mod id;
+
+pub use id::{
+    DeviceId, FileId, FileIdentity, IdError, OperationId, PlanId, ScanId, SnapshotId, VolumeId,
+};
