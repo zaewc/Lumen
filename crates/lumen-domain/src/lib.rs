@@ -15,6 +15,7 @@
 
 #![forbid(unsafe_code)]
 
+mod capability;
 mod coverage;
 mod id;
 mod name;
@@ -22,6 +23,9 @@ mod path;
 mod size;
 mod version;
 
+pub use capability::{
+    CapabilityError, CleanupMechanism, Observation, Platform, PlatformCapabilities, Reversibility,
+};
 pub use coverage::{
     AccessState, CoverageReport, DenialReason, FailureKind, RootCoverage, RootEntry, SourceName,
     SourceNameError, SourceStatus,
