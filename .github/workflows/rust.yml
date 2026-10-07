@@ -64,3 +64,28 @@ jobs:
         run: cargo nextest run --workspace --locked --no-tests=warn
       - name: Doctests
         run: cargo test --workspace --doc --locked
+
+  msrv:
+    name: msrv
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned and MSRV toolchains
+        # The MSRV is read from Cargo.toml so it has a single source (ADR-0003).
+        run: |
+          rustup toolchain install
+          msrv=$(cargo metadata --no-deps --format-version 1 | jq -r '[.packages[].rust_version] | unique | .[]')
+          echo "MSRV: ${msrv}"
+          rustup toolchain install "${msrv}" --profile minimal
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: cargo-hack
+      - name: Check every crate builds on its declared rust-version
+        run: cargo hack check --rust-version --workspace --locked
