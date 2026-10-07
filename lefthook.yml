@@ -1,0 +1,26 @@
+# Git hooks (ADR-0025). Install once per clone: `lefthook install`.
+# Never bypass with --no-verify; fix the cause instead.
+# Prerequisites: lefthook, gitleaks, cargo-deny (see justfile).
+
+pre-commit:
+  parallel: true
+  commands:
+    rustfmt:
+      glob: "*.rs"
+      run: cargo fmt --all --check
+    gitleaks:
+      run: gitleaks git --pre-commit --staged --redact --no-banner .
+
+commit-msg:
+  commands:
+    conventional-commit:
+      run: scripts/check-commit-msg.sh {1}
+
+pre-push:
+  commands:
+    clippy:
+      glob: "*.rs"
+      run: cargo clippy --workspace --all-targets --locked -- -D warnings
+    deny:
+      glob: "{Cargo.toml,Cargo.lock,deny.toml,crates/*/Cargo.toml}"
+      run: cargo deny --all-features --locked check
