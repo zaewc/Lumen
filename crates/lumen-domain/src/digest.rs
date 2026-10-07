@@ -89,3 +89,10 @@ b3_digest! {
     /// hash, so the plan that executes is exactly the plan that was shown.
     PlanHash, PlanHashError, "plan hash"
 }
+
+b3_digest! {
+    /// Digest of an exact request or response payload exchanged with a judge
+    /// model, recorded in Jev traces so recorded cassettes can be matched and
+    /// audited without storing the payloads themselves.
+    PayloadHash, PayloadHashError, "payload hash"
+}

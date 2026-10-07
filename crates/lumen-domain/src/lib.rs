@@ -27,6 +27,7 @@ mod escape;
 mod evidence;
 mod id;
 mod inventory;
+mod judgment;
 mod lifecycle;
 mod name;
 mod path;
@@ -52,7 +53,9 @@ pub use decision::{
     DecisionError, FiredRule, JevEffect, PolicyDecision, PolicyStage, Risk, RiskFactor, RiskLevel,
     RuleId, RuleIdError, Verdict,
 };
-pub use digest::{EvidenceHash, EvidenceHashError, PlanHash, PlanHashError};
+pub use digest::{
+    EvidenceHash, EvidenceHashError, PayloadHash, PayloadHashError, PlanHash, PlanHashError,
+};
 pub use entry::{
     CaseSensitivity, EntryKind, EntryTimes, FilesystemEntry, FilesystemKind, Protection, Support,
     Volume, VolumeLocation,
@@ -64,6 +67,10 @@ pub use id::{
 pub use inventory::{
     AppId, AppIdScheme, Application, CodeSignature, Package, PackageManager, Process, Service,
     ServiceKind, ServiceScope, SignatureCheck,
+};
+pub use judgment::{
+    Assessment, ItemRef, JevTrace, JudgeDescriptor, Judgment, JudgmentConfidence,
+    JudgmentRejection, ModelId, OpaqueIdError, ReasonCode, TraceValidation,
 };
 pub use lifecycle::{
     Confirmation, ConfirmationSurface, PlanEvent, PlanState, PlanTransitionError, ScanEvent,
