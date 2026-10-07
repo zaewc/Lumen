@@ -20,68 +20,91 @@ use crate::{
 /// form changes, so old and new hashes can never collide.
 const HASH_DOMAIN: &[u8] = b"lumen.evidence/1\0";
 
-/// Content address of an [`Evidence`] record: `b3:` followed by 64 lowercase hex
-/// digits of BLAKE3.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EvidenceId([u8; 32]);
+/// Defines a 32-byte BLAKE3 digest newtype whose text form is `b3:` followed by
+/// 64 lowercase hex digits (strict: no uppercase, no other prefix).
+macro_rules! b3_digest {
+    ($(#[$meta:meta])* $name:ident, $error:ident, $what:literal) => {
+        $(#[$meta])*
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub struct $name([u8; 32]);
 
-/// Error returned for malformed evidence identifiers.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("evidence ID must be 'b3:' followed by 64 lowercase hex digits")]
-pub struct EvidenceIdError;
+        #[doc = concat!("Error returned for a malformed ", $what, ".")]
+        #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+        #[error("{} must be 'b3:' followed by 64 lowercase hex digits", $what)]
+        pub struct $error;
 
-impl EvidenceId {
-    /// The raw 32-byte digest.
-    pub const fn as_bytes(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
+        impl $name {
+            /// Wraps a raw 32-byte BLAKE3 digest.
+            pub const fn from_bytes(bytes: [u8; 32]) -> Self {
+                Self(bytes)
+            }
 
-impl fmt::Display for EvidenceId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("b3:")?;
-        self.0.iter().try_for_each(|b| write!(f, "{b:02x}"))
-    }
-}
-
-impl fmt::Debug for EvidenceId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "EvidenceId({self})")
-    }
-}
-
-impl FromStr for EvidenceId {
-    type Err = EvidenceIdError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let hex = s.strip_prefix("b3:").ok_or(EvidenceIdError)?;
-        if hex.len() != 64 {
-            return Err(EvidenceIdError);
+            /// The raw 32-byte digest.
+            pub const fn as_bytes(&self) -> &[u8; 32] {
+                &self.0
+            }
         }
-        let nibble = |b: u8| match b {
-            b'0'..=b'9' => Ok(b - b'0'),
-            b'a'..=b'f' => Ok(b - b'a' + 10),
-            _ => Err(EvidenceIdError),
-        };
-        let mut out = [0u8; 32];
-        for (byte, &[hi, lo]) in out.iter_mut().zip(hex.as_bytes().as_chunks::<2>().0) {
-            *byte = (nibble(hi)? << 4) | nibble(lo)?;
+
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str("b3:")?;
+                self.0.iter().try_for_each(|b| write!(f, "{b:02x}"))
+            }
         }
-        Ok(Self(out))
-    }
+
+        impl fmt::Debug for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{}({self})", stringify!($name))
+            }
+        }
+
+        impl FromStr for $name {
+            type Err = $error;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                let hex = s.strip_prefix("b3:").ok_or($error)?;
+                if hex.len() != 64 {
+                    return Err($error);
+                }
+                let nibble = |b: u8| match b {
+                    b'0'..=b'9' => Ok(b - b'0'),
+                    b'a'..=b'f' => Ok(b - b'a' + 10),
+                    _ => Err($error),
+                };
+                let mut out = [0u8; 32];
+                for (byte, &[hi, lo]) in out.iter_mut().zip(hex.as_bytes().as_chunks::<2>().0) {
+                    *byte = (nibble(hi)? << 4) | nibble(lo)?;
+                }
+                Ok(Self(out))
+            }
+        }
+
+        impl Serialize for $name {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                serializer.collect_str(self)
+            }
+        }
+
+        impl<'de> Deserialize<'de> for $name {
+            fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                let text = <std::borrow::Cow<'de, str>>::deserialize(deserializer)?;
+                text.parse().map_err(serde::de::Error::custom)
+            }
+        }
+    };
 }
 
-impl Serialize for EvidenceId {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.collect_str(self)
-    }
+b3_digest! {
+    /// Content address of an [`Evidence`] record: `b3:` followed by 64 lowercase
+    /// hex digits of BLAKE3.
+    EvidenceId, EvidenceIdError, "evidence ID"
 }
 
-impl<'de> Deserialize<'de> for EvidenceId {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let text = <std::borrow::Cow<'de, str>>::deserialize(deserializer)?;
-        text.parse().map_err(serde::de::Error::custom)
-    }
+b3_digest! {
+    /// Digest of a whole evidence bundle (the evidence a decision used). Recorded
+    /// with every policy decision and Jev trace so the decision can be replayed
+    /// (ADR-0013, ADR-0014). Computed as a Merkle root by the evidence graph.
+    EvidenceHash, EvidenceHashError, "evidence hash"
 }
 
 /// What a piece of evidence is about.
@@ -218,7 +241,7 @@ impl Evidence {
         let mut hasher = blake3::Hasher::new();
         hasher.update(HASH_DOMAIN);
         hasher.update(&self.canonical_bytes());
-        EvidenceId(*hasher.finalize().as_bytes())
+        EvidenceId::from_bytes(*hasher.finalize().as_bytes())
     }
 }
 

@@ -17,6 +17,7 @@
 
 mod capability;
 mod coverage;
+mod decision;
 mod entry;
 mod escape;
 mod evidence;
@@ -37,11 +38,18 @@ pub use coverage::{
     AccessState, CoverageReport, DenialReason, FailureKind, RootCoverage, RootEntry, SourceName,
     SourceNameError, SourceStatus,
 };
+pub use decision::{
+    DecisionError, FiredRule, JevEffect, PolicyDecision, PolicyStage, Risk, RiskFactor, RiskLevel,
+    RuleId, RuleIdError, Verdict,
+};
 pub use entry::{
     CaseSensitivity, EntryKind, EntryTimes, FilesystemEntry, FilesystemKind, Protection, Support,
     Volume, VolumeLocation,
 };
-pub use evidence::{Basis, Evidence, EvidenceId, EvidenceIdError, Fact, Provenance, Subject};
+pub use evidence::{
+    Basis, Evidence, EvidenceHash, EvidenceHashError, EvidenceId, EvidenceIdError, Fact,
+    Provenance, Subject,
+};
 pub use id::{
     DeviceId, FileId, FileIdentity, IdError, OperationId, PlanId, ScanId, SnapshotId, VolumeId,
 };
