@@ -20,6 +20,7 @@ mod coverage;
 mod entry;
 mod escape;
 mod id;
+mod inventory;
 mod name;
 mod path;
 mod size;
@@ -40,6 +41,10 @@ pub use entry::{
 };
 pub use id::{
     DeviceId, FileId, FileIdentity, IdError, OperationId, PlanId, ScanId, SnapshotId, VolumeId,
+};
+pub use inventory::{
+    AppId, AppIdScheme, Application, CodeSignature, Package, PackageManager, Process, Service,
+    ServiceKind, ServiceScope, SignatureCheck,
 };
 pub use path::{PathError, PathFlavor, RawPath};
 pub use size::{ByteCount, CloneId, ReclaimEstimate, SizeFacts, SizeFlags};
