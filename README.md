@@ -11,8 +11,9 @@ Target platforms: macOS, Windows, Android, iOS, and a web dashboard.
 
 ## Status
 
-Pre-alpha. Research (Phase 1) and architecture (Phase 2) are complete; no product
-code exists yet. Repository bootstrap (Phase 3) is next; see the
+Pre-alpha. Research (Phase 1), architecture (Phase 2) and repository bootstrap
+(Phase 3: Rust workspace, CI, supply-chain and security checks, hooks) are
+complete; no product code exists yet. The domain model (Phase 4) is next; see the
 [roadmap](docs/architecture/roadmap.md).
 
 ## Documentation
