@@ -19,6 +19,7 @@ mod capability;
 mod coverage;
 mod entry;
 mod escape;
+mod evidence;
 mod id;
 mod inventory;
 mod name;
@@ -39,6 +40,7 @@ pub use entry::{
     CaseSensitivity, EntryKind, EntryTimes, FilesystemEntry, FilesystemKind, Protection, Support,
     Volume, VolumeLocation,
 };
+pub use evidence::{Basis, Evidence, EvidenceId, EvidenceIdError, Fact, Provenance, Subject};
 pub use id::{
     DeviceId, FileId, FileIdentity, IdError, OperationId, PlanId, ScanId, SnapshotId, VolumeId,
 };

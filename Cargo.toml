@@ -12,6 +12,7 @@ repository = "https://github.com/zaewc/Lumen"
 
 [workspace.dependencies]
 # Every dependency needs a reason (AGENTS.md); see the PR that added it.
+blake3 = "1.8.7"
 proptest = "1.11.0"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
