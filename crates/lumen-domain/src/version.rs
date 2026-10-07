@@ -13,6 +13,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::name::is_valid_name;
+
 /// Error returned when a version string is malformed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
@@ -47,21 +49,6 @@ fn parse_number(text: &str) -> Option<u32> {
         && text.bytes().all(|b| b.is_ascii_digit())
         && (text == "0" || !text.starts_with('0'));
     if canonical { text.parse().ok() } else { None }
-}
-
-/// Validates a schema or prompt name: 1–64 bytes of `[a-z0-9.-]`, starting with a
-/// letter, not ending with `.` or `-`.
-fn is_valid_name(name: &str) -> bool {
-    let bytes = name.as_bytes();
-    let (Some(first), Some(last)) = (bytes.first(), bytes.last()) else {
-        return false;
-    };
-    bytes.len() <= 64
-        && first.is_ascii_lowercase()
-        && !matches!(last, b'.' | b'-')
-        && bytes
-            .iter()
-            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'.' | b'-'))
 }
 
 macro_rules! string_serde {

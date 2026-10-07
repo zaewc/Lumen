@@ -15,11 +15,17 @@
 
 #![forbid(unsafe_code)]
 
+mod coverage;
 mod id;
+mod name;
 mod path;
 mod size;
 mod version;
 
+pub use coverage::{
+    AccessState, CoverageReport, DenialReason, FailureKind, RootCoverage, RootEntry, SourceName,
+    SourceNameError, SourceStatus,
+};
 pub use id::{
     DeviceId, FileId, FileIdentity, IdError, OperationId, PlanId, ScanId, SnapshotId, VolumeId,
 };
