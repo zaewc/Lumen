@@ -1,0 +1,30 @@
+# Code owners (ADR-0026). Later, more specific rules take precedence.
+# Safety-critical paths are listed explicitly so that adding maintainers later
+# can tighten review on exactly these areas.
+
+*                                   @zaewc
+
+# Safety policy, destructive executor and quarantine (ADR-0014, ADR-0015, ADR-0016)
+/crates/lumen-policy/               @zaewc
+/crates/lumen-fs-exec/              @zaewc
+/clippy.toml                        @zaewc
+
+# IPC and trust boundaries (ADR-0023)
+/crates/lumen-ipc/                  @zaewc
+/apps/desktop/src-tauri/capabilities/ @zaewc
+
+# AI judge: prompts, schemas, datasets, evaluation (ADR-0020)
+/crates/lumen-jev/                  @zaewc
+/crates/lumen-jev-eval/             @zaewc
+/ai/                                @zaewc
+
+# Supply chain and CI (ADR-0026)
+/.github/                           @zaewc
+/deny.toml                          @zaewc
+/renovate.json                      @zaewc
+/lefthook.yml                       @zaewc
+
+# Decisions and security documentation
+/docs/decisions/                    @zaewc
+/docs/security/                     @zaewc
+/SECURITY.md                        @zaewc
