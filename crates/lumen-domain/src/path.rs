@@ -19,11 +19,7 @@ use std::fmt;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-/// Opening delimiter of display escapes. Chosen because it is rare in real file
-/// names and unrelated to path separators on every platform. A literal occurrence
-/// is itself escaped, so every escape in a display string is unambiguous.
-const ESC_OPEN: char = '⟦';
-const ESC_CLOSE: char = '⟧';
+use crate::escape::{Escape, push_display_char, push_escape};
 
 /// Which platform's path model a [`RawPath`] uses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -180,64 +176,6 @@ fn reject_nul(bytes: &[u8]) -> Result<(), PathError> {
     }
 }
 
-/// Whether a character must be escaped in display output.
-pub(crate) fn needs_escape(c: char) -> bool {
-    c == ESC_OPEN
-        || c.is_control()
-        || matches!(c, '\u{2028}' | '\u{2029}')
-        || is_default_ignorable(c)
-}
-
-/// Unicode `Default_Ignorable_Code_Point` (DerivedCoreProperties): characters
-/// that render invisibly. Includes all bidirectional formatting characters
-/// (U+061C, U+200E–U+200F, U+202A–U+202E, U+2066–U+2069).
-fn is_default_ignorable(c: char) -> bool {
-    matches!(
-        u32::from(c),
-        0x00AD
-            | 0x034F
-            | 0x061C
-            | 0x115F..=0x1160
-            | 0x17B4..=0x17B5
-            | 0x180B..=0x180F
-            | 0x200B..=0x200F
-            | 0x202A..=0x202E
-            | 0x2060..=0x206F
-            | 0x3164
-            | 0xFE00..=0xFE0F
-            | 0xFEFF
-            | 0xFFA0
-            | 0xFFF0..=0xFFF8
-            | 0x1BCA0..=0x1BCA3
-            | 0x1D173..=0x1D17A
-            | 0xE0000..=0xE0FFF
-    )
-}
-
-fn push_display_char(out: &mut String, c: char) {
-    if needs_escape(c) {
-        push_escape(out, Escape::CodePoint(u32::from(c)));
-    } else {
-        out.push(c);
-    }
-}
-
-#[derive(Clone, Copy)]
-enum Escape {
-    CodePoint(u32),
-    Byte(u8),
-}
-
-fn push_escape(out: &mut String, escape: Escape) {
-    use std::fmt::Write as _;
-    let written = match escape {
-        Escape::CodePoint(cp) => write!(out, "{ESC_OPEN}U+{cp:04X}{ESC_CLOSE}"),
-        Escape::Byte(b) => write!(out, "{ESC_OPEN}0x{b:02X}{ESC_CLOSE}"),
-    };
-    // Formatting into a String cannot fail.
-    debug_assert!(written.is_ok());
-}
-
 /// Encodes UTF-16 code units as WTF-8: paired surrogates become one 4-byte
 /// sequence; unpaired surrogates use the 3-byte generalized UTF-8 form.
 fn wtf8_encode(units: &[u16]) -> Vec<u8> {
@@ -383,6 +321,7 @@ mod tests {
     use proptest::prelude::*;
 
     use super::*;
+    use crate::escape::{ESC_CLOSE, ESC_OPEN, needs_escape};
 
     fn unix(bytes: &[u8]) -> Result<RawPath, PathError> {
         RawPath::from_unix_bytes(bytes.to_vec())
