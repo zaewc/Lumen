@@ -16,7 +16,9 @@
 #![forbid(unsafe_code)]
 
 mod id;
+mod version;
 
 pub use id::{
     DeviceId, FileId, FileIdentity, IdError, OperationId, PlanId, ScanId, SnapshotId, VolumeId,
 };
+pub use version::{PolicyVersion, PromptVersion, SchemaVersion, VersionError};
