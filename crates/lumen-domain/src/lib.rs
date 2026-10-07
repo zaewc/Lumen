@@ -18,10 +18,12 @@
 mod capability;
 mod coverage;
 mod entry;
+mod escape;
 mod id;
 mod name;
 mod path;
 mod size;
+mod text;
 mod time;
 mod version;
 
@@ -41,5 +43,6 @@ pub use id::{
 };
 pub use path::{PathError, PathFlavor, RawPath};
 pub use size::{ByteCount, CloneId, ReclaimEstimate, SizeFacts, SizeFlags};
+pub use text::{UntrustedText, UntrustedTextTooLong};
 pub use time::{Timestamp, TimestampError};
 pub use version::{PolicyVersion, PromptVersion, SchemaVersion, VersionError};
