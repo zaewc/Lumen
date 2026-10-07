@@ -15,6 +15,7 @@
 
 #![forbid(unsafe_code)]
 
+mod candidate;
 mod capability;
 mod coverage;
 mod decision;
@@ -31,6 +32,10 @@ mod text;
 mod time;
 mod version;
 
+pub use candidate::{
+    CandidateError, CandidateParts, CandidateTarget, Category, CleanupAction, CleanupCandidate,
+    Confidence,
+};
 pub use capability::{
     CapabilityError, CleanupMechanism, Observation, Platform, PlatformCapabilities, Reversibility,
 };
