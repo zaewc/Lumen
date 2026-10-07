@@ -5,10 +5,14 @@
 > larger than roughly 400 changed lines of non-generated code, split it before
 > starting. Items within a phase are ordered by dependency.
 
-Phases 1 (research) and 2 (architecture) are complete: see
-[`docs/research/`](../research/) and [`docs/decisions/`](../decisions/README.md).
+Phases 1 (research), 2 (architecture) and 3 (repository bootstrap) are complete:
+see [`docs/research/`](../research/) and [`docs/decisions/`](../decisions/README.md).
 
-## Phase 3: Repository bootstrap
+## Phase 3: Repository bootstrap (complete)
+
+Items 3.3 and 3.4 shipped as one PR (#57): Cargo rejects a virtual workspace whose
+member glob matches nothing, so the workspace and its first member are indivisible.
+The `gen` recipe from 3.12 is deferred until `xtask` exists (4.16).
 
 | # | PR title | Content |
 | --- | --- | --- |

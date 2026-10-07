@@ -39,8 +39,9 @@ files you will touch, trace dependencies, inspect tests, then change.
 3. **Plan the smallest change** that is one logical unit. If it would exceed about
    400 changed lines of non-generated code, or mixes concerns: **stop and split**.
 4. **Implement** on a branch named `<type>/<short-slug>` from an up-to-date `main`.
-5. **Verify:** `just check` (format, lint, typecheck, tests, schema drift). Run
-   relevant integration tests. Fix root causes; never weaken a check.
+5. **Verify:** `just check` (today: format, clippy, tests, cargo-deny; typecheck
+   and schema drift join when that code exists). Run relevant integration tests.
+   Fix root causes; never weaken a check.
 6. **Commit** one Conventional Commit (`type(scope): summary`).
 7. **PR:** `gh pr create` with the template sections (Summary, Why, Changes, Tests,
    Security, Risks, Follow-up).
@@ -48,8 +49,9 @@ files you will touch, trace dependencies, inspect tests, then change.
    `git checkout main && git pull --ff-only`.
 9. **Continue** with the next atomic change.
 
-Until `just` and CI land (roadmap Phase 3), run the equivalent `cargo` commands
-directly.
+One-time setup per clone: install rustup, `cargo-nextest`, `cargo-deny`, `just`,
+`lefthook` and `gitleaks`, then run `lefthook install`. CI runs the same checks
+plus OSV-Scanner, CodeQL, zizmor, actionlint, the MSRV build and the PR-title check.
 
 ## Hard rules
 
