@@ -1,0 +1,28 @@
+name: pr-title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  conventional-commit:
+    name: conventional-commit
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+      - name: Check PR title follows Conventional Commits (ADR-0027)
+        env:
+          # Passed via env, never interpolated into the script, so a crafted
+          # title cannot inject shell code.
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          types='feat|fix|docs|test|refactor|perf|build|ci|chore|revert'
+          re="^(${types})(\([a-z0-9][a-z0-9-]*\))?!?: [a-z0-9\`].{1,90}$"
+          if [[ "$TITLE" =~ $re ]]; then
+            echo "ok: $TITLE"
+          else
+            echo "::error title=PR title::'$TITLE' must match 'type(scope): summary' (types: ${types//|/, }; lowercase summary; at most ~100 characters)."
+            exit 1
+          fi
