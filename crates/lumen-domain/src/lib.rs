@@ -24,6 +24,7 @@ mod id;
 mod inventory;
 mod name;
 mod path;
+mod relationship;
 mod size;
 mod text;
 mod time;
@@ -49,6 +50,7 @@ pub use inventory::{
     ServiceKind, ServiceScope, SignatureCheck,
 };
 pub use path::{PathError, PathFlavor, RawPath};
+pub use relationship::{RelationKind, Relationship, RelationshipError, SubjectType};
 pub use size::{ByteCount, CloneId, ReclaimEstimate, SizeFacts, SizeFlags};
 pub use text::{UntrustedText, UntrustedTextTooLong};
 pub use time::{Timestamp, TimestampError};
