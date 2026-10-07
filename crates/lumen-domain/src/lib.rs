@@ -15,6 +15,9 @@
 
 #![forbid(unsafe_code)]
 
+#[macro_use]
+mod digest;
+
 mod candidate;
 mod capability;
 mod coverage;
@@ -24,6 +27,7 @@ mod escape;
 mod evidence;
 mod id;
 mod inventory;
+mod lifecycle;
 mod name;
 mod path;
 mod quarantine;
@@ -48,20 +52,22 @@ pub use decision::{
     DecisionError, FiredRule, JevEffect, PolicyDecision, PolicyStage, Risk, RiskFactor, RiskLevel,
     RuleId, RuleIdError, Verdict,
 };
+pub use digest::{EvidenceHash, EvidenceHashError, PlanHash, PlanHashError};
 pub use entry::{
     CaseSensitivity, EntryKind, EntryTimes, FilesystemEntry, FilesystemKind, Protection, Support,
     Volume, VolumeLocation,
 };
-pub use evidence::{
-    Basis, Evidence, EvidenceHash, EvidenceHashError, EvidenceId, EvidenceIdError, Fact,
-    Provenance, Subject,
-};
+pub use evidence::{Basis, Evidence, EvidenceId, EvidenceIdError, Fact, Provenance, Subject};
 pub use id::{
     DeviceId, FileId, FileIdentity, IdError, OperationId, PlanId, ScanId, SnapshotId, VolumeId,
 };
 pub use inventory::{
     AppId, AppIdScheme, Application, CodeSignature, Package, PackageManager, Process, Service,
     ServiceKind, ServiceScope, SignatureCheck,
+};
+pub use lifecycle::{
+    Confirmation, ConfirmationSurface, PlanEvent, PlanState, PlanTransitionError, ScanEvent,
+    ScanState, ScanTransitionError,
 };
 pub use path::{PathError, PathFlavor, RawPath};
 pub use quarantine::{
