@@ -12,7 +12,8 @@ use std::str::FromStr;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-    AppId, CodeSignature, FileIdentity, Protection, SourceName, Timestamp, UntrustedText, VolumeId,
+    AppId, CodeSignature, FileIdentity, Protection, ServiceKind, SourceName, Timestamp,
+    UntrustedText, VolumeId,
 };
 
 /// Domain-separation prefix for evidence hashing. Bumped whenever the canonical
@@ -102,6 +103,21 @@ pub enum Subject {
     Volume {
         /// Volume identifier.
         id: VolumeId,
+    },
+    /// A running process. PIDs are reused, so the start time is part of the key
+    /// whenever the platform reports it.
+    Process {
+        /// Process ID.
+        pid: u32,
+        /// Process start time.
+        started_at: Option<Timestamp>,
+    },
+    /// A background, startup or scheduled component.
+    Service {
+        /// Component kind.
+        kind: ServiceKind,
+        /// Label, service name or task name.
+        label: UntrustedText,
     },
 }
 
