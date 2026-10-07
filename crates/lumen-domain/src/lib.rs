@@ -17,6 +17,7 @@
 
 mod capability;
 mod coverage;
+mod entry;
 mod id;
 mod name;
 mod path;
@@ -30,6 +31,10 @@ pub use capability::{
 pub use coverage::{
     AccessState, CoverageReport, DenialReason, FailureKind, RootCoverage, RootEntry, SourceName,
     SourceNameError, SourceStatus,
+};
+pub use entry::{
+    CaseSensitivity, EntryKind, EntryTimes, FilesystemEntry, FilesystemKind, Protection, Support,
+    Volume, VolumeLocation,
 };
 pub use id::{
     DeviceId, FileId, FileIdentity, IdError, OperationId, PlanId, ScanId, SnapshotId, VolumeId,
