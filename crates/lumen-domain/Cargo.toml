@@ -1,0 +1,13 @@
+[package]
+name = "lumen-domain"
+description = "Lumen's platform-independent domain model: identifiers, entities, evidence, decisions and state machines."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true
