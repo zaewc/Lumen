@@ -21,6 +21,7 @@ mod id;
 mod name;
 mod path;
 mod size;
+mod time;
 mod version;
 
 pub use capability::{
@@ -35,4 +36,5 @@ pub use id::{
 };
 pub use path::{PathError, PathFlavor, RawPath};
 pub use size::{ByteCount, CloneId, ReclaimEstimate, SizeFacts, SizeFlags};
+pub use time::{Timestamp, TimestampError};
 pub use version::{PolicyVersion, PromptVersion, SchemaVersion, VersionError};
