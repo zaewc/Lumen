@@ -11,10 +11,11 @@ Target platforms: macOS, Windows, Android, iOS, and a web dashboard.
 
 ## Status
 
-Pre-alpha. Research (Phase 1), architecture (Phase 2) and repository bootstrap
-(Phase 3: Rust workspace, CI, supply-chain and security checks, hooks) are
-complete; no product code exists yet. The domain model (Phase 4) is next; see the
-[roadmap](docs/architecture/roadmap.md).
+Pre-alpha. Research (Phase 1), architecture (Phase 2), repository bootstrap
+(Phase 3: Rust workspace, CI, supply-chain and security checks, hooks) and the
+domain model (Phase 4: [`lumen-domain`](docs/architecture/domain.md) with committed
+JSON Schemas) are complete. Lumen cannot scan or clean anything yet; the scanner
+(Phase 5) is next. See the [roadmap](docs/architecture/roadmap.md).
 
 ## Documentation
 
