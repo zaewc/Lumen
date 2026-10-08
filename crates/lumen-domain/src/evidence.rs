@@ -25,7 +25,9 @@ b3_digest! {
 }
 
 /// What a piece of evidence is about.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum Subject {
@@ -63,7 +65,7 @@ pub enum Subject {
 
 /// A typed fact. Each variant fixes the type of its value, so a fact can never be
 /// paired with the wrong kind of value.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "fact", content = "value", rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum Fact {
@@ -104,7 +106,7 @@ pub enum Fact {
 }
 
 /// How a fact was established.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "basis", rename_all = "snake_case")]
 pub enum Basis {
     /// Directly observed.
@@ -118,7 +120,7 @@ pub enum Basis {
 }
 
 /// Where a fact came from.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Provenance {
     /// Adapter that produced the fact, e.g. `macos.getattrlistbulk`.
     pub source: SourceName,
@@ -127,7 +129,7 @@ pub struct Provenance {
 }
 
 /// One immutable fact about one subject.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Evidence {
     /// What the fact is about.
     pub subject: Subject,

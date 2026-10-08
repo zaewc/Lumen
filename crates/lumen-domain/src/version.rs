@@ -257,6 +257,10 @@ impl FromStr for PromptVersion {
 
 string_serde!(PromptVersion);
 
+manual_schema!(PolicyVersion, "PolicyVersion", { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" });
+manual_schema!(SchemaVersion, "SchemaVersion", { "type": "string", "pattern": concat!("^", name_regex!(), "/[1-9][0-9]*(\\.(0|[1-9][0-9]*))?$") });
+manual_schema!(PromptVersion, "PromptVersion", { "type": "string", "pattern": concat!("^", name_regex!(), "/[1-9][0-9]*$") });
+
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;

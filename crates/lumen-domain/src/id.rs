@@ -273,13 +273,23 @@ impl<'de> Deserialize<'de> for FileId {
 ///
 /// Lumen keys every decision on identity rather than path text (ADR-0013,
 /// ADR-0016), because paths can be swapped, normalised differently, or hard-linked.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct FileIdentity {
     /// Volume holding the file.
     pub volume: VolumeId,
     /// File identifier within the volume.
     pub file: FileId,
 }
+
+manual_schema!(DeviceId, "DeviceId", { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "description": "Lowercase hyphenated UUID; never the nil UUID." });
+manual_schema!(ScanId, "ScanId", { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "description": "Lowercase hyphenated UUID; never the nil UUID." });
+manual_schema!(SnapshotId, "SnapshotId", { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "description": "Lowercase hyphenated UUID; never the nil UUID." });
+manual_schema!(PlanId, "PlanId", { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "description": "Lowercase hyphenated UUID; never the nil UUID." });
+manual_schema!(OperationId, "OperationId", { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "description": "Lowercase hyphenated UUID; never the nil UUID." });
+manual_schema!(VolumeId, "VolumeId", { "type": "string", "pattern": "^[!-~]{1,128}$", "description": "Opaque platform volume identifier: 1-128 bytes of visible ASCII." });
+manual_schema!(FileId, "FileId", { "type": "string", "pattern": "^(0|[1-9][0-9]{0,38})$", "description": "Unsigned 128-bit file identifier as a canonical decimal string." });
 
 #[cfg(test)]
 mod tests {

@@ -106,7 +106,9 @@ fn parse_canonical_u64(text: &str) -> Option<u64> {
 }
 
 /// Storage properties that change what deleting a file frees.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[allow(clippy::struct_excessive_bools)] // Independent platform flags, not a state machine.
 pub struct SizeFlags {
     /// Sparse file: logical size exceeds allocated size.
@@ -123,7 +125,7 @@ pub struct SizeFlags {
 }
 
 /// Size facts for one directory entry, as observed by a scanner.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SizeFacts {
     /// File identity; entries with the same identity are links to one file.
     pub identity: FileIdentity,
@@ -159,7 +161,9 @@ impl SizeFacts {
 }
 
 /// What removing a selection of entries would free.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct ReclaimEstimate {
     /// Sum of logical sizes, once per file.
     pub logical: ByteCount,
@@ -212,6 +216,9 @@ impl ReclaimEstimate {
         estimate
     }
 }
+
+manual_schema!(ByteCount, "ByteCount", { "type": "string", "pattern": "^(0|[1-9][0-9]{0,19})$", "description": "Unsigned 64-bit byte count as a canonical decimal string." });
+manual_schema!(CloneId, "CloneId", { "type": "string", "pattern": "^(0|[1-9][0-9]{0,19})$" });
 
 #[cfg(test)]
 mod tests {

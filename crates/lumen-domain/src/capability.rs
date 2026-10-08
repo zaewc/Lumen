@@ -11,7 +11,19 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 /// Operating system Lumen is running on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum Platform {
     /// macOS.
@@ -38,7 +50,19 @@ impl Platform {
 }
 
 /// Something Lumen can observe.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum Observation {
     /// Walk the user's filesystem (all of it on desktop; shared storage on Android).
@@ -61,7 +85,19 @@ pub enum Observation {
 }
 
 /// A way Lumen can free space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum CleanupMechanism {
     /// Same-volume rename into Lumen's quarantine store (ADR-0015).
@@ -83,7 +119,19 @@ pub enum CleanupMechanism {
 }
 
 /// Whether an action can be undone.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum Reversibility {
     /// Lumen (or the platform) can restore the item exactly.
@@ -134,7 +182,7 @@ pub enum CapabilityError {
 }
 
 /// What the running host can observe and do. Always within the platform ceiling.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, schemars::JsonSchema)]
 pub struct PlatformCapabilities {
     platform: Platform,
     observations: BTreeSet<Observation>,

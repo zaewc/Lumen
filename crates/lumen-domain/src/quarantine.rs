@@ -13,7 +13,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Why a quarantine step failed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum QuarantineFailure {
@@ -30,7 +30,7 @@ pub enum QuarantineFailure {
 }
 
 /// Where the item physically is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ItemLocation {
     /// At its original location.
@@ -42,7 +42,7 @@ pub enum ItemLocation {
 }
 
 /// Lifecycle state of one quarantined item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum QuarantineState {
     /// Part of a confirmed plan; nothing done yet.
@@ -70,7 +70,7 @@ pub enum QuarantineState {
 }
 
 /// An event an executor reports.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "event", rename_all = "snake_case")]
 pub enum QuarantineEvent {
     /// The intent record is durable.

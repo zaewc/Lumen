@@ -15,7 +15,19 @@ use crate::{
 };
 
 /// What kind of artifact a candidate is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum Category {
@@ -45,7 +57,19 @@ pub enum Category {
 
 /// How sure the deterministic rules are about the classification (not Jev's
 /// confidence, which is recorded separately in its trace).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum Confidence {
     /// Weak or partial evidence.
@@ -57,7 +81,7 @@ pub enum Confidence {
 }
 
 /// An action Lumen can propose.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "action", rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum CleanupAction {
@@ -104,7 +128,7 @@ impl CleanupAction {
 }
 
 /// What a candidate refers to: one subject, and the filesystem objects involved.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CandidateTarget {
     /// The artifact's subject (a file or directory, or an application/service for
     /// orphan findings).
@@ -135,7 +159,7 @@ pub enum CandidateError {
 }
 
 /// A reviewed unit of potential cleanup.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, schemars::JsonSchema)]
 pub struct CleanupCandidate {
     target: CandidateTarget,
     size: ReclaimEstimate,

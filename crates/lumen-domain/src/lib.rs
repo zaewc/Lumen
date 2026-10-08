@@ -16,6 +16,8 @@
 #![forbid(unsafe_code)]
 
 #[macro_use]
+mod schema;
+#[macro_use]
 mod digest;
 
 mod candidate;

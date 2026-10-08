@@ -12,7 +12,19 @@ use serde::{Deserialize, Serialize};
 use crate::{FileIdentity, RawPath, SourceName, Timestamp, UntrustedText};
 
 /// How an application identifier is defined.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum AppIdScheme {
@@ -29,7 +41,9 @@ pub enum AppIdScheme {
 }
 
 /// One identifier of an application under a given scheme.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct AppId {
     /// Identifier scheme.
     pub scheme: AppIdScheme,
@@ -38,7 +52,7 @@ pub struct AppId {
 }
 
 /// Result of verifying a code signature with the platform's own APIs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SignatureCheck {
     /// The platform validated the signature.
@@ -52,7 +66,7 @@ pub enum SignatureCheck {
 }
 
 /// Who signed a binary, and whether the platform verified it.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CodeSignature {
     /// Apple Team ID, Authenticode publisher, or Android signing certificate
     /// digest, as reported.
@@ -73,7 +87,7 @@ impl CodeSignature {
 }
 
 /// An installed application, merged from one or more inventory sources.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Application {
     /// Identifiers under every known scheme.
     pub ids: BTreeSet<AppId>,
@@ -99,7 +113,7 @@ impl Application {
 }
 
 /// A running process.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Process {
     /// Process ID. Only meaningful together with `started_at`, because PIDs are
     /// reused.
@@ -115,7 +129,19 @@ pub struct Process {
 }
 
 /// Kind of background or startup component.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum ServiceKind {
@@ -136,7 +162,7 @@ pub enum ServiceKind {
 }
 
 /// Whether a service runs for one user or for the whole system.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ServiceScope {
     /// Runs as the user.
@@ -146,7 +172,7 @@ pub enum ServiceScope {
 }
 
 /// A background, startup or scheduled component.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Service {
     /// Component kind.
     pub kind: ServiceKind,
@@ -165,7 +191,19 @@ pub struct Service {
 }
 
 /// Installer or package manager that recorded a package.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum PackageManager {
@@ -184,7 +222,7 @@ pub enum PackageManager {
 }
 
 /// A package recorded by an installer or package manager.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Package {
     /// Recording installer or manager.
     pub manager: PackageManager,
