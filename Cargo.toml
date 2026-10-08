@@ -12,6 +12,7 @@ repository = "https://github.com/zaewc/Lumen"
 
 [workspace.dependencies]
 # Every dependency needs a reason (AGENTS.md); see the PR that added it.
+lumen-application = { path = "crates/lumen-application" }
 lumen-domain = { path = "crates/lumen-domain" }
 blake3 = "1.8.7"
 # Test-only validator; defaults pull an HTTP client and a TLS stack we do not need.
