@@ -5,7 +5,7 @@
 > larger than roughly 400 changed lines of non-generated code, split it before
 > starting. Items within a phase are ordered by dependency.
 
-Phases 1 (research), 2 (architecture) and 3 (repository bootstrap) are complete:
+Phases 1 (research), 2 (architecture), 3 (repository bootstrap) and 4 (domain) are complete:
 see [`docs/research/`](../research/) and [`docs/decisions/`](../decisions/README.md).
 
 ## Phase 3: Repository bootstrap (complete)
@@ -41,7 +41,13 @@ JavaScript tooling (pnpm workspace, Biome, TypeScript config, Turborepo) is
 bootstrapped at the start of the UI phase, so that it lands with the first real
 TypeScript code.
 
-## Phase 4: Domain (`lumen-domain`)
+## Phase 4: Domain (`lumen-domain`) (complete)
+
+Shipped as #71–#90; see [domain.md](domain.md). Changes from the plan: a UTC
+`Timestamp` type (#77) and `UntrustedText` (#79) were added as prerequisites for
+entries and inventory; `EvidenceHash`, `PlanHash` and `PayloadHash` digests were added
+with the decision, plan and judgment types; 4.16 was split into JSON Schema
+implementations (#88) and the xtask exporter with a CI drift check (#89).
 
 | # | PR title | Content |
 | --- | --- | --- |
