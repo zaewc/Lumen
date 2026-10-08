@@ -67,6 +67,16 @@ pub enum EnumerateError {
         /// Offending path.
         path: RawPath,
     },
+    /// The object itself could not be observed: it does not exist (any more), or
+    /// a parent directory refuses access. `access` says which; it is never
+    /// [`AccessState::Readable`].
+    #[error("{path:?} could not be observed ({access:?})")]
+    Unobservable {
+        /// Path that was looked up.
+        path: RawPath,
+        /// Why it could not be observed.
+        access: AccessState,
+    },
 }
 
 /// Reads filesystem metadata, one directory at a time (ADR-0017).
@@ -79,8 +89,9 @@ pub trait DirEnumerator: Send + Sync {
     ///
     /// # Errors
     ///
-    /// Returns [`EnumerateError`] only for unusable paths; an unreadable object is
-    /// reported in the entry's `access` field.
+    /// Returns [`EnumerateError::Unobservable`] if the object is missing or a
+    /// parent denies access, and [`EnumerateError::UnsupportedPath`] for paths this
+    /// platform cannot use.
     fn stat(&self, path: &RawPath) -> Result<FilesystemEntry, EnumerateError>;
 
     /// Delivers the entries of the directory at `path` to `sink`, in no particular
@@ -93,7 +104,9 @@ pub trait DirEnumerator: Send + Sync {
     /// # Errors
     ///
     /// Returns [`EnumerateError`] if the identity changed, the object is not a
-    /// directory, or the path is unusable.
+    /// directory (links to directories are not directories), the directory itself
+    /// cannot be observed, or the path is unusable. A directory whose *contents*
+    /// cannot be read is not an error: see [`DirOutcome::access`].
     fn read_dir(
         &self,
         path: &RawPath,
