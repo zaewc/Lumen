@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PlanState",
+  "description": "Lifecycle state of a cleanup plan.",
+  "oneOf": [
+    {
+      "description": "Being assembled.",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "const": "draft"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    },
+    {
+      "description": "Shown to the user, identified by its hash.",
+      "type": "object",
+      "properties": {
+        "plan_hash": {
+          "description": "Hash of the proposed plan.",
+          "$ref": "#/$defs/PlanHash"
+        },
+        "state": {
+          "type": "string",
+          "const": "proposed"
+        }
+      },
+      "required": [
+        "state",
+        "plan_hash"
+      ]
+    },
+    {
+      "description": "The user confirmed this exact plan.",
+      "type": "object",
+      "properties": {
+        "confirmation": {
+          "description": "The confirmation, naming the plan hash.",
+          "$ref": "#/$defs/Confirmation"
+        },
+        "state": {
+          "type": "string",
+          "const": "confirmed"
+        }
+      },
+      "required": [
+        "state",
+        "confirmation"
+      ]
+    },
+    {
+      "description": "Items are being executed.",
+      "type": "object",
+      "properties": {
+        "confirmation": {
+          "description": "The confirmation that authorized execution.",
+          "$ref": "#/$defs/Confirmation"
+        },
+        "state": {
+          "type": "string",
+          "const": "executing"
+        }
+      },
+      "required": [
+        "state",
+        "confirmation"
+      ]
+    },
+    {
+      "description": "Every item succeeded.",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "const": "completed"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    },
+    {
+      "description": "Some items were skipped or failed (each item's own lifecycle says which).",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "const": "partially_completed"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    },
+    {
+      "description": "Completed items were restored.",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "const": "rolled_back"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    },
+    {
+      "description": "Discarded before execution.",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "const": "abandoned"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    }
+  ],
+  "$defs": {
+    "Confirmation": {
+      "description": "A user's confirmation of one specific plan.",
+      "type": "object",
+      "properties": {
+        "confirmed_at": {
+          "description": "When the user confirmed.",
+          "$ref": "#/$defs/Timestamp"
+        },
+        "plan_hash": {
+          "description": "Hash of the plan the user saw and confirmed.",
+          "$ref": "#/$defs/PlanHash"
+        },
+        "surface": {
+          "description": "Where the user confirmed.",
+          "$ref": "#/$defs/ConfirmationSurface"
+        }
+      },
+      "required": [
+        "plan_hash",
+        "confirmed_at",
+        "surface"
+      ]
+    },
+    "ConfirmationSurface": {
+      "description": "Where a confirmation was given.",
+      "oneOf": [
+        {
+          "description": "The desktop app.",
+          "type": "string",
+          "const": "desktop_app"
+        },
+        {
+          "description": "The optional local browser dashboard.",
+          "type": "string",
+          "const": "browser_dashboard"
+        },
+        {
+          "description": "The mobile app.",
+          "type": "string",
+          "const": "mobile_app"
+        }
+      ]
+    },
+    "PlanHash": {
+      "type": "string",
+      "pattern": "^b3:[0-9a-f]{64}$"
+    },
+    "Timestamp": {
+      "description": "Canonical RFC 3339 UTC, fraction without trailing zeros.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{0,8}[1-9])?Z$"
+    }
+  }
+}

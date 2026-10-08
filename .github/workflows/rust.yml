@@ -89,3 +89,23 @@ jobs:
           tool: cargo-hack
       - name: Check every crate builds on its declared rust-version
         run: cargo hack check --rust-version --workspace --locked
+
+  schemas:
+    name: schemas
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned toolchain
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Committed JSON Schemas match the Rust types (ADR-0011)
+        run: cargo xtask schema --check

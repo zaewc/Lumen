@@ -1,0 +1,629 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evidence",
+  "description": "One immutable fact about one subject.",
+  "type": "object",
+  "properties": {
+    "basis": {
+      "description": "How it was established.",
+      "$ref": "#/$defs/Basis"
+    },
+    "fact": {
+      "description": "The fact.",
+      "$ref": "#/$defs/Fact"
+    },
+    "provenance": {
+      "description": "Where and when it was observed.",
+      "$ref": "#/$defs/Provenance"
+    },
+    "subject": {
+      "description": "What the fact is about.",
+      "$ref": "#/$defs/Subject"
+    }
+  },
+  "required": [
+    "subject",
+    "fact",
+    "basis",
+    "provenance"
+  ],
+  "$defs": {
+    "AppId": {
+      "description": "One identifier of an application under a given scheme.",
+      "type": "object",
+      "properties": {
+        "scheme": {
+          "description": "Identifier scheme.",
+          "$ref": "#/$defs/AppIdScheme"
+        },
+        "value": {
+          "description": "Identifier value as reported by the platform.",
+          "$ref": "#/$defs/UntrustedText"
+        }
+      },
+      "required": [
+        "scheme",
+        "value"
+      ]
+    },
+    "AppIdScheme": {
+      "description": "How an application identifier is defined.",
+      "oneOf": [
+        {
+          "description": "Apple bundle identifier (`com.example.App`).",
+          "type": "string",
+          "const": "bundle_id"
+        },
+        {
+          "description": "Android package name.",
+          "type": "string",
+          "const": "android_package"
+        },
+        {
+          "description": "MSIX/AppX package family name.",
+          "type": "string",
+          "const": "msix_family"
+        },
+        {
+          "description": "Windows Installer product code.",
+          "type": "string",
+          "const": "msi_product_code"
+        },
+        {
+          "description": "Windows `Uninstall` registry key name.",
+          "type": "string",
+          "const": "uninstall_key"
+        }
+      ]
+    },
+    "Basis": {
+      "description": "How a fact was established.",
+      "oneOf": [
+        {
+          "description": "Directly observed.",
+          "type": "object",
+          "properties": {
+            "basis": {
+              "type": "string",
+              "const": "observed"
+            }
+          },
+          "required": [
+            "basis"
+          ]
+        },
+        {
+          "description": "Concluded from not finding something. Valid only as far as every searched\nsource had complete coverage (`CoverageReport::absence_is_provable`).",
+          "type": "object",
+          "properties": {
+            "basis": {
+              "type": "string",
+              "const": "absence"
+            },
+            "searched": {
+              "description": "Sources that were searched.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SourceName"
+              },
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "basis",
+            "searched"
+          ]
+        }
+      ]
+    },
+    "CodeSignature": {
+      "description": "Who signed a binary, and whether the platform verified it.",
+      "type": "object",
+      "properties": {
+        "check": {
+          "description": "Verification result.",
+          "$ref": "#/$defs/SignatureCheck"
+        },
+        "signer": {
+          "description": "Apple Team ID, Authenticode publisher, or Android signing certificate\ndigest, as reported.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UntrustedText"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "check"
+      ]
+    },
+    "Fact": {
+      "description": "A typed fact. Each variant fixes the type of its value, so a fact can never be\npaired with the wrong kind of value.",
+      "oneOf": [
+        {
+          "description": "The subject belongs to this application (by location convention, receipt,\nsignature or knowledge base, see provenance).",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "owning_application"
+            },
+            "value": {
+              "$ref": "#/$defs/AppId"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "Whether this application is installed. `false` is only meaningful with a\n[`Basis::Absence`] that names the searched sources.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "application_present"
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "app": {
+                  "description": "The application.",
+                  "$ref": "#/$defs/AppId"
+                },
+                "present": {
+                  "description": "Whether it was found.",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "app",
+                "present"
+              ]
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "Content last modified.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "last_modified"
+            },
+            "value": {
+              "$ref": "#/$defs/Timestamp"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "Last accessed (weak evidence; access times are often not maintained).",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "last_accessed"
+            },
+            "value": {
+              "$ref": "#/$defs/Timestamp"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "Whether a running process holds the subject open or depends on it.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "in_use"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "A vendor declared the subject a disposable cache (e.g. a Windows Disk\nCleanup handler registration).",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "vendor_declared_cache"
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "declared_by": {
+                  "description": "Who made the declaration.",
+                  "$ref": "#/$defs/UntrustedText"
+                }
+              },
+              "required": [
+                "declared_by"
+              ]
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "The subject matches a developer knowledge-base entry (ADR-0021).",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "knowledge_base_match"
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "entry": {
+                  "description": "Knowledge-base entry ID.",
+                  "$ref": "#/$defs/SourceName"
+                }
+              },
+              "required": [
+                "entry"
+              ]
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "Code signature of the subject.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "signature"
+            },
+            "value": {
+              "$ref": "#/$defs/CodeSignature"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "Whether the subject is cloud-backed (placeholder, sync root, iCloud).",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "cloud_backed"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "Operating-system protection flags of the subject.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "protected"
+            },
+            "value": {
+              "$ref": "#/$defs/Protection"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        }
+      ]
+    },
+    "FileId": {
+      "description": "Unsigned 128-bit file identifier as a canonical decimal string.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,38})$"
+    },
+    "FileIdentity": {
+      "description": "The identity of a filesystem object: which volume, and which file on it.\n\nLumen keys every decision on identity rather than path text (ADR-0013,\nADR-0016), because paths can be swapped, normalised differently, or hard-linked.",
+      "type": "object",
+      "properties": {
+        "file": {
+          "description": "File identifier within the volume.",
+          "$ref": "#/$defs/FileId"
+        },
+        "volume": {
+          "description": "Volume holding the file.",
+          "$ref": "#/$defs/VolumeId"
+        }
+      },
+      "required": [
+        "volume",
+        "file"
+      ]
+    },
+    "Protection": {
+      "description": "Operating-system protections that make an entry untouchable (ADR-0014 stage 1).",
+      "type": "object",
+      "properties": {
+        "hidden": {
+          "description": "Hidden from normal listings (dot-file or `FILE_ATTRIBUTE_HIDDEN`).",
+          "type": "boolean"
+        },
+        "system_attribute": {
+          "description": "Windows `FILE_ATTRIBUTE_SYSTEM`.",
+          "type": "boolean"
+        },
+        "system_restricted": {
+          "description": "macOS `SF_RESTRICTED` (System Integrity Protection) or an equivalent\nOS-integrity protection.",
+          "type": "boolean"
+        },
+        "undeletable": {
+          "description": "Cannot be unlinked or is immutable (`SF_NOUNLINK`, `UF_IMMUTABLE`,\n`SF_IMMUTABLE`, Linux immutable attribute).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "system_restricted",
+        "undeletable",
+        "system_attribute",
+        "hidden"
+      ]
+    },
+    "Provenance": {
+      "description": "Where a fact came from.",
+      "type": "object",
+      "properties": {
+        "observed_at": {
+          "description": "When it was observed.",
+          "$ref": "#/$defs/Timestamp"
+        },
+        "source": {
+          "description": "Adapter that produced the fact, e.g. `macos.getattrlistbulk`.",
+          "$ref": "#/$defs/SourceName"
+        }
+      },
+      "required": [
+        "source",
+        "observed_at"
+      ]
+    },
+    "ServiceKind": {
+      "description": "Kind of background or startup component.",
+      "oneOf": [
+        {
+          "description": "macOS launchd agent (per user).",
+          "type": "string",
+          "const": "launch_agent"
+        },
+        {
+          "description": "macOS launchd daemon (system).",
+          "type": "string",
+          "const": "launch_daemon"
+        },
+        {
+          "description": "macOS login item or background item (Background Task Management).",
+          "type": "string",
+          "const": "login_item"
+        },
+        {
+          "description": "Windows service.",
+          "type": "string",
+          "const": "windows_service"
+        },
+        {
+          "description": "Windows driver.",
+          "type": "string",
+          "const": "driver"
+        },
+        {
+          "description": "Windows Task Scheduler task.",
+          "type": "string",
+          "const": "scheduled_task"
+        },
+        {
+          "description": "Windows `Run`/`RunOnce` value or Startup-folder entry.",
+          "type": "string",
+          "const": "startup_entry"
+        }
+      ]
+    },
+    "SignatureCheck": {
+      "description": "Result of verifying a code signature with the platform's own APIs.",
+      "oneOf": [
+        {
+          "description": "The platform validated the signature.",
+          "type": "string",
+          "const": "valid"
+        },
+        {
+          "description": "A signature exists but failed validation.",
+          "type": "string",
+          "const": "invalid"
+        },
+        {
+          "description": "No signature.",
+          "type": "string",
+          "const": "unsigned"
+        },
+        {
+          "description": "Not checked or not checkable.",
+          "type": "string",
+          "const": "unknown"
+        }
+      ]
+    },
+    "SourceName": {
+      "type": "string",
+      "pattern": "^[a-z](?:[a-z0-9.-]{0,62}[a-z0-9])?$"
+    },
+    "Subject": {
+      "description": "What a piece of evidence is about.",
+      "oneOf": [
+        {
+          "description": "A filesystem object.",
+          "type": "object",
+          "properties": {
+            "identity": {
+              "description": "Identity of the object.",
+              "$ref": "#/$defs/FileIdentity"
+            },
+            "type": {
+              "type": "string",
+              "const": "file"
+            }
+          },
+          "required": [
+            "type",
+            "identity"
+          ]
+        },
+        {
+          "description": "An installed application.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "One identifier of the application.",
+              "$ref": "#/$defs/AppId"
+            },
+            "type": {
+              "type": "string",
+              "const": "application"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ]
+        },
+        {
+          "description": "A volume.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Volume identifier.",
+              "$ref": "#/$defs/VolumeId"
+            },
+            "type": {
+              "type": "string",
+              "const": "volume"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ]
+        },
+        {
+          "description": "A running process. PIDs are reused, so the start time is part of the key\nwhenever the platform reports it.",
+          "type": "object",
+          "properties": {
+            "pid": {
+              "description": "Process ID.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "started_at": {
+              "description": "Process start time.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "process"
+            }
+          },
+          "required": [
+            "type",
+            "pid"
+          ]
+        },
+        {
+          "description": "A background, startup or scheduled component.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "description": "Component kind.",
+              "$ref": "#/$defs/ServiceKind"
+            },
+            "label": {
+              "description": "Label, service name or task name.",
+              "$ref": "#/$defs/UntrustedText"
+            },
+            "type": {
+              "type": "string",
+              "const": "service"
+            }
+          },
+          "required": [
+            "type",
+            "kind",
+            "label"
+          ]
+        }
+      ]
+    },
+    "Timestamp": {
+      "description": "Canonical RFC 3339 UTC, fraction without trailing zeros.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{0,8}[1-9])?Z$"
+    },
+    "UntrustedText": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ]
+    },
+    "VolumeId": {
+      "description": "Opaque platform volume identifier: 1-128 bytes of visible ASCII.",
+      "type": "string",
+      "pattern": "^[!-~]{1,128}$"
+    }
+  }
+}

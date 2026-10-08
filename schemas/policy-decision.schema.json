@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PolicyDecision",
+  "description": "The deterministic policy's decision for one candidate.",
+  "type": "object",
+  "properties": {
+    "evidence_hash": {
+      "$ref": "#/$defs/EvidenceHash"
+    },
+    "fired_rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/FiredRule"
+      },
+      "uniqueItems": true
+    },
+    "jev_effect": {
+      "$ref": "#/$defs/JevEffect"
+    },
+    "policy_version": {
+      "$ref": "#/$defs/PolicyVersion"
+    },
+    "risk": {
+      "$ref": "#/$defs/Risk"
+    },
+    "verdict": {
+      "$ref": "#/$defs/Verdict"
+    }
+  },
+  "required": [
+    "verdict",
+    "policy_version",
+    "evidence_hash",
+    "fired_rules",
+    "risk",
+    "jev_effect"
+  ],
+  "$defs": {
+    "EvidenceHash": {
+      "type": "string",
+      "pattern": "^b3:[0-9a-f]{64}$"
+    },
+    "EvidenceId": {
+      "type": "string",
+      "pattern": "^b3:[0-9a-f]{64}$"
+    },
+    "FiredRule": {
+      "description": "A rule that fired, with the evidence it used.",
+      "type": "object",
+      "properties": {
+        "evidence": {
+          "description": "Evidence the rule relied on.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceId"
+          },
+          "uniqueItems": true
+        },
+        "rule": {
+          "description": "Rule identifier.",
+          "$ref": "#/$defs/RuleId"
+        },
+        "stage": {
+          "description": "Stage the rule belongs to.",
+          "$ref": "#/$defs/PolicyStage"
+        }
+      },
+      "required": [
+        "rule",
+        "stage",
+        "evidence"
+      ]
+    },
+    "JevEffect": {
+      "description": "What Jev evidence did to the decision.",
+      "oneOf": [
+        {
+          "description": "Jev was not consulted, unavailable, or changed nothing.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Jev evidence made the decision more cautious (`Quarantine` → `Review`).",
+          "type": "string",
+          "const": "demoted_to_review"
+        },
+        {
+          "description": "Jev evidence promoted `Review` → `Quarantine` under an allow-listed,\ncalibrated class rule (off by default; ADR-0020).",
+          "type": "string",
+          "const": "promoted"
+        }
+      ]
+    },
+    "PolicyStage": {
+      "description": "Policy evaluation stage (ADR-0014), in evaluation order.",
+      "oneOf": [
+        {
+          "description": "Non-overridable protections; any rule here forces `Keep`.",
+          "type": "string",
+          "const": "hard_protection"
+        },
+        {
+          "description": "Platform, volume and reclaimability checks.",
+          "type": "string",
+          "const": "eligibility"
+        },
+        {
+          "description": "Category rules producing a candidate verdict.",
+          "type": "string",
+          "const": "classification"
+        },
+        {
+          "description": "Optional Jev evidence (monotone: may only add caution by default).",
+          "type": "string",
+          "const": "jev"
+        }
+      ]
+    },
+    "PolicyVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "Risk": {
+      "description": "Risk assessment: a level and the factors behind it.",
+      "type": "object",
+      "properties": {
+        "factors": {
+          "description": "Contributing factors.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RiskFactor"
+          },
+          "uniqueItems": true
+        },
+        "level": {
+          "description": "Overall level.",
+          "$ref": "#/$defs/RiskLevel"
+        }
+      },
+      "required": [
+        "level",
+        "factors"
+      ]
+    },
+    "RiskFactor": {
+      "description": "Why an item carries risk.",
+      "oneOf": [
+        {
+          "description": "Runs or is installed system-wide.",
+          "type": "string",
+          "const": "system_scope"
+        },
+        {
+          "description": "No valid code signature.",
+          "type": "string",
+          "const": "unsigned"
+        },
+        {
+          "description": "Owning application unknown.",
+          "type": "string",
+          "const": "unknown_owner"
+        },
+        {
+          "description": "In use by a running process.",
+          "type": "string",
+          "const": "in_use"
+        },
+        {
+          "description": "Cannot be regenerated.",
+          "type": "string",
+          "const": "not_regenerable"
+        },
+        {
+          "description": "Backed by a cloud provider; removal may propagate.",
+          "type": "string",
+          "const": "cloud_backed"
+        },
+        {
+          "description": "Some relevant location or source was not fully observed.",
+          "type": "string",
+          "const": "incomplete_coverage"
+        },
+        {
+          "description": "Protected by the operating system.",
+          "type": "string",
+          "const": "os_protected"
+        },
+        {
+          "description": "Looks like credentials, keys, a database or application state.",
+          "type": "string",
+          "const": "sensitive_data"
+        }
+      ]
+    },
+    "RiskLevel": {
+      "description": "How much harm removing an item could do.",
+      "oneOf": [
+        {
+          "description": "Regenerable data; no user impact beyond regeneration time.",
+          "type": "string",
+          "const": "low"
+        },
+        {
+          "description": "Some inconvenience (sign-ins, re-downloads, rebuilds).",
+          "type": "string",
+          "const": "medium"
+        },
+        {
+          "description": "Possible data loss or broken software.",
+          "type": "string",
+          "const": "high"
+        },
+        {
+          "description": "System, security or credential impact.",
+          "type": "string",
+          "const": "critical"
+        }
+      ]
+    },
+    "RuleId": {
+      "type": "string",
+      "pattern": "^[a-z](?:[a-z0-9.-]{0,62}[a-z0-9])?$"
+    },
+    "Verdict": {
+      "description": "The final outcome for a candidate. There is deliberately no \"remove\":\npermanent deletion only happens when quarantine is finalized (ADR-0015).",
+      "oneOf": [
+        {
+          "description": "Leave the item alone.",
+          "type": "string",
+          "const": "keep"
+        },
+        {
+          "description": "Show the evidence; act only on the user's individual decision.",
+          "type": "string",
+          "const": "review"
+        },
+        {
+          "description": "Propose a reversible quarantine; still requires plan confirmation.",
+          "type": "string",
+          "const": "quarantine"
+        }
+      ]
+    }
+  }
+}

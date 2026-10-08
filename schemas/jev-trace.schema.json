@@ -1,0 +1,468 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "JevTrace",
+  "description": "Record of one judgment that a policy decision consumed (`jev.trace/1`).",
+  "type": "object",
+  "properties": {
+    "calibrated_precision_bp": {
+      "description": "Calibrated precision lower bound for the judgment's class, in basis points\n(0–10 000), when a calibration map exists. Integers keep traces hashable.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    },
+    "evidence_hash": {
+      "description": "Evidence bundle the request was built from.",
+      "$ref": "#/$defs/EvidenceHash"
+    },
+    "input_schema": {
+      "description": "Request schema.",
+      "$ref": "#/$defs/SchemaVersion"
+    },
+    "judge": {
+      "description": "Judge that answered.",
+      "$ref": "#/$defs/JudgeDescriptor"
+    },
+    "judgment": {
+      "description": "The judgment, when accepted.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Judgment"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "latency_ms": {
+      "description": "Round-trip latency in milliseconds.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "output_schema": {
+      "description": "Response schema.",
+      "$ref": "#/$defs/SchemaVersion"
+    },
+    "policy_effect": {
+      "description": "What the judgment did to the decision.",
+      "$ref": "#/$defs/JevEffect"
+    },
+    "policy_version": {
+      "description": "Policy version that consumed the judgment.",
+      "$ref": "#/$defs/PolicyVersion"
+    },
+    "request_hash": {
+      "description": "Hash of the exact request bytes.",
+      "$ref": "#/$defs/PayloadHash"
+    },
+    "requested_at": {
+      "description": "When the judgment was requested.",
+      "$ref": "#/$defs/Timestamp"
+    },
+    "response_hash": {
+      "description": "Hash of the exact response bytes, if any.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PayloadHash"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "validation": {
+      "description": "Validation outcome.",
+      "$ref": "#/$defs/TraceValidation"
+    }
+  },
+  "required": [
+    "requested_at",
+    "judge",
+    "policy_version",
+    "input_schema",
+    "output_schema",
+    "evidence_hash",
+    "request_hash",
+    "validation",
+    "policy_effect",
+    "latency_ms"
+  ],
+  "$defs": {
+    "Assessment": {
+      "description": "The model's assessment of an item.",
+      "oneOf": [
+        {
+          "description": "The evidence suggests the item can be removed.",
+          "type": "string",
+          "const": "likely_removable"
+        },
+        {
+          "description": "The evidence suggests the item is needed.",
+          "type": "string",
+          "const": "likely_needed"
+        },
+        {
+          "description": "The evidence is insufficient or contradictory.",
+          "type": "string",
+          "const": "uncertain"
+        }
+      ]
+    },
+    "EvidenceHash": {
+      "type": "string",
+      "pattern": "^b3:[0-9a-f]{64}$"
+    },
+    "EvidenceId": {
+      "type": "string",
+      "pattern": "^b3:[0-9a-f]{64}$"
+    },
+    "ItemRef": {
+      "type": "string",
+      "pattern": "^[!-~]{1,64}$"
+    },
+    "JevEffect": {
+      "description": "What Jev evidence did to the decision.",
+      "oneOf": [
+        {
+          "description": "Jev was not consulted, unavailable, or changed nothing.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Jev evidence made the decision more cautious (`Quarantine` → `Review`).",
+          "type": "string",
+          "const": "demoted_to_review"
+        },
+        {
+          "description": "Jev evidence promoted `Review` → `Quarantine` under an allow-listed,\ncalibrated class rule (off by default; ADR-0020).",
+          "type": "string",
+          "const": "promoted"
+        }
+      ]
+    },
+    "JudgeDescriptor": {
+      "description": "Which judge produced a judgment.",
+      "type": "object",
+      "properties": {
+        "model": {
+          "description": "Pinned model ID.",
+          "$ref": "#/$defs/ModelId"
+        },
+        "model_version": {
+          "description": "Model build or OS version, when the provider exposes one.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UntrustedText"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "prompt_version": {
+          "description": "Prompt version.",
+          "$ref": "#/$defs/PromptVersion"
+        },
+        "provider": {
+          "description": "Provider adapter, e.g. `anthropic` or `apple.foundation-models`.",
+          "$ref": "#/$defs/SourceName"
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "prompt_version"
+      ]
+    },
+    "Judgment": {
+      "description": "A validated judgment (`jev.judgment/1`). Unknown fields are rejected, as the\ncontract's `additionalProperties: false` requires.",
+      "type": "object",
+      "properties": {
+        "assessment": {
+          "description": "Assessment.",
+          "$ref": "#/$defs/Assessment"
+        },
+        "confidence": {
+          "description": "Verbalized confidence.",
+          "$ref": "#/$defs/JudgmentConfidence"
+        },
+        "evidence_refs": {
+          "description": "Evidence the judgment relied on; must be a subset of what was sent.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceId"
+          },
+          "uniqueItems": true
+        },
+        "injection_suspected": {
+          "description": "Whether the model saw text trying to influence it.",
+          "type": "boolean"
+        },
+        "item_ref": {
+          "description": "Echo of the request's item reference.",
+          "$ref": "#/$defs/ItemRef"
+        },
+        "rationale": {
+          "description": "Display-only rationale (at most [`Judgment::MAX_RATIONALE_CHARS`]).",
+          "$ref": "#/$defs/UntrustedText"
+        },
+        "reason_codes": {
+          "description": "Reasons (1–6, closed list).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReasonCode"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "item_ref",
+        "assessment",
+        "confidence",
+        "reason_codes",
+        "evidence_refs",
+        "injection_suspected",
+        "rationale"
+      ]
+    },
+    "JudgmentConfidence": {
+      "description": "Verbalized confidence bucket. Mapped to empirical precision by calibration;\nnever used raw.",
+      "oneOf": [
+        {
+          "description": "Low.",
+          "type": "string",
+          "const": "low"
+        },
+        {
+          "description": "Medium.",
+          "type": "string",
+          "const": "medium"
+        },
+        {
+          "description": "High.",
+          "type": "string",
+          "const": "high"
+        }
+      ]
+    },
+    "JudgmentRejection": {
+      "description": "Why a judgment was rejected.",
+      "oneOf": [
+        {
+          "description": "`item_ref` does not match the request.",
+          "type": "string",
+          "const": "item_mismatch"
+        },
+        {
+          "description": "No reason codes, or more than six.",
+          "type": "string",
+          "const": "reason_count"
+        },
+        {
+          "description": "No evidence references.",
+          "type": "string",
+          "const": "no_evidence"
+        },
+        {
+          "description": "An evidence reference was not in the request.",
+          "type": "string",
+          "const": "unknown_evidence"
+        },
+        {
+          "description": "The rationale exceeds the length limit or was truncated.",
+          "type": "string",
+          "const": "rationale_too_long"
+        }
+      ]
+    },
+    "ModelId": {
+      "type": "string",
+      "pattern": "^[!-~]{1,128}$"
+    },
+    "PayloadHash": {
+      "type": "string",
+      "pattern": "^b3:[0-9a-f]{64}$"
+    },
+    "PolicyVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "PromptVersion": {
+      "type": "string",
+      "pattern": "^[a-z](?:[a-z0-9.-]{0,62}[a-z0-9])?/[1-9][0-9]*$"
+    },
+    "ReasonCode": {
+      "description": "Closed list of reasons a judgment may cite (`ai/schemas/reason-codes.json`).",
+      "oneOf": [
+        {
+          "description": "The owning application appears to be gone.",
+          "type": "string",
+          "const": "owner_app_absent"
+        },
+        {
+          "description": "The owning application is installed.",
+          "type": "string",
+          "const": "owner_app_present"
+        },
+        {
+          "description": "The content is a cache that regenerates on demand.",
+          "type": "string",
+          "const": "regeneratable_cache"
+        },
+        {
+          "description": "The content cannot be regenerated.",
+          "type": "string",
+          "const": "not_regeneratable"
+        },
+        {
+          "description": "Nothing references or uses the item.",
+          "type": "string",
+          "const": "no_active_reference"
+        },
+        {
+          "description": "Something references or uses the item.",
+          "type": "string",
+          "const": "active_reference"
+        },
+        {
+          "description": "A vendor declared the item disposable.",
+          "type": "string",
+          "const": "vendor_declared_cache"
+        },
+        {
+          "description": "The item matches a developer knowledge-base entry.",
+          "type": "string",
+          "const": "knowledge_base_match"
+        },
+        {
+          "description": "Not modified or used for a long time.",
+          "type": "string",
+          "const": "stale_by_time"
+        },
+        {
+          "description": "Used recently.",
+          "type": "string",
+          "const": "recently_used"
+        },
+        {
+          "description": "Appears to contain user-created data.",
+          "type": "string",
+          "const": "contains_user_data"
+        },
+        {
+          "description": "Appears to contain credentials or key material.",
+          "type": "string",
+          "const": "credential_or_key_material"
+        },
+        {
+          "description": "Appears to be part of the operating system.",
+          "type": "string",
+          "const": "system_component"
+        },
+        {
+          "description": "Executable without a valid signature.",
+          "type": "string",
+          "const": "unsigned_executable"
+        },
+        {
+          "description": "Cloud-backed; removal may propagate.",
+          "type": "string",
+          "const": "cloud_backed"
+        },
+        {
+          "description": "The evidence does not support a conclusion.",
+          "type": "string",
+          "const": "insufficient_evidence"
+        },
+        {
+          "description": "Metadata looks crafted to influence the judgment.",
+          "type": "string",
+          "const": "suspicious_metadata"
+        }
+      ]
+    },
+    "SchemaVersion": {
+      "type": "string",
+      "pattern": "^[a-z](?:[a-z0-9.-]{0,62}[a-z0-9])?/[1-9][0-9]*(\\.(0|[1-9][0-9]*))?$"
+    },
+    "SourceName": {
+      "type": "string",
+      "pattern": "^[a-z](?:[a-z0-9.-]{0,62}[a-z0-9])?$"
+    },
+    "Timestamp": {
+      "description": "Canonical RFC 3339 UTC, fraction without trailing zeros.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{0,8}[1-9])?Z$"
+    },
+    "TraceValidation": {
+      "description": "Outcome of validating a model response.",
+      "oneOf": [
+        {
+          "description": "The judgment was valid and available to the policy.",
+          "type": "object",
+          "properties": {
+            "result": {
+              "type": "string",
+              "const": "accepted"
+            }
+          },
+          "required": [
+            "result"
+          ]
+        },
+        {
+          "description": "The judgment was rejected and ignored.",
+          "type": "object",
+          "properties": {
+            "reason": {
+              "$ref": "#/$defs/JudgmentRejection"
+            },
+            "result": {
+              "type": "string",
+              "const": "rejected"
+            }
+          },
+          "required": [
+            "result",
+            "reason"
+          ]
+        },
+        {
+          "description": "No usable response (refusal, truncation, schema failure, timeout,\nunexpected model).",
+          "type": "object",
+          "properties": {
+            "result": {
+              "type": "string",
+              "const": "unavailable"
+            }
+          },
+          "required": [
+            "result"
+          ]
+        }
+      ]
+    },
+    "UntrustedText": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ]
+    }
+  }
+}
