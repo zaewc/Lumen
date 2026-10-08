@@ -11,4 +11,7 @@
 
 #![forbid(unsafe_code)]
 
+mod cancel;
 pub mod ports;
+
+pub use cancel::CancelToken;

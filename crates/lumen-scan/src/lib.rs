@@ -17,7 +17,9 @@ mod scheduler;
 #[cfg(unix)]
 mod std_fs;
 
-pub use scheduler::{ScanConfig, ScanItem, ScanSummary, SkipReason, scan};
+pub use scheduler::{
+    ScanConfig, ScanItem, ScanProgress, ScanSummary, SkipReason, StopReason, scan,
+};
 
 #[cfg(unix)]
 pub use std_fs::StdFsEnumerator;
