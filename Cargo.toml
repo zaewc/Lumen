@@ -14,6 +14,7 @@ repository = "https://github.com/zaewc/Lumen"
 # Every dependency needs a reason (AGENTS.md); see the PR that added it.
 lumen-application = { path = "crates/lumen-application" }
 lumen-domain = { path = "crates/lumen-domain" }
+lumen-scan = { path = "crates/lumen-scan" }
 lumen-testkit = { path = "crates/lumen-testkit" }
 blake3 = "1.8.7"
 # Test-only validator; defaults pull an HTTP client and a TLS stack we do not need.

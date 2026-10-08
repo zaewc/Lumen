@@ -1,0 +1,18 @@
+[package]
+name = "lumen-scan"
+description = "Lumen's scan engine and the portable std::fs directory enumerator."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[dependencies]
+lumen-application.workspace = true
+lumen-domain.workspace = true
+
+[dev-dependencies]
+lumen-testkit.workspace = true
+
+[lints]
+workspace = true
