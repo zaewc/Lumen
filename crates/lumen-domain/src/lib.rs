@@ -11,7 +11,9 @@
 //! - no `#[cfg(target_os)]`;
 //! - no `unsafe`.
 //!
-//! See `docs/architecture/system.md` for the model this crate implements.
+//! See `docs/architecture/domain.md` for the module map, the invariants each type
+//! enforces, and the wire contracts; `docs/architecture/system.md` places the model
+//! in the overall architecture.
 
 #![forbid(unsafe_code)]
 
