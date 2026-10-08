@@ -13,6 +13,7 @@ lumen-domain.workspace = true
 
 [dev-dependencies]
 lumen-testkit.workspace = true
+proptest.workspace = true
 
 [lints]
 workspace = true

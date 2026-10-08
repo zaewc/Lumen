@@ -405,6 +405,7 @@ dependencies = [
  "lumen-application",
  "lumen-domain",
  "lumen-testkit",
+ "proptest",
 ]
 
 [[package]]
