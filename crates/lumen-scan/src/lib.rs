@@ -1,6 +1,8 @@
 //! Lumen's scan engine (ADR-0017).
 //!
-//! This first slice provides [`StdFsEnumerator`], a portable
+//! [`scan`] runs a parallel breadth-first traversal over any
+//! [`DirEnumerator`](lumen_application::ports::DirEnumerator) with bounded
+//! backpressure. [`StdFsEnumerator`] is a portable
 //! [`DirEnumerator`](lumen_application::ports::DirEnumerator) built on `std::fs`.
 //! It is the reference implementation used by tests and a fallback on Unix-like
 //! systems; the native batch enumerators (`getattrlistbulk`, directory handles)
@@ -11,8 +13,11 @@
 
 #![forbid(unsafe_code)]
 
+mod scheduler;
 #[cfg(unix)]
 mod std_fs;
+
+pub use scheduler::{ScanConfig, ScanItem, ScanSummary, SkipReason, scan};
 
 #[cfg(unix)]
 pub use std_fs::StdFsEnumerator;
