@@ -64,6 +64,15 @@ pub enum Node {
         /// New modification time.
         at: Timestamp,
     },
+    /// Sets Unix permission bits on an existing fixture object (e.g. `0o000` to
+    /// make a directory unreadable). Restored to `0o700` before the fixture is
+    /// removed. Unix only.
+    Mode {
+        /// Relative path.
+        path: String,
+        /// Permission bits.
+        mode: u32,
+    },
 }
 
 /// Errors while building a fixture.
@@ -99,6 +108,24 @@ pub enum FixtureError {
 #[derive(Debug)]
 pub struct Fixture {
     dir: tempfile::TempDir,
+    /// Paths whose permissions were restricted; restored before removal so the
+    /// temporary directory can always be cleaned up.
+    restricted: Vec<PathBuf>,
+}
+
+impl Drop for Fixture {
+    fn drop(&mut self) {
+        for path in self.restricted.iter().rev() {
+            // Drop cannot report errors; a failure here only leaves a temporary
+            // directory behind, which the OS cleans up eventually.
+            let restored = restore_mode(path);
+            debug_assert!(
+                restored.is_ok(),
+                "could not restore permissions on {}",
+                path.display()
+            );
+        }
+    }
 }
 
 impl Fixture {
@@ -116,7 +143,10 @@ impl Fixture {
                 path: std::env::temp_dir(),
                 source,
             })?;
-        let fixture = Self { dir };
+        let mut fixture = Self {
+            dir,
+            restricted: Vec::new(),
+        };
         for node in nodes {
             fixture.create(node)?;
         }
@@ -137,7 +167,7 @@ impl Fixture {
         Ok(self.root().join(safe_relative(relative)?))
     }
 
-    fn create(&self, node: &Node) -> Result<(), FixtureError> {
+    fn create(&mut self, node: &Node) -> Result<(), FixtureError> {
         let io = |path: &Path| {
             let path = path.to_path_buf();
             move |source| FixtureError::Io { path, source }
@@ -174,6 +204,12 @@ impl Fixture {
                 file.set_times(FileTimes::new().set_modified(time))
                     .map_err(io(&full))
             }
+            Node::Mode { path, mode } => {
+                let full = self.path(path)?;
+                set_mode(&full, *mode, node)?;
+                self.restricted.push(full);
+                Ok(())
+            }
         }
     }
 
@@ -196,6 +232,37 @@ fn symlink(target: &str, link: &Path, _node: &Node) -> Result<(), FixtureError> 
         path: link.to_path_buf(),
         source,
     })
+}
+
+// Changing permissions is banned outside the executor (ADR-0016). Here it only
+// ever touches objects inside the fixture's own temporary directory.
+#[cfg(unix)]
+#[allow(clippy::disallowed_methods)]
+fn set_mode(path: &Path, mode: u32, _node: &Node) -> Result<(), FixtureError> {
+    use std::os::unix::fs::PermissionsExt as _;
+    fs::set_permissions(path, fs::Permissions::from_mode(mode)).map_err(|source| FixtureError::Io {
+        path: path.to_path_buf(),
+        source,
+    })
+}
+
+#[cfg(unix)]
+#[allow(clippy::disallowed_methods)] // See set_mode.
+fn restore_mode(path: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt as _;
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700))
+}
+
+#[cfg(not(unix))]
+fn set_mode(_path: &Path, _mode: u32, node: &Node) -> Result<(), FixtureError> {
+    Err(FixtureError::Unsupported {
+        node: Box::new(node.clone()),
+    })
+}
+
+#[cfg(not(unix))]
+fn restore_mode(_path: &Path) -> std::io::Result<()> {
+    Ok(())
 }
 
 #[cfg(not(unix))]
@@ -327,6 +394,40 @@ mod tests {
             1_735_787_045
         );
         Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn restricted_directories_are_unreadable_and_still_cleaned_up() -> Result<(), FixtureError> {
+        let root = {
+            let fx = Fixture::build(&[
+                file("locked/secret.txt", b"x"),
+                Node::Mode {
+                    path: "locked".into(),
+                    mode: 0o000,
+                },
+            ])?;
+            let listing = fs::read_dir(fx.path("locked")?);
+            // Root bypasses permission checks; only assert denial for ordinary users.
+            if !running_as_root() {
+                assert!(listing.is_err(), "a 0o000 directory must not be listable");
+            }
+            fx.root().to_path_buf()
+        };
+        assert!(
+            !root.exists(),
+            "fixture must be removed even with restricted permissions"
+        );
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn running_as_root() -> bool {
+        use std::os::unix::fs::MetadataExt as _;
+        // A file we create is owned by our effective UID.
+        tempfile::tempfile()
+            .and_then(|f| f.metadata())
+            .is_ok_and(|m| m.uid() == 0)
     }
 
     #[test]
