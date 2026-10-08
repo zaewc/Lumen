@@ -1,6 +1,7 @@
 # Polyglot task entry point (ADR-0024). Run `just` to list recipes.
 # Prerequisites: rustup (toolchain from rust-toolchain.toml), cargo-nextest,
 # cargo-deny. JavaScript recipes are added with the first TypeScript code.
+# `cargo xtask` is an alias defined in .cargo/config.toml.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
@@ -29,5 +30,13 @@ test:
 deny:
     cargo deny --all-features --locked check
 
+# Regenerate committed artifacts (JSON Schemas, ADR-0011).
+gen:
+    cargo xtask schema
+
+# Fail if committed schemas differ from the Rust types.
+schema-check:
+    cargo xtask schema --check
+
 # Everything CI checks for Rust; run before every commit.
-check: fmt-check lint test deny
+check: fmt-check lint test deny schema-check

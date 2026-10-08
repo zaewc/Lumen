@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Judgment",
+  "description": "A validated judgment (`jev.judgment/1`). Unknown fields are rejected, as the\ncontract's `additionalProperties: false` requires.",
+  "type": "object",
+  "properties": {
+    "assessment": {
+      "description": "Assessment.",
+      "$ref": "#/$defs/Assessment"
+    },
+    "confidence": {
+      "description": "Verbalized confidence.",
+      "$ref": "#/$defs/JudgmentConfidence"
+    },
+    "evidence_refs": {
+      "description": "Evidence the judgment relied on; must be a subset of what was sent.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EvidenceId"
+      },
+      "uniqueItems": true
+    },
+    "injection_suspected": {
+      "description": "Whether the model saw text trying to influence it.",
+      "type": "boolean"
+    },
+    "item_ref": {
+      "description": "Echo of the request's item reference.",
+      "$ref": "#/$defs/ItemRef"
+    },
+    "rationale": {
+      "description": "Display-only rationale (at most [`Judgment::MAX_RATIONALE_CHARS`]).",
+      "$ref": "#/$defs/UntrustedText"
+    },
+    "reason_codes": {
+      "description": "Reasons (1–6, closed list).",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ReasonCode"
+      },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "item_ref",
+    "assessment",
+    "confidence",
+    "reason_codes",
+    "evidence_refs",
+    "injection_suspected",
+    "rationale"
+  ],
+  "$defs": {
+    "Assessment": {
+      "description": "The model's assessment of an item.",
+      "oneOf": [
+        {
+          "description": "The evidence suggests the item can be removed.",
+          "type": "string",
+          "const": "likely_removable"
+        },
+        {
+          "description": "The evidence suggests the item is needed.",
+          "type": "string",
+          "const": "likely_needed"
+        },
+        {
+          "description": "The evidence is insufficient or contradictory.",
+          "type": "string",
+          "const": "uncertain"
+        }
+      ]
+    },
+    "EvidenceId": {
+      "type": "string",
+      "pattern": "^b3:[0-9a-f]{64}$"
+    },
+    "ItemRef": {
+      "type": "string",
+      "pattern": "^[!-~]{1,64}$"
+    },
+    "JudgmentConfidence": {
+      "description": "Verbalized confidence bucket. Mapped to empirical precision by calibration;\nnever used raw.",
+      "oneOf": [
+        {
+          "description": "Low.",
+          "type": "string",
+          "const": "low"
+        },
+        {
+          "description": "Medium.",
+          "type": "string",
+          "const": "medium"
+        },
+        {
+          "description": "High.",
+          "type": "string",
+          "const": "high"
+        }
+      ]
+    },
+    "ReasonCode": {
+      "description": "Closed list of reasons a judgment may cite (`ai/schemas/reason-codes.json`).",
+      "oneOf": [
+        {
+          "description": "The owning application appears to be gone.",
+          "type": "string",
+          "const": "owner_app_absent"
+        },
+        {
+          "description": "The owning application is installed.",
+          "type": "string",
+          "const": "owner_app_present"
+        },
+        {
+          "description": "The content is a cache that regenerates on demand.",
+          "type": "string",
+          "const": "regeneratable_cache"
+        },
+        {
+          "description": "The content cannot be regenerated.",
+          "type": "string",
+          "const": "not_regeneratable"
+        },
+        {
+          "description": "Nothing references or uses the item.",
+          "type": "string",
+          "const": "no_active_reference"
+        },
+        {
+          "description": "Something references or uses the item.",
+          "type": "string",
+          "const": "active_reference"
+        },
+        {
+          "description": "A vendor declared the item disposable.",
+          "type": "string",
+          "const": "vendor_declared_cache"
+        },
+        {
+          "description": "The item matches a developer knowledge-base entry.",
+          "type": "string",
+          "const": "knowledge_base_match"
+        },
+        {
+          "description": "Not modified or used for a long time.",
+          "type": "string",
+          "const": "stale_by_time"
+        },
+        {
+          "description": "Used recently.",
+          "type": "string",
+          "const": "recently_used"
+        },
+        {
+          "description": "Appears to contain user-created data.",
+          "type": "string",
+          "const": "contains_user_data"
+        },
+        {
+          "description": "Appears to contain credentials or key material.",
+          "type": "string",
+          "const": "credential_or_key_material"
+        },
+        {
+          "description": "Appears to be part of the operating system.",
+          "type": "string",
+          "const": "system_component"
+        },
+        {
+          "description": "Executable without a valid signature.",
+          "type": "string",
+          "const": "unsigned_executable"
+        },
+        {
+          "description": "Cloud-backed; removal may propagate.",
+          "type": "string",
+          "const": "cloud_backed"
+        },
+        {
+          "description": "The evidence does not support a conclusion.",
+          "type": "string",
+          "const": "insufficient_evidence"
+        },
+        {
+          "description": "Metadata looks crafted to influence the judgment.",
+          "type": "string",
+          "const": "suspicious_metadata"
+        }
+      ]
+    },
+    "UntrustedText": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ]
+    }
+  }
+}

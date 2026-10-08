@@ -1,0 +1,939 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CleanupCandidate",
+  "description": "A reviewed unit of potential cleanup.",
+  "type": "object",
+  "properties": {
+    "action": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CleanupAction"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "category": {
+      "$ref": "#/$defs/Category"
+    },
+    "confidence": {
+      "$ref": "#/$defs/Confidence"
+    },
+    "decision": {
+      "$ref": "#/$defs/PolicyDecision"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EvidenceId"
+      },
+      "uniqueItems": true
+    },
+    "in_use": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "regeneratable": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Relationship"
+      }
+    },
+    "size": {
+      "$ref": "#/$defs/ReclaimEstimate"
+    },
+    "target": {
+      "$ref": "#/$defs/CandidateTarget"
+    }
+  },
+  "required": [
+    "target",
+    "size",
+    "category",
+    "evidence",
+    "relationships",
+    "confidence",
+    "decision"
+  ],
+  "$defs": {
+    "AppId": {
+      "description": "One identifier of an application under a given scheme.",
+      "type": "object",
+      "properties": {
+        "scheme": {
+          "description": "Identifier scheme.",
+          "$ref": "#/$defs/AppIdScheme"
+        },
+        "value": {
+          "description": "Identifier value as reported by the platform.",
+          "$ref": "#/$defs/UntrustedText"
+        }
+      },
+      "required": [
+        "scheme",
+        "value"
+      ]
+    },
+    "AppIdScheme": {
+      "description": "How an application identifier is defined.",
+      "oneOf": [
+        {
+          "description": "Apple bundle identifier (`com.example.App`).",
+          "type": "string",
+          "const": "bundle_id"
+        },
+        {
+          "description": "Android package name.",
+          "type": "string",
+          "const": "android_package"
+        },
+        {
+          "description": "MSIX/AppX package family name.",
+          "type": "string",
+          "const": "msix_family"
+        },
+        {
+          "description": "Windows Installer product code.",
+          "type": "string",
+          "const": "msi_product_code"
+        },
+        {
+          "description": "Windows `Uninstall` registry key name.",
+          "type": "string",
+          "const": "uninstall_key"
+        }
+      ]
+    },
+    "ByteCount": {
+      "description": "Unsigned 64-bit byte count as a canonical decimal string.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "CandidateTarget": {
+      "description": "What a candidate refers to: one subject, and the filesystem objects involved.",
+      "type": "object",
+      "properties": {
+        "identities": {
+          "description": "Filesystem objects the action would affect.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FileIdentity"
+          },
+          "uniqueItems": true
+        },
+        "paths": {
+          "description": "Paths shown to the user (display only; actions use identities).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RawPath"
+          }
+        },
+        "subject": {
+          "description": "The artifact's subject (a file or directory, or an application/service for\norphan findings).",
+          "$ref": "#/$defs/Subject"
+        }
+      },
+      "required": [
+        "subject",
+        "identities",
+        "paths"
+      ]
+    },
+    "Category": {
+      "description": "What kind of artifact a candidate is.",
+      "oneOf": [
+        {
+          "description": "An application's cache.",
+          "type": "string",
+          "const": "app_cache"
+        },
+        {
+          "description": "Build output of a developer tool (e.g. Xcode `DerivedData`, `target/`).",
+          "type": "string",
+          "const": "developer_build_output"
+        },
+        {
+          "description": "Package or tool cache (npm, pnpm, Cargo, Gradle, Homebrew, …).",
+          "type": "string",
+          "const": "developer_cache"
+        },
+        {
+          "description": "Log files.",
+          "type": "string",
+          "const": "log"
+        },
+        {
+          "description": "Temporary files.",
+          "type": "string",
+          "const": "temporary"
+        },
+        {
+          "description": "Downloaded installers and archives.",
+          "type": "string",
+          "const": "download"
+        },
+        {
+          "description": "Exact duplicate content.",
+          "type": "string",
+          "const": "duplicate"
+        },
+        {
+          "description": "Large or old media.",
+          "type": "string",
+          "const": "media"
+        },
+        {
+          "description": "Cloud-backed item that can be evicted locally.",
+          "type": "string",
+          "const": "cloud_item"
+        },
+        {
+          "description": "Service, startup item or package remnant whose owner appears to be gone.",
+          "type": "string",
+          "const": "orphaned_component"
+        },
+        {
+          "description": "Anything not covered above.",
+          "type": "string",
+          "const": "other"
+        }
+      ]
+    },
+    "CleanupAction": {
+      "description": "An action Lumen can propose.",
+      "oneOf": [
+        {
+          "description": "Move into Lumen's quarantine store.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "quarantine_move"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        {
+          "description": "Android media trash.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "media_trash"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        {
+          "description": "iOS Photos delete into Recently Deleted.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "photo_library_delete"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        {
+          "description": "Evict or dehydrate a cloud-backed item.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "cloud_evict"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        {
+          "description": "Run a developer tool's own cleanup command.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "tool_command"
+            },
+            "entry": {
+              "description": "Knowledge-base entry that defines the command.",
+              "$ref": "#/$defs/SourceName"
+            }
+          },
+          "required": [
+            "action",
+            "entry"
+          ]
+        },
+        {
+          "description": "Android system-wide external cache clear.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "system_cache_clear"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        {
+          "description": "Archive an unused Android app.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "archive_app"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        {
+          "description": "Open the system's own settings screen.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "open_system_settings"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        }
+      ]
+    },
+    "Confidence": {
+      "description": "How sure the deterministic rules are about the classification (not Jev's\nconfidence, which is recorded separately in its trace).",
+      "oneOf": [
+        {
+          "description": "Weak or partial evidence.",
+          "type": "string",
+          "const": "low"
+        },
+        {
+          "description": "Corroborated by more than one source.",
+          "type": "string",
+          "const": "medium"
+        },
+        {
+          "description": "Vendor-declared or knowledge-base backed, with complete coverage.",
+          "type": "string",
+          "const": "high"
+        }
+      ]
+    },
+    "EvidenceHash": {
+      "type": "string",
+      "pattern": "^b3:[0-9a-f]{64}$"
+    },
+    "EvidenceId": {
+      "type": "string",
+      "pattern": "^b3:[0-9a-f]{64}$"
+    },
+    "FileId": {
+      "description": "Unsigned 128-bit file identifier as a canonical decimal string.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,38})$"
+    },
+    "FileIdentity": {
+      "description": "The identity of a filesystem object: which volume, and which file on it.\n\nLumen keys every decision on identity rather than path text (ADR-0013,\nADR-0016), because paths can be swapped, normalised differently, or hard-linked.",
+      "type": "object",
+      "properties": {
+        "file": {
+          "description": "File identifier within the volume.",
+          "$ref": "#/$defs/FileId"
+        },
+        "volume": {
+          "description": "Volume holding the file.",
+          "$ref": "#/$defs/VolumeId"
+        }
+      },
+      "required": [
+        "volume",
+        "file"
+      ]
+    },
+    "FiredRule": {
+      "description": "A rule that fired, with the evidence it used.",
+      "type": "object",
+      "properties": {
+        "evidence": {
+          "description": "Evidence the rule relied on.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceId"
+          },
+          "uniqueItems": true
+        },
+        "rule": {
+          "description": "Rule identifier.",
+          "$ref": "#/$defs/RuleId"
+        },
+        "stage": {
+          "description": "Stage the rule belongs to.",
+          "$ref": "#/$defs/PolicyStage"
+        }
+      },
+      "required": [
+        "rule",
+        "stage",
+        "evidence"
+      ]
+    },
+    "JevEffect": {
+      "description": "What Jev evidence did to the decision.",
+      "oneOf": [
+        {
+          "description": "Jev was not consulted, unavailable, or changed nothing.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Jev evidence made the decision more cautious (`Quarantine` → `Review`).",
+          "type": "string",
+          "const": "demoted_to_review"
+        },
+        {
+          "description": "Jev evidence promoted `Review` → `Quarantine` under an allow-listed,\ncalibrated class rule (off by default; ADR-0020).",
+          "type": "string",
+          "const": "promoted"
+        }
+      ]
+    },
+    "PolicyDecision": {
+      "description": "The deterministic policy's decision for one candidate.",
+      "type": "object",
+      "properties": {
+        "evidence_hash": {
+          "$ref": "#/$defs/EvidenceHash"
+        },
+        "fired_rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FiredRule"
+          },
+          "uniqueItems": true
+        },
+        "jev_effect": {
+          "$ref": "#/$defs/JevEffect"
+        },
+        "policy_version": {
+          "$ref": "#/$defs/PolicyVersion"
+        },
+        "risk": {
+          "$ref": "#/$defs/Risk"
+        },
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        }
+      },
+      "required": [
+        "verdict",
+        "policy_version",
+        "evidence_hash",
+        "fired_rules",
+        "risk",
+        "jev_effect"
+      ]
+    },
+    "PolicyStage": {
+      "description": "Policy evaluation stage (ADR-0014), in evaluation order.",
+      "oneOf": [
+        {
+          "description": "Non-overridable protections; any rule here forces `Keep`.",
+          "type": "string",
+          "const": "hard_protection"
+        },
+        {
+          "description": "Platform, volume and reclaimability checks.",
+          "type": "string",
+          "const": "eligibility"
+        },
+        {
+          "description": "Category rules producing a candidate verdict.",
+          "type": "string",
+          "const": "classification"
+        },
+        {
+          "description": "Optional Jev evidence (monotone: may only add caution by default).",
+          "type": "string",
+          "const": "jev"
+        }
+      ]
+    },
+    "PolicyVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "RawPath": {
+      "type": "object",
+      "properties": {
+        "flavor": {
+          "enum": [
+            "unix",
+            "windows"
+          ]
+        },
+        "hex": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{2})*$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "flavor",
+        "hex"
+      ]
+    },
+    "ReclaimEstimate": {
+      "description": "What removing a selection of entries would free.",
+      "type": "object",
+      "properties": {
+        "allocated": {
+          "description": "Sum of allocated sizes, once per file.",
+          "$ref": "#/$defs/ByteCount"
+        },
+        "exact": {
+          "description": "`false` when `reclaimable_now` is a lower bound (shared blocks with unknown\nprivate size).",
+          "type": "boolean"
+        },
+        "files": {
+          "description": "Distinct files in the selection.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "logical": {
+          "description": "Sum of logical sizes, once per file.",
+          "$ref": "#/$defs/ByteCount"
+        },
+        "partially_linked_files": {
+          "description": "Files excluded from `reclaimable_now` because some of their hard links lie\noutside the selection.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "reclaimable_now": {
+          "description": "Bytes freed immediately, counting a file only when every one of its links\nis selected.",
+          "$ref": "#/$defs/ByteCount"
+        }
+      },
+      "required": [
+        "logical",
+        "allocated",
+        "reclaimable_now",
+        "exact",
+        "files",
+        "partially_linked_files"
+      ]
+    },
+    "RelationKind": {
+      "description": "Kind of relationship. Read `from <kind> to`, e.g. \"cache `owned_by` app\".",
+      "oneOf": [
+        {
+          "description": "A directory or volume contains a file or directory.",
+          "type": "string",
+          "const": "contains"
+        },
+        {
+          "description": "A file belongs to an application (by location convention, receipt or\nknowledge base).",
+          "type": "string",
+          "const": "owned_by"
+        },
+        {
+          "description": "A file was created by an application.",
+          "type": "string",
+          "const": "created_by"
+        },
+        {
+          "description": "A file is open in, or mapped by, a running process.",
+          "type": "string",
+          "const": "opened_by"
+        },
+        {
+          "description": "A process was started by a service.",
+          "type": "string",
+          "const": "launched_by"
+        },
+        {
+          "description": "A service runs this executable.",
+          "type": "string",
+          "const": "launches"
+        },
+        {
+          "description": "A vendor declared this file a disposable cache of an application.",
+          "type": "string",
+          "const": "declared_cache_of"
+        },
+        {
+          "description": "Two files share blocks (APFS or `ReFS` clones).",
+          "type": "string",
+          "const": "clone_of"
+        },
+        {
+          "description": "Two files have identical content (confirmed by content hash).",
+          "type": "string",
+          "const": "duplicate_of"
+        },
+        {
+          "description": "A file's content lives inside another file (e.g. container layers in a\nvirtual-machine disk image).",
+          "type": "string",
+          "const": "stored_in"
+        }
+      ]
+    },
+    "Relationship": {
+      "description": "A typed, directed edge justified by evidence.",
+      "type": "object",
+      "properties": {
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceId"
+          },
+          "uniqueItems": true
+        },
+        "from": {
+          "$ref": "#/$defs/Subject"
+        },
+        "kind": {
+          "$ref": "#/$defs/RelationKind"
+        },
+        "to": {
+          "$ref": "#/$defs/Subject"
+        }
+      },
+      "required": [
+        "from",
+        "kind",
+        "to",
+        "evidence"
+      ]
+    },
+    "Risk": {
+      "description": "Risk assessment: a level and the factors behind it.",
+      "type": "object",
+      "properties": {
+        "factors": {
+          "description": "Contributing factors.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RiskFactor"
+          },
+          "uniqueItems": true
+        },
+        "level": {
+          "description": "Overall level.",
+          "$ref": "#/$defs/RiskLevel"
+        }
+      },
+      "required": [
+        "level",
+        "factors"
+      ]
+    },
+    "RiskFactor": {
+      "description": "Why an item carries risk.",
+      "oneOf": [
+        {
+          "description": "Runs or is installed system-wide.",
+          "type": "string",
+          "const": "system_scope"
+        },
+        {
+          "description": "No valid code signature.",
+          "type": "string",
+          "const": "unsigned"
+        },
+        {
+          "description": "Owning application unknown.",
+          "type": "string",
+          "const": "unknown_owner"
+        },
+        {
+          "description": "In use by a running process.",
+          "type": "string",
+          "const": "in_use"
+        },
+        {
+          "description": "Cannot be regenerated.",
+          "type": "string",
+          "const": "not_regenerable"
+        },
+        {
+          "description": "Backed by a cloud provider; removal may propagate.",
+          "type": "string",
+          "const": "cloud_backed"
+        },
+        {
+          "description": "Some relevant location or source was not fully observed.",
+          "type": "string",
+          "const": "incomplete_coverage"
+        },
+        {
+          "description": "Protected by the operating system.",
+          "type": "string",
+          "const": "os_protected"
+        },
+        {
+          "description": "Looks like credentials, keys, a database or application state.",
+          "type": "string",
+          "const": "sensitive_data"
+        }
+      ]
+    },
+    "RiskLevel": {
+      "description": "How much harm removing an item could do.",
+      "oneOf": [
+        {
+          "description": "Regenerable data; no user impact beyond regeneration time.",
+          "type": "string",
+          "const": "low"
+        },
+        {
+          "description": "Some inconvenience (sign-ins, re-downloads, rebuilds).",
+          "type": "string",
+          "const": "medium"
+        },
+        {
+          "description": "Possible data loss or broken software.",
+          "type": "string",
+          "const": "high"
+        },
+        {
+          "description": "System, security or credential impact.",
+          "type": "string",
+          "const": "critical"
+        }
+      ]
+    },
+    "RuleId": {
+      "type": "string",
+      "pattern": "^[a-z](?:[a-z0-9.-]{0,62}[a-z0-9])?$"
+    },
+    "ServiceKind": {
+      "description": "Kind of background or startup component.",
+      "oneOf": [
+        {
+          "description": "macOS launchd agent (per user).",
+          "type": "string",
+          "const": "launch_agent"
+        },
+        {
+          "description": "macOS launchd daemon (system).",
+          "type": "string",
+          "const": "launch_daemon"
+        },
+        {
+          "description": "macOS login item or background item (Background Task Management).",
+          "type": "string",
+          "const": "login_item"
+        },
+        {
+          "description": "Windows service.",
+          "type": "string",
+          "const": "windows_service"
+        },
+        {
+          "description": "Windows driver.",
+          "type": "string",
+          "const": "driver"
+        },
+        {
+          "description": "Windows Task Scheduler task.",
+          "type": "string",
+          "const": "scheduled_task"
+        },
+        {
+          "description": "Windows `Run`/`RunOnce` value or Startup-folder entry.",
+          "type": "string",
+          "const": "startup_entry"
+        }
+      ]
+    },
+    "SourceName": {
+      "type": "string",
+      "pattern": "^[a-z](?:[a-z0-9.-]{0,62}[a-z0-9])?$"
+    },
+    "Subject": {
+      "description": "What a piece of evidence is about.",
+      "oneOf": [
+        {
+          "description": "A filesystem object.",
+          "type": "object",
+          "properties": {
+            "identity": {
+              "description": "Identity of the object.",
+              "$ref": "#/$defs/FileIdentity"
+            },
+            "type": {
+              "type": "string",
+              "const": "file"
+            }
+          },
+          "required": [
+            "type",
+            "identity"
+          ]
+        },
+        {
+          "description": "An installed application.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "One identifier of the application.",
+              "$ref": "#/$defs/AppId"
+            },
+            "type": {
+              "type": "string",
+              "const": "application"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ]
+        },
+        {
+          "description": "A volume.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Volume identifier.",
+              "$ref": "#/$defs/VolumeId"
+            },
+            "type": {
+              "type": "string",
+              "const": "volume"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ]
+        },
+        {
+          "description": "A running process. PIDs are reused, so the start time is part of the key\nwhenever the platform reports it.",
+          "type": "object",
+          "properties": {
+            "pid": {
+              "description": "Process ID.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "started_at": {
+              "description": "Process start time.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "process"
+            }
+          },
+          "required": [
+            "type",
+            "pid"
+          ]
+        },
+        {
+          "description": "A background, startup or scheduled component.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "description": "Component kind.",
+              "$ref": "#/$defs/ServiceKind"
+            },
+            "label": {
+              "description": "Label, service name or task name.",
+              "$ref": "#/$defs/UntrustedText"
+            },
+            "type": {
+              "type": "string",
+              "const": "service"
+            }
+          },
+          "required": [
+            "type",
+            "kind",
+            "label"
+          ]
+        }
+      ]
+    },
+    "Timestamp": {
+      "description": "Canonical RFC 3339 UTC, fraction without trailing zeros.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{0,8}[1-9])?Z$"
+    },
+    "UntrustedText": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ]
+    },
+    "Verdict": {
+      "description": "The final outcome for a candidate. There is deliberately no \"remove\":\npermanent deletion only happens when quarantine is finalized (ADR-0015).",
+      "oneOf": [
+        {
+          "description": "Leave the item alone.",
+          "type": "string",
+          "const": "keep"
+        },
+        {
+          "description": "Show the evidence; act only on the user's individual decision.",
+          "type": "string",
+          "const": "review"
+        },
+        {
+          "description": "Propose a reversible quarantine; still requires plan confirmation.",
+          "type": "string",
+          "const": "quarantine"
+        }
+      ]
+    },
+    "VolumeId": {
+      "description": "Opaque platform volume identifier: 1-128 bytes of visible ASCII.",
+      "type": "string",
+      "pattern": "^[!-~]{1,128}$"
+    }
+  }
+}

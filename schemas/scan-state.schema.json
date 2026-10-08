@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ScanState",
+  "description": "Lifecycle state of a scan.",
+  "oneOf": [
+    {
+      "description": "Created, not started.",
+      "type": "string",
+      "const": "created"
+    },
+    {
+      "description": "Enumerating.",
+      "type": "string",
+      "const": "running"
+    },
+    {
+      "description": "Paused; resumable from its checkpoint.",
+      "type": "string",
+      "const": "paused"
+    },
+    {
+      "description": "Finished.",
+      "type": "string",
+      "const": "completed"
+    },
+    {
+      "description": "Stopped by the user; partial results are kept and marked as partial.",
+      "type": "string",
+      "const": "cancelled"
+    },
+    {
+      "description": "Stopped by an error; partial results are kept and marked as partial.",
+      "type": "string",
+      "const": "failed"
+    }
+  ]
+}

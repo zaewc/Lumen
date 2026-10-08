@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PlatformCapabilities",
+  "description": "What the running host can observe and do. Always within the platform ceiling.",
+  "type": "object",
+  "properties": {
+    "mechanisms": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/CleanupMechanism"
+      },
+      "uniqueItems": true
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Observation"
+      },
+      "uniqueItems": true
+    },
+    "platform": {
+      "$ref": "#/$defs/Platform"
+    }
+  },
+  "required": [
+    "platform",
+    "observations",
+    "mechanisms"
+  ],
+  "$defs": {
+    "CleanupMechanism": {
+      "description": "A way Lumen can free space.",
+      "oneOf": [
+        {
+          "description": "Same-volume rename into Lumen's quarantine store (ADR-0015).",
+          "type": "string",
+          "const": "quarantine_rename"
+        },
+        {
+          "description": "Android `MediaStore.createTrashRequest`.",
+          "type": "string",
+          "const": "media_trash"
+        },
+        {
+          "description": "iOS `PhotoKit` delete into Recently Deleted.",
+          "type": "string",
+          "const": "photo_library_delete"
+        },
+        {
+          "description": "Evict or dehydrate a cloud-backed item; the content stays in the cloud.",
+          "type": "string",
+          "const": "cloud_evict"
+        },
+        {
+          "description": "Run a developer tool's own cleanup command (ADR-0021).",
+          "type": "string",
+          "const": "tool_command"
+        },
+        {
+          "description": "Android `ACTION_CLEAR_APP_CACHE`: clears all apps' external caches at once.",
+          "type": "string",
+          "const": "system_cache_clear"
+        },
+        {
+          "description": "Archive an unused Android app (`PackageInstaller.requestArchive`).",
+          "type": "string",
+          "const": "archive_app"
+        },
+        {
+          "description": "Send the user to the system's own settings screen; Lumen changes nothing.",
+          "type": "string",
+          "const": "open_system_settings"
+        }
+      ]
+    },
+    "Observation": {
+      "description": "Something Lumen can observe.",
+      "oneOf": [
+        {
+          "description": "Walk the user's filesystem (all of it on desktop; shared storage on Android).",
+          "type": "string",
+          "const": "user_filesystem"
+        },
+        {
+          "description": "Folders the user explicitly picked (iOS document picker, Android SAF).",
+          "type": "string",
+          "const": "picked_folders"
+        },
+        {
+          "description": "Read other applications' files (caches, support data).",
+          "type": "string",
+          "const": "other_apps_files"
+        },
+        {
+          "description": "Read other applications' storage *sizes* without their files\n(Android `StorageStatsManager`).",
+          "type": "string",
+          "const": "other_apps_sizes"
+        },
+        {
+          "description": "Enumerate installed applications and packages.",
+          "type": "string",
+          "const": "applications"
+        },
+        {
+          "description": "Enumerate services, launch agents, startup items and scheduled tasks.",
+          "type": "string",
+          "const": "services"
+        },
+        {
+          "description": "Query the platform media library (`MediaStore`, `PhotoKit`).",
+          "type": "string",
+          "const": "media_library"
+        },
+        {
+          "description": "Detect cloud-backed items and their local/downloaded state.",
+          "type": "string",
+          "const": "cloud_items"
+        }
+      ]
+    },
+    "Platform": {
+      "description": "Operating system Lumen is running on.",
+      "oneOf": [
+        {
+          "description": "macOS.",
+          "type": "string",
+          "const": "macos"
+        },
+        {
+          "description": "Windows.",
+          "type": "string",
+          "const": "windows"
+        },
+        {
+          "description": "Linux; used for development and CI, not a product target.",
+          "type": "string",
+          "const": "linux"
+        },
+        {
+          "description": "Android.",
+          "type": "string",
+          "const": "android"
+        },
+        {
+          "description": "iOS and iPadOS.",
+          "type": "string",
+          "const": "ios"
+        }
+      ]
+    }
+  }
+}

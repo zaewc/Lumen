@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CoverageReport",
+  "description": "What one scan observed: per-root directory coverage and per-source status.",
+  "type": "object",
+  "properties": {
+    "roots": {
+      "description": "Coverage per scan root. A list rather than a map because paths are not\nvalid JSON object keys.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RootEntry"
+      }
+    },
+    "sources": {
+      "description": "Status per inventory source.",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z](?:[a-z0-9.-]{0,62}[a-z0-9])?$": {
+          "$ref": "#/$defs/SourceStatus"
+        }
+      }
+    }
+  },
+  "required": [
+    "roots",
+    "sources"
+  ],
+  "$defs": {
+    "RawPath": {
+      "type": "object",
+      "properties": {
+        "flavor": {
+          "enum": [
+            "unix",
+            "windows"
+          ]
+        },
+        "hex": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{2})*$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "flavor",
+        "hex"
+      ]
+    },
+    "RootCoverage": {
+      "description": "Coverage of one scan root.",
+      "type": "object",
+      "properties": {
+        "denied": {
+          "description": "Directories refused, by reason.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          }
+        },
+        "failed": {
+          "description": "Directories whose read failed, by kind.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          }
+        },
+        "not_scanned": {
+          "description": "Directories deliberately not visited.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "readable": {
+          "description": "Directories fully read.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "readable",
+        "denied",
+        "failed",
+        "not_scanned"
+      ]
+    },
+    "RootEntry": {
+      "description": "Coverage of one scan root, together with the root it describes.",
+      "type": "object",
+      "properties": {
+        "coverage": {
+          "description": "What was observed under it.",
+          "$ref": "#/$defs/RootCoverage"
+        },
+        "root": {
+          "description": "The scan root.",
+          "$ref": "#/$defs/RawPath"
+        }
+      },
+      "required": [
+        "root",
+        "coverage"
+      ]
+    },
+    "SourceStatus": {
+      "description": "How completely an inventory source was observed.",
+      "oneOf": [
+        {
+          "description": "Every item the source exposes was read.",
+          "type": "string",
+          "const": "complete"
+        },
+        {
+          "description": "Some items could not be read.",
+          "type": "string",
+          "const": "partial"
+        },
+        {
+          "description": "The result looks implausibly small (e.g. an Android package list without\nthe `android` package), so it must not be trusted for absence.",
+          "type": "string",
+          "const": "suspected_truncated"
+        },
+        {
+          "description": "The source could not be queried at all (missing permission, not supported).",
+          "type": "string",
+          "const": "unavailable"
+        }
+      ]
+    }
+  }
+}

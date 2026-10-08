@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "QuarantineState",
+  "description": "Lifecycle state of one quarantined item.",
+  "oneOf": [
+    {
+      "description": "Part of a confirmed plan; nothing done yet.",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "const": "planned"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    },
+    {
+      "description": "Intent durably written to the ledger; the move may now happen.",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "const": "journaled"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    },
+    {
+      "description": "Renamed into the quarantine store; not yet verified.",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "const": "moved"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    },
+    {
+      "description": "Verified in quarantine (identity, link count and size facts match).",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "const": "verified"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    },
+    {
+      "description": "Held for the retention period; restorable.",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "const": "retained"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    },
+    {
+      "description": "Moved back to its original location. Terminal.",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "const": "restored"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    },
+    {
+      "description": "Permanently removed after retention. Terminal.",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "const": "finalized"
+        }
+      },
+      "required": [
+        "state"
+      ]
+    },
+    {
+      "description": "A step failed; `at` says where the item is.",
+      "type": "object",
+      "properties": {
+        "at": {
+          "description": "Where the item is: untouched at its source, or in quarantine and\nrestorable.",
+          "$ref": "#/$defs/ItemLocation"
+        },
+        "reason": {
+          "description": "Why it failed.",
+          "$ref": "#/$defs/QuarantineFailure"
+        },
+        "state": {
+          "type": "string",
+          "const": "failed"
+        }
+      },
+      "required": [
+        "state",
+        "reason",
+        "at"
+      ]
+    }
+  ],
+  "$defs": {
+    "ItemLocation": {
+      "description": "Where the item physically is.",
+      "oneOf": [
+        {
+          "description": "At its original location.",
+          "type": "string",
+          "const": "source"
+        },
+        {
+          "description": "Inside Lumen's quarantine store.",
+          "type": "string",
+          "const": "quarantine"
+        },
+        {
+          "description": "Permanently removed (only after finalization).",
+          "type": "string",
+          "const": "gone"
+        }
+      ]
+    },
+    "QuarantineFailure": {
+      "description": "Why a quarantine step failed.",
+      "oneOf": [
+        {
+          "description": "The item's identity no longer matched the plan (changed or swapped).",
+          "type": "string",
+          "const": "identity_mismatch"
+        },
+        {
+          "description": "A process was using the item.",
+          "type": "string",
+          "const": "in_use"
+        },
+        {
+          "description": "The volume cannot quarantine safely (no no-replace rename, read-only, …).",
+          "type": "string",
+          "const": "volume_unsupported"
+        },
+        {
+          "description": "The move itself failed.",
+          "type": "string",
+          "const": "move_failed"
+        },
+        {
+          "description": "Post-move verification did not match the plan.",
+          "type": "string",
+          "const": "verification_failed"
+        }
+      ]
+    }
+  }
+}

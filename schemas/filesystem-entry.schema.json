@@ -1,0 +1,428 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FilesystemEntry",
+  "description": "One directory entry as observed by a scanner.",
+  "type": "object",
+  "properties": {
+    "access": {
+      "description": "For directories, whether their contents were read; for other kinds,\nwhether their metadata was read.",
+      "$ref": "#/$defs/AccessState"
+    },
+    "kind": {
+      "description": "Object kind.",
+      "$ref": "#/$defs/EntryKind"
+    },
+    "path": {
+      "description": "Path as reported by the platform.",
+      "$ref": "#/$defs/RawPath"
+    },
+    "protection": {
+      "description": "OS protections.",
+      "$ref": "#/$defs/Protection"
+    },
+    "size": {
+      "description": "Size facts, including the entry's identity.",
+      "$ref": "#/$defs/SizeFacts"
+    },
+    "times": {
+      "description": "Timestamps.",
+      "$ref": "#/$defs/EntryTimes"
+    }
+  },
+  "required": [
+    "path",
+    "kind",
+    "size",
+    "times",
+    "protection",
+    "access"
+  ],
+  "$defs": {
+    "AccessState": {
+      "description": "Whether a location's contents were observed.",
+      "oneOf": [
+        {
+          "description": "Fully read.",
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "readable"
+            }
+          },
+          "required": [
+            "state"
+          ]
+        },
+        {
+          "description": "Access was refused.",
+          "type": "object",
+          "properties": {
+            "reason": {
+              "$ref": "#/$defs/DenialReason"
+            },
+            "state": {
+              "type": "string",
+              "const": "denied"
+            }
+          },
+          "required": [
+            "state",
+            "reason"
+          ]
+        },
+        {
+          "description": "Reading failed.",
+          "type": "object",
+          "properties": {
+            "reason": {
+              "$ref": "#/$defs/FailureKind"
+            },
+            "state": {
+              "type": "string",
+              "const": "failed"
+            }
+          },
+          "required": [
+            "state",
+            "reason"
+          ]
+        },
+        {
+          "description": "Deliberately not visited (excluded, cancelled, not yet reached).",
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "not_scanned"
+            }
+          },
+          "required": [
+            "state"
+          ]
+        }
+      ]
+    },
+    "ByteCount": {
+      "description": "Unsigned 64-bit byte count as a canonical decimal string.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "CloneId": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "DenialReason": {
+      "description": "Why a location could not be read.",
+      "oneOf": [
+        {
+          "description": "macOS privacy protection (TCC), e.g. Full Disk Access not granted.",
+          "type": "string",
+          "const": "tcc"
+        },
+        {
+          "description": "macOS System Integrity Protection or the sealed system volume.",
+          "type": "string",
+          "const": "sip"
+        },
+        {
+          "description": "POSIX permissions.",
+          "type": "string",
+          "const": "posix"
+        },
+        {
+          "description": "Windows ACL or other access-control list.",
+          "type": "string",
+          "const": "acl"
+        },
+        {
+          "description": "Outside the scope the platform grants the app (sandbox, Android storage tier).",
+          "type": "string",
+          "const": "scope"
+        },
+        {
+          "description": "Denied for a reason the platform did not report.",
+          "type": "string",
+          "const": "unknown"
+        }
+      ]
+    },
+    "EntryKind": {
+      "description": "What kind of object a directory entry is.",
+      "oneOf": [
+        {
+          "description": "Regular file.",
+          "type": "string",
+          "const": "file"
+        },
+        {
+          "description": "Directory.",
+          "type": "string",
+          "const": "directory"
+        },
+        {
+          "description": "Symbolic link.",
+          "type": "string",
+          "const": "symlink"
+        },
+        {
+          "description": "Windows junction or mount-point reparse point.",
+          "type": "string",
+          "const": "junction"
+        },
+        {
+          "description": "Any other reparse point (cloud placeholder, `AppExecLink`, dedup, …).",
+          "type": "string",
+          "const": "other_reparse_point"
+        },
+        {
+          "description": "Device, FIFO, socket or other special file.",
+          "type": "string",
+          "const": "special"
+        }
+      ]
+    },
+    "EntryTimes": {
+      "description": "Timestamps reported for an entry. Any may be unavailable. Access times are\nweak evidence: many systems update them lazily or never (`noatime`,\n`relatime`, `NtfsDisableLastAccessUpdate`).",
+      "type": "object",
+      "properties": {
+        "accessed": {
+          "description": "Last accessed (unreliable).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "changed": {
+          "description": "Metadata last changed (`ctime`).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created": {
+          "description": "Created (birth time).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "modified": {
+          "description": "Content last modified.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "FailureKind": {
+      "description": "Why reading a location failed for a reason other than access control.",
+      "oneOf": [
+        {
+          "description": "The location disappeared while being scanned.",
+          "type": "string",
+          "const": "vanished"
+        },
+        {
+          "description": "Reading did not finish within its time budget.",
+          "type": "string",
+          "const": "timed_out"
+        },
+        {
+          "description": "Any other I/O failure.",
+          "type": "string",
+          "const": "io"
+        }
+      ]
+    },
+    "FileId": {
+      "description": "Unsigned 128-bit file identifier as a canonical decimal string.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,38})$"
+    },
+    "FileIdentity": {
+      "description": "The identity of a filesystem object: which volume, and which file on it.\n\nLumen keys every decision on identity rather than path text (ADR-0013,\nADR-0016), because paths can be swapped, normalised differently, or hard-linked.",
+      "type": "object",
+      "properties": {
+        "file": {
+          "description": "File identifier within the volume.",
+          "$ref": "#/$defs/FileId"
+        },
+        "volume": {
+          "description": "Volume holding the file.",
+          "$ref": "#/$defs/VolumeId"
+        }
+      },
+      "required": [
+        "volume",
+        "file"
+      ]
+    },
+    "Protection": {
+      "description": "Operating-system protections that make an entry untouchable (ADR-0014 stage 1).",
+      "type": "object",
+      "properties": {
+        "hidden": {
+          "description": "Hidden from normal listings (dot-file or `FILE_ATTRIBUTE_HIDDEN`).",
+          "type": "boolean"
+        },
+        "system_attribute": {
+          "description": "Windows `FILE_ATTRIBUTE_SYSTEM`.",
+          "type": "boolean"
+        },
+        "system_restricted": {
+          "description": "macOS `SF_RESTRICTED` (System Integrity Protection) or an equivalent\nOS-integrity protection.",
+          "type": "boolean"
+        },
+        "undeletable": {
+          "description": "Cannot be unlinked or is immutable (`SF_NOUNLINK`, `UF_IMMUTABLE`,\n`SF_IMMUTABLE`, Linux immutable attribute).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "system_restricted",
+        "undeletable",
+        "system_attribute",
+        "hidden"
+      ]
+    },
+    "RawPath": {
+      "type": "object",
+      "properties": {
+        "flavor": {
+          "enum": [
+            "unix",
+            "windows"
+          ]
+        },
+        "hex": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{2})*$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "flavor",
+        "hex"
+      ]
+    },
+    "SizeFacts": {
+      "description": "Size facts for one directory entry, as observed by a scanner.",
+      "type": "object",
+      "properties": {
+        "allocated": {
+          "description": "Bytes allocated on disk.",
+          "$ref": "#/$defs/ByteCount"
+        },
+        "clone_id": {
+          "description": "APFS clone group, when known.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CloneId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "flags": {
+          "description": "Storage properties.",
+          "$ref": "#/$defs/SizeFlags"
+        },
+        "identity": {
+          "description": "File identity; entries with the same identity are links to one file.",
+          "$ref": "#/$defs/FileIdentity"
+        },
+        "link_count": {
+          "description": "Number of hard links to the file (at least 1).",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1
+        },
+        "logical": {
+          "description": "Logical (apparent) size: the file's length.",
+          "$ref": "#/$defs/ByteCount"
+        },
+        "private": {
+          "description": "Bytes freed immediately if the file were deleted (APFS\n`ATTR_CMNEXT_PRIVATESIZE`), when known.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ByteCount"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "identity",
+        "logical",
+        "allocated",
+        "link_count",
+        "flags"
+      ]
+    },
+    "SizeFlags": {
+      "description": "Storage properties that change what deleting a file frees.",
+      "type": "object",
+      "properties": {
+        "cloud_placeholder": {
+          "description": "Cloud-provider placeholder (Windows `RECALL_ON_*`, sync-root items).\nDeleting it would propagate to the cloud; it never counts as reclaimable.",
+          "type": "boolean"
+        },
+        "compressed": {
+          "description": "Filesystem-compressed (NTFS, APFS decmpfs, WOF).",
+          "type": "boolean"
+        },
+        "dataless": {
+          "description": "Data is not present locally (macOS `SF_DATALESS`).",
+          "type": "boolean"
+        },
+        "may_share_blocks": {
+          "description": "Blocks may be shared with other files (APFS clones, snapshots).",
+          "type": "boolean"
+        },
+        "sparse": {
+          "description": "Sparse file: logical size exceeds allocated size.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "sparse",
+        "compressed",
+        "dataless",
+        "cloud_placeholder",
+        "may_share_blocks"
+      ]
+    },
+    "Timestamp": {
+      "description": "Canonical RFC 3339 UTC, fraction without trailing zeros.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{0,8}[1-9])?Z$"
+    },
+    "VolumeId": {
+      "description": "Opaque platform volume identifier: 1-128 bytes of visible ASCII.",
+      "type": "string",
+      "pattern": "^[!-~]{1,128}$"
+    }
+  }
+}
