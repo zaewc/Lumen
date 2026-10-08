@@ -377,6 +377,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumen-application"
+version = "0.0.0"
+dependencies = [
+ "lumen-domain",
+ "thiserror",
+]
+
+[[package]]
 name = "lumen-domain"
 version = "0.0.0"
 dependencies = [
