@@ -14,6 +14,7 @@ repository = "https://github.com/zaewc/Lumen"
 # Every dependency needs a reason (AGENTS.md); see the PR that added it.
 lumen-application = { path = "crates/lumen-application" }
 lumen-domain = { path = "crates/lumen-domain" }
+lumen-testkit = { path = "crates/lumen-testkit" }
 blake3 = "1.8.7"
 # Test-only validator; defaults pull an HTTP client and a TLS stack we do not need.
 jsonschema = { version = "0.58.5", default-features = false }
@@ -21,6 +22,7 @@ proptest = "1.11.0"
 schemars = "1.2.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
+tempfile = "3.27.0"
 thiserror = "2.0.21"
 uuid = { version = "1.27.0", features = ["serde"] }
 
