@@ -84,7 +84,19 @@ pub struct ModelId(String);
 opaque_id!(ModelId, "model ID", 128);
 
 /// The model's assessment of an item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum Assessment {
     /// The evidence suggests the item can be removed.
@@ -97,7 +109,19 @@ pub enum Assessment {
 
 /// Verbalized confidence bucket. Mapped to empirical precision by calibration;
 /// never used raw.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum JudgmentConfidence {
     /// Low.
@@ -109,7 +133,19 @@ pub enum JudgmentConfidence {
 }
 
 /// Closed list of reasons a judgment may cite (`ai/schemas/reason-codes.json`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum ReasonCode {
@@ -151,7 +187,7 @@ pub enum ReasonCode {
 
 /// A validated judgment (`jev.judgment/1`). Unknown fields are rejected, as the
 /// contract's `additionalProperties: false` requires.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Judgment {
     /// Echo of the request's item reference.
@@ -171,7 +207,18 @@ pub struct Judgment {
 }
 
 /// Why a judgment was rejected.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, thiserror::Error)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    thiserror::Error,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum JudgmentRejection {
@@ -229,7 +276,7 @@ impl Judgment {
 }
 
 /// Which judge produced a judgment.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct JudgeDescriptor {
     /// Provider adapter, e.g. `anthropic` or `apple.foundation-models`.
     pub provider: SourceName,
@@ -242,7 +289,7 @@ pub struct JudgeDescriptor {
 }
 
 /// Outcome of validating a model response.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "result", content = "reason", rename_all = "snake_case")]
 pub enum TraceValidation {
     /// The judgment was valid and available to the policy.
@@ -255,7 +302,7 @@ pub enum TraceValidation {
 }
 
 /// Record of one judgment that a policy decision consumed (`jev.trace/1`).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct JevTrace {
     /// When the judgment was requested.
     pub requested_at: Timestamp,
@@ -285,6 +332,9 @@ pub struct JevTrace {
     /// Round-trip latency in milliseconds.
     pub latency_ms: u32,
 }
+
+manual_schema!(ItemRef, "ItemRef", { "type": "string", "pattern": "^[!-~]{1,64}$" });
+manual_schema!(ModelId, "ModelId", { "type": "string", "pattern": "^[!-~]{1,128}$" });
 
 #[cfg(test)]
 mod tests {

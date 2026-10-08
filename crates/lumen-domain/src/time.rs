@@ -210,6 +210,8 @@ impl<'de> Deserialize<'de> for Timestamp {
     }
 }
 
+manual_schema!(Timestamp, "Timestamp", { "type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{0,8}[1-9])?Z$", "description": "Canonical RFC 3339 UTC, fraction without trailing zeros." });
+
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;

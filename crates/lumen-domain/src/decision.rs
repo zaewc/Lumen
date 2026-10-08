@@ -16,7 +16,19 @@ use crate::{EvidenceHash, EvidenceId, PolicyVersion};
 
 /// The final outcome for a candidate. There is deliberately no "remove":
 /// permanent deletion only happens when quarantine is finalized (ADR-0015).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum Verdict {
     /// Leave the item alone.
@@ -28,7 +40,19 @@ pub enum Verdict {
 }
 
 /// How much harm removing an item could do.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum RiskLevel {
     /// Regenerable data; no user impact beyond regeneration time.
@@ -42,7 +66,19 @@ pub enum RiskLevel {
 }
 
 /// Why an item carries risk.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum RiskFactor {
@@ -67,7 +103,7 @@ pub enum RiskFactor {
 }
 
 /// Risk assessment: a level and the factors behind it.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Risk {
     /// Overall level.
     pub level: RiskLevel,
@@ -134,7 +170,19 @@ impl<'de> Deserialize<'de> for RuleId {
 }
 
 /// Policy evaluation stage (ADR-0014), in evaluation order.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum PolicyStage {
     /// Non-overridable protections; any rule here forces `Keep`.
@@ -148,7 +196,9 @@ pub enum PolicyStage {
 }
 
 /// A rule that fired, with the evidence it used.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct FiredRule {
     /// Rule identifier.
     pub rule: RuleId,
@@ -159,7 +209,7 @@ pub struct FiredRule {
 }
 
 /// What Jev evidence did to the decision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum JevEffect {
     /// Jev was not consulted, unavailable, or changed nothing.
@@ -195,7 +245,7 @@ pub enum DecisionError {
 }
 
 /// The deterministic policy's decision for one candidate.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, schemars::JsonSchema)]
 pub struct PolicyDecision {
     verdict: Verdict,
     policy_version: PolicyVersion,
@@ -309,6 +359,8 @@ impl<'de> Deserialize<'de> for PolicyDecision {
         .map_err(serde::de::Error::custom)
     }
 }
+
+manual_schema!(RuleId, "RuleId", { "type": "string", "pattern": concat!("^", name_regex!(), "$") });
 
 #[cfg(test)]
 mod tests {

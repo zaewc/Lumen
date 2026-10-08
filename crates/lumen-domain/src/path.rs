@@ -22,7 +22,19 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use crate::escape::{Escape, push_display_char, push_escape};
 
 /// Which platform's path model a [`RawPath`] uses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum PathFlavor {
     /// Arbitrary bytes, `/`-separated (macOS, Linux, Android, iOS).
@@ -315,6 +327,8 @@ fn decode_hex(hex: &str) -> Result<Vec<u8>, PathError> {
         .map(|&[hi, lo]| Ok((nibble(hi)? << 4) | nibble(lo)?))
         .collect()
 }
+
+manual_schema!(RawPath, "RawPath", { "type": "object", "properties": { "flavor": { "enum": ["unix", "windows"] }, "hex": { "type": "string", "pattern": "^([0-9a-f]{2})*$" } }, "required": ["flavor", "hex"], "additionalProperties": false });
 
 #[cfg(test)]
 mod tests {

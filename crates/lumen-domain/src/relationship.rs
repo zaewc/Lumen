@@ -12,7 +12,19 @@ use serde::{Deserialize, Serialize};
 use crate::{EvidenceId, Subject};
 
 /// Coarse type of a [`Subject`], used to constrain relationship endpoints.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum SubjectType {
     /// [`Subject::File`].
@@ -41,7 +53,19 @@ impl Subject {
 }
 
 /// Kind of relationship. Read `from <kind> to`, e.g. "cache `owned_by` app".
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum RelationKind {
@@ -109,7 +133,7 @@ pub enum RelationshipError {
 }
 
 /// A typed, directed edge justified by evidence.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, schemars::JsonSchema)]
 pub struct Relationship {
     from: Subject,
     kind: RelationKind,

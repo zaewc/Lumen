@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::{PlanHash, Timestamp};
 
 /// Lifecycle state of a scan.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ScanState {
     /// Created, not started.
@@ -33,7 +33,7 @@ pub enum ScanState {
 }
 
 /// Event reported by the scan engine.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ScanEvent {
     /// Start enumerating.
@@ -91,7 +91,7 @@ pub struct ScanTransitionError {
 }
 
 /// Where a confirmation was given.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ConfirmationSurface {
     /// The desktop app.
@@ -103,7 +103,7 @@ pub enum ConfirmationSurface {
 }
 
 /// A user's confirmation of one specific plan.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Confirmation {
     /// Hash of the plan the user saw and confirmed.
     pub plan_hash: PlanHash,
@@ -114,7 +114,7 @@ pub struct Confirmation {
 }
 
 /// Lifecycle state of a cleanup plan.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum PlanState {
     /// Being assembled.
@@ -145,7 +145,7 @@ pub enum PlanState {
 }
 
 /// Event in a plan's lifecycle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "event", rename_all = "snake_case")]
 pub enum PlanEvent {
     /// Present the plan to the user.

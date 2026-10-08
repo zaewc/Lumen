@@ -105,6 +105,8 @@ impl TryFrom<Wire> for UntrustedText {
     }
 }
 
+manual_schema!(UntrustedText, "UntrustedText", { "type": "object", "properties": { "text": { "type": "string", "maxLength": 1024 }, "truncated": { "type": "boolean" } }, "required": ["text"], "additionalProperties": false });
+
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;

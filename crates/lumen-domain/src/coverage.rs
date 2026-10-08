@@ -16,7 +16,19 @@ use crate::RawPath;
 use crate::name::is_valid_name;
 
 /// Why a location could not be read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum DenialReason {
@@ -35,7 +47,19 @@ pub enum DenialReason {
 }
 
 /// Why reading a location failed for a reason other than access control.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum FailureKind {
@@ -48,7 +72,7 @@ pub enum FailureKind {
 }
 
 /// Whether a location's contents were observed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "state", content = "reason", rename_all = "snake_case")]
 pub enum AccessState {
     /// Fully read.
@@ -128,7 +152,19 @@ impl<'de> Deserialize<'de> for SourceName {
 }
 
 /// How completely an inventory source was observed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceStatus {
     /// Every item the source exposes was read.
@@ -143,7 +179,7 @@ pub enum SourceStatus {
 }
 
 /// Coverage of one scan root.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct RootCoverage {
     /// Directories fully read.
     pub readable: u64,
@@ -179,7 +215,7 @@ fn bump(counter: &mut u64) {
 }
 
 /// Coverage of one scan root, together with the root it describes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct RootEntry {
     /// The scan root.
     pub root: RawPath,
@@ -188,7 +224,7 @@ pub struct RootEntry {
 }
 
 /// What one scan observed: per-root directory coverage and per-source status.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CoverageReport {
     /// Coverage per scan root. A list rather than a map because paths are not
     /// valid JSON object keys.
@@ -215,6 +251,8 @@ impl CoverageReport {
                 .all(|name| self.sources.get(name) == Some(&SourceStatus::Complete))
     }
 }
+
+manual_schema!(SourceName, "SourceName", { "type": "string", "pattern": concat!("^", name_regex!(), "$") });
 
 #[cfg(test)]
 mod tests {

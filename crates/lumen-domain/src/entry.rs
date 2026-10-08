@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{AccessState, FileIdentity, RawPath, SizeFacts, Timestamp, VolumeId};
 
 /// Filesystem format of a volume.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum FilesystemKind {
@@ -38,7 +38,7 @@ pub enum FilesystemKind {
 }
 
 /// Whether a volume supports a feature, as far as the platform reports.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Support {
     /// Supported.
@@ -50,7 +50,7 @@ pub enum Support {
 }
 
 /// How names on a volume are compared.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CaseSensitivity {
     /// `a` and `A` name different files.
@@ -62,7 +62,7 @@ pub enum CaseSensitivity {
 }
 
 /// Where a volume lives.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VolumeLocation {
     /// Built-in storage.
@@ -76,7 +76,7 @@ pub enum VolumeLocation {
 }
 
 /// A mounted volume.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Volume {
     /// Platform volume identifier.
     pub id: VolumeId,
@@ -111,7 +111,7 @@ impl Volume {
 }
 
 /// What kind of object a directory entry is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum EntryKind {
     /// Regular file.
@@ -139,7 +139,9 @@ impl EntryKind {
 /// Timestamps reported for an entry. Any may be unavailable. Access times are
 /// weak evidence: many systems update them lazily or never (`noatime`,
 /// `relatime`, `NtfsDisableLastAccessUpdate`).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct EntryTimes {
     /// Content last modified.
     pub modified: Option<Timestamp>,
@@ -152,7 +154,9 @@ pub struct EntryTimes {
 }
 
 /// Operating-system protections that make an entry untouchable (ADR-0014 stage 1).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[allow(clippy::struct_excessive_bools)] // Independent OS flags, not a state machine.
 pub struct Protection {
     /// macOS `SF_RESTRICTED` (System Integrity Protection) or an equivalent
@@ -175,7 +179,7 @@ impl Protection {
 }
 
 /// One directory entry as observed by a scanner.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct FilesystemEntry {
     /// Path as reported by the platform.
     pub path: RawPath,
