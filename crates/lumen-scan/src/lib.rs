@@ -13,10 +13,12 @@
 
 #![forbid(unsafe_code)]
 
+mod coverage;
 mod scheduler;
 #[cfg(unix)]
 mod std_fs;
 
+pub use coverage::CoverageBuilder;
 pub use scheduler::{
     ScanConfig, ScanItem, ScanProgress, ScanSummary, SkipReason, StopReason, scan,
 };
