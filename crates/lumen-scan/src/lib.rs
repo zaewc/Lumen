@@ -13,11 +13,13 @@
 
 #![forbid(unsafe_code)]
 
+mod aggregate;
 mod coverage;
 mod scheduler;
 #[cfg(unix)]
 mod std_fs;
 
+pub use aggregate::{DirTotals, SizeAggregator};
 pub use coverage::CoverageBuilder;
 pub use scheduler::{
     ScanConfig, ScanItem, ScanProgress, ScanSummary, SkipReason, StopReason, scan,
