@@ -85,6 +85,16 @@ The constants are defined in xnu [`bsd/sys/attr.h`](https://github.com/apple-oss
 
 **Per-volume capability gate (omitted from the original draft).** The man page and `attr.h` tie `ATTR_CMNEXT_CLONEID` and `ATTR_CMNEXT_CLONE_REFCNT` to `VOL_CAP_FMT_CLONE_MAPPING` (0x04000000): "If this bit is set, the volume format supports full clone tracking." Lumen must read `ATTR_VOL_CAPABILITIES` once per volume with `getattrlist` on the mount root (volume attributes cannot be requested through `getattrlistbulk`) and treat clone IDs and clone ref-counts as **meaningless** on volumes without this bit. On such volumes, fall back to `PRIVATESIZE` or to allocated size flagged "may over-count shared blocks", and never merge clone groups by `CLONEID`. Also check `VOL_CAP_INT_CLONE` before assuming clones exist at all.
 
+**Measured (2026-10-12, macOS 26, APFS):** `fgetattrlist` with `ATTR_VOL_INFO |
+ATTR_VOL_CAPABILITIES` works on any directory of a volume, not just its root. On
+`/`, the Data volume, `~` and `/private/tmp`, `VOL_CAP_FMT_CLONE_MAPPING` is *valid but
+not set* (`VOL_CAP_INT_CLONE` is set). So APFS supports clones but does not claim
+full clone tracking, and by the rule above `CLONEID` is meaningless there. Lumen
+therefore does not request or store clone IDs (`SizeFacts::clone_id` stays `None`).
+Clone-aware reclaim comes from `PRIVATESIZE`
+([ADR-0028](../decisions/0028-macos-private-size-in-bulk-pass.md)). If a volume ever
+reports the bit, adding a gated `CLONEID` is a contained change in the macOS adapter.
+
 Relevant `st_flags` bits from xnu [`sys/stat.h`](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/stat.h):
 - `UF_COMPRESSED` (0x20): decmpfs-compressed. Allocated size is less than logical size.
 - `SF_RESTRICTED` (0x00080000): "entitlement required for writing". This is the SIP flag.
@@ -157,6 +167,17 @@ buffers for a file, a clone, a directory and a symlink match the man pages:
 - `ATTR_CMN_DEVID` can be negative (`/dev` is -1271763927 here). Rust's
   `MetadataExt::dev` sign-extends `st_dev`, so identities must sign-extend too.
 - Golden copies of these buffers are tests in `lumen-platform-macos`.
+
+**Materialization of dataless files (measured 2026-10-12).** `getiopolicy_np(
+IOPOL_TYPE_VFS_MATERIALIZE_DATALESS_FILES, IOPOL_SCOPE_PROCESS)` returned
+`IOPOL_MATERIALIZE_DATALESS_FILES_ON` (2) in a process started from a terminal inside
+an editor. The man page's system default is `OFF`, but "new processes inherit the
+policy of their parent process". Lumen cannot rely on the default, so the scanner sets
+`OFF` at **thread** scope (which overrides the process policy) for every call and
+restores the previous value afterwards. Under `OFF` an access that would download
+content fails with `EDEADLK`. A scan of `~/Library/Mobile Documents` left its dataless
+files dataless (`SF_DATALESS` set, 0 blocks, before and after). No directory there
+had `EF_IS_SYNC_ROOT`: iCloud Drive's container is not reported as a sync root.
 - Cost and coverage of `ATTR_CMNEXT_PRIVATESIZE` were measured on 1.3 M files; see
   [ADR-0028](../decisions/0028-macos-private-size-in-bulk-pass.md). It doubles
   bulk-pass time, and `EF_MAY_SHARE_BLOCKS` alone does not predict which files have a

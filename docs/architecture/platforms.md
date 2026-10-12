@@ -50,10 +50,12 @@ Research: [03-macos-platform](../research/03-macos-platform.md),
   Request `ATTR_CMNEXT_PRIVATESIZE` in the same pass for every entry (switchable off
   for quick scans), and again for candidates before a plan is shown
   ([ADR-0028](../decisions/0028-macos-private-size-in-bulk-pass.md)).
-- Gate clone grouping on `VOL_CAP_FMT_CLONE_MAPPING`. Treat missing attributes on
-  non-APFS volumes as unknown.
-- `SF_DATALESS` and sync-root items are never opened.
-  `IOPOL_MATERIALIZE_DATALESS_FILES_OFF` is set process-wide.
+- Clone grouping requires `VOL_CAP_FMT_CLONE_MAPPING`, which APFS on macOS 26 does not
+  set, so clone IDs are not used; `PRIVATESIZE` carries clone-aware reclaim. Treat
+  missing attributes on non-APFS volumes as unknown.
+- `SF_DATALESS` and sync-root items are never opened, and dataless directories are
+  not listed (reported as not scanned). `IOPOL_MATERIALIZE_DATALESS_FILES_OFF` is set
+  per scanner thread, because the process policy is inherited and can be `ON`.
 - Four size figures per node: logical, allocated, freed now, and freed after snapshots
   expire (with `tmutil listlocalsnapshotdates`).
 - Three free-space figures: `statfs` free, `ImportantUsage`, and `OpportunisticUsage`.

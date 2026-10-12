@@ -8,6 +8,9 @@
 //!   that was verified;
 //! - mount points and firmlinks are re-read with `getattrlistat(FSOPT_NOFOLLOW)`,
 //!   so every identity matches what `lstat` reports;
+//! - it never downloads cloud content: every call runs with dataless-file
+//!   materialization turned off for its thread, and a dataless directory is
+//!   reported as not scanned instead of being listed;
 //! - an entry that cannot be parsed or mapped makes the listing incomplete; it is
 //!   never guessed at or silently dropped (ADR-0008).
 
@@ -15,6 +18,7 @@ use std::ffi::{CString, OsStr};
 use std::fs::{Metadata, OpenOptions};
 use std::io;
 use std::ops::ControlFlow;
+use std::os::macos::fs::MetadataExt as _;
 use std::os::unix::ffi::OsStrExt as _;
 use std::os::unix::fs::{MetadataExt as _, OpenOptionsExt as _};
 use std::path::Path;
@@ -32,6 +36,9 @@ use crate::sys;
 /// Bytes per `getattrlistbulk` batch (ADR-0017). A name takes at most 766 bytes,
 /// so every entry fits.
 const BUFFER: usize = 32 * 1024;
+
+/// `SF_DATALESS` (`sys/stat.h`): the contents are not stored locally.
+const SF_DATALESS: u32 = 0x4000_0000;
 
 /// Enumerates directories with `getattrlistbulk`. Stateless and thread-safe.
 #[derive(Debug, Clone, Copy)]
@@ -69,6 +76,10 @@ impl Default for BulkEnumerator {
 impl DirEnumerator for BulkEnumerator {
     fn stat(&self, path: &RawPath) -> Result<FilesystemEntry, EnumerateError> {
         let native = c_path(path)?;
+        let _guard = sys::NoMaterialization::enter().map_err(|_| EnumerateError::Unobservable {
+            path: path.clone(),
+            access: AccessState::Failed(FailureKind::Io),
+        })?;
         let mut buffer = vec![0; BUFFER];
         sys::lookup(&native, self.lookup_set(), &mut buffer).map_err(|e| {
             EnumerateError::Unobservable {
@@ -86,6 +97,13 @@ impl DirEnumerator for BulkEnumerator {
         sink: &mut dyn FnMut(FilesystemEntry) -> ControlFlow<()>,
     ) -> Result<DirOutcome, EnumerateError> {
         let native = native_path(path)?;
+        // Without the backstop, listing could download cloud content: do nothing.
+        let Ok(_guard) = sys::NoMaterialization::enter() else {
+            return Ok(DirOutcome {
+                access: AccessState::Failed(FailureKind::Io),
+                complete: false,
+            });
+        };
         let dir = match OpenOptions::new()
             .read(true)
             .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
@@ -102,6 +120,14 @@ impl DirEnumerator for BulkEnumerator {
             return Err(EnumerateError::NotADirectory { path: path.clone() });
         }
         check_identity(path, &identity_of(path, &meta)?, expected)?;
+        // A dataless directory's entries live in the cloud; listing them would
+        // download them (or fail with `EDEADLK` under the guard).
+        if meta.st_flags() & SF_DATALESS != 0 {
+            return Ok(DirOutcome {
+                access: AccessState::NotScanned,
+                complete: false,
+            });
+        }
 
         let set = request(self.private_size);
         let mut buffer = vec![0; BUFFER];
@@ -245,6 +271,8 @@ fn access_from_io(error: &io::Error) -> AccessState {
         (_, Some(libc::EPERM)) | (io::ErrorKind::PermissionDenied, _) => {
             AccessState::Denied(DenialReason::Unknown)
         }
+        // Materialization refused by the guard: deliberately not read.
+        (_, Some(libc::EDEADLK)) => AccessState::NotScanned,
         (io::ErrorKind::NotFound, _) => AccessState::Failed(FailureKind::Vanished),
         (io::ErrorKind::TimedOut, _) => AccessState::Failed(FailureKind::TimedOut),
         _ => AccessState::Failed(FailureKind::Io),
@@ -464,6 +492,18 @@ mod tests {
                 complete: false
             }
         );
+        Ok(())
+    }
+
+    #[test]
+    fn listing_runs_with_materialization_off() -> TestResult {
+        let fx = Fixture::build(&[file("d/1", b"")])?;
+        let mut during = None;
+        BulkEnumerator::new().read_dir(&raw(&fx, "d")?, None, &mut |_| {
+            during = sys::thread_materialization();
+            ControlFlow::Continue(())
+        })?;
+        assert_eq!(during, Some(1), "IOPOL_MATERIALIZE_DATALESS_FILES_OFF");
         Ok(())
     }
 

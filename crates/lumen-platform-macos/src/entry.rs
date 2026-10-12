@@ -36,6 +36,7 @@ const SF_DATALESS: u32 = 0x4000_0000;
 
 // `ATTR_CMNEXT_EXT_FLAGS` bits (`sys/stat.h`).
 const EF_MAY_SHARE_BLOCKS: u64 = 0x01;
+const EF_IS_SYNC_ROOT: u64 = 0x04;
 const EF_IS_SPARSE: u64 = 0x10;
 const EF_SHARES_ALL_BLOCKS: u64 = 0x40;
 
@@ -189,7 +190,11 @@ pub fn to_entry(path: RawPath, raw: &RawEntry<'_>) -> Result<FilesystemEntry, Un
                 sparse: is_file && sparse,
                 compressed: flags & UF_COMPRESSED != 0,
                 dataless: flags & SF_DATALESS != 0,
-                cloud_placeholder: false,
+                // Dataless items and sync roots belong to a cloud provider:
+                // removing them would propagate to the cloud.
+                cloud_placeholder: flags & SF_DATALESS != 0
+                    || (kind == EntryKind::Directory
+                        && ext.is_some_and(|e| e & EF_IS_SYNC_ROOT != 0)),
                 // Without a private size, an unflagged file may still free less
                 // than its allocation (compressed, sparse and resource-fork files;
                 // ADR-0028), so only a measured private size earns `false`.
@@ -367,6 +372,7 @@ mod tests {
         assert!(!entry.protection.hidden);
         assert!(entry.size.flags.compressed);
         assert!(entry.size.flags.dataless);
+        assert!(entry.size.flags.cloud_placeholder, "dataless");
         assert!(entry.size.flags.sparse);
 
         let hidden = to_entry(path("/t/.git"), &file())?;
@@ -376,6 +382,29 @@ mod tests {
             ..file()
         };
         assert!(to_entry(path("/t/x"), &flagged)?.protection.hidden);
+        Ok(())
+    }
+
+    #[test]
+    fn sync_roots_are_cloud_backed() -> Result<(), Unmappable> {
+        let root = RawEntry {
+            object_type: Some(VDIR),
+            ext_flags: Some(EF_IS_SYNC_ROOT),
+            ..file()
+        };
+        assert!(
+            to_entry(path("/t/Drive"), &root)?
+                .size
+                .flags
+                .cloud_placeholder
+        );
+        let local = RawEntry {
+            object_type: Some(VDIR),
+            ..file()
+        };
+        assert!(!to_entry(path("/t/d"), &local)?.size.flags.cloud_placeholder);
+        let plain = to_entry(path("/t/f"), &file())?;
+        assert!(!plain.size.flags.cloud_placeholder);
         Ok(())
     }
 

@@ -1,5 +1,6 @@
 //! The only `unsafe` code in the macOS adapter: three `getattrlist`-family system
-//! calls that fill a caller-owned buffer. Everything they return is parsed by the
+//! calls that fill a caller-owned buffer, and the I/O policy calls behind
+//! [`NoMaterialization`]. Everything the system calls return is parsed by the
 //! safe, bounds-checked [`attrbuf`](crate::attrbuf) module.
 //!
 //! All calls request `FSOPT_ATTR_CMN_EXTENDED` (the fork group carries
@@ -8,12 +9,90 @@
 
 #![allow(unsafe_code)]
 
-use std::ffi::{CStr, c_ulong};
+use std::ffi::{CStr, c_int, c_ulong};
 use std::fs::File;
 use std::io;
 use std::os::fd::AsRawFd as _;
 
 use crate::attrbuf::AttributeSet;
+
+// `sys/resource.h` (macOS 26 SDK); `libc` does not bind these.
+const IOPOL_TYPE_VFS_MATERIALIZE_DATALESS_FILES: c_int = 3;
+const IOPOL_SCOPE_THREAD: c_int = 1;
+const IOPOL_MATERIALIZE_DATALESS_FILES_OFF: c_int = 1;
+const IOPOL_MATERIALIZE_DATALESS_FILES_BASIC_MASK: c_int = 3;
+
+unsafe extern "C" {
+    fn getiopolicy_np(iotype: c_int, scope: c_int) -> c_int;
+    fn setiopolicy_np(iotype: c_int, scope: c_int, policy: c_int) -> c_int;
+}
+
+/// The current thread's dataless-file materialization policy, or `None` if it
+/// cannot be read.
+pub(crate) fn thread_materialization() -> Option<c_int> {
+    // SAFETY: invariant: none; the call takes two integers and touches no memory
+    // of ours. Why unsafe: FFI call. Why it holds: the arguments are the
+    // documented constants for this iotype and scope.
+    let policy = unsafe {
+        getiopolicy_np(
+            IOPOL_TYPE_VFS_MATERIALIZE_DATALESS_FILES,
+            IOPOL_SCOPE_THREAD,
+        )
+    };
+    (policy >= 0).then_some(policy)
+}
+
+fn set_thread_materialization(policy: c_int) -> io::Result<()> {
+    // SAFETY: invariant: none; the call takes three integers and touches no memory
+    // of ours. Why unsafe: FFI call. Why it holds: the iotype and scope are the
+    // documented constants and `policy` is one of its documented values.
+    let result = unsafe {
+        setiopolicy_np(
+            IOPOL_TYPE_VFS_MATERIALIZE_DATALESS_FILES,
+            IOPOL_SCOPE_THREAD,
+            policy,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+/// While alive, the current thread cannot materialize (download) dataless files:
+/// an access that would fetch their contents fails with `EDEADLK` instead. The
+/// process policy is inherited from the parent process and may be `ON`, so this
+/// is set per thread, which takes precedence, and restored on drop.
+#[derive(Debug)]
+pub(crate) struct NoMaterialization {
+    previous: Option<c_int>,
+}
+
+impl NoMaterialization {
+    /// Turns materialization off for this thread.
+    ///
+    /// # Errors
+    ///
+    /// Returns the OS error if the policy cannot be set; callers must then not
+    /// touch the filesystem.
+    pub(crate) fn enter() -> io::Result<Self> {
+        let previous = thread_materialization();
+        set_thread_materialization(IOPOL_MATERIALIZE_DATALESS_FILES_OFF)?;
+        Ok(Self { previous })
+    }
+}
+
+impl Drop for NoMaterialization {
+    fn drop(&mut self) {
+        if let Some(previous) = self.previous
+            && set_thread_materialization(previous & IOPOL_MATERIALIZE_DATALESS_FILES_BASIC_MASK)
+                .is_err()
+        {
+            // The thread keeps materialization off: the safe direction.
+        }
+    }
+}
 
 fn attrlist(set: AttributeSet) -> libc::attrlist {
     libc::attrlist {
@@ -28,7 +107,7 @@ fn attrlist(set: AttributeSet) -> libc::attrlist {
 }
 
 /// Retries a call interrupted by a signal; any other failure is returned.
-fn retry(mut call: impl FnMut() -> libc::c_int) -> io::Result<libc::c_int> {
+fn retry(mut call: impl FnMut() -> c_int) -> io::Result<c_int> {
     loop {
         let result = call();
         if result >= 0 {
@@ -114,4 +193,37 @@ pub(crate) fn lookup(path: &CStr, set: AttributeSet, buffer: &mut [u8]) -> io::R
         }
     })
     .map(drop)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ON: c_int = 2;
+
+    #[test]
+    fn the_guard_turns_materialization_off_and_restores_the_thread_policy() -> io::Result<()> {
+        std::thread::spawn(|| -> io::Result<()> {
+            set_thread_materialization(ON)?;
+            {
+                let _guard = NoMaterialization::enter()?;
+                assert_eq!(
+                    thread_materialization(),
+                    Some(IOPOL_MATERIALIZE_DATALESS_FILES_OFF)
+                );
+                {
+                    let _nested = NoMaterialization::enter()?;
+                }
+                assert_eq!(
+                    thread_materialization(),
+                    Some(IOPOL_MATERIALIZE_DATALESS_FILES_OFF),
+                    "a nested guard restores OFF, not the outer value"
+                );
+            }
+            assert_eq!(thread_materialization(), Some(ON));
+            Ok(())
+        })
+        .join()
+        .map_err(|_| io::Error::other("test thread panicked"))?
+    }
 }
