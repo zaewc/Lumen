@@ -453,7 +453,11 @@ dependencies = [
 name = "lumen-platform-macos"
 version = "0.0.0"
 dependencies = [
+ "libc",
+ "lumen-application",
  "lumen-domain",
+ "lumen-scan",
+ "lumen-testkit",
  "proptest",
  "thiserror",
 ]
