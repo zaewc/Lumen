@@ -85,7 +85,7 @@ implementations (#88) and the xtask exporter with a CI drift check (#89).
 | 5.10 | `feat(cli): add lumen-cli scan command` | read-only scan of a given root, JSON output; for development and the harness |
 | 5.11 | `feat(platform-macos): add getattrlistbulk enumerator` | breadth-first, 32 KB buffer, attribute parsing (fuzz target), `PRIVATESIZE` in the bulk pass (ADR-0028) |
 | 5.12 | `feat(platform-macos): detect clones, dataless and sync roots` | `VOL_CAP` gating (APFS lacks clone mapping: clone IDs unused); never-hydrate backstop; descendants of sync roots inherit cloud-backed status in the evidence graph (Phase 6) |
-| 5.13 | `feat(platform-macos): map firmlinks and data volume` | |
+| 5.13 | `feat(platform-macos): map firmlinks and data volume` | scheduler lists each directory identity once (firmlinks, bind mounts, overlapping roots); system-volume figure with the volume inventory |
 | 5.14 | `feat(platform-windows): add directory-handle enumerator` | `FileIdExtdDirectoryInfo`, placeholder mode, reparse edges |
 | 5.15 | `feat(platform-windows): verify candidates by handle` | phase-2 verification |
 | 5.16 | `feat(platform-macos): add FSEvents change feed` | persisted event ID + device UUID |

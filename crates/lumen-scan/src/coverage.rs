@@ -98,8 +98,9 @@ fn skip_state(reason: &SkipReason) -> Option<AccessState> {
     match reason {
         SkipReason::MountPoint => Some(AccessState::NotScanned),
         SkipReason::Enumerate(EnumerateError::Unobservable { access, .. }) => Some(*access),
-        // A root that is a plain file has no directories to cover.
-        SkipReason::Enumerate(EnumerateError::NotADirectory { .. }) => None,
+        // An alias is listed under another path, and a root that is a plain file
+        // has no directories to cover: neither is a gap.
+        SkipReason::Alias | SkipReason::Enumerate(EnumerateError::NotADirectory { .. }) => None,
         // Identity changed, unsupported path, or a future error kind: unknown.
         SkipReason::Enumerate(_) => Some(AccessState::Failed(FailureKind::Io)),
     }

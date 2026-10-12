@@ -46,6 +46,11 @@ Research: [03-macos-platform](../research/03-macos-platform.md),
 
 - Walk the Data volume (`/System/Volumes/Data`) once, on one `fsid`. De-duplicate
   firmlinks by identity. Show the sealed system volume as one "macOS" figure.
+  Measured on macOS 26: the sealed system volume and the Data volume report the
+  same `st_dev`, with disjoint file-ID ranges, so `/Users` and
+  `/System/Volumes/Data/Users` have one identity. The scan scheduler lists each
+  directory identity once and reports later paths to it as aliases, so a scan of `/`
+  walks the Data volume once, under the firmlink path that reached it first.
 - `getattrlistbulk`, breadth-first, one directory open per task, 32 KB buffers.
   Request `ATTR_CMNEXT_PRIVATESIZE` in the same pass for every entry (switchable off
   for quick scans), and again for candidates before a plan is shown

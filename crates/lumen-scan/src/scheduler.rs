@@ -15,7 +15,7 @@
 //! dependency, and it allows bounded backpressure. Benchmarks (roadmap 5.19)
 //! revisit this.
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
 use std::sync::mpsc::{RecvTimeoutError, SyncSender, sync_channel};
@@ -24,7 +24,7 @@ use std::time::Duration;
 
 use lumen_application::CancelToken;
 use lumen_application::ports::{DirEnumerator, DirOutcome, EnumerateError, PendingDirectory};
-use lumen_domain::{ByteCount, EntryKind, FilesystemEntry, RawPath};
+use lumen_domain::{ByteCount, EntryKind, FileIdentity, FilesystemEntry, RawPath};
 
 /// How often the calling thread re-checks cancellation while no results arrive.
 const CANCEL_POLL: Duration = Duration::from_millis(50);
@@ -59,6 +59,11 @@ impl Default for ScanConfig {
 pub enum SkipReason {
     /// The directory is on another volume and `cross_devices` is off.
     MountPoint,
+    /// The directory was already reached through another path: a macOS firmlink
+    /// (`/Users` and `/System/Volumes/Data/Users` share one identity), a bind
+    /// mount, a directory hard link, or an overlapping root. Each directory is
+    /// listed once, under the path that reached it first; this also ends loops.
+    Alias,
     /// The enumerator refused the path (identity changed, not a directory,
     /// unobservable, unsupported).
     Enumerate(EnumerateError),
@@ -123,6 +128,8 @@ pub struct ScanSummary {
 #[derive(Default)]
 struct Queue {
     pending: VecDeque<PendingDirectory>,
+    /// Identities of every directory ever queued, so none is listed twice.
+    claimed: HashSet<FileIdentity>,
     in_flight: usize,
     stopped: bool,
 }
@@ -138,6 +145,12 @@ impl Shared<'_> {
         // A worker that panicked cannot leave the queue logically inconsistent
         // (every mutation is a single push/pop/counter update), so recover.
         self.queue.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Records that `identity` will be listed. Returns `false` if it already was
+    /// queued under another path.
+    fn claim(&self, identity: &FileIdentity) -> bool {
+        self.lock().claimed.insert(identity.clone())
     }
 
     fn stop(&self) {
@@ -235,31 +248,44 @@ pub fn scan<E: DirEnumerator, C: FnMut(ScanItem) -> ControlFlow<()>>(
     let mut stop = None;
 
     // Roots are examined on the calling thread so their entries arrive first.
-    for root in roots {
+    'roots: for root in roots {
         if cancel.is_cancelled() {
             stop = Some(StopReason::Cancelled);
             break;
         }
-        let item = match enumerator.stat(root) {
+        let items = match enumerator.stat(root) {
             Ok(entry) => {
+                let mut alias = None;
                 if entry.kind == EntryKind::Directory {
                     let identity = entry.size.identity.clone();
-                    shared.lock().pending.push_back(PendingDirectory {
-                        path: root.clone(),
-                        root_volume: identity.volume.clone(),
-                        identity,
-                    });
+                    if shared.claim(&identity) {
+                        shared.lock().pending.push_back(PendingDirectory {
+                            path: root.clone(),
+                            root_volume: identity.volume.clone(),
+                            identity,
+                        });
+                    } else {
+                        alias = Some(ScanItem::Skipped {
+                            path: root.clone(),
+                            reason: SkipReason::Alias,
+                        });
+                    }
                 }
-                ScanItem::Entry(entry)
+                [Some(ScanItem::Entry(entry)), alias]
             }
-            Err(error) => ScanItem::Skipped {
-                path: root.clone(),
-                reason: SkipReason::Enumerate(error),
-            },
+            Err(error) => [
+                Some(ScanItem::Skipped {
+                    path: root.clone(),
+                    reason: SkipReason::Enumerate(error),
+                }),
+                None,
+            ],
         };
-        if delivery.deliver(item).is_break() {
-            stop = Some(StopReason::Consumer);
-            break;
+        for item in items.into_iter().flatten() {
+            if delivery.deliver(item).is_break() {
+                stop = Some(StopReason::Consumer);
+                break 'roots;
+            }
         }
     }
 
@@ -286,7 +312,14 @@ pub fn resume<E: DirEnumerator, C: FnMut(ScanItem) -> ControlFlow<()>>(
         changed: Condvar::new(),
         cancel,
     };
-    shared.lock().pending.extend(frontier.iter().cloned());
+    {
+        let mut queue = shared.lock();
+        for dir in frontier {
+            if queue.claimed.insert(dir.identity.clone()) {
+                queue.pending.push_back(dir.clone());
+            }
+        }
+    }
     let mut delivery = Delivery {
         consume: &mut consume,
         totals: ScanProgress::default(),
@@ -372,18 +405,26 @@ fn worker<E: DirEnumerator>(
                 return ControlFlow::Break(());
             }
             if entry.kind == EntryKind::Directory {
-                if entry.size.identity.volume == dir.root_volume || config.cross_devices {
+                let skip = if entry.size.identity.volume != dir.root_volume && !config.cross_devices
+                {
+                    Some(SkipReason::MountPoint)
+                } else if shared.claim(&entry.size.identity) {
                     children.push(PendingDirectory {
                         path: entry.path.clone(),
                         identity: entry.size.identity.clone(),
                         root_volume: dir.root_volume.clone(),
                     });
-                } else if sender
-                    .send(ScanItem::Skipped {
-                        path: entry.path.clone(),
-                        reason: SkipReason::MountPoint,
-                    })
-                    .is_err()
+                    None
+                } else {
+                    Some(SkipReason::Alias)
+                };
+                if let Some(reason) = skip
+                    && sender
+                        .send(ScanItem::Skipped {
+                            path: entry.path.clone(),
+                            reason,
+                        })
+                        .is_err()
                 {
                     disconnected = true;
                     return ControlFlow::Break(());
@@ -438,6 +479,14 @@ mod tests {
             let ino = u128::try_from(self.nodes.len()).unwrap_or(u128::MAX) + 1;
             self.nodes
                 .insert(path.to_owned(), (kind, volume, ino, denied));
+        }
+
+        /// Adds `path` as another name for `target` (same identity), like a macOS
+        /// firmlink or a bind mount. Listing it lists nothing of its own.
+        fn alias(&mut self, path: &str, target: &str) {
+            if let Some(node) = self.nodes.get(target).copied() {
+                self.nodes.insert(path.to_owned(), node);
+            }
         }
 
         fn entry(&self, path: &str) -> Option<FilesystemEntry> {
@@ -787,6 +836,98 @@ mod tests {
             root_volume: entry.size.identity.volume.clone(),
             identity: entry.size.identity,
         })
+    }
+
+    fn listed(items: &[ScanItem]) -> Vec<String> {
+        let mut paths: Vec<_> = items
+            .iter()
+            .filter_map(|i| match i {
+                ScanItem::Listed { path, .. } => Some(text(path)),
+                _ => None,
+            })
+            .collect();
+        paths.sort();
+        paths
+    }
+
+    fn aliases(items: &[ScanItem]) -> Vec<String> {
+        let mut paths: Vec<_> = items
+            .iter()
+            .filter_map(|i| match i {
+                ScanItem::Skipped {
+                    path,
+                    reason: SkipReason::Alias,
+                } => Some(text(path)),
+                _ => None,
+            })
+            .collect();
+        paths.sort();
+        paths
+    }
+
+    #[test]
+    fn each_directory_is_listed_once_and_alias_loops_end() {
+        let mut fs = sample();
+        fs.alias("/r/z-alias", "/r/d");
+        // A loop back to the root through an alias.
+        fs.alias("/r/d/e/up", "/r");
+        for workers in [1, 4] {
+            let (items, summary) = collect(&fs, &config(workers, 2, false));
+            assert_eq!(summary.stop, None);
+            assert_eq!(
+                listed(&items),
+                ["/r", "/r/d", "/r/d/e"],
+                "{workers} workers"
+            );
+            assert_eq!(aliases(&items), ["/r/d/e/up", "/r/z-alias"]);
+            assert!(
+                entry_paths(&items).contains(&"/r/z-alias".to_owned()),
+                "the alias itself is still reported"
+            );
+            let mut coverage = crate::CoverageBuilder::new(&[root()]);
+            for item in &items {
+                coverage.observe(item);
+            }
+            assert!(
+                coverage.finish(&summary).roots[0].coverage.is_complete(),
+                "an alias is listed elsewhere, so it is not a gap"
+            );
+        }
+    }
+
+    #[test]
+    fn overlapping_roots_and_frontiers_are_listed_once() {
+        let fs = sample();
+        let d = RawPath::from_unix_bytes(b"/r/d".to_vec()).unwrap_or_else(|_| unreachable!());
+        let mut items = Vec::new();
+        scan(
+            &fs,
+            &[root(), d.clone(), d],
+            &config(2, 2, false),
+            &CancelToken::new(),
+            |item| {
+                items.push(item);
+                ControlFlow::Continue(())
+            },
+        );
+        assert_eq!(listed(&items), ["/r", "/r/d", "/r/d/e"]);
+
+        let frontier: Vec<_> = pending(&fs, "/r/d")
+            .into_iter()
+            .chain(pending(&fs, "/r/d"))
+            .collect();
+        let mut resumed = Vec::new();
+        resume(
+            &fs,
+            &frontier,
+            &config(2, 2, false),
+            &CancelToken::new(),
+            |item| {
+                resumed.push(item);
+                ControlFlow::Continue(())
+            },
+        );
+        assert_eq!(listed(&resumed), ["/r/d", "/r/d/e"]);
     }
 
     #[test]
