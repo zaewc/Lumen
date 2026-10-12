@@ -1,0 +1,19 @@
+[package]
+name = "lumen-store-sqlite"
+description = "Lumen's local SQLite persistence: hardened connections, forward-only migrations, index and ledger databases."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[dependencies]
+rusqlite.workspace = true
+rusqlite_migration.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+lumen-testkit.workspace = true
+
+[lints]
+workspace = true
