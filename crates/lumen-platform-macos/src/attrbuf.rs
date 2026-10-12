@@ -50,6 +50,12 @@ pub const ATTR_CMN_RETURNED_ATTRS: u32 = 0x8000_0000;
 /// `ATTR_DIR_LINKCOUNT`: hard links to a directory, excluding `.` and `..`
 /// (`u32`).
 pub const ATTR_DIR_LINKCOUNT: u32 = 0x0000_0001;
+/// `ATTR_DIR_MOUNTSTATUS`: what is mounted on a directory (`u32`). For a mount
+/// point, every other attribute describes the covered directory underneath, not
+/// the mounted root.
+pub const ATTR_DIR_MOUNTSTATUS: u32 = 0x0000_0004;
+/// `DIR_MNTSTATUS_MNTPOINT`: a filesystem is mounted on the directory.
+pub const DIR_MNTSTATUS_MNTPOINT: u32 = 0x0000_0001;
 /// `ATTR_FILE_LINKCOUNT`: hard links to a file (`u32`, as `st_nlink`).
 pub const ATTR_FILE_LINKCOUNT: u32 = 0x0000_0001;
 /// `ATTR_FILE_TOTALSIZE`: logical size of all forks (`off_t`).
@@ -95,7 +101,7 @@ impl AttributeSet {
             | ATTR_CMN_FLAGS
             | ATTR_CMN_FILEID,
         volume: 0,
-        directory: ATTR_DIR_LINKCOUNT,
+        directory: ATTR_DIR_LINKCOUNT | ATTR_DIR_MOUNTSTATUS,
         file: ATTR_FILE_LINKCOUNT | ATTR_FILE_TOTALSIZE | ATTR_FILE_ALLOCSIZE,
         extended: ATTR_CMNEXT_PRIVATESIZE | ATTR_CMNEXT_CLONEID | ATTR_CMNEXT_EXT_FLAGS,
     };
@@ -149,6 +155,8 @@ pub struct RawEntry<'a> {
     pub file_id: Option<u64>,
     /// `ATTR_DIR_LINKCOUNT`.
     pub directory_link_count: Option<u32>,
+    /// `ATTR_DIR_MOUNTSTATUS`.
+    pub mount_status: Option<u32>,
     /// `ATTR_FILE_LINKCOUNT`.
     pub file_link_count: Option<u32>,
     /// `ATTR_FILE_TOTALSIZE`.
@@ -399,7 +407,9 @@ fn parse_group(group: &[u8], offset: usize) -> Result<RawEntry<'_>, ParseError> 
     let flags = c.when(cmn(ATTR_CMN_FLAGS), Cursor::u32)?;
     let file_id = c.when(cmn(ATTR_CMN_FILEID), Cursor::u64)?;
 
-    let directory_link_count = c.when(returned.directory & ATTR_DIR_LINKCOUNT != 0, Cursor::u32)?;
+    let dir = |bit: u32| returned.directory & bit != 0;
+    let directory_link_count = c.when(dir(ATTR_DIR_LINKCOUNT), Cursor::u32)?;
+    let mount_status = c.when(dir(ATTR_DIR_MOUNTSTATUS), Cursor::u32)?;
 
     let file = |bit: u32| returned.file & bit != 0;
     let file_link_count = c.when(file(ATTR_FILE_LINKCOUNT), Cursor::u32)?;
@@ -424,6 +434,7 @@ fn parse_group(group: &[u8], offset: usize) -> Result<RawEntry<'_>, ParseError> 
         flags,
         file_id,
         directory_link_count,
+        mount_status,
         file_link_count,
         total_size,
         allocated_size,
@@ -471,6 +482,30 @@ mod tests {
         00000000 b67ca82b 00000000 00000000 5afdff07 00000000 01000000 01000000
         00000000 00000000 00000000 5afdff07 00000000 00000000 00000000 6c000000";
 
+    // `/System/Volumes/Preboot`, a mount point, with ATTR_DIR_MOUNTSTATUS.
+    const MOUNT_POINT: &str = "
+        98000000 0b1e0482 00000000 05000000 00000000 00030000 78000000 08000000
+        10000001 02000000 4b317d6a 00000000 00000000 00000000 4b317d6a 00000000
+        00000000 00000000 4b317d6a 00000000 00000000 00000000 4b317d6a 00000000
+        00000000 00000000 00000800 64210a00 ffffff0f 01000000 01000000 64210a00
+        ffffff0f 00000000 00000000 00000000 50726562 6f6f7400";
+
+    #[cfg(target_endian = "little")]
+    #[test]
+    fn parses_a_mount_point_captured_from_macos() -> Result<(), ParseError> {
+        let buffer = words(MOUNT_POINT);
+        let entry = first(&buffer).ok_or(ParseError::Exhausted { offset: 0 })??;
+        assert_eq!(entry.name, Some(&b"Preboot"[..]));
+        assert_eq!(entry.object_type, Some(2), "VDIR");
+        assert_eq!(entry.flags, Some(0x0008_0000), "SF_RESTRICTED");
+        assert_eq!(entry.file_id, Some(0x0fff_ffff_000a_2164));
+        assert_eq!(entry.directory_link_count, Some(1));
+        assert_eq!(entry.mount_status, Some(DIR_MNTSTATUS_MNTPOINT));
+        assert_eq!(entry.clone_id, Some(0x0fff_ffff_000a_2164));
+        assert_eq!(entry.ext_flags, Some(0));
+        Ok(())
+    }
+
     #[cfg(target_endian = "little")]
     #[test]
     fn parses_buffers_captured_from_macos() -> Result<(), ParseError> {
@@ -509,6 +544,7 @@ mod tests {
         assert_eq!(dir.name, Some(&b"d"[..]));
         assert_eq!(dir.object_type, Some(2), "VDIR");
         assert_eq!(dir.directory_link_count, Some(1));
+        assert_eq!(dir.mount_status, None, "not requested in this capture");
         assert_eq!(dir.file_link_count, None);
         assert_eq!(dir.total_size, None);
         assert_eq!(dir.file_id, Some(0x07ff_fd58));
@@ -533,6 +569,7 @@ mod tests {
         flags: Option<u32>,
         file_id: Option<u64>,
         directory_link_count: Option<u32>,
+        mount_status: Option<u32>,
         file_link_count: Option<u32>,
         total_size: Option<i64>,
         allocated_size: Option<i64>,
@@ -611,6 +648,12 @@ mod tests {
             &mut set.directory,
             ATTR_DIR_LINKCOUNT,
             spec.directory_link_count.map(u32::to_ne_bytes),
+        );
+        put(
+            f,
+            &mut set.directory,
+            ATTR_DIR_MOUNTSTATUS,
+            spec.mount_status.map(u32::to_ne_bytes),
         );
         put(
             f,
@@ -821,6 +864,7 @@ mod tests {
                 any::<Option<i64>>(),
                 any::<Option<u64>>(),
                 any::<Option<u64>>(),
+                any::<Option<u32>>(),
             ),
         )
             .prop_map(|(c, f)| Spec {
@@ -838,6 +882,7 @@ mod tests {
                 private_size: f.4,
                 clone_id: f.5,
                 ext_flags: f.6,
+                mount_status: f.7,
             })
     }
 
@@ -859,6 +904,7 @@ mod tests {
             && entry.flags == spec.flags
             && entry.file_id == spec.file_id
             && entry.directory_link_count == spec.directory_link_count
+            && entry.mount_status == spec.mount_status
             && entry.file_link_count == spec.file_link_count
             && entry.total_size == spec.total_size
             && entry.allocated_size == spec.allocated_size

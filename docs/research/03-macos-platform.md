@@ -148,6 +148,14 @@ buffers for a file, a clone, a directory and a symlink match the man pages:
   returned bit is clear, so the layout no longer follows from the buffer alone.
   Lumen therefore does **not** set it: without it the returned set describes the
   layout exactly, and missing attributes are simply `None`.
+- For mount points (`ATTR_DIR_MOUNTSTATUS` has `DIR_MNTSTATUS_MNTPOINT`) and firmlinks
+  (`SF_FIRMLINK` in `ATTR_CMN_FLAGS`), the entry describes the covered directory or
+  the firmlink itself, so its device and file ID differ from `lstat` (seen for `/dev`,
+  `/Users`, `/Library` and every `/System/Volumes/*` mount).
+  `getattrlistat(dirfd, name, FSOPT_NOFOLLOW)` on such an entry returns the same
+  device and file ID as `lstat`, and still does not follow symlinks.
+- `ATTR_CMN_DEVID` can be negative (`/dev` is -1271763927 here). Rust's
+  `MetadataExt::dev` sign-extends `st_dev`, so identities must sign-extend too.
 - Golden copies of these buffers are tests in `lumen-platform-macos`.
 
 **Apple DTS guidance** ([forums 760256](https://developer.apple.com/forums/thread/760256)): counting about 357k files took:
