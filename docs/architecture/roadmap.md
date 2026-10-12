@@ -83,7 +83,7 @@ implementations (#88) and the xtask exporter with a CI drift check (#89).
 | 5.8 | `feat(store): add lumen-store-sqlite with migrations` | `index.db` schema v1 (STRICT), single writer thread, batch inserts |
 | 5.9 | `feat(scan): persist scan snapshots and checkpoints` | resumable scans |
 | 5.10 | `feat(cli): add lumen-cli scan command` | read-only scan of a given root, JSON output; for development and the harness |
-| 5.11 | `feat(platform-macos): add getattrlistbulk enumerator` | breadth-first, 32 KB buffer, attribute parsing (fuzz target), `PRIVATESIZE` second pass |
+| 5.11 | `feat(platform-macos): add getattrlistbulk enumerator` | breadth-first, 32 KB buffer, attribute parsing (fuzz target), `PRIVATESIZE` in the bulk pass (ADR-0028) |
 | 5.12 | `feat(platform-macos): detect clones, dataless and sync roots` | `VOL_CAP` gating; never-hydrate backstop |
 | 5.13 | `feat(platform-macos): map firmlinks and data volume` | |
 | 5.14 | `feat(platform-windows): add directory-handle enumerator` | `FileIdExtdDirectoryInfo`, placeholder mode, reparse edges |

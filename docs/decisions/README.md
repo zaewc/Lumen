@@ -36,3 +36,4 @@ recommended option.
 | [0025](0025-code-quality-tooling.md) | Enforce code quality with rustfmt/clippy/nextest and Biome/oxlint/Steiger on TypeScript 7 | Accepted |
 | [0026](0026-ci-and-supply-chain-security.md) | Gate merges on hardened GitHub Actions CI with supply-chain checks | Accepted |
 | [0027](0027-atomic-commit-pr-workflow.md) | Ship every atomic change as one Conventional Commit in one pull request | Accepted |
+| [0028](0028-macos-private-size-in-bulk-pass.md) | Request PRIVATESIZE in the macOS bulk pass, not a second pass | Accepted |

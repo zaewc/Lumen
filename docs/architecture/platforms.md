@@ -47,8 +47,9 @@ Research: [03-macos-platform](../research/03-macos-platform.md),
 - Walk the Data volume (`/System/Volumes/Data`) once, on one `fsid`. De-duplicate
   firmlinks by identity. Show the sealed system volume as one "macOS" figure.
 - `getattrlistbulk`, breadth-first, one directory open per task, 32 KB buffers.
-  Request `ATTR_CMNEXT_PRIVATESIZE` only for items that may share blocks and for
-  candidates.
+  Request `ATTR_CMNEXT_PRIVATESIZE` in the same pass for every entry (switchable off
+  for quick scans), and again for candidates before a plan is shown
+  ([ADR-0028](../decisions/0028-macos-private-size-in-bulk-pass.md)).
 - Gate clone grouping on `VOL_CAP_FMT_CLONE_MAPPING`. Treat missing attributes on
   non-APFS volumes as unknown.
 - `SF_DATALESS` and sync-root items are never opened.

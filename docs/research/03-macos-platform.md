@@ -157,6 +157,10 @@ buffers for a file, a clone, a directory and a symlink match the man pages:
 - `ATTR_CMN_DEVID` can be negative (`/dev` is -1271763927 here). Rust's
   `MetadataExt::dev` sign-extends `st_dev`, so identities must sign-extend too.
 - Golden copies of these buffers are tests in `lumen-platform-macos`.
+- Cost and coverage of `ATTR_CMNEXT_PRIVATESIZE` were measured on 1.3 M files; see
+  [ADR-0028](../decisions/0028-macos-private-size-in-bulk-pass.md). It doubles
+  bulk-pass time, and `EF_MAY_SHARE_BLOCKS` alone does not predict which files have a
+  private size below their allocation.
 
 **Apple DTS guidance** ([forums 760256](https://developer.apple.com/forums/thread/760256)): counting about 357k files took:
 
@@ -176,7 +180,7 @@ buffers for a file, a clone, a directory and a symlink match the man pages:
 
 **Assessment for Lumen.** Lumen's core is Rust, so the Foundation enumerator means ObjC bridging per entry, and `fts` returns `stat` but **no clone, sharing or private-size data**. Lumen's differentiator is honest reclaimable bytes, so the scanner should call `getattrlistbulk` directly. Design points:
 - Batch buffer of about 256 KiB.
-- Request `NAME | RETURNED_ATTRS | ERROR | OBJTYPE | FILEID | DEVID/FSID | FLAGS | MODTIME/ACCTIME | FILE_ALLOCSIZE | FILE_TOTALSIZE | FILE_LINKCOUNT | CMNEXT_CLONEID | CMNEXT_EXT_FLAGS`, plus `CMNEXT_PRIVATESIZE` only in a second pass on candidates.
+- Request `NAME | RETURNED_ATTRS | ERROR | OBJTYPE | FILEID | DEVID/FSID | FLAGS | MODTIME/ACCTIME | FILE_ALLOCSIZE | FILE_TOTALSIZE | FILE_LINKCOUNT | CMNEXT_CLONEID | CMNEXT_EXT_FLAGS`, plus `CMNEXT_PRIVATESIZE` only in a second pass on candidates. *(Superseded by ADR-0028: measured, it belongs in the bulk pass.)*
 - Open directories with `O_DIRECTORY|O_NOFOLLOW`. Never follow symlinks, and stay on one device.
 - Parallelize at directory granularity with a work-stealing pool (Rayon/Tokio blocking pool).
 - Fuzz-test the parser.
@@ -378,7 +382,7 @@ Guideline 2.3.1 also prohibits misleading marketing ([guidelines](https://develo
    - Drop the x86_64 slice only when Lumen drops macOS 26 support.
 2. **Scanner adapter: a hand-written `getattrlistbulk` walker in a `lumen-platform-macos` crate.**
    - Pass 1 requests cheap attributes (`FILEID`, `FSID/DEVID`, `FLAGS`, `LINKCOUNT`, `ALLOCSIZE`, `TOTALSIZE`, times, `CLONEID`, `EXT_FLAGS`).
-   - Pass 2 requests `PRIVATESIZE` only for `EF_MAY_SHARE_BLOCKS` items above a threshold, and for every cleanup candidate before a plan is shown.
+   - Pass 2 requests `PRIVATESIZE` only for `EF_MAY_SHARE_BLOCKS` items above a threshold, and for every cleanup candidate before a plan is shown. *(Superseded by ADR-0028.)*
    - Rationale: it is the only bulk source of clone and sharing data, and per-file `URLResourceValues` via objc2 would cost a bridge round-trip per item.
    - Rejected: `walkdir`/`jwalk` + `lstat` (N+1 syscalls, no clone data), `FileManager` enumerator via objc2 (bridging cost, no `CMNEXT` attributes), `fts` (no clone data).
    - Gate clone-group logic per volume on `VOL_CAP_FMT_CLONE_MAPPING` (read via `getattrlist` + `ATTR_VOL_CAPABILITIES` on the mount root); without it, do not group by `CLONEID` (§2).

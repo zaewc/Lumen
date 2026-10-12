@@ -1,6 +1,6 @@
 # ADR-0017: Scan with native batch enumerators on a work-stealing pool and account sizes precisely
 
-- Status: Accepted
+- Status: Accepted (macOS `PRIVATESIZE` pass amended by [ADR-0028](0028-macos-private-size-in-bulk-pass.md))
 - Date: 2026-10-06
 
 ## Context and problem statement
