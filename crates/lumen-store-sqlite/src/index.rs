@@ -8,7 +8,7 @@
 
 use std::num::NonZeroU32;
 
-use lumen_application::ports::DirOutcome;
+use lumen_application::ports::{DirOutcome, PendingDirectory};
 use lumen_domain::{
     AccessState, ByteCount, CloneId, EntryKind, EntryTimes, FileId, FileIdentity, FilesystemEntry,
     PathFlavor, Protection, RawPath, ScanId, ScanState, SizeFacts, SizeFlags, Timestamp, VolumeId,
@@ -61,12 +61,14 @@ impl IndexStore {
         Ok(())
     }
 
-    /// Inserts a batch of entries in one transaction. All or nothing.
+    /// Inserts a batch of entries in one transaction. All or nothing. An entry
+    /// already stored for the same path is replaced by the newer observation,
+    /// which makes resuming an interrupted scan idempotent.
     ///
     /// # Errors
     ///
-    /// Returns [`StoreError`] if a value is out of SQLite's range, a row already
-    /// exists, or SQLite fails; no entry of the batch is stored then.
+    /// Returns [`StoreError`] if a value is out of SQLite's range or SQLite
+    /// fails; no entry of the batch is stored then.
     pub fn insert_entries(
         &mut self,
         scan: ScanId,
@@ -75,7 +77,7 @@ impl IndexStore {
         let tx = self.conn.transaction()?;
         {
             let mut insert = tx.prepare_cached(
-                "INSERT INTO entries (scan_id, flavor, path, volume, file_id, kind, logical, allocated, private, clone_id,
+                "INSERT OR REPLACE INTO entries (scan_id, flavor, path, volume, file_id, kind, logical, allocated, private, clone_id,
                                       link_count, size_flags, protection, modified_secs, modified_nanos, accessed_secs,
                                       accessed_nanos, changed_secs, changed_nanos, created_secs, created_nanos, access)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
@@ -120,12 +122,13 @@ impl IndexStore {
         Ok(())
     }
 
-    /// Inserts a batch of directory listing outcomes in one transaction.
+    /// Inserts a batch of directory listing outcomes in one transaction. A
+    /// listing already stored for the same path is replaced.
     ///
     /// # Errors
     ///
-    /// Returns [`StoreError`] if a row already exists or SQLite fails; no row of
-    /// the batch is stored then.
+    /// Returns [`StoreError`] if SQLite fails; no row of the batch is stored
+    /// then.
     pub fn insert_listings(
         &mut self,
         scan: ScanId,
@@ -134,7 +137,7 @@ impl IndexStore {
         let tx = self.conn.transaction()?;
         {
             let mut insert = tx
-                .prepare_cached("INSERT INTO listings (scan_id, flavor, path, access, complete) VALUES (?1, ?2, ?3, ?4, ?5)")?;
+                .prepare_cached("INSERT OR REPLACE INTO listings (scan_id, flavor, path, access, complete) VALUES (?1, ?2, ?3, ?4, ?5)")?;
             for (path, outcome) in listings {
                 insert.execute(params![
                     scan.to_string(),
@@ -193,6 +196,91 @@ impl IndexStore {
         text.map(|t| parse_scan_state(&t)).transpose()
     }
 
+    /// Scans that started but never finished (still `running`), oldest first.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] if SQLite fails or a stored ID is invalid.
+    pub fn unfinished_scans(&self) -> Result<Vec<ScanId>, StoreError> {
+        let mut query = self.conn.prepare_cached(
+            "SELECT id FROM scans WHERE state = 'running' ORDER BY started_secs, started_nanos, id",
+        )?;
+        let ids = query.query_map([], |row| row.get::<_, String>(0))?;
+        ids.map(|id| id?.parse().map_err(|_| corrupt("id")))
+            .collect()
+    }
+
+    /// Directories of a scan that were discovered but never listed: where an
+    /// interrupted scan resumes. Directories on a different volume than their
+    /// scan root (mount points the scan deliberately skipped) are excluded.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] if SQLite fails or a stored value is invalid.
+    pub fn frontier(&self, scan: ScanId) -> Result<Vec<PendingDirectory>, StoreError> {
+        // Volume of each root, from the root's own stored entry.
+        let mut roots_query = self.conn.prepare_cached(
+            "SELECT r.flavor, r.path, e.volume FROM scan_roots r
+             JOIN entries e ON e.scan_id = r.scan_id AND e.flavor = r.flavor AND e.path = r.path
+             WHERE r.scan_id = ?1",
+        )?;
+        let roots = roots_query
+            .query_map([scan.to_string()], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Vec<u8>>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })?
+            .map(|row| {
+                let (flavor, path, volume) = row?;
+                let flavor = parse_flavor(&flavor)?;
+                let path = RawPath::from_stored(flavor, path).map_err(|_| corrupt("path"))?;
+                let volume = VolumeId::new(volume).map_err(|_| corrupt("volume"))?;
+                Ok((path, volume))
+            })
+            .collect::<Result<Vec<_>, StoreError>>()?;
+
+        let mut pending_query = self.conn.prepare_cached(
+            "SELECT e.flavor, e.path, e.volume, e.file_id FROM entries e
+             WHERE e.scan_id = ?1 AND e.kind = 'directory'
+               AND NOT EXISTS (SELECT 1 FROM listings l
+                               WHERE l.scan_id = e.scan_id AND l.flavor = e.flavor AND l.path = e.path)
+             ORDER BY e.flavor, e.path",
+        )?;
+        let rows = pending_query.query_map([scan.to_string()], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, Vec<u8>>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Vec<u8>>(3)?,
+            ))
+        })?;
+        let mut pending = Vec::new();
+        for row in rows {
+            let (flavor, path, volume, file_id) = row?;
+            let flavor = parse_flavor(&flavor)?;
+            let path = RawPath::from_stored(flavor, path).map_err(|_| corrupt("path"))?;
+            let volume = VolumeId::new(volume).map_err(|_| corrupt("volume"))?;
+            let file = u128::from_be_bytes(file_id.try_into().map_err(|_| corrupt("file_id"))?);
+            let Some(root_volume) = root_volume_for(&roots, &path) else {
+                continue;
+            };
+            if volume != root_volume {
+                continue; // a mount point the scan chose not to enter
+            }
+            pending.push(PendingDirectory {
+                path,
+                identity: FileIdentity {
+                    volume,
+                    file: FileId::new(file),
+                },
+                root_volume,
+            });
+        }
+        Ok(pending)
+    }
+
     /// All entries of a scan, ordered by path bytes.
     ///
     /// # Errors
@@ -209,6 +297,27 @@ impl IndexStore {
         let rows = query.query_map([scan.to_string()], |row| Ok(entry_from_row(row)))?;
         rows.map(|row| row?).collect()
     }
+}
+
+/// Volume of the most specific root containing `path` (whole segments).
+fn root_volume_for(roots: &[(RawPath, VolumeId)], path: &RawPath) -> Option<VolumeId> {
+    roots
+        .iter()
+        .filter(|(root, _)| {
+            root.flavor() == path.flavor()
+                && path
+                    .as_bytes()
+                    .strip_prefix(root.as_bytes())
+                    .is_some_and(|rest| {
+                        rest.is_empty()
+                            || root.as_bytes().ends_with(b"/")
+                            || root.as_bytes().ends_with(b"\\")
+                            || rest.starts_with(b"/")
+                            || rest.starts_with(b"\\")
+                    })
+        })
+        .max_by_key(|(root, _)| root.as_bytes().len())
+        .map(|(_, volume)| volume.clone())
 }
 
 fn corrupt(column: &'static str) -> StoreError {
@@ -584,6 +693,81 @@ mod tests {
         store.finish_scan(scan, ScanState::Cancelled, "2026-10-12T00:00:00Z".parse()?)?;
         assert_eq!(store.scan_state(scan)?, Some(ScanState::Cancelled));
         assert_eq!(store.scan_state(scan_id(5))?, None);
+        Ok(())
+    }
+
+    fn dir(path: &[u8], file: u128, volume: &str) -> FilesystemEntry {
+        let mut e = entry(path, file);
+        e.kind = EntryKind::Directory;
+        e.access = AccessState::NotScanned;
+        e.size.identity.volume = VolumeId::new(volume).unwrap_or_else(|_| unreachable!());
+        e
+    }
+
+    fn raw(p: &[u8]) -> RawPath {
+        RawPath::from_unix_bytes(p.to_vec()).unwrap_or_else(|_| unreachable!())
+    }
+
+    #[test]
+    fn re_inserting_a_path_keeps_the_newer_observation() -> Result<(), Box<dyn std::error::Error>> {
+        let (_fx, mut store) = store()?;
+        let scan = scan_id(7);
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[])?;
+        store.insert_entries(scan, &[entry(b"/r/a", 1)])?;
+        let mut newer = entry(b"/r/a", 1);
+        newer.size.logical = ByteCount::new(999);
+        store.insert_entries(scan, std::slice::from_ref(&newer))?;
+        assert_eq!(store.entries(scan)?, vec![newer]);
+        Ok(())
+    }
+
+    #[test]
+    fn frontier_is_unlisted_directories_on_the_root_volume()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let (_fx, mut store) = store()?;
+        let scan = scan_id(8);
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[raw(b"/r")])?;
+        store.insert_entries(
+            scan,
+            &[
+                dir(b"/r", 1, "dev:1"),
+                dir(b"/r/a", 2, "dev:1"),
+                dir(b"/r/b", 3, "dev:1"),
+                dir(b"/r/mnt", 4, "dev:2"),
+                entry(b"/r/a/file", 5),
+            ],
+        )?;
+        let readable = DirOutcome {
+            access: AccessState::Readable,
+            complete: true,
+        };
+        // Nothing listed yet: the root itself is the frontier's first entry.
+        let paths = |pending: Vec<PendingDirectory>| {
+            pending.into_iter().map(|p| p.path).collect::<Vec<_>>()
+        };
+        assert_eq!(
+            paths(store.frontier(scan)?),
+            vec![raw(b"/r"), raw(b"/r/a"), raw(b"/r/b")]
+        );
+        store.insert_listings(scan, &[(raw(b"/r"), readable), (raw(b"/r/b"), readable)])?;
+        let pending = store.frontier(scan)?;
+        assert_eq!(
+            paths(pending.clone()),
+            vec![raw(b"/r/a")],
+            "listed dirs, files and mount points excluded"
+        );
+        assert_eq!(pending[0].identity.file, FileId::new(2));
+        assert_eq!(pending[0].root_volume.as_str(), "dev:1");
+        Ok(())
+    }
+
+    #[test]
+    fn unfinished_scans_are_found() -> Result<(), Box<dyn std::error::Error>> {
+        let (_fx, mut store) = store()?;
+        store.begin_scan(scan_id(9), Timestamp::UNIX_EPOCH, &[])?;
+        store.begin_scan(scan_id(10), "2026-01-01T00:00:00Z".parse()?, &[])?;
+        store.finish_scan(scan_id(9), ScanState::Completed, Timestamp::UNIX_EPOCH)?;
+        assert_eq!(store.unfinished_scans()?, vec![scan_id(10)]);
         Ok(())
     }
 

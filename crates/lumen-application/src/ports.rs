@@ -115,6 +115,19 @@ pub trait DirEnumerator: Send + Sync {
     ) -> Result<DirOutcome, EnumerateError>;
 }
 
+/// A directory that was discovered but not yet listed: the unit of work a scan
+/// resumes from after an interruption.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingDirectory {
+    /// The directory.
+    pub path: RawPath,
+    /// Its identity when it was discovered; listing it again must match.
+    pub identity: FileIdentity,
+    /// Volume of the scan root it belongs to, so resuming never crosses into
+    /// another volume.
+    pub root_volume: VolumeId,
+}
+
 /// Opaque, platform-specific position in a volume's change journal (for example
 /// an `FSEvents` event ID with the device UUID, or a USN journal ID and USN).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

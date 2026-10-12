@@ -93,6 +93,30 @@ impl IndexWriter {
         config: WriterConfig,
     ) -> Result<Self, StoreError> {
         store.begin_scan(scan, started_at, roots)?;
+        Self::spawn(store, scan, config)
+    }
+
+    /// Continues writing an interrupted scan (one still `running`), e.g. after
+    /// listing its [frontier](IndexStore::frontier) again.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::UnknownScan`] if the scan does not exist,
+    /// [`StoreError::NotResumable`] if it already ended, or [`StoreError`] if the
+    /// thread cannot be spawned.
+    pub fn resume(
+        store: IndexStore,
+        scan: ScanId,
+        config: WriterConfig,
+    ) -> Result<Self, StoreError> {
+        match store.scan_state(scan)? {
+            None => Err(StoreError::UnknownScan { scan }),
+            Some(ScanState::Running) => Self::spawn(store, scan, config),
+            Some(state) => Err(StoreError::NotResumable { scan, state }),
+        }
+    }
+
+    fn spawn(store: IndexStore, scan: ScanId, config: WriterConfig) -> Result<Self, StoreError> {
         let (sender, receiver) = sync_channel(config.channel_capacity.get());
         let thread = std::thread::Builder::new()
             .name("lumen-index-writer".into())
@@ -331,6 +355,33 @@ mod tests {
             Some(ScanState::Running),
             "recognisable as unfinished"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn resume_continues_only_running_scans() -> Result<(), Box<dyn std::error::Error>> {
+        let fx = Fixture::build(&[])?;
+        assert!(matches!(
+            IndexWriter::resume(open(&fx)?, scan(), config(4)),
+            Err(StoreError::UnknownScan { .. })
+        ));
+        {
+            let writer =
+                IndexWriter::start(open(&fx)?, scan(), Timestamp::UNIX_EPOCH, &[], config(4))?;
+            writer.entry(entry(1, 1))?;
+        } // interrupted
+        let writer = IndexWriter::resume(open(&fx)?, scan(), config(4))?;
+        writer.entry(entry(1, 1))?; // re-listed after the interruption: replaces, no conflict
+        writer.entry(entry(2, 1))?;
+        let (store, _) = writer.finish(ScanState::Completed, Timestamp::UNIX_EPOCH)?;
+        assert_eq!(store.entries(scan())?.len(), 2);
+        assert!(matches!(
+            IndexWriter::resume(store, scan(), config(4)),
+            Err(StoreError::NotResumable {
+                state: ScanState::Completed,
+                ..
+            })
+        ));
         Ok(())
     }
 

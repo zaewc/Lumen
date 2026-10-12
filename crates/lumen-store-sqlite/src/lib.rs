@@ -70,6 +70,14 @@ pub enum StoreError {
     /// The writer thread panicked.
     #[error("the index writer panicked")]
     WriterPanicked,
+    /// The scan already ended and cannot be resumed.
+    #[error("scan {scan} already ended ({state:?}) and cannot be resumed")]
+    NotResumable {
+        /// Requested scan.
+        scan: lumen_domain::ScanId,
+        /// Its recorded state.
+        state: lumen_domain::ScanState,
+    },
     /// The scan does not exist.
     #[error("scan {scan} does not exist")]
     UnknownScan {
