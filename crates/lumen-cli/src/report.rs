@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use lumen_application::CancelToken;
+use lumen_application::ports::DirEnumerator;
 use lumen_domain::{
     ByteCount, DenialReason, RawPath, RootCoverage, ScanId, ScanState, SnapshotId, Timestamp,
 };
 use lumen_scan::{
-    CoverageBuilder, ScanConfig, ScanItem, SizeAggregator, StdFsEnumerator, StopReason,
-    scan as run_scan,
+    CoverageBuilder, ScanConfig, ScanItem, SizeAggregator, StopReason, scan as run_scan,
 };
 use lumen_store_sqlite::{
     IndexStore, IndexWriter, RootSnapshot, StoreError, WriterConfig, open_index,
@@ -41,6 +41,18 @@ pub(crate) struct Report {
     skipped: u64,
     stopped: Option<StopReason>,
     database: Option<PathBuf>,
+}
+
+/// The platform's best enumerator: `getattrlistbulk` on macOS, which measures
+/// clone-aware private sizes (ADR-0028), and the portable one elsewhere.
+#[cfg(target_os = "macos")]
+fn enumerator() -> impl DirEnumerator {
+    lumen_platform_macos::BulkEnumerator::new()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn enumerator() -> impl DirEnumerator {
+    lumen_scan::StdFsEnumerator
 }
 
 fn now() -> Result<Timestamp, Box<dyn Error>> {
@@ -82,7 +94,7 @@ pub(crate) fn scan(roots: &[PathBuf], db: Option<&Path>) -> Result<Report, Box<d
     let mut sizes = SizeAggregator::new(&raw_roots);
     let mut write_error: Option<StoreError> = None;
     let summary = run_scan(
-        &StdFsEnumerator,
+        &enumerator(),
         &raw_roots,
         &ScanConfig::default(),
         &CancelToken::new(),

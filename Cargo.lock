@@ -428,6 +428,7 @@ version = "0.0.0"
 dependencies = [
  "lumen-application",
  "lumen-domain",
+ "lumen-platform-macos",
  "lumen-scan",
  "lumen-store-sqlite",
  "lumen-testkit",

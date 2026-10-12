@@ -53,6 +53,9 @@ fn json_report_counts_files_once_and_modifies_nothing() -> Result<(), Box<dyn st
     assert_eq!(r["logical"], "4002", "1500 + 2500 + 2");
     assert_eq!(r["coverage_complete"], true);
     assert_eq!(report["partial"], false);
+    // The native macOS enumerator measures private sizes, so the estimate is exact;
+    // the portable one cannot see clones and reports a lower bound.
+    assert_eq!(r["reclaimable_exact"], cfg!(target_os = "macos"));
     assert_eq!(
         std::fs::read(fx.path("root/a/one")?)?,
         before,
