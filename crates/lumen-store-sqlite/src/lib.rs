@@ -25,7 +25,7 @@ use rusqlite::Connection;
 use rusqlite::config::DbConfig;
 use rusqlite_migration::{M, Migrations};
 
-pub use index::IndexStore;
+pub use index::{IndexStore, RootSnapshot};
 pub use writer::{IndexWriter, WriteStats, WriterConfig};
 
 /// How long a connection waits for a lock held by another connection.
@@ -33,7 +33,10 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Migrations for `index.db`, in order. Never edit a released migration; add a
 /// new one.
-const INDEX_MIGRATIONS: &[M<'static>] = &[M::up(include_str!("migrations/index/0001_initial.sql"))];
+const INDEX_MIGRATIONS: &[M<'static>] = &[
+    M::up(include_str!("migrations/index/0001_initial.sql")),
+    M::up(include_str!("migrations/index/0002_snapshots.sql")),
+];
 
 /// Errors opening or migrating a database.
 #[derive(Debug, thiserror::Error)]
@@ -175,7 +178,7 @@ mod tests {
     #[test]
     fn opening_applies_schema_and_hardening() -> Result<(), Box<dyn std::error::Error>> {
         let (_fx, conn) = fresh()?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 1);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 2);
         assert_eq!(
             pragma::<String>(&conn, "journal_mode")?.to_lowercase(),
             "wal"
@@ -193,7 +196,7 @@ mod tests {
         let path = fx.path("index.db")?;
         drop(open_index(&path)?);
         let conn = open_index(&path)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 1);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 2);
         Ok(())
     }
 
@@ -227,6 +230,28 @@ mod tests {
             [],
         );
         assert!(orphan.is_err(), "rows must reference an existing scan");
+        Ok(())
+    }
+
+    #[test]
+    fn version_1_databases_upgrade_in_place() -> Result<(), Box<dyn std::error::Error>> {
+        let fx = Fixture::build(&[])?;
+        let path = fx.path("index.db")?;
+        {
+            // Create a database exactly as the v1 release did.
+            let mut conn = Connection::open(&path)?;
+            harden(&conn, Durability::Normal)?;
+            Migrations::from_slice(&INDEX_MIGRATIONS[..1]).to_latest(&mut conn)?;
+            conn.execute(
+                "INSERT INTO scans (id, started_secs, started_nanos, state) VALUES ('0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0e1f', 0, 0, 'completed')",
+                [],
+            )?;
+            assert_eq!(pragma::<i64>(&conn, "user_version")?, 1);
+        }
+        let conn = open_index(&path)?;
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 2);
+        let scans: i64 = conn.query_row("SELECT count(*) FROM scans", [], |row| row.get(0))?;
+        assert_eq!(scans, 1, "existing data survives the upgrade");
         Ok(())
     }
 

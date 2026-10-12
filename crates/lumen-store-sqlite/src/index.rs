@@ -11,11 +11,33 @@ use std::num::NonZeroU32;
 use lumen_application::ports::{DirOutcome, PendingDirectory};
 use lumen_domain::{
     AccessState, ByteCount, CloneId, EntryKind, EntryTimes, FileId, FileIdentity, FilesystemEntry,
-    PathFlavor, Protection, RawPath, ScanId, ScanState, SizeFacts, SizeFlags, Timestamp, VolumeId,
+    PathFlavor, Protection, RawPath, ScanId, ScanState, SizeFacts, SizeFlags, SnapshotId,
+    Timestamp, VolumeId,
 };
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
 use crate::StoreError;
+
+/// Totals for one scan root at the end of a scan: one point in its history.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RootSnapshot {
+    /// The scan root.
+    pub root: RawPath,
+    /// When the scan finished.
+    pub taken_at: Timestamp,
+    /// Distinct files under the root.
+    pub files: u64,
+    /// Logical bytes, once per file.
+    pub logical: ByteCount,
+    /// Allocated bytes, once per file.
+    pub allocated: ByteCount,
+    /// Bytes removable from the whole root right now.
+    pub reclaimable: ByteCount,
+    /// Whether `reclaimable` is exact rather than a lower bound.
+    pub exact: bool,
+    /// Whether the scan observed everything under the root (coverage complete).
+    pub complete: bool,
+}
 
 /// Scan results in `index.db`.
 #[derive(Debug)]
@@ -279,6 +301,78 @@ impl IndexStore {
             });
         }
         Ok(pending)
+    }
+
+    /// Records the per-root totals of a scan as one snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] if a value is out of range or SQLite fails; no row
+    /// is stored then.
+    pub fn record_snapshot(
+        &mut self,
+        snapshot: SnapshotId,
+        scan: ScanId,
+        roots: &[RootSnapshot],
+    ) -> Result<(), StoreError> {
+        let tx = self.conn.transaction()?;
+        {
+            let mut insert = tx.prepare_cached(
+                "INSERT INTO snapshots (id, scan_id, taken_secs, taken_nanos, flavor, root, files, logical, allocated,
+                                        reclaimable, exact, complete)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            )?;
+            for r in roots {
+                insert.execute(params![
+                    snapshot.to_string(),
+                    scan.to_string(),
+                    r.taken_at.unix_seconds(),
+                    r.taken_at.subsec_nanos(),
+                    flavor_text(r.root.flavor()),
+                    r.root.as_bytes(),
+                    to_i64("files", r.files)?,
+                    to_i64("logical", r.logical.get())?,
+                    to_i64("allocated", r.allocated.get())?,
+                    to_i64("reclaimable", r.reclaimable.get())?,
+                    r.exact,
+                    r.complete,
+                ])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// The history of one root, oldest first.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Corrupt`] for an invalid row, or [`StoreError`] if
+    /// SQLite fails.
+    pub fn snapshots(&self, root: &RawPath) -> Result<Vec<RootSnapshot>, StoreError> {
+        let mut query = self.conn.prepare_cached(
+            "SELECT taken_secs, taken_nanos, files, logical, allocated, reclaimable, exact, complete FROM snapshots
+             WHERE flavor = ?1 AND root = ?2 ORDER BY taken_secs, taken_nanos",
+        )?;
+        let rows = query.query_map(
+            params![flavor_text(root.flavor()), root.as_bytes()],
+            |row| {
+                Ok((|| -> Result<RootSnapshot, StoreError> {
+                    Ok(RootSnapshot {
+                        root: root.clone(),
+                        taken_at: join_time("taken", row.get(0)?, row.get(1)?)?
+                            .ok_or_else(|| corrupt("taken"))?,
+                        files: from_i64("files", row.get(2)?)?,
+                        logical: ByteCount::new(from_i64("logical", row.get(3)?)?),
+                        allocated: ByteCount::new(from_i64("allocated", row.get(4)?)?),
+                        reclaimable: ByteCount::new(from_i64("reclaimable", row.get(5)?)?),
+                        exact: row.get(6)?,
+                        complete: row.get(7)?,
+                    })
+                })())
+            },
+        )?;
+        rows.map(|row| row?).collect()
     }
 
     /// All entries of a scan, ordered by path bytes.
@@ -768,6 +862,45 @@ mod tests {
         store.begin_scan(scan_id(10), "2026-01-01T00:00:00Z".parse()?, &[])?;
         store.finish_scan(scan_id(9), ScanState::Completed, Timestamp::UNIX_EPOCH)?;
         assert_eq!(store.unfinished_scans()?, vec![scan_id(10)]);
+        Ok(())
+    }
+
+    #[test]
+    fn snapshots_round_trip_in_time_order() -> Result<(), Box<dyn std::error::Error>> {
+        let (_fx, mut store) = store()?;
+        let root = raw(b"/Users/ana");
+        let other = raw(b"/Volumes/data");
+        let snap = |at: &str, files: u64| -> Result<RootSnapshot, Box<dyn std::error::Error>> {
+            Ok(RootSnapshot {
+                root: root.clone(),
+                taken_at: at.parse()?,
+                files,
+                logical: ByteCount::new(files * 10),
+                allocated: ByteCount::new(files * 4096),
+                reclaimable: ByteCount::new(files),
+                exact: files.is_multiple_of(2),
+                complete: true,
+            })
+        };
+        let later = snap("2026-10-12T00:00:00Z", 20)?;
+        let earlier = snap("2026-10-05T00:00:00Z", 10)?;
+        let elsewhere = RootSnapshot {
+            root: other.clone(),
+            complete: false,
+            ..snap("2026-10-06T00:00:00Z", 3)?
+        };
+        for (n, snapshots) in [
+            (11u8, vec![later.clone(), elsewhere.clone()]),
+            (12, vec![earlier.clone()]),
+        ] {
+            store.begin_scan(scan_id(n), Timestamp::UNIX_EPOCH, &[])?;
+            let snapshot: SnapshotId =
+                format!("0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0f{n:02x}").parse()?;
+            store.record_snapshot(snapshot, scan_id(n), &snapshots)?;
+        }
+        assert_eq!(store.snapshots(&root)?, vec![earlier, later]);
+        assert_eq!(store.snapshots(&other)?, vec![elsewhere]);
+        assert_eq!(store.snapshots(&raw(b"/nowhere"))?, vec![]);
         Ok(())
     }
 
