@@ -22,7 +22,7 @@ mod std_fs;
 pub use aggregate::{DirTotals, SizeAggregator};
 pub use coverage::CoverageBuilder;
 pub use scheduler::{
-    ScanConfig, ScanItem, ScanProgress, ScanSummary, SkipReason, StopReason, scan,
+    ScanConfig, ScanItem, ScanProgress, ScanSummary, SkipReason, StopReason, resume, scan,
 };
 
 #[cfg(unix)]

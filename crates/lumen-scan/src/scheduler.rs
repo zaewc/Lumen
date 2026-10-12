@@ -23,8 +23,8 @@ use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use lumen_application::CancelToken;
-use lumen_application::ports::{DirEnumerator, DirOutcome, EnumerateError};
-use lumen_domain::{ByteCount, EntryKind, FileIdentity, FilesystemEntry, RawPath, VolumeId};
+use lumen_application::ports::{DirEnumerator, DirOutcome, EnumerateError, PendingDirectory};
+use lumen_domain::{ByteCount, EntryKind, FilesystemEntry, RawPath};
 
 /// How often the calling thread re-checks cancellation while no results arrive.
 const CANCEL_POLL: Duration = Duration::from_millis(50);
@@ -120,16 +120,9 @@ pub struct ScanSummary {
     pub stop: Option<StopReason>,
 }
 
-/// A directory waiting to be listed.
-struct Pending {
-    path: RawPath,
-    identity: FileIdentity,
-    root_volume: VolumeId,
-}
-
 #[derive(Default)]
 struct Queue {
-    pending: VecDeque<Pending>,
+    pending: VecDeque<PendingDirectory>,
     in_flight: usize,
     stopped: bool,
 }
@@ -154,7 +147,7 @@ impl Shared<'_> {
 
     /// Takes the next directory, waiting while others may still produce work.
     /// Returns `None` when the traversal is finished, stopped or cancelled.
-    fn take(&self) -> Option<Pending> {
+    fn take(&self) -> Option<PendingDirectory> {
         let mut queue = self.lock();
         loop {
             if queue.stopped || self.cancel.is_cancelled() {
@@ -176,7 +169,7 @@ impl Shared<'_> {
         }
     }
 
-    fn finish(&self, children: Vec<Pending>) {
+    fn finish(&self, children: Vec<PendingDirectory>) {
         let mut queue = self.lock();
         queue.pending.extend(children);
         queue.in_flight -= 1;
@@ -251,7 +244,7 @@ pub fn scan<E: DirEnumerator, C: FnMut(ScanItem) -> ControlFlow<()>>(
             Ok(entry) => {
                 if entry.kind == EntryKind::Directory {
                     let identity = entry.size.identity.clone();
-                    shared.lock().pending.push_back(Pending {
+                    shared.lock().pending.push_back(PendingDirectory {
                         path: root.clone(),
                         root_volume: identity.volume.clone(),
                         identity,
@@ -273,6 +266,45 @@ pub fn scan<E: DirEnumerator, C: FnMut(ScanItem) -> ControlFlow<()>>(
     if stop.is_none() {
         stop = run_workers(enumerator, &shared, config, &mut delivery);
     }
+    finish(&mut delivery, stop)
+}
+
+/// Continues an interrupted traversal from its frontier: directories that were
+/// discovered but never listed (see the store's `frontier`). Each directory is
+/// listed with its discovered identity, so one replaced while Lumen was not
+/// running is reported as `IdentityChanged` instead of being listed. Nothing is
+/// re-reported for roots; results stream exactly as from [`scan`].
+pub fn resume<E: DirEnumerator, C: FnMut(ScanItem) -> ControlFlow<()>>(
+    enumerator: &E,
+    frontier: &[PendingDirectory],
+    config: &ScanConfig,
+    cancel: &CancelToken,
+    mut consume: C,
+) -> ScanSummary {
+    let shared = Shared {
+        queue: Mutex::new(Queue::default()),
+        changed: Condvar::new(),
+        cancel,
+    };
+    shared.lock().pending.extend(frontier.iter().cloned());
+    let mut delivery = Delivery {
+        consume: &mut consume,
+        totals: ScanProgress::default(),
+        since_progress: 0,
+        every: config.progress_every.get(),
+    };
+    let stop = if cancel.is_cancelled() {
+        Some(StopReason::Cancelled)
+    } else {
+        run_workers(enumerator, &shared, config, &mut delivery)
+    };
+    finish(&mut delivery, stop)
+}
+
+fn finish<C: FnMut(ScanItem) -> ControlFlow<()>>(
+    delivery: &mut Delivery<'_, C>,
+    stop: Option<StopReason>,
+) -> ScanSummary {
     if stop != Some(StopReason::Consumer) {
         let totals = delivery.totals;
         // The traversal is over either way; a Break here changes nothing.
@@ -341,7 +373,7 @@ fn worker<E: DirEnumerator>(
             }
             if entry.kind == EntryKind::Directory {
                 if entry.size.identity.volume == dir.root_volume || config.cross_devices {
-                    children.push(Pending {
+                    children.push(PendingDirectory {
                         path: entry.path.clone(),
                         identity: entry.size.identity.clone(),
                         root_volume: dir.root_volume.clone(),
@@ -388,8 +420,8 @@ mod tests {
     use std::num::NonZeroU32;
 
     use lumen_domain::{
-        AccessState, ByteCount, DenialReason, EntryTimes, FailureKind, FileId, Protection,
-        SizeFacts, SizeFlags,
+        AccessState, ByteCount, DenialReason, EntryTimes, FailureKind, FileId, FileIdentity,
+        Protection, SizeFacts, SizeFlags, VolumeId,
     };
     use proptest::prelude::*;
 
@@ -748,6 +780,93 @@ mod tests {
         assert_eq!(progress.last(), Some(&summary.totals));
     }
 
+    fn pending(fs: &FakeFs, p: &str) -> Option<PendingDirectory> {
+        let entry = fs.entry(p)?;
+        Some(PendingDirectory {
+            path: entry.path,
+            root_volume: entry.size.identity.volume.clone(),
+            identity: entry.size.identity,
+        })
+    }
+
+    #[test]
+    fn resume_lists_only_the_frontier_subtrees() {
+        let fs = sample();
+        let frontier: Vec<_> = pending(&fs, "/r/d").into_iter().collect();
+        let mut items = Vec::new();
+        let summary = resume(
+            &fs,
+            &frontier,
+            &config(2, 2, false),
+            &CancelToken::new(),
+            |item| {
+                items.push(item);
+                ControlFlow::Continue(())
+            },
+        );
+        assert_eq!(
+            entry_paths(&items),
+            ["/r/d/b", "/r/d/e", "/r/d/e/c"],
+            "roots are not re-reported"
+        );
+        assert_eq!((summary.totals.directories, summary.stop), (2, None));
+    }
+
+    proptest! {
+        #[test]
+        fn interrupting_and_resuming_covers_exactly_the_full_scan(
+            shape in prop::collection::vec((0usize..6, any::<bool>()), 1..40),
+            stop_after in 1usize..60,
+            workers in 1usize..4,
+        ) {
+            let mut fs = FakeFs::default();
+            fs.add("/r", EntryKind::Directory, "v1", false);
+            let mut dirs = vec!["/r".to_owned()];
+            for (i, (parent, is_dir)) in shape.iter().enumerate() {
+                let parent = dirs[parent % dirs.len()].clone();
+                let path = format!("{parent}/n{i}");
+                fs.add(&path, if *is_dir { EntryKind::Directory } else { EntryKind::File }, "v1", false);
+                if *is_dir {
+                    dirs.push(path);
+                }
+            }
+            // First run, interrupted after `stop_after` results.
+            let mut first = Vec::new();
+            let mut seen = 0;
+            scan(&fs, &[root()], &config(workers, 1, false), &CancelToken::new(), |item| {
+                first.push(item);
+                seen += 1;
+                if seen >= stop_after { ControlFlow::Break(()) } else { ControlFlow::Continue(()) }
+            });
+            // Frontier exactly as the store derives it: directory entries without a listing.
+            let listed: BTreeSet<String> = first
+                .iter()
+                .filter_map(|i| if let ScanItem::Listed { path, .. } = i { Some(text(path)) } else { None })
+                .collect();
+            let frontier: Vec<PendingDirectory> = first
+                .iter()
+                .filter_map(|i| match i {
+                    ScanItem::Entry(e) if e.kind == EntryKind::Directory && !listed.contains(&text(&e.path)) => {
+                        pending(&fs, &text(&e.path))
+                    }
+                    _ => None,
+                })
+                .collect();
+            let (second, _) = {
+                let mut items = Vec::new();
+                let summary = resume(&fs, &frontier, &config(workers, 2, false), &CancelToken::new(), |item| {
+                    items.push(item);
+                    ControlFlow::Continue(())
+                });
+                (items, summary)
+            };
+            // Upsert semantics: the union of both runs is the full tree.
+            let mut union: BTreeSet<String> = entry_paths(&first).into_iter().collect();
+            union.extend(entry_paths(&second));
+            prop_assert_eq!(union, fs.nodes.keys().cloned().collect::<BTreeSet<_>>());
+        }
+    }
+
     proptest! {
         #[test]
         fn random_trees_are_traversed_exactly_once(
@@ -776,6 +895,53 @@ mod tests {
             prop_assert_eq!(paths, fs.nodes.keys().cloned().collect::<Vec<_>>());
             prop_assert_eq!(summary.totals.directories, u64::try_from(dirs.len()).unwrap_or(u64::MAX));
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resume_refuses_a_directory_replaced_since_discovery()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use std::os::unix::ffi::OsStrExt as _;
+
+        use lumen_testkit::{Fixture, Node};
+
+        use crate::StdFsEnumerator;
+
+        let fx = Fixture::build(&[
+            Node::Dir { path: "one".into() },
+            Node::Dir { path: "two".into() },
+        ])?;
+        let raw = |p: &str| -> Result<RawPath, Box<dyn std::error::Error>> {
+            Ok(RawPath::from_unix_bytes(
+                fx.path(p)?.as_os_str().as_bytes().to_vec(),
+            )?)
+        };
+        let one = StdFsEnumerator.stat(&raw("one")?)?;
+        // Pretend "two" was discovered with one's identity, then replaced.
+        let stale = PendingDirectory {
+            path: raw("two")?,
+            root_volume: one.size.identity.volume.clone(),
+            identity: one.size.identity,
+        };
+        let mut items = Vec::new();
+        resume(
+            &StdFsEnumerator,
+            &[stale],
+            &ScanConfig::default(),
+            &CancelToken::new(),
+            |item| {
+                items.push(item);
+                ControlFlow::Continue(())
+            },
+        );
+        assert!(items.iter().any(|i| matches!(
+            i,
+            ScanItem::Skipped {
+                reason: SkipReason::Enumerate(EnumerateError::IdentityChanged { .. }),
+                ..
+            }
+        )));
+        Ok(())
     }
 
     #[cfg(unix)]
