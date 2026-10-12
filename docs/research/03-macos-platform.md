@@ -81,7 +81,7 @@
 | `ATTR_CMNEXT_NOFIRMLINKPATH` | Path "that does not have firmlinks" |
 | `ATTR_CMNEXT_REALDEVID`, `ATTR_CMNEXT_LINKID`, `ATTR_CMN_FILEID` | Identity for de-duplication (hard links, firmlinks) |
 
-The constants are defined in xnu [`bsd/sys/attr.h`](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/attr.h) (`ATTR_CMNEXT_PRIVATESIZE 0x8`, `CLONEID 0x100`, `EXT_FLAGS 0x200`, `CLONE_REFCNT 0x1000`). The constant values above were re-checked against xnu `main` and the macOS 26 SDK header (2026-10-05). Note that the `EF_*` flag values live in `bsd/sys/stat.h`, not `attr.h` (`EF_MAY_SHARE_BLOCKS 0x1`, `EF_NO_XATTRS 0x2`, `EF_IS_SYNC_ROOT 0x4`, `EF_IS_PURGEABLE 0x8`, `EF_IS_SPARSE 0x10`, `EF_IS_SYNTHETIC 0x20`, `EF_SHARES_ALL_BLOCKS 0x40`). The minimum OS for each `ATTR_CMNEXT_*` attribute is **(unverified)**. Probe at runtime with `FSOPT_PACK_INVAL_ATTRS` plus `ATTR_CMN_RETURNED_ATTRS`, and fall back gracefully.
+The constants are defined in xnu [`bsd/sys/attr.h`](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/attr.h) (`ATTR_CMNEXT_PRIVATESIZE 0x8`, `CLONEID 0x100`, `EXT_FLAGS 0x200`, `CLONE_REFCNT 0x1000`). The constant values above were re-checked against xnu `main` and the macOS 26 SDK header (2026-10-05). Note that the `EF_*` flag values live in `bsd/sys/stat.h`, not `attr.h` (`EF_MAY_SHARE_BLOCKS 0x1`, `EF_NO_XATTRS 0x2`, `EF_IS_SYNC_ROOT 0x4`, `EF_IS_PURGEABLE 0x8`, `EF_IS_SPARSE 0x10`, `EF_IS_SYNTHETIC 0x20`, `EF_SHARES_ALL_BLOCKS 0x40`). The minimum OS for each `ATTR_CMNEXT_*` attribute is **(unverified)**. Probe at runtime through `ATTR_CMN_RETURNED_ATTRS` (an unsupported attribute is simply absent; §4 explains why not `FSOPT_PACK_INVAL_ATTRS`), and fall back gracefully.
 
 **Per-volume capability gate (omitted from the original draft).** The man page and `attr.h` tie `ATTR_CMNEXT_CLONEID` and `ATTR_CMNEXT_CLONE_REFCNT` to `VOL_CAP_FMT_CLONE_MAPPING` (0x04000000): "If this bit is set, the volume format supports full clone tracking." Lumen must read `ATTR_VOL_CAPABILITIES` once per volume with `getattrlist` on the mount root (volume attributes cannot be requested through `getattrlistbulk`) and treat clone IDs and clone ref-counts as **meaningless** on volumes without this bit. On such volumes, fall back to `PRIVATESIZE` or to allocated size flagged "may over-count shared blocks", and never merge clone groups by `CLONEID`. Also check `VOL_CAP_INT_CLONE` before assuming clones exist at all.
 
@@ -133,6 +133,22 @@ Relevant `st_flags` bits from xnu [`sys/stat.h`](https://github.com/apple-oss-di
 - `FSOPT_PACK_INVAL_ATTRS` fills unsupported attributes with defaults. `ATTR_CMN_ERROR` gives a per-entry error.
 - Volume attributes cannot be requested, and "the order … is not specified".
 - It is one syscall per batch instead of N+1 (`readdir` + `lstat`).
+
+**Buffer layout, checked empirically (2026-10-12, macOS 26, APFS, arm64).** Captured
+buffers for a file, a clone, a directory and a symlink match the man pages:
+- After the length and the returned set comes `ATTR_CMN_ERROR` (only when its bit is
+  in the returned set), then attributes in mask-bit order: common, directory, file,
+  then `ATTR_CMNEXT_*`. 64-bit fields are only 4-byte aligned. Timestamps are two
+  `i64`s.
+- Directory attributes are not packed for files and file attributes are not packed
+  for directories, with or without `FSOPT_PACK_INVAL_ATTRS`.
+- `ATTR_DIR_LINKCOUNT` excludes `.` and `..` (1 for a fresh directory, where
+  `st_nlink` is 2).
+- With `FSOPT_PACK_INVAL_ATTRS`, an invalid attribute still occupies space while its
+  returned bit is clear, so the layout no longer follows from the buffer alone.
+  Lumen therefore does **not** set it: without it the returned set describes the
+  layout exactly, and missing attributes are simply `None`.
+- Golden copies of these buffers are tests in `lumen-platform-macos`.
 
 **Apple DTS guidance** ([forums 760256](https://developer.apple.com/forums/thread/760256)): counting about 357k files took:
 
@@ -358,7 +374,7 @@ Guideline 2.3.1 also prohibits misleading marketing ([guidelines](https://develo
    - Rationale: it is the only bulk source of clone and sharing data, and per-file `URLResourceValues` via objc2 would cost a bridge round-trip per item.
    - Rejected: `walkdir`/`jwalk` + `lstat` (N+1 syscalls, no clone data), `FileManager` enumerator via objc2 (bridging cost, no `CMNEXT` attributes), `fts` (no clone data).
    - Gate clone-group logic per volume on `VOL_CAP_FMT_CLONE_MAPPING` (read via `getattrlist` + `ATTR_VOL_CAPABILITIES` on the mount root); without it, do not group by `CLONEID` (§2).
-   - Mitigate DTS's "tricky API" warning with a fuzzed parser, `FSOPT_PACK_INVAL_ATTRS`, an `ATTR_CMN_ERROR` per entry, and a slow-path `lstat` fallback.
+   - Mitigate DTS's "tricky API" warning with a fuzzed parser driven by the returned-attribute set, an `ATTR_CMN_ERROR` per entry, and a slow-path `lstat` fallback.
 3. **Report four numbers per node, never one.**
    - **Logical**.
    - **Allocated**.
