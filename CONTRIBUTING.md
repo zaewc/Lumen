@@ -47,6 +47,12 @@ prompts/schemas/datasets, and `.github/workflows` require review from CODEOWNERS
 where they change the attack surface, an update to the
 [threat model](docs/security/threat-model.md).
 
+## License of contributions
+
+Lumen is licensed under the [Apache License, Version 2.0](LICENSE). Unless you
+state otherwise, any contribution you submit is licensed under the same terms
+(Apache-2.0, section 5).
+
 ## Reporting security issues
 
 See [`SECURITY.md`](SECURITY.md). Do not open public issues for vulnerabilities.

@@ -9,6 +9,7 @@ rust-version = "1.95"
 version = "0.0.0"
 publish = false
 repository = "https://github.com/zaewc/Lumen"
+license = "Apache-2.0"
 
 [workspace.dependencies]
 # Every dependency needs a reason (AGENTS.md); see the PR that added it.

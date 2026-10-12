@@ -30,7 +30,7 @@ allow = [
 confidence-threshold = 0.93
 # The allow-list is policy, not an inventory: entries may be unused.
 unused-allowed-license = "allow"
-# Workspace crates are publish = false and carry no license yet.
+# Workspace crates (Apache-2.0, publish = false) are not license-checked as dependencies.
 private = { ignore = true }
 
 [bans]

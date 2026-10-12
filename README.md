@@ -35,3 +35,7 @@ JSON Schemas) are complete. Lumen cannot scan or clean anything yet; the scanner
 - **AI is advisory.** Model output is evidence; a deterministic policy decides.
 - **Reversible by default.** Removal goes through quarantine with verification and rollback.
 - **Local-first and private.** File contents never leave the device by default.
+
+## License
+
+Lumen is licensed under the [Apache License, Version 2.0](LICENSE).
