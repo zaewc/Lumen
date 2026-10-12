@@ -16,6 +16,7 @@
 #![forbid(unsafe_code)]
 
 mod index;
+mod writer;
 
 use std::path::Path;
 use std::time::Duration;
@@ -25,6 +26,7 @@ use rusqlite::config::DbConfig;
 use rusqlite_migration::{M, Migrations};
 
 pub use index::IndexStore;
+pub use writer::{IndexWriter, WriteStats, WriterConfig};
 
 /// How long a connection waits for a lock held by another connection.
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
@@ -62,6 +64,12 @@ pub enum StoreError {
         /// Column being read.
         column: &'static str,
     },
+    /// The writer thread stopped after an error; `finish` reports the error.
+    #[error("the index writer has stopped")]
+    WriterStopped,
+    /// The writer thread panicked.
+    #[error("the index writer panicked")]
+    WriterPanicked,
     /// The scan does not exist.
     #[error("scan {scan} does not exist")]
     UnknownScan {
