@@ -13,6 +13,7 @@ repository = "https://github.com/zaewc/Lumen"
 [workspace.dependencies]
 # Every dependency needs a reason (AGENTS.md); see the PR that added it.
 lumen-application = { path = "crates/lumen-application" }
+lumen-cli = { path = "crates/lumen-cli" }
 lumen-domain = { path = "crates/lumen-domain" }
 lumen-scan = { path = "crates/lumen-scan" }
 lumen-store-sqlite = { path = "crates/lumen-store-sqlite" }

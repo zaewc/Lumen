@@ -1,0 +1,27 @@
+[package]
+name = "lumen-cli"
+description = "Lumen's developer command line: read-only scans with coverage and size reports."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "lumen"
+path = "src/main.rs"
+
+[dependencies]
+lumen-application.workspace = true
+lumen-domain.workspace = true
+lumen-scan.workspace = true
+lumen-store-sqlite.workspace = true
+serde_json.workspace = true
+# Time-ordered scan and snapshot IDs.
+uuid = { workspace = true, features = ["v7"] }
+
+[dev-dependencies]
+lumen-testkit.workspace = true
+
+[lints]
+workspace = true

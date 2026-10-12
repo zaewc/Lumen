@@ -23,7 +23,8 @@ use crate::ScanItem;
 /// Totals for one directory's subtree (the directory itself excluded).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DirTotals {
-    /// Distinct non-directory files under the directory.
+    /// Distinct non-directory objects under the directory (regular files,
+    /// symlinks and other links counted as themselves, never followed).
     pub files: u64,
     /// Sum of logical sizes, once per file.
     pub logical: ByteCount,
