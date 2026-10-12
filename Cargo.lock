@@ -450,9 +450,13 @@ dependencies = [
 name = "lumen-store-sqlite"
 version = "0.0.0"
 dependencies = [
+ "lumen-application",
+ "lumen-domain",
  "lumen-testkit",
+ "proptest",
  "rusqlite",
  "rusqlite_migration",
+ "serde_json",
  "thiserror",
 ]
 

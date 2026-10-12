@@ -15,12 +15,16 @@
 
 #![forbid(unsafe_code)]
 
+mod index;
+
 use std::path::Path;
 use std::time::Duration;
 
 use rusqlite::Connection;
 use rusqlite::config::DbConfig;
 use rusqlite_migration::{M, Migrations};
+
+pub use index::IndexStore;
 
 /// How long a connection waits for a lock held by another connection.
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
@@ -45,6 +49,24 @@ pub enum StoreError {
     WalUnavailable {
         /// Journal mode SQLite reported instead.
         mode: String,
+    },
+    /// A value does not fit SQLite's signed 64-bit integers.
+    #[error("value for column {column} exceeds SQLite's integer range")]
+    OutOfRange {
+        /// Column being written.
+        column: &'static str,
+    },
+    /// A stored value failed validation (corruption or tampering).
+    #[error("stored value in column {column} is invalid")]
+    Corrupt {
+        /// Column being read.
+        column: &'static str,
+    },
+    /// The scan does not exist.
+    #[error("scan {scan} does not exist")]
+    UnknownScan {
+        /// Requested scan.
+        scan: lumen_domain::ScanId,
     },
 }
 
