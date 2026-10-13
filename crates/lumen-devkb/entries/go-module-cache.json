@@ -1,0 +1,28 @@
+{
+  "id": "go-module-cache",
+  "tool": "Go",
+  "locations": [
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "home" },
+      "path": "go/pkg/mod"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "GOMODCACHE" },
+      "path": ""
+    }
+  ],
+  "safety_class": "tool_action",
+  "regeneration": { "effort": "minutes", "network": true },
+  "official_action": {
+    "program": "go",
+    "args": ["clean", "-modcache"],
+    "dry_run_args": ["clean", "-n", "-modcache"]
+  },
+  "sources": [
+    "https://go.dev/ref/mod#module-cache",
+    "https://pkg.go.dev/cmd/go#hdr-Remove_object_files_and_cached_files"
+  ],
+  "last_verified": "2026-10-13"
+}
