@@ -2,14 +2,14 @@
 
 use std::error::Error;
 use std::ops::ControlFlow;
-use std::os::unix::ffi::OsStrExt as _;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use lumen_application::CancelToken;
 use lumen_application::ports::DirEnumerator;
 use lumen_domain::{
-    ByteCount, DenialReason, RawPath, RootCoverage, ScanId, ScanState, SnapshotId, Timestamp,
+    ByteCount, DenialReason, PathError, RawPath, RootCoverage, ScanId, ScanState, SnapshotId,
+    Timestamp,
 };
 use lumen_scan::{
     CoverageBuilder, ScanConfig, ScanItem, SizeAggregator, StopReason, scan as run_scan,
@@ -44,15 +44,33 @@ pub(crate) struct Report {
 }
 
 /// The platform's best enumerator: `getattrlistbulk` on macOS, which measures
-/// clone-aware private sizes (ADR-0028), and the portable one elsewhere.
+/// clone-aware private sizes (ADR-0028).
 #[cfg(target_os = "macos")]
 fn enumerator() -> impl DirEnumerator {
     lumen_platform_macos::BulkEnumerator::new()
 }
 
-#[cfg(not(target_os = "macos"))]
+/// Directory handles on Windows (ADR-0017).
+#[cfg(windows)]
+fn enumerator() -> impl DirEnumerator {
+    lumen_platform_windows::HandleEnumerator
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
 fn enumerator() -> impl DirEnumerator {
     lumen_scan::StdFsEnumerator
+}
+
+#[cfg(unix)]
+fn raw_path(path: &Path) -> Result<RawPath, PathError> {
+    use std::os::unix::ffi::OsStrExt as _;
+    RawPath::from_unix_bytes(path.as_os_str().as_bytes().to_vec())
+}
+
+#[cfg(windows)]
+fn raw_path(path: &Path) -> Result<RawPath, PathError> {
+    use std::os::windows::ffi::OsStrExt as _;
+    RawPath::from_windows_wide(&path.as_os_str().encode_wide().collect::<Vec<_>>())
 }
 
 fn now() -> Result<Timestamp, Box<dyn Error>> {
@@ -70,10 +88,7 @@ pub(crate) fn scan(roots: &[PathBuf], db: Option<&Path>) -> Result<Report, Box<d
         .map(|root| {
             // Absolute without resolving symlinks: a symlinked root is reported as a
             // link, never followed.
-            let absolute = std::path::absolute(root)?;
-            Ok(RawPath::from_unix_bytes(
-                absolute.as_os_str().as_bytes().to_vec(),
-            )?)
+            Ok(raw_path(&std::path::absolute(root)?)?)
         })
         .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
     let scan_id = ScanId::new(uuid::Uuid::now_v7())?;

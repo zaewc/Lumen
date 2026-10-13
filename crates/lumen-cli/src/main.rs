@@ -16,7 +16,7 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod report;
 
 const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]";
@@ -86,7 +86,7 @@ fn main() -> ExitCode {
     }
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 fn run(args: &ScanArgs) -> Result<(), Box<dyn Error>> {
     let report = report::scan(&args.roots, args.db.as_deref())?;
     if args.json {
@@ -97,11 +97,9 @@ fn run(args: &ScanArgs) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn run(_args: &ScanArgs) -> Result<(), Box<dyn Error>> {
-    // The portable enumerator needs Unix file identities; the native Windows
-    // enumerator arrives with roadmap item 5.14.
-    Err("scanning is not supported on this platform yet".into())
+    Err("scanning is not supported on this platform".into())
 }
 
 #[cfg(test)]

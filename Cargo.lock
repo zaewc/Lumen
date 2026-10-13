@@ -429,10 +429,12 @@ dependencies = [
  "lumen-application",
  "lumen-domain",
  "lumen-platform-macos",
+ "lumen-platform-windows",
  "lumen-scan",
  "lumen-store-sqlite",
  "lumen-testkit",
  "serde_json",
+ "tempfile",
  "uuid",
 ]
 
