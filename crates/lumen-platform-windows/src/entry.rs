@@ -129,8 +129,9 @@ pub fn join(parent: &[u16], name: &[u16]) -> Vec<u16> {
 /// `volume`.
 ///
 /// Directory records carry no hard-link count and cannot show `ReFS` block
-/// cloning or deduplication, so every file is marked `may_share_blocks`: its
-/// reclaim estimate is a lower bound until it is verified by handle.
+/// cloning or deduplication, so every data-carrying entry (a regular file or a
+/// reparse-point file) is marked `may_share_blocks`: its reclaim estimate is a
+/// lower bound until it is verified by handle.
 ///
 /// # Errors
 ///
@@ -161,7 +162,11 @@ pub fn to_entry_at(
 ) -> Result<FilesystemEntry, Unmappable> {
     let kind = kind_of(record);
     let attributes = record.attributes;
-    let is_file = kind == EntryKind::File;
+    // Data-carrying entries: regular files, and reparse-point files such as
+    // deduplicated (chunks shared in the chunk store), WOF-compressed or cloud
+    // files. Links, junctions and directories carry no data of their own.
+    let carries_data = kind == EntryKind::File
+        || (kind == EntryKind::OtherReparsePoint && attributes & FILE_ATTRIBUTE_DIRECTORY == 0);
     let reparse_tag =
         (attributes & FILE_ATTRIBUTE_REPARSE_POINT != 0).then_some(record.reparse_tag);
 
@@ -198,7 +203,7 @@ pub fn to_entry_at(
                 dataless: attributes & (recall | FILE_ATTRIBUTE_OFFLINE) != 0,
                 cloud_placeholder: attributes & (recall | synced) != 0
                     || reparse_tag.is_some_and(is_cloud_tag),
-                may_share_blocks: is_file,
+                may_share_blocks: carries_data,
             },
         },
         times: EntryTimes {
@@ -348,6 +353,35 @@ mod tests {
         assert!(entry.protection.system_attribute && entry.protection.hidden);
         let wof = map("w", FILE_ATTRIBUTE_REPARSE_POINT, IO_REPARSE_TAG_WOF)?;
         assert!(wof.size.flags.compressed);
+        Ok(())
+    }
+
+    #[test]
+    fn reparse_point_files_may_share_blocks_but_links_do_not() -> Result<(), Unmappable> {
+        const IO_REPARSE_TAG_DEDUP: u32 = 0x8000_0013;
+        let reparse = FILE_ATTRIBUTE_REPARSE_POINT;
+        for tag in [
+            IO_REPARSE_TAG_DEDUP,
+            IO_REPARSE_TAG_WOF,
+            IO_REPARSE_TAG_CLOUD,
+        ] {
+            assert!(
+                map("f", reparse, tag)?.size.flags.may_share_blocks,
+                "{tag:#x}"
+            );
+        }
+        let dir = FILE_ATTRIBUTE_DIRECTORY | reparse;
+        for (attributes, tag) in [
+            (reparse, IO_REPARSE_TAG_SYMLINK),
+            (dir, IO_REPARSE_TAG_MOUNT_POINT),
+            (dir, IO_REPARSE_TAG_CLOUD),
+            (FILE_ATTRIBUTE_DIRECTORY, 0),
+        ] {
+            assert!(
+                !map("l", attributes, tag)?.size.flags.may_share_blocks,
+                "{attributes:#x} {tag:#x}"
+            );
+        }
         Ok(())
     }
 
