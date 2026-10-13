@@ -55,8 +55,13 @@ pub struct AppId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SignatureCheck {
-    /// The platform validated the signature.
+    /// The platform validated the signature and every signed component
+    /// (executable and resources): the code is unmodified since signing.
     Valid,
+    /// The platform validated the signature and its certificate chain, so the
+    /// signer is authenticated, but did not re-hash the signed contents (macOS
+    /// `kSecCSBasicValidateOnly`). Proves who signed it, not that it is unmodified.
+    SignerVerified,
     /// A signature exists but failed validation.
     Invalid,
     /// No signature.
@@ -80,7 +85,7 @@ impl CodeSignature {
     /// signer name is a claim, not evidence of identity.
     pub fn verified_signer(&self) -> Option<&UntrustedText> {
         match self.check {
-            SignatureCheck::Valid => self.signer.as_ref(),
+            SignatureCheck::Valid | SignatureCheck::SignerVerified => self.signer.as_ref(),
             SignatureCheck::Invalid | SignatureCheck::Unsigned | SignatureCheck::Unknown => None,
         }
     }
@@ -250,6 +255,7 @@ mod tests {
         let signer = Some(UntrustedText::new("ABCDE12345"));
         for (check, expected) in [
             (SignatureCheck::Valid, true),
+            (SignatureCheck::SignerVerified, true),
             (SignatureCheck::Invalid, false),
             (SignatureCheck::Unsigned, false),
             (SignatureCheck::Unknown, false),

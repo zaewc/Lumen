@@ -460,9 +460,14 @@
       "description": "Result of verifying a code signature with the platform's own APIs.",
       "oneOf": [
         {
-          "description": "The platform validated the signature.",
+          "description": "The platform validated the signature and every signed component\n(executable and resources): the code is unmodified since signing.",
           "type": "string",
           "const": "valid"
+        },
+        {
+          "description": "The platform validated the signature and its certificate chain, so the\nsigner is authenticated, but did not re-hash the signed contents (macOS\n`kSecCSBasicValidateOnly`). Proves who signed it, not that it is unmodified.",
+          "type": "string",
+          "const": "signer_verified"
         },
         {
           "description": "A signature exists but failed validation.",
