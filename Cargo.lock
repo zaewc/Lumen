@@ -606,6 +606,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumen-graph"
+version = "0.0.0"
+dependencies = [
+ "lumen-domain",
+ "proptest",
+]
+
+[[package]]
 name = "lumen-platform-macos"
 version = "0.0.0"
 dependencies = [

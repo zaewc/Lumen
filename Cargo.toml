@@ -16,6 +16,7 @@ license = "Apache-2.0"
 lumen-application = { path = "crates/lumen-application" }
 lumen-cli = { path = "crates/lumen-cli" }
 lumen-domain = { path = "crates/lumen-domain" }
+lumen-graph = { path = "crates/lumen-graph" }
 lumen-platform-macos = { path = "crates/lumen-platform-macos" }
 lumen-platform-windows = { path = "crates/lumen-platform-windows" }
 lumen-scan = { path = "crates/lumen-scan" }
