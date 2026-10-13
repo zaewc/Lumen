@@ -9,7 +9,7 @@ use windows_sys::Win32::Foundation::{
 };
 use windows_sys::Win32::System::Registry::{
     HKEY, KEY_READ, REG_SAM_FLAGS, RRF_NOEXPAND, RRF_RT_REG_EXPAND_SZ, RRF_RT_REG_SZ, RegCloseKey,
-    RegEnumKeyExW, RegGetValueW, RegOpenKeyExW,
+    RegEnumKeyExW, RegEnumValueW, RegGetValueW, RegOpenKeyExW,
 };
 
 use crate::winpath::nul_terminated;
@@ -96,7 +96,44 @@ impl Key {
         Err(names)
     }
 
-    /// A string value of `subkey` (`REG_SZ` or unexpanded `REG_EXPAND_SZ`), or
+    /// The names of the key's values (the default value has an empty name).
+    /// Errors other than the end of the list make the result `Err` with the
+    /// names read so far.
+    pub(crate) fn values(&self) -> Result<Vec<String>, Vec<String>> {
+        let mut names = Vec::new();
+        // Value names are at most 16,383 characters.
+        let mut buffer = vec![0_u16; 16_384];
+        for index in 0.. {
+            let mut len = u32::try_from(buffer.len()).unwrap_or(0);
+            // SAFETY: invariant: the API writes at most `len` UTF-16 units into
+            // `buffer` and the length back into `len`; type and data pointers may
+            // be null. Why unsafe: FFI writing through raw pointers. Why it holds:
+            // `len` is the buffer's capacity and both are locals.
+            let status = unsafe {
+                RegEnumValueW(
+                    self.0,
+                    index,
+                    buffer.as_mut_ptr(),
+                    &raw mut len,
+                    std::ptr::null(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                )
+            };
+            match status {
+                ERROR_SUCCESS => {
+                    let len = usize::try_from(len).unwrap_or(0).min(buffer.len());
+                    names.push(String::from_utf16_lossy(&buffer[..len]));
+                }
+                ERROR_NO_MORE_ITEMS => return Ok(names),
+                _ => return Err(names),
+            }
+        }
+        Err(names)
+    }
+
+    /// A string value of `subkey` (an empty `subkey` reads the key itself) (`REG_SZ` or unexpanded `REG_EXPAND_SZ`), or
     /// `None` if it is missing, another type, or unreadable.
     pub(crate) fn string(&self, subkey: &str, value: &str) -> Option<String> {
         let subkey = wide(subkey)?;

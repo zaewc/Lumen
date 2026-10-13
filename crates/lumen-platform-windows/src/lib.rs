@@ -17,6 +17,7 @@ mod installed;
 pub mod notify;
 #[cfg(windows)]
 mod registry;
+pub mod startup;
 #[cfg(windows)]
 mod sys;
 #[cfg(windows)]
@@ -27,5 +28,7 @@ pub mod winpath;
 pub use handle::HandleEnumerator;
 #[cfg(windows)]
 pub use installed::InstalledApps;
+#[cfg(windows)]
+pub use startup::StartupEntries;
 #[cfg(windows)]
 pub use watcher::DirectoryChangesFeed;
