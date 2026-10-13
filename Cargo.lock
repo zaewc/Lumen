@@ -609,8 +609,11 @@ dependencies = [
 name = "lumen-graph"
 version = "0.0.0"
 dependencies = [
+ "blake3",
  "lumen-domain",
  "proptest",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

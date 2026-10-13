@@ -18,6 +18,10 @@
 
 #![forbid(unsafe_code)]
 
+mod bundle;
+
+pub use bundle::EvidenceBundle;
+
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use lumen_domain::{RelationKind, Relationship, Subject};
