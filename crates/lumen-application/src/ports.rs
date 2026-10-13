@@ -272,8 +272,8 @@ pub enum InUse {
     No,
     /// No inspected process uses it, but `unseen` processes could not be
     /// inspected (an unprivileged probe cannot see other users' processes, such
-    /// as root daemons). Not proof of non-use: whether any action may proceed on
-    /// this is a policy decision (ADR-0014), never the probe's.
+    /// as root daemons). Not proof of non-use: the policy accepts it only for the
+    /// reversible quarantine of the user's own files (ADR-0030), never the probe.
     Partial {
         /// Processes that could not be inspected.
         unseen: u32,

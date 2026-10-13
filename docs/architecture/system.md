@@ -282,7 +282,9 @@ See [ADR-0017](../decisions/0017-scan-engine-and-size-accounting.md) and
 1. The user selects candidates. The core builds a `CleanupPlan`, re-runs the policy on
    fresh evidence, and returns `PlanId` plus the plan hash.
 2. The user confirms. The UI sends `execute_plan(plan_id, confirmation_token)`.
-3. Per item, the executor re-verifies identity by handle, checks the in-use gate,
+3. Per item, the executor re-verifies identity by handle, checks the in-use gate
+   (`No`, or `Partial` for the user's own files under
+   [ADR-0030](../decisions/0030-partial-in-use-visibility.md)),
    writes a journal intent, performs a no-replace rename into the quarantine store,
    verifies, and records completion. A mismatch aborts that item to `REVIEW`.
 4. Retention then finalization, or rollback by operation ID.

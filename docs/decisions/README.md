@@ -38,3 +38,4 @@ recommended option.
 | [0027](0027-atomic-commit-pr-workflow.md) | Ship every atomic change as one Conventional Commit in one pull request | Accepted |
 | [0028](0028-macos-private-size-in-bulk-pass.md) | Request PRIVATESIZE in the macOS bulk pass, not a second pass | Accepted |
 | [0029](0029-fsevents-absolute-streams.md) | Watch absolute paths with FSEvents and pin resume points to the volume UUID | Accepted |
+| [0030](0030-partial-in-use-visibility.md) | Accept partial in-use visibility for reversible quarantine of the user's own files | Accepted |
