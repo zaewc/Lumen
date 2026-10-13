@@ -1,0 +1,37 @@
+{
+  "id": "uv-cache",
+  "tool": "uv",
+  "locations": [
+    {
+      "platforms": ["macos", "linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/uv"
+    },
+    {
+      "platforms": ["macos", "linux"],
+      "root": { "kind": "env_var", "name": "XDG_CACHE_HOME" },
+      "path": "uv"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "local_app_data" },
+      "path": "uv/cache"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "UV_CACHE_DIR" },
+      "path": ""
+    }
+  ],
+  "safety_class": "tool_action",
+  "regeneration": { "effort": "minutes", "network": true },
+  "official_action": {
+    "program": "uv",
+    "args": ["cache", "prune"]
+  },
+  "sources": [
+    "https://docs.astral.sh/uv/concepts/cache/",
+    "https://docs.astral.sh/uv/reference/cli/#uv-cache-prune"
+  ],
+  "last_verified": "2026-10-13"
+}

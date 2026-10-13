@@ -40,6 +40,7 @@ const BUILTIN: &[(&str, &str)] = &[
         "gradle-user-home-caches.json",
         include_str!("../entries/gradle-user-home-caches.json"),
     ),
+    ("uv-cache.json", include_str!("../entries/uv-cache.json")),
 ];
 
 /// One artifact of one developer tool.
