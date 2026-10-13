@@ -23,7 +23,10 @@ use serde::{Deserialize, Serialize};
 pub use validate::Problem;
 
 /// The built-in entries as `(file name, JSON)`, one per tool (roadmap 6.15+).
-const BUILTIN: &[(&str, &str)] = &[];
+const BUILTIN: &[(&str, &str)] = &[(
+    "cargo-global-cache.json",
+    include_str!("../entries/cargo-global-cache.json"),
+)];
 
 /// One artifact of one developer tool.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

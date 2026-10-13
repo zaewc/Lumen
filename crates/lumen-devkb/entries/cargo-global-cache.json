@@ -1,0 +1,35 @@
+{
+  "id": "cargo-global-cache",
+  "tool": "Cargo",
+  "locations": [
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "home" },
+      "path": ".cargo/registry"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "home" },
+      "path": ".cargo/git"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "CARGO_HOME" },
+      "path": "registry"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "CARGO_HOME" },
+      "path": "git"
+    }
+  ],
+  "safety_class": "self_managed",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://doc.rust-lang.org/cargo/guide/cargo-home.html",
+    "https://doc.rust-lang.org/cargo/reference/config.html#cacheauto-clean-frequency",
+    "https://doc.rust-lang.org/cargo/reference/environment-variables.html",
+    "https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/"
+  ],
+  "last_verified": "2026-10-13"
+}
