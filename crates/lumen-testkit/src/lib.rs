@@ -64,6 +64,13 @@ pub enum Node {
         /// New modification time.
         at: Timestamp,
     },
+    /// A named pipe (FIFO). Opening one for reading blocks until a writer
+    /// appears, so a scanner that ever opens it hangs: the fixture proves it does
+    /// not. Unix only; created with `mkfifo(1)`.
+    Fifo {
+        /// Relative path.
+        path: String,
+    },
     /// Sets Unix permission bits on an existing fixture object (e.g. `0o000` to
     /// make a directory unreadable). Restored to `0o700` before the fixture is
     /// removed. Unix only.
@@ -210,6 +217,10 @@ impl Fixture {
                 self.restricted.push(full);
                 Ok(())
             }
+            Node::Fifo { path } => {
+                let full = self.prepared(path)?;
+                fifo(&full, node)
+            }
         }
     }
 
@@ -251,6 +262,32 @@ fn set_mode(path: &Path, mode: u32, _node: &Node) -> Result<(), FixtureError> {
 fn restore_mode(path: &Path) -> std::io::Result<()> {
     use std::os::unix::fs::PermissionsExt as _;
     fs::set_permissions(path, fs::Permissions::from_mode(0o700))
+}
+
+#[cfg(unix)]
+fn fifo(path: &Path, _node: &Node) -> Result<(), FixtureError> {
+    let status = std::process::Command::new("mkfifo")
+        .arg(path)
+        .status()
+        .map_err(|source| FixtureError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(FixtureError::Io {
+            path: path.to_path_buf(),
+            source: std::io::Error::other(format!("mkfifo exited with {status}")),
+        })
+    }
+}
+
+#[cfg(not(unix))]
+fn fifo(_path: &Path, node: &Node) -> Result<(), FixtureError> {
+    Err(FixtureError::Unsupported {
+        node: Box::new(node.clone()),
+    })
 }
 
 #[cfg(not(unix))]
@@ -308,6 +345,20 @@ mod tests {
             path: path.into(),
             contents: contents.to_vec(),
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn builds_named_pipes() -> Result<(), FixtureError> {
+        use std::os::unix::fs::FileTypeExt as _;
+        let fx = Fixture::build(&[Node::Fifo {
+            path: "p/pipe".into(),
+        }])?;
+        let kind = fs::symlink_metadata(fx.path("p/pipe")?)
+            .map(|m| m.file_type().is_fifo())
+            .ok();
+        assert_eq!(kind, Some(true));
+        Ok(())
     }
 
     #[test]

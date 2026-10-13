@@ -496,6 +496,7 @@ version = "0.0.0"
 dependencies = [
  "lumen-application",
  "lumen-domain",
+ "lumen-scan",
  "lumen-testkit",
  "proptest",
 ]

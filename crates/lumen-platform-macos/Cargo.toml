@@ -23,7 +23,7 @@ objc2-core-services = { workspace = true, features = ["FSEvents", "dispatch2", "
 proptest.workspace = true
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
-lumen-scan.workspace = true
+lumen-scan = { workspace = true, features = ["conformance"] }
 lumen-testkit.workspace = true
 tempfile.workspace = true
 

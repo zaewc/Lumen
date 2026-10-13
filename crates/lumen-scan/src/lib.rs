@@ -14,6 +14,8 @@
 #![forbid(unsafe_code)]
 
 mod aggregate;
+#[cfg(all(unix, feature = "conformance"))]
+pub mod conformance;
 mod coverage;
 mod scheduler;
 #[cfg(unix)]

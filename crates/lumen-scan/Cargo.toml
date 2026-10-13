@@ -8,11 +8,18 @@ publish.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[features]
+# Adversarial checks other enumerator crates run in their tests (`conformance`).
+conformance = ["dep:lumen-testkit"]
+
 [dependencies]
 lumen-application.workspace = true
 lumen-domain.workspace = true
+lumen-testkit = { workspace = true, optional = true }
 
 [dev-dependencies]
+# The crate's own integration tests run the conformance suite.
+lumen-scan = { workspace = true, features = ["conformance"] }
 lumen-testkit.workspace = true
 proptest.workspace = true
 
