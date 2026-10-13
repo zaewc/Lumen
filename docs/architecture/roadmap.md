@@ -120,7 +120,8 @@ sealed system volume moves to the volume inventory.
 | 6.11 | `feat(platform-windows): inventory startup items and services` | Run keys, StartupApproved, Task Scheduler, SCM (report-only) |
 | 6.12 | `feat(platform-windows): add Restart Manager in-use probe` | |
 | 6.13 | `feat(platform-windows): read Disk Cleanup handler declarations` | vendor-declared cache edges |
-| 6.14 | `feat(devkb): add knowledge-base schema and loader` | `lumen-devkb` entry schema, validation, `last_verified` check |
+| 6.14 | `feat(devkb): add knowledge-base schema and loader` | `lumen-devkb` entry schema (`schemas/devkb-entry.schema.json`), validation (safe relative paths, bare program names, https sources, class/action consistency), `last_verified` check |
+| 6.14a | `ci(devkb): flag stale entries on a schedule` | `xtask devkb --max-age-days`; a scheduled workflow, so time passing never fails unrelated PRs |
 | 6.15+ | `feat(devkb): add <tool> entry` | one PR per tool (Xcode DerivedData, simulators, Docker, npm, pnpm, Yarn, Cargo, Gradle, CocoaPods, Homebrew, JetBrains, VS Code, uv, Go, Claude Code), each with sources |
 | 6.x | `docs(graph): document evidence graph` | `docs/architecture/evidence-graph.md` |
 

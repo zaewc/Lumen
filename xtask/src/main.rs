@@ -46,6 +46,7 @@ const EXPORTS: &[Export] = &[
     export::<d::PlatformCapabilities>("platform-capabilities"),
     export::<d::Judgment>("jev-judgment"),
     export::<d::JevTrace>("jev-trace"),
+    export::<lumen_devkb::Entry>("devkb-entry"),
 ];
 
 fn schemas_dir() -> PathBuf {

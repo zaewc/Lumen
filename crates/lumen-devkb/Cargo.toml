@@ -1,0 +1,22 @@
+[package]
+name = "lumen-devkb"
+description = "Lumen's developer-artifact knowledge base: typed, validated entries with sources (ADR-0021)."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+lumen-domain.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+jsonschema.workspace = true
+
+[lints]
+workspace = true

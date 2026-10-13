@@ -327,6 +327,18 @@ Gradle, CocoaPods, Next.js build output, Android build outputs, IDE caches, AI t
 caches and Homebrew. The tool's own cleanup command is preferred; self-managed caches
 are shown as informational.
 
+Entries are JSON files in `crates/lumen-devkb/entries/`, one per artifact, embedded at
+build time and validated on load against `schemas/devkb-entry.schema.json` plus rules
+the schema cannot express:
+
+- paths are relative to a known root, and never the root itself or every child of it;
+- a project location needs marker files;
+- programs are bare names that the runner resolves from known install locations, never
+  through `PATH`, and arguments are an argument vector, never a shell string;
+- a `tool_action` entry has an action, and a `not_regenerable` one never does;
+- sources are `https` URLs;
+- `last_verified` is a real date, checked for staleness.
+
 ### 12.3 Duplicates
 
 See [ADR-0019](../decisions/0019-staged-duplicate-detection.md). Exact duplicates are

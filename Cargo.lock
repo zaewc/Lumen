@@ -592,6 +592,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumen-devkb"
+version = "0.0.0"
+dependencies = [
+ "jsonschema",
+ "lumen-domain",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "lumen-domain"
 version = "0.0.0"
 dependencies = [
@@ -1494,6 +1506,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 name = "xtask"
 version = "0.0.0"
 dependencies = [
+ "lumen-devkb",
  "lumen-domain",
  "schemars",
  "serde_json",

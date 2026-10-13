@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Entry",
+  "description": "One artifact of one developer tool.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "description": "Stable identifier, also the file name (`<id>.json`): lowercase letters,\ndigits and `-`.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,62}[a-z0-9]$"
+    },
+    "last_verified": {
+      "description": "The day the entry was last checked against its sources (`YYYY-MM-DD`).",
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "locations": {
+      "description": "Where the artifact lives, per platform.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Location"
+      },
+      "minItems": 1
+    },
+    "official_action": {
+      "description": "The tool's own cleanup command, if it has one.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ToolAction"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "regeneration": {
+      "description": "What removing it costs.",
+      "$ref": "#/$defs/Regeneration"
+    },
+    "safety_class": {
+      "description": "How the artifact may be cleaned.",
+      "$ref": "#/$defs/SafetyClass"
+    },
+    "sources": {
+      "description": "Official documentation the entry was verified against (`https` only).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "tool": {
+      "description": "The tool's display name, e.g. `Cargo`.",
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "tool",
+    "locations",
+    "safety_class",
+    "regeneration",
+    "sources",
+    "last_verified"
+  ],
+  "$defs": {
+    "Effort": {
+      "description": "Rough time to regenerate an artifact.",
+      "oneOf": [
+        {
+          "description": "Seconds.",
+          "type": "string",
+          "const": "seconds"
+        },
+        {
+          "description": "Minutes.",
+          "type": "string",
+          "const": "minutes"
+        },
+        {
+          "description": "Hours.",
+          "type": "string",
+          "const": "hours"
+        },
+        {
+          "description": "It cannot be regenerated.",
+          "type": "string",
+          "const": "impossible"
+        }
+      ]
+    },
+    "Location": {
+      "description": "One place an artifact lives.",
+      "type": "object",
+      "properties": {
+        "markers": {
+          "description": "Files relative to the root, any one of which must exist for the location\nto match (e.g. a lockfile). Required for a `project` root.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "path": {
+          "description": "`/`-separated path below the root; a `*` component matches any one name.\nEmpty only for an `env_var` root (the variable names the artifact).",
+          "type": "string"
+        },
+        "platforms": {
+          "description": "Platforms this location applies to.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Platform"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "root": {
+          "description": "The directory `path` is relative to.",
+          "$ref": "#/$defs/Root"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "platforms",
+        "root",
+        "path"
+      ]
+    },
+    "Platform": {
+      "description": "Operating system Lumen is running on.",
+      "oneOf": [
+        {
+          "description": "macOS.",
+          "type": "string",
+          "const": "macos"
+        },
+        {
+          "description": "Windows.",
+          "type": "string",
+          "const": "windows"
+        },
+        {
+          "description": "Linux; used for development and CI, not a product target.",
+          "type": "string",
+          "const": "linux"
+        },
+        {
+          "description": "Android.",
+          "type": "string",
+          "const": "android"
+        },
+        {
+          "description": "iOS and iPadOS.",
+          "type": "string",
+          "const": "ios"
+        }
+      ]
+    },
+    "Regeneration": {
+      "description": "What regenerating an artifact costs.",
+      "type": "object",
+      "properties": {
+        "effort": {
+          "description": "Rough time to regenerate.",
+          "$ref": "#/$defs/Effort"
+        },
+        "network": {
+          "description": "Whether regenerating downloads from the network.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "effort",
+        "network"
+      ]
+    },
+    "Root": {
+      "description": "A directory known per user or per project.",
+      "oneOf": [
+        {
+          "description": "The user's home directory.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "home"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "Windows `%LOCALAPPDATA%` (`FOLDERID_LocalAppData`).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "local_app_data"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "Windows `%APPDATA%` (`FOLDERID_RoamingAppData`).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "roaming_app_data"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "A directory named by an environment variable the tool documents (e.g.\n`GOMODCACHE`); a location only applies when the variable is set.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "env_var"
+            },
+            "name": {
+              "description": "The variable: uppercase letters, digits and `_`.",
+              "type": "string",
+              "pattern": "^[A-Z_][A-Z0-9_]{0,63}$"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name"
+          ]
+        },
+        {
+          "description": "A project directory, recognised by the location's markers.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "project"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        }
+      ]
+    },
+    "SafetyClass": {
+      "description": "How an artifact may be cleaned (ADR-0021).",
+      "oneOf": [
+        {
+          "description": "The tool cleans it itself; informational only.",
+          "type": "string",
+          "const": "self_managed"
+        },
+        {
+          "description": "Only the tool's own command may clean it.",
+          "type": "string",
+          "const": "tool_action"
+        },
+        {
+          "description": "May be quarantined; the tool regenerates it.",
+          "type": "string",
+          "const": "regenerable"
+        },
+        {
+          "description": "Cannot be regenerated: `REVIEW` only, never an action.",
+          "type": "string",
+          "const": "not_regenerable"
+        }
+      ]
+    },
+    "ToolAction": {
+      "description": "A tool's own cleanup command, as a literal argument vector: never a shell\nstring. The program is a bare name that the runner resolves from known\ninstall locations, never from `PATH` (ADR-0021).",
+      "type": "object",
+      "properties": {
+        "args": {
+          "description": "Arguments that perform the cleanup.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dry_run_args": {
+          "description": "Arguments that only preview it, if the tool has a dry run.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "program": {
+          "description": "The program's bare name, e.g. `cargo`.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "program",
+        "args"
+      ]
+    }
+  }
+}
