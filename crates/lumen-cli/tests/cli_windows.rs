@@ -47,7 +47,11 @@ fn scans_a_tree_and_records_a_snapshot() -> Result<(), Box<dyn std::error::Error
     );
 
     let store = lumen_store_sqlite::IndexStore::new(lumen_store_sqlite::open_index(&db)?);
-    assert!(store.unfinished_scans()?.is_empty());
+    assert_eq!(
+        store.unfinished_scans()?.len(),
+        0,
+        "the scan was marked finished"
+    );
     let wide: Vec<u16> = std::path::absolute(&root)?
         .as_os_str()
         .encode_wide()
