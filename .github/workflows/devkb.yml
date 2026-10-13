@@ -1,0 +1,37 @@
+name: devkb
+
+# Knowledge-base entries go stale as tools change their layouts and flags
+# (ADR-0021). Time passing must never fail an unrelated pull request, so this
+# runs on a schedule (Monday 04:29 UTC) and on demand only.
+on:
+  schedule:
+    - cron: "29 4 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: devkb-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  staleness:
+    name: stale entries
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned toolchain
+        run: rustup toolchain install
+      # Entries verified more than 180 days ago must be re-checked against
+      # their sources and get a new last_verified date in their own PR.
+      - run: cargo xtask devkb --max-age-days 180

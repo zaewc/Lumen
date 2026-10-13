@@ -6,6 +6,9 @@
 //!   `schemas/` (ADR-0011).
 //! - `schema --check`: regenerate in memory and fail if the committed files differ,
 //!   so a contract change cannot merge without a reviewed schema diff.
+//! - `devkb --max-age-days <N>`: fail if a knowledge-base entry was last verified
+//!   more than `N` days ago, or on a future date (ADR-0021). Run on a schedule, not
+//!   on pull requests, so time passing never fails unrelated changes.
 
 // A command-line tool reports to the terminal by design.
 #![allow(clippy::print_stdout, clippy::print_stderr)]
@@ -14,7 +17,9 @@ use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::time::{SystemTime, UNIX_EPOCH};
 
+use lumen_devkb::{DateIssue, KnowledgeBase};
 use lumen_domain as d;
 use schemars::{JsonSchema, schema_for};
 
@@ -100,7 +105,40 @@ fn schema(check: bool) -> Result<usize, Box<dyn Error>> {
             }
         }
     }
+    if problems > 0 {
+        eprintln!(
+            "{problems} schema file(s) differ; run `cargo xtask schema` and commit the result"
+        );
+    }
     Ok(problems)
+}
+
+/// Reports knowledge-base entries whose `last_verified` needs attention. Returns
+/// the number found.
+fn devkb(max_age_days: &str) -> Result<usize, Box<dyn Error>> {
+    let max_age_days: i64 = max_age_days.parse()?;
+    let since_epoch = SystemTime::now().duration_since(UNIX_EPOCH)?;
+    let today = d::Timestamp::from_unix(i64::try_from(since_epoch.as_secs())?, 0)?;
+    let kb = KnowledgeBase::builtin()?;
+    let issues = kb.date_issues(today, max_age_days);
+    for (entry, issue) in &issues {
+        match issue {
+            DateIssue::Stale { days } => eprintln!(
+                "{}: last verified {} ({days} days ago); re-check its sources",
+                entry.id, entry.last_verified
+            ),
+            DateIssue::InFuture => eprintln!(
+                "{}: last_verified {} is in the future",
+                entry.id, entry.last_verified
+            ),
+        }
+    }
+    println!(
+        "{} knowledge-base entries, {} need re-verification",
+        kb.entries().len(),
+        issues.len()
+    );
+    Ok(issues.len())
 }
 
 fn main() -> ExitCode {
@@ -113,19 +151,15 @@ fn main() -> ExitCode {
     {
         ["schema"] => schema(false),
         ["schema", "--check"] => schema(true),
+        ["devkb", "--max-age-days", days] => devkb(days),
         _ => {
-            eprintln!("usage: cargo xtask schema [--check]");
+            eprintln!("usage: cargo xtask schema [--check] | devkb --max-age-days <N>");
             return ExitCode::from(2);
         }
     };
     match result {
         Ok(0) => ExitCode::SUCCESS,
-        Ok(problems) => {
-            eprintln!(
-                "{problems} schema file(s) differ; run `cargo xtask schema` and commit the result"
-            );
-            ExitCode::FAILURE
-        }
+        Ok(_) => ExitCode::FAILURE,
         Err(e) => {
             eprintln!("error: {e}");
             ExitCode::FAILURE

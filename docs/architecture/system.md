@@ -337,7 +337,8 @@ the schema cannot express:
   through `PATH`, and arguments are an argument vector, never a shell string;
 - a `tool_action` entry has an action, and a `not_regenerable` one never does;
 - sources are `https` URLs;
-- `last_verified` is a real date, checked for staleness.
+- `last_verified` is a real date. A weekly scheduled job (`cargo xtask devkb
+  --max-age-days 180`) fails when an entry is older than 180 days or dated in the future.
 
 ### 12.3 Duplicates
 
