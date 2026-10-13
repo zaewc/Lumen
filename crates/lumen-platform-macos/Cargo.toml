@@ -14,7 +14,10 @@ lumen-domain.workspace = true
 thiserror.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
+dispatch2.workspace = true
 libc.workspace = true
+objc2-core-foundation = { workspace = true, features = ["CFArray", "CFString", "CFUUID"] }
+objc2-core-services = { workspace = true, features = ["FSEvents", "dispatch2", "libc"] }
 
 [dev-dependencies]
 proptest.workspace = true
@@ -22,6 +25,7 @@ proptest.workspace = true
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 lumen-scan.workspace = true
 lumen-testkit.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true
