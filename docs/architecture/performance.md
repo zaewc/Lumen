@@ -37,23 +37,25 @@ Readings:
 
 ## Real tree: `lumen scan ~/Library`
 
-| Measure | Value |
-| --- | --- |
-| Entries / directories / files | 1,456,159 / 126,720 / 1,328,179 |
-| Wall time | 24.7 s (7.0 s user, 108.7 s system across workers) |
-| Throughput | about 59,000 entries/s, with `PRIVATESIZE` |
-| Peak resident memory | 1.32 GB |
-| Coverage | incomplete: 137 directories denied by privacy protection (TCC) |
+| Measure | Before streaming aggregation (#131) | After |
+| --- | --- | --- |
+| Entries / directories / files | 1,456,159 / 126,720 / 1,328,179 | same tree (±60 files of live drift) |
+| Wall time | 24.7 s | 17.7 s |
+| CPU | 7.0 s user, 108.7 s system | 3.3 s user, 91.3 s system |
+| Throughput | about 59,000 entries/s | about 82,000 entries/s |
+| Peak resident memory | 1.32 GB | 201 MB |
+| Coverage | incomplete: 137 directories denied by privacy protection (TCC) | same |
 
-### Known issue: memory grows with the number of files
+Both runs use `PRIVATESIZE`. Logical, allocated and reclaimable totals agree within
+the live drift of `~/Library` between runs (under 0.05%).
 
-`SizeAggregator` keeps every file's size facts and every link's path until the
-scan ends, so it can compute reclaimable totals for every directory, and the CLI
-holds the full coverage map alongside. On 1.3 M files that is the 1.32 GB above.
-That is acceptable for the developer CLI, but not for the desktop agent. Planned
-fix: aggregate in the store (SQLite) by streaming per-directory sums, and keep
-only hard-linked and shared files (link count above 1 or `may_share_blocks`) in
-memory for the all-links-inside rule.
+`SizeAggregator` used to keep every file's size facts and paths until the scan
+ended. It now adds a single-link file (nearly every file) to its directories'
+totals as soon as it is seen, and remembers only a compact identity to ignore a
+repeat sighting. Only hard-linked files are kept whole, because their
+reclaimability depends on where all their links are. Most of the remaining
+memory is the per-directory totals map, roughly proportional to the number of
+directories.
 
 ## How to measure a real tree
 

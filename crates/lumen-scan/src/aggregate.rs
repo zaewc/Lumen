@@ -10,13 +10,19 @@
 //!   directory. Files with links outside the scanned roots are reclaimable nowhere.
 //!
 //! Reclaim bytes come from [`ReclaimEstimate`], so clone, snapshot, cloud and
-//! dataless rules are applied exactly as everywhere else. This aggregator keeps one
-//! record per file in memory; persisted, incremental aggregation arrives with the
-//! store (roadmap 5.8–5.9).
+//! dataless rules are applied exactly as everywhere else.
+//!
+//! Memory: a file with a single link (nearly every file) is added to its
+//! directories' totals as soon as it is seen, and only a compact identity is kept
+//! to ignore a repeat sighting. Only hard-linked files are kept whole until
+//! [`SizeAggregator::finish`], because their reclaimability depends on where all
+//! of their links are (`docs/architecture/performance.md`).
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-use lumen_domain::{ByteCount, EntryKind, FileIdentity, RawPath, ReclaimEstimate, SizeFacts};
+use lumen_domain::{
+    ByteCount, EntryKind, FileIdentity, RawPath, ReclaimEstimate, SizeFacts, VolumeId,
+};
 
 use crate::ScanItem;
 
@@ -48,13 +54,33 @@ impl Default for DirTotals {
     }
 }
 
+impl DirTotals {
+    fn add_usage(&mut self, facts: &SizeFacts) {
+        self.files += 1;
+        self.logical = self.logical.saturating_add(facts.logical);
+        self.allocated = self.allocated.saturating_add(facts.allocated);
+    }
+
+    fn add_reclaim(&mut self, estimate: &ReclaimEstimate) {
+        self.reclaimable_now = self
+            .reclaimable_now
+            .saturating_add(estimate.reclaimable_now);
+        self.exact &= estimate.exact;
+    }
+}
+
 /// Collects file entries from a scan and computes per-directory totals.
 #[derive(Debug, Clone)]
 pub struct SizeAggregator {
     roots: Vec<RawPath>,
-    /// Per identity: the facts (as reported by the first link seen) and the paths
-    /// of every link seen.
-    files: HashMap<FileIdentity, (SizeFacts, Vec<RawPath>)>,
+    /// Totals so far from single-link files, which are final when seen.
+    totals: BTreeMap<RawPath, DirTotals>,
+    /// Single-link files already counted: (interned volume, file ID).
+    counted: HashSet<(usize, u128)>,
+    volumes: Vec<VolumeId>,
+    /// Hard-linked files: the facts (as reported by the first link seen) and the
+    /// paths of every link seen.
+    linked: HashMap<FileIdentity, (SizeFacts, Vec<RawPath>)>,
 }
 
 impl SizeAggregator {
@@ -63,8 +89,19 @@ impl SizeAggregator {
     pub fn new(roots: &[RawPath]) -> Self {
         Self {
             roots: roots.to_vec(),
-            files: HashMap::new(),
+            totals: BTreeMap::new(),
+            counted: HashSet::new(),
+            volumes: Vec::new(),
+            linked: HashMap::new(),
         }
+    }
+
+    fn volume_index(&mut self, volume: &VolumeId) -> usize {
+        if let Some(index) = self.volumes.iter().position(|v| v == volume) {
+            return index;
+        }
+        self.volumes.push(volume.clone());
+        self.volumes.len() - 1
     }
 
     /// Records one scan result. Only non-directory entries carry sizes.
@@ -73,28 +110,43 @@ impl SizeAggregator {
         if entry.kind == EntryKind::Directory {
             return;
         }
-        self.files
-            .entry(entry.size.identity.clone())
-            .or_insert_with(|| (entry.size.clone(), Vec::new()))
-            .1
-            .push(entry.path.clone());
+        let facts = &entry.size;
+        if facts.link_count.get() > 1 {
+            self.linked
+                .entry(facts.identity.clone())
+                .or_insert_with(|| (facts.clone(), Vec::new()))
+                .1
+                .push(entry.path.clone());
+            return;
+        }
+        let key = (
+            self.volume_index(&facts.identity.volume),
+            facts.identity.file.get(),
+        );
+        if !self.counted.insert(key) {
+            return;
+        }
+        // Its only link is here, so every containing directory holds all links.
+        let estimate = ReclaimEstimate::for_selection([facts]);
+        for dir in self.ancestors(&entry.path) {
+            let t = self.totals.entry(dir).or_default();
+            t.add_usage(facts);
+            t.add_reclaim(&estimate);
+        }
     }
 
     /// Computes totals for every directory under the roots that contains at least
     /// one file, keyed by directory path.
-    pub fn finish(self) -> BTreeMap<RawPath, DirTotals> {
-        let mut totals: BTreeMap<RawPath, DirTotals> = BTreeMap::new();
-        for (facts, links) in self.files.values() {
+    pub fn finish(mut self) -> BTreeMap<RawPath, DirTotals> {
+        let mut totals = std::mem::take(&mut self.totals);
+        for (facts, links) in self.linked.values() {
             // Usage: every directory containing at least one link, once.
             let mut containing: BTreeSet<RawPath> = BTreeSet::new();
             for link in links {
                 containing.extend(self.ancestors(link));
             }
             for dir in &containing {
-                let t = totals.entry(dir.clone()).or_default();
-                t.files += 1;
-                t.logical = t.logical.saturating_add(facts.logical);
-                t.allocated = t.allocated.saturating_add(facts.allocated);
+                totals.entry(dir.clone()).or_default().add_usage(facts);
             }
 
             // Reclaimable: only directories that contain *every* link.
@@ -109,9 +161,7 @@ impl SizeAggregator {
                 .map(|link| self.ancestors(link).into_iter().collect::<BTreeSet<_>>())
                 .reduce(|a, b| a.intersection(&b).cloned().collect());
             for dir in common.unwrap_or_default() {
-                let t = totals.entry(dir).or_default();
-                t.reclaimable_now = t.reclaimable_now.saturating_add(estimate.reclaimable_now);
-                t.exact &= estimate.exact;
+                totals.entry(dir).or_default().add_reclaim(&estimate);
             }
         }
         totals
@@ -229,6 +279,15 @@ mod tests {
             !t.contains_key(&path("/")),
             "nothing above the root is reported"
         );
+    }
+
+    #[test]
+    fn a_single_link_file_seen_twice_counts_once() {
+        // Overlapping roots or a repeated listing deliver the same entry again.
+        let t = totals(&[file("/r/a/x", 9, 100, 1), file("/r/a/x", 9, 100, 1)]);
+        assert_eq!(get(&t, "/r").files, 1);
+        assert_eq!(get(&t, "/r").allocated, ByteCount::new(100));
+        assert_eq!(get(&t, "/r").reclaimable_now, ByteCount::new(100));
     }
 
     #[test]
