@@ -14,7 +14,11 @@ mod handle;
 pub mod notify;
 #[cfg(windows)]
 mod sys;
+#[cfg(windows)]
+mod watcher;
 pub mod winpath;
 
 #[cfg(windows)]
 pub use handle::HandleEnumerator;
+#[cfg(windows)]
+pub use watcher::DirectoryChangesFeed;

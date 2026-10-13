@@ -16,15 +16,21 @@ use std::mem::{MaybeUninit, size_of};
 
 use windows_sys::Wdk::Storage::FileSystem::RtlSetThreadPlaceholderCompatibilityMode;
 use windows_sys::Win32::Foundation::{
-    CloseHandle, ERROR_NO_MORE_FILES, HANDLE, INVALID_HANDLE_VALUE,
+    CloseHandle, ERROR_NO_MORE_FILES, HANDLE, INVALID_HANDLE_VALUE, WAIT_TIMEOUT,
 };
 use windows_sys::Win32::Storage::FileSystem::{
     CreateFileW, FILE_ATTRIBUTE_TAG_INFO, FILE_BASIC_INFO, FILE_COMPRESSION_INFO,
-    FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_ID_INFO,
-    FILE_INFO_BY_HANDLE_CLASS, FILE_LIST_DIRECTORY, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE,
-    FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO, FileAttributeTagInfo, FileBasicInfo,
-    FileCompressionInfo, FileIdExtdDirectoryInfo, FileIdInfo, FileStandardInfo,
-    GetFileInformationByHandleEx, GetVolumeInformationByHandleW, OPEN_EXISTING, SYNCHRONIZE,
+    FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_FLAG_OVERLAPPED, FILE_ID_INFO,
+    FILE_INFO_BY_HANDLE_CLASS, FILE_LIST_DIRECTORY, FILE_NOTIFY_CHANGE_ATTRIBUTES,
+    FILE_NOTIFY_CHANGE_CREATION, FILE_NOTIFY_CHANGE_DIR_NAME, FILE_NOTIFY_CHANGE_FILE_NAME,
+    FILE_NOTIFY_CHANGE_LAST_WRITE, FILE_NOTIFY_CHANGE_SECURITY, FILE_NOTIFY_CHANGE_SIZE,
+    FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO,
+    FileAttributeTagInfo, FileBasicInfo, FileCompressionInfo, FileIdExtdDirectoryInfo, FileIdInfo,
+    FileStandardInfo, GetFileInformationByHandleEx, GetVolumeInformationByHandleW, OPEN_EXISTING,
+    ReadDirectoryChangesW, SYNCHRONIZE,
+};
+use windows_sys::Win32::System::IO::{
+    CancelIoEx, GetOverlappedResult, GetOverlappedResultEx, OVERLAPPED,
 };
 
 use crate::winpath::{nul_terminated, verbatim};
@@ -57,6 +63,8 @@ pub(crate) enum Access {
     List,
     /// Read the object's own attributes.
     Attributes,
+    /// Watch a directory for changes (overlapped I/O).
+    Watch,
 }
 
 /// Opens the object at `path` itself (never a link target).
@@ -67,10 +75,11 @@ pub(crate) enum Access {
 pub(crate) fn open(path: &[u16], access: Access) -> io::Result<Handle> {
     let path = nul_terminated(&verbatim(path))
         .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidInput))?;
-    let rights = match access {
-        Access::List => FILE_LIST_DIRECTORY,
-        Access::Attributes => FILE_READ_ATTRIBUTES,
-    } | SYNCHRONIZE;
+    let (rights, overlapped) = match access {
+        Access::List => (FILE_LIST_DIRECTORY | SYNCHRONIZE, 0),
+        Access::Attributes => (FILE_READ_ATTRIBUTES | SYNCHRONIZE, 0),
+        Access::Watch => (FILE_LIST_DIRECTORY, FILE_FLAG_OVERLAPPED),
+    };
     // SAFETY: invariant: `path` is a NUL-terminated UTF-16 string that outlives
     // the call; the security attributes and template are null, which the API
     // allows. Why unsafe: FFI call. Why it holds: `path` is a local `Vec` with a
@@ -82,7 +91,7 @@ pub(crate) fn open(path: &[u16], access: Access) -> io::Result<Handle> {
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             std::ptr::null(),
             OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT | overlapped,
             std::ptr::null_mut(),
         )
     };
@@ -232,6 +241,160 @@ pub(crate) fn read_batch(dir: &Handle, buffer: &mut RecordBuffer) -> io::Result<
         Ok(false)
     } else {
         Err(error)
+    }
+}
+
+/// An overlapped `ReadDirectoryChangesW` on one directory handle.
+///
+/// The kernel writes into `buffer` and `overlapped` while a read is pending, so
+/// both live on the heap at fixed addresses, and `Drop` cancels a pending read and
+/// waits for it to finish before either is freed.
+pub(crate) struct Watch {
+    handle: Handle,
+    overlapped: Box<OVERLAPPED>,
+    buffer: Box<[u32]>,
+    pending: bool,
+}
+
+// SAFETY: invariant: a `Watch` is used by one thread at a time. Why unsafe:
+// `OVERLAPPED` holds raw pointers, so `Send` is not derived. Why it holds: the
+// feed moves each `Watch` into exactly one watcher thread.
+unsafe impl Send for Watch {}
+
+/// How a wait for changes ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Waited {
+    /// The read completed with this many bytes (0: the buffer overflowed).
+    Done(usize),
+    /// Nothing yet.
+    TimedOut,
+}
+
+impl Watch {
+    /// Watches the directory open on `handle` ([`Access::Watch`]).
+    pub(crate) fn new(handle: Handle, bytes: usize) -> Self {
+        Self {
+            handle,
+            // SAFETY: invariant: an all-zero `OVERLAPPED` is a valid initial
+            // state (no event, offset 0). Why unsafe: `zeroed`. Why it holds: the
+            // struct is plain integers, pointers and a union of them.
+            overlapped: Box::new(unsafe { std::mem::zeroed() }),
+            buffer: vec![0; bytes.div_ceil(4)].into_boxed_slice(),
+            pending: false,
+        }
+    }
+
+    /// Starts reading the next batch of changes in the whole subtree.
+    pub(crate) fn arm(&mut self) -> io::Result<()> {
+        let size = u32::try_from(self.buffer.len() * 4).map_err(io::Error::other)?;
+        let filter = FILE_NOTIFY_CHANGE_FILE_NAME
+            | FILE_NOTIFY_CHANGE_DIR_NAME
+            | FILE_NOTIFY_CHANGE_ATTRIBUTES
+            | FILE_NOTIFY_CHANGE_SIZE
+            | FILE_NOTIFY_CHANGE_LAST_WRITE
+            | FILE_NOTIFY_CHANGE_CREATION
+            | FILE_NOTIFY_CHANGE_SECURITY;
+        // SAFETY: invariant: `buffer` (DWORD-aligned, `size` bytes) and
+        // `overlapped` stay valid and unmoved until the read completes or is
+        // cancelled. Why unsafe: FFI call that writes asynchronously. Why it
+        // holds: both are boxed fields of `self`, never reallocated, and `Drop`
+        // and `cancel` wait for a pending read before they can be freed.
+        let ok = unsafe {
+            ReadDirectoryChangesW(
+                self.handle.0,
+                self.buffer.as_mut_ptr().cast(),
+                size,
+                1,
+                filter,
+                std::ptr::null_mut(),
+                &raw mut *self.overlapped,
+                None,
+            )
+        };
+        if ok == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        self.pending = true;
+        Ok(())
+    }
+
+    /// Waits up to `millis` for the pending read.
+    pub(crate) fn wait(&mut self, millis: u32) -> io::Result<Waited> {
+        let mut bytes = 0_u32;
+        // SAFETY: invariant: `overlapped` belongs to the read on this handle.
+        // Why unsafe: FFI call. Why it holds: `arm` issued it with these fields.
+        let ok = unsafe {
+            GetOverlappedResultEx(
+                self.handle.0,
+                &raw const *self.overlapped,
+                &raw mut bytes,
+                millis,
+                0,
+            )
+        };
+        if ok != 0 {
+            self.pending = false;
+            return Ok(Waited::Done(
+                usize::try_from(bytes).map_err(io::Error::other)?,
+            ));
+        }
+        let error = io::Error::last_os_error();
+        if error.raw_os_error() == i32::try_from(WAIT_TIMEOUT).ok() {
+            Ok(Waited::TimedOut)
+        } else {
+            self.pending = false;
+            Err(error)
+        }
+    }
+
+    /// The bytes of the last completed read.
+    pub(crate) fn bytes(&self, len: usize) -> &[u8] {
+        // SAFETY: invariant: the slice covers at most the buffer's bytes. Why
+        // unsafe: reinterpreting memory. Why it holds: `u8` has alignment 1 and no
+        // invalid values, and the slice is the buffer's exact byte length; callers
+        // only read after `wait` returned `Done`, when the kernel is done writing.
+        let all = unsafe {
+            std::slice::from_raw_parts(self.buffer.as_ptr().cast::<u8>(), self.buffer.len() * 4)
+        };
+        &all[..len.min(all.len())]
+    }
+
+    /// Cancels a pending read and waits until the kernel has let go of the buffer.
+    pub(crate) fn cancel(&mut self) {
+        if !self.pending {
+            return;
+        }
+        let mut bytes = 0_u32;
+        // SAFETY: invariant: `overlapped` identifies the pending read. Why unsafe:
+        // FFI calls. Why it holds: `pending` is only true after a successful
+        // `arm`; the blocking `GetOverlappedResult` returns once the read is
+        // cancelled or finished, after which the kernel no longer touches it.
+        let (_cancelled, _finished) = unsafe {
+            (
+                CancelIoEx(self.handle.0, &raw const *self.overlapped),
+                GetOverlappedResult(
+                    self.handle.0,
+                    &raw const *self.overlapped,
+                    &raw mut bytes,
+                    1,
+                ),
+            )
+        };
+        self.pending = false;
+    }
+}
+
+impl Drop for Watch {
+    fn drop(&mut self) {
+        self.cancel();
+    }
+}
+
+impl std::fmt::Debug for Watch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Watch")
+            .field("pending", &self.pending)
+            .finish_non_exhaustive()
     }
 }
 
