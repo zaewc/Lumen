@@ -23,7 +23,7 @@ use std::os::unix::ffi::OsStrExt as _;
 use std::os::unix::fs::{MetadataExt as _, OpenOptionsExt as _};
 use std::path::Path;
 
-use lumen_application::ports::{DirEnumerator, DirOutcome, EnumerateError};
+use lumen_application::ports::{CandidateVerifier, DirEnumerator, DirOutcome, EnumerateError};
 use lumen_domain::{
     AccessState, DenialReason, EntryKind, FailureKind, FileId, FileIdentity, FilesystemEntry,
     PathFlavor, RawPath, VolumeId,
@@ -179,6 +179,21 @@ impl DirEnumerator for BulkEnumerator {
             access: AccessState::Readable,
             complete,
         })
+    }
+}
+
+impl CandidateVerifier for BulkEnumerator {
+    /// A single `getattrlist(FSOPT_NOFOLLOW)` lookup is already exact: link count,
+    /// `PRIVATESIZE` (always measured here, even for quick-scan enumerators) and
+    /// flags. Verification adds the identity check.
+    fn verify(
+        &self,
+        path: &RawPath,
+        expected: &FileIdentity,
+    ) -> Result<FilesystemEntry, EnumerateError> {
+        let entry = Self::new().stat(path)?;
+        check_identity(path, entry.identity(), Some(expected))?;
+        Ok(entry)
     }
 }
 
@@ -504,6 +519,41 @@ mod tests {
             ControlFlow::Continue(())
         })?;
         assert_eq!(during, Some(1), "IOPOL_MATERIALIZE_DATALESS_FILES_OFF");
+        Ok(())
+    }
+
+    #[test]
+    fn verification_is_exact_and_refuses_other_objects() -> TestResult {
+        let fx = tree()?;
+        let quick = BulkEnumerator::without_private_size();
+        let (found, _) = list(&quick, &raw(&fx, "d")?)?;
+        let a = found
+            .iter()
+            .find(|e| e.path.as_bytes().ends_with(b"/a.txt"))
+            .ok_or("a.txt not listed")?;
+        assert_eq!(a.size.private, None, "quick listing");
+        let verified = quick.verify(&a.path, a.identity())?;
+        assert_eq!(verified.size.link_count.get(), 2, "a.txt has a hard link");
+        assert!(
+            verified.size.private.is_some(),
+            "verification always measures"
+        );
+        assert_eq!(verified.size.identity, a.size.identity);
+
+        let sub = quick.stat(&raw(&fx, "d/sub")?)?;
+        assert!(matches!(
+            quick.verify(&a.path, sub.identity()),
+            Err(EnumerateError::IdentityChanged { .. })
+        ));
+        assert!(matches!(
+            quick.verify(&raw(&fx, "d/gone")?, a.identity()),
+            Err(EnumerateError::Unobservable { .. })
+        ));
+        let link = quick.verify(
+            &raw(&fx, "d/link")?,
+            quick.stat(&raw(&fx, "d/link")?)?.identity(),
+        )?;
+        assert_eq!(link.kind, EntryKind::Symlink, "described, not followed");
         Ok(())
     }
 

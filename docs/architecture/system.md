@@ -102,7 +102,7 @@ Dependency rules (enforced by Cargo, and checked in CI):
 | Port | Responsibility | Desktop adapters |
 | --- | --- | --- |
 | `DirEnumerator` | Batched directory metadata → `EntryBatch` with `SizeFacts` and access state | `getattrlistbulk`, `FileIdExtdDirectoryInfo`, `getdents64` + `statx`, `std::fs` fallback |
-| `CandidateVerifier` | Re-read a candidate by handle before it is proposed or acted on: identity, exact link count, compressed size, sharing | directory handles (Windows); `getattrlist` (macOS, planned) |
+| `CandidateVerifier` | Re-read a candidate by handle before it is proposed or acted on: identity, exact link count, compressed size, sharing | directory handles (Windows); `getattrlist` with `PRIVATESIZE` (macOS) |
 | `ChangeFeed` | Persisted change streams with resume points | FSEvents, USN, `ReadDirectoryChangesW`, inotify |
 | `InventorySource` | Applications, packages, processes, services, startup items | per OS (bundles + `pkgutil`, launchd plists; Uninstall keys, MSI, AppX, Run keys, Task Scheduler, SCM) |
 | `InUseProbe` | Is an item open or owned by a running process? | `libproc`; Restart Manager |
