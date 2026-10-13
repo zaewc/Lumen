@@ -45,6 +45,8 @@ pub struct IndexStore {
     conn: Connection,
 }
 
+mod graph;
+
 impl IndexStore {
     /// Wraps a connection opened with [`open_index`](crate::open_index).
     pub fn new(conn: Connection) -> Self {

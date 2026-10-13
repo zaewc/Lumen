@@ -36,6 +36,7 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 const INDEX_MIGRATIONS: &[M<'static>] = &[
     M::up(include_str!("migrations/index/0001_initial.sql")),
     M::up(include_str!("migrations/index/0002_snapshots.sql")),
+    M::up(include_str!("migrations/index/0003_graph.sql")),
 ];
 
 /// Errors opening or migrating a database.
@@ -178,7 +179,7 @@ mod tests {
     #[test]
     fn opening_applies_schema_and_hardening() -> Result<(), Box<dyn std::error::Error>> {
         let (_fx, conn) = fresh()?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 2);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 3);
         assert_eq!(
             pragma::<String>(&conn, "journal_mode")?.to_lowercase(),
             "wal"
@@ -196,7 +197,7 @@ mod tests {
         let path = fx.path("index.db")?;
         drop(open_index(&path)?);
         let conn = open_index(&path)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 2);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 3);
         Ok(())
     }
 
@@ -249,7 +250,7 @@ mod tests {
             assert_eq!(pragma::<i64>(&conn, "user_version")?, 1);
         }
         let conn = open_index(&path)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 2);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 3);
         let scans: i64 = conn.query_row("SELECT count(*) FROM scans", [], |row| row.get(0))?;
         assert_eq!(scans, 1, "existing data survives the upgrade");
         Ok(())

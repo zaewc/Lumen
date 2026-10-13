@@ -11,12 +11,14 @@ license.workspace = true
 [dependencies]
 lumen-application.workspace = true
 lumen-domain.workspace = true
+lumen-graph.workspace = true
 rusqlite.workspace = true
 rusqlite_migration.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+tempfile.workspace = true
 lumen-scan.workspace = true
 lumen-testkit.workspace = true
 proptest.workspace = true

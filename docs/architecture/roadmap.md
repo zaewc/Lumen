@@ -109,7 +109,7 @@ sealed system volume moves to the volume inventory.
 | --- | --- | --- |
 | 6.1 | `feat(graph): add lumen-graph node and edge store abstraction` | in-memory adjacency index, typed traversal API |
 | 6.2 | `feat(graph): add graph invariants and property tests` | no dangling edges, acyclic `contains`, identity uniqueness |
-| 6.3 | `feat(store): persist nodes, edges and evidence` | `index.db` migration v2 |
+| 6.3 | `feat(store): persist nodes, edges and evidence` | `index.db` migration v3 (v2 holds snapshots) |
 | 6.4 | `feat(graph): build evidence bundles with Merkle hash` | canonical bundle + `EvidenceHash`; golden tests |
 | 6.5 | `feat(application): add InventorySource and InUseProbe ports` | |
 | 6.6 | `feat(platform-macos): inventory applications and bundles` | bundles → bundle ID → Team ID |
