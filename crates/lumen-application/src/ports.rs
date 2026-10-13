@@ -270,9 +270,17 @@ pub enum InUse {
     Yes(Vec<Process>),
     /// No process uses it, and the probe could inspect every running process.
     No,
-    /// The probe could not inspect every process (for example another user's,
-    /// without privileges), so "not in use" cannot be claimed. Callers must treat
-    /// this like [`InUse::Yes`] for any action.
+    /// No inspected process uses it, but `unseen` processes could not be
+    /// inspected (an unprivileged probe cannot see other users' processes, such
+    /// as root daemons). Not proof of non-use: whether any action may proceed on
+    /// this is a policy decision (ADR-0014), never the probe's.
+    Partial {
+        /// Processes that could not be inspected.
+        unseen: u32,
+    },
+    /// The question could not be answered (the object changed or vanished, or
+    /// the process list could not be read). Callers must treat this like
+    /// [`InUse::Yes`] for any action.
     Unknown {
         /// Short, non-sensitive reason.
         reason: &'static str,
@@ -320,6 +328,10 @@ mod tests {
     fn only_a_complete_probe_proves_an_item_unused() {
         assert!(InUse::No.is_provably_unused());
         assert!(!InUse::Yes(Vec::new()).is_provably_unused());
+        assert!(
+            !InUse::Partial { unseen: 1 }.is_provably_unused(),
+            "unseen processes may use it"
+        );
         assert!(
             !InUse::Unknown {
                 reason: "other users' processes are not visible"

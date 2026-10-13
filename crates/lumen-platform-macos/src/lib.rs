@@ -22,6 +22,8 @@ mod feed;
 #[cfg(target_os = "macos")]
 mod launchd;
 #[cfg(target_os = "macos")]
+mod probe;
+#[cfg(target_os = "macos")]
 mod sys;
 
 #[cfg(target_os = "macos")]
@@ -32,3 +34,5 @@ pub use bulk::BulkEnumerator;
 pub use feed::FsEventsFeed;
 #[cfg(target_os = "macos")]
 pub use launchd::LaunchdInventory;
+#[cfg(target_os = "macos")]
+pub use probe::ProcessProbe;
