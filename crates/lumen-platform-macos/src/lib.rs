@@ -8,6 +8,8 @@
 //! what each event means. The only `unsafe` code is the system calls in `sys`
 //! and the stream lifecycle in `feed`.
 
+#[cfg(target_os = "macos")]
+mod apps;
 pub mod attrbuf;
 #[cfg(target_os = "macos")]
 mod bulk;
@@ -18,6 +20,8 @@ mod feed;
 #[cfg(target_os = "macos")]
 mod sys;
 
+#[cfg(target_os = "macos")]
+pub use apps::AppInventory;
 #[cfg(target_os = "macos")]
 pub use bulk::BulkEnumerator;
 #[cfg(target_os = "macos")]
