@@ -11,6 +11,8 @@
 //! - every subject appears once (keyed by its identity, never by path);
 //! - every edge's endpoints are in the graph (adding an edge adds them);
 //! - one edge per `(from, kind, to)`: adding it again merges its evidence;
+//! - `contains` is acyclic: an edge that would make a subject its own ancestor is
+//!   rejected ([`GraphError::ContainmentCycle`]);
 //! - iteration and traversal follow insertion order, so the same inputs always
 //!   produce the same explanation.
 
@@ -27,6 +29,18 @@ pub enum Direction {
     Outgoing,
     /// Back along edges that end at a subject (`other → subject`).
     Incoming,
+}
+
+/// Why a relationship was not added.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
+pub enum GraphError {
+    /// The `contains` edge would make its source an ancestor of itself.
+    #[error("adding this containment would create a cycle")]
+    ContainmentCycle {
+        /// The rejected edge.
+        relationship: Box<Relationship>,
+    },
 }
 
 /// A subject reached by [`Graph::traverse`].
@@ -79,7 +93,20 @@ impl Graph {
     /// Adds a relationship and its endpoints. If an edge with the same `from`,
     /// `kind` and `to` exists, its evidence becomes the union of both. Returns
     /// `true` if a new edge was created.
-    pub fn add(&mut self, relationship: Relationship) -> bool {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GraphError::ContainmentCycle`] for a `contains` edge whose target
+    /// already contains its source, directly or transitively; the graph is left
+    /// unchanged.
+    pub fn add(&mut self, relationship: Relationship) -> Result<bool, GraphError> {
+        if relationship.kind() == RelationKind::Contains
+            && self.is_ancestor_or_self(relationship.to(), relationship.from())
+        {
+            return Err(GraphError::ContainmentCycle {
+                relationship: Box::new(relationship),
+            });
+        }
         let from = self.node(relationship.from());
         let to = self.node(relationship.to());
         let key = (from, relationship.kind(), to);
@@ -102,14 +129,29 @@ impl Graph {
                     self.edges[existing] = merged;
                 }
             }
-            return false;
+            return Ok(false);
         }
         let index = self.edges.len();
         self.edges.push(relationship);
         self.edge_index.insert(key, index);
         self.outgoing[from].push(index);
         self.incoming[to].push(index);
-        true
+        Ok(true)
+    }
+
+    /// Whether `ancestor` is `subject` or contains it, walking up `contains`
+    /// edges. Cheap: containment chains are as long as the directory depth.
+    fn is_ancestor_or_self(&self, ancestor: &Subject, subject: &Subject) -> bool {
+        ancestor == subject
+            || self
+                .traverse(
+                    subject,
+                    Direction::Incoming,
+                    &[RelationKind::Contains],
+                    usize::MAX,
+                )
+                .iter()
+                .any(|reached| reached.subject == ancestor)
     }
 
     /// Whether `subject` is in the graph.
@@ -243,11 +285,22 @@ mod tests {
         Relationship::new(from, kind, to, [evidence(ev)]).unwrap_or_else(|_| unreachable!())
     }
 
+    /// Adds an edge that test setup expects to be accepted.
+    fn put(g: &mut Graph, relationship: Relationship) {
+        assert!(g.add(relationship).is_ok(), "setup edge rejected");
+    }
+
     #[test]
     fn adding_an_edge_adds_its_endpoints_once() {
         let mut g = Graph::new();
-        assert!(g.add(rel(file(1), RelationKind::Contains, file(2), 1)));
-        assert!(g.add(rel(file(1), RelationKind::Contains, file(3), 1)));
+        assert_eq!(
+            g.add(rel(file(1), RelationKind::Contains, file(2), 1)),
+            Ok(true)
+        );
+        assert_eq!(
+            g.add(rel(file(1), RelationKind::Contains, file(3), 1)),
+            Ok(true)
+        );
         assert_eq!(g.subject_count(), 3);
         assert_eq!(g.relationship_count(), 2);
         assert!(!g.add_subject(&file(2)), "already present");
@@ -258,27 +311,45 @@ mod tests {
     #[test]
     fn duplicate_edges_merge_their_evidence() {
         let mut g = Graph::new();
-        assert!(g.add(rel(file(1), RelationKind::OwnedBy, app("com.example.a"), 1)));
-        assert!(!g.add(rel(file(1), RelationKind::OwnedBy, app("com.example.a"), 2)));
-        assert!(!g.add(rel(file(1), RelationKind::OwnedBy, app("com.example.a"), 1)));
+        assert_eq!(
+            g.add(rel(file(1), RelationKind::OwnedBy, app("com.example.a"), 1)),
+            Ok(true)
+        );
+        assert_eq!(
+            g.add(rel(file(1), RelationKind::OwnedBy, app("com.example.a"), 2)),
+            Ok(false)
+        );
+        assert_eq!(
+            g.add(rel(file(1), RelationKind::OwnedBy, app("com.example.a"), 1)),
+            Ok(false)
+        );
         assert_eq!(g.relationship_count(), 1);
         let only = g.relationships().next().map(|r| r.evidence().len());
         assert_eq!(only, Some(2));
         // A different kind between the same subjects is a separate edge.
-        assert!(g.add(rel(
-            file(1),
-            RelationKind::CreatedBy,
-            app("com.example.a"),
-            3
-        )));
+        assert_eq!(
+            g.add(rel(
+                file(1),
+                RelationKind::CreatedBy,
+                app("com.example.a"),
+                3
+            )),
+            Ok(true)
+        );
     }
 
     #[test]
     fn edges_filter_by_direction_and_kind() {
         let mut g = Graph::new();
-        g.add(rel(file(1), RelationKind::Contains, file(2), 1));
-        g.add(rel(file(2), RelationKind::OwnedBy, app("com.example.a"), 1));
-        g.add(rel(file(3), RelationKind::OwnedBy, app("com.example.a"), 1));
+        put(&mut g, rel(file(1), RelationKind::Contains, file(2), 1));
+        put(
+            &mut g,
+            rel(file(2), RelationKind::OwnedBy, app("com.example.a"), 1),
+        );
+        put(
+            &mut g,
+            rel(file(3), RelationKind::OwnedBy, app("com.example.a"), 1),
+        );
         let owners: Vec<_> = g
             .edges(
                 &app("com.example.a"),
@@ -302,7 +373,7 @@ mod tests {
         // 1 contains 2 and 3; 2 contains 4; 3 contains 4 (a diamond); 4 contains 5.
         let mut g = Graph::new();
         for (a, b) in [(1, 2), (1, 3), (2, 4), (3, 4), (4, 5)] {
-            g.add(rel(file(a), RelationKind::Contains, file(b), 1));
+            put(&mut g, rel(file(a), RelationKind::Contains, file(b), 1));
         }
         let found: Vec<_> = g
             .traverse(&file(1), Direction::Outgoing, &[RelationKind::Contains], 2)
@@ -328,11 +399,49 @@ mod tests {
     #[test]
     fn traversal_reports_the_edge_used() {
         let mut g = Graph::new();
-        g.add(rel(file(1), RelationKind::OwnedBy, app("com.example.a"), 7));
+        put(
+            &mut g,
+            rel(file(1), RelationKind::OwnedBy, app("com.example.a"), 7),
+        );
         let reached = g.traverse(&file(1), Direction::Outgoing, &[], 1);
         assert_eq!(reached.len(), 1);
         assert_eq!(reached[0].via.kind(), RelationKind::OwnedBy);
         assert!(reached[0].via.evidence().contains(&evidence(7)));
+    }
+
+    #[test]
+    fn containment_cycles_are_rejected_and_leave_the_graph_unchanged() {
+        let mut g = Graph::new();
+        put(&mut g, rel(file(1), RelationKind::Contains, file(2), 1));
+        put(&mut g, rel(file(2), RelationKind::Contains, file(3), 1));
+        for (a, b) in [(3, 1), (2, 1), (3, 2)] {
+            assert!(matches!(
+                g.add(rel(file(a), RelationKind::Contains, file(b), 1)),
+                Err(GraphError::ContainmentCycle { .. })
+            ));
+        }
+        assert_eq!((g.subject_count(), g.relationship_count()), (3, 2));
+        // Other kinds may point back up: an app's cache can be inside its bundle.
+        put(&mut g, rel(file(3), RelationKind::CloneOf, file(1), 1));
+        // A file with hard links may have several containers (no cycle).
+        put(&mut g, rel(file(1), RelationKind::Contains, file(3), 1));
+    }
+
+    /// Whether `contains` has a cycle, by depth-first search.
+    fn has_containment_cycle(g: &Graph) -> bool {
+        g.subjects().any(|s| {
+            g.traverse(
+                s,
+                Direction::Outgoing,
+                &[RelationKind::Contains],
+                usize::MAX,
+            )
+            .iter()
+            .any(|r| {
+                g.edges(r.subject, Direction::Outgoing, Some(RelationKind::Contains))
+                    .any(|e| e.to() == s)
+            })
+        })
     }
 
     proptest! {
@@ -345,9 +454,13 @@ mod tests {
             let mut g = Graph::new();
             for (a, b) in edges {
                 if a != b {
-                    g.add(rel(file(a), RelationKind::Contains, file(b), 1));
+                    let before = (g.subject_count(), g.relationship_count());
+                    if g.add(rel(file(a), RelationKind::Contains, file(b), 1)).is_err() {
+                        prop_assert_eq!(before, (g.subject_count(), g.relationship_count()));
+                    }
                 }
             }
+            prop_assert!(!has_containment_cycle(&g), "contains must stay acyclic");
             let reached = g.traverse(&file(start), Direction::Outgoing, &[], max_depth);
             let mut unique = HashSet::new();
             for r in &reached {
