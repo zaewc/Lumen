@@ -1,0 +1,42 @@
+{
+  "id": "pnpm-store",
+  "tool": "pnpm",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/pnpm/store"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".local/share/pnpm/store"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "local_app_data" },
+      "path": "pnpm/store"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "XDG_DATA_HOME" },
+      "path": "pnpm/store"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "PNPM_HOME" },
+      "path": "store"
+    }
+  ],
+  "safety_class": "tool_action",
+  "regeneration": { "effort": "minutes", "network": true },
+  "official_action": {
+    "program": "pnpm",
+    "args": ["store", "prune"]
+  },
+  "sources": [
+    "https://pnpm.io/cli/store",
+    "https://pnpm.io/settings/store"
+  ],
+  "last_verified": "2026-10-13"
+}

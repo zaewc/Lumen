@@ -40,6 +40,10 @@ const BUILTIN: &[(&str, &str)] = &[
         "gradle-user-home-caches.json",
         include_str!("../entries/gradle-user-home-caches.json"),
     ),
+    (
+        "pnpm-store.json",
+        include_str!("../entries/pnpm-store.json"),
+    ),
     ("uv-cache.json", include_str!("../entries/uv-cache.json")),
 ];
 
