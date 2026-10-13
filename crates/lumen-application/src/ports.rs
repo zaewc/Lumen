@@ -270,13 +270,14 @@ pub enum InUse {
     Yes(Vec<Process>),
     /// No process uses it, and the probe could inspect every running process.
     No,
-    /// No inspected process uses it, but `unseen` processes could not be
-    /// inspected (an unprivileged probe cannot see other users' processes, such
-    /// as root daemons). Not proof of non-use: the policy accepts it only for the
+    /// No inspected process uses it, but some processes could not be inspected
+    /// (an unprivileged probe cannot see other users' processes, such as root
+    /// daemons). Not proof of non-use: the policy accepts it only for the
     /// reversible quarantine of the user's own files (ADR-0030), never the probe.
     Partial {
-        /// Processes that could not be inspected.
-        unseen: u32,
+        /// How many processes could not be inspected, when the platform can
+        /// tell (macOS); `None` when it cannot (Windows Restart Manager).
+        unseen: Option<u32>,
     },
     /// The question could not be answered (the object changed or vanished, or
     /// the process list could not be read). Callers must treat this like
@@ -329,7 +330,7 @@ mod tests {
         assert!(InUse::No.is_provably_unused());
         assert!(!InUse::Yes(Vec::new()).is_provably_unused());
         assert!(
-            !InUse::Partial { unseen: 1 }.is_provably_unused(),
+            !InUse::Partial { unseen: Some(1) }.is_provably_unused(),
             "unseen processes may use it"
         );
         assert!(

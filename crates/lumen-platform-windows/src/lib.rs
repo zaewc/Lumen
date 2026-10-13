@@ -17,6 +17,8 @@ mod installed;
 pub mod notify;
 #[cfg(windows)]
 mod registry;
+#[cfg(windows)]
+mod rm;
 pub mod services;
 pub mod startup;
 #[cfg(windows)]
@@ -29,6 +31,8 @@ pub mod winpath;
 pub use handle::HandleEnumerator;
 #[cfg(windows)]
 pub use installed::InstalledApps;
+#[cfg(windows)]
+pub use rm::RestartManagerProbe;
 #[cfg(windows)]
 pub use services::Services;
 #[cfg(windows)]

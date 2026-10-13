@@ -293,7 +293,9 @@ impl InUseProbe for ProcessProbe {
         if !users.is_empty() {
             InUse::Yes(users)
         } else if unseen > 0 {
-            InUse::Partial { unseen }
+            InUse::Partial {
+                unseen: Some(unseen),
+            }
         } else {
             InUse::No
         }
