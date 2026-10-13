@@ -467,9 +467,12 @@ dependencies = [
 name = "lumen-platform-windows"
 version = "0.0.0"
 dependencies = [
+ "lumen-application",
  "lumen-domain",
  "proptest",
+ "tempfile",
  "thiserror",
+ "windows-sys",
 ]
 
 [[package]]

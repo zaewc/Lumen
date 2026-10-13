@@ -145,6 +145,20 @@ pub fn to_entry(
         return Err(Unmappable::Dot);
     }
     let path = RawPath::from_windows_wide(&join(parent, &record.name)).map_err(Unmappable::Path)?;
+    to_entry_at(path, volume, record)
+}
+
+/// Builds the entry for the object at `path` from its attributes, as
+/// [`to_entry`] does for a listed record; `record.name` is not used.
+///
+/// # Errors
+///
+/// Returns [`Unmappable::Negative`] for negative sizes.
+pub fn to_entry_at(
+    path: RawPath,
+    volume: &VolumeId,
+    record: &DirRecord,
+) -> Result<FilesystemEntry, Unmappable> {
     let kind = kind_of(record);
     let attributes = record.attributes;
     let is_file = kind == EntryKind::File;
