@@ -16,17 +16,18 @@
 use std::io;
 use std::ops::ControlFlow;
 
-use lumen_application::ports::{DirEnumerator, DirOutcome, EnumerateError};
+use lumen_application::ports::{CandidateVerifier, DirEnumerator, DirOutcome, EnumerateError};
 use lumen_domain::{
     AccessState, DenialReason, EntryKind, FailureKind, FileId, FileIdentity, FilesystemEntry,
     PathFlavor, RawPath, VolumeId,
 };
 use windows_sys::Win32::Storage::FileSystem::{
-    FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT,
+    FILE_ATTRIBUTE_COMPRESSED, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT,
+    FILE_ATTRIBUTE_SPARSE_FILE,
 };
 
 use crate::dirinfo::{DirRecord, records};
-use crate::entry::{to_entry, to_entry_at, volume_id};
+use crate::entry::{Filesystem, HandleFacts, to_entry, to_entry_at, to_verified_entry, volume_id};
 use crate::sys::{self, Access, Handle, PlaceholdersExposed, RecordBuffer};
 
 /// Bytes per directory batch (research note 04, §B).
@@ -126,6 +127,44 @@ impl DirEnumerator for HandleEnumerator {
             access: AccessState::Readable,
             complete,
         })
+    }
+}
+
+impl CandidateVerifier for HandleEnumerator {
+    fn verify(
+        &self,
+        path: &RawPath,
+        expected: &FileIdentity,
+    ) -> Result<FilesystemEntry, EnumerateError> {
+        let wide = windows_path(path)?;
+        let unobservable = |access| EnumerateError::Unobservable {
+            path: path.clone(),
+            access,
+        };
+        let failed = || unobservable(AccessState::Failed(FailureKind::Io));
+        let _guard = PlaceholdersExposed::enter().map_err(|_| failed())?;
+        let handle =
+            sys::open(&wide, Access::Attributes).map_err(|e| unobservable(access_from_io(&e)))?;
+        let (volume, record) = describe(&handle).map_err(|e| unobservable(access_from_io(&e)))?;
+        let identity = FileIdentity {
+            volume: volume.clone(),
+            file: FileId::new(record.file_id),
+        };
+        check_identity(path, &identity, Some(expected))?;
+
+        let standard = sys::standard(&handle).map_err(|e| unobservable(access_from_io(&e)))?;
+        let packed =
+            record.attributes & (FILE_ATTRIBUTE_COMPRESSED | FILE_ATTRIBUTE_SPARSE_FILE) != 0;
+        let facts = HandleFacts {
+            links: standard.NumberOfLinks,
+            // Unreadable compressed size: the verified entry keeps sharing possible.
+            compressed_size: packed
+                .then(|| sys::compression(&handle).ok().map(|c| c.CompressedFileSize))
+                .flatten(),
+            filesystem: sys::filesystem_name(&handle)
+                .map_or(Filesystem::Other, |name| Filesystem::from_name(&name)),
+        };
+        to_verified_entry(path.clone(), &volume, &record, &facts).map_err(|_| failed())
     }
 }
 
@@ -379,6 +418,99 @@ mod tests {
             HandleEnumerator.stat(&unix),
             Err(EnumerateError::UnsupportedPath { .. })
         ));
+        Ok(())
+    }
+
+    fn listed(dir: &Path, name: &str) -> Result<FilesystemEntry, Box<dyn std::error::Error>> {
+        let (found, _) = list(&raw(dir)?)?;
+        found
+            .into_iter()
+            .find(|e| e.path.display().ends_with(&format!("\\{name}")))
+            .ok_or_else(|| format!("{name} not listed").into())
+    }
+
+    #[test]
+    fn verification_reads_exact_link_counts_on_ntfs() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        std::fs::write(dir.path().join("a"), vec![1; 10_000])?;
+        std::fs::hard_link(dir.path().join("a"), dir.path().join("b"))?;
+        let listed = listed(dir.path(), "a")?;
+        assert!(listed.size.flags.may_share_blocks, "a listing cannot know");
+        let verified = HandleEnumerator.verify(&listed.path, listed.identity())?;
+        assert_eq!(verified.size.link_count.get(), 2);
+        assert_eq!(verified.size.identity, listed.size.identity);
+        assert!(
+            !verified.size.flags.may_share_blocks,
+            "NTFS shares no blocks"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verification_measures_compressed_files() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("zeros");
+        std::fs::write(&file, vec![0; 1 << 20])?;
+        let packed = Command::new("compact")
+            .args(["/c", "/q"])
+            .arg(&file)
+            .output()?;
+        assert!(
+            packed.status.success(),
+            "{}",
+            String::from_utf8_lossy(&packed.stdout)
+        );
+        let listed = listed(dir.path(), "zeros")?;
+        assert!(listed.size.flags.compressed);
+        let verified = HandleEnumerator.verify(&listed.path, listed.identity())?;
+        assert!(
+            verified.size.allocated < ByteCount::new(1 << 20),
+            "{:?}",
+            verified.size.allocated
+        );
+        assert_eq!(verified.size.logical, ByteCount::new(1 << 20));
+        assert!(!verified.size.flags.may_share_blocks);
+        Ok(())
+    }
+
+    #[test]
+    fn verification_refuses_swapped_and_missing_candidates() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        std::fs::write(dir.path().join("one"), b"1")?;
+        std::fs::write(dir.path().join("two"), b"2")?;
+        let one = listed(dir.path(), "one")?;
+        let two = listed(dir.path(), "two")?;
+        assert!(matches!(
+            HandleEnumerator.verify(&two.path, one.identity()),
+            Err(EnumerateError::IdentityChanged { .. })
+        ));
+        // A candidate whose path no longer resolves (nothing is deleted here).
+        assert!(matches!(
+            HandleEnumerator.verify(&raw(&dir.path().join("gone"))?, one.identity()),
+            Err(EnumerateError::Unobservable {
+                access: AccessState::Failed(FailureKind::Vanished),
+                ..
+            })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn verifying_a_junction_describes_it_without_following() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let target = dir.path().join("target");
+        std::fs::create_dir(&target)?;
+        let link = dir.path().join("link");
+        let made = Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(&link)
+            .arg(&target)
+            .output()?;
+        assert!(made.status.success());
+        let listed = listed(dir.path(), "link")?;
+        let verified = HandleEnumerator.verify(&listed.path, listed.identity())?;
+        assert_eq!(verified.kind, EntryKind::Junction);
+        assert_eq!(verified.size.identity, listed.size.identity);
         Ok(())
     }
 

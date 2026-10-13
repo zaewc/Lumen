@@ -19,11 +19,12 @@ use windows_sys::Win32::Foundation::{
     CloseHandle, ERROR_NO_MORE_FILES, HANDLE, INVALID_HANDLE_VALUE,
 };
 use windows_sys::Win32::Storage::FileSystem::{
-    CreateFileW, FILE_ATTRIBUTE_TAG_INFO, FILE_BASIC_INFO, FILE_FLAG_BACKUP_SEMANTICS,
-    FILE_FLAG_OPEN_REPARSE_POINT, FILE_ID_INFO, FILE_INFO_BY_HANDLE_CLASS, FILE_LIST_DIRECTORY,
-    FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO,
-    FileAttributeTagInfo, FileBasicInfo, FileIdExtdDirectoryInfo, FileIdInfo, FileStandardInfo,
-    GetFileInformationByHandleEx, OPEN_EXISTING, SYNCHRONIZE,
+    CreateFileW, FILE_ATTRIBUTE_TAG_INFO, FILE_BASIC_INFO, FILE_COMPRESSION_INFO,
+    FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_ID_INFO,
+    FILE_INFO_BY_HANDLE_CLASS, FILE_LIST_DIRECTORY, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE,
+    FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO, FileAttributeTagInfo, FileBasicInfo,
+    FileCompressionInfo, FileIdExtdDirectoryInfo, FileIdInfo, FileStandardInfo,
+    GetFileInformationByHandleEx, GetVolumeInformationByHandleW, OPEN_EXISTING, SYNCHRONIZE,
 };
 
 use crate::winpath::{nul_terminated, verbatim};
@@ -113,6 +114,10 @@ impl InfoClass for FILE_STANDARD_INFO {
     const CLASS: FILE_INFO_BY_HANDLE_CLASS = FileStandardInfo;
 }
 
+impl InfoClass for FILE_COMPRESSION_INFO {
+    const CLASS: FILE_INFO_BY_HANDLE_CLASS = FileCompressionInfo;
+}
+
 fn query<T: InfoClass>(handle: &Handle) -> io::Result<T> {
     let mut info = MaybeUninit::<T>::uninit();
     let size = u32::try_from(size_of::<T>()).map_err(io::Error::other)?;
@@ -149,6 +154,39 @@ pub(crate) fn basic(handle: &Handle) -> io::Result<FILE_BASIC_INFO> {
 /// Sizes and link count of the opened object.
 pub(crate) fn standard(handle: &Handle) -> io::Result<FILE_STANDARD_INFO> {
     query(handle)
+}
+
+/// Compressed size of the opened object.
+pub(crate) fn compression(handle: &Handle) -> io::Result<FILE_COMPRESSION_INFO> {
+    query(handle)
+}
+
+/// Name of the filesystem the opened object lives on (`NTFS`, `ReFS`, …).
+pub(crate) fn filesystem_name(handle: &Handle) -> io::Result<String> {
+    // The documented maximum is MAX_PATH + 1 characters.
+    let mut name = [0_u16; 261];
+    let size = u32::try_from(name.len()).map_err(io::Error::other)?;
+    // SAFETY: invariant: the kernel writes at most `size` UTF-16 units into
+    // `name`; every other output pointer is null, which the API allows. Why
+    // unsafe: FFI call writing through a raw pointer. Why it holds: `name` is a
+    // local array of exactly `size` units that outlives the call.
+    let ok = unsafe {
+        GetVolumeInformationByHandleW(
+            handle.0,
+            std::ptr::null_mut(),
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            name.as_mut_ptr(),
+            size,
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let end = name.iter().position(|u| *u == 0).unwrap_or(name.len());
+    Ok(String::from_utf16_lossy(&name[..end]))
 }
 
 /// A buffer for directory records, 8-byte aligned as their `i64` fields need.

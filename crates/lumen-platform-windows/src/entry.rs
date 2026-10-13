@@ -32,6 +32,7 @@ const IO_REPARSE_TAG_MOUNT_POINT: u32 = 0xA000_0003;
 const IO_REPARSE_TAG_SYMLINK: u32 = 0xA000_000C;
 const IO_REPARSE_TAG_LX_SYMLINK: u32 = 0xA000_001D;
 const IO_REPARSE_TAG_WOF: u32 = 0x8000_0017;
+const IO_REPARSE_TAG_DEDUP: u32 = 0x8000_0013;
 const IO_REPARSE_TAG_ONEDRIVE: u32 = 0x8000_0021;
 const IO_REPARSE_TAG_PROJFS: u32 = 0x9000_001C;
 /// Cloud Files tags are `IO_REPARSE_TAG_CLOUD` with any value in the
@@ -107,6 +108,14 @@ fn kind_of(record: &DirRecord) -> EntryKind {
     }
 }
 
+/// Data-carrying entries: regular files, and reparse-point files such as
+/// deduplicated (chunks shared in the chunk store), WOF-compressed or cloud files.
+/// Links, junctions and directories carry no data of their own.
+fn carries_data(kind: EntryKind, attributes: u32) -> bool {
+    kind == EntryKind::File
+        || (kind == EntryKind::OtherReparsePoint && attributes & FILE_ATTRIBUTE_DIRECTORY == 0)
+}
+
 fn size(value: i64, name: &'static str) -> Result<ByteCount, Unmappable> {
     u64::try_from(value)
         .map(ByteCount::new)
@@ -162,11 +171,7 @@ pub fn to_entry_at(
 ) -> Result<FilesystemEntry, Unmappable> {
     let kind = kind_of(record);
     let attributes = record.attributes;
-    // Data-carrying entries: regular files, and reparse-point files such as
-    // deduplicated (chunks shared in the chunk store), WOF-compressed or cloud
-    // files. Links, junctions and directories carry no data of their own.
-    let carries_data = kind == EntryKind::File
-        || (kind == EntryKind::OtherReparsePoint && attributes & FILE_ATTRIBUTE_DIRECTORY == 0);
+    let carries_data = carries_data(kind, attributes);
     let reparse_tag =
         (attributes & FILE_ATTRIBUTE_REPARSE_POINT != 0).then_some(record.reparse_tag);
 
@@ -226,6 +231,84 @@ pub fn to_entry_at(
         },
         path,
     })
+}
+
+/// The filesystem of a volume, as far as block sharing is concerned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Filesystem {
+    /// NTFS: no block sharing between files (hard links share whole files).
+    Ntfs,
+    /// FAT, FAT32 or exFAT: no block sharing.
+    Fat,
+    /// `ReFS`, including Dev Drive: block cloning shares extents between files.
+    Refs,
+    /// Anything else, or not reported: assume sharing is possible.
+    Other,
+}
+
+impl Filesystem {
+    /// Classifies a `GetVolumeInformationByHandleW` filesystem name.
+    pub fn from_name(name: &str) -> Self {
+        match name.to_ascii_uppercase().as_str() {
+            "NTFS" => Self::Ntfs,
+            "FAT" | "FAT32" | "EXFAT" => Self::Fat,
+            "REFS" => Self::Refs,
+            _ => Self::Other,
+        }
+    }
+}
+
+/// Facts read through a candidate's own handle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HandleFacts {
+    /// `FILE_STANDARD_INFO::NumberOfLinks`.
+    pub links: u32,
+    /// `FILE_COMPRESSION_INFO::CompressedFileSize`, read for compressed or sparse
+    /// files; `None` if not read or not available.
+    pub compressed_size: Option<i64>,
+    /// The volume's filesystem.
+    pub filesystem: Filesystem,
+}
+
+/// Builds the verified entry for a candidate from its handle attributes
+/// (`record`, in directory-record shape) and the extra [`HandleFacts`].
+///
+/// Unlike a listing, the link count is exact. A data-carrying entry is exactly
+/// reclaimable (`may_share_blocks: false`) only on a filesystem without block
+/// sharing, when it is not deduplicated, and, if compressed or sparse, when its
+/// compressed size was read; its allocation is then the smaller of the two sizes.
+///
+/// # Errors
+///
+/// Returns [`Unmappable::Negative`] for negative sizes.
+pub fn to_verified_entry(
+    path: RawPath,
+    volume: &VolumeId,
+    record: &DirRecord,
+    facts: &HandleFacts,
+) -> Result<FilesystemEntry, Unmappable> {
+    let mut entry = to_entry_at(path, volume, record)?;
+    let attributes = record.attributes;
+    if !carries_data(entry.kind, attributes) {
+        return Ok(entry);
+    }
+    entry.size.link_count = NonZeroU32::new(facts.links).unwrap_or(NonZeroU32::MIN);
+    let packed = attributes & (FILE_ATTRIBUTE_COMPRESSED | FILE_ATTRIBUTE_SPARSE_FILE) != 0;
+    let mut measured = true;
+    if packed {
+        match facts.compressed_size {
+            Some(compressed) => {
+                let compressed = size(compressed, "compressed size")?;
+                entry.size.allocated = entry.size.allocated.min(compressed);
+            }
+            None => measured = false,
+        }
+    }
+    let deduplicated = attributes & FILE_ATTRIBUTE_REPARSE_POINT != 0
+        && record.reparse_tag == IO_REPARSE_TAG_DEDUP;
+    let unshared_filesystem = matches!(facts.filesystem, Filesystem::Ntfs | Filesystem::Fat);
+    entry.size.flags.may_share_blocks = !(unshared_filesystem && !deduplicated && measured);
+    Ok(entry)
 }
 
 #[cfg(test)]
@@ -358,7 +441,6 @@ mod tests {
 
     #[test]
     fn reparse_point_files_may_share_blocks_but_links_do_not() -> Result<(), Unmappable> {
-        const IO_REPARSE_TAG_DEDUP: u32 = 0x8000_0013;
         let reparse = FILE_ATTRIBUTE_REPARSE_POINT;
         for tag in [
             IO_REPARSE_TAG_DEDUP,
@@ -420,6 +502,104 @@ mod tests {
             None,
             "year 30828: beyond Timestamp::MAX"
         );
+    }
+
+    fn facts(filesystem: Filesystem) -> HandleFacts {
+        HandleFacts {
+            links: 2,
+            compressed_size: None,
+            filesystem,
+        }
+    }
+
+    fn verify(record: &DirRecord, facts: &HandleFacts) -> Result<FilesystemEntry, Unmappable> {
+        to_verified_entry(
+            RawPath::from_windows_wide(&wide(r"C:\f")).map_err(Unmappable::Path)?,
+            &volume(),
+            record,
+            facts,
+        )
+    }
+
+    #[test]
+    fn verified_files_on_ntfs_are_exact() -> Result<(), Unmappable> {
+        let entry = verify(&record("f", 0x20, 0), &facts(Filesystem::Ntfs))?;
+        assert_eq!(entry.size.link_count.get(), 2, "exact link count");
+        assert!(!entry.size.flags.may_share_blocks);
+        assert_eq!(entry.size.allocated, ByteCount::new(8192));
+        Ok(())
+    }
+
+    #[test]
+    fn sharing_stays_possible_unless_proven_absent() -> Result<(), Unmappable> {
+        for filesystem in [Filesystem::Refs, Filesystem::Other] {
+            let entry = verify(&record("f", 0x20, 0), &facts(filesystem))?;
+            assert!(entry.size.flags.may_share_blocks, "{filesystem:?}");
+        }
+        let dedup = record("f", FILE_ATTRIBUTE_REPARSE_POINT, IO_REPARSE_TAG_DEDUP);
+        assert!(
+            verify(&dedup, &facts(Filesystem::Ntfs))?
+                .size
+                .flags
+                .may_share_blocks
+        );
+        // Compressed, but the compressed size could not be read.
+        let compressed = record("f", FILE_ATTRIBUTE_COMPRESSED, 0);
+        assert!(
+            verify(&compressed, &facts(Filesystem::Ntfs))?
+                .size
+                .flags
+                .may_share_blocks
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn compressed_and_sparse_files_use_the_smaller_size() -> Result<(), Unmappable> {
+        for attributes in [FILE_ATTRIBUTE_COMPRESSED, FILE_ATTRIBUTE_SPARSE_FILE] {
+            let measured = HandleFacts {
+                compressed_size: Some(4096),
+                ..facts(Filesystem::Ntfs)
+            };
+            let entry = verify(&record("f", attributes, 0), &measured)?;
+            assert_eq!(entry.size.allocated, ByteCount::new(4096));
+            assert!(!entry.size.flags.may_share_blocks);
+            // A larger "compressed" size never raises the allocation.
+            let larger = HandleFacts {
+                compressed_size: Some(1 << 20),
+                ..measured
+            };
+            assert_eq!(
+                verify(&record("f", attributes, 0), &larger)?.size.allocated,
+                ByteCount::new(8192)
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn links_and_directories_are_not_adjusted() -> Result<(), Unmappable> {
+        let link = record("l", FILE_ATTRIBUTE_REPARSE_POINT, IO_REPARSE_TAG_SYMLINK);
+        let entry = verify(&link, &facts(Filesystem::Ntfs))?;
+        assert_eq!(entry.kind, EntryKind::Symlink);
+        assert_eq!(entry.size.link_count.get(), 1);
+        assert!(!entry.size.flags.may_share_blocks);
+        let dir = verify(
+            &record("d", FILE_ATTRIBUTE_DIRECTORY, 0),
+            &facts(Filesystem::Ntfs),
+        )?;
+        assert_eq!(dir.kind, EntryKind::Directory);
+        Ok(())
+    }
+
+    #[test]
+    fn filesystem_names_are_classified() {
+        assert_eq!(Filesystem::from_name("NTFS"), Filesystem::Ntfs);
+        assert_eq!(Filesystem::from_name("ReFS"), Filesystem::Refs);
+        assert_eq!(Filesystem::from_name("exFAT"), Filesystem::Fat);
+        assert_eq!(Filesystem::from_name("FAT32"), Filesystem::Fat);
+        assert_eq!(Filesystem::from_name("UDF"), Filesystem::Other);
+        assert_eq!(Filesystem::from_name(""), Filesystem::Other);
     }
 
     #[test]

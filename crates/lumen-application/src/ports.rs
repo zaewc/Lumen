@@ -115,6 +115,28 @@ pub trait DirEnumerator: Send + Sync {
     ) -> Result<DirOutcome, EnumerateError>;
 }
 
+/// Re-reads a cleanup candidate through its own handle just before it is proposed
+/// or acted on ("phase 2", ADR-0017). Listings are fast but can be stale or
+/// incomplete: a Windows directory record has no hard-link count, and the size of
+/// a hard-linked file is updated only at the link it was changed through.
+pub trait CandidateVerifier: Send + Sync {
+    /// Fresh, exact facts for the object at `path`, which must still be the
+    /// object `expected` identifies. A final link or reparse point is described,
+    /// never followed, and nothing is opened for data.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EnumerateError::IdentityChanged`] if `path` now names another
+    /// object, [`EnumerateError::Unobservable`] if it is gone or access is
+    /// refused, and [`EnumerateError::UnsupportedPath`] for paths this platform
+    /// cannot use. Callers must then treat the candidate as `REVIEW` at most.
+    fn verify(
+        &self,
+        path: &RawPath,
+        expected: &FileIdentity,
+    ) -> Result<FilesystemEntry, EnumerateError>;
+}
+
 /// A directory that was discovered but not yet listed: the unit of work a scan
 /// resumes from after an interruption.
 #[derive(Debug, Clone, PartialEq, Eq)]
