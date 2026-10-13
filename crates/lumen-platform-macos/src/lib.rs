@@ -13,10 +13,14 @@ mod apps;
 pub mod attrbuf;
 #[cfg(target_os = "macos")]
 mod bulk;
+#[cfg(target_os = "macos")]
+mod cf;
 pub mod entry;
 pub mod events;
 #[cfg(target_os = "macos")]
 mod feed;
+#[cfg(target_os = "macos")]
+mod launchd;
 #[cfg(target_os = "macos")]
 mod sys;
 
@@ -26,3 +30,5 @@ pub use apps::AppInventory;
 pub use bulk::BulkEnumerator;
 #[cfg(target_os = "macos")]
 pub use feed::FsEventsFeed;
+#[cfg(target_os = "macos")]
+pub use launchd::LaunchdInventory;

@@ -19,7 +19,10 @@ libc.workspace = true
 objc2-core-foundation = { workspace = true, features = [
   "CFArray",
   "CFBundle",
+  "CFData",
   "CFDictionary",
+  "CFError",
+  "CFPropertyList",
   "CFString",
   "CFURL",
   "CFUUID",

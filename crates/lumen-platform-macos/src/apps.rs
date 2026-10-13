@@ -124,7 +124,7 @@ fn application(path: &Path) -> Option<Application> {
         name,
         version: text(key("CFBundleShortVersionString")),
         vendor: None,
-        signature: Some(signing::check(&url)),
+        signature: Some(verify_signature(&url)),
         install_locations: vec![location],
         sources: BTreeSet::from([source()]),
     })
@@ -167,11 +167,12 @@ impl InventorySource for AppInventory {
     }
 }
 
+pub(crate) use signing::verify as verify_signature;
+
 /// Code-signature checks through the Security framework: the only `unsafe` code
 /// in this module.
 #[allow(unsafe_code)]
 mod signing {
-    use std::ffi::c_void;
     use std::ptr::NonNull;
 
     use lumen_domain::{CodeSignature, SignatureCheck, UntrustedText};
@@ -181,9 +182,9 @@ mod signing {
         kSecCSSigningInformation, kSecCodeInfoTeamIdentifier,
     };
 
-    /// Verifies the bundle's signature and certificate chain (not its contents)
-    /// and, if valid, reads the signing team.
-    pub(super) fn check(url: &CFURL) -> CodeSignature {
+    /// Verifies the signature and certificate chain of a bundle or executable
+    /// (not its contents) and, if valid, reads the signing team.
+    pub(crate) fn verify(url: &CFURL) -> CodeSignature {
         let unknown = CodeSignature {
             signer: None,
             check: SignatureCheck::Unknown,
@@ -245,19 +246,11 @@ mod signing {
         // SAFETY: invariant: `raw` is an owned +1 dictionary. Why unsafe: adopting
         // a raw CF reference. Why it holds: Copy rule; released once by the guard.
         let info: CFRetained<CFDictionary> = unsafe { CFRetained::from_raw(raw) };
-        // SAFETY: invariant: the key is a valid CFString and the dictionary is
-        // alive; the returned value is borrowed from it. Why unsafe: untyped
-        // dictionary access. Why it holds: `kSecCodeInfoTeamIdentifier` is a
-        // static CF constant, and the value is type-checked before use below.
-        let value = unsafe {
-            let key: *const CFString = kSecCodeInfoTeamIdentifier;
-            info.value(key.cast::<c_void>())
-        };
-        // SAFETY: invariant: a non-null value is a live CF object owned by `info`.
-        // Why unsafe: turning a raw pointer into a reference. Why it holds: `info`
-        // outlives this borrow, and `downcast_ref` checks the CF type.
-        let value = unsafe { value.cast::<objc2_core_foundation::CFType>().as_ref() }?;
-        let team = value.downcast_ref::<CFString>()?.to_string();
+        // SAFETY: invariant: reading an immutable extern static. Why unsafe: Rust
+        // cannot see that the Security framework initialises it. Why it holds:
+        // the constant is defined by the linked framework and never written.
+        let key: &CFString = unsafe { kSecCodeInfoTeamIdentifier };
+        let team = crate::cf::get::<CFString>(&info, key)?.to_string();
         (!team.is_empty()).then(|| UntrustedText::new(team))
     }
 }
