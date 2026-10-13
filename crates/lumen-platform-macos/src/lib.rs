@@ -23,6 +23,7 @@ mod feed;
 mod launchd;
 #[cfg(target_os = "macos")]
 mod probe;
+pub mod support;
 #[cfg(target_os = "macos")]
 mod sys;
 
