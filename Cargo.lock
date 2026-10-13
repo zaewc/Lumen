@@ -467,6 +467,7 @@ dependencies = [
 name = "lumen-platform-windows"
 version = "0.0.0"
 dependencies = [
+ "lumen-domain",
  "proptest",
  "thiserror",
 ]
