@@ -5,8 +5,10 @@
 > larger than roughly 400 changed lines of non-generated code, split it before
 > starting. Items within a phase are ordered by dependency.
 
-Phases 1 (research), 2 (architecture), 3 (repository bootstrap) and 4 (domain) are complete:
-see [`docs/research/`](../research/) and [`docs/decisions/`](../decisions/README.md).
+Phases 1 (research), 2 (architecture), 3 (repository bootstrap), 4 (domain) and
+5 (scanner) are complete: see [`docs/research/`](../research/),
+[`docs/decisions/`](../decisions/README.md) and the
+[scanner safety contract](scanner.md).
 
 ## Phase 3: Repository bootstrap (complete)
 
@@ -69,7 +71,14 @@ implementations (#88) and the xtask exporter with a CI drift check (#89).
 | 4.16 | `build(xtask): export JSON Schemas` | `xtask schema` writes `schemas/`; insta snapshot test; CI drift check |
 | 4.17 | `docs(domain): document domain model` | crate docs + `docs/architecture/domain.md` |
 
-## Phase 5: Scanner
+## Phase 5: Scanner (complete)
+
+Several items shipped as more than one PR to stay atomic: parsers and mappings
+landed separately from the system calls that use them (5.11, 5.14, 5.16, 5.17),
+and measurements led to two ADRs (0028, 0029), a candidate-verification port
+(`CandidateVerifier`, macOS and Windows), directory-identity de-duplication for
+firmlinks, and streaming size aggregation. 5.13's single "macOS" figure for the
+sealed system volume moves to the volume inventory.
 
 | # | PR title | Content |
 | --- | --- | --- |

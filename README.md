@@ -12,10 +12,23 @@ Target platforms: macOS, Windows, Android, iOS, and a web dashboard.
 ## Status
 
 Pre-alpha. Research (Phase 1), architecture (Phase 2), repository bootstrap
-(Phase 3: Rust workspace, CI, supply-chain and security checks, hooks) and the
-domain model (Phase 4: [`lumen-domain`](docs/architecture/domain.md) with committed
-JSON Schemas) are complete. Lumen cannot scan or clean anything yet; the scanner
-(Phase 5) is next. See the [roadmap](docs/architecture/roadmap.md).
+(Phase 3: Rust workspace, CI, supply-chain and security checks, hooks), the domain
+model (Phase 4: [`lumen-domain`](docs/architecture/domain.md) with committed JSON
+Schemas) and the scanner (Phase 5) are complete.
+
+Lumen can **scan, read-only**, on macOS (`getattrlistbulk`, clone- and
+snapshot-aware sizes, `FSEvents`), Windows (directory handles,
+`ReadDirectoryChangesW`) and other Unix systems, and record results in a local
+SQLite index:
+
+```sh
+cargo run -p lumen-cli -- scan ~/Library --db index.db
+```
+
+It never changes or opens the files it scans. See the
+[scanner safety contract](docs/architecture/scanner.md). It cannot clean anything
+yet: the evidence graph (Phase 6) is next, then policy, Jev and quarantine. See the
+[roadmap](docs/architecture/roadmap.md).
 
 ## Documentation
 
