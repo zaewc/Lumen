@@ -1,0 +1,18 @@
+[package]
+name = "lumen-platform-windows"
+description = "Lumen's Windows platform adapter: the directory-handle enumerator."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true
