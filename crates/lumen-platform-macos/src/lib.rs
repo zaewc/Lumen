@@ -10,6 +10,7 @@ pub mod attrbuf;
 #[cfg(target_os = "macos")]
 mod bulk;
 pub mod entry;
+pub mod events;
 #[cfg(target_os = "macos")]
 mod sys;
 
