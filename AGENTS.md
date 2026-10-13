@@ -21,6 +21,7 @@ never remove.**
 | System overview, crate layers, domain model | [`docs/architecture/system.md`](docs/architecture/system.md) |
 | What each platform can and cannot do | [`docs/architecture/platforms.md`](docs/architecture/platforms.md) |
 | What to build next | [`docs/architecture/roadmap.md`](docs/architecture/roadmap.md) |
+| Scanner performance baselines | [`docs/architecture/performance.md`](docs/architecture/performance.md) |
 | Why a decision was made | [`docs/decisions/`](docs/decisions/README.md) (ADRs) |
 | Evidence behind decisions | [`docs/research/`](docs/research/) |
 | Threats and controls | [`docs/security/threat-model.md`](docs/security/threat-model.md) |

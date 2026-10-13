@@ -18,6 +18,7 @@ lumen-domain.workspace = true
 lumen-testkit = { workspace = true, optional = true }
 
 [dev-dependencies]
+criterion.workspace = true
 # The crate's own integration tests run the conformance suite.
 lumen-scan = { workspace = true, features = ["conformance"] }
 lumen-testkit.workspace = true
@@ -25,3 +26,7 @@ proptest.workspace = true
 
 [lints]
 workspace = true
+
+[[bench]]
+name = "scan"
+harness = false

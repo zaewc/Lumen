@@ -91,7 +91,7 @@ implementations (#88) and the xtask exporter with a CI drift check (#89).
 | 5.16 | `feat(platform-macos): add FSEvents change feed` | persisted event ID + volume UUID; absolute-path streams (ADR-0029) |
 | 5.17 | `feat(platform-windows): add ReadDirectoryChangesW change feed` | hot roots |
 | 5.18 | `test(scan): add adversarial scanner fixtures` | symlink loops, malicious names, huge flat dirs, deep trees |
-| 5.19 | `perf(scan): add criterion benchmarks and baselines` | entries/s, RSS |
+| 5.19 | `perf(scan): add criterion benchmarks and baselines` | entries/s, RSS ([performance.md](performance.md)); follow-up: streaming aggregation to bound memory |
 | 5.20 | `docs(scan): document scanner safety contract` | `docs/architecture/scanner.md` |
 
 ## Phase 6: Evidence and graph

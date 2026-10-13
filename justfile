@@ -21,6 +21,11 @@ fmt-check:
 lint:
     cargo clippy --workspace --all-targets --locked -- -D warnings
 
+# Run the criterion benchmarks. Not part of `check`: results depend on the
+# machine. Baselines: docs/architecture/performance.md.
+bench:
+    cargo bench --workspace --locked
+
 # Run unit, integration and doc tests.
 test:
     cargo nextest run --workspace --locked --no-tests=warn
