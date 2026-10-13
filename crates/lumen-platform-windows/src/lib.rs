@@ -8,6 +8,7 @@
 //! the Win32 calls in `sys`.
 
 pub mod apps;
+pub mod cleanup;
 pub mod dirinfo;
 pub mod entry;
 #[cfg(windows)]
