@@ -1,6 +1,6 @@
 # ADR-0018: Scan incrementally from persisted change feeds with periodic full sweeps
 
-- Status: Accepted
+- Status: Accepted (macOS adapter amended by [ADR-0029](0029-fsevents-absolute-streams.md))
 - Date: 2026-10-06
 
 ## Context and problem statement

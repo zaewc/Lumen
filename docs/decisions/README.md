@@ -37,3 +37,4 @@ recommended option.
 | [0026](0026-ci-and-supply-chain-security.md) | Gate merges on hardened GitHub Actions CI with supply-chain checks | Accepted |
 | [0027](0027-atomic-commit-pr-workflow.md) | Ship every atomic change as one Conventional Commit in one pull request | Accepted |
 | [0028](0028-macos-private-size-in-bulk-pass.md) | Request PRIVATESIZE in the macOS bulk pass, not a second pass | Accepted |
+| [0029](0029-fsevents-absolute-streams.md) | Watch absolute paths with FSEvents and pin resume points to the volume UUID | Accepted |

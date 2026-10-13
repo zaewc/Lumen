@@ -88,7 +88,7 @@ implementations (#88) and the xtask exporter with a CI drift check (#89).
 | 5.13 | `feat(platform-macos): map firmlinks and data volume` | scheduler lists each directory identity once (firmlinks, bind mounts, overlapping roots); system-volume figure with the volume inventory |
 | 5.14 | `feat(platform-windows): add directory-handle enumerator` | `FileIdExtdDirectoryInfo`, placeholder mode, reparse edges |
 | 5.15 | `feat(platform-windows): verify candidates by handle` | phase-2 verification |
-| 5.16 | `feat(platform-macos): add FSEvents change feed` | persisted event ID + device UUID |
+| 5.16 | `feat(platform-macos): add FSEvents change feed` | persisted event ID + volume UUID; absolute-path streams (ADR-0029) |
 | 5.17 | `feat(platform-windows): add ReadDirectoryChangesW change feed` | hot roots |
 | 5.18 | `test(scan): add adversarial scanner fixtures` | symlink loops, malicious names, huge flat dirs, deep trees |
 | 5.19 | `perf(scan): add criterion benchmarks and baselines` | entries/s, RSS |
