@@ -1,0 +1,32 @@
+{
+  "id": "gradle-user-home-caches",
+  "tool": "Gradle",
+  "locations": [
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "home" },
+      "path": ".gradle/caches"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "home" },
+      "path": ".gradle/wrapper/dists"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "GRADLE_USER_HOME" },
+      "path": "caches"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "GRADLE_USER_HOME" },
+      "path": "wrapper/dists"
+    }
+  ],
+  "safety_class": "self_managed",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://docs.gradle.org/current/userguide/directory_layout.html"
+  ],
+  "last_verified": "2026-10-13"
+}
