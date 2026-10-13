@@ -11,6 +11,7 @@ pub mod dirinfo;
 pub mod entry;
 #[cfg(windows)]
 mod handle;
+pub mod notify;
 #[cfg(windows)]
 mod sys;
 pub mod winpath;

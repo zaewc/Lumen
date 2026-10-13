@@ -9,11 +9,11 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+lumen-application.workspace = true
 lumen-domain.workspace = true
 thiserror.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-lumen-application.workspace = true
 windows-sys = { workspace = true, features = [
   "Wdk_Storage_FileSystem",
   "Win32_Foundation",
