@@ -1,11 +1,14 @@
-//! Ports for scanning: time, identifiers, directory enumeration and change feeds.
+//! Ports: time, identifiers, directory enumeration, verification, change feeds,
+//! inventory and in-use probes.
 
 use std::ops::ControlFlow;
 
 use lumen_domain::{
-    AccessState, FileIdentity, FilesystemEntry, OperationId, PlanId, RawPath, ScanId, SnapshotId,
-    Timestamp, VolumeId,
+    AccessState, Application, FileIdentity, FilesystemEntry, OperationId, Package, PlanId, Process,
+    RawPath, ScanId, Service, SnapshotId, SourceName, SourceStatus, Timestamp, VolumeId,
 };
+
+use crate::CancelToken;
 
 /// Source of the current time. The domain never reads the clock itself, so tests
 /// can control time exactly.
@@ -226,6 +229,73 @@ pub trait ChangeFeed: Send {
     fn poll(&mut self, max: usize) -> Result<ChangeBatch, ChangeFeedError>;
 }
 
+/// Everything one inventory source reported in one collection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InventoryReport {
+    /// The source, e.g. `macos.applications` or `windows.uninstall-keys`.
+    pub source: SourceName,
+    /// How completely the source was read. Only [`SourceStatus::Complete`] lets
+    /// "not found here" count as evidence of absence
+    /// ([`CoverageReport::absence_is_provable`](lumen_domain::CoverageReport::absence_is_provable)).
+    pub status: SourceStatus,
+    /// Installed applications found.
+    pub applications: Vec<Application>,
+    /// Background, startup and scheduled components found.
+    pub services: Vec<Service>,
+    /// Packages from package managers found.
+    pub packages: Vec<Package>,
+}
+
+/// Reads one inventory of installed software (applications, services,
+/// packages) without changing anything (ADR-0013).
+///
+/// A source that is denied, unsupported or only partly readable reports that in
+/// [`InventoryReport::status`] instead of failing, exactly like a denied
+/// directory (ADR-0008): an incomplete inventory is an observation, never an
+/// empty one.
+pub trait InventorySource: Send + Sync {
+    /// The source's stable name.
+    fn name(&self) -> SourceName;
+
+    /// Collects the inventory. Stops early, reporting
+    /// [`SourceStatus::Partial`], if `cancel` is cancelled.
+    fn collect(&self, cancel: &CancelToken) -> InventoryReport;
+}
+
+/// Whether a file or directory is in use by running processes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InUse {
+    /// These processes have it (or something under it) open, mapped, as their
+    /// executable or as their working directory.
+    Yes(Vec<Process>),
+    /// No process uses it, and the probe could inspect every running process.
+    No,
+    /// The probe could not inspect every process (for example another user's,
+    /// without privileges), so "not in use" cannot be claimed. Callers must treat
+    /// this like [`InUse::Yes`] for any action.
+    Unknown {
+        /// Short, non-sensitive reason.
+        reason: &'static str,
+    },
+}
+
+impl InUse {
+    /// Whether acting on the item is allowed by this probe: only when it is
+    /// provably not in use.
+    pub const fn is_provably_unused(&self) -> bool {
+        matches!(self, Self::No)
+    }
+}
+
+/// Asks the operating system whether running processes use an object
+/// (`libproc` on macOS, Restart Manager on Windows). The answer is a snapshot:
+/// executors check again right before acting (ADR-0016).
+pub trait InUseProbe: Send + Sync {
+    /// Whether the object at `path`, which must still be `expected`, or anything
+    /// under it, is in use.
+    fn probe(&self, path: &RawPath, expected: &FileIdentity) -> InUse;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -240,7 +310,53 @@ mod tests {
         assert_dyn_send_sync::<dyn Clock>();
         assert_dyn_send_sync::<dyn IdGenerator>();
         assert_dyn_send_sync::<dyn DirEnumerator>();
+        assert_dyn_send_sync::<dyn CandidateVerifier>();
         assert_dyn_send::<dyn ChangeFeed>();
+        assert_dyn_send_sync::<dyn InventorySource>();
+        assert_dyn_send_sync::<dyn InUseProbe>();
+    }
+
+    #[test]
+    fn only_a_complete_probe_proves_an_item_unused() {
+        assert!(InUse::No.is_provably_unused());
+        assert!(!InUse::Yes(Vec::new()).is_provably_unused());
+        assert!(
+            !InUse::Unknown {
+                reason: "other users' processes are not visible"
+            }
+            .is_provably_unused(),
+            "unknown is never treated as unused"
+        );
+    }
+
+    #[test]
+    fn a_partial_inventory_cannot_prove_absence() {
+        struct Partial;
+        impl InventorySource for Partial {
+            fn name(&self) -> SourceName {
+                SourceName::new("test.partial").unwrap_or_else(|_| unreachable!())
+            }
+            fn collect(&self, _cancel: &CancelToken) -> InventoryReport {
+                InventoryReport {
+                    source: self.name(),
+                    status: SourceStatus::Partial,
+                    applications: Vec::new(),
+                    services: Vec::new(),
+                    packages: Vec::new(),
+                }
+            }
+        }
+        let source: &dyn InventorySource = &Partial;
+        let report = source.collect(&CancelToken::new());
+        let coverage = lumen_domain::CoverageReport {
+            roots: Vec::new(),
+            sources: [(report.source.clone(), report.status)].into(),
+        };
+        assert_eq!(report.applications.len(), 0);
+        assert!(
+            !coverage.absence_is_provable(&[source.name()].into()),
+            "an empty but partial inventory proves nothing"
+        );
     }
 
     struct EmptyDir;

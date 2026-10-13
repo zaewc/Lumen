@@ -105,7 +105,7 @@ Dependency rules (enforced by Cargo, and checked in CI):
 | `CandidateVerifier` | Re-read a candidate by handle before it is proposed or acted on: identity, exact link count, compressed size, sharing | directory handles (Windows); `getattrlist` with `PRIVATESIZE` (macOS) |
 | `ChangeFeed` | Persisted change streams with resume points | FSEvents, USN, `ReadDirectoryChangesW`, inotify |
 | `InventorySource` | Applications, packages, processes, services, startup items | per OS (bundles + `pkgutil`, launchd plists; Uninstall keys, MSI, AppX, Run keys, Task Scheduler, SCM) |
-| `InUseProbe` | Is an item open or owned by a running process? | `libproc`; Restart Manager |
+| `InUseProbe` | Is an item open or owned by a running process? `Unknown` when not every process is visible, never "unused" | `libproc`; Restart Manager |
 | `QuarantineStore` | Per-volume stores, manifests, retention | `lumen-fs-exec` |
 | `Executor` | Plan execution by handle with identity verification | `lumen-fs-exec` |
 | `ToolRunner` | Run vetted developer-tool cleanup commands as the user | `lumen-devkb` |
