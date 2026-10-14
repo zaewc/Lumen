@@ -20,20 +20,23 @@
 
 #![forbid(unsafe_code)]
 
+mod classify;
 mod locations;
 mod rules;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use lumen_domain::{
     CleanupMechanism, DecisionError, Evidence, EvidenceHash, EvidenceId, FilesystemEntry,
     FiredRule, JevEffect, Platform, PolicyDecision, PolicyStage, PolicyVersion, RawPath,
-    ReclaimEstimate, Risk, RiskFactor, RiskLevel, RuleId, Subject, Verdict,
+    ReclaimEstimate, Risk, RiskFactor, RiskLevel, RuleId, SourceName, Subject, Verdict,
 };
+
+pub use classify::KnowledgeClass;
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
-pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 5, 0);
+pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 6, 0);
 
 /// The machine a decision is made on.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,6 +82,8 @@ pub struct PolicyInput {
     /// What the scan saw of the subject, if it is a filesystem object that was
     /// observed.
     pub observed: Option<Observed>,
+    /// Safety classes of the knowledge-base entries the evidence refers to.
+    pub knowledge: BTreeMap<SourceName, KnowledgeClass>,
 }
 
 /// Why no decision could be made.
@@ -284,6 +289,7 @@ pub(crate) mod testing {
                 mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
             },
             observed: Some(observed(EntryKind::File, 4096)),
+            knowledge: BTreeMap::new(),
         }
     }
 }

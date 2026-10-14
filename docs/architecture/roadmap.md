@@ -149,7 +149,8 @@ policy never depends on an adapter), and when uncertain it answers `REVIEW` or
 | 7.3 | `feat(policy): keep protected system locations` | embedded, validated location data with official sources (SIP paths; WinSxS, System32, Installer cache, page and hibernation files); case-folded per platform; fails closed |
 | 7.3b | `feat(policy): keep credentials, keys and browser profiles` | home-relative sensitive locations with official sources: SSH, GnuPG, macOS keychains, AWS CLI, Chrome profiles. Open: Firefox (support page not machine-readable), password managers, wallets, databases and security software (need per-product sources or signature evidence) |
 | 7.4 | `feat(policy): add eligibility rules` | unobserved or partly read items → `KEEP`; quarantine unsupported, frees nothing now (hard links, clones, snapshots, dataless), links and special files → at most `REVIEW`. Open: per-volume no-replace rename support (needs volume capability evidence) |
-| 7.5 | `feat(policy): classify knowledge-base and vendor-declared caches` | devkb safety class → `QUARANTINE` / tool command under `REVIEW` / informational; vendor-declared caches |
+| 7.5 | `feat(policy): classify knowledge-base and vendor-declared caches` | devkb safety class → `QUARANTINE` (regenerable), `REVIEW` (tool action, not regenerable, unknown class), `KEEP` (self-managed); vendor-declared caches → `REVIEW` until candidates can target a folder's contents |
+| 7.5b | `feat(policy): classify application caches` | `~/Library/Caches/<bundle id>` and similar convention locations of non-running apps; needs the location kind in the ownership evidence |
 | 7.6 | `feat(policy): add monotone Jev stage` | demotion only; promotion allow-list exists but is empty (ADR-0020) |
 | 7.7 | `feat(policy): add explanation templates` | fired rules → user text; snapshot tests |
 | 7.8 | `test(policy): add safety property tests` | protected never `QUARANTINE`; same input, same output; Jev never lowers caution |

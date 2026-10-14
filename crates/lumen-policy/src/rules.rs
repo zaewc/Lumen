@@ -74,6 +74,36 @@ pub(crate) const RULES: &[Rule] = &[
         stage: PolicyStage::Eligibility,
         check: object_kind,
     },
+    Rule {
+        id: "classify.devkb-regenerable",
+        stage: PolicyStage::Classification,
+        check: crate::classify::devkb_regenerable,
+    },
+    Rule {
+        id: "classify.devkb-tool-action",
+        stage: PolicyStage::Classification,
+        check: crate::classify::devkb_tool_action,
+    },
+    Rule {
+        id: "classify.devkb-not-regenerable",
+        stage: PolicyStage::Classification,
+        check: crate::classify::devkb_not_regenerable,
+    },
+    Rule {
+        id: "classify.devkb-self-managed",
+        stage: PolicyStage::Classification,
+        check: crate::classify::devkb_self_managed,
+    },
+    Rule {
+        id: "classify.devkb-unknown",
+        stage: PolicyStage::Classification,
+        check: crate::classify::devkb_unknown,
+    },
+    Rule {
+        id: "classify.vendor-declared-cache",
+        stage: PolicyStage::Classification,
+        check: crate::classify::vendor_declared_cache,
+    },
 ];
 
 /// Evidence about the subject itself whose fact satisfies `test`.

@@ -285,6 +285,7 @@ mod tests {
             paths: vec![path],
             context,
             observed: None,
+            knowledge: std::collections::BTreeMap::new(),
         })
         .and_then(|f| f.rule)
     }
@@ -393,6 +394,7 @@ mod tests {
             paths: vec![unix("/Users/ana/.ssh")],
             context: context(Platform::Macos),
             observed: None,
+            knowledge: std::collections::BTreeMap::new(),
         });
         assert_eq!(
             finding.map(|f| f.risk),
