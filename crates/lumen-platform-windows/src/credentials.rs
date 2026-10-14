@@ -8,7 +8,7 @@
 
 #![allow(unsafe_code)]
 
-use std::ptr;
+use std::ptr::{self, NonNull};
 
 use lumen_application::ports::{Secret, SecretError, SecretName, SecretStore};
 use windows_sys::Win32::Foundation::{ERROR_NOT_FOUND, GetLastError};
@@ -56,6 +56,38 @@ impl CredentialStore {
     }
 }
 
+/// A credential allocated by `CredReadW`, freed exactly once when dropped.
+struct Allocated(NonNull<CREDENTIALW>);
+
+impl Allocated {
+    /// A copy of the credential's blob.
+    fn blob(&self) -> Vec<u8> {
+        // SAFETY: invariant: the pointer came from a successful `CredReadW` and
+        // is freed only in `drop`. Why unsafe: turning a raw pointer into a
+        // reference. Why it holds: `self` owns the allocation, and the reference
+        // does not outlive `self`.
+        let credential = unsafe { self.0.as_ref() };
+        let size = usize::try_from(credential.CredentialBlobSize).unwrap_or(0);
+        if credential.CredentialBlob.is_null() || size == 0 {
+            return Vec::new();
+        }
+        // SAFETY: invariant: the blob holds `CredentialBlobSize` bytes. Why
+        // unsafe: building a slice from a raw pointer. Why it holds: the system
+        // reports the blob's size with the allocation that `self` keeps alive,
+        // and the slice is copied before `self` can be dropped.
+        unsafe { std::slice::from_raw_parts(credential.CredentialBlob, size) }.to_vec()
+    }
+}
+
+impl Drop for Allocated {
+    fn drop(&mut self) {
+        // SAFETY: invariant: the allocation came from `CredReadW` and is freed
+        // once. Why unsafe: FFI call. Why it holds: only `get` builds an
+        // `Allocated`, from a successful read, and `drop` runs once.
+        unsafe { CredFree(self.0.as_ptr().cast_const().cast()) };
+    }
+}
+
 fn unavailable() -> SecretError {
     SecretError::Unavailable("Credential Manager refused the request")
 }
@@ -69,7 +101,7 @@ impl SecretStore for CredentialStore {
         // on success the system allocates the credential, which is read and then
         // freed exactly once with `CredFree` below.
         let ok = unsafe { CredReadW(target.as_ptr(), CRED_TYPE_GENERIC, 0, &raw mut credential) };
-        if ok == 0 || credential.is_null() {
+        let Some(credential) = NonNull::new(credential).filter(|_| ok != 0) else {
             // SAFETY: invariant: called right after the failing API on this
             // thread. Why unsafe: FFI call. Why it holds: no other call intervened.
             return if unsafe { GetLastError() } == ERROR_NOT_FOUND {
@@ -77,23 +109,9 @@ impl SecretStore for CredentialStore {
             } else {
                 Err(unavailable())
             };
-        }
-        // SAFETY: invariant: `credential` points to a valid CREDENTIALW whose blob
-        // holds `CredentialBlobSize` bytes. Why unsafe: reading system-allocated
-        // memory through raw pointers. Why it holds: CredReadW succeeded, and the
-        // memory stays valid until `CredFree`, which runs after the copy.
-        let bytes = unsafe {
-            let c = &*credential;
-            let size = usize::try_from(c.CredentialBlobSize).unwrap_or(0);
-            let bytes = if c.CredentialBlob.is_null() || size == 0 {
-                Vec::new()
-            } else {
-                std::slice::from_raw_parts(c.CredentialBlob, size).to_vec()
-            };
-            CredFree(credential.cast());
-            bytes
         };
-        String::from_utf8(bytes)
+        let credential = Allocated(credential);
+        String::from_utf8(credential.blob())
             .map(|text| Some(Secret::new(text)))
             .map_err(|_| SecretError::Corrupt)
     }
