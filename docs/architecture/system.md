@@ -111,6 +111,7 @@ Dependency rules (enforced by Cargo, and checked in CI):
 | `ToolRunner` | Run vetted developer-tool cleanup commands as the user | `lumen-devkb` |
 | `Store` | Persist scans, graph, decisions, ledger | `lumen-store-sqlite` |
 | `JudgeModel` | Optional evidence from AI | `lumen-jev` |
+| `SecretStore` | Credentials Lumen needs (the OpenRouter key), never in databases or logs | macOS Keychain, Windows Credential Manager |
 | `Clock`, `IdGenerator` | Deterministic time and IDs in tests | std / fakes |
 
 Ports for filesystem and OS inspection are **synchronous**. They run on the scan pool

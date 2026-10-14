@@ -179,7 +179,9 @@ only become more cautious (7.6). Lumen works fully with `NoopJudge`.
 | 8.7c | `feat(jev-eval): add golden dataset v2026.10.0` | fixtures and expected outcomes per docs/ai/datasets.md |
 | 8.8 | `feat(jev): map Jev decisions to judgments` | ADR-0031: Decisions API request (state + `assessment`/`reason`/`injection` questions) and strict answer mapping onto `Judgment`, tested offline |
 | 8.9 | `feat(jev): add OpenRouter transport` | `JevJudge` over HTTPS (ureq + rustls with the OS trust store), 30 s timeout, 64 KiB answer cap; the caller supplies the API key |
-| 8.10 | `feat(platform): store the OpenRouter key in the OS keychain` | macOS Keychain (Security framework) and Windows Credential Manager through existing platform bindings; never logged |
+| 8.10 | `feat(application): add SecretStore port` | fixed secret names, redacted `Secret`, `MemorySecretStore` in testkit |
+| 8.10b | `feat(platform-macos): store secrets in the keychain` | Security framework generic-password items; real-keychain test opt-in |
+| 8.10c | `feat(platform-windows): store secrets in Credential Manager` | `CredWriteW`/`CredReadW`/`CredDeleteW` generic credentials |
 
 ## Later phases (outline)
 

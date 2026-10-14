@@ -1,5 +1,5 @@
 //! Ports: time, identifiers, directory enumeration, verification, change feeds,
-//! inventory, in-use probes and the optional AI judge.
+//! inventory, in-use probes, the optional AI judge and secret storage.
 
 use std::future::Future;
 use std::ops::ControlFlow;
@@ -308,6 +308,81 @@ pub trait InUseProbe: Send + Sync {
     fn probe(&self, path: &RawPath, expected: &FileIdentity) -> InUse;
 }
 
+/// Which secret a [`SecretStore`] holds. Names are fixed in code, so no input
+/// can choose which credential is read or overwritten.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SecretName(&'static str);
+
+impl SecretName {
+    /// The user's `OpenRouter` API key for Jev (ADR-0031).
+    pub const OPENROUTER_API_KEY: Self = Self("openrouter-api-key");
+
+    /// The name as stored (the account of a keychain item).
+    pub const fn as_str(self) -> &'static str {
+        self.0
+    }
+}
+
+/// A secret value. Its `Debug` output never shows it; read it with
+/// [`Secret::expose`] only where it is used.
+#[derive(Clone, PartialEq, Eq)]
+pub struct Secret(String);
+
+impl Secret {
+    /// Wraps a value.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    /// The value.
+    pub fn expose(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for Secret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Secret(redacted)")
+    }
+}
+
+/// Why a secret could not be read or written.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
+pub enum SecretError {
+    /// The platform store refused or failed (locked keychain, no access, …).
+    #[error("the secret store is unavailable: {0}")]
+    Unavailable(&'static str),
+    /// A stored value is not valid UTF-8 text.
+    #[error("the stored secret is not valid text")]
+    Corrupt,
+}
+
+/// The operating system's credential store (macOS Keychain, Windows Credential
+/// Manager). Secrets never go to Lumen's databases or logs.
+pub trait SecretStore: Send + Sync {
+    /// The secret, or `None` if none is stored.
+    ///
+    /// # Errors
+    ///
+    /// [`SecretError`] if the store cannot be read.
+    fn get(&self, name: SecretName) -> Result<Option<Secret>, SecretError>;
+
+    /// Stores `secret`, replacing any previous value.
+    ///
+    /// # Errors
+    ///
+    /// [`SecretError`] if the store cannot be written.
+    fn set(&self, name: SecretName, secret: &Secret) -> Result<(), SecretError>;
+
+    /// Removes the secret; `false` if there was none.
+    ///
+    /// # Errors
+    ///
+    /// [`SecretError`] if the store cannot be written.
+    fn delete(&self, name: SecretName) -> Result<bool, SecretError>;
+}
+
 /// Why a judge produced no usable judgment. Every variant means the same thing
 /// to the caller: decide without Jev (docs/ai/architecture.md).
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -379,6 +454,18 @@ mod tests {
         assert_dyn_send_sync::<dyn InventorySource>();
         assert_dyn_send_sync::<dyn InUseProbe>();
         assert_dyn_send_sync::<dyn JudgeModel>();
+        assert_dyn_send_sync::<dyn SecretStore>();
+    }
+
+    #[test]
+    fn secrets_never_print() {
+        let secret = Secret::new("sk-or-very-secret");
+        assert_eq!(format!("{secret:?}"), "Secret(redacted)");
+        assert_eq!(secret.expose(), "sk-or-very-secret");
+        assert_eq!(
+            SecretName::OPENROUTER_API_KEY.as_str(),
+            "openrouter-api-key"
+        );
     }
 
     #[test]

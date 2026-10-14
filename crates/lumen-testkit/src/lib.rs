@@ -1,5 +1,5 @@
-//! Test support: declarative fixture directory trees, and a scripted
-//! [`MockJudge`] for code that consults Jev.
+//! Test support: declarative fixture directory trees, a scripted [`MockJudge`]
+//! for code that consults Jev, and an in-memory [`MemorySecretStore`].
 //!
 //! Every test that touches a filesystem uses a [`Fixture`]: a fresh temporary
 //! directory populated from a list of [`Node`]s. Destructive behaviour is only ever
@@ -15,8 +15,10 @@
 #![forbid(unsafe_code)]
 
 mod judge;
+mod secrets;
 
 pub use judge::MockJudge;
+pub use secrets::MemorySecretStore;
 
 use std::fs::{self, File, FileTimes};
 use std::path::{Component, Path, PathBuf};
