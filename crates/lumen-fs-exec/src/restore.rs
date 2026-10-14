@@ -75,6 +75,8 @@ impl RestoreError {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Restored {
     /// The original parent was replaced by another directory at its path.
+    /// Informational and best effort: identity is `(dev, ino)`, and a parent
+    /// recreated after the old one was freed may reuse its inode number.
     pub parent_replaced: bool,
 }
 
@@ -220,6 +222,10 @@ mod tests {
     fn a_recreated_parent_is_reported_and_a_linked_one_refused() {
         let (_fx, root, store) = setup();
         let item = quarantined(&root, &store, "cache/app/data.bin", "item-1");
+        // Holding the old parent open keeps its inode number from being reused
+        // by the recreated one (Linux reuses freed inodes at once).
+        let _old_parent =
+            std::fs::File::open(root.join("cache/app")).unwrap_or_else(|e| unreachable!("{e}"));
         #[allow(
             clippy::disallowed_methods,
             reason = "test fixture inside its own temporary directory"
