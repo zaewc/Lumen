@@ -154,7 +154,7 @@ fn links(stat: &Stat) -> u64 {
 }
 
 /// Whether `name` is one plain directory entry name.
-fn plain(name: &[u8]) -> bool {
+pub(crate) fn plain(name: &[u8]) -> bool {
     !name.is_empty() && name != b"." && name != b".." && !name.contains(&b'/') && !name.contains(&0)
 }
 
@@ -164,7 +164,7 @@ fn plain(name: &[u8]) -> bool {
 /// (`ELOOP`), including the root's own path, and it replaces `O_NOFOLLOW`:
 /// passing both fails with `EINVAL` (measured on macOS 26). Plan roots must
 /// therefore be canonical paths, which scan roots are.
-fn directory_flags() -> OFlags {
+pub(crate) fn directory_flags() -> OFlags {
     let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC;
     #[cfg(target_vendor = "apple")]
     let flags = flags | OFlags::NOFOLLOW_ANY;

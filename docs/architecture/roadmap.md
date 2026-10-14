@@ -207,7 +207,8 @@ re-verifies identity, and uses no-replace renames only. Any mismatch fails close
 | 9.6 | `feat(application): quarantine confirmed items` | `QuarantineExecutor` and `QuarantineJournal` ports; intent → in-use re-probe (ADR-0030 condition 4) → execute → journal outcome |
 | 9.6b | `feat(fs-exec): implement the quarantine executor` | `prepare` / `quarantine` / `locate` over verify, move and sidecar (Unix); ledger journal adapter |
 | 9.6c | `feat(application): reconcile unfinished operations` | on startup, resolve journaled/moved/verified operations by locating each item: at the source fails, moved but unverified fails in the store (rolled back by restore), verified is retained; unknown or contradicting stays untouched for the user |
-| 9.7 | `feat(fs-exec): restore quarantined items` | no-replace rename back; conflicts asked, never overwritten |
+| 9.7 | `feat(fs-exec): restore quarantined items` | the item must still match its record; the original parent is reached by handle without links on the store's volume (a recreated parent is reported); no-replace rename back, `fsync`, verification; a taken name is a conflict for the user, never overwritten |
+| 9.7b | `feat(application): restore quarantined items` | `QuarantineExecutor::restore` port and executor method; journal `Restore` for retained items and items failed in the store (reconciliation's roll-backs) |
 | 9.8 | `feat(fs-exec): finalize after retention` | permanent removal only inside the store, by handle, recorded |
 | 9.9 | `test(fs-exec): add race, name and fault-injection suites` | symlink flips mid-execution, NFC/NFD and case twins, RTLO/newline names, hard links, read-only, open files, faults at every step |
 | 9.10 | `feat(fs-exec): add the Windows executor` | handle-relative walk, `FileRenameInfoEx` without replace, `FILE_FLAG_OPEN_REPARSE_POINT` |

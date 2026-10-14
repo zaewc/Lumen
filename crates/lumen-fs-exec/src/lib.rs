@@ -10,8 +10,9 @@
 //! So far: [`verify`] re-checks a plan item by handle, and [`open_store`] opens
 //! or creates a private, same-volume quarantine store, and [`move_into`] renames
 //! a verified item into it without replacing anything, and [`write_sidecar`]
-//! stores its manifest next to it (Unix). Restores and finalization follow
-//! (roadmap 9.7–9.8), then the Windows executor (9.10).
+//! stores its manifest next to it, and [`restore`] moves it back without
+//! replacing anything (Unix). Finalization follows (roadmap 9.8), then the
+//! Windows executor (9.10).
 
 #![forbid(unsafe_code)]
 
@@ -19,6 +20,8 @@
 mod executor;
 #[cfg(unix)]
 mod move_into;
+#[cfg(unix)]
+mod restore;
 #[cfg(unix)]
 mod sidecar;
 #[cfg(unix)]
@@ -30,6 +33,8 @@ mod verify;
 pub use executor::Executor;
 #[cfg(unix)]
 pub use move_into::{Left, MoveError, move_into};
+#[cfg(unix)]
+pub use restore::{RestoreError, Restored, restore};
 #[cfg(unix)]
 pub use sidecar::{MAX_SIDECAR_BYTES, SidecarError, read_sidecar, write_sidecar};
 #[cfg(unix)]

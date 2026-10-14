@@ -123,7 +123,7 @@ pub fn move_into(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::io::Write as _;
     use std::os::unix::fs::PermissionsExt as _;
     use std::path::{Path, PathBuf};
@@ -135,7 +135,7 @@ mod tests {
     use crate::verify::{PlanItem, identity, verify};
 
     /// A private fixture with `cache/app/data.bin`, `cache/dir/x` and a store.
-    fn setup() -> (Fixture, PathBuf, Store) {
+    pub(crate) fn setup() -> (Fixture, PathBuf, Store) {
         let fx = Fixture::build(&[
             Node::File {
                 path: "cache/app/data.bin".into(),
@@ -168,7 +168,7 @@ mod tests {
     }
 
     /// The plan for `relative` (`cache/<name>`) as it is now.
-    fn plan(root: &Path, relative: &str) -> PlanItem {
+    pub(crate) fn plan(root: &Path, relative: &str) -> PlanItem {
         let (parent, leaf) = relative.rsplit_once('/').unwrap_or_else(|| unreachable!());
         let leaf_stat = stat(&root.join(relative));
         let is_dir = rustix::fs::FileType::from_raw_mode(leaf_stat.st_mode)
