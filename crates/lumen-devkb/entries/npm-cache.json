@@ -1,0 +1,37 @@
+{
+  "id": "npm-cache",
+  "tool": "npm",
+  "locations": [
+    {
+      "platforms": ["macos", "linux"],
+      "root": { "kind": "home" },
+      "path": ".npm/_cacache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "local_app_data" },
+      "path": "npm-cache/_cacache"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "npm_config_cache" },
+      "path": "_cacache"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "NPM_CONFIG_CACHE" },
+      "path": "_cacache"
+    }
+  ],
+  "safety_class": "tool_action",
+  "regeneration": { "effort": "minutes", "network": true },
+  "official_action": {
+    "program": "npm",
+    "args": ["cache", "clean", "--force"]
+  },
+  "sources": [
+    "https://docs.npmjs.com/cli/v12/commands/npm-cache",
+    "https://docs.npmjs.com/cli/v12/using-npm/config#environment-variables"
+  ],
+  "last_verified": "2026-10-14"
+}

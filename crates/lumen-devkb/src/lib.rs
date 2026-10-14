@@ -44,6 +44,7 @@ const BUILTIN: &[(&str, &str)] = &[
         "homebrew-download-cache.json",
         include_str!("../entries/homebrew-download-cache.json"),
     ),
+    ("npm-cache.json", include_str!("../entries/npm-cache.json")),
     (
         "pnpm-store.json",
         include_str!("../entries/pnpm-store.json"),
