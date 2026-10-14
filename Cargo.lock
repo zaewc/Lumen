@@ -667,6 +667,8 @@ version = "0.0.0"
 dependencies = [
  "lumen-domain",
  "proptest",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

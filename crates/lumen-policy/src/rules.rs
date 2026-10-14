@@ -12,6 +12,11 @@ use crate::{Finding, PolicyInput, Rule};
 /// Every rule the policy evaluates.
 pub(crate) const RULES: &[Rule] = &[
     Rule {
+        id: "protect.location",
+        stage: PolicyStage::HardProtection,
+        check: crate::locations::check,
+    },
+    Rule {
         id: "protect.os-protected",
         stage: PolicyStage::HardProtection,
         check: os_protected,
@@ -59,6 +64,7 @@ fn keep_if(evidence: BTreeSet<EvidenceId>, risk: RiskFactor) -> Option<Finding> 
         verdict: Verdict::Keep,
         evidence,
         risk: BTreeSet::from([risk]),
+        rule: None,
     })
 }
 
@@ -127,6 +133,7 @@ fn in_use_unknown(input: &PolicyInput) -> Option<Finding> {
         verdict: Verdict::Keep,
         evidence: BTreeSet::new(),
         risk: BTreeSet::from([RiskFactor::IncompleteCoverage]),
+        rule: None,
     })
 }
 
@@ -165,6 +172,11 @@ mod tests {
         evaluate(&PolicyInput {
             subject: file(1),
             evidence_hash: EvidenceHash::from_bytes([0; 32]),
+            paths: Vec::new(),
+            context: crate::Context {
+                platform: lumen_domain::Platform::Linux,
+                windows_dir: None,
+            },
             evidence: facts.iter().map(|f| fact(file(1), f.clone())).collect(),
         })
     }
@@ -251,6 +263,11 @@ mod tests {
         let decision = evaluate(&PolicyInput {
             subject: file(1),
             evidence_hash: EvidenceHash::from_bytes([0; 32]),
+            paths: Vec::new(),
+            context: crate::Context {
+                platform: lumen_domain::Platform::Linux,
+                windows_dir: None,
+            },
             evidence: vec![
                 fact(file(1), NOT_IN_USE),
                 fact(file(2), Fact::InUse(true)),
@@ -267,12 +284,17 @@ mod tests {
         let decision = evaluate(&PolicyInput {
             subject: file(1),
             evidence_hash: EvidenceHash::from_bytes([0; 32]),
+            paths: Vec::new(),
+            context: crate::Context {
+                platform: lumen_domain::Platform::Linux,
+                windows_dir: None,
+            },
             evidence: vec![used.clone()],
         })?;
         let rule = decision
             .fired_rules()
             .first()
-            .ok_or(PolicyError::RuleId("none"))?;
+            .ok_or_else(|| PolicyError::RuleId("none".into()))?;
         assert_eq!(rule.evidence, BTreeSet::from([used.id()]));
         Ok(())
     }

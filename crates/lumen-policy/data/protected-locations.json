@@ -1,0 +1,87 @@
+[
+  {
+    "id": "macos-sip-system",
+    "platforms": ["macos"],
+    "root": "filesystem",
+    "path": "System",
+    "source": "https://support.apple.com/en-us/102149"
+  },
+  {
+    "id": "macos-sip-usr",
+    "platforms": ["macos"],
+    "root": "filesystem",
+    "path": "usr",
+    "except": ["usr/local"],
+    "source": "https://support.apple.com/en-us/102149"
+  },
+  {
+    "id": "macos-sip-bin",
+    "platforms": ["macos"],
+    "root": "filesystem",
+    "path": "bin",
+    "source": "https://support.apple.com/en-us/102149"
+  },
+  {
+    "id": "macos-sip-sbin",
+    "platforms": ["macos"],
+    "root": "filesystem",
+    "path": "sbin",
+    "source": "https://support.apple.com/en-us/102149"
+  },
+  {
+    "id": "macos-sip-var-db",
+    "platforms": ["macos"],
+    "root": "filesystem",
+    "path": "private/var/db",
+    "source": "https://support.apple.com/en-us/102149"
+  },
+  {
+    "id": "windows-component-store",
+    "platforms": ["windows"],
+    "root": "windows_dir",
+    "path": "WinSxS",
+    "source": "https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/clean-up-the-winsxs-folder"
+  },
+  {
+    "id": "windows-system32",
+    "platforms": ["windows"],
+    "root": "windows_dir",
+    "path": "System32",
+    "source": "https://learn.microsoft.com/en-us/windows/win32/winprog64/file-system-redirector"
+  },
+  {
+    "id": "windows-syswow64",
+    "platforms": ["windows"],
+    "root": "windows_dir",
+    "path": "SysWOW64",
+    "source": "https://learn.microsoft.com/en-us/windows/win32/winprog64/file-system-redirector"
+  },
+  {
+    "id": "windows-installer-cache",
+    "platforms": ["windows"],
+    "root": "windows_dir",
+    "path": "Installer",
+    "source": "https://learn.microsoft.com/en-us/troubleshoot/sql/database-engine/install/windows/restore-missing-windows-installer-cache-files"
+  },
+  {
+    "id": "windows-update-datastore",
+    "platforms": ["windows"],
+    "root": "windows_dir",
+    "path": "SoftwareDistribution/DataStore",
+    "source": "https://learn.microsoft.com/en-us/troubleshoot/windows-client/installing-updates-features-roles/additional-resources-for-windows-update"
+  },
+  {
+    "id": "windows-page-file",
+    "platforms": ["windows"],
+    "root": "volume",
+    "path": "pagefile.sys",
+    "source": "https://learn.microsoft.com/en-us/troubleshoot/windows-client/performance/introduction-to-the-page-file"
+  },
+  {
+    "id": "windows-hibernation-file",
+    "platforms": ["windows"],
+    "root": "volume",
+    "path": "hiberfil.sys",
+    "source": "https://learn.microsoft.com/en-us/troubleshoot/windows-client/setup-upgrade-and-drivers/disable-and-re-enable-hibernation"
+  }
+]

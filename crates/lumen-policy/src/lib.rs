@@ -20,18 +20,29 @@
 
 #![forbid(unsafe_code)]
 
+mod locations;
 mod rules;
 
 use std::collections::BTreeSet;
 
 use lumen_domain::{
-    DecisionError, Evidence, EvidenceHash, EvidenceId, FiredRule, JevEffect, PolicyDecision,
-    PolicyStage, PolicyVersion, Risk, RiskFactor, RiskLevel, RuleId, Subject, Verdict,
+    DecisionError, Evidence, EvidenceHash, EvidenceId, FiredRule, JevEffect, Platform,
+    PolicyDecision, PolicyStage, PolicyVersion, RawPath, Risk, RiskFactor, RiskLevel, RuleId,
+    Subject, Verdict,
 };
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
-pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 2, 0);
+pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 3, 0);
+
+/// The machine a decision is made on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Context {
+    /// The running platform.
+    pub platform: Platform,
+    /// The Windows directory (`%WINDIR%`), on Windows.
+    pub windows_dir: Option<RawPath>,
+}
 
 /// Everything the policy may look at for one subject.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,6 +53,11 @@ pub struct PolicyInput {
     pub evidence_hash: EvidenceHash,
     /// The evidence in that bundle.
     pub evidence: Vec<Evidence>,
+    /// Paths the subject was observed at. They can only add protection; actions
+    /// use identities.
+    pub paths: Vec<RawPath>,
+    /// The machine.
+    pub context: Context,
 }
 
 /// Why no decision could be made.
@@ -49,7 +65,7 @@ pub struct PolicyInput {
 pub enum PolicyError {
     /// A rule has an invalid identifier (a programming error the tests catch).
     #[error("rule `{0}` has an invalid identifier")]
-    RuleId(&'static str),
+    RuleId(String),
     /// The decision broke the domain's contract (a programming error).
     #[error(transparent)]
     Decision(#[from] DecisionError),
@@ -65,6 +81,9 @@ pub(crate) struct Finding {
     pub(crate) evidence: BTreeSet<EvidenceId>,
     /// Why the item carries risk.
     pub(crate) risk: BTreeSet<RiskFactor>,
+    /// A more specific identifier for this firing (e.g. the protected location
+    /// that matched), recorded instead of the rule's own.
+    pub(crate) rule: Option<String>,
 }
 
 /// One rule.
@@ -101,9 +120,14 @@ fn risk(factors: BTreeSet<RiskFactor>) -> Risk {
     Risk { level, factors }
 }
 
-fn fired(rule: &Rule, evidence: BTreeSet<EvidenceId>) -> Result<FiredRule, PolicyError> {
+fn fired(
+    rule: &Rule,
+    specific: Option<String>,
+    evidence: BTreeSet<EvidenceId>,
+) -> Result<FiredRule, PolicyError> {
+    let id = specific.unwrap_or_else(|| rule.id.to_owned());
     Ok(FiredRule {
-        rule: RuleId::new(rule.id).map_err(|_| PolicyError::RuleId(rule.id))?,
+        rule: RuleId::new(id.clone()).map_err(|_| PolicyError::RuleId(id))?,
         stage: rule.stage,
         evidence,
     })
@@ -129,7 +153,7 @@ pub(crate) fn evaluate_with(
         let mut verdicts = Vec::new();
         for rule in rules.iter().filter(|r| r.stage == stage) {
             if let Some(finding) = (rule.check)(input) {
-                trace.push(fired(rule, finding.evidence)?);
+                trace.push(fired(rule, finding.rule, finding.evidence)?);
                 factors.extend(finding.risk);
                 verdicts.push(finding.verdict);
             }
@@ -150,6 +174,7 @@ pub(crate) fn evaluate_with(
                     stage: PolicyStage::Classification,
                     check: |_| None,
                 },
+                None,
                 BTreeSet::new(),
             )?);
         }
@@ -202,6 +227,11 @@ mod tests {
             subject: subject(),
             evidence_hash: EvidenceHash::from_bytes([7; 32]),
             evidence,
+            paths: Vec::new(),
+            context: Context {
+                platform: Platform::Linux,
+                windows_dir: None,
+            },
         }
     }
 
@@ -222,6 +252,7 @@ mod tests {
                 verdict,
                 evidence: used,
                 risk: risk.clone(),
+                rule: None,
             })
         }
     }
@@ -240,6 +271,7 @@ mod tests {
             verdict: Verdict::Quarantine,
             evidence: BTreeSet::new(),
             risk: BTreeSet::new(),
+            rule: None,
         })
     }
 
@@ -249,6 +281,7 @@ mod tests {
             verdict: Verdict::Review,
             evidence: BTreeSet::new(),
             risk: BTreeSet::from([RiskFactor::UnknownOwner]),
+            rule: None,
         })
     }
 
@@ -296,7 +329,7 @@ mod tests {
         let first = decision
             .fired_rules()
             .first()
-            .ok_or(PolicyError::RuleId("none"))?;
+            .ok_or_else(|| PolicyError::RuleId("none".into()))?;
         assert_eq!(first.evidence, BTreeSet::from([used.id()]));
         assert_eq!(decision.risk().level, RiskLevel::High);
 
@@ -358,7 +391,7 @@ mod tests {
         let rules = [rule("Bad Id", PolicyStage::HardProtection, protect)];
         assert_eq!(
             evaluate_with(&rules, &input(vec![evidence(Fact::InUse(true))])),
-            Err(PolicyError::RuleId("Bad Id"))
+            Err(PolicyError::RuleId("Bad Id".into()))
         );
     }
 
