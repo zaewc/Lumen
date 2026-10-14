@@ -41,6 +41,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/gradle-user-home-caches.json"),
     ),
     (
+        "homebrew-download-cache.json",
+        include_str!("../entries/homebrew-download-cache.json"),
+    ),
+    (
         "pnpm-store.json",
         include_str!("../entries/pnpm-store.json"),
     ),

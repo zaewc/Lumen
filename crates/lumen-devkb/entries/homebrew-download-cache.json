@@ -1,0 +1,38 @@
+{
+  "id": "homebrew-download-cache",
+  "tool": "Homebrew",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/Homebrew"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/Homebrew"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "env_var", "name": "XDG_CACHE_HOME" },
+      "path": "Homebrew"
+    },
+    {
+      "platforms": ["macos", "linux"],
+      "root": { "kind": "env_var", "name": "HOMEBREW_CACHE" },
+      "path": ""
+    }
+  ],
+  "safety_class": "tool_action",
+  "regeneration": { "effort": "minutes", "network": true },
+  "official_action": {
+    "program": "brew",
+    "args": ["cleanup"],
+    "dry_run_args": ["cleanup", "--dry-run"]
+  },
+  "sources": [
+    "https://docs.brew.sh/Manpage#cleanup-options-formulacask-",
+    "https://docs.brew.sh/Manpage#environment"
+  ],
+  "last_verified": "2026-10-13"
+}
