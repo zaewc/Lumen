@@ -9,8 +9,8 @@ use std::pin::Pin;
 use lumen_domain::{
     AccessState, Application, FileIdentity, FilesystemEntry, ItemLocation, JevRequest,
     JudgeDescriptor, Judgment, JudgmentRejection, OperationId, Package, PlanId, Process,
-    QuarantineEvent, QuarantineFailure, RawPath, ScanId, Service, SnapshotId, SourceName,
-    SourceStatus, Timestamp, VolumeId,
+    QuarantineEvent, QuarantineFailure, QuarantineState, RawPath, ScanId, Service, SnapshotId,
+    SourceName, SourceStatus, Timestamp, VolumeId,
 };
 
 use crate::CancelToken;
@@ -376,6 +376,17 @@ pub trait QuarantineExecutor: Send + Sync {
 #[error("the quarantine journal is unavailable")]
 pub struct JournalError;
 
+/// An operation that stopped between its intent and retention.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Unfinished {
+    /// The operation.
+    pub operation: OperationId,
+    /// The state its journal reached.
+    pub state: QuarantineState,
+    /// The prepared item recorded with its intent.
+    pub item: PreparedItem,
+}
+
 /// The durable quarantine journal (ADR-0015), implemented by the ledger store.
 pub trait QuarantineJournal: Send {
     /// Appends `event` for `operation` with the executor's `detail` (JSON),
@@ -390,6 +401,14 @@ pub trait QuarantineJournal: Send {
         event: QuarantineEvent,
         detail: &[u8],
     ) -> Result<(), JournalError>;
+
+    /// Operations stopped after their intent and before retention, for startup
+    /// reconciliation.
+    ///
+    /// # Errors
+    ///
+    /// A [`JournalError`] if the journal cannot be read or is corrupt.
+    fn unfinished(&self) -> Result<Vec<Unfinished>, JournalError>;
 }
 
 /// Which secret a [`SecretStore`] holds. Names are fixed in code, so no input

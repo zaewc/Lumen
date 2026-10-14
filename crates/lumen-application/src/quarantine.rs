@@ -175,6 +175,10 @@ mod tests {
             self.events.push(event);
             Ok(())
         }
+
+        fn unfinished(&self) -> Result<Vec<crate::ports::Unfinished>, JournalError> {
+            Ok(Vec::new())
+        }
     }
 
     struct Probe(InUse);

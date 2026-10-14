@@ -28,7 +28,7 @@ use rusqlite::config::DbConfig;
 use rusqlite_migration::{M, Migrations};
 
 pub use index::{IndexStore, RootSnapshot};
-pub use ledger::{JournalEntry, LedgerStore};
+pub use ledger::{JournalEntry, LedgerJournal, LedgerStore};
 pub use writer::{IndexWriter, WriteStats, WriterConfig};
 
 /// How long a connection waits for a lock held by another connection.

@@ -6,8 +6,10 @@
 //! reported, never returned.
 
 mod journal;
+mod port;
 
 pub use journal::JournalEntry;
+pub use port::LedgerJournal;
 
 use lumen_domain::{EvidenceHash, JevTrace, PayloadHash, Timestamp};
 use rusqlite::{Connection, params};
