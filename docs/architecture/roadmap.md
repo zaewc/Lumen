@@ -198,7 +198,8 @@ re-verifies identity, and uses no-replace renames only. Any mismatch fails close
 | # | PR title | Content |
 | --- | --- | --- |
 | 9.1 | `feat(fs-exec): verify plan items by handle` | crate; `PlanItem`; Unix handle walk (`openat` `O_NOFOLLOW`/`O_NOFOLLOW_ANY`, `O_DIRECTORY`), leaf `fstatat(AT_SYMLINK_NOFOLLOW)`; identity, type, size and time comparison; read-only |
-| 9.2 | `feat(fs-exec): open per-volume quarantine stores` | store location per ADR-0015, owner-only creation by handle, same-volume check, backup and index exclusion |
+| 9.2 | `feat(fs-exec): open per-volume quarantine stores` | created by handle with mode 0700, never through links; owner, permission and same-volume checks; planted directories refused, never repaired |
+| 9.2b | `feat(fs-exec): exclude stores from backups and indexing` | Time Machine and Spotlight exclusion (macOS), with official sources |
 | 9.3 | `feat(fs-exec): move items into quarantine` | `renameat_with(NOREPLACE)` between verified handles, directory `fsync`, post-move verification |
 | 9.4 | `feat(store): journal quarantine operations` | `ledger.db` intent and completion records (`synchronous=FULL`) |
 | 9.5 | `feat(fs-exec): write quarantine manifests` | per-item manifest and sidecar in the store |
