@@ -9,6 +9,8 @@
 
 pub mod apps;
 pub mod cleanup;
+#[cfg(windows)]
+mod credentials;
 pub mod dirinfo;
 pub mod entry;
 #[cfg(windows)]
@@ -28,6 +30,8 @@ mod sys;
 mod watcher;
 pub mod winpath;
 
+#[cfg(windows)]
+pub use credentials::{CredentialStore, TARGET_PREFIX as CREDENTIAL_PREFIX};
 #[cfg(windows)]
 pub use handle::HandleEnumerator;
 #[cfg(windows)]

@@ -67,6 +67,9 @@ jobs:
       - name: Credential store tests
         if: runner.os == 'macOS'
         run: cargo nextest run -p lumen-platform-macos --locked --run-ignored ignored-only
+      - name: Credential store tests
+        if: runner.os == 'Windows'
+        run: cargo nextest run -p lumen-platform-windows --locked --run-ignored ignored-only
       - name: Doctests
         run: cargo test --workspace --doc --locked
 
