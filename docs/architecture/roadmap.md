@@ -134,7 +134,9 @@ call yet:
 | 6.16 | `feat(devkb): match entries against scanned entries` | resolve entry locations per platform and environment; `KnowledgeBaseMatch` evidence |
 | 6.17 | `docs(graph): document evidence graph` | `docs/architecture/evidence-graph.md` |
 
-## Phase 7: Policy
+## Phase 7: Policy (complete)
+
+Open items, each waiting on sources or evidence, are noted in 7.3b, 7.4 and 7.11.
 
 `lumen-policy` turns an evidence bundle into a `PolicyDecision`
 ([ADR-0014](../decisions/0014-deterministic-safety-policy-engine.md)). It is IO-free,
@@ -158,11 +160,25 @@ policy never depends on an adapter), and when uncertain it answers `REVIEW` or
 | 7.10 | `feat(policy): review orphaned leftovers` | owner's absence trusted only from completely read inventories → `REVIEW` only (`classify.orphan`); finding candidates across the graph is application-layer work (Phase 10) |
 | 7.11 | `feat(policy): accept partial in-use answers under ADR-0030` | below the user's home, `OwnedByCurrentUser(true)` and nothing contradicting it, quarantine rename available; recorded as `eligible.in-use-partial`; the executor's re-probe lands with Phase 9; ownership producers with Phase 10 |
 
+## Phase 8: Jev
+
+Jev contributes evidence only ([ADR-0020](../decisions/0020-jev-evidence-only-judge.md),
+[docs/ai](../ai/architecture.md)): the policy consumes a validated `Judgment` and can
+only become more cautious (7.6). Lumen works fully with `NoopJudge`.
+
+| # | PR title | Content |
+| --- | --- | --- |
+| 8.1 | `feat(domain): add Jev request type` | `jev.request/1` (candidate summary, evidence items, coverage, `untrusted_strings`); schema export |
+| 8.2 | `feat(application): add JudgeModel port` | async `judge`, `descriptor`, `JudgeError`; `NoopJudge`; `MockJudge` in testkit |
+| 8.3 | `feat(jev): add request builder` | `lumen-jev`: bundle → request; path redaction (`~`, user names), escaped untrusted strings, decimal-string integers, no contents |
+| 8.4 | `feat(jev): add response validator` | stop reason, strict JSON (unknown fields rejected), enums, `Judgment::validate_for`, pinned model |
+| 8.5 | `feat(application): consult Jev for unprotected candidates` | only `REVIEW`/`QUARANTINE` candidates after stages 1–3; errors → proceed without Jev; trace |
+| 8.6 | `feat(store): persist Jev traces` | `ledger.db` `jev_traces` |
+| 8.7 | `feat(jev-eval): add replay and mock harness` | cassettes keyed by `(case_id, request_hash, model, prompt_version)`; gate report |
+| 8.8 | `feat(jev): add Anthropic judge` | tier 2, opt-in, metadata only; HTTP client choice recorded with the PR |
+
 ## Later phases (outline)
 
-- **Phase 8, Jev:** `JudgeModel` port, `NoopJudge`/`MockJudge`, request builder,
-  validator, trace, `lumen-jev-eval` with replay, datasets v2026.10.0, then
-  `AnthropicJudge`.
 - **Phase 9, Quarantine:** `lumen-fs-exec` (macOS, then Windows), journal, manifests,
   verification, rollback, retention, race and fault-injection suites.
 - **Phase 10, Platform integrations:** macOS end to end → Windows → Android
