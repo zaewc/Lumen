@@ -1,6 +1,7 @@
 [
   {
     "id": "macos-sip-system",
+    "kind": "system",
     "platforms": ["macos"],
     "root": "filesystem",
     "path": "System",
@@ -8,6 +9,7 @@
   },
   {
     "id": "macos-sip-usr",
+    "kind": "system",
     "platforms": ["macos"],
     "root": "filesystem",
     "path": "usr",
@@ -16,6 +18,7 @@
   },
   {
     "id": "macos-sip-bin",
+    "kind": "system",
     "platforms": ["macos"],
     "root": "filesystem",
     "path": "bin",
@@ -23,6 +26,7 @@
   },
   {
     "id": "macos-sip-sbin",
+    "kind": "system",
     "platforms": ["macos"],
     "root": "filesystem",
     "path": "sbin",
@@ -30,6 +34,7 @@
   },
   {
     "id": "macos-sip-var-db",
+    "kind": "system",
     "platforms": ["macos"],
     "root": "filesystem",
     "path": "private/var/db",
@@ -37,6 +42,7 @@
   },
   {
     "id": "windows-component-store",
+    "kind": "system",
     "platforms": ["windows"],
     "root": "windows_dir",
     "path": "WinSxS",
@@ -44,6 +50,7 @@
   },
   {
     "id": "windows-system32",
+    "kind": "system",
     "platforms": ["windows"],
     "root": "windows_dir",
     "path": "System32",
@@ -51,6 +58,7 @@
   },
   {
     "id": "windows-syswow64",
+    "kind": "system",
     "platforms": ["windows"],
     "root": "windows_dir",
     "path": "SysWOW64",
@@ -58,6 +66,7 @@
   },
   {
     "id": "windows-installer-cache",
+    "kind": "system",
     "platforms": ["windows"],
     "root": "windows_dir",
     "path": "Installer",
@@ -65,6 +74,7 @@
   },
   {
     "id": "windows-update-datastore",
+    "kind": "system",
     "platforms": ["windows"],
     "root": "windows_dir",
     "path": "SoftwareDistribution/DataStore",
@@ -72,6 +82,7 @@
   },
   {
     "id": "windows-page-file",
+    "kind": "system",
     "platforms": ["windows"],
     "root": "volume",
     "path": "pagefile.sys",
@@ -79,9 +90,74 @@
   },
   {
     "id": "windows-hibernation-file",
+    "kind": "system",
     "platforms": ["windows"],
     "root": "volume",
     "path": "hiberfil.sys",
     "source": "https://learn.microsoft.com/en-us/troubleshoot/windows-client/setup-upgrade-and-drivers/disable-and-re-enable-hibernation"
+  },
+  {
+    "id": "ssh",
+    "kind": "sensitive",
+    "platforms": ["macos", "linux"],
+    "root": "home",
+    "path": ".ssh",
+    "source": "https://man.openbsd.org/ssh#FILES"
+  },
+  {
+    "id": "ssh-windows",
+    "kind": "sensitive",
+    "platforms": ["windows"],
+    "root": "home",
+    "path": ".ssh",
+    "source": "https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement"
+  },
+  {
+    "id": "gnupg",
+    "kind": "sensitive",
+    "platforms": ["macos", "linux"],
+    "root": "home",
+    "path": ".gnupg",
+    "source": "https://www.gnupg.org/documentation/manuals/gnupg/GPG-Configuration.html"
+  },
+  {
+    "id": "macos-keychains",
+    "kind": "sensitive",
+    "platforms": ["macos"],
+    "root": "home",
+    "path": "Library/Keychains",
+    "source": "https://support.apple.com/guide/keychain-access/keychains-kyca1121/mac"
+  },
+  {
+    "id": "aws-cli",
+    "kind": "sensitive",
+    "platforms": ["macos", "windows", "linux"],
+    "root": "home",
+    "path": ".aws",
+    "source": "https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-where"
+  },
+  {
+    "id": "chrome-macos",
+    "kind": "sensitive",
+    "platforms": ["macos"],
+    "root": "home",
+    "path": "Library/Application Support/Google/Chrome",
+    "source": "https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md"
+  },
+  {
+    "id": "chrome-windows",
+    "kind": "sensitive",
+    "platforms": ["windows"],
+    "root": "local_app_data",
+    "path": "Google/Chrome/User Data",
+    "source": "https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md"
+  },
+  {
+    "id": "chrome-linux",
+    "kind": "sensitive",
+    "platforms": ["linux"],
+    "root": "home",
+    "path": ".config/google-chrome",
+    "source": "https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md"
   }
 ]

@@ -1,15 +1,17 @@
 //! Protected locations (roadmap 7.3, ADR-0014 stage 1).
 //!
-//! `data/protected-locations.json` lists operating-system locations whose
-//! contents Lumen must never touch, each with the official source that says
-//! so. An item at or below one of them is `Keep` (`protect.location.<id>`),
+//! `data/protected-locations.json` lists locations whose contents Lumen must
+//! never touch, each with the official source that documents it: operating-system
+//! locations (`system`) and credentials, keys and browser profiles
+//! (`sensitive`). An item at or below one of them is `Keep` (`protect.location.<id>`),
 //! unless it lies in one of the location's documented exceptions (e.g.
 //! `/usr/local`).
 //!
 //! The data is embedded and validated at first use. If it is invalid, every
-//! item is kept (`protect.location-data`), and so is every Windows item when the
-//! Windows directory is unknown (`protect.location-context`): a deny-list that
-//! cannot be checked must fail closed.
+//! item is kept (`protect.location-data`), and so is every item when a root the
+//! data needs (home; on Windows also the Windows and local app data directories)
+//! is unknown (`protect.location-context`): a deny-list that cannot be checked
+//! must fail closed.
 //!
 //! Paths are compared component by component, without case on macOS and
 //! Windows (their default volumes are case-insensitive), exactly elsewhere.
@@ -40,6 +42,20 @@ enum Root {
     WindowsDir,
     /// The root of any Windows volume (`C:\`).
     Volume,
+    /// The user's home directory.
+    Home,
+    /// Windows `FOLDERID_LocalAppData`.
+    LocalAppData,
+}
+
+/// What a location protects, which sets the risk recorded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum Kind {
+    /// Part of the operating system.
+    System,
+    /// Credentials, keys or a browser profile.
+    Sensitive,
 }
 
 /// One protected location.
@@ -47,6 +63,7 @@ enum Root {
 #[serde(deny_unknown_fields)]
 struct Location {
     id: String,
+    kind: Kind,
     platforms: BTreeSet<Platform>,
     root: Root,
     path: String,
@@ -67,7 +84,11 @@ fn safe_relative(path: &str) -> bool {
 }
 
 fn valid(location: &Location) -> bool {
-    let windows_root = matches!(location.root, Root::WindowsDir | Root::Volume);
+    let windows_root = matches!(
+        location.root,
+        Root::WindowsDir | Root::Volume | Root::LocalAppData
+    );
+    let any_root = location.root == Root::Home;
     let id_ok = (1..=47).contains(&location.id.len())
         && location.id.as_bytes()[0].is_ascii_lowercase()
         && location
@@ -79,7 +100,7 @@ fn valid(location: &Location) -> bool {
         && location
             .platforms
             .iter()
-            .all(|p| (*p == Platform::Windows) == windows_root)
+            .all(|p| any_root || (*p == Platform::Windows) == windows_root)
         && safe_relative(&location.path)
         && location.except.iter().all(|e| {
             safe_relative(e)
@@ -151,6 +172,14 @@ fn covers(location: &Location, names: &[String], input: &PolicyInput) -> bool {
             Some(dir) => components(dir, platform),
             None => return false,
         },
+        Root::Home => match &input.context.home {
+            Some(dir) => components(dir, platform),
+            None => return false,
+        },
+        Root::LocalAppData => match &input.context.local_app_data {
+            Some(dir) => components(dir, platform),
+            None => return false,
+        },
         Root::Volume => match names.first() {
             Some(drive) if drive.len() == 2 && drive.ends_with(':') => vec![drive.clone()],
             _ => return false,
@@ -166,19 +195,26 @@ fn covers(location: &Location, names: &[String], input: &PolicyInput) -> bool {
 
 /// `Keep` if any path of the subject is in a protected location.
 pub(crate) fn check(input: &PolicyInput) -> Option<Finding> {
-    let keep = |rule: String| Finding {
+    let keep = |rule: String, kind: Kind| Finding {
         verdict: Verdict::Keep,
         evidence: BTreeSet::new(),
-        risk: BTreeSet::from([RiskFactor::OsProtected]),
+        risk: BTreeSet::from([match kind {
+            Kind::System => RiskFactor::OsProtected,
+            Kind::Sensitive => RiskFactor::SensitiveData,
+        }]),
         rule: Some(rule),
     };
     let Some(locations) = locations() else {
-        return Some(keep(DATA_RULE.to_owned()));
+        return Some(keep(DATA_RULE.to_owned(), Kind::System));
     };
     let platform = input.context.platform;
-    // Without the Windows directory its protections could not be checked.
-    if platform == Platform::Windows && input.context.windows_dir.is_none() {
-        return Some(keep(CONTEXT_RULE.to_owned()));
+    let context = &input.context;
+    // Without these roots their protections could not be checked.
+    let windows = platform == Platform::Windows;
+    if context.home.is_none()
+        || windows && (context.windows_dir.is_none() || context.local_app_data.is_none())
+    {
+        return Some(keep(CONTEXT_RULE.to_owned(), Kind::System));
     }
     for path in &input.paths {
         let names = components(path, platform);
@@ -187,7 +223,7 @@ pub(crate) fn check(input: &PolicyInput) -> Option<Finding> {
             .filter(|l| l.platforms.contains(&platform))
             .find(|l| covers(l, &names, input))
         {
-            return Some(keep(format!("protect.location.{}", found.id)));
+            return Some(keep(format!("protect.location.{}", found.id), found.kind));
         }
     }
     None
@@ -195,27 +231,10 @@ pub(crate) fn check(input: &PolicyInput) -> Option<Finding> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use lumen_domain::{EvidenceHash, FileId, FileIdentity, Subject, VolumeId};
 
-    fn input(platform: Platform, windows_dir: Option<RawPath>, path: RawPath) -> PolicyInput {
-        PolicyInput {
-            subject: Subject::File {
-                identity: FileIdentity {
-                    volume: VolumeId::new("v").unwrap_or_else(|_| unreachable!()),
-                    file: FileId::new(1),
-                },
-            },
-            evidence_hash: EvidenceHash::from_bytes([0; 32]),
-            evidence: Vec::new(),
-            paths: vec![path],
-            context: crate::Context {
-                platform,
-                windows_dir,
-            },
-        }
-    }
+    use super::*;
+    use crate::Context;
 
     fn unix(path: &str) -> RawPath {
         RawPath::from_unix_bytes(path.as_bytes().to_vec()).unwrap_or_else(|_| unreachable!())
@@ -226,44 +245,80 @@ mod tests {
         RawPath::from_windows_wide(&wide).unwrap_or_else(|_| unreachable!())
     }
 
-    fn rule(input: &PolicyInput) -> Option<String> {
-        check(input).and_then(|f| f.rule)
+    /// A complete context for `platform`.
+    fn context(platform: Platform) -> Context {
+        match platform {
+            Platform::Windows => Context {
+                platform,
+                home: Some(windows(r"C:\Users\ana")),
+                windows_dir: Some(windows(r"C:\Windows")),
+                local_app_data: Some(windows(r"C:\Users\ana\AppData\Local")),
+            },
+            Platform::Macos => Context {
+                platform,
+                home: Some(unix("/Users/ana")),
+                windows_dir: None,
+                local_app_data: None,
+            },
+            _ => Context {
+                platform,
+                home: Some(unix("/home/ana")),
+                windows_dir: None,
+                local_app_data: None,
+            },
+        }
+    }
+
+    fn rule_at(context: Context, path: RawPath) -> Option<String> {
+        check(&PolicyInput {
+            subject: Subject::File {
+                identity: FileIdentity {
+                    volume: VolumeId::new("v").unwrap_or_else(|_| unreachable!()),
+                    file: FileId::new(1),
+                },
+            },
+            evidence_hash: EvidenceHash::from_bytes([0; 32]),
+            evidence: Vec::new(),
+            paths: vec![path],
+            context,
+        })
+        .and_then(|f| f.rule)
+    }
+
+    fn mac(path: &str) -> Option<String> {
+        rule_at(context(Platform::Macos), unix(path))
+    }
+
+    fn linux(path: &str) -> Option<String> {
+        rule_at(context(Platform::Linux), unix(path))
+    }
+
+    fn win(path: &str) -> Option<String> {
+        rule_at(context(Platform::Windows), windows(path))
     }
 
     #[test]
     fn macos_system_locations_are_kept_except_documented_exceptions() {
-        let mac = |p: &str| rule(&input(Platform::Macos, None, unix(p)));
+        let sip_usr = Some("protect.location.macos-sip-usr");
         assert_eq!(
             mac("/System/Library/Caches/x").as_deref(),
             Some("protect.location.macos-sip-system")
         );
-        assert_eq!(
-            mac("/USR/lib/x").as_deref(),
-            Some("protect.location.macos-sip-usr"),
-            "case-insensitive on macOS"
-        );
-        assert_eq!(
-            mac("/usr").as_deref(),
-            Some("protect.location.macos-sip-usr")
-        );
+        assert_eq!(mac("/USR/lib/x").as_deref(), sip_usr, "case-insensitive");
+        assert_eq!(mac("/usr").as_deref(), sip_usr);
         assert_eq!(mac("/usr/local/lib/x"), None, "documented exception");
-        assert_eq!(
-            mac("/usr/localx").as_deref(),
-            Some("protect.location.macos-sip-usr")
-        );
+        assert_eq!(mac("/usr/localx").as_deref(), sip_usr);
         assert_eq!(
             mac("/private/var/db/x").as_deref(),
             Some("protect.location.macos-sip-var-db")
         );
         assert_eq!(mac("/private/var/folders/x"), None);
         assert_eq!(mac("/Users/ana/System"), None, "anchored at the root");
-        assert_eq!(rule(&input(Platform::Linux, None, unix("/usr/lib"))), None);
+        assert_eq!(linux("/usr/lib"), None, "macOS-only entries");
     }
 
     #[test]
     fn windows_system_locations_are_kept() {
-        let dir = Some(windows(r"C:\Windows"));
-        let win = |p: &str| rule(&input(Platform::Windows, dir.clone(), windows(p)));
         assert_eq!(
             win(r"c:\windows\winsxs\amd64_x").as_deref(),
             Some("protect.location.windows-component-store")
@@ -280,11 +335,82 @@ mod tests {
         );
         assert_eq!(win(r"C:\data\pagefile.sys"), None);
         assert_eq!(win(r"C:\Windows\Temp\x"), None);
+    }
+
+    #[test]
+    fn credentials_keys_and_browser_profiles_are_kept() {
         assert_eq!(
-            rule(&input(Platform::Windows, None, windows(r"D:\data\x"))).as_deref(),
-            Some(CONTEXT_RULE),
-            "an unknown Windows directory keeps everything"
+            mac("/Users/ana/.ssh/id_ed25519").as_deref(),
+            Some("protect.location.ssh")
         );
+        assert_eq!(
+            linux("/home/ana/.gnupg").as_deref(),
+            Some("protect.location.gnupg")
+        );
+        assert_eq!(
+            mac("/Users/ana/Library/Keychains/login.keychain-db").as_deref(),
+            Some("protect.location.macos-keychains")
+        );
+        assert_eq!(
+            win(r"C:\Users\ana\.aws\credentials").as_deref(),
+            Some("protect.location.aws-cli")
+        );
+        assert_eq!(
+            mac("/Users/ana/Library/Application Support/Google/Chrome/Default").as_deref(),
+            Some("protect.location.chrome-macos")
+        );
+        assert_eq!(
+            win(r"C:\Users\ana\AppData\Local\Google\Chrome\User Data\Default").as_deref(),
+            Some("protect.location.chrome-windows")
+        );
+        assert_eq!(
+            linux("/home/ana/.config/google-chrome").as_deref(),
+            Some("protect.location.chrome-linux")
+        );
+        assert_eq!(mac("/Users/bob/.ssh"), None, "another user's home");
+        assert_eq!(
+            mac("/Users/ana/Library/Caches/Google/Chrome"),
+            None,
+            "caches"
+        );
+    }
+
+    #[test]
+    fn sensitive_locations_record_sensitive_risk() {
+        let finding = check(&PolicyInput {
+            subject: Subject::File {
+                identity: FileIdentity {
+                    volume: VolumeId::new("v").unwrap_or_else(|_| unreachable!()),
+                    file: FileId::new(1),
+                },
+            },
+            evidence_hash: EvidenceHash::from_bytes([0; 32]),
+            evidence: Vec::new(),
+            paths: vec![unix("/Users/ana/.ssh")],
+            context: context(Platform::Macos),
+        });
+        assert_eq!(
+            finding.map(|f| f.risk),
+            Some(BTreeSet::from([RiskFactor::SensitiveData]))
+        );
+    }
+
+    #[test]
+    fn unknown_roots_keep_everything() {
+        let anywhere = || windows(r"D:\data\x");
+        let mut no_windows_dir = context(Platform::Windows);
+        no_windows_dir.windows_dir = None;
+        let mut no_local_app_data = context(Platform::Windows);
+        no_local_app_data.local_app_data = None;
+        let mut homeless = context(Platform::Macos);
+        homeless.home = None;
+        for (context, path) in [
+            (no_windows_dir, anywhere()),
+            (no_local_app_data, anywhere()),
+            (homeless, unix("/tmp/x")),
+        ] {
+            assert_eq!(rule_at(context, path).as_deref(), Some(CONTEXT_RULE));
+        }
     }
 
     #[test]
@@ -295,84 +421,42 @@ mod tests {
 
     #[test]
     fn invalid_data_is_rejected() {
-        let entry = |id: &str,
-                     platforms: &str,
-                     root: &str,
-                     path: &str,
-                     except: &str,
-                     source: &str| {
-            format!(
-                r#"[{{"id":"{id}","platforms":[{platforms}],"root":"{root}","path":"{path}","except":[{except}],"source":"{source}"}}]"#
-            )
+        let entry = |fields: &[(&str, &str)]| {
+            let mut json = serde_json::json!({
+                "id": "a",
+                "kind": "system",
+                "platforms": ["macos"],
+                "root": "filesystem",
+                "path": "usr",
+                "except": ["usr/local"],
+                "source": "https://x.example",
+            });
+            for (key, value) in fields {
+                json[*key] = serde_json::from_str(value).unwrap_or_else(|_| unreachable!());
+            }
+            format!("[{json}]")
         };
-        let ok = entry(
-            "a",
-            r#""macos""#,
-            "filesystem",
-            "usr",
-            r#""usr/local""#,
-            "https://x.example",
-        );
+        let ok = entry(&[]);
         assert!(parse(&ok).is_some());
+        assert!(
+            parse(&entry(&[
+                ("root", r#""home""#),
+                ("platforms", r#"["windows"]"#)
+            ]))
+            .is_some()
+        );
         for bad in [
-            entry(
-                "A",
-                r#""macos""#,
-                "filesystem",
-                "usr",
-                "",
-                "https://x.example",
-            ),
-            entry("a", "", "filesystem", "usr", "", "https://x.example"),
-            entry(
-                "a",
-                r#""windows""#,
-                "filesystem",
-                "usr",
-                "",
-                "https://x.example",
-            ),
-            entry(
-                "a",
-                r#""macos""#,
-                "windows_dir",
-                "usr",
-                "",
-                "https://x.example",
-            ),
-            entry(
-                "a",
-                r#""macos""#,
-                "filesystem",
-                "../usr",
-                "",
-                "https://x.example",
-            ),
-            entry("a", r#""macos""#, "filesystem", "", "", "https://x.example"),
-            entry(
-                "a",
-                r#""macos""#,
-                "filesystem",
-                "usr",
-                r#""opt/local""#,
-                "https://x.example",
-            ),
-            entry(
-                "a",
-                r#""macos""#,
-                "filesystem",
-                "usr",
-                r#""usrlocal""#,
-                "https://x.example",
-            ),
-            entry(
-                "a",
-                r#""macos""#,
-                "filesystem",
-                "usr",
-                "",
-                "http://x.example",
-            ),
+            entry(&[("id", r#""A""#)]),
+            entry(&[("kind", r#""other""#)]),
+            entry(&[("platforms", "[]")]),
+            entry(&[("platforms", r#"["windows"]"#)]),
+            entry(&[("root", r#""windows_dir""#)]),
+            entry(&[("root", r#""local_app_data""#)]),
+            entry(&[("path", r#""../usr""#)]),
+            entry(&[("path", r#""""#)]),
+            entry(&[("except", r#"["opt/local"]"#)]),
+            entry(&[("except", r#"["usrlocal"]"#)]),
+            entry(&[("source", r#""http://x.example""#)]),
             format!("[{},{}]", &ok[1..ok.len() - 1], &ok[1..ok.len() - 1]),
             "not json".to_owned(),
         ] {

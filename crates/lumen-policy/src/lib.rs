@@ -33,15 +33,19 @@ use lumen_domain::{
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
-pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 3, 0);
+pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 4, 0);
 
 /// The machine a decision is made on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Context {
     /// The running platform.
     pub platform: Platform,
+    /// The user's home directory.
+    pub home: Option<RawPath>,
     /// The Windows directory (`%WINDIR%`), on Windows.
     pub windows_dir: Option<RawPath>,
+    /// Windows `FOLDERID_LocalAppData`, on Windows.
+    pub local_app_data: Option<RawPath>,
 }
 
 /// Everything the policy may look at for one subject.
@@ -230,7 +234,12 @@ mod tests {
             paths: Vec::new(),
             context: Context {
                 platform: Platform::Linux,
+                home: Some(
+                    RawPath::from_unix_bytes(b"/home/t".to_vec())
+                        .unwrap_or_else(|_| unreachable!()),
+                ),
                 windows_dir: None,
+                local_app_data: None,
             },
         }
     }

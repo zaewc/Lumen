@@ -175,7 +175,12 @@ mod tests {
             paths: Vec::new(),
             context: crate::Context {
                 platform: lumen_domain::Platform::Linux,
+                home: Some(
+                    lumen_domain::RawPath::from_unix_bytes(b"/home/t".to_vec())
+                        .unwrap_or_else(|_| unreachable!()),
+                ),
                 windows_dir: None,
+                local_app_data: None,
             },
             evidence: facts.iter().map(|f| fact(file(1), f.clone())).collect(),
         })
@@ -266,7 +271,12 @@ mod tests {
             paths: Vec::new(),
             context: crate::Context {
                 platform: lumen_domain::Platform::Linux,
+                home: Some(
+                    lumen_domain::RawPath::from_unix_bytes(b"/home/t".to_vec())
+                        .unwrap_or_else(|_| unreachable!()),
+                ),
                 windows_dir: None,
+                local_app_data: None,
             },
             evidence: vec![
                 fact(file(1), NOT_IN_USE),
@@ -287,7 +297,12 @@ mod tests {
             paths: Vec::new(),
             context: crate::Context {
                 platform: lumen_domain::Platform::Linux,
+                home: Some(
+                    lumen_domain::RawPath::from_unix_bytes(b"/home/t".to_vec())
+                        .unwrap_or_else(|_| unreachable!()),
+                ),
                 windows_dir: None,
+                local_app_data: None,
             },
             evidence: vec![used.clone()],
         })?;
