@@ -160,7 +160,9 @@ policy never depends on an adapter), and when uncertain it answers `REVIEW` or
 | 7.10 | `feat(policy): review orphaned leftovers` | owner's absence trusted only from completely read inventories → `REVIEW` only (`classify.orphan`); finding candidates across the graph is application-layer work (Phase 10) |
 | 7.11 | `feat(policy): accept partial in-use answers under ADR-0030` | below the user's home, `OwnedByCurrentUser(true)` and nothing contradicting it, quarantine rename available; recorded as `eligible.in-use-partial`; the executor's re-probe lands with Phase 9; ownership producers with Phase 10 |
 
-## Phase 8: Jev
+## Phase 8: Jev (complete)
+
+Live calibration and the consent UI wait for the composition root (Phase 10/11).
 
 Jev contributes evidence only ([ADR-0020](../decisions/0020-jev-evidence-only-judge.md),
 [docs/ai](../ai/architecture.md)): the policy consumes a validated `Judgment` and can
@@ -184,10 +186,31 @@ only become more cautious (7.6). Lumen works fully with `NoopJudge`.
 | 8.10b | `feat(platform-macos): store secrets in the keychain` | Security framework generic-password items; real-keychain test opt-in |
 | 8.10c | `feat(platform-windows): store secrets in Credential Manager` | `CredWriteW`/`CredReadW`/`CredDeleteW` generic credentials |
 
+## Phase 9: Quarantine
+
+`lumen-fs-exec` is the only crate that may move or delete user files
+([ADR-0015](../decisions/0015-quarantine-and-reversible-cleanup.md),
+[ADR-0016](../decisions/0016-single-handle-relative-executor.md)). It acts on plan
+items, not paths: it walks from a verified root handle without following links,
+re-verifies identity, and uses no-replace renames only. Any mismatch fails closed to
+`REVIEW`.
+
+| # | PR title | Content |
+| --- | --- | --- |
+| 9.1 | `feat(fs-exec): verify plan items by handle` | crate; `PlanItem`; Unix handle walk (`openat` `O_NOFOLLOW`/`O_NOFOLLOW_ANY`, `O_DIRECTORY`), leaf `fstatat(AT_SYMLINK_NOFOLLOW)`; identity, type, size and time comparison; read-only |
+| 9.2 | `feat(fs-exec): open per-volume quarantine stores` | store location per ADR-0015, owner-only creation by handle, same-volume check, backup and index exclusion |
+| 9.3 | `feat(fs-exec): move items into quarantine` | `renameat_with(NOREPLACE)` between verified handles, directory `fsync`, post-move verification |
+| 9.4 | `feat(store): journal quarantine operations` | `ledger.db` intent and completion records (`synchronous=FULL`) |
+| 9.5 | `feat(fs-exec): write quarantine manifests` | per-item manifest and sidecar in the store |
+| 9.6 | `feat(application): quarantine confirmed plans` | intent → re-probe in-use (ADR-0030) → move → verify → retain; startup reconciliation |
+| 9.7 | `feat(fs-exec): restore quarantined items` | no-replace rename back; conflicts asked, never overwritten |
+| 9.8 | `feat(fs-exec): finalize after retention` | permanent removal only inside the store, by handle, recorded |
+| 9.9 | `test(fs-exec): add race, name and fault-injection suites` | symlink flips mid-execution, NFC/NFD and case twins, RTLO/newline names, hard links, read-only, open files, faults at every step |
+| 9.10 | `feat(fs-exec): add the Windows executor` | handle-relative walk, `FileRenameInfoEx` without replace, `FILE_FLAG_OPEN_REPARSE_POINT` |
+| 9.11 | `chore(fs-exec): protect the executor` | CODEOWNERS and threat-model section |
+
 ## Later phases (outline)
 
-- **Phase 9, Quarantine:** `lumen-fs-exec` (macOS, then Windows), journal, manifests,
-  verification, rollback, retention, race and fault-injection suites.
 - **Phase 10, Platform integrations:** macOS end to end → Windows → Android
   (performance spike first) → iOS.
 - **Phase 11, UI:** JavaScript bootstrap (pnpm, Biome, TS 7, Turborepo), `apps/web`
