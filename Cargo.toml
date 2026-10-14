@@ -17,6 +17,7 @@ lumen-application = { path = "crates/lumen-application" }
 lumen-cli = { path = "crates/lumen-cli" }
 lumen-devkb = { path = "crates/lumen-devkb" }
 lumen-domain = { path = "crates/lumen-domain" }
+lumen-fs-exec = { path = "crates/lumen-fs-exec" }
 lumen-graph = { path = "crates/lumen-graph" }
 lumen-jev = { path = "crates/lumen-jev" }
 lumen-jev-eval = { path = "crates/lumen-jev-eval" }
@@ -44,6 +45,9 @@ proptest = "1.11.0"
 # Bundled SQLite guarantees the WAL-reset fix (ADR-0012); defaults add a wasm FFI we do not use.
 rusqlite = { version = "0.40.2", default-features = false, features = ["bundled", "cache"] }
 rusqlite_migration = "2.6.0"
+# Handle-relative filesystem calls for the executor (ADR-0016): openat, statat,
+# renameat with no-replace (renameatx_np on Apple, renameat2 on Linux).
+rustix = { version = "1.1.5", default-features = false, features = ["fs", "std"] }
 # TLS for the Jev transport (ADR-0031): ring provider, no default features.
 rustls = { version = "0.23.46", default-features = false, features = ["ring", "std", "tls12"] }
 schemars = "1.2.2"

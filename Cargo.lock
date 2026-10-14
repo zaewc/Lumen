@@ -734,6 +734,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumen-fs-exec"
+version = "0.0.0"
+dependencies = [
+ "lumen-testkit",
+ "rustix",
+ "thiserror",
+]
+
+[[package]]
 name = "lumen-graph"
 version = "0.0.0"
 dependencies = [
