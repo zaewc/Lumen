@@ -1,0 +1,17 @@
+{
+  "id": "xcode-derived-data",
+  "tool": "Xcode",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Developer/Xcode/DerivedData/*"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "hours", "network": false },
+  "sources": [
+    "https://developer.apple.com/forums/thread/812408"
+  ],
+  "last_verified": "2026-10-14"
+}

@@ -54,6 +54,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/pnpm-store.json"),
     ),
     ("uv-cache.json", include_str!("../entries/uv-cache.json")),
+    (
+        "xcode-derived-data.json",
+        include_str!("../entries/xcode-derived-data.json"),
+    ),
 ];
 
 /// One artifact of one developer tool.
