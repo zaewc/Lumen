@@ -211,7 +211,9 @@ re-verifies identity, and uses no-replace renames only. Any mismatch fails close
 | 9.7b | `feat(application): restore quarantined items` | `QuarantineExecutor::restore` port and executor method; journal `Restore` for retained items and items failed in the store (reconciliation's roll-backs) |
 | 9.8 | `feat(fs-exec): finalize after retention` | permanent removal only inside the store, by handle: a file must match in full, a directory by identity and kind (so an interrupted finalization can finish); the whole tree is checked first (same volume, no mount points, at most 256 deep, links removed as links), then removed bottom-up; sidecar last |
 | 9.8b | `feat(application): finalize retained items` | port and use case: only `Retained` items after retention or on request; locate first: in the store → finalize and journal `Finalize`; at the source → journal `Restore` (a restore whose journal entry was lost); unknown → nothing |
-| 9.9 | `test(fs-exec): add race, name and fault-injection suites` | symlink flips mid-execution, NFC/NFD and case twins, RTLO/newline names, hard links, read-only, open files, faults at every step |
+| 9.9a | `test(fs-exec): carry hostile names through the lifecycle` | NFC/NFD and case twins, RTLO, newline, control, leading-dash, CJK and non-UTF-8 names through quarantine, restore and finalize; twins restore correctly or are refused, never overwritten |
+| 9.9b | `test(fs-exec): add race suites` | symlink and directory swaps between prepare and execute, leaf replacement, hard links, read-only directories |
+| 9.9c | `test(fs-exec): inject faults at every step` | failures after each system call leave the item at its source or restorable in the store, and the journal says which |
 | 9.10 | `feat(fs-exec): add the Windows executor` | handle-relative walk, `FileRenameInfoEx` without replace, `FILE_FLAG_OPEN_REPARSE_POINT` |
 | 9.11 | `chore(fs-exec): protect the executor` | CODEOWNERS and threat-model section |
 
