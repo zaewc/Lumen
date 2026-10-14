@@ -62,6 +62,11 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Tests
         run: cargo nextest run --workspace --locked --no-tests=warn
+      # Tests that write to the OS credential store run only on disposable CI
+      # runners, never by default on a developer's machine.
+      - name: Credential store tests
+        if: runner.os == 'macOS'
+        run: cargo nextest run -p lumen-platform-macos --locked --run-ignored ignored-only
       - name: Doctests
         run: cargo test --workspace --doc --locked
 

@@ -20,6 +20,8 @@ pub mod events;
 #[cfg(target_os = "macos")]
 mod feed;
 #[cfg(target_os = "macos")]
+mod keychain;
+#[cfg(target_os = "macos")]
 mod launchd;
 #[cfg(target_os = "macos")]
 mod probe;
@@ -33,6 +35,8 @@ pub use apps::AppInventory;
 pub use bulk::BulkEnumerator;
 #[cfg(target_os = "macos")]
 pub use feed::FsEventsFeed;
+#[cfg(target_os = "macos")]
+pub use keychain::{KeychainStore, SERVICE as KEYCHAIN_SERVICE};
 #[cfg(target_os = "macos")]
 pub use launchd::LaunchdInventory;
 #[cfg(target_os = "macos")]
