@@ -4,7 +4,8 @@
 //!
 //! - `index.db`: scans, entries and listings. Rebuildable by rescanning, so it
 //!   uses `synchronous=NORMAL`.
-//! - `ledger.db` (later): quarantine journal and audit records, `synchronous=FULL`.
+//! - `ledger.db`: audit records (today Jev traces; quarantine journals with
+//!   Phase 9), append-only and `synchronous=FULL`.
 //!
 //! Every connection is hardened: WAL journaling (verified, not assumed), foreign
 //! keys on, a busy timeout, `trusted_schema=OFF` and SQLite's defensive mode so a
@@ -16,6 +17,7 @@
 #![forbid(unsafe_code)]
 
 mod index;
+mod ledger;
 mod writer;
 
 use std::path::Path;
@@ -26,6 +28,7 @@ use rusqlite::config::DbConfig;
 use rusqlite_migration::{M, Migrations};
 
 pub use index::{IndexStore, RootSnapshot};
+pub use ledger::LedgerStore;
 pub use writer::{IndexWriter, WriteStats, WriterConfig};
 
 /// How long a connection waits for a lock held by another connection.
@@ -38,6 +41,11 @@ const INDEX_MIGRATIONS: &[M<'static>] = &[
     M::up(include_str!("migrations/index/0002_snapshots.sql")),
     M::up(include_str!("migrations/index/0003_graph.sql")),
 ];
+
+/// Migrations for `ledger.db`, in order. Never edit a released migration; add a
+/// new one.
+const LEDGER_MIGRATIONS: &[M<'static>] =
+    &[M::up(include_str!("migrations/ledger/0001_jev_traces.sql"))];
 
 /// Errors opening or migrating a database.
 #[derive(Debug, thiserror::Error)]
@@ -95,6 +103,8 @@ pub enum StoreError {
 enum Durability {
     /// `synchronous=NORMAL`: rebuildable data.
     Normal,
+    /// `synchronous=FULL`: audit records that must survive power loss.
+    Full,
 }
 
 /// Opens (creating if needed) and migrates `index.db` at `path`.
@@ -108,6 +118,20 @@ pub fn open_index(path: &Path) -> Result<Connection, StoreError> {
         path,
         &Migrations::from_slice(INDEX_MIGRATIONS),
         Durability::Normal,
+    )
+}
+
+/// Opens (creating if needed) and migrates `ledger.db` at `path`.
+///
+/// # Errors
+///
+/// Returns [`StoreError`] if the file cannot be opened, cannot use WAL, a
+/// migration fails, or the database was written by a newer Lumen.
+pub fn open_ledger(path: &Path) -> Result<Connection, StoreError> {
+    open(
+        path,
+        &Migrations::from_slice(LEDGER_MIGRATIONS),
+        Durability::Full,
     )
 }
 
@@ -136,6 +160,7 @@ fn harden(conn: &Connection, durability: Durability) -> Result<(), StoreError> {
     }
     let synchronous = match durability {
         Durability::Normal => "NORMAL",
+        Durability::Full => "FULL",
     };
     conn.pragma_update(None, "synchronous", synchronous)?;
     Ok(())
@@ -173,7 +198,23 @@ mod tests {
 
     #[test]
     fn migrations_are_valid() -> Result<(), rusqlite_migration::Error> {
-        Migrations::from_slice(INDEX_MIGRATIONS).validate()
+        Migrations::from_slice(INDEX_MIGRATIONS).validate()?;
+        Migrations::from_slice(LEDGER_MIGRATIONS).validate()
+    }
+
+    #[test]
+    fn the_ledger_is_durable_and_hardened() -> Result<(), Box<dyn std::error::Error>> {
+        let fx = Fixture::build(&[])?;
+        let conn = open_ledger(&fx.path("ledger.db")?)?;
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 1);
+        assert_eq!(
+            pragma::<String>(&conn, "journal_mode")?.to_lowercase(),
+            "wal"
+        );
+        assert_eq!(pragma::<i64>(&conn, "synchronous")?, 2, "FULL");
+        assert_eq!(pragma::<i64>(&conn, "trusted_schema")?, 0);
+        assert!(conn.db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE)?);
+        Ok(())
     }
 
     #[test]
