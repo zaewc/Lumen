@@ -1,0 +1,41 @@
+name: mutants
+
+# Mutation testing of the safety policy (ADR-0014): every mutant of
+# `lumen-policy` must be caught by its tests. A full run takes several minutes,
+# so it runs nightly (02:43 UTC) and on demand, not on pull requests.
+on:
+  schedule:
+    - cron: "43 2 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: mutants-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  policy:
+    name: lumen-policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned toolchain
+        run: rustup toolchain install
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: cargo-nextest,cargo-mutants@27.1.0
+      # Missed mutants are listed in the log and fail the job.
+      - run: cargo mutants --package lumen-policy --test-tool nextest --in-place --no-shuffle
