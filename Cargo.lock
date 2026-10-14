@@ -737,8 +737,12 @@ dependencies = [
 name = "lumen-fs-exec"
 version = "0.0.0"
 dependencies = [
+ "lumen-application",
+ "lumen-domain",
  "lumen-testkit",
  "rustix",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

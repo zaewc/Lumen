@@ -16,6 +16,8 @@
 #![forbid(unsafe_code)]
 
 #[cfg(unix)]
+mod executor;
+#[cfg(unix)]
 mod move_into;
 #[cfg(unix)]
 mod sidecar;
@@ -24,6 +26,8 @@ mod store;
 #[cfg(unix)]
 mod verify;
 
+#[cfg(unix)]
+pub use executor::Executor;
 #[cfg(unix)]
 pub use move_into::{Left, MoveError, move_into};
 #[cfg(unix)]

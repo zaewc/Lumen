@@ -243,24 +243,29 @@ pub(crate) fn check_leaf(stat: &Stat, expected: &ExpectedLeaf) -> Result<(), Mis
     Ok(())
 }
 
+/// What a plan would expect of an object that looks like `stat` now.
+pub(crate) fn expected_from(stat: &Stat, is_dir: bool) -> ExpectedLeaf {
+    ExpectedLeaf {
+        identity: identity(stat),
+        kind: if is_dir {
+            LeafKind::Directory
+        } else {
+            LeafKind::File
+        },
+        size: u64::try_from(stat.st_size).unwrap_or(0),
+        modified: modified(stat),
+        links: links(stat),
+    }
+}
+
 /// Test helpers shared with the other modules' tests.
 #[cfg(test)]
 pub(crate) mod tests_support {
-    use super::{ExpectedLeaf, LeafKind, Stat, identity, links, modified};
+    use super::{ExpectedLeaf, Stat, expected_from};
 
     /// What a plan would expect of an object that looks like `stat` now.
     pub(crate) fn expected(stat: &Stat, is_dir: bool) -> ExpectedLeaf {
-        ExpectedLeaf {
-            identity: identity(stat),
-            kind: if is_dir {
-                LeafKind::Directory
-            } else {
-                LeafKind::File
-            },
-            size: u64::try_from(stat.st_size).unwrap_or(0),
-            modified: modified(stat),
-            links: links(stat),
-        }
+        expected_from(stat, is_dir)
     }
 }
 

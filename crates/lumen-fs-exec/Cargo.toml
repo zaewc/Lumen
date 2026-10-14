@@ -9,6 +9,10 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+lumen-application.workspace = true
+lumen-domain.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 
 [target.'cfg(unix)'.dependencies]
