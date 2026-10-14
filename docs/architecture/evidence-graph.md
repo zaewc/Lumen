@@ -131,7 +131,7 @@ validation and acyclic containment hold for whatever the database contains.
 | `lumen-platform-windows::cleanup` | `VendorDeclaredCache` evidence for folders declared by data-driven Disk Cleanup handlers. No edge: a handler name does not identify an application. |
 | Inventory sources (macOS apps and launchd; Windows apps, startup entries, services) | `Application` and `Service` records with signatures, for later `launches` and `owned_by` edges |
 | In-use probes (`libproc`, Restart Manager) | answers for `opened_by` edges and `InUse` evidence. Partial visibility is never "unused" (ADR-0030). |
-| `lumen-devkb` | entry data for `KnowledgeBaseMatch` evidence; the matcher that resolves entry locations to scanned entries is roadmap 6.16. |
+| `lumen-devkb` | `KnowledgeBaseMatch` evidence (source `devkb`) for each scanned file or directory that is exactly an entry's location, resolved against the machine's home, known folders and environment variables. Descendants, links and projects without a scanned marker never match. |
 
 ## Explanation chains
 

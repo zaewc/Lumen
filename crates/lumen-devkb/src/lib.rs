@@ -12,6 +12,7 @@
 
 #![forbid(unsafe_code)]
 
+mod matcher;
 mod validate;
 
 use std::collections::{BTreeSet, HashSet};
@@ -20,6 +21,7 @@ use lumen_domain::{Platform, Timestamp};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub use matcher::{Environment, SOURCE};
 pub use validate::Problem;
 
 /// The built-in entries as `(file name, JSON)`, one per tool (roadmap 6.15+).
