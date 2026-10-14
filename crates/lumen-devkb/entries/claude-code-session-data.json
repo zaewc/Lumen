@@ -1,0 +1,44 @@
+{
+  "id": "claude-code-session-data",
+  "tool": "Claude Code",
+  "locations": [
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "home" },
+      "path": ".claude/projects"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "home" },
+      "path": ".claude/file-history"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "home" },
+      "path": ".claude/paste-cache"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "CLAUDE_CONFIG_DIR" },
+      "path": "projects"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "CLAUDE_CONFIG_DIR" },
+      "path": "file-history"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "CLAUDE_CONFIG_DIR" },
+      "path": "paste-cache"
+    }
+  ],
+  "safety_class": "not_regenerable",
+  "regeneration": { "effort": "impossible", "network": false },
+  "sources": [
+    "https://code.claude.com/docs/en/claude-directory#application-data",
+    "https://code.claude.com/docs/en/claude-directory#cleaned-up-automatically",
+    "https://code.claude.com/docs/en/claude-directory#clear-local-data"
+  ],
+  "last_verified": "2026-10-14"
+}

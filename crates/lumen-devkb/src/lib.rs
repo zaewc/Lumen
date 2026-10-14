@@ -29,6 +29,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/cargo-global-cache.json"),
     ),
     (
+        "claude-code-session-data.json",
+        include_str!("../entries/claude-code-session-data.json"),
+    ),
+    (
         "go-build-cache.json",
         include_str!("../entries/go-build-cache.json"),
     ),
