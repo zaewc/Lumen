@@ -11,13 +11,16 @@
 //! or creates a private, same-volume quarantine store, and [`move_into`] renames
 //! a verified item into it without replacing anything, and [`write_sidecar`]
 //! stores its manifest next to it, and [`restore`] moves it back without
-//! replacing anything (Unix). Finalization follows (roadmap 9.8), then the
-//! Windows executor (9.10).
+//! replacing anything, and [`finalize`] permanently removes it from the store
+//! after checking all of it first (Unix). The Windows executor follows
+//! (roadmap 9.10).
 
 #![forbid(unsafe_code)]
 
 #[cfg(unix)]
 mod executor;
+#[cfg(unix)]
+mod finalize;
 #[cfg(unix)]
 mod move_into;
 #[cfg(unix)]
@@ -31,6 +34,8 @@ mod verify;
 
 #[cfg(unix)]
 pub use executor::Executor;
+#[cfg(unix)]
+pub use finalize::{FinalizeError, MAX_DEPTH, Removed, finalize};
 #[cfg(unix)]
 pub use move_into::{Left, MoveError, move_into};
 #[cfg(unix)]

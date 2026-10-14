@@ -39,7 +39,7 @@ fn plain(name: &[u8]) -> bool {
     !name.is_empty() && name != b"." && name != b".." && !name.contains(&b'/') && !name.contains(&0)
 }
 
-fn sidecar_name(item: &[u8]) -> Result<Vec<u8>, SidecarError> {
+pub(crate) fn sidecar_name(item: &[u8]) -> Result<Vec<u8>, SidecarError> {
     if !plain(item) {
         return Err(SidecarError::InvalidName);
     }
