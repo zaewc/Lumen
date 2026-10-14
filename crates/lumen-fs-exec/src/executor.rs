@@ -5,7 +5,8 @@
 //! `prepare` walks to the item by handle and records exactly what it is now as
 //! a [`PreparedItem`] (JSON, with raw path bytes). `quarantine` acts only if the
 //! item still matches that record, and names it in the store after the
-//! operation. `locate` tells reconciliation where an interrupted item is. Every
+//! operation. `locate` tells reconciliation where an interrupted item is, and
+//! `restore` moves a quarantined item back without replacing anything. Every
 //! failure says where it left the item: untouched at the source, or in the
 //! store and restorable.
 
@@ -13,12 +14,16 @@ use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt as _;
 use std::path::{Path, PathBuf};
 
-use lumen_application::ports::{ExecutionFailure, Located, PreparedItem, QuarantineExecutor};
+use lumen_application::ports::{
+    ExecutionFailure, Located, NotRestored, PreparedItem, QuarantineExecutor, RestoreFailure,
+    RestoredItem,
+};
 use lumen_domain::{ItemLocation, OperationId, QuarantineFailure, RawPath};
 use rustix::fs::{AtFlags, FileType, Mode, OFlags, fstat, open, openat, statat};
 use serde::{Deserialize, Serialize};
 
 use crate::move_into::{Left, MoveError, move_into};
+use crate::restore::{RestoreError, restore};
 use crate::sidecar::write_sidecar;
 use crate::store::{Store, open_store};
 use crate::verify::{ExpectedLeaf, LeafKind, PlanItem, UnixIdentity, check_leaf, identity, verify};
@@ -212,6 +217,36 @@ impl QuarantineExecutor for Executor {
             _ => Located::Unknown,
         }
     }
+
+    fn restore(
+        &self,
+        item: &PreparedItem,
+        operation: OperationId,
+    ) -> Result<RestoredItem, RestoreFailure> {
+        let in_store = RestoreFailure {
+            reason: NotRestored::Failed,
+            left: ItemLocation::Quarantine,
+        };
+        let plan = parse(item).ok_or(in_store)?.plan();
+        let store = self.store(plan.expected.identity.dev).ok_or(in_store)?;
+        let name = operation.to_string();
+        restore(&store, name.as_bytes(), &plan)
+            .map(|restored| RestoredItem {
+                parent_replaced: restored.parent_replaced,
+            })
+            .map_err(|error| RestoreFailure {
+                reason: match error {
+                    RestoreError::NameTaken => NotRestored::NameTaken,
+                    RestoreError::ParentUnreachable(_) => NotRestored::OriginUnreachable,
+                    RestoreError::NotInStore(_) => NotRestored::ItemChanged,
+                    _ => NotRestored::Failed,
+                },
+                left: match error.left() {
+                    Left::InStore => ItemLocation::Quarantine,
+                    Left::AtSource => ItemLocation::Source,
+                },
+            })
+    }
 }
 
 #[cfg(test)]
@@ -275,6 +310,41 @@ mod tests {
             .join(format!("{}.manifest.json", op(1)));
         assert_eq!(std::fs::read(sidecar).unwrap_or_default(), b"{\"m\":1}");
         assert_eq!(executor.locate(&prepared, op(1)), Located::InStore);
+    }
+
+    #[test]
+    fn a_quarantined_item_is_restored_once_and_never_over_another() {
+        let (_fx, root, executor) = setup();
+        let prepared = executor
+            .prepare(&raw(&root), &relative())
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(executor.quarantine(&prepared, op(3), b"{}"), Ok(()));
+        std::fs::write(root.join("cache/app/data.bin"), b"newcomer")
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            executor.restore(&prepared, op(3)),
+            Err(RestoreFailure {
+                reason: NotRestored::NameTaken,
+                left: ItemLocation::Quarantine
+            })
+        );
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "test fixture inside its own temporary directory"
+        )]
+        std::fs::remove_file(root.join("cache/app/data.bin"))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            executor.restore(&prepared, op(3)),
+            Ok(RestoredItem {
+                parent_replaced: false
+            })
+        );
+        assert_eq!(executor.locate(&prepared, op(3)), Located::AtSource);
+        assert_eq!(
+            std::fs::read(root.join("cache/app/data.bin")).unwrap_or_default(),
+            b"0123456789"
+        );
     }
 
     #[test]

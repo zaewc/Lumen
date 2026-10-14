@@ -117,6 +117,14 @@ mod tests {
         fn locate(&self, _item: &PreparedItem, operation: OperationId) -> Located {
             self.0.get(&operation).copied().unwrap_or(Located::Unknown)
         }
+
+        fn restore(
+            &self,
+            _item: &PreparedItem,
+            _operation: OperationId,
+        ) -> Result<crate::ports::RestoredItem, crate::ports::RestoreFailure> {
+            unreachable!("reconciliation never restores anything")
+        }
     }
 
     /// A journal holding complete histories in memory.

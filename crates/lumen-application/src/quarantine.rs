@@ -154,6 +154,14 @@ mod tests {
         fn locate(&self, _item: &PreparedItem, _operation: OperationId) -> Located {
             Located::Unknown
         }
+
+        fn restore(
+            &self,
+            _item: &PreparedItem,
+            _operation: OperationId,
+        ) -> Result<crate::ports::RestoredItem, crate::ports::RestoreFailure> {
+            unreachable!("quarantining restores nothing")
+        }
     }
 
     #[derive(Default)]

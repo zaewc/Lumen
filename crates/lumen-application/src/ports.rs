@@ -369,6 +369,47 @@ pub trait QuarantineExecutor: Send + Sync {
 
     /// Where the item of `operation` is now, for startup reconciliation.
     fn locate(&self, item: &PreparedItem, operation: OperationId) -> Located;
+
+    /// Moves the item of `operation` back to where it was, without replacing
+    /// anything.
+    ///
+    /// # Errors
+    ///
+    /// A [`RestoreFailure`] saying why and where the item is.
+    fn restore(
+        &self,
+        item: &PreparedItem,
+        operation: OperationId,
+    ) -> Result<RestoredItem, RestoreFailure>;
+}
+
+/// Why a restore did not happen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NotRestored {
+    /// Something now has the item's name; the user decides.
+    NameTaken,
+    /// The original location cannot be reached safely.
+    OriginUnreachable,
+    /// The quarantined item is missing or changed.
+    ItemChanged,
+    /// The move back or a check failed.
+    Failed,
+}
+
+/// A restore that did not complete, and where it left the item.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RestoreFailure {
+    /// Why.
+    pub reason: NotRestored,
+    /// Still in the store, or back at the source but unverified.
+    pub left: ItemLocation,
+}
+
+/// A completed restore.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RestoredItem {
+    /// The original parent had been recreated (best effort).
+    pub parent_replaced: bool,
 }
 
 /// The journal could not record an entry.
