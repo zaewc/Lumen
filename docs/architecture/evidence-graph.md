@@ -39,7 +39,8 @@ An `Evidence` record is `{subject, fact, basis, provenance}`:
 - `fact` is one typed statement: owning application, application present, last
   modified/accessed, in use (`InUse`, or `NotInUseByVisibleProcesses` when not every
   process was visible), vendor-declared cache, knowledge-base match, code
-  signature, cloud-backed, protection.
+  signature, cloud-backed, protection, app data location (`AppDataLocation`: caches,
+  container, application support, preferences, saved state, web data).
 - `basis` says how it is known: `Observed`, or `Absence` with the sources that
   were searched. Absence is only as strong as those sources' coverage report allows;
   unreadable is never empty.

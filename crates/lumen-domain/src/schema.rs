@@ -104,6 +104,31 @@ mod tests {
     }
 
     #[test]
+    fn app_data_location_evidence_conforms() -> Result<(), Box<dyn std::error::Error>> {
+        for kind in [
+            AppDataKind::Caches,
+            AppDataKind::Container,
+            AppDataKind::ApplicationSupport,
+            AppDataKind::Preferences,
+            AppDataKind::SavedApplicationState,
+            AppDataKind::WebData,
+        ] {
+            validate(&Evidence {
+                subject: Subject::File {
+                    identity: identity(7)?,
+                },
+                fact: Fact::AppDataLocation { kind },
+                basis: Basis::Observed,
+                provenance: Provenance {
+                    source: SourceName::new("macos.support-location.bundle-id")?,
+                    observed_at: Timestamp::UNIX_EPOCH,
+                },
+            })?;
+        }
+        Ok(())
+    }
+
+    #[test]
     fn partial_in_use_evidence_conforms() -> Result<(), Box<dyn std::error::Error>> {
         for unseen in [Some(3), None] {
             validate(&Evidence {

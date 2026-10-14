@@ -111,6 +111,43 @@ pub enum Fact {
     CloudBacked(bool),
     /// Operating-system protection flags of the subject.
     Protected(Protection),
+    /// The subject is an application data location of a documented kind (e.g.
+    /// an app's folder in `~/Library/Caches`); pairs with `OwningApplication`.
+    AppDataLocation {
+        /// What the platform documents the location for.
+        kind: AppDataKind,
+    },
+}
+
+/// Kinds of per-application data locations the platforms document.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum AppDataKind {
+    /// Data the app can re-create or download (macOS `~/Library/Caches`).
+    Caches,
+    /// A sandboxed app's container: its documents and state.
+    Container,
+    /// Files the app needs to run (`~/Library/Application Support`).
+    ApplicationSupport,
+    /// The app's preferences.
+    Preferences,
+    /// Window state restored at launch (`~/Library/Saved Application State`).
+    SavedApplicationState,
+    /// Web storage, cookies or scripts the app's web views and extensions keep.
+    WebData,
 }
 
 /// How a fact was established.
@@ -245,6 +282,20 @@ mod tests {
         );
         assert_eq!(serde_json::from_str::<Fact>(&text)?, fact);
         assert_ne!(fact, Fact::InUse(false), "partial is never complete");
+        Ok(())
+    }
+
+    #[test]
+    fn app_data_locations_have_a_stable_wire_form() -> Result<(), serde_json::Error> {
+        let fact = Fact::AppDataLocation {
+            kind: AppDataKind::Caches,
+        };
+        let text = serde_json::to_string(&fact)?;
+        assert_eq!(
+            text,
+            r#"{"fact":"app_data_location","value":{"kind":"caches"}}"#
+        );
+        assert_eq!(serde_json::from_str::<Fact>(&text)?, fact);
         Ok(())
     }
 

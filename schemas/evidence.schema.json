@@ -28,6 +28,41 @@
     "provenance"
   ],
   "$defs": {
+    "AppDataKind": {
+      "description": "Kinds of per-application data locations the platforms document.",
+      "oneOf": [
+        {
+          "description": "Data the app can re-create or download (macOS `~/Library/Caches`).",
+          "type": "string",
+          "const": "caches"
+        },
+        {
+          "description": "A sandboxed app's container: its documents and state.",
+          "type": "string",
+          "const": "container"
+        },
+        {
+          "description": "Files the app needs to run (`~/Library/Application Support`).",
+          "type": "string",
+          "const": "application_support"
+        },
+        {
+          "description": "The app's preferences.",
+          "type": "string",
+          "const": "preferences"
+        },
+        {
+          "description": "Window state restored at launch (`~/Library/Saved Application State`).",
+          "type": "string",
+          "const": "saved_application_state"
+        },
+        {
+          "description": "Web storage, cookies or scripts the app's web views and extensions keep.",
+          "type": "string",
+          "const": "web_data"
+        }
+      ]
+    },
     "AppId": {
       "description": "One identifier of an application under a given scheme.",
       "type": "object",
@@ -366,6 +401,32 @@
             },
             "value": {
               "$ref": "#/$defs/Protection"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "The subject is an application data location of a documented kind (e.g.\nan app's folder in `~/Library/Caches`); pairs with `OwningApplication`.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "app_data_location"
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "description": "What the platform documents the location for.",
+                  "$ref": "#/$defs/AppDataKind"
+                }
+              },
+              "required": [
+                "kind"
+              ]
             }
           },
           "required": [
