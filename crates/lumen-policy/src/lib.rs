@@ -44,7 +44,7 @@ pub use explain::explain;
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
-pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 7, 0);
+pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 8, 0);
 
 /// The machine a decision is made on.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,6 +59,9 @@ pub struct Context {
     pub local_app_data: Option<RawPath>,
     /// Cleanup mechanisms available at runtime (from `PlatformCapabilities`).
     pub mechanisms: BTreeSet<CleanupMechanism>,
+    /// Inventory sources that were read completely in this analysis; only
+    /// absence they report is trusted.
+    pub complete_sources: BTreeSet<SourceName>,
 }
 
 /// What the scan saw of a filesystem subject.
@@ -323,6 +326,7 @@ pub(crate) mod testing {
                 windows_dir: None,
                 local_app_data: None,
                 mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
+                complete_sources: BTreeSet::new(),
             },
             observed: Some(observed(EntryKind::File, 4096)),
             knowledge: BTreeMap::new(),

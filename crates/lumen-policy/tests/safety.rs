@@ -189,6 +189,7 @@ prop_compose! {
                 } else {
                     BTreeSet::new()
                 },
+                complete_sources: BTreeSet::new(),
             },
             observed,
             knowledge: classes
@@ -297,6 +298,7 @@ fn quarantine_is_reachable() -> Result<(), lumen_policy::PolicyError> {
             windows_dir: None,
             local_app_data: None,
             mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
+            complete_sources: BTreeSet::new(),
         },
         observed: Some(Observed {
             entry: FilesystemEntry {

@@ -254,6 +254,7 @@ mod tests {
                 windows_dir: Some(windows(r"C:\Windows")),
                 local_app_data: Some(windows(r"C:\Users\ana\AppData\Local")),
                 mechanisms: BTreeSet::new(),
+                complete_sources: BTreeSet::new(),
             },
             Platform::Macos => Context {
                 platform,
@@ -261,6 +262,7 @@ mod tests {
                 windows_dir: None,
                 local_app_data: None,
                 mechanisms: BTreeSet::new(),
+                complete_sources: BTreeSet::new(),
             },
             _ => Context {
                 platform,
@@ -268,6 +270,7 @@ mod tests {
                 windows_dir: None,
                 local_app_data: None,
                 mechanisms: BTreeSet::new(),
+                complete_sources: BTreeSet::new(),
             },
         }
     }

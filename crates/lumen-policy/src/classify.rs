@@ -6,11 +6,14 @@
 //! - a knowledge-base match, judged by the entry's safety class, which the
 //!   caller supplies in [`PolicyInput::knowledge`] (the policy never depends on
 //!   the knowledge-base crate);
-//! - a vendor's cache declaration.
+//! - a vendor's cache declaration;
+//! - an owning application that is absent from inventories that were read
+//!   completely (Orphan Hunter): reviewed, never quarantined, because leftovers
+//!   can hold the user's own data.
 
 use std::collections::BTreeSet;
 
-use lumen_domain::{Evidence, EvidenceId, Fact, RiskFactor, SourceName, Verdict};
+use lumen_domain::{Basis, Evidence, EvidenceId, Fact, RiskFactor, SourceName, Verdict};
 
 use crate::{Finding, PolicyInput};
 
@@ -126,6 +129,43 @@ pub(crate) fn vendor_declared_cache(input: &PolicyInput) -> Option<Finding> {
     })
 }
 
+/// The application that owns the subject is absent, and every inventory
+/// searched for it was read completely, so the absence is trustworthy
+/// (ADR-0008). Leftovers can hold the user's own data, so this is a review.
+pub(crate) fn orphan(input: &PolicyInput) -> Option<Finding> {
+    let about: Vec<&Evidence> = input
+        .evidence
+        .iter()
+        .filter(|e| e.subject == input.subject)
+        .collect();
+    let mut evidence = BTreeSet::new();
+    for owner in &about {
+        let Fact::OwningApplication(app) = &owner.fact else {
+            continue;
+        };
+        for absent in &input.evidence {
+            let trusted = matches!(
+                &absent.basis,
+                Basis::Absence { searched }
+                    if !searched.is_empty()
+                        && searched.iter().all(|s| input.context.complete_sources.contains(s))
+            );
+            if trusted
+                && matches!(&absent.fact, Fact::ApplicationPresent { app: a, present: false } if a == app)
+            {
+                evidence.insert(owner.id());
+                evidence.insert(absent.id());
+            }
+        }
+    }
+    (!evidence.is_empty()).then(|| Finding {
+        verdict: Verdict::Review,
+        evidence,
+        risk: BTreeSet::from([RiskFactor::UnknownOwner]),
+        rule: None,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use lumen_domain::{Basis, PolicyDecision, Provenance, Subject, Timestamp, UntrustedText};
@@ -227,6 +267,55 @@ mod tests {
         input.knowledge = regenerable.iter().map(|(id, c)| (entry(id), *c)).collect();
         input.context.mechanisms.clear();
         assert_eq!(evaluate(&input)?.verdict(), Verdict::Review);
+        Ok(())
+    }
+
+    #[test]
+    fn orphans_need_trustworthy_absence() -> Result<(), PolicyError> {
+        let app = lumen_domain::AppId {
+            scheme: lumen_domain::AppIdScheme::BundleId,
+            value: UntrustedText::new("com.example.gone"),
+        };
+        let inventory = entry("macos.applications");
+        let absent = |searched: BTreeSet<SourceName>, present: bool| Evidence {
+            subject: Subject::Application { id: app.clone() },
+            fact: Fact::ApplicationPresent {
+                app: app.clone(),
+                present,
+            },
+            basis: Basis::Absence { searched },
+            provenance: Provenance {
+                source: inventory.clone(),
+                observed_at: Timestamp::UNIX_EPOCH,
+            },
+        };
+        let run = |absence: Evidence, complete: bool| {
+            let mut i = input(vec![
+                fact(file(1), Fact::InUse(false)),
+                fact(file(1), Fact::OwningApplication(app.clone())),
+                absence,
+            ]);
+            if complete {
+                i.context.complete_sources = BTreeSet::from([inventory.clone()]);
+            }
+            evaluate(&i)
+        };
+        let orphan = run(absent(BTreeSet::from([inventory.clone()]), false), true)?;
+        assert_eq!(fired(&orphan), ["classify.orphan"]);
+        assert_eq!(orphan.verdict(), Verdict::Review);
+        assert_eq!(
+            orphan.fired_rules().first().map(|r| r.evidence.len()),
+            Some(2),
+            "cites the ownership and the absence"
+        );
+        for (searched, present, complete) in [
+            (BTreeSet::from([inventory.clone()]), false, false),
+            (BTreeSet::new(), false, true),
+            (BTreeSet::from([inventory.clone()]), true, true),
+        ] {
+            let decision = run(absent(searched, present), complete)?;
+            assert_eq!(fired(&decision), ["default.review"]);
+        }
         Ok(())
     }
 

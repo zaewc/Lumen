@@ -104,6 +104,11 @@ pub(crate) const RULES: &[Rule] = &[
         stage: PolicyStage::Classification,
         check: crate::classify::vendor_declared_cache,
     },
+    Rule {
+        id: "classify.orphan",
+        stage: PolicyStage::Classification,
+        check: crate::classify::orphan,
+    },
 ];
 
 /// Evidence about the subject itself whose fact satisfies `test`.
