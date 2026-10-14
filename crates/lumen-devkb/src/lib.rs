@@ -58,6 +58,10 @@ const BUILTIN: &[(&str, &str)] = &[
         "xcode-derived-data.json",
         include_str!("../entries/xcode-derived-data.json"),
     ),
+    (
+        "xcode-ios-device-support.json",
+        include_str!("../entries/xcode-ios-device-support.json"),
+    ),
 ];
 
 /// One artifact of one developer tool.

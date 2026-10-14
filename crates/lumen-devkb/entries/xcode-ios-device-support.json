@@ -1,0 +1,17 @@
+{
+  "id": "xcode-ios-device-support",
+  "tool": "Xcode",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Developer/Xcode/iOS DeviceSupport/*"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": false },
+  "sources": [
+    "https://developer.apple.com/forums/thread/812408"
+  ],
+  "last_verified": "2026-10-14"
+}
