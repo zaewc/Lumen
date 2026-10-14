@@ -31,7 +31,7 @@ use lumen_domain::{
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
-pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 1, 0);
+pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 2, 0);
 
 /// Everything the policy may look at for one subject.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -270,7 +270,7 @@ mod tests {
 
     #[test]
     fn nothing_recognised_is_review() -> Result<(), PolicyError> {
-        let decision = evaluate(&input(Vec::new()))?;
+        let decision = evaluate_with(&[], &input(Vec::new()))?;
         assert_eq!(decision.verdict(), Verdict::Review);
         assert_eq!(ids(&decision), [DEFAULT_REVIEW]);
         assert_eq!(decision.risk().level, RiskLevel::Low);

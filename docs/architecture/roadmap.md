@@ -145,7 +145,7 @@ policy never depends on an adapter), and when uncertain it answers `REVIEW` or
 | # | PR title | Content |
 | --- | --- | --- |
 | 7.1 | `feat(policy): add staged policy evaluator` | `PolicyInput` (subject facts, bundle, coverage, in-use answer, capabilities), the four stages in order, default `REVIEW`, fired-rule trace; determinism property test |
-| 7.2 | `feat(policy): keep items protected by observed facts` | OS-protected flags, cloud-backed, in use (`Yes`/`Unknown`; `Partial` only under ADR-0030), incomplete coverage, identity changed → `KEEP` |
+| 7.2 | `feat(policy): keep items protected by observed facts` | OS-protected flags, Windows system files, cloud-backed, in use (`Yes`, `Unknown`, and `Partial` until 7.11) → `KEEP`; coverage and identity checks join with their input fields (7.4) |
 | 7.3 | `feat(policy): add protected-location rule data` | schema-validated, embedded patterns: system locations, credentials and keys, browser profiles, databases, security software; case-folded per platform |
 | 7.4 | `feat(policy): add eligibility rules` | platform capability, no-replace rename support, reclaimability (hard links, clones, snapshots: "frees nothing") |
 | 7.5 | `feat(policy): classify knowledge-base and vendor-declared caches` | devkb safety class → `QUARANTINE` / tool command under `REVIEW` / informational; vendor-declared caches |
@@ -154,6 +154,7 @@ policy never depends on an adapter), and when uncertain it answers `REVIEW` or
 | 7.8 | `test(policy): add safety property tests` | protected never `QUARANTINE`; same input, same output; Jev never lowers caution |
 | 7.9 | `ci(policy): run cargo-mutants nightly` | scheduled workflow on `lumen-policy` |
 | 7.10 | `feat(policy): add Orphan Hunter queries` | leftovers whose owner is absent under complete coverage → `REVIEW` only |
+| 7.11 | `feat(policy): accept partial in-use answers under ADR-0030` | needs ownership and home-location facts; quarantine rename only, with the executor's re-probe |
 
 ## Later phases (outline)
 
