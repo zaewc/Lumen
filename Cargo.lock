@@ -634,8 +634,10 @@ name = "lumen-jev"
 version = "0.0.0"
 dependencies = [
  "jsonschema",
+ "lumen-application",
  "lumen-domain",
  "schemars",
+ "serde",
  "serde_json",
 ]
 
