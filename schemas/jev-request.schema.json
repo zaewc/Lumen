@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "JevRequest",
+  "description": "Everything Jev may see about one candidate (`jev.request/1`).",
+  "type": "object",
+  "properties": {
+    "candidate": {
+      "description": "The candidate.",
+      "$ref": "#/$defs/CandidateSummary"
+    },
+    "coverage": {
+      "description": "How completely it was observed.",
+      "$ref": "#/$defs/CoverageSummary"
+    },
+    "evidence": {
+      "description": "Evidence about it; a judgment may cite only these IDs.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RequestEvidence"
+      }
+    },
+    "item_ref": {
+      "description": "Opaque reference the judgment must echo.",
+      "$ref": "#/$defs/ItemRef"
+    },
+    "schema_version": {
+      "description": "`jev.request/1.x`.",
+      "$ref": "#/$defs/SchemaVersion"
+    },
+    "untrusted_strings": {
+      "description": "Attacker-controllable strings, labelled.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/UntrustedText"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "item_ref",
+    "candidate",
+    "evidence",
+    "coverage",
+    "untrusted_strings"
+  ],
+  "$defs": {
+    "ByteCount": {
+      "description": "Unsigned 64-bit byte count as a canonical decimal string.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "CandidateSummary": {
+      "description": "The candidate itself.",
+      "type": "object",
+      "properties": {
+        "category": {
+          "description": "Artifact category.",
+          "$ref": "#/$defs/Category"
+        },
+        "path_display": {
+          "description": "Redacted display path (`~` for the home directory, user names removed).",
+          "$ref": "#/$defs/UntrustedText"
+        },
+        "reclaimable_bytes": {
+          "description": "Bytes removing it would free now.",
+          "$ref": "#/$defs/ByteCount"
+        },
+        "size_bytes": {
+          "description": "Allocated size.",
+          "$ref": "#/$defs/ByteCount"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "path_display",
+        "size_bytes",
+        "reclaimable_bytes"
+      ]
+    },
+    "Category": {
+      "description": "What kind of artifact a candidate is.",
+      "oneOf": [
+        {
+          "description": "An application's cache.",
+          "type": "string",
+          "const": "app_cache"
+        },
+        {
+          "description": "Build output of a developer tool (e.g. Xcode `DerivedData`, `target/`).",
+          "type": "string",
+          "const": "developer_build_output"
+        },
+        {
+          "description": "Package or tool cache (npm, pnpm, Cargo, Gradle, Homebrew, …).",
+          "type": "string",
+          "const": "developer_cache"
+        },
+        {
+          "description": "Log files.",
+          "type": "string",
+          "const": "log"
+        },
+        {
+          "description": "Temporary files.",
+          "type": "string",
+          "const": "temporary"
+        },
+        {
+          "description": "Downloaded installers and archives.",
+          "type": "string",
+          "const": "download"
+        },
+        {
+          "description": "Exact duplicate content.",
+          "type": "string",
+          "const": "duplicate"
+        },
+        {
+          "description": "Large or old media.",
+          "type": "string",
+          "const": "media"
+        },
+        {
+          "description": "Cloud-backed item that can be evicted locally.",
+          "type": "string",
+          "const": "cloud_item"
+        },
+        {
+          "description": "Service, startup item or package remnant whose owner appears to be gone.",
+          "type": "string",
+          "const": "orphaned_component"
+        },
+        {
+          "description": "Anything not covered above.",
+          "type": "string",
+          "const": "other"
+        }
+      ]
+    },
+    "CoverageNote": {
+      "description": "Why observation of a candidate was incomplete.",
+      "oneOf": [
+        {
+          "description": "Not every running process could be checked.",
+          "type": "string",
+          "const": "processes_partly_visible"
+        },
+        {
+          "description": "An inventory source was read only partly.",
+          "type": "string",
+          "const": "inventory_incomplete"
+        },
+        {
+          "description": "Part of the candidate could not be read.",
+          "type": "string",
+          "const": "contents_partly_unreadable"
+        }
+      ]
+    },
+    "CoverageSummary": {
+      "description": "How completely the candidate was observed.",
+      "type": "object",
+      "properties": {
+        "complete": {
+          "description": "Whether every relevant source was read completely.",
+          "type": "boolean"
+        },
+        "notes": {
+          "description": "What was incomplete.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CoverageNote"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "complete",
+        "notes"
+      ]
+    },
+    "EvidenceId": {
+      "type": "string",
+      "pattern": "^b3:[0-9a-f]{64}$"
+    },
+    "EvidenceKind": {
+      "description": "What one evidence item says, as a closed vocabulary.",
+      "oneOf": [
+        {
+          "description": "The application that owns the candidate.",
+          "type": "string",
+          "const": "owning_application"
+        },
+        {
+          "description": "Whether that application is installed (`true`/`false`).",
+          "type": "string",
+          "const": "application_installed"
+        },
+        {
+          "description": "Whole days since the content was modified.",
+          "type": "string",
+          "const": "last_modified_days"
+        },
+        {
+          "description": "Whole days since the candidate was accessed (weak).",
+          "type": "string",
+          "const": "last_access_days"
+        },
+        {
+          "description": "Whether a visible process uses the candidate (`true`/`false`).",
+          "type": "string",
+          "const": "active_process_reference"
+        },
+        {
+          "description": "A vendor declared the candidate's contents disposable.",
+          "type": "string",
+          "const": "vendor_declared_cache"
+        },
+        {
+          "description": "The knowledge-base entry the candidate matched.",
+          "type": "string",
+          "const": "knowledge_base_entry"
+        },
+        {
+          "description": "Whether the candidate regenerates on demand (`true`/`false`).",
+          "type": "string",
+          "const": "regeneratable"
+        },
+        {
+          "description": "The kind of application data location (e.g. `caches`).",
+          "type": "string",
+          "const": "app_data_location"
+        },
+        {
+          "description": "Code-signature status of the candidate.",
+          "type": "string",
+          "const": "signature"
+        }
+      ]
+    },
+    "ItemRef": {
+      "type": "string",
+      "pattern": "^[!-~]{1,64}$"
+    },
+    "RequestEvidence": {
+      "description": "One evidence item in a request.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The evidence record this item summarises; a judgment may cite it.",
+          "$ref": "#/$defs/EvidenceId"
+        },
+        "kind": {
+          "description": "What the item says.",
+          "$ref": "#/$defs/EvidenceKind"
+        },
+        "value": {
+          "description": "The value, as text; untrusted when it comes from the filesystem or an app.",
+          "$ref": "#/$defs/UntrustedText"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "value"
+      ]
+    },
+    "SchemaVersion": {
+      "type": "string",
+      "pattern": "^[a-z](?:[a-z0-9.-]{0,62}[a-z0-9])?/[1-9][0-9]*(\\.(0|[1-9][0-9]*))?$"
+    },
+    "UntrustedText": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ]
+    }
+  }
+}

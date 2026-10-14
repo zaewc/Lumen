@@ -2,7 +2,9 @@
 
 > Schemas are generated from Rust types with `schemars`
 > ([ADR-0011](../decisions/0011-contracts-and-schema-sharing.md)) and committed under
-> `ai/schemas/`. This document explains them; the generated schemas are authoritative.
+> `schemas/` (`jev-request`, `jev-judgment`, `jev-trace`; types in
+> `lumen_domain::{JevRequest, Judgment, JevTrace}`). This document explains them; the
+> generated schemas are authoritative.
 
 ## Input: `jev.request/1`
 

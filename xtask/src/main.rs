@@ -49,6 +49,7 @@ const EXPORTS: &[Export] = &[
     export::<d::ScanState>("scan-state"),
     export::<d::PlanState>("plan-state"),
     export::<d::PlatformCapabilities>("platform-capabilities"),
+    export::<d::JevRequest>("jev-request"),
     export::<d::Judgment>("jev-judgment"),
     export::<d::JevTrace>("jev-trace"),
     export::<lumen_devkb::Entry>("devkb-entry"),

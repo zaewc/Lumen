@@ -31,6 +31,7 @@ mod escape;
 mod evidence;
 mod id;
 mod inventory;
+mod jev;
 mod judgment;
 mod lifecycle;
 mod name;
@@ -73,6 +74,10 @@ pub use id::{
 pub use inventory::{
     AppId, AppIdScheme, Application, CodeSignature, Package, PackageManager, Process, Service,
     ServiceKind, ServiceScope, SignatureCheck,
+};
+pub use jev::{
+    CandidateSummary, CoverageNote, CoverageSummary, EvidenceKind, JEV_REQUEST_SCHEMA, JevRequest,
+    RequestEvidence, UntrustedField,
 };
 pub use judgment::{
     Assessment, ItemRef, JevTrace, JudgeDescriptor, Judgment, JudgmentConfidence,
