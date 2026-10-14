@@ -46,6 +46,8 @@ pub struct ExpectedLeaf {
     pub size: u64,
     /// Its modification time, `(seconds, nanoseconds)`.
     pub modified: (i64, i64),
+    /// Its hard-link count.
+    pub links: u64,
 }
 
 /// One item of a confirmed plan: where it is, relative to a scan root, and
@@ -102,6 +104,9 @@ pub enum Mismatch {
     /// The leaf was modified.
     #[error("the item was modified")]
     Modified,
+    /// The leaf gained or lost hard links.
+    #[error("the item's link count changed")]
+    LinksChanged,
 }
 
 /// A verified item: its parent's handle and the leaf's name in it.
@@ -137,6 +142,15 @@ pub(crate) fn identity(stat: &Stat) -> UnixIdentity {
 )]
 fn modified(stat: &Stat) -> (i64, i64) {
     (stat.st_mtime as i64, stat.st_mtime_nsec as i64)
+}
+
+#[allow(
+    clippy::cast_lossless,
+    clippy::unnecessary_cast,
+    reason = "st_nlink is u16 on Apple platforms and u64 on Linux"
+)]
+fn links(stat: &Stat) -> u64 {
+    stat.st_nlink as u64
 }
 
 /// Whether `name` is one plain directory entry name.
@@ -223,7 +237,31 @@ pub(crate) fn check_leaf(stat: &Stat, expected: &ExpectedLeaf) -> Result<(), Mis
     if modified(stat) != expected.modified {
         return Err(Mismatch::Modified);
     }
+    if links(stat) != expected.links {
+        return Err(Mismatch::LinksChanged);
+    }
     Ok(())
+}
+
+/// Test helpers shared with the other modules' tests.
+#[cfg(test)]
+pub(crate) mod tests_support {
+    use super::{ExpectedLeaf, LeafKind, Stat, identity, links, modified};
+
+    /// What a plan would expect of an object that looks like `stat` now.
+    pub(crate) fn expected(stat: &Stat, is_dir: bool) -> ExpectedLeaf {
+        ExpectedLeaf {
+            identity: identity(stat),
+            kind: if is_dir {
+                LeafKind::Directory
+            } else {
+                LeafKind::File
+            },
+            size: u64::try_from(stat.st_size).unwrap_or(0),
+            modified: modified(stat),
+            links: links(stat),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -263,6 +301,7 @@ mod tests {
                 kind,
                 size: u64::try_from(leaf_stat.st_size).unwrap_or(0),
                 modified: modified(&leaf_stat),
+                links: links(&leaf_stat),
             },
         }
     }
@@ -330,6 +369,10 @@ mod tests {
         let mut other = plan(&fx, "cache/app/data.bin");
         other.expected.identity = identity(&stat_path(&fx.root().join("cache/other")));
         assert_eq!(verify(&other).map(|_| ()), Err(Mismatch::IdentityChanged));
+
+        let mut linked = plan(&fx, "cache/app/data.bin");
+        linked.expected.links += 1;
+        assert_eq!(verify(&linked).map(|_| ()), Err(Mismatch::LinksChanged));
 
         let mut kind = plan(&fx, "cache/app/data.bin");
         kind.expected.kind = LeafKind::Directory;

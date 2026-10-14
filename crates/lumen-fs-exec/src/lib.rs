@@ -8,16 +8,21 @@
 //! volume, and permanent deletion only ever happens inside that store.
 //!
 //! So far: [`verify`] re-checks a plan item by handle, and [`open_store`] opens
-//! or creates a private, same-volume quarantine store (Unix). Moves, restores
-//! and finalization follow (roadmap 9.3–9.8), then the Windows executor (9.10).
+//! or creates a private, same-volume quarantine store, and [`move_into`] renames
+//! a verified item into it without replacing anything (Unix). Restores and
+//! finalization follow (roadmap 9.4–9.8), then the Windows executor (9.10).
 
 #![forbid(unsafe_code)]
 
+#[cfg(unix)]
+mod move_into;
 #[cfg(unix)]
 mod store;
 #[cfg(unix)]
 mod verify;
 
+#[cfg(unix)]
+pub use move_into::{Left, MoveError, move_into};
 #[cfg(unix)]
 pub use store::{Store, StoreError, open_store};
 #[cfg(unix)]
