@@ -122,8 +122,9 @@ sealed system volume moves to the volume inventory.
 | 6.13 | `feat(platform-windows): read Disk Cleanup handler declarations` | vendor-declared cache edges |
 | 6.14 | `feat(devkb): add knowledge-base schema and loader` | `lumen-devkb` entry schema (`schemas/devkb-entry.schema.json`), validation (safe relative paths, bare program names, https sources, class/action consistency), `last_verified` check |
 | 6.14a | `ci(devkb): flag stale entries on a schedule` | `xtask devkb --max-age-days`; a scheduled workflow, so time passing never fails unrelated PRs |
-| 6.15+ | `feat(devkb): add <tool> entry` | one PR per tool (Xcode DerivedData, simulators, Docker, npm, pnpm, Yarn, Cargo, Gradle, CocoaPods, Homebrew, JetBrains, VS Code, uv, Go, Claude Code), each with sources |
-| 6.x | `docs(graph): document evidence graph` | `docs/architecture/evidence-graph.md` |
+| 6.15+ | `feat(devkb): add <tool> entry` | one PR per tool, each with sources. Landed: Cargo, Gradle, Go build and module caches, npm, pnpm, uv, Homebrew, Claude Code, Xcode DerivedData and iOS DeviceSupport. Open: simulators (`simctl` has no web reference), Docker, Yarn (needs a tool-version constraint: Yarn 1 and Berry differ), CocoaPods (cache path unverified), JetBrains (per-version directory pattern), VS Code (no first-party source) |
+| 6.16 | `feat(devkb): match entries against scanned entries` | resolve entry locations per platform and environment; `KnowledgeBaseMatch` evidence |
+| 6.17 | `docs(graph): document evidence graph` | `docs/architecture/evidence-graph.md` |
 
 ## Later phases (outline)
 

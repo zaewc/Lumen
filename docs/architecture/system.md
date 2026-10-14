@@ -222,7 +222,8 @@ Invariants (property-tested):
 
 ## 7. Evidence graph
 
-See [ADR-0013](../decisions/0013-evidence-graph-relational.md). The graph is a typed
+See [ADR-0013](../decisions/0013-evidence-graph-relational.md) and
+[evidence-graph.md](evidence-graph.md) for the full model. The graph is a typed
 property graph stored in `index.db` (nodes, edges and evidence tables) with an
 in-memory adjacency index per analysis.
 

@@ -22,6 +22,7 @@ never remove.**
 | What each platform can and cannot do | [`docs/architecture/platforms.md`](docs/architecture/platforms.md) |
 | What to build next | [`docs/architecture/roadmap.md`](docs/architecture/roadmap.md) |
 | Scanner safety contract | [`docs/architecture/scanner.md`](docs/architecture/scanner.md) |
+| Evidence, graph, bundles and hashes | [`docs/architecture/evidence-graph.md`](docs/architecture/evidence-graph.md) |
 | Scanner performance baselines | [`docs/architecture/performance.md`](docs/architecture/performance.md) |
 | Why a decision was made | [`docs/decisions/`](docs/decisions/README.md) (ADRs) |
 | Evidence behind decisions | [`docs/research/`](docs/research/) |
