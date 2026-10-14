@@ -26,6 +26,7 @@
 #![forbid(unsafe_code)]
 
 mod classify;
+mod explain;
 mod locations;
 mod rules;
 
@@ -39,6 +40,7 @@ use lumen_domain::{
 };
 
 pub use classify::KnowledgeClass;
+pub use explain::explain;
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
