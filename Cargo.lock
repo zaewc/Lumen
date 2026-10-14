@@ -572,6 +572,8 @@ name = "lumen-application"
 version = "0.0.0"
 dependencies = [
  "lumen-domain",
+ "lumen-policy",
+ "lumen-testkit",
  "thiserror",
 ]
 

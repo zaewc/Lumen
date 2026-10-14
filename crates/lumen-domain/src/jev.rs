@@ -10,7 +10,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ByteCount, Category, EvidenceId, ItemRef, SchemaVersion, UntrustedText};
+use crate::{ByteCount, Category, EvidenceId, ItemRef, PayloadHash, SchemaVersion, UntrustedText};
+
+/// Domain separator for request hashes.
+const REQUEST_HASH_DOMAIN: &[u8] = b"lumen.jev.request/1\0";
 
 /// Schema name of requests.
 pub const JEV_REQUEST_SCHEMA: &str = "jev.request";
@@ -168,6 +171,18 @@ impl JevRequest {
         SchemaVersion::new(JEV_REQUEST_SCHEMA, 1, 0)
     }
 
+    /// Domain-separated BLAKE3 of the request's canonical JSON, recorded in
+    /// traces and used to key recorded answers (cassettes).
+    pub fn hash(&self) -> PayloadHash {
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(REQUEST_HASH_DOMAIN);
+        hasher.update(
+            &serde_json::to_vec(self)
+                .unwrap_or_else(|e| unreachable!("request serialization is infallible: {e}")),
+        );
+        PayloadHash::from_bytes(*hasher.finalize().as_bytes())
+    }
+
     /// The evidence IDs a judgment may cite.
     pub fn evidence_ids(&self) -> BTreeSet<EvidenceId> {
         self.evidence.iter().map(|e| e.id).collect()
@@ -239,6 +254,23 @@ mod tests {
             .map(|e| e.to_string())
             .collect();
         assert_eq!(errors, Vec::<String>::new());
+        Ok(())
+    }
+
+    #[test]
+    fn hashes_are_stable_and_sensitive() -> Result<(), Box<dyn std::error::Error>> {
+        let request = sample()?;
+        assert_eq!(request.hash(), sample()?.hash());
+        let mut other = sample()?;
+        other.item_ref = ItemRef::new("c_2")?;
+        assert_ne!(request.hash(), other.hash());
+        let mut plain = blake3::Hasher::new();
+        plain.update(&serde_json::to_vec(&request)?);
+        assert_ne!(
+            request.hash().as_bytes(),
+            plain.finalize().as_bytes(),
+            "domain-separated"
+        );
         Ok(())
     }
 

@@ -37,6 +37,7 @@ Jev is never consulted for items already fixed by hard protections (stage 1): th
 | Component | Crate | Responsibility |
 | --- | --- | --- |
 | `JudgeModel` port | `lumen-application` | `descriptor()` and `judge(&EvidenceBundle) -> Result<Judgment, JudgeError>` |
+| Consultation | `lumen-application::consult` | Ask only when the policy's first decision is not `KEEP` and a judge is configured; re-evaluate with the judgment; trace every consultation |
 | Request builder | `lumen-jev` | Canonical, redacted, versioned request from a bundle; untrusted strings JSON-encoded in labelled fields |
 | Adapters | `lumen-jev` | Provider-specific transport only; no parsing logic of their own |
 | Response validator | `lumen-jev` | `stop_reason` handling, JSON Schema validation, enum and length checks, evidence-ID membership, pinned-model check |
