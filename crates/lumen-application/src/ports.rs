@@ -1,11 +1,14 @@
 //! Ports: time, identifiers, directory enumeration, verification, change feeds,
-//! inventory and in-use probes.
+//! inventory, in-use probes and the optional AI judge.
 
+use std::future::Future;
 use std::ops::ControlFlow;
+use std::pin::Pin;
 
 use lumen_domain::{
-    AccessState, Application, FileIdentity, FilesystemEntry, OperationId, Package, PlanId, Process,
-    RawPath, ScanId, Service, SnapshotId, SourceName, SourceStatus, Timestamp, VolumeId,
+    AccessState, Application, FileIdentity, FilesystemEntry, JevRequest, JudgeDescriptor, Judgment,
+    JudgmentRejection, OperationId, Package, PlanId, Process, RawPath, ScanId, Service, SnapshotId,
+    SourceName, SourceStatus, Timestamp, VolumeId,
 };
 
 use crate::CancelToken;
@@ -305,6 +308,58 @@ pub trait InUseProbe: Send + Sync {
     fn probe(&self, path: &RawPath, expected: &FileIdentity) -> InUse;
 }
 
+/// Why a judge produced no usable judgment. Every variant means the same thing
+/// to the caller: decide without Jev (docs/ai/architecture.md).
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
+pub enum JudgeError {
+    /// Jev is turned off (the default).
+    #[error("Jev is disabled")]
+    Disabled,
+    /// The judge could not be reached or did not answer in time.
+    #[error("the judge is unavailable: {0}")]
+    Unavailable(&'static str),
+    /// The model refused, ran out of tokens, or answered from an unexpected
+    /// model.
+    #[error("the judge gave no usable answer: {0}")]
+    NoAnswer(&'static str),
+    /// The answer did not match the contract.
+    #[error("the judgment was rejected: {0}")]
+    Rejected(JudgmentRejection),
+    /// The answer was not valid JSON for `jev.judgment/1`.
+    #[error("the judgment did not match its schema")]
+    Malformed,
+}
+
+/// A judgment in flight.
+pub type JudgeFuture<'a> = Pin<Box<dyn Future<Output = Result<Judgment, JudgeError>> + Send + 'a>>;
+
+/// The optional AI judge (Jev, ADR-0020). It answers one request with a
+/// validated [`Judgment`], which the policy may use only to add caution.
+/// Adapters own transport and validation; callers treat any error as "no Jev".
+pub trait JudgeModel: Send + Sync {
+    /// Which judge this is, or `None` when Jev is disabled.
+    fn descriptor(&self) -> Option<JudgeDescriptor>;
+
+    /// Judges one request.
+    fn judge<'a>(&'a self, request: &'a JevRequest) -> JudgeFuture<'a>;
+}
+
+/// The default judge: Jev is disabled, and every request is answered with
+/// [`JudgeError::Disabled`] without leaving the process.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NoopJudge;
+
+impl JudgeModel for NoopJudge {
+    fn descriptor(&self) -> Option<JudgeDescriptor> {
+        None
+    }
+
+    fn judge<'a>(&'a self, _request: &'a JevRequest) -> JudgeFuture<'a> {
+        Box::pin(std::future::ready(Err(JudgeError::Disabled)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -323,6 +378,39 @@ mod tests {
         assert_dyn_send::<dyn ChangeFeed>();
         assert_dyn_send_sync::<dyn InventorySource>();
         assert_dyn_send_sync::<dyn InUseProbe>();
+        assert_dyn_send_sync::<dyn JudgeModel>();
+    }
+
+    #[test]
+    fn the_noop_judge_is_disabled() -> Result<(), Box<dyn std::error::Error>> {
+        use std::collections::{BTreeMap, BTreeSet};
+        use std::task::{Context, Poll, Waker};
+
+        let request = JevRequest {
+            schema_version: JevRequest::current_schema()?,
+            item_ref: lumen_domain::ItemRef::new("c_1")?,
+            candidate: lumen_domain::CandidateSummary {
+                category: lumen_domain::Category::Other,
+                path_display: lumen_domain::UntrustedText::new("~/x"),
+                size_bytes: lumen_domain::ByteCount::ZERO,
+                reclaimable_bytes: lumen_domain::ByteCount::ZERO,
+            },
+            evidence: Vec::new(),
+            coverage: lumen_domain::CoverageSummary {
+                complete: true,
+                notes: BTreeSet::new(),
+            },
+            untrusted_strings: BTreeMap::new(),
+        };
+        let judge: &dyn JudgeModel = &NoopJudge;
+        assert_eq!(judge.descriptor(), None);
+        let mut future = judge.judge(&request);
+        let mut context = Context::from_waker(Waker::noop());
+        assert_eq!(
+            future.as_mut().poll(&mut context),
+            Poll::Ready(Err(JudgeError::Disabled))
+        );
+        Ok(())
     }
 
     #[test]

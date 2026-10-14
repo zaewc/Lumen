@@ -1,4 +1,5 @@
-//! Test support: declarative fixture directory trees.
+//! Test support: declarative fixture directory trees, and a scripted
+//! [`MockJudge`] for code that consults Jev.
 //!
 //! Every test that touches a filesystem uses a [`Fixture`]: a fresh temporary
 //! directory populated from a list of [`Node`]s. Destructive behaviour is only ever
@@ -12,6 +13,10 @@
 //!   (no destructive code in this crate).
 
 #![forbid(unsafe_code)]
+
+mod judge;
+
+pub use judge::MockJudge;
 
 use std::fs::{self, File, FileTimes};
 use std::path::{Component, Path, PathBuf};

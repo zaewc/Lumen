@@ -705,6 +705,7 @@ dependencies = [
 name = "lumen-testkit"
 version = "0.0.0"
 dependencies = [
+ "lumen-application",
  "lumen-domain",
  "proptest",
  "tempfile",
