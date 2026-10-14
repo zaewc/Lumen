@@ -5,8 +5,8 @@
 > larger than roughly 400 changed lines of non-generated code, split it before
 > starting. Items within a phase are ordered by dependency.
 
-Phases 1 (research), 2 (architecture), 3 (repository bootstrap), 4 (domain) and
-5 (scanner) are complete: see [`docs/research/`](../research/),
+Phases 1 (research), 2 (architecture), 3 (repository bootstrap), 4 (domain),
+5 (scanner) and 6 (evidence and graph) are complete: see [`docs/research/`](../research/),
 [`docs/decisions/`](../decisions/README.md) and the
 [scanner safety contract](scanner.md).
 
@@ -103,7 +103,15 @@ sealed system volume moves to the volume inventory.
 | 5.19 | `perf(scan): add criterion benchmarks and baselines` | entries/s, RSS ([performance.md](performance.md)); streaming aggregation cut peak RSS 1.32 GB → 201 MB |
 | 5.20 | `docs(scan): document scanner safety contract` | `docs/architecture/scanner.md` |
 
-## Phase 6: Evidence and graph
+## Phase 6: Evidence and graph (complete)
+
+Deferred to Phase 10 (platform integrations), each needing an API Lumen does not
+call yet:
+
+- AppX/MSIX packages (WinRT `PackageManager`);
+- scheduled tasks (Task Scheduler COM);
+- `StartupApproved` state (undocumented format);
+- the devkb entries marked open in 6.15+.
 
 | # | PR title | Content |
 | --- | --- | --- |
@@ -126,10 +134,29 @@ sealed system volume moves to the volume inventory.
 | 6.16 | `feat(devkb): match entries against scanned entries` | resolve entry locations per platform and environment; `KnowledgeBaseMatch` evidence |
 | 6.17 | `docs(graph): document evidence graph` | `docs/architecture/evidence-graph.md` |
 
+## Phase 7: Policy
+
+`lumen-policy` turns an evidence bundle into a `PolicyDecision`
+([ADR-0014](../decisions/0014-deterministic-safety-policy-engine.md)). It is IO-free,
+depends only on `lumen-domain` (knowledge-base classes arrive as input data, so the
+policy never depends on an adapter), and when uncertain it answers `REVIEW` or
+`KEEP`.
+
+| # | PR title | Content |
+| --- | --- | --- |
+| 7.1 | `feat(policy): add staged policy evaluator` | `PolicyInput` (subject facts, bundle, coverage, in-use answer, capabilities), the four stages in order, default `REVIEW`, fired-rule trace; determinism property test |
+| 7.2 | `feat(policy): keep items protected by observed facts` | OS-protected flags, cloud-backed, in use (`Yes`/`Unknown`; `Partial` only under ADR-0030), incomplete coverage, identity changed → `KEEP` |
+| 7.3 | `feat(policy): add protected-location rule data` | schema-validated, embedded patterns: system locations, credentials and keys, browser profiles, databases, security software; case-folded per platform |
+| 7.4 | `feat(policy): add eligibility rules` | platform capability, no-replace rename support, reclaimability (hard links, clones, snapshots: "frees nothing") |
+| 7.5 | `feat(policy): classify knowledge-base and vendor-declared caches` | devkb safety class → `QUARANTINE` / tool command under `REVIEW` / informational; vendor-declared caches |
+| 7.6 | `feat(policy): add monotone Jev stage` | demotion only; promotion allow-list exists but is empty (ADR-0020) |
+| 7.7 | `feat(policy): add explanation templates` | fired rules → user text; snapshot tests |
+| 7.8 | `test(policy): add safety property tests` | protected never `QUARANTINE`; same input, same output; Jev never lowers caution |
+| 7.9 | `ci(policy): run cargo-mutants nightly` | scheduled workflow on `lumen-policy` |
+| 7.10 | `feat(policy): add Orphan Hunter queries` | leftovers whose owner is absent under complete coverage → `REVIEW` only |
+
 ## Later phases (outline)
 
-- **Phase 7, Policy:** `lumen-policy` stages, rule data, explanation templates,
-  property and mutation tests, Orphan Hunter queries.
 - **Phase 8, Jev:** `JudgeModel` port, `NoopJudge`/`MockJudge`, request builder,
   validator, trace, `lumen-jev-eval` with replay, datasets v2026.10.0, then
   `AnthropicJudge`.
