@@ -153,7 +153,7 @@ policy never depends on an adapter), and when uncertain it answers `REVIEW` or
 | 7.5b | `feat(policy): classify application caches` | `~/Library/Caches/<bundle id>` and similar convention locations of non-running apps; needs the location kind in the ownership evidence |
 | 7.6 | `feat(policy): add monotone Jev stage` | `QUARANTINE` → `REVIEW` on likely needed, uncertain or suspected injection; no promotion path exists until ADR-0020's calibration gates are met |
 | 7.7 | `feat(policy): add explanation templates` | fired rules → fixed sentences, never untrusted text; every rule has a template; golden-string tests |
-| 7.8 | `test(policy): add safety property tests` | protected never `QUARANTINE`; same input, same output; Jev never lowers caution |
+| 7.8 | `test(policy): add safety property tests` | random inputs over every fact, coverage state, capability, path and judgment: protected items always `KEEP`; evidence order never matters; Jev never lowers caution; `QUARANTINE` only through a regenerable classification with no cap |
 | 7.9 | `ci(policy): run cargo-mutants nightly` | scheduled workflow on `lumen-policy` |
 | 7.10 | `feat(policy): add Orphan Hunter queries` | leftovers whose owner is absent under complete coverage → `REVIEW` only |
 | 7.11 | `feat(policy): accept partial in-use answers under ADR-0030` | needs ownership and home-location facts; quarantine rename only, with the executor's re-probe |
