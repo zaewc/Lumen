@@ -423,6 +423,35 @@ mod tests {
     }
 
     #[test]
+    fn relative_paths_are_plain_names() {
+        assert!(safe_relative("a/b c/d.e"));
+        for bad in [
+            "", "/a", "a/", "a//b", ".", "a/./b", "..", "a/..", r"a\b", "c:", "a*", "a?", "a\u{7}",
+        ] {
+            assert!(!safe_relative(bad), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn linux_paths_compare_exactly_and_unc_shares_are_not_volumes() {
+        assert_eq!(linux("/home/ana/.SSH/id_ed25519"), None, "case-sensitive");
+        assert_eq!(
+            linux("/home/ana/.ssh").as_deref(),
+            Some("protect.location.ssh")
+        );
+        assert_eq!(
+            win(r"\\server\pagefile.sys"),
+            None,
+            "a share is not a drive"
+        );
+        assert_eq!(
+            win(r"\\ab\pagefile.sys"),
+            None,
+            "two letters are not a drive"
+        );
+    }
+
+    #[test]
     fn the_embedded_data_is_valid() {
         let loaded = locations().map(<[Location]>::len);
         assert!(loaded.is_some_and(|n| n > 0), "{loaded:?}");
@@ -461,8 +490,10 @@ mod tests {
             entry(&[("platforms", r#"["windows"]"#)]),
             entry(&[("root", r#""windows_dir""#)]),
             entry(&[("root", r#""local_app_data""#)]),
-            entry(&[("path", r#""../usr""#)]),
-            entry(&[("path", r#""""#)]),
+            entry(&[("id", r#""1abc""#)]),
+            entry(&[("path", r#""../usr""#), ("except", "[]")]),
+            entry(&[("path", r#""""#), ("except", "[]")]),
+            entry(&[("except", r#"["usr/../x"]"#)]),
             entry(&[("except", r#"["opt/local"]"#)]),
             entry(&[("except", r#"["usrlocal"]"#)]),
             entry(&[("source", r#""http://x.example""#)]),
