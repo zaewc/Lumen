@@ -145,7 +145,7 @@ policy never depends on an adapter), and when uncertain it answers `REVIEW` or
 | # | PR title | Content |
 | --- | --- | --- |
 | 7.1 | `feat(policy): add staged policy evaluator` | `PolicyInput` (subject facts, bundle, coverage, in-use answer, capabilities), the four stages in order, default `REVIEW`, fired-rule trace; determinism property test |
-| 7.2 | `feat(policy): keep items protected by observed facts` | OS-protected flags, Windows system files, cloud-backed, in use (`Yes`, `Unknown`, and `Partial` until 7.11) → `KEEP`; coverage checks landed with 7.4; identity is re-verified by handle in the executor (ADR-0016) |
+| 7.2 | `feat(policy): keep items protected by observed facts` | OS-protected flags, Windows system files, cloud-backed, in use (`Yes`, `Unknown`, and `Partial` outside ADR-0030's conditions, see 7.11) → `KEEP`; coverage checks landed with 7.4; identity is re-verified by handle in the executor (ADR-0016) |
 | 7.3 | `feat(policy): keep protected system locations` | embedded, validated location data with official sources (SIP paths; WinSxS, System32, Installer cache, page and hibernation files); case-folded per platform; fails closed |
 | 7.3b | `feat(policy): keep credentials, keys and browser profiles` | home-relative sensitive locations with official sources: SSH, GnuPG, macOS keychains, AWS CLI, Chrome profiles. Open: Firefox (support page not machine-readable), password managers, wallets, databases and security software (need per-product sources or signature evidence) |
 | 7.4 | `feat(policy): add eligibility rules` | unobserved or partly read items → `KEEP`; quarantine unsupported, frees nothing now (hard links, clones, snapshots, dataless), links and special files → at most `REVIEW`. Open: per-volume no-replace rename support (needs volume capability evidence) |
@@ -156,7 +156,7 @@ policy never depends on an adapter), and when uncertain it answers `REVIEW` or
 | 7.8 | `test(policy): add safety property tests` | random inputs over every fact, coverage state, capability, path and judgment: protected items always `KEEP`; evidence order never matters; Jev never lowers caution; `QUARANTINE` only through a regenerable classification with no cap |
 | 7.9 | `ci(policy): run cargo-mutants nightly` | scheduled workflow on `lumen-policy`; missed mutants fail the run (baseline: 0 missed after #179) |
 | 7.10 | `feat(policy): review orphaned leftovers` | owner's absence trusted only from completely read inventories → `REVIEW` only (`classify.orphan`); finding candidates across the graph is application-layer work (Phase 10) |
-| 7.11 | `feat(policy): accept partial in-use answers under ADR-0030` | needs ownership and home-location facts; quarantine rename only, with the executor's re-probe |
+| 7.11 | `feat(policy): accept partial in-use answers under ADR-0030` | below the user's home, `OwnedByCurrentUser(true)` and nothing contradicting it, quarantine rename available; recorded as `eligible.in-use-partial`; the executor's re-probe lands with Phase 9; ownership producers with Phase 10 |
 
 ## Later phases (outline)
 

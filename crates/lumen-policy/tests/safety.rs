@@ -44,6 +44,7 @@ fn entry_name(n: u8) -> SourceName {
 fn fact() -> impl Strategy<Value = Fact> {
     prop_oneof![
         any::<bool>().prop_map(Fact::InUse),
+        any::<bool>().prop_map(Fact::OwnedByCurrentUser),
         proptest::option::of(0_u32..5)
             .prop_map(|unseen| Fact::NotInUseByVisibleProcesses { unseen }),
         any::<bool>().prop_map(Fact::CloudBacked),
@@ -224,6 +225,23 @@ fn must_keep(input: &PolicyInput) -> bool {
         _ => false,
     });
     let complete_no = facts.contains(&&Fact::InUse(false));
+    let partial = facts
+        .iter()
+        .any(|f| matches!(f, Fact::NotInUseByVisibleProcesses { .. }));
+    // ADR-0030: a partial answer passes only for the user's own items below
+    // their home, when the reversible quarantine rename is available.
+    let adr_0030 = facts.contains(&&Fact::OwnedByCurrentUser(true))
+        && !facts.contains(&&Fact::OwnedByCurrentUser(false))
+        && !input.paths.is_empty()
+        && input
+            .paths
+            .iter()
+            .all(|p| p.as_bytes().starts_with(b"/home/t/"))
+        && input
+            .context
+            .mechanisms
+            .contains(&CleanupMechanism::QuarantineRename);
+    let in_use_gate_passes = complete_no || (partial && adr_0030);
     let incomplete = input
         .observed
         .as_ref()
@@ -238,7 +256,7 @@ fn must_keep(input: &PolicyInput) -> bool {
         .paths
         .iter()
         .any(|p| p.as_bytes().starts_with(b"/home/t/.ssh/"));
-    protected || !complete_no || incomplete || system_path || sensitive_path
+    protected || !in_use_gate_passes || incomplete || system_path || sensitive_path
 }
 
 proptest! {

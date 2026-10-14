@@ -60,6 +60,11 @@ pub(crate) const RULES: &[Rule] = &[
         check: incomplete_scan,
     },
     Rule {
+        id: "eligible.in-use-partial",
+        stage: PolicyStage::Eligibility,
+        check: in_use_partial_allowed,
+    },
+    Rule {
         id: "eligible.quarantine-unsupported",
         stage: PolicyStage::Eligibility,
         check: quarantine_unsupported,
@@ -182,19 +187,67 @@ fn complete_no(input: &PolicyInput) -> bool {
     !about(input, |f| *f == Fact::InUse(false)).is_empty()
 }
 
-/// Only some processes could be checked. ADR-0030 allows this for the user's
-/// own files under narrow conditions; until the policy can verify them, a
-/// partial answer keeps the item.
-fn in_use_partial(input: &PolicyInput) -> Option<Finding> {
+/// A partial answer is the one the in-use gate relies on: no process says
+/// yes, no complete answer says no, but visible processes were checked.
+fn partial_answer(input: &PolicyInput) -> BTreeSet<EvidenceId> {
     if complete_no(input) || in_use(input).is_some() {
+        return BTreeSet::new();
+    }
+    about(input, |f| {
+        matches!(f, Fact::NotInUseByVisibleProcesses { .. })
+    })
+}
+
+/// ADR-0030 conditions 1 and 2 for passing on a partial answer: every path is
+/// below the user's home, the user owns the item (and nothing says otherwise),
+/// and the only action is the reversible quarantine rename. Condition 3 (no
+/// other protection) is the evaluator's; condition 4 (re-probe before the
+/// rename) is the executor's. Returns the ownership evidence relied on.
+fn partial_allowed(input: &PolicyInput) -> BTreeSet<EvidenceId> {
+    let platform = input.context.platform;
+    let Some(home) = &input.context.home else {
+        return BTreeSet::new();
+    };
+    let home = crate::locations::components(home, platform);
+    let below_home = !input.paths.is_empty()
+        && input.paths.iter().all(|path| {
+            let names = crate::locations::components(path, platform);
+            names.len() > home.len() && names.starts_with(&home)
+        });
+    let owned = about(input, |f| *f == Fact::OwnedByCurrentUser(true));
+    let disowned = !about(input, |f| *f == Fact::OwnedByCurrentUser(false)).is_empty();
+    let quarantine = input
+        .context
+        .mechanisms
+        .contains(&CleanupMechanism::QuarantineRename);
+    if below_home && !disowned && quarantine {
+        owned
+    } else {
+        BTreeSet::new()
+    }
+}
+
+/// Only some processes could be checked, and ADR-0030's conditions do not
+/// hold: the item is kept.
+fn in_use_partial(input: &PolicyInput) -> Option<Finding> {
+    if !partial_allowed(input).is_empty() {
         return None;
     }
-    keep_if(
-        about(input, |f| {
-            matches!(f, Fact::NotInUseByVisibleProcesses { .. })
-        }),
-        RiskFactor::IncompleteCoverage,
-    )
+    keep_if(partial_answer(input), RiskFactor::IncompleteCoverage)
+}
+
+/// Only some processes could be checked, but ADR-0030's conditions hold: the
+/// item stays eligible, and the decision records that it relied on a partial
+/// answer (the executor must probe again before the rename).
+fn in_use_partial_allowed(input: &PolicyInput) -> Option<Finding> {
+    let partial = partial_answer(input);
+    let owned = partial_allowed(input);
+    (!partial.is_empty() && !owned.is_empty()).then(|| Finding {
+        verdict: Verdict::Quarantine,
+        evidence: partial.union(&owned).copied().collect(),
+        risk: BTreeSet::from([RiskFactor::IncompleteCoverage]),
+        rule: None,
+    })
 }
 
 /// Nobody checked whether the item is in use: unknown is never "unused".
@@ -432,6 +485,76 @@ mod tests {
         input.observed = None;
         let decision = evaluate(&input)?;
         assert!(!fired(&decision).contains(&"protect.not-observed"));
+        Ok(())
+    }
+
+    /// A partially checked item at `path`, with `facts`.
+    fn partial_at(path: &str, facts: &[Fact]) -> Result<PolicyDecision, PolicyError> {
+        let mut evidence = vec![fact(
+            file(1),
+            Fact::NotInUseByVisibleProcesses { unseen: None },
+        )];
+        evidence.extend(facts.iter().map(|f| fact(file(1), f.clone())));
+        let mut input = crate::testing::input(evidence);
+        input.paths = vec![
+            lumen_domain::RawPath::from_unix_bytes(path.as_bytes().to_vec())
+                .unwrap_or_else(|_| unreachable!()),
+        ];
+        evaluate(&input)
+    }
+
+    #[test]
+    fn a_partial_answer_passes_only_under_adr_0030() -> Result<(), PolicyError> {
+        let owned = Fact::OwnedByCurrentUser(true);
+        let allowed = partial_at("/home/t/.cache/app", std::slice::from_ref(&owned))?;
+        assert_eq!(
+            fired(&allowed),
+            ["default.review", "eligible.in-use-partial"]
+        );
+        assert_eq!(
+            allowed.verdict(),
+            Verdict::Review,
+            "eligible; nothing classified it"
+        );
+        let mut complete = crate::testing::input(vec![
+            fact(file(1), NOT_IN_USE),
+            fact(file(1), owned.clone()),
+        ]);
+        complete.paths = vec![
+            lumen_domain::RawPath::from_unix_bytes(b"/home/t/.cache/app".to_vec())
+                .unwrap_or_else(|_| unreachable!()),
+        ];
+        assert_eq!(
+            fired(&evaluate(&complete)?),
+            ["default.review"],
+            "a complete answer relies on nothing partial"
+        );
+        let relied = allowed
+            .fired_rules()
+            .iter()
+            .find(|r| r.rule.as_str() == "eligible.in-use-partial")
+            .map(|r| r.evidence.len());
+        assert_eq!(
+            relied,
+            Some(2),
+            "cites the partial answer and the ownership"
+        );
+
+        for (path, facts) in [
+            ("/home/t/.cache/app", vec![]),
+            ("/home/t/.cache/app", vec![Fact::OwnedByCurrentUser(false)]),
+            (
+                "/home/t/.cache/app",
+                vec![owned.clone(), Fact::OwnedByCurrentUser(false)],
+            ),
+            ("/srv/shared/app", vec![owned.clone()]),
+            ("/home/t", vec![owned.clone()]),
+            ("/home/tom/x", vec![owned.clone()]),
+        ] {
+            let decision = partial_at(path, &facts)?;
+            assert_eq!(decision.verdict(), Verdict::Keep, "{path} {facts:?}");
+            assert_eq!(fired(&decision), ["protect.in-use-partial"]);
+        }
         Ok(())
     }
 

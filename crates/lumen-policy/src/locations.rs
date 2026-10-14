@@ -142,7 +142,7 @@ fn fold(text: &str, platform: Platform) -> String {
 
 /// The non-empty components of a path, folded for `platform`. A Windows
 /// device prefix (`\\?\`, `\\.\`) is dropped so `\\?\C:\x` and `C:\x` agree.
-fn components(path: &RawPath, platform: Platform) -> Vec<String> {
+pub(crate) fn components(path: &RawPath, platform: Platform) -> Vec<String> {
     let separators: &[u8] = match path.flavor() {
         PathFlavor::Unix => b"/",
         PathFlavor::Windows => b"\\/",

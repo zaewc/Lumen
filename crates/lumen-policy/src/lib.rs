@@ -44,7 +44,7 @@ pub use explain::explain;
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
-pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 9, 0);
+pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 10, 0);
 
 /// The machine a decision is made on.
 #[derive(Debug, Clone, PartialEq, Eq)]
