@@ -381,6 +381,25 @@ pub trait QuarantineExecutor: Send + Sync {
         item: &PreparedItem,
         operation: OperationId,
     ) -> Result<RestoredItem, RestoreFailure>;
+
+    /// Permanently removes the item of `operation` from the store, then its
+    /// manifest sidecar. The only permanent removal (ADR-0015).
+    ///
+    /// # Errors
+    ///
+    /// How much a failed finalization removed.
+    fn finalize(&self, item: &PreparedItem, operation: OperationId) -> Result<(), Removal>;
+}
+
+/// How much a failed finalization removed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Removal {
+    /// Nothing; the item is intact in the store.
+    Nothing,
+    /// Possibly part of the item; finalizing again finishes it.
+    Partly,
+    /// The whole item; only its sidecar remains.
+    Item,
 }
 
 /// Why a restore did not happen.

@@ -162,6 +162,14 @@ mod tests {
         ) -> Result<crate::ports::RestoredItem, crate::ports::RestoreFailure> {
             unreachable!("quarantining restores nothing")
         }
+
+        fn finalize(
+            &self,
+            _item: &PreparedItem,
+            _operation: OperationId,
+        ) -> Result<(), crate::ports::Removal> {
+            unreachable!("quarantining finalizes nothing")
+        }
     }
 
     #[derive(Default)]

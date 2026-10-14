@@ -6,7 +6,8 @@
 //! a [`PreparedItem`] (JSON, with raw path bytes). `quarantine` acts only if the
 //! item still matches that record, and names it in the store after the
 //! operation. `locate` tells reconciliation where an interrupted item is, and
-//! `restore` moves a quarantined item back without replacing anything. Every
+//! `restore` moves a quarantined item back without replacing anything, and
+//! `finalize` removes it permanently from the store. Every
 //! failure says where it left the item: untouched at the source, or in the
 //! store and restorable.
 
@@ -15,18 +16,19 @@ use std::os::unix::ffi::OsStrExt as _;
 use std::path::{Path, PathBuf};
 
 use lumen_application::ports::{
-    ExecutionFailure, Located, NotRestored, PreparedItem, QuarantineExecutor, RestoreFailure,
-    RestoredItem,
+    ExecutionFailure, Located, NotRestored, PreparedItem, QuarantineExecutor, Removal,
+    RestoreFailure, RestoredItem,
 };
 use lumen_domain::{ItemLocation, OperationId, QuarantineFailure, RawPath};
 use rustix::fs::{AtFlags, FileType, Mode, OFlags, fstat, open, openat, statat};
 use serde::{Deserialize, Serialize};
 
+use crate::finalize::{Removed, finalize};
 use crate::move_into::{Left, MoveError, move_into};
 use crate::restore::{RestoreError, restore};
 use crate::sidecar::write_sidecar;
 use crate::store::{Store, open_store};
-use crate::verify::{ExpectedLeaf, LeafKind, PlanItem, UnixIdentity, check_leaf, identity, verify};
+use crate::verify::{ExpectedLeaf, LeafKind, PlanItem, UnixIdentity, check_held, identity, verify};
 
 /// The JSON form of a prepared item.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -213,7 +215,7 @@ impl QuarantineExecutor for Executor {
         };
         let name = operation.to_string();
         match statat(store.handle(), name.as_bytes(), AtFlags::SYMLINK_NOFOLLOW) {
-            Ok(stat) if check_leaf(&stat, &plan.expected).is_ok() => Located::InStore,
+            Ok(stat) if check_held(&stat, &plan.expected).is_ok() => Located::InStore,
             _ => Located::Unknown,
         }
     }
@@ -246,6 +248,19 @@ impl QuarantineExecutor for Executor {
                     Left::AtSource => ItemLocation::Source,
                 },
             })
+    }
+
+    fn finalize(&self, item: &PreparedItem, operation: OperationId) -> Result<(), Removal> {
+        let plan = parse(item).ok_or(Removal::Nothing)?.plan();
+        let store = self
+            .store(plan.expected.identity.dev)
+            .ok_or(Removal::Nothing)?;
+        let name = operation.to_string();
+        finalize(&store, name.as_bytes(), &plan.expected).map_err(|error| match error.removed() {
+            Removed::Nothing => Removal::Nothing,
+            Removed::Partly => Removal::Partly,
+            Removed::Item => Removal::Item,
+        })
     }
 }
 
@@ -344,6 +359,26 @@ mod tests {
         assert_eq!(
             std::fs::read(root.join("cache/app/data.bin")).unwrap_or_default(),
             b"0123456789"
+        );
+    }
+
+    #[test]
+    fn a_quarantined_item_is_finalized_with_its_sidecar() {
+        let (_fx, root, executor) = setup();
+        let prepared = executor
+            .prepare(&raw(&root), &relative())
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(executor.quarantine(&prepared, op(4), b"{}"), Ok(()));
+        assert_eq!(executor.finalize(&prepared, op(4)), Ok(()));
+        assert_eq!(executor.locate(&prepared, op(4)), Located::Unknown);
+        let left = std::fs::read_dir(root.join("Quarantine"))
+            .unwrap_or_else(|e| unreachable!("{e}"))
+            .count();
+        assert_eq!(left, 0, "item and sidecar are gone");
+        assert_eq!(
+            executor.finalize(&prepared, op(4)),
+            Err(Removal::Nothing),
+            "finalizing twice removes nothing"
         );
     }
 

@@ -244,6 +244,25 @@ pub(crate) fn check_leaf(stat: &Stat, expected: &ExpectedLeaf) -> Result<(), Mis
 }
 
 /// What a plan would expect of an object that looks like `stat` now.
+/// Checks an item held in a quarantine store. A file must match in full; a
+/// directory by identity and kind only, because an interrupted finalization
+/// has already changed its contents and must be able to finish. The store is
+/// private to its owner (ADR-0015), so nothing else changes it.
+pub(crate) fn check_held(stat: &Stat, expected: &ExpectedLeaf) -> Result<(), Mismatch> {
+    match expected.kind {
+        LeafKind::File => check_leaf(stat, expected),
+        LeafKind::Directory => {
+            if identity(stat) != expected.identity {
+                Err(Mismatch::IdentityChanged)
+            } else if FileType::from_raw_mode(stat.st_mode) == FileType::Directory {
+                Ok(())
+            } else {
+                Err(Mismatch::KindChanged)
+            }
+        }
+    }
+}
+
 pub(crate) fn expected_from(stat: &Stat, is_dir: bool) -> ExpectedLeaf {
     ExpectedLeaf {
         identity: identity(stat),

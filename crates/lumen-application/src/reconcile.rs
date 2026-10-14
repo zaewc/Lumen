@@ -125,6 +125,14 @@ mod tests {
         ) -> Result<crate::ports::RestoredItem, crate::ports::RestoreFailure> {
             unreachable!("reconciliation never restores anything")
         }
+
+        fn finalize(
+            &self,
+            _item: &PreparedItem,
+            _operation: OperationId,
+        ) -> Result<(), crate::ports::Removal> {
+            unreachable!("reconciliation never removes anything")
+        }
     }
 
     /// A journal holding complete histories in memory.

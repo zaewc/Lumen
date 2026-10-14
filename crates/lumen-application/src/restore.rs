@@ -98,6 +98,14 @@ mod tests {
         ) -> Result<RestoredItem, RestoreFailure> {
             self.0
         }
+
+        fn finalize(
+            &self,
+            _item: &PreparedItem,
+            _operation: OperationId,
+        ) -> Result<(), crate::ports::Removal> {
+            unreachable!("restoring finalizes nothing")
+        }
     }
 
     #[derive(Default)]

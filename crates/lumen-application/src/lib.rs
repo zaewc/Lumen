@@ -13,6 +13,7 @@
 
 mod cancel;
 pub mod consult;
+pub mod finalize;
 pub mod ports;
 pub mod quarantine;
 pub mod reconcile;

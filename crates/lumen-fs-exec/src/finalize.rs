@@ -23,7 +23,7 @@ use rustix::io::Errno;
 use crate::sidecar::sidecar_name;
 use crate::store::Store;
 use crate::verify::{
-    ExpectedLeaf, LeafKind, Mismatch, check_leaf, directory_flags, identity, plain,
+    ExpectedLeaf, LeafKind, Mismatch, check_held, directory_flags, identity, plain,
 };
 
 /// The deepest directory nesting finalization removes.
@@ -160,18 +160,12 @@ pub fn finalize(store: &Store, name: &[u8], expected: &ExpectedLeaf) -> Result<(
         })
     })?;
     let device = store.identity.dev;
+    check_held(&held, expected).map_err(FinalizeError::NotInStore)?;
     match expected.kind {
         LeafKind::File => {
-            check_leaf(&held, expected).map_err(FinalizeError::NotInStore)?;
             unlinkat(store.handle(), name, AtFlags::empty()).map_err(FinalizeError::Removal)?;
         }
         LeafKind::Directory => {
-            if identity(&held) != expected.identity {
-                return Err(FinalizeError::NotInStore(Mismatch::IdentityChanged));
-            }
-            if FileType::from_raw_mode(held.st_mode) != FileType::Directory {
-                return Err(FinalizeError::NotInStore(Mismatch::KindChanged));
-            }
             let name = CString::new(name).map_err(|_| FinalizeError::InvalidName)?;
             let dir = open_child(store.handle(), &name, device)?;
             check_tree(&dir, device, 1)?;
