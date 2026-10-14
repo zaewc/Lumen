@@ -18,6 +18,7 @@ lumen-cli = { path = "crates/lumen-cli" }
 lumen-devkb = { path = "crates/lumen-devkb" }
 lumen-domain = { path = "crates/lumen-domain" }
 lumen-graph = { path = "crates/lumen-graph" }
+lumen-jev = { path = "crates/lumen-jev" }
 lumen-platform-macos = { path = "crates/lumen-platform-macos" }
 lumen-platform-windows = { path = "crates/lumen-platform-windows" }
 lumen-policy = { path = "crates/lumen-policy" }
