@@ -1,0 +1,19 @@
+[package]
+name = "lumen-policy"
+description = "Lumen's deterministic, versioned safety policy: staged rules over evidence (ADR-0014)."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+lumen-domain.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

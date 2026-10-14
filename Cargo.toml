@@ -20,6 +20,7 @@ lumen-domain = { path = "crates/lumen-domain" }
 lumen-graph = { path = "crates/lumen-graph" }
 lumen-platform-macos = { path = "crates/lumen-platform-macos" }
 lumen-platform-windows = { path = "crates/lumen-platform-windows" }
+lumen-policy = { path = "crates/lumen-policy" }
 lumen-scan = { path = "crates/lumen-scan" }
 lumen-store-sqlite = { path = "crates/lumen-store-sqlite" }
 lumen-testkit = { path = "crates/lumen-testkit" }

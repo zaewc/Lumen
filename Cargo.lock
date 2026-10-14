@@ -662,6 +662,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumen-policy"
+version = "0.0.0"
+dependencies = [
+ "lumen-domain",
+ "proptest",
+ "thiserror",
+]
+
+[[package]]
 name = "lumen-scan"
 version = "0.0.0"
 dependencies = [
