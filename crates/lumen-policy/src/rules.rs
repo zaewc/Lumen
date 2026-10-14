@@ -5,7 +5,10 @@
 
 use std::collections::BTreeSet;
 
-use lumen_domain::{Evidence, EvidenceId, Fact, PolicyStage, RiskFactor, Verdict};
+use lumen_domain::{
+    ByteCount, CleanupMechanism, EntryKind, Evidence, EvidenceId, Fact, PolicyStage, RiskFactor,
+    Subject, Verdict,
+};
 
 use crate::{Finding, PolicyInput, Rule};
 
@@ -45,6 +48,31 @@ pub(crate) const RULES: &[Rule] = &[
         id: "protect.in-use-unknown",
         stage: PolicyStage::HardProtection,
         check: in_use_unknown,
+    },
+    Rule {
+        id: "protect.not-observed",
+        stage: PolicyStage::HardProtection,
+        check: not_observed,
+    },
+    Rule {
+        id: "protect.incomplete-scan",
+        stage: PolicyStage::HardProtection,
+        check: incomplete_scan,
+    },
+    Rule {
+        id: "eligible.quarantine-unsupported",
+        stage: PolicyStage::Eligibility,
+        check: quarantine_unsupported,
+    },
+    Rule {
+        id: "eligible.frees-nothing",
+        stage: PolicyStage::Eligibility,
+        check: frees_nothing,
+    },
+    Rule {
+        id: "eligible.object-kind",
+        stage: PolicyStage::Eligibility,
+        check: object_kind,
     },
 ];
 
@@ -137,11 +165,59 @@ fn in_use_unknown(input: &PolicyInput) -> Option<Finding> {
     })
 }
 
+/// A finding without evidence: the rule fired on the input's shape.
+fn finding(verdict: Verdict, risk: &[RiskFactor]) -> Finding {
+    Finding {
+        verdict,
+        evidence: BTreeSet::new(),
+        risk: risk.iter().copied().collect(),
+        rule: None,
+    }
+}
+
+/// A file the scan never observed: its size, kind and coverage are unknown.
+fn not_observed(input: &PolicyInput) -> Option<Finding> {
+    (matches!(input.subject, Subject::File { .. }) && input.observed.is_none())
+        .then(|| finding(Verdict::Keep, &[RiskFactor::IncompleteCoverage]))
+}
+
+/// Something below the item, or the item itself, was not read: unreadable is
+/// never empty (ADR-0008).
+fn incomplete_scan(input: &PolicyInput) -> Option<Finding> {
+    let observed = input.observed.as_ref()?;
+    (!observed.complete || !observed.entry.access.is_observed())
+        .then(|| finding(Verdict::Keep, &[RiskFactor::IncompleteCoverage]))
+}
+
+/// The platform cannot quarantine here, so nothing can be proposed for it.
+fn quarantine_unsupported(input: &PolicyInput) -> Option<Finding> {
+    (!input
+        .context
+        .mechanisms
+        .contains(&CleanupMechanism::QuarantineRename))
+    .then(|| finding(Verdict::Review, &[]))
+}
+
+/// Removing it frees nothing now: hard links elsewhere, clones, snapshots,
+/// dataless or empty items are never proposed for space.
+fn frees_nothing(input: &PolicyInput) -> Option<Finding> {
+    let observed = input.observed.as_ref()?;
+    (observed.reclaim.reclaimable_now == ByteCount::ZERO).then(|| finding(Verdict::Review, &[]))
+}
+
+/// Links, junctions, reparse points and special files are other objects'
+/// doorways, not artifacts to quarantine.
+fn object_kind(input: &PolicyInput) -> Option<Finding> {
+    let observed = input.observed.as_ref()?;
+    (!matches!(observed.entry.kind, EntryKind::File | EntryKind::Directory))
+        .then(|| finding(Verdict::Review, &[]))
+}
+
 #[cfg(test)]
 mod tests {
     use lumen_domain::{
-        Basis, EvidenceHash, FileId, FileIdentity, PolicyDecision, Protection, Provenance,
-        RiskLevel, SourceName, Subject, Timestamp, VolumeId,
+        AccessState, Basis, DenialReason, FileId, FileIdentity, PolicyDecision, Protection,
+        Provenance, RiskLevel, SourceName, Subject, Timestamp, VolumeId,
     };
 
     use super::*;
@@ -169,21 +245,9 @@ mod tests {
     }
 
     fn decide(facts: &[Fact]) -> Result<PolicyDecision, PolicyError> {
-        evaluate(&PolicyInput {
-            subject: file(1),
-            evidence_hash: EvidenceHash::from_bytes([0; 32]),
-            paths: Vec::new(),
-            context: crate::Context {
-                platform: lumen_domain::Platform::Linux,
-                home: Some(
-                    lumen_domain::RawPath::from_unix_bytes(b"/home/t".to_vec())
-                        .unwrap_or_else(|_| unreachable!()),
-                ),
-                windows_dir: None,
-                local_app_data: None,
-            },
-            evidence: facts.iter().map(|f| fact(file(1), f.clone())).collect(),
-        })
+        evaluate(&crate::testing::input(
+            facts.iter().map(|f| fact(file(1), f.clone())).collect(),
+        ))
     }
 
     fn fired(decision: &PolicyDecision) -> Vec<&str> {
@@ -263,27 +327,76 @@ mod tests {
         Ok(())
     }
 
+    fn decide_with(edit: impl FnOnce(&mut PolicyInput)) -> Result<PolicyDecision, PolicyError> {
+        let mut input = crate::testing::input(vec![fact(file(1), NOT_IN_USE)]);
+        edit(&mut input);
+        evaluate(&input)
+    }
+
+    #[test]
+    fn unobserved_or_partly_read_items_are_kept() -> Result<(), PolicyError> {
+        let unobserved = decide_with(|i| i.observed = None)?;
+        assert_eq!(unobserved.verdict(), Verdict::Keep);
+        assert_eq!(fired(&unobserved), ["protect.not-observed"]);
+        let partial = decide_with(|i| {
+            if let Some(o) = i.observed.as_mut() {
+                o.complete = false;
+            }
+        })?;
+        assert_eq!(fired(&partial), ["protect.incomplete-scan"]);
+        let denied = decide_with(|i| {
+            if let Some(o) = i.observed.as_mut() {
+                o.entry.access = AccessState::Denied(DenialReason::Posix);
+            }
+        })?;
+        assert_eq!(fired(&denied), ["protect.incomplete-scan"]);
+        assert_eq!(denied.risk().level, RiskLevel::Medium);
+        Ok(())
+    }
+
+    #[test]
+    fn ineligible_items_are_at_most_review() -> Result<(), PolicyError> {
+        let unsupported = decide_with(|i| i.context.mechanisms.clear())?;
+        assert_eq!(unsupported.verdict(), Verdict::Review);
+        assert!(fired(&unsupported).contains(&"eligible.quarantine-unsupported"));
+        let nothing = decide_with(|i| {
+            i.observed = Some(crate::testing::observed(EntryKind::File, 0));
+        })?;
+        assert!(fired(&nothing).contains(&"eligible.frees-nothing"));
+        let link = decide_with(|i| {
+            i.observed = Some(crate::testing::observed(EntryKind::Symlink, 10));
+        })?;
+        assert!(fired(&link).contains(&"eligible.object-kind"));
+        let directory = decide_with(|i| {
+            i.observed = Some(crate::testing::observed(EntryKind::Directory, 10));
+        })?;
+        assert_eq!(fired(&directory), ["default.review"], "eligible");
+        Ok(())
+    }
+
+    #[test]
+    fn non_file_subjects_need_no_scan_observation() -> Result<(), PolicyError> {
+        let app = Subject::Application {
+            id: lumen_domain::AppId {
+                scheme: lumen_domain::AppIdScheme::BundleId,
+                value: lumen_domain::UntrustedText::new("com.example.app"),
+            },
+        };
+        let mut input = crate::testing::input(vec![fact(app.clone(), NOT_IN_USE)]);
+        input.subject = app;
+        input.observed = None;
+        let decision = evaluate(&input)?;
+        assert!(!fired(&decision).contains(&"protect.not-observed"));
+        Ok(())
+    }
+
     #[test]
     fn evidence_about_other_subjects_is_ignored() -> Result<(), PolicyError> {
-        let decision = evaluate(&PolicyInput {
-            subject: file(1),
-            evidence_hash: EvidenceHash::from_bytes([0; 32]),
-            paths: Vec::new(),
-            context: crate::Context {
-                platform: lumen_domain::Platform::Linux,
-                home: Some(
-                    lumen_domain::RawPath::from_unix_bytes(b"/home/t".to_vec())
-                        .unwrap_or_else(|_| unreachable!()),
-                ),
-                windows_dir: None,
-                local_app_data: None,
-            },
-            evidence: vec![
-                fact(file(1), NOT_IN_USE),
-                fact(file(2), Fact::InUse(true)),
-                fact(file(2), Fact::CloudBacked(true)),
-            ],
-        })?;
+        let decision = evaluate(&crate::testing::input(vec![
+            fact(file(1), NOT_IN_USE),
+            fact(file(2), Fact::InUse(true)),
+            fact(file(2), Fact::CloudBacked(true)),
+        ]))?;
         assert_eq!(decision.verdict(), Verdict::Review);
         Ok(())
     }
@@ -291,21 +404,7 @@ mod tests {
     #[test]
     fn protections_cite_their_evidence() -> Result<(), PolicyError> {
         let used = fact(file(1), Fact::InUse(true));
-        let decision = evaluate(&PolicyInput {
-            subject: file(1),
-            evidence_hash: EvidenceHash::from_bytes([0; 32]),
-            paths: Vec::new(),
-            context: crate::Context {
-                platform: lumen_domain::Platform::Linux,
-                home: Some(
-                    lumen_domain::RawPath::from_unix_bytes(b"/home/t".to_vec())
-                        .unwrap_or_else(|_| unreachable!()),
-                ),
-                windows_dir: None,
-                local_app_data: None,
-            },
-            evidence: vec![used.clone()],
-        })?;
+        let decision = evaluate(&crate::testing::input(vec![used.clone()]))?;
         let rule = decision
             .fired_rules()
             .first()

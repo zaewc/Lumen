@@ -253,18 +253,21 @@ mod tests {
                 home: Some(windows(r"C:\Users\ana")),
                 windows_dir: Some(windows(r"C:\Windows")),
                 local_app_data: Some(windows(r"C:\Users\ana\AppData\Local")),
+                mechanisms: BTreeSet::new(),
             },
             Platform::Macos => Context {
                 platform,
                 home: Some(unix("/Users/ana")),
                 windows_dir: None,
                 local_app_data: None,
+                mechanisms: BTreeSet::new(),
             },
             _ => Context {
                 platform,
                 home: Some(unix("/home/ana")),
                 windows_dir: None,
                 local_app_data: None,
+                mechanisms: BTreeSet::new(),
             },
         }
     }
@@ -281,6 +284,7 @@ mod tests {
             evidence: Vec::new(),
             paths: vec![path],
             context,
+            observed: None,
         })
         .and_then(|f| f.rule)
     }
@@ -388,6 +392,7 @@ mod tests {
             evidence: Vec::new(),
             paths: vec![unix("/Users/ana/.ssh")],
             context: context(Platform::Macos),
+            observed: None,
         });
         assert_eq!(
             finding.map(|f| f.risk),

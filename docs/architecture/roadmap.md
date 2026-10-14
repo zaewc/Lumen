@@ -145,10 +145,10 @@ policy never depends on an adapter), and when uncertain it answers `REVIEW` or
 | # | PR title | Content |
 | --- | --- | --- |
 | 7.1 | `feat(policy): add staged policy evaluator` | `PolicyInput` (subject facts, bundle, coverage, in-use answer, capabilities), the four stages in order, default `REVIEW`, fired-rule trace; determinism property test |
-| 7.2 | `feat(policy): keep items protected by observed facts` | OS-protected flags, Windows system files, cloud-backed, in use (`Yes`, `Unknown`, and `Partial` until 7.11) → `KEEP`; coverage and identity checks join with their input fields (7.4) |
+| 7.2 | `feat(policy): keep items protected by observed facts` | OS-protected flags, Windows system files, cloud-backed, in use (`Yes`, `Unknown`, and `Partial` until 7.11) → `KEEP`; coverage checks landed with 7.4; identity is re-verified by handle in the executor (ADR-0016) |
 | 7.3 | `feat(policy): keep protected system locations` | embedded, validated location data with official sources (SIP paths; WinSxS, System32, Installer cache, page and hibernation files); case-folded per platform; fails closed |
 | 7.3b | `feat(policy): keep credentials, keys and browser profiles` | home-relative sensitive locations with official sources: SSH, GnuPG, macOS keychains, AWS CLI, Chrome profiles. Open: Firefox (support page not machine-readable), password managers, wallets, databases and security software (need per-product sources or signature evidence) |
-| 7.4 | `feat(policy): add eligibility rules` | platform capability, no-replace rename support, reclaimability (hard links, clones, snapshots: "frees nothing") |
+| 7.4 | `feat(policy): add eligibility rules` | unobserved or partly read items → `KEEP`; quarantine unsupported, frees nothing now (hard links, clones, snapshots, dataless), links and special files → at most `REVIEW`. Open: per-volume no-replace rename support (needs volume capability evidence) |
 | 7.5 | `feat(policy): classify knowledge-base and vendor-declared caches` | devkb safety class → `QUARANTINE` / tool command under `REVIEW` / informational; vendor-declared caches |
 | 7.6 | `feat(policy): add monotone Jev stage` | demotion only; promotion allow-list exists but is empty (ADR-0020) |
 | 7.7 | `feat(policy): add explanation templates` | fired rules → user text; snapshot tests |

@@ -26,14 +26,14 @@ mod rules;
 use std::collections::BTreeSet;
 
 use lumen_domain::{
-    DecisionError, Evidence, EvidenceHash, EvidenceId, FiredRule, JevEffect, Platform,
-    PolicyDecision, PolicyStage, PolicyVersion, RawPath, Risk, RiskFactor, RiskLevel, RuleId,
-    Subject, Verdict,
+    CleanupMechanism, DecisionError, Evidence, EvidenceHash, EvidenceId, FilesystemEntry,
+    FiredRule, JevEffect, Platform, PolicyDecision, PolicyStage, PolicyVersion, RawPath,
+    ReclaimEstimate, Risk, RiskFactor, RiskLevel, RuleId, Subject, Verdict,
 };
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
-pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 4, 0);
+pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 5, 0);
 
 /// The machine a decision is made on.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,6 +46,20 @@ pub struct Context {
     pub windows_dir: Option<RawPath>,
     /// Windows `FOLDERID_LocalAppData`, on Windows.
     pub local_app_data: Option<RawPath>,
+    /// Cleanup mechanisms available at runtime (from `PlatformCapabilities`).
+    pub mechanisms: BTreeSet<CleanupMechanism>,
+}
+
+/// What the scan saw of a filesystem subject.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Observed {
+    /// The subject's own entry.
+    pub entry: FilesystemEntry,
+    /// For a directory, whether it and every directory below it were fully read;
+    /// for any other kind, whether its metadata was read.
+    pub complete: bool,
+    /// Space removing the subject would free.
+    pub reclaim: ReclaimEstimate,
 }
 
 /// Everything the policy may look at for one subject.
@@ -62,6 +76,9 @@ pub struct PolicyInput {
     pub paths: Vec<RawPath>,
     /// The machine.
     pub context: Context,
+    /// What the scan saw of the subject, if it is a filesystem object that was
+    /// observed.
+    pub observed: Option<Observed>,
 }
 
 /// Why no decision could be made.
@@ -196,6 +213,81 @@ pub(crate) fn evaluate_with(
     )?)
 }
 
+/// Inputs for tests: an observed, fully read, unprotected file on Linux.
+#[cfg(test)]
+pub(crate) mod testing {
+    use std::num::NonZeroU32;
+
+    use lumen_domain::{
+        AccessState, ByteCount, EntryKind, EntryTimes, FileId, FileIdentity, Protection, SizeFacts,
+        SizeFlags, VolumeId,
+    };
+
+    use super::*;
+
+    pub(crate) fn file(n: u128) -> Subject {
+        Subject::File {
+            identity: identity(n),
+        }
+    }
+
+    fn identity(n: u128) -> FileIdentity {
+        FileIdentity {
+            volume: VolumeId::new("v").unwrap_or_else(|_| unreachable!()),
+            file: FileId::new(n),
+        }
+    }
+
+    pub(crate) fn observed(kind: EntryKind, reclaimable: u64) -> Observed {
+        Observed {
+            entry: FilesystemEntry {
+                path: RawPath::from_unix_bytes(b"/home/t/x".to_vec())
+                    .unwrap_or_else(|_| unreachable!()),
+                kind,
+                size: SizeFacts {
+                    identity: identity(1),
+                    logical: ByteCount::new(reclaimable),
+                    allocated: ByteCount::new(reclaimable),
+                    private: None,
+                    clone_id: None,
+                    link_count: NonZeroU32::MIN,
+                    flags: SizeFlags::default(),
+                },
+                times: EntryTimes::default(),
+                protection: Protection::default(),
+                access: AccessState::Readable,
+            },
+            complete: true,
+            reclaim: ReclaimEstimate {
+                reclaimable_now: ByteCount::new(reclaimable),
+                files: 1,
+                exact: true,
+                ..ReclaimEstimate::default()
+            },
+        }
+    }
+
+    pub(crate) fn input(evidence: Vec<Evidence>) -> PolicyInput {
+        PolicyInput {
+            subject: file(1),
+            evidence_hash: EvidenceHash::from_bytes([0; 32]),
+            evidence,
+            paths: Vec::new(),
+            context: Context {
+                platform: Platform::Linux,
+                home: Some(
+                    RawPath::from_unix_bytes(b"/home/t".to_vec())
+                        .unwrap_or_else(|_| unreachable!()),
+                ),
+                windows_dir: None,
+                local_app_data: None,
+                mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
+            },
+            observed: Some(observed(EntryKind::File, 4096)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use lumen_domain::{
@@ -228,19 +320,8 @@ mod tests {
 
     fn input(evidence: Vec<Evidence>) -> PolicyInput {
         PolicyInput {
-            subject: subject(),
             evidence_hash: EvidenceHash::from_bytes([7; 32]),
-            evidence,
-            paths: Vec::new(),
-            context: Context {
-                platform: Platform::Linux,
-                home: Some(
-                    RawPath::from_unix_bytes(b"/home/t".to_vec())
-                        .unwrap_or_else(|_| unreachable!()),
-                ),
-                windows_dir: None,
-                local_app_data: None,
-            },
+            ..testing::input(evidence)
         }
     }
 
