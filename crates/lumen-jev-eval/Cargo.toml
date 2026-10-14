@@ -1,0 +1,20 @@
+[package]
+name = "lumen-jev-eval"
+description = "Jev evaluation harness: recorded answers (cassettes) replayed through the real validator and policy."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+lumen-application.workspace = true
+lumen-domain.workspace = true
+lumen-jev.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

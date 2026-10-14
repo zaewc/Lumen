@@ -174,7 +174,9 @@ only become more cautious (7.6). Lumen works fully with `NoopJudge`.
 | 8.4 | `feat(jev): add response validator` | stop reason, strict JSON (unknown fields rejected), enums, `Judgment::validate_for`, pinned model |
 | 8.5 | `feat(application): consult Jev for unprotected candidates` | only `REVIEW`/`QUARANTINE` candidates after stages 1–3; errors → proceed without Jev; trace |
 | 8.6 | `feat(store): persist Jev traces` | `ledger.db` `jev_traces` |
-| 8.7 | `feat(jev-eval): add replay and mock harness` | cassettes keyed by `(case_id, request_hash, model, prompt_version)`; gate report |
+| 8.7 | `feat(jev-eval): add cassettes and replay judge` | `jev.cassette/1` (one judge configuration, entries keyed by request hash), `ReplayJudge` through the real validator; mock mode is `MockJudge` |
+| 8.7b | `feat(jev-eval): add evaluation runs and gate report` | cases → requests → judge → policy; metrics and gate verdict per docs/ai/evaluation.md |
+| 8.7c | `feat(jev-eval): add golden dataset v2026.10.0` | fixtures and expected outcomes per docs/ai/datasets.md |
 | 8.8 | `feat(jev): add Anthropic judge` | tier 2, opt-in, metadata only; HTTP client choice recorded with the PR |
 
 ## Later phases (outline)

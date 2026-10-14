@@ -644,6 +644,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumen-jev-eval"
+version = "0.0.0"
+dependencies = [
+ "lumen-application",
+ "lumen-domain",
+ "lumen-jev",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "lumen-platform-macos"
 version = "0.0.0"
 dependencies = [

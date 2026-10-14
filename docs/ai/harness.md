@@ -23,6 +23,15 @@ fixture definition ─▶ build fixture tree (tempdir) ─▶ scan (real lumen-s
 | `compare` | Paired A/B of two configurations (prompt, model, policy version) on identical cases, with a McNemar test | replay or live |
 | `calibrate` | Fit calibration maps on the calibration split | replay |
 
+## Implemented
+
+- `jev.cassette/1` (`lumen_jev_eval::Cassette`): recorded raw answers for one judge
+  configuration (provider, pinned model, prompt version), keyed by the exact request
+  hash.
+- `ReplayJudge`: a `JudgeModel` answering from a cassette through the production
+  validator (`lumen_jev::response`); unrecorded requests are unavailable.
+- Mock mode: `lumen_testkit::MockJudge`.
+
 ## Commands (planned)
 
 ```text

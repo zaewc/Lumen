@@ -19,6 +19,7 @@ lumen-devkb = { path = "crates/lumen-devkb" }
 lumen-domain = { path = "crates/lumen-domain" }
 lumen-graph = { path = "crates/lumen-graph" }
 lumen-jev = { path = "crates/lumen-jev" }
+lumen-jev-eval = { path = "crates/lumen-jev-eval" }
 lumen-platform-macos = { path = "crates/lumen-platform-macos" }
 lumen-platform-windows = { path = "crates/lumen-platform-windows" }
 lumen-policy = { path = "crates/lumen-policy" }
