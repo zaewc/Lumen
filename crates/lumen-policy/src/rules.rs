@@ -105,6 +105,16 @@ pub(crate) const RULES: &[Rule] = &[
         check: crate::classify::vendor_declared_cache,
     },
     Rule {
+        id: "classify.app-cache",
+        stage: PolicyStage::Classification,
+        check: crate::classify::app_cache,
+    },
+    Rule {
+        id: "classify.app-state",
+        stage: PolicyStage::Classification,
+        check: crate::classify::app_state,
+    },
+    Rule {
         id: "classify.orphan",
         stage: PolicyStage::Classification,
         check: crate::classify::orphan,

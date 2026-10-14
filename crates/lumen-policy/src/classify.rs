@@ -7,13 +7,18 @@
 //!   caller supplies in [`PolicyInput::knowledge`] (the policy never depends on
 //!   the knowledge-base crate);
 //! - a vendor's cache declaration;
+//! - an application's own data location, by its documented kind (an app's
+//!   `Caches` folder is re-creatable; containers, support files and
+//!   preferences are its state);
 //! - an owning application that is absent from inventories that were read
 //!   completely (Orphan Hunter): reviewed, never quarantined, because leftovers
 //!   can hold the user's own data.
 
 use std::collections::BTreeSet;
 
-use lumen_domain::{Basis, Evidence, EvidenceId, Fact, RiskFactor, SourceName, Verdict};
+use lumen_domain::{
+    AppDataKind, Basis, Evidence, EvidenceId, Fact, RiskFactor, SourceName, Verdict,
+};
 
 use crate::{Finding, PolicyInput};
 
@@ -125,6 +130,56 @@ pub(crate) fn vendor_declared_cache(input: &PolicyInput) -> Option<Finding> {
         verdict: Verdict::Review,
         evidence,
         risk: BTreeSet::new(),
+        rule: None,
+    })
+}
+
+/// Evidence that the subject is an owned app data location of one of `kinds`:
+/// the location facts and the ownership facts, or nothing if either is missing.
+fn app_location(input: &PolicyInput, kinds: &[AppDataKind]) -> BTreeSet<EvidenceId> {
+    let about = || input.evidence.iter().filter(|e| e.subject == input.subject);
+    let location: BTreeSet<EvidenceId> = about()
+        .filter(|e| matches!(&e.fact, Fact::AppDataLocation { kind } if kinds.contains(kind)))
+        .map(Evidence::id)
+        .collect();
+    let owner: BTreeSet<EvidenceId> = about()
+        .filter(|e| matches!(e.fact, Fact::OwningApplication(_)))
+        .map(Evidence::id)
+        .collect();
+    if location.is_empty() || owner.is_empty() {
+        BTreeSet::new()
+    } else {
+        location.union(&owner).copied().collect()
+    }
+}
+
+/// An application's own `Caches` folder: Apple documents that apps "must be
+/// able to re-create or download these files as needed".
+pub(crate) fn app_cache(input: &PolicyInput) -> Option<Finding> {
+    let evidence = app_location(input, &[AppDataKind::Caches]);
+    (!evidence.is_empty()).then(|| Finding {
+        verdict: Verdict::Quarantine,
+        evidence,
+        risk: BTreeSet::new(),
+        rule: None,
+    })
+}
+
+/// An application's container, support files or preferences: its own state,
+/// which may include the user's documents and settings.
+pub(crate) fn app_state(input: &PolicyInput) -> Option<Finding> {
+    let evidence = app_location(
+        input,
+        &[
+            AppDataKind::Container,
+            AppDataKind::ApplicationSupport,
+            AppDataKind::Preferences,
+        ],
+    );
+    (!evidence.is_empty()).then(|| Finding {
+        verdict: Verdict::Review,
+        evidence,
+        risk: BTreeSet::from([RiskFactor::SensitiveData]),
         rule: None,
     })
 }
@@ -267,6 +322,52 @@ mod tests {
         input.knowledge = regenerable.iter().map(|(id, c)| (entry(id), *c)).collect();
         input.context.mechanisms.clear();
         assert_eq!(evaluate(&input)?.verdict(), Verdict::Review);
+        Ok(())
+    }
+
+    fn owned(kind: AppDataKind) -> Vec<Fact> {
+        vec![
+            Fact::OwningApplication(lumen_domain::AppId {
+                scheme: lumen_domain::AppIdScheme::BundleId,
+                value: UntrustedText::new("com.example.app"),
+            }),
+            Fact::AppDataLocation { kind },
+        ]
+    }
+
+    #[test]
+    fn an_apps_own_cache_is_a_candidate_and_its_state_is_reviewed() -> Result<(), PolicyError> {
+        let cache = decide(&owned(AppDataKind::Caches), &[])?;
+        assert_eq!(cache.verdict(), Verdict::Quarantine);
+        assert_eq!(fired(&cache), ["classify.app-cache"]);
+        assert_eq!(
+            cache.fired_rules().first().map(|r| r.evidence.len()),
+            Some(2),
+            "cites the location and the owner"
+        );
+        for kind in [
+            AppDataKind::Container,
+            AppDataKind::ApplicationSupport,
+            AppDataKind::Preferences,
+        ] {
+            let state = decide(&owned(kind), &[])?;
+            assert_eq!(state.verdict(), Verdict::Review, "{kind:?}");
+            assert_eq!(fired(&state), ["classify.app-state"]);
+        }
+        for kind in [AppDataKind::SavedApplicationState, AppDataKind::WebData] {
+            assert_eq!(
+                fired(&decide(&owned(kind), &[])?),
+                ["default.review"],
+                "{kind:?}"
+            );
+        }
+        let unowned = decide(
+            &[Fact::AppDataLocation {
+                kind: AppDataKind::Caches,
+            }],
+            &[],
+        )?;
+        assert_eq!(fired(&unowned), ["default.review"], "an owner is required");
         Ok(())
     }
 

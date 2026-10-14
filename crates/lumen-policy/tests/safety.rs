@@ -7,11 +7,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::num::NonZeroU32;
 
 use lumen_domain::{
-    AccessState, Assessment, Basis, ByteCount, CleanupMechanism, EntryKind, EntryTimes, Evidence,
-    EvidenceHash, Fact, FileId, FileIdentity, FilesystemEntry, ItemRef, JevEffect, Judgment,
-    JudgmentConfidence, Platform, PolicyDecision, PolicyStage, Protection, Provenance, RawPath,
-    ReasonCode, ReclaimEstimate, SizeFacts, SizeFlags, SourceName, Subject, Timestamp,
-    UntrustedText, Verdict, VolumeId,
+    AccessState, AppDataKind, AppId, AppIdScheme, Assessment, Basis, ByteCount, CleanupMechanism,
+    EntryKind, EntryTimes, Evidence, EvidenceHash, Fact, FileId, FileIdentity, FilesystemEntry,
+    ItemRef, JevEffect, Judgment, JudgmentConfidence, Platform, PolicyDecision, PolicyStage,
+    Protection, Provenance, RawPath, ReasonCode, ReclaimEstimate, SizeFacts, SizeFlags, SourceName,
+    Subject, Timestamp, UntrustedText, Verdict, VolumeId,
 };
 use lumen_policy::{Context, KnowledgeClass, Observed, PolicyInput, evaluate};
 use proptest::prelude::*;
@@ -63,6 +63,16 @@ fn fact() -> impl Strategy<Value = Fact> {
         Just(Fact::VendorDeclaredCache {
             declared_by: UntrustedText::new("vendor"),
         }),
+        Just(Fact::OwningApplication(AppId {
+            scheme: AppIdScheme::BundleId,
+            value: UntrustedText::new("com.example.app"),
+        })),
+        prop_oneof![
+            Just(AppDataKind::Caches),
+            Just(AppDataKind::Container),
+            Just(AppDataKind::Preferences),
+        ]
+        .prop_map(|kind| Fact::AppDataLocation { kind }),
     ]
 }
 
@@ -265,7 +275,10 @@ proptest! {
         let decision = decide(&input)?;
         if decision.verdict() == Verdict::Quarantine {
             let rules: Vec<&str> = decision.fired_rules().iter().map(|r| r.rule.as_str()).collect();
-            prop_assert!(rules.contains(&"classify.devkb-regenerable"), "{:?}", rules);
+            prop_assert!(
+                rules.contains(&"classify.devkb-regenerable") || rules.contains(&"classify.app-cache"),
+                "{:?}", rules
+            );
             prop_assert!(
                 decision.fired_rules().iter().all(|r| r.stage != PolicyStage::Eligibility
                     && r.stage != PolicyStage::HardProtection),

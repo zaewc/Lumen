@@ -51,6 +51,12 @@ fn template(rule: &str) -> Option<String> {
             "Review: the knowledge-base entry that matched it is unavailable."
         }
         "classify.vendor-declared-cache" => "Review: its vendor declares its contents disposable.",
+        "classify.app-cache" => {
+            "Quarantine proposed: it is an application's cache, which the application re-creates."
+        }
+        "classify.app-state" => {
+            "Review: it holds an application's own data, settings or documents."
+        }
         "classify.orphan" => "Review: the application it belongs to appears to be uninstalled.",
         "jev.demote" => "Review: the optional AI review advised caution.",
         _ => return None,
