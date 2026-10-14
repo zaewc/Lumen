@@ -151,7 +151,7 @@ policy never depends on an adapter), and when uncertain it answers `REVIEW` or
 | 7.4 | `feat(policy): add eligibility rules` | unobserved or partly read items → `KEEP`; quarantine unsupported, frees nothing now (hard links, clones, snapshots, dataless), links and special files → at most `REVIEW`. Open: per-volume no-replace rename support (needs volume capability evidence) |
 | 7.5 | `feat(policy): classify knowledge-base and vendor-declared caches` | devkb safety class → `QUARANTINE` (regenerable), `REVIEW` (tool action, not regenerable, unknown class), `KEEP` (self-managed); vendor-declared caches → `REVIEW` until candidates can target a folder's contents |
 | 7.5b | `feat(policy): classify application caches` | `~/Library/Caches/<bundle id>` and similar convention locations of non-running apps; needs the location kind in the ownership evidence |
-| 7.6 | `feat(policy): add monotone Jev stage` | demotion only; promotion allow-list exists but is empty (ADR-0020) |
+| 7.6 | `feat(policy): add monotone Jev stage` | `QUARANTINE` → `REVIEW` on likely needed, uncertain or suspected injection; no promotion path exists until ADR-0020's calibration gates are met |
 | 7.7 | `feat(policy): add explanation templates` | fired rules → user text; snapshot tests |
 | 7.8 | `test(policy): add safety property tests` | protected never `QUARANTINE`; same input, same output; Jev never lowers caution |
 | 7.9 | `ci(policy): run cargo-mutants nightly` | scheduled workflow on `lumen-policy` |

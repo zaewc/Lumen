@@ -286,6 +286,7 @@ mod tests {
             context,
             observed: None,
             knowledge: std::collections::BTreeMap::new(),
+            jev: None,
         })
         .and_then(|f| f.rule)
     }
@@ -395,6 +396,7 @@ mod tests {
             context: context(Platform::Macos),
             observed: None,
             knowledge: std::collections::BTreeMap::new(),
+            jev: None,
         });
         assert_eq!(
             finding.map(|f| f.risk),

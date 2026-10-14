@@ -249,7 +249,8 @@ confirmation. The policy is IO-free and versioned; decisions are reproducible fr
 `lumen-policy` implements the stages. A hard protection ends evaluation with `KEEP`.
 Eligibility rules cap the verdict. Classification takes the most cautious proposal and
 falls back to `REVIEW` (`default.review`), so only a classification rule can make an
-item a quarantine candidate.
+item a quarantine candidate. A validated Jev judgment can then only demote a
+quarantine proposal to `REVIEW` (`jev.demote`); it never touches `KEEP` or `REVIEW`.
 
 ## 9. Explainability
 

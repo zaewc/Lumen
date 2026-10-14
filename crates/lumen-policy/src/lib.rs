@@ -11,7 +11,12 @@
 //!    wins, and if none fires the verdict is `Review` (`default.review`). Only a
 //!    classification rule can make an item a quarantine candidate.
 //!
-//! The Jev stage (ADR-0020) and user confirmation follow in later work.
+//! 4. **Jev** (ADR-0020): an optional, validated judgment can only add caution.
+//!    A `Quarantine` verdict becomes `Review` when Jev thinks the item is needed,
+//!    is uncertain, or saw text trying to influence it (`jev.demote`). Jev never
+//!    touches `Keep` or `Review`, and promotion is not allowed for any class.
+//!
+//! User confirmation of a specific plan follows outside the policy.
 //!
 //! The policy is IO-free and depends only on `lumen-domain`. Identical inputs
 //! give identical decisions, and the decision records every rule that fired
@@ -27,16 +32,17 @@ mod rules;
 use std::collections::{BTreeMap, BTreeSet};
 
 use lumen_domain::{
-    CleanupMechanism, DecisionError, Evidence, EvidenceHash, EvidenceId, FilesystemEntry,
-    FiredRule, JevEffect, Platform, PolicyDecision, PolicyStage, PolicyVersion, RawPath,
-    ReclaimEstimate, Risk, RiskFactor, RiskLevel, RuleId, SourceName, Subject, Verdict,
+    Assessment, CleanupMechanism, DecisionError, Evidence, EvidenceHash, EvidenceId,
+    FilesystemEntry, FiredRule, JevEffect, Judgment, Platform, PolicyDecision, PolicyStage,
+    PolicyVersion, RawPath, ReclaimEstimate, Risk, RiskFactor, RiskLevel, RuleId, SourceName,
+    Subject, Verdict,
 };
 
 pub use classify::KnowledgeClass;
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
-pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 6, 0);
+pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 7, 0);
 
 /// The machine a decision is made on.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -84,6 +90,8 @@ pub struct PolicyInput {
     pub observed: Option<Observed>,
     /// Safety classes of the knowledge-base entries the evidence refers to.
     pub knowledge: BTreeMap<SourceName, KnowledgeClass>,
+    /// Jev's judgment, already validated against the request (ADR-0020).
+    pub jev: Option<Judgment>,
 }
 
 /// Why no decision could be made.
@@ -125,6 +133,17 @@ pub(crate) struct Rule {
 
 /// Fired when no classification rule recognises the item.
 const DEFAULT_REVIEW: &str = "default.review";
+/// Fired when Jev evidence demotes a quarantine proposal.
+const JEV_DEMOTE: &str = "jev.demote";
+
+/// Whether a judgment calls for more caution than a quarantine proposal.
+fn jev_cautions(judgment: &Judgment) -> bool {
+    judgment.injection_suspected
+        || matches!(
+            judgment.assessment,
+            Assessment::LikelyNeeded | Assessment::Uncertain
+        )
+}
 
 /// The more cautious of two verdicts (`Keep` > `Review` > `Quarantine`).
 fn cautious(a: Verdict, b: Verdict) -> Verdict {
@@ -208,13 +227,28 @@ pub(crate) fn evaluate_with(
     } else {
         Verdict::Keep
     };
+    let (verdict, jev_effect) = match &input.jev {
+        Some(judgment) if verdict == Verdict::Quarantine && jev_cautions(judgment) => {
+            trace.push(fired(
+                &Rule {
+                    id: JEV_DEMOTE,
+                    stage: PolicyStage::Jev,
+                    check: |_| None,
+                },
+                None,
+                judgment.evidence_refs.clone(),
+            )?);
+            (Verdict::Review, JevEffect::DemotedToReview)
+        }
+        _ => (verdict, JevEffect::None),
+    };
     Ok(PolicyDecision::new(
         verdict,
         POLICY_VERSION,
         input.evidence_hash,
         trace,
         risk(factors),
-        JevEffect::None,
+        jev_effect,
     )?)
 }
 
@@ -290,6 +324,7 @@ pub(crate) mod testing {
             },
             observed: Some(observed(EntryKind::File, 4096)),
             knowledge: BTreeMap::new(),
+            jev: None,
         }
     }
 }
@@ -479,6 +514,67 @@ mod tests {
             Verdict::Review,
             "default, not quarantine"
         );
+        Ok(())
+    }
+
+    fn judgment(assessment: Assessment, injection_suspected: bool) -> Judgment {
+        Judgment {
+            item_ref: lumen_domain::ItemRef::new("item-1").unwrap_or_else(|_| unreachable!()),
+            assessment,
+            confidence: lumen_domain::JudgmentConfidence::High,
+            reason_codes: BTreeSet::from([lumen_domain::ReasonCode::OwnerAppPresent]),
+            evidence_refs: BTreeSet::from([evidence(Fact::InUse(false)).id()]),
+            injection_suspected,
+            rationale: lumen_domain::UntrustedText::new("display only"),
+        }
+    }
+
+    #[test]
+    fn jev_can_only_demote_quarantine() -> Result<(), PolicyError> {
+        let quarantine = [rule(
+            "classify.always",
+            PolicyStage::Classification,
+            quarantine_always,
+        )];
+        let protect_rules = [rule("protect.in-use", PolicyStage::HardProtection, protect)];
+        let with = |jev: Option<Judgment>, facts: Vec<Evidence>| PolicyInput {
+            jev,
+            ..input(facts)
+        };
+        for (assessment, injection, demoted) in [
+            (Assessment::LikelyNeeded, false, true),
+            (Assessment::Uncertain, false, true),
+            (Assessment::LikelyRemovable, true, true),
+            (Assessment::LikelyRemovable, false, false),
+        ] {
+            let decision = evaluate_with(
+                &quarantine,
+                &with(Some(judgment(assessment, injection)), Vec::new()),
+            )?;
+            if demoted {
+                assert_eq!(decision.verdict(), Verdict::Review, "{assessment:?}");
+                assert_eq!(decision.jev_effect(), JevEffect::DemotedToReview);
+                assert_eq!(ids(&decision), ["classify.always", JEV_DEMOTE]);
+                let cited = decision
+                    .fired_rules()
+                    .iter()
+                    .find(|r| r.stage == PolicyStage::Jev)
+                    .map(|r| r.evidence.len());
+                assert_eq!(cited, Some(1), "cites the judgment's evidence");
+            } else {
+                assert_eq!(decision.verdict(), Verdict::Quarantine);
+                assert_eq!(decision.jev_effect(), JevEffect::None);
+            }
+        }
+        let removable = Some(judgment(Assessment::LikelyRemovable, false));
+        let review = evaluate_with(&[], &with(removable.clone(), Vec::new()))?;
+        assert_eq!(review.verdict(), Verdict::Review, "never promoted");
+        let kept = evaluate_with(
+            &protect_rules,
+            &with(removable, vec![evidence(Fact::InUse(true))]),
+        )?;
+        assert_eq!(kept.verdict(), Verdict::Keep);
+        assert_eq!(kept.jev_effect(), JevEffect::None);
         Ok(())
     }
 
