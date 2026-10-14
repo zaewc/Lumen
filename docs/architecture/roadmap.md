@@ -204,7 +204,9 @@ re-verifies identity, and uses no-replace renames only. Any mismatch fails close
 | 9.4 | `feat(store): journal quarantine operations` | `ledger.db` intent and completion records (`synchronous=FULL`) |
 | 9.5 | `feat(domain): add quarantine manifest type` | `quarantine.manifest/1`: operation, plan, device, raw original path, observed entry, Unix ownership, decision, confirmation, Jev link; schema export |
 | 9.5b | `feat(fs-exec): write manifest sidecars` | exclusive create (mode 0600, no links) next to the item in its store, `fsync`; never overwritten |
-| 9.6 | `feat(application): quarantine confirmed plans` | intent → re-probe in-use (ADR-0030) → move → verify → retain; startup reconciliation |
+| 9.6 | `feat(application): quarantine confirmed items` | `QuarantineExecutor` and `QuarantineJournal` ports; intent → in-use re-probe (ADR-0030 condition 4) → execute → journal outcome |
+| 9.6b | `feat(fs-exec): implement the quarantine executor` | `prepare` / `quarantine` / `locate` over verify, move and sidecar (Unix); ledger journal adapter |
+| 9.6c | `feat(application): reconcile unfinished operations` | on startup, resolve journaled/moved/verified operations by locating each item; unknown stays unknown |
 | 9.7 | `feat(fs-exec): restore quarantined items` | no-replace rename back; conflicts asked, never overwritten |
 | 9.8 | `feat(fs-exec): finalize after retention` | permanent removal only inside the store, by handle, recorded |
 | 9.9 | `test(fs-exec): add race, name and fault-injection suites` | symlink flips mid-execution, NFC/NFD and case twins, RTLO/newline names, hard links, read-only, open files, faults at every step |

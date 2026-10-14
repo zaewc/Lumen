@@ -1,14 +1,16 @@
 //! Ports: time, identifiers, directory enumeration, verification, change feeds,
-//! inventory, in-use probes, the optional AI judge and secret storage.
+//! inventory, in-use probes, the optional AI judge, secret storage and the
+//! quarantine executor and journal.
 
 use std::future::Future;
 use std::ops::ControlFlow;
 use std::pin::Pin;
 
 use lumen_domain::{
-    AccessState, Application, FileIdentity, FilesystemEntry, JevRequest, JudgeDescriptor, Judgment,
-    JudgmentRejection, OperationId, Package, PlanId, Process, RawPath, ScanId, Service, SnapshotId,
-    SourceName, SourceStatus, Timestamp, VolumeId,
+    AccessState, Application, FileIdentity, FilesystemEntry, ItemLocation, JevRequest,
+    JudgeDescriptor, Judgment, JudgmentRejection, OperationId, Package, PlanId, Process,
+    QuarantineEvent, QuarantineFailure, RawPath, ScanId, Service, SnapshotId, SourceName,
+    SourceStatus, Timestamp, VolumeId,
 };
 
 use crate::CancelToken;
@@ -308,6 +310,88 @@ pub trait InUseProbe: Send + Sync {
     fn probe(&self, path: &RawPath, expected: &FileIdentity) -> InUse;
 }
 
+/// An item the executor prepared at confirmation time: its exact identity and
+/// location in the executor's own terms (e.g. `(dev, ino)` and a handle path
+/// from a scan root). Opaque to the application, which only stores and passes
+/// it back; it is JSON so it can sit in the journal.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PreparedItem(pub Vec<u8>);
+
+/// Why the executor did not quarantine an item, and where it left it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("quarantine failed: {reason:?}")]
+pub struct ExecutionFailure {
+    /// What went wrong.
+    pub reason: QuarantineFailure,
+    /// Where the item is now: untouched at its source, or in the store and
+    /// restorable.
+    pub left: ItemLocation,
+}
+
+/// Where reconciliation finds an item.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Located {
+    /// At its source, unchanged.
+    AtSource,
+    /// In the store, as prepared.
+    InStore,
+    /// Neither where it was nor in the store (or changed): unknown, never
+    /// assumed gone.
+    Unknown,
+}
+
+/// Lumen's only path to moving user files (ADR-0015, ADR-0016), implemented
+/// by `lumen-fs-exec`.
+pub trait QuarantineExecutor: Send + Sync {
+    /// Captures `relative` (components below `root`) as it is now.
+    ///
+    /// # Errors
+    ///
+    /// An [`ExecutionFailure`] (left at the source) if it cannot be observed.
+    fn prepare(
+        &self,
+        root: &RawPath,
+        relative: &[Vec<u8>],
+    ) -> Result<PreparedItem, ExecutionFailure>;
+
+    /// Re-verifies the item, moves it into the store as `operation` without
+    /// replacing anything, verifies it there, and writes `manifest` next to it.
+    ///
+    /// # Errors
+    ///
+    /// An [`ExecutionFailure`] saying why and where the item is.
+    fn quarantine(
+        &self,
+        item: &PreparedItem,
+        operation: OperationId,
+        manifest: &[u8],
+    ) -> Result<(), ExecutionFailure>;
+
+    /// Where the item of `operation` is now, for startup reconciliation.
+    fn locate(&self, item: &PreparedItem, operation: OperationId) -> Located;
+}
+
+/// The journal could not record an entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("the quarantine journal is unavailable")]
+pub struct JournalError;
+
+/// The durable quarantine journal (ADR-0015), implemented by the ledger store.
+pub trait QuarantineJournal: Send {
+    /// Appends `event` for `operation` with the executor's `detail` (JSON),
+    /// durably.
+    ///
+    /// # Errors
+    ///
+    /// A [`JournalError`] if the entry is not durable; nothing may happen then.
+    fn append(
+        &mut self,
+        operation: OperationId,
+        event: QuarantineEvent,
+        detail: &[u8],
+    ) -> Result<(), JournalError>;
+}
+
 /// Which secret a [`SecretStore`] holds. Names are fixed in code, so no input
 /// can choose which credential is read or overwritten.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -455,6 +539,8 @@ mod tests {
         assert_dyn_send_sync::<dyn InUseProbe>();
         assert_dyn_send_sync::<dyn JudgeModel>();
         assert_dyn_send_sync::<dyn SecretStore>();
+        assert_dyn_send_sync::<dyn QuarantineExecutor>();
+        assert_dyn_send::<dyn QuarantineJournal>();
     }
 
     #[test]

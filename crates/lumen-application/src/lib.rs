@@ -14,5 +14,6 @@
 mod cancel;
 pub mod consult;
 pub mod ports;
+pub mod quarantine;
 
 pub use cancel::CancelToken;
