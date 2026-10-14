@@ -12,14 +12,17 @@
 //!   installed app has that display name. Vendor folders shared by several apps
 //!   ("Google", "Microsoft") are never claimed, and short names are ignored.
 //!
+//! Each link also records what kind of location it is (`AppDataLocation`), so
+//! the policy can tell an app's cache from its container or preferences.
+//!
 //! Only direct children of those locations are linked; anything deeper belongs
 //! to its parent. Pure and platform-independent.
 
 use std::collections::HashMap;
 
 use lumen_domain::{
-    AppId, AppIdScheme, Application, Basis, Evidence, Fact, FilesystemEntry, Provenance, RawPath,
-    RelationKind, Relationship, SourceName, Subject, Timestamp,
+    AppDataKind, AppId, AppIdScheme, Application, Basis, Evidence, Fact, FilesystemEntry,
+    Provenance, RawPath, RelationKind, Relationship, SourceName, Subject, Timestamp,
 };
 
 /// Source for links by exact bundle ID.
@@ -27,16 +30,21 @@ pub const BUNDLE_ID_SOURCE: &str = "macos.support-location.bundle-id";
 /// Source for links by unique application name.
 pub const NAME_SOURCE: &str = "macos.support-location.app-name";
 
-/// `~/Library` subdirectories whose children are named `<bundle id><suffix>`.
-const BY_BUNDLE_ID: &[(&str, &str)] = &[
-    ("Caches", ""),
-    ("Containers", ""),
-    ("HTTPStorages", ""),
-    ("WebKit", ""),
-    ("Application Scripts", ""),
-    ("Preferences", ".plist"),
-    ("Saved Application State", ".savedState"),
-    ("Cookies", ".binarycookies"),
+/// `~/Library` subdirectories whose children are named `<bundle id><suffix>`,
+/// and what each holds.
+const BY_BUNDLE_ID: &[(&str, &str, AppDataKind)] = &[
+    ("Caches", "", AppDataKind::Caches),
+    ("Containers", "", AppDataKind::Container),
+    ("HTTPStorages", "", AppDataKind::WebData),
+    ("WebKit", "", AppDataKind::WebData),
+    ("Application Scripts", "", AppDataKind::WebData),
+    ("Preferences", ".plist", AppDataKind::Preferences),
+    (
+        "Saved Application State",
+        ".savedState",
+        AppDataKind::SavedApplicationState,
+    ),
+    ("Cookies", ".binarycookies", AppDataKind::WebData),
 ];
 
 /// Shortest application name that may claim an `Application Support` folder.
@@ -47,7 +55,9 @@ const MIN_NAME_LEN: usize = 3;
 pub struct Link {
     /// `OwningApplication` evidence about the location.
     pub evidence: Evidence,
-    /// `location owned_by application`, citing the evidence.
+    /// `AppDataLocation` evidence: what kind of location it is.
+    pub location: Evidence,
+    /// `location owned_by application`, citing the ownership evidence.
     pub relationship: Relationship,
 }
 
@@ -68,21 +78,24 @@ fn join(base: &[u8], part: &str) -> Vec<u8> {
 fn link(
     entry: &FilesystemEntry,
     app: &AppId,
+    kind: AppDataKind,
     source: &SourceName,
     observed_at: Timestamp,
 ) -> Option<Link> {
     let subject = Subject::File {
         identity: entry.identity().clone(),
     };
-    let evidence = Evidence {
+    let observed = |fact: Fact| Evidence {
         subject: subject.clone(),
-        fact: Fact::OwningApplication(app.clone()),
+        fact,
         basis: Basis::Observed,
         provenance: Provenance {
             source: source.clone(),
             observed_at,
         },
     };
+    let evidence = observed(Fact::OwningApplication(app.clone()));
+    let location = observed(Fact::AppDataLocation { kind });
     let relationship = Relationship::new(
         subject,
         RelationKind::OwnedBy,
@@ -92,6 +105,7 @@ fn link(
     .ok()?;
     Some(Link {
         evidence,
+        location,
         relationship,
     })
 }
@@ -130,7 +144,7 @@ pub fn link_support_locations(
     let mut links = Vec::new();
     for entry in entries {
         let path = entry.path.as_bytes();
-        for (dir, suffix) in BY_BUNDLE_ID {
+        for (dir, suffix, kind) in BY_BUNDLE_ID {
             let Some(name) = child_name(path, &join(&library, dir)) else {
                 continue;
             };
@@ -145,7 +159,7 @@ pub fn link_support_locations(
             else {
                 continue;
             };
-            links.extend(link(entry, id, &by_id_source, observed_at));
+            links.extend(link(entry, id, *kind, &by_id_source, observed_at));
         }
         let unique = child_name(path, &support)
             .and_then(|name| std::str::from_utf8(name).ok())
@@ -157,7 +171,13 @@ pub fn link_support_locations(
                 ids.iter().all(|id| id == first).then_some(*first)
             });
         if let Some(id) = unique {
-            links.extend(link(entry, id, &by_name_source, observed_at));
+            links.extend(link(
+                entry,
+                id,
+                AppDataKind::ApplicationSupport,
+                &by_name_source,
+                observed_at,
+            ));
         }
     }
     links
@@ -317,5 +337,52 @@ mod tests {
         assert!(first.relationship.evidence().contains(&first.evidence.id()));
         assert_eq!(first.relationship.kind(), RelationKind::OwnedBy);
         assert_eq!(first.evidence.subject, *first.relationship.from());
+        assert_eq!(first.location.subject, first.evidence.subject);
+    }
+
+    #[test]
+    fn links_record_the_kind_of_location() {
+        let home =
+            RawPath::from_unix_bytes(b"/Users/ana".to_vec()).unwrap_or_else(|_| unreachable!());
+        let made = link_support_locations(
+            &home,
+            &[app("com.tinyspeck.slackmacgap", "Slack")],
+            &[
+                entry("/Users/ana/Library/Caches/com.tinyspeck.slackmacgap", 1),
+                entry("/Users/ana/Library/Containers/com.tinyspeck.slackmacgap", 2),
+                entry(
+                    "/Users/ana/Library/Preferences/com.tinyspeck.slackmacgap.plist",
+                    3,
+                ),
+                entry(
+                    "/Users/ana/Library/Saved Application State/com.tinyspeck.slackmacgap.savedState",
+                    4,
+                ),
+                entry(
+                    "/Users/ana/Library/HTTPStorages/com.tinyspeck.slackmacgap",
+                    5,
+                ),
+                entry("/Users/ana/Library/Application Support/Slack", 6),
+            ],
+            Timestamp::UNIX_EPOCH,
+        );
+        let kinds: Vec<_> = made
+            .iter()
+            .map(|l| match &l.location.fact {
+                Fact::AppDataLocation { kind } => Some(*kind),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            kinds,
+            [
+                Some(AppDataKind::Caches),
+                Some(AppDataKind::Container),
+                Some(AppDataKind::Preferences),
+                Some(AppDataKind::SavedApplicationState),
+                Some(AppDataKind::WebData),
+                Some(AppDataKind::ApplicationSupport),
+            ]
+        );
     }
 }
