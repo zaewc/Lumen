@@ -1,0 +1,7 @@
+{
+  "dataset_version": "2026.10.0",
+  "files": {
+    "golden/2026.10.0/cases.jsonl": "b3:2893353960dfa33be3d88a4e0667cb85742002be2aec520da36e99e2447e1483",
+    "adversarial/2026.10.0/canaries.jsonl": "b3:7e98cebc5ce3a0670037aa1dff1a7d2fde26920a22b5fbc648679790db2f0d53"
+  }
+}

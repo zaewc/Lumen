@@ -176,7 +176,8 @@ only become more cautious (7.6). Lumen works fully with `NoopJudge`.
 | 8.6 | `feat(store): persist Jev traces` | `ledger.db` `jev_traces` |
 | 8.7 | `feat(jev-eval): add cassettes and replay judge` | `jev.cassette/1` (one judge configuration, entries keyed by request hash), `ReplayJudge` through the real validator; mock mode is `MockJudge` |
 | 8.7b | `feat(jev-eval): add evaluation runs and gate report` | cases → requests → judge → policy; metrics and gate verdict per docs/ai/evaluation.md |
-| 8.7c | `feat(jev-eval): add golden dataset v2026.10.0` | fixtures and expected outcomes per docs/ai/datasets.md |
+| 8.7c | `feat(jev-eval): add golden dataset v2026.10.0` | seed cases and injection canaries with twins; manifest hashes verified on load; canary-flip gate |
+| 8.7d | `test(policy): add protected-fixture gate` | protected strata as policy inputs with an adversarial judge: 0 policy violations |
 | 8.8 | `feat(jev): map Jev decisions to judgments` | ADR-0031: Decisions API request (state + `assessment`/`reason`/`injection` questions) and strict answer mapping onto `Judgment`, tested offline |
 | 8.9 | `feat(jev): add OpenRouter transport` | `JevJudge` over HTTPS (ureq + rustls with the OS trust store), 30 s timeout, 64 KiB answer cap; the caller supplies the API key |
 | 8.10 | `feat(application): add SecretStore port` | fixed secret names, redacted `Secret`, `MemorySecretStore` in testkit |

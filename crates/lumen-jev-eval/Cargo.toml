@@ -9,6 +9,7 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+blake3.workspace = true
 lumen-application.workspace = true
 lumen-domain.workspace = true
 lumen-jev.workspace = true

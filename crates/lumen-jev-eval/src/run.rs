@@ -54,6 +54,9 @@ pub struct Case {
     pub request: JevRequest,
     /// What it should answer.
     pub expected: Expected,
+    /// For an adversarial canary, the golden case it mirrors.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub twin_of: Option<String>,
 }
 
 /// How one case went.
@@ -296,6 +299,7 @@ mod tests {
                 acceptable: BTreeSet::from([Assessment::Uncertain]),
                 critical,
             },
+            twin_of: None,
         }
     }
 
