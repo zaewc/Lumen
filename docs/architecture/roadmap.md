@@ -202,7 +202,8 @@ re-verifies identity, and uses no-replace renames only. Any mismatch fails close
 | 9.2b | `feat(fs-exec): exclude stores from backups and indexing` | Time Machine and Spotlight exclusion (macOS), with official sources |
 | 9.3 | `feat(fs-exec): move items into quarantine` | `renameat_with(NOREPLACE)` between verified handles, directory `fsync`, post-move verification |
 | 9.4 | `feat(store): journal quarantine operations` | `ledger.db` intent and completion records (`synchronous=FULL`) |
-| 9.5 | `feat(fs-exec): write quarantine manifests` | per-item manifest and sidecar in the store |
+| 9.5 | `feat(domain): add quarantine manifest type` | `quarantine.manifest/1`: operation, plan, device, raw original path, observed entry, Unix ownership, decision, confirmation, Jev link; schema export |
+| 9.5b | `feat(fs-exec): write manifest sidecars` | exclusive create (mode 0600, no links) next to the item in its store, `fsync`; never overwritten |
 | 9.6 | `feat(application): quarantine confirmed plans` | intent → re-probe in-use (ADR-0030) → move → verify → retain; startup reconciliation |
 | 9.7 | `feat(fs-exec): restore quarantined items` | no-replace rename back; conflicts asked, never overwritten |
 | 9.8 | `feat(fs-exec): finalize after retention` | permanent removal only inside the store, by handle, recorded |

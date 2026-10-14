@@ -34,6 +34,7 @@ mod inventory;
 mod jev;
 mod judgment;
 mod lifecycle;
+mod manifest;
 mod name;
 mod path;
 mod quarantine;
@@ -87,6 +88,7 @@ pub use lifecycle::{
     Confirmation, ConfirmationSurface, PlanEvent, PlanState, PlanTransitionError, ScanEvent,
     ScanState, ScanTransitionError,
 };
+pub use manifest::{MANIFEST_SCHEMA, QuarantineManifest, UnixOwnership};
 pub use path::{PathError, PathFlavor, RawPath};
 pub use quarantine::{
     ItemLocation, QuarantineEvent, QuarantineFailure, QuarantineState, TransitionError,

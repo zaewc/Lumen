@@ -46,6 +46,7 @@ const EXPORTS: &[Export] = &[
     export::<d::PolicyDecision>("policy-decision"),
     export::<d::CleanupCandidate>("cleanup-candidate"),
     export::<d::QuarantineState>("quarantine-state"),
+    export::<d::QuarantineManifest>("quarantine-manifest"),
     export::<d::ScanState>("scan-state"),
     export::<d::PlanState>("plan-state"),
     export::<d::PlatformCapabilities>("platform-capabilities"),
