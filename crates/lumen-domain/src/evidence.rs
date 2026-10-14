@@ -117,6 +117,9 @@ pub enum Fact {
         /// What the platform documents the location for.
         kind: AppDataKind,
     },
+    /// Whether the subject is owned by the account Lumen runs as (Unix owner
+    /// ID, Windows owner SID). ADR-0030 relies on it.
+    OwnedByCurrentUser(bool),
 }
 
 /// Kinds of per-application data locations the platforms document.
@@ -295,6 +298,15 @@ mod tests {
             text,
             r#"{"fact":"app_data_location","value":{"kind":"caches"}}"#
         );
+        assert_eq!(serde_json::from_str::<Fact>(&text)?, fact);
+        Ok(())
+    }
+
+    #[test]
+    fn ownership_has_a_stable_wire_form() -> Result<(), serde_json::Error> {
+        let fact = Fact::OwnedByCurrentUser(true);
+        let text = serde_json::to_string(&fact)?;
+        assert_eq!(text, r#"{"fact":"owned_by_current_user","value":true}"#);
         assert_eq!(serde_json::from_str::<Fact>(&text)?, fact);
         Ok(())
     }

@@ -40,7 +40,8 @@ An `Evidence` record is `{subject, fact, basis, provenance}`:
   modified/accessed, in use (`InUse`, or `NotInUseByVisibleProcesses` when not every
   process was visible), vendor-declared cache, knowledge-base match, code
   signature, cloud-backed, protection, app data location (`AppDataLocation`: caches,
-  container, application support, preferences, saved state, web data).
+  container, application support, preferences, saved state, web data), and whether
+  the current user owns the subject (`OwnedByCurrentUser`).
 - `basis` says how it is known: `Observed`, or `Absence` with the sources that
   were searched. Absence is only as strong as those sources' coverage report allows;
   unreadable is never empty.

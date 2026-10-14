@@ -433,6 +433,23 @@
             "fact",
             "value"
           ]
+        },
+        {
+          "description": "Whether the subject is owned by the account Lumen runs as (Unix owner\nID, Windows owner SID). ADR-0030 relies on it.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "owned_by_current_user"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
         }
       ]
     },
