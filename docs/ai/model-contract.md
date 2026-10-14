@@ -83,6 +83,23 @@ Responses are rejected (`JudgeError`) when:
 - any evidence reference is unknown;
 - the responding model differs from the pinned model ID.
 
+## TypeSafe Jev answers
+
+TypeSafe's Jev model ([ADR-0031](../decisions/0031-jev-on-typesafe-via-openrouter.md))
+does not write `jev.judgment/1` JSON. It answers typed questions, and
+`lumen_jev::decisions` builds the `Judgment` from those answers:
+
+- `assessment` Choice → assessment, with confidence from the chosen option's
+  probability;
+- `reason` Choice → one reason code;
+- `injection` Noul → `injection_suspected`;
+- `evidence_refs` → every sent evidence ID;
+- `rationale` → empty.
+
+The same `Judgment::validate_for` checks then apply. Answers from other models, with
+missing or extra answers, unknown options, or probabilities outside [0, 1] are
+rejected.
+
 ## Trace: `jev.trace/1`
 
 Stored in `ledger.db` for every judgment that a policy decision consumed:
