@@ -1,9 +1,13 @@
 //! Audit records in `ledger.db` (ADR-0012): append-only, `synchronous=FULL`.
 //!
-//! Today it holds Jev traces (`jev.trace/1`); quarantine journals and policy
-//! decisions join it with Phase 9. Reads re-validate every row: the body must
+//! It holds Jev traces (`jev.trace/1`) and the quarantine journal
+//! ([`JournalEntry`]); policy decisions and manifests join it later. Reads re-validate every row: the body must
 //! parse as a trace and agree with its indexed columns, so a tampered row is
 //! reported, never returned.
+
+mod journal;
+
+pub use journal::JournalEntry;
 
 use lumen_domain::{EvidenceHash, JevTrace, PayloadHash, Timestamp};
 use rusqlite::{Connection, params};

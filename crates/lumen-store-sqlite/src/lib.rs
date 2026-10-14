@@ -4,8 +4,8 @@
 //!
 //! - `index.db`: scans, entries and listings. Rebuildable by rescanning, so it
 //!   uses `synchronous=NORMAL`.
-//! - `ledger.db`: audit records (today Jev traces; quarantine journals with
-//!   Phase 9), append-only and `synchronous=FULL`.
+//! - `ledger.db`: audit records (Jev traces and the quarantine journal),
+//!   append-only and `synchronous=FULL`.
 //!
 //! Every connection is hardened: WAL journaling (verified, not assumed), foreign
 //! keys on, a busy timeout, `trusted_schema=OFF` and SQLite's defensive mode so a
@@ -28,7 +28,7 @@ use rusqlite::config::DbConfig;
 use rusqlite_migration::{M, Migrations};
 
 pub use index::{IndexStore, RootSnapshot};
-pub use ledger::LedgerStore;
+pub use ledger::{JournalEntry, LedgerStore};
 pub use writer::{IndexWriter, WriteStats, WriterConfig};
 
 /// How long a connection waits for a lock held by another connection.
@@ -44,8 +44,12 @@ const INDEX_MIGRATIONS: &[M<'static>] = &[
 
 /// Migrations for `ledger.db`, in order. Never edit a released migration; add a
 /// new one.
-const LEDGER_MIGRATIONS: &[M<'static>] =
-    &[M::up(include_str!("migrations/ledger/0001_jev_traces.sql"))];
+const LEDGER_MIGRATIONS: &[M<'static>] = &[
+    M::up(include_str!("migrations/ledger/0001_jev_traces.sql")),
+    M::up(include_str!(
+        "migrations/ledger/0002_quarantine_journal.sql"
+    )),
+];
 
 /// Errors opening or migrating a database.
 #[derive(Debug, thiserror::Error)]
@@ -206,7 +210,7 @@ mod tests {
     fn the_ledger_is_durable_and_hardened() -> Result<(), Box<dyn std::error::Error>> {
         let fx = Fixture::build(&[])?;
         let conn = open_ledger(&fx.path("ledger.db")?)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 1);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 2);
         assert_eq!(
             pragma::<String>(&conn, "journal_mode")?.to_lowercase(),
             "wal"
