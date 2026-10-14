@@ -650,6 +650,7 @@ dependencies = [
  "lumen-application",
  "lumen-domain",
  "lumen-jev",
+ "lumen-testkit",
  "serde",
  "serde_json",
  "thiserror",

@@ -31,6 +31,11 @@ fixture definition ─▶ build fixture tree (tempdir) ─▶ scan (real lumen-s
 - `ReplayJudge`: a `JudgeModel` answering from a cassette through the production
   validator (`lumen_jev::response`); unrecorded requests are unavailable.
 - Mock mode: `lumen_testkit::MockJudge`.
+- `jev.case/1` (`lumen_jev_eval::Case`) and `run`: grades each case (correct, acceptable,
+  wrong, critical false positive, rejected, no answer) and reports the critical FPR
+  with an exact Clopper–Pearson 95% upper bound against the 0.5% target, plus
+  precision, recall and abstention. Policy-violation and canary gates join with the
+  golden dataset (roadmap 8.7c).
 
 ## Commands (planned)
 
