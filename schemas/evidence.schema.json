@@ -226,7 +226,7 @@
           ]
         },
         {
-          "description": "Whether a running process holds the subject open or depends on it.",
+          "description": "Whether a running process holds the subject open or depends on it.\n`false` only when every process was checked; a probe that could not see\nevery process records [`Fact::NotInUseByVisibleProcesses`] instead.",
           "type": "object",
           "properties": {
             "fact": {
@@ -235,6 +235,34 @@
             },
             "value": {
               "type": "boolean"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "No process Lumen could see uses the subject, but not every process was\nvisible (ADR-0030), so this is not proof of non-use.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "not_in_use_by_visible_processes"
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "unseen": {
+                  "description": "How many processes could not be checked, if known.",
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "uint32",
+                  "minimum": 0
+                }
+              }
             }
           },
           "required": [

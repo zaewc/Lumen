@@ -85,7 +85,15 @@ pub enum Fact {
     /// Last accessed (weak evidence; access times are often not maintained).
     LastAccessed(Timestamp),
     /// Whether a running process holds the subject open or depends on it.
+    /// `false` only when every process was checked; a probe that could not see
+    /// every process records [`Fact::NotInUseByVisibleProcesses`] instead.
     InUse(bool),
+    /// No process Lumen could see uses the subject, but not every process was
+    /// visible (ADR-0030), so this is not proof of non-use.
+    NotInUseByVisibleProcesses {
+        /// How many processes could not be checked, if known.
+        unseen: Option<u32>,
+    },
     /// A vendor declared the subject a disposable cache (e.g. a Windows Disk
     /// Cleanup handler registration).
     VendorDeclaredCache {
@@ -225,6 +233,19 @@ mod tests {
             blake3::hash(&e.canonical_bytes()).as_bytes(),
             "prefix must matter"
         );
+    }
+
+    #[test]
+    fn partial_in_use_answers_have_their_own_wire_form() -> Result<(), serde_json::Error> {
+        let fact = Fact::NotInUseByVisibleProcesses { unseen: Some(3) };
+        let text = serde_json::to_string(&fact)?;
+        assert_eq!(
+            text,
+            r#"{"fact":"not_in_use_by_visible_processes","value":{"unseen":3}}"#
+        );
+        assert_eq!(serde_json::from_str::<Fact>(&text)?, fact);
+        assert_ne!(fact, Fact::InUse(false), "partial is never complete");
+        Ok(())
     }
 
     #[test]

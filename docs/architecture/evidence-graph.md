@@ -37,7 +37,8 @@ subject, and a new file at an old path is a different one.
 An `Evidence` record is `{subject, fact, basis, provenance}`:
 
 - `fact` is one typed statement: owning application, application present, last
-  modified/accessed, in use, vendor-declared cache, knowledge-base match, code
+  modified/accessed, in use (`InUse`, or `NotInUseByVisibleProcesses` when not every
+  process was visible), vendor-declared cache, knowledge-base match, code
   signature, cloud-backed, protection.
 - `basis` says how it is known: `Observed`, or `Absence` with the sources that
   were searched. Absence is only as strong as those sources' coverage report allows;
@@ -130,7 +131,7 @@ validation and acyclic containment hold for whatever the database contains.
 | `lumen-platform-macos::support` | `owned_by` edges with `OwningApplication` evidence for `~/Library` items named after an installed app. Bundle-ID matches and unique-name matches use separate sources, so the policy can weigh them differently. |
 | `lumen-platform-windows::cleanup` | `VendorDeclaredCache` evidence for folders declared by data-driven Disk Cleanup handlers. No edge: a handler name does not identify an application. |
 | Inventory sources (macOS apps and launchd; Windows apps, startup entries, services) | `Application` and `Service` records with signatures, for later `launches` and `owned_by` edges |
-| In-use probes (`libproc`, Restart Manager) | answers for `opened_by` edges and `InUse` evidence. Partial visibility is never "unused" (ADR-0030). |
+| In-use probes (`libproc`, Restart Manager) | answers for `opened_by` edges and `InUse` evidence; a partial answer is recorded as `NotInUseByVisibleProcesses`, never as `InUse(false)` (ADR-0030). |
 | `lumen-devkb` | `KnowledgeBaseMatch` evidence (source `devkb`) for each scanned file or directory that is exactly an entry's location, resolved against the machine's home, known folders and environment variables. Descendants, links and projects without a scanned marker never match. |
 
 ## Explanation chains

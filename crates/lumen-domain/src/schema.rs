@@ -104,6 +104,24 @@ mod tests {
     }
 
     #[test]
+    fn partial_in_use_evidence_conforms() -> Result<(), Box<dyn std::error::Error>> {
+        for unseen in [Some(3), None] {
+            validate(&Evidence {
+                subject: Subject::File {
+                    identity: identity(42)?,
+                },
+                fact: Fact::NotInUseByVisibleProcesses { unseen },
+                basis: Basis::Observed,
+                provenance: Provenance {
+                    source: SourceName::new("macos.libproc")?,
+                    observed_at: Timestamp::UNIX_EPOCH,
+                },
+            })?;
+        }
+        Ok(())
+    }
+
+    #[test]
     fn composite_records_conform() -> Result<(), Box<dyn std::error::Error>> {
         let file = identity(42)?;
         let evidence = Evidence {
