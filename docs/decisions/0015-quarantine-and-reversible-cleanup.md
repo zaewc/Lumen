@@ -45,7 +45,10 @@ Mechanics (desktop):
 - Stores: macOS `~/Library/Application Support/Lumen/Quarantine/` for the Data volume
   and `<volume>/.LumenQuarantine/<uid>/` elsewhere; Windows
   `X:\$LumenQuarantine\<UserSID>\` with an owner-only DACL. Stores are excluded from
-  backups and indexing.
+  backups and indexing. (Clarified in roadmap 9.2b: on macOS the backup exclusion is a
+  sticky `CSBackupSetItemExcluded`; macOS documents no programmatic Spotlight
+  exclusion for a directory, so stores stay indexable there and only the owner can
+  read them. See research report 10, verification log rows 28–29.)
 - The move uses a **no-replace** rename (`renamex_np(RENAME_EXCL)`,
   `renameat2(RENAME_NOREPLACE)`, `SetFileInformationByHandle(FileRenameInfoEx)`
   relative to a verified directory handle) through the executor (ADR-0016).
