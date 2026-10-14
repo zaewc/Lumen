@@ -213,7 +213,8 @@ re-verifies identity, and uses no-replace renames only. Any mismatch fails close
 | 9.8b | `feat(application): finalize retained items` | port and use case: only `Retained` items after retention or on request; locate first: in the store → finalize and journal `Finalize`; at the source → journal `Restore` (a restore whose journal entry was lost); unknown → nothing |
 | 9.9a | `test(fs-exec): carry hostile names through the lifecycle` | NFC/NFD and case twins, RTLO, newline, control, leading-dash, CJK and non-UTF-8 names through quarantine, restore and finalize; twins restore correctly or are refused, never overwritten |
 | 9.9b | `test(fs-exec): add race suites` | symlink and directory swaps between prepare and execute, leaf replacement, hard links, read-only directories |
-| 9.9c | `test(fs-exec): inject faults at every step` | failures after each system call leave the item at its source or restorable in the store, and the journal says which |
+| 9.9c | `test(application): crash at every journal step` | a model of the item's location and a journal that crashes after each entry: after restart, reconciliation (quarantine) and finalization (restore) leave the journal replaying to where the item physically is |
+| 9.9d | `test(fs-exec): inject faults at every system call` | needs a fault-injection seam in `lumen-fs-exec` (decide by ADR first): failures after each call leave the item at its source or restorable in the store |
 | 9.10 | `feat(fs-exec): add the Windows executor` | handle-relative walk, `FileRenameInfoEx` without replace, `FILE_FLAG_OPEN_REPARSE_POINT` |
 | 9.11 | `chore(fs-exec): protect the executor` | CODEOWNERS and threat-model section |
 
