@@ -44,6 +44,8 @@ proptest = "1.11.0"
 # Bundled SQLite guarantees the WAL-reset fix (ADR-0012); defaults add a wasm FFI we do not use.
 rusqlite = { version = "0.40.2", default-features = false, features = ["bundled", "cache"] }
 rusqlite_migration = "2.6.0"
+# TLS for the Jev transport (ADR-0031): ring provider, no default features.
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std", "tls12"] }
 schemars = "1.2.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
@@ -51,6 +53,9 @@ tempfile = "3.27.0"
 # Win32 FFI declarations for the Windows adapter (raw-dylib, no build script).
 windows-sys = "0.61.2"
 thiserror = "2.0.21"
+# Blocking HTTPS client for the Jev transport (ADR-0031): rustls with the OS
+# trust store (platform verifier), no bundled roots, no compression.
+ureq = { version = "3.4.2", default-features = false, features = ["rustls-no-provider", "platform-verifier"] }
 uuid = { version = "1.27.0", features = ["serde"] }
 
 [workspace.lints.rust]

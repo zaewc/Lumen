@@ -33,6 +33,15 @@ unused-allowed-license = "allow"
 # Workspace crates (Apache-2.0, publish = false) are not license-checked as dependencies.
 private = { ignore = true }
 
+# Crate-scoped exceptions, each with its reason.
+[[licenses.exceptions]]
+# Mozilla's CA certificate list as data (CDLA-Permissive-2.0, a permissive data
+# license). Pulled in by rustls-platform-verifier for platforms without a usable
+# OS trust store; none of Lumen's targets (macOS, Windows, Linux, Android, iOS)
+# compile it, which `cargo tree --target` confirms.
+crate = "webpki-root-certs"
+allow = ["CDLA-Permissive-2.0"]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
