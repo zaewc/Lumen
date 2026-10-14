@@ -31,7 +31,7 @@ pub enum Problem {
         location: usize,
     },
     /// An environment variable name is malformed.
-    #[error("location {location}: environment variable must be [A-Z_][A-Z0-9_]*, 1-64 bytes")]
+    #[error("location {location}: environment variable must be [A-Za-z_][A-Za-z0-9_]*, 1-64 bytes")]
     EnvVar {
         /// The location.
         location: usize,
@@ -109,7 +109,7 @@ fn is_env_var(name: &str) -> bool {
         && !bytes[0].is_ascii_digit()
         && bytes
             .iter()
-            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || *b == b'_')
+            .all(|b| b.is_ascii_alphanumeric() || *b == b'_')
 }
 
 /// A relative path's components, if every one is a plain name (or, with
@@ -331,11 +331,19 @@ mod tests {
             }),
             Ok(())
         );
+        for name in ["", "1X", "CARGO-HOME", "A B", "X=Y", &"X".repeat(65)] {
+            assert_eq!(
+                check(|e| e.locations[1].root = Root::EnvVar { name: name.into() }),
+                Err(Problem::EnvVar { location: 1 }),
+                "{name}"
+            );
+        }
         assert_eq!(
             check(|e| e.locations[1].root = Root::EnvVar {
-                name: "cargo_home".into()
+                name: "npm_config_cache".into()
             }),
-            Err(Problem::EnvVar { location: 1 })
+            Ok(()),
+            "lowercase names exist (npm reads `npm_config_*`)"
         );
         assert_eq!(
             check(|e| e.locations[0].root = Root::Project),

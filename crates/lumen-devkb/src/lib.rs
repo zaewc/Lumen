@@ -111,8 +111,10 @@ pub enum Root {
     /// A directory named by an environment variable the tool documents (e.g.
     /// `GOMODCACHE`); a location only applies when the variable is set.
     EnvVar {
-        /// The variable: uppercase letters, digits and `_`.
-        #[schemars(regex(pattern = r"^[A-Z_][A-Z0-9_]{0,63}$"))]
+        /// The variable: ASCII letters, digits and `_`, not starting with a
+        /// digit. Matched exactly as written: Unix names are case-sensitive, so
+        /// a tool that reads both cases (e.g. `npm_config_cache`) lists both.
+        #[schemars(regex(pattern = r"^[A-Za-z_][A-Za-z0-9_]{0,63}$"))]
         name: String,
     },
     /// A project directory, recognised by the location's markers.

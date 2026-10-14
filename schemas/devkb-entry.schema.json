@@ -231,9 +231,9 @@
               "const": "env_var"
             },
             "name": {
-              "description": "The variable: uppercase letters, digits and `_`.",
+              "description": "The variable: ASCII letters, digits and `_`, not starting with a\ndigit. Matched exactly as written: Unix names are case-sensitive, so\na tool that reads both cases (e.g. `npm_config_cache`) lists both.",
               "type": "string",
-              "pattern": "^[A-Z_][A-Z0-9_]{0,63}$"
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
             }
           },
           "additionalProperties": false,
