@@ -177,7 +177,8 @@ only become more cautious (7.6). Lumen works fully with `NoopJudge`.
 | 8.7 | `feat(jev-eval): add cassettes and replay judge` | `jev.cassette/1` (one judge configuration, entries keyed by request hash), `ReplayJudge` through the real validator; mock mode is `MockJudge` |
 | 8.7b | `feat(jev-eval): add evaluation runs and gate report` | cases → requests → judge → policy; metrics and gate verdict per docs/ai/evaluation.md |
 | 8.7c | `feat(jev-eval): add golden dataset v2026.10.0` | fixtures and expected outcomes per docs/ai/datasets.md |
-| 8.8 | `feat(jev): add Anthropic judge` | tier 2, opt-in, metadata only; HTTP client choice recorded with the PR |
+| 8.8 | `feat(jev): map Jev decisions to judgments` | ADR-0031: Decisions API request (state + `assessment`/`reason`/`injection` questions) and strict answer mapping onto `Judgment`, tested offline |
+| 8.9 | `feat(jev): add OpenRouter transport` | `JevJudge`: HTTPS client (choice recorded with the PR), ZDR + no-data-collection provider settings, OS keychain API key, opt-in tier 2 |
 
 ## Later phases (outline)
 

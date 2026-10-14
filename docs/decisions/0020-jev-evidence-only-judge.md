@@ -1,6 +1,6 @@
 # ADR-0020: Integrate Jev as an optional, evidence-only judge behind a port
 
-- Status: Accepted
+- Status: Accepted (adapters and tiers amended by [ADR-0031](0031-jev-on-typesafe-via-openrouter.md))
 - Date: 2026-10-06
 
 ## Context and problem statement

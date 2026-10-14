@@ -51,7 +51,7 @@ Jev is never consulted for items already fixed by hard protections (stage 1): th
 | --- | --- | --- | --- |
 | 0 | yes | no | `NoopJudge` |
 | 1 | opt-in | no | on-device (Apple Foundation Models; later ONNX Runtime / llama.cpp; Android ML Kit for foreground only) |
-| 2 | opt-in, per user, with disclosure | metadata only, redacted | `AnthropicJudge` (cloud) |
+| 2 | opt-in, per user, with disclosure | metadata only, redacted, zero-retention endpoints only | `JevJudge`: TypeSafe's Jev model via OpenRouter ([ADR-0031](../decisions/0031-jev-on-typesafe-via-openrouter.md)) |
 
 Apple Private Cloud Compute counts as tier 2.
 
