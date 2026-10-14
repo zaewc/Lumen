@@ -131,8 +131,9 @@ pub(crate) fn identity(stat: &Stat) -> UnixIdentity {
 
 #[allow(
     clippy::cast_lossless,
+    clippy::cast_possible_wrap,
     clippy::unnecessary_cast,
-    reason = "time field types differ per platform; values are compared, not computed"
+    reason = "time field types differ per platform (unsigned nanoseconds on Linux); values are compared, not computed"
 )]
 fn modified(stat: &Stat) -> (i64, i64) {
     (stat.st_mtime as i64, stat.st_mtime_nsec as i64)
