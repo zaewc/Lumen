@@ -1,7 +1,8 @@
 //! Moving items into a Windows store and back (roadmap 9.10c, ADR-0015,
 //! ADR-0033).
 //!
-//! Both directions are one `FileRenameInfo` on the verified item's own handle
+//! Both directions are one `FileRenameInformation` (`NtSetInformationFile`) on
+//! the verified item's own handle
 //! with `ReplaceIfExists = FALSE` and the destination directory's handle: never
 //! an overwrite, never a copy, never another volume. Windows refuses to rename
 //! an item another program holds open (or, for a directory, anything inside

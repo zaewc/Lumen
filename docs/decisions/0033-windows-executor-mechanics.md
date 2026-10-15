@@ -65,9 +65,13 @@ Chosen option: **2**.
 
 ### Moving, restoring, finalizing
 
-- **Move and restore:** `SetFileInformationByHandle(FileRenameInfo)` on the verified
-  leaf handle, with `ReplaceIfExists = FALSE`, `RootDirectory` = the destination
-  directory's handle, and a simple name. Microsoft documents that the rename fails
+- **Move and restore:** `NtSetInformationFile(FileRenameInformation)` on the
+  verified leaf handle, with `ReplaceIfExists = FALSE`, `RootDirectory` = the
+  destination directory's handle, and a simple name. (The Win32 wrapper
+  `SetFileInformationByHandle(FileRenameInfo)` documents `RootDirectory` as "NULL in
+  the common case" and rejected a directory handle with `ERROR_INVALID_PARAMETER` on
+  the Windows runner, so the native call that `FILE_RENAME_INFORMATION` documents is
+  used; corrected during roadmap 9.10c.) Microsoft documents that the rename fails
   if the target exists, that a rename cannot leave the volume, and that "a file
   cannot be renamed if it has any open handles" (a directory: if any file below it
   has open handles). That last rule is an extra in-use gate on top of Restart

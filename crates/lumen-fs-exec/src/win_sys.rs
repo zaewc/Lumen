@@ -15,7 +15,8 @@ use std::mem::{MaybeUninit, size_of};
 use windows_sys::Wdk::Foundation::OBJECT_ATTRIBUTES;
 use windows_sys::Wdk::Storage::FileSystem::{
     FILE_CREATE, FILE_DIRECTORY_FILE, FILE_NON_DIRECTORY_FILE, FILE_OPEN, FILE_OPEN_REPARSE_POINT,
-    FILE_SYNCHRONOUS_IO_NONALERT, NtCreateFile,
+    FILE_RENAME_INFORMATION, FILE_SYNCHRONOUS_IO_NONALERT, FileRenameInformation, NtCreateFile,
+    NtSetInformationFile,
 };
 use windows_sys::Win32::Foundation::{
     CloseHandle, HANDLE, INVALID_HANDLE_VALUE, LocalFree, NTSTATUS, OBJ_CASE_INSENSITIVE,
@@ -33,11 +34,10 @@ use windows_sys::Win32::Security::{
 use windows_sys::Win32::Storage::FileSystem::{
     CreateFileW, DELETE, FILE_ATTRIBUTE_NOT_CONTENT_INDEXED, FILE_ATTRIBUTE_TAG_INFO,
     FILE_BASIC_INFO, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_GENERIC_WRITE,
-    FILE_ID_INFO, FILE_INFO_BY_HANDLE_CLASS, FILE_READ_ATTRIBUTES, FILE_RENAME_INFO,
-    FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO, FILE_TRAVERSE,
-    FileAttributeTagInfo, FileBasicInfo, FileIdInfo, FileRenameInfo, FileStandardInfo,
-    FlushFileBuffers, GetFileInformationByHandleEx, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
-    SetFileInformationByHandle, WriteFile,
+    FILE_ID_INFO, FILE_INFO_BY_HANDLE_CLASS, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE,
+    FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO, FILE_TRAVERSE, FileAttributeTagInfo,
+    FileBasicInfo, FileIdInfo, FileStandardInfo, FlushFileBuffers, GetFileInformationByHandleEx,
+    OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE, WriteFile,
 };
 use windows_sys::Win32::System::IO::IO_STATUS_BLOCK;
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
@@ -497,22 +497,25 @@ pub(crate) fn owner_and_dacl(handle: &Handle) -> io::Result<String> {
 }
 
 /// Renames the object of `item` to `name` in `dir`, never replacing anything
-/// (`FileRenameInfo` with `ReplaceIfExists = FALSE`, ADR-0033).
+/// (`NtSetInformationFile(FileRenameInformation)` with `ReplaceIfExists =
+/// FALSE` and `RootDirectory = dir`, ADR-0033). The Win32 wrapper
+/// (`SetFileInformationByHandle`) rejected a `RootDirectory` with
+/// `ERROR_INVALID_PARAMETER` on the Windows runner, so the native call is used.
 pub(crate) fn rename_into(item: &Handle, dir: &Handle, name: &[u16]) -> io::Result<()> {
     if !plain_name(name) {
         return Err(io::Error::from(io::ErrorKind::InvalidInput));
     }
-    let header = std::mem::offset_of!(FILE_RENAME_INFO, FileName);
+    let header = std::mem::offset_of!(FILE_RENAME_INFORMATION, FileName);
     let name_bytes = name.len() * 2;
     // The system requires at least the whole struct (whose one-unit `FileName`
     // and padding then hold the terminator) plus the name.
-    let total = size_of::<FILE_RENAME_INFO>() + name_bytes;
+    let total = size_of::<FILE_RENAME_INFORMATION>() + name_bytes;
     // `u64` storage keeps the handle field aligned.
     let mut buffer = vec![0_u64; total.div_ceil(8)];
-    let info = buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>();
+    let info = buffer.as_mut_ptr().cast::<FILE_RENAME_INFORMATION>();
     let length = u32::try_from(name_bytes).map_err(io::Error::other)?;
     // SAFETY: invariant: `buffer` holds at least `total` zeroed, 8-byte
-    // aligned bytes: a `FILE_RENAME_INFO` header followed by room for the
+    // aligned bytes: a `FILE_RENAME_INFORMATION` header followed by room for the
     // name and a NUL. Why unsafe: writing through raw pointers into it. Why it
     // holds: `total` is the struct size plus the name, which covers the
     // header offset, the name and a terminator, and `buffer` covers `total`.
@@ -527,13 +530,22 @@ pub(crate) fn rename_into(item: &Handle, dir: &Handle, name: &[u16]) -> io::Resu
         );
     }
     let size = u32::try_from(total).map_err(io::Error::other)?;
-    // SAFETY: invariant: the buffer is a complete `FILE_RENAME_INFO` of `size`
-    // bytes and both handles are open. Why unsafe: FFI call. Why it holds:
-    // filled just above; `item` and `dir` are live `Handle`s.
-    let ok =
-        unsafe { SetFileInformationByHandle(item.0, FileRenameInfo, buffer.as_ptr().cast(), size) };
-    if ok == 0 {
-        Err(io::Error::last_os_error())
+    let mut io_status = MaybeUninit::<IO_STATUS_BLOCK>::zeroed();
+    // SAFETY: invariant: the buffer is a complete `FILE_RENAME_INFORMATION` of
+    // `size` bytes, both handles are open, and the status block is writable.
+    // Why unsafe: FFI call. Why it holds: filled just above; `item` and `dir`
+    // are live `Handle`s and `io_status` is a local.
+    let status = unsafe {
+        NtSetInformationFile(
+            item.0,
+            io_status.as_mut_ptr(),
+            buffer.as_ptr().cast(),
+            size,
+            FileRenameInformation,
+        )
+    };
+    if status < 0 {
+        Err(status_error(status))
     } else {
         Ok(())
     }
