@@ -100,6 +100,8 @@ pub enum ConfirmationSurface {
     BrowserDashboard,
     /// The mobile app.
     MobileApp,
+    /// The `lumen` command line, by plan hash (ADR-0034).
+    CommandLine,
 }
 
 /// A user's confirmation of one specific plan.

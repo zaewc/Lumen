@@ -164,6 +164,11 @@
           "description": "The mobile app.",
           "type": "string",
           "const": "mobile_app"
+        },
+        {
+          "description": "The `lumen` command line, by plan hash (ADR-0034).",
+          "type": "string",
+          "const": "command_line"
         }
       ]
     },
