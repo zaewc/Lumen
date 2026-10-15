@@ -12,6 +12,7 @@ use std::os::fd::OwnedFd;
 use rustix::fs::{Mode, OFlags, fsync, openat};
 use rustix::io::{Errno, read, write};
 
+use crate::fault::{self, Point};
 use crate::store::Store;
 
 /// Largest sidecar read back; real manifests are a few kilobytes.
@@ -76,7 +77,7 @@ pub fn write_sidecar(store: &Store, item: &[u8], bytes: &[u8]) -> Result<(), Sid
     })?;
     let mut rest = bytes;
     while !rest.is_empty() {
-        match write(&file, rest) {
+        match write(&file, rest).and_then(|n| fault::check(Point::SidecarWrite).map(|()| n)) {
             Ok(0) => return Err(SidecarError::Io(Errno::IO)),
             Ok(n) => rest = rest.get(n..).unwrap_or_default(),
             Err(Errno::INTR) => {}

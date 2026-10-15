@@ -15,6 +15,7 @@
 use rustix::fs::{AtFlags, RenameFlags, fsync, renameat_with, statat};
 use rustix::io::Errno;
 
+use crate::fault::{self, Point};
 use crate::store::Store;
 use crate::verify::{ExpectedLeaf, Mismatch, Verified, check_leaf};
 
@@ -104,14 +105,19 @@ pub fn move_into(
         other => MoveError::Rename(other),
     })?;
     fsync(store.handle()).map_err(MoveError::Sync)?;
-    fsync(&verified.parent).map_err(MoveError::Sync)?;
-    match statat(
-        &verified.parent,
-        verified.leaf.as_slice(),
-        AtFlags::SYMLINK_NOFOLLOW,
-    ) {
+    fsync(&verified.parent)
+        .and_then(|()| fault::check(Point::MoveSync))
+        .map_err(MoveError::Sync)?;
+    match fault::check(Point::MoveCheck).and_then(|()| {
+        statat(
+            &verified.parent,
+            verified.leaf.as_slice(),
+            AtFlags::SYMLINK_NOFOLLOW,
+        )
+        .map(drop)
+    }) {
         Err(Errno::NOENT) => {}
-        Ok(_) | Err(_) => return Err(MoveError::SourceRemains),
+        Ok(()) | Err(_) => return Err(MoveError::SourceRemains),
     }
     let moved = statat(store.handle(), name, AtFlags::SYMLINK_NOFOLLOW).map_err(|errno| {
         MoveError::Unverified(Mismatch::Unreachable {

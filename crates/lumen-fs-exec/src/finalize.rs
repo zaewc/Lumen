@@ -20,6 +20,7 @@ use std::os::fd::OwnedFd;
 use rustix::fs::{AtFlags, Dir, FileType, Mode, fstat, fsync, openat, statat, unlinkat};
 use rustix::io::Errno;
 
+use crate::fault::{self, Point};
 use crate::sidecar::sidecar_name;
 use crate::store::Store;
 use crate::verify::{
@@ -138,7 +139,9 @@ fn remove_tree(dir: &OwnedFd, device: u64) -> Result<(), FinalizeError> {
             remove_tree(&child, device)?;
             unlinkat(dir, name.as_c_str(), AtFlags::REMOVEDIR).map_err(partly)?;
         } else {
-            unlinkat(dir, name.as_c_str(), AtFlags::empty()).map_err(partly)?;
+            unlinkat(dir, name.as_c_str(), AtFlags::empty())
+                .and_then(|()| fault::check(Point::FinalizeUnlink))
+                .map_err(partly)?;
         }
     }
     Ok(())
@@ -175,7 +178,9 @@ pub fn finalize(store: &Store, name: &[u8], expected: &ExpectedLeaf) -> Result<(
         }
     }
     let sidecar = sidecar_name(name).map_err(|_| FinalizeError::InvalidName)?;
-    match unlinkat(store.handle(), sidecar.as_slice(), AtFlags::empty()) {
+    match unlinkat(store.handle(), sidecar.as_slice(), AtFlags::empty())
+        .and_then(|()| fault::check(Point::FinalizeSidecar))
+    {
         Ok(()) | Err(Errno::NOENT) => {}
         Err(errno) => return Err(FinalizeError::Sidecar(errno)),
     }

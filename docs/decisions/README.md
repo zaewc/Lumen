@@ -40,3 +40,4 @@ recommended option.
 | [0029](0029-fsevents-absolute-streams.md) | Watch absolute paths with FSEvents and pin resume points to the volume UUID | Accepted |
 | [0030](0030-partial-in-use-visibility.md) | Accept partial in-use visibility for reversible quarantine of the user's own files | Accepted |
 | [0031](0031-jev-on-typesafe-via-openrouter.md) | Use TypeSafe's Jev model through OpenRouter as the cloud judge | Accepted |
+| [0032](0032-test-only-fault-points.md) | Inject executor faults through test-only fault points | Accepted |

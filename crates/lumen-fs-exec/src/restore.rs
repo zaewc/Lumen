@@ -19,6 +19,7 @@ use std::os::fd::OwnedFd;
 use rustix::fs::{AtFlags, Mode, RenameFlags, fstat, fsync, open, openat, renameat_with, statat};
 use rustix::io::Errno;
 
+use crate::fault::{self, Point};
 use crate::move_into::Left;
 use crate::store::Store;
 use crate::verify::{Mismatch, PlanItem, check_leaf, directory_flags, identity, plain};
@@ -132,10 +133,14 @@ pub fn restore(store: &Store, name: &[u8], item: &PlanItem) -> Result<Restored, 
         other => RestoreError::Rename(other),
     })?;
     fsync(&parent).map_err(RestoreError::Sync)?;
-    fsync(store.handle()).map_err(RestoreError::Sync)?;
-    match statat(store.handle(), name, AtFlags::SYMLINK_NOFOLLOW) {
+    fsync(store.handle())
+        .and_then(|()| fault::check(Point::RestoreSync))
+        .map_err(RestoreError::Sync)?;
+    match fault::check(Point::RestoreCheck)
+        .and_then(|()| statat(store.handle(), name, AtFlags::SYMLINK_NOFOLLOW).map(drop))
+    {
         Err(Errno::NOENT) => {}
-        Ok(_) | Err(_) => return Err(RestoreError::StoreRemains),
+        Ok(()) | Err(_) => return Err(RestoreError::StoreRemains),
     }
     let restored =
         statat(&parent, item.leaf.as_slice(), AtFlags::SYMLINK_NOFOLLOW).map_err(|errno| {

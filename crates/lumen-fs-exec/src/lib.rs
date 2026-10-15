@@ -20,6 +20,8 @@
 #[cfg(unix)]
 mod executor;
 #[cfg(unix)]
+mod fault;
+#[cfg(unix)]
 mod finalize;
 #[cfg(unix)]
 mod move_into;
