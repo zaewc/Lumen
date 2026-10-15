@@ -30,16 +30,7 @@ use crate::verify::{
 /// The deepest directory nesting finalization removes.
 pub const MAX_DEPTH: usize = 256;
 
-/// How much a failed finalization removed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Removed {
-    /// Nothing; the item is intact in the store.
-    Nothing,
-    /// Possibly part of the item; finalizing again finishes it.
-    Partly,
-    /// The whole item; only its sidecar remains.
-    Item,
-}
+pub(crate) use crate::location::Removed;
 
 /// Why finalization failed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

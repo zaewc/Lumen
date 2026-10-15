@@ -19,8 +19,9 @@ use windows_sys::Wdk::Storage::FileSystem::{
     NtSetInformationFile,
 };
 use windows_sys::Win32::Foundation::{
-    CloseHandle, HANDLE, INVALID_HANDLE_VALUE, LocalFree, NTSTATUS, OBJ_CASE_INSENSITIVE,
-    RtlNtStatusToDosError, UNICODE_STRING,
+    CloseHandle, ERROR_INVALID_PARAMETER, ERROR_NO_MORE_FILES, ERROR_NOT_SUPPORTED, HANDLE,
+    INVALID_HANDLE_VALUE, LocalFree, NTSTATUS, OBJ_CASE_INSENSITIVE, RtlNtStatusToDosError,
+    UNICODE_STRING,
 };
 use windows_sys::Win32::Security::Authorization::{
     ConvertSecurityDescriptorToStringSecurityDescriptorW, ConvertSidToStringSidW,
@@ -33,11 +34,15 @@ use windows_sys::Win32::Security::{
 };
 use windows_sys::Win32::Storage::FileSystem::{
     CreateFileW, DELETE, FILE_ATTRIBUTE_NOT_CONTENT_INDEXED, FILE_ATTRIBUTE_TAG_INFO,
-    FILE_BASIC_INFO, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_GENERIC_WRITE,
-    FILE_ID_INFO, FILE_INFO_BY_HANDLE_CLASS, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE,
-    FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO, FILE_TRAVERSE, FileAttributeTagInfo,
-    FileBasicInfo, FileIdInfo, FileStandardInfo, FlushFileBuffers, GetFileInformationByHandleEx,
-    OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE, WriteFile,
+    FILE_BASIC_INFO, FILE_DISPOSITION_FLAG_DELETE, FILE_DISPOSITION_FLAG_IGNORE_READONLY_ATTRIBUTE,
+    FILE_DISPOSITION_FLAG_POSIX_SEMANTICS, FILE_DISPOSITION_INFO, FILE_DISPOSITION_INFO_EX,
+    FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_FULL_DIR_INFO,
+    FILE_GENERIC_WRITE, FILE_ID_INFO, FILE_INFO_BY_HANDLE_CLASS, FILE_LIST_DIRECTORY,
+    FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO,
+    FILE_TRAVERSE, FileAttributeTagInfo, FileBasicInfo, FileDispositionInfo, FileDispositionInfoEx,
+    FileFullDirectoryInfo, FileFullDirectoryRestartInfo, FileIdInfo, FileStandardInfo,
+    FlushFileBuffers, GetFileInformationByHandleEx, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
+    SetFileInformationByHandle, WriteFile,
 };
 use windows_sys::Win32::System::IO::IO_STATUS_BLOCK;
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
@@ -72,6 +77,8 @@ pub(crate) enum Want {
     Movable { directory: bool },
     /// A store directory, whose owner and DACL are checked.
     Store,
+    /// Something inside a store to list (if a directory) and delete.
+    Remove { directory: bool },
 }
 
 /// One name: not empty, `.` or `..`, and without separators or NUL.
@@ -129,6 +136,14 @@ pub(crate) fn open_at(dir: &Handle, name: &[u16], want: Want) -> io::Result<Hand
         Want::Directory => (
             FILE_TRAVERSE | FILE_READ_ATTRIBUTES | SYNCHRONIZE,
             FILE_DIRECTORY_FILE,
+        ),
+        Want::Remove { directory: true } => (
+            DELETE | FILE_LIST_DIRECTORY | FILE_TRAVERSE | FILE_READ_ATTRIBUTES | SYNCHRONIZE,
+            FILE_DIRECTORY_FILE,
+        ),
+        Want::Remove { directory: false } => (
+            DELETE | FILE_READ_ATTRIBUTES | SYNCHRONIZE,
+            FILE_NON_DIRECTORY_FILE,
         ),
         Want::Store => (
             FILE_TRAVERSE | FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE,
@@ -627,4 +642,136 @@ pub(crate) fn create_file_at(dir: &Handle, name: &[u16], bytes: &[u8]) -> io::Re
         return Err(io::Error::last_os_error());
     }
     Ok(())
+}
+
+/// One directory entry: its name and attributes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Entry {
+    /// The name, one component.
+    pub name: Vec<u16>,
+    /// File attributes from the listing.
+    pub attributes: u32,
+}
+
+/// Reads one `u32` at `offset` of `bytes`, if it is there.
+fn u32_at(bytes: &[u8], offset: usize) -> Option<u32> {
+    let raw = bytes.get(offset..offset.checked_add(4)?)?;
+    Some(u32::from_le_bytes(raw.try_into().ok()?))
+}
+
+/// Parses a batch of `FILE_FULL_DIR_INFO` records; `None` if malformed.
+fn parse_entries(batch: &[u8], out: &mut Vec<Entry>) -> Option<()> {
+    let name_at = std::mem::offset_of!(FILE_FULL_DIR_INFO, FileName);
+    let attributes_at = std::mem::offset_of!(FILE_FULL_DIR_INFO, FileAttributes);
+    let length_at = std::mem::offset_of!(FILE_FULL_DIR_INFO, FileNameLength);
+    let mut start = 0_usize;
+    loop {
+        let record = batch.get(start..)?;
+        let next = usize::try_from(u32_at(record, 0)?).ok()?;
+        let attributes = u32_at(record, attributes_at)?;
+        let length = usize::try_from(u32_at(record, length_at)?).ok()?;
+        let raw = record.get(name_at..name_at.checked_add(length)?)?;
+        if length % 2 != 0 {
+            return None;
+        }
+        let name: Vec<u16> = raw
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|pair| u16::from_le_bytes(*pair))
+            .collect();
+        if name != [u16::from(b'.')] && name != [u16::from(b'.'), u16::from(b'.')] {
+            out.push(Entry { name, attributes });
+        }
+        if next == 0 {
+            return Some(());
+        }
+        start = start.checked_add(next)?;
+    }
+}
+
+/// Lists every entry of the directory `dir` (opened with `Want::Remove`).
+pub(crate) fn entries(dir: &Handle) -> io::Result<Vec<Entry>> {
+    let mut out = Vec::new();
+    // `u64` storage keeps the records 8-byte aligned, as the system writes them.
+    let mut buffer = vec![0_u64; 8 * 1024];
+    let size = u32::try_from(buffer.len() * 8).map_err(io::Error::other)?;
+    let mut class = FileFullDirectoryRestartInfo;
+    loop {
+        // SAFETY: invariant: the system writes at most `size` bytes of
+        // `FILE_FULL_DIR_INFO` records into `buffer`. Why unsafe: FFI call
+        // writing through a raw pointer. Why it holds: `buffer` is `size`
+        // bytes and alive for the call; `dir` is a live directory handle.
+        let ok =
+            unsafe { GetFileInformationByHandleEx(dir.0, class, buffer.as_mut_ptr().cast(), size) };
+        if ok == 0 {
+            let error = io::Error::last_os_error();
+            return if error.raw_os_error().and_then(|c| u32::try_from(c).ok())
+                == Some(ERROR_NO_MORE_FILES)
+            {
+                Ok(out)
+            } else {
+                Err(error)
+            };
+        }
+        // SAFETY: invariant: the bytes of `buffer` are initialized. Why unsafe:
+        // reinterpreting `u64`s as bytes. Why it holds: `buffer` was
+        // zero-initialized and is borrowed for the slice's lifetime.
+        let bytes =
+            unsafe { std::slice::from_raw_parts(buffer.as_ptr().cast::<u8>(), buffer.len() * 8) };
+        parse_entries(bytes, &mut out)
+            .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidData))?;
+        class = FileFullDirectoryInfo;
+    }
+}
+
+/// Marks the object of `handle` for deletion: POSIX semantics where the file
+/// system supports them (the name goes at once), the classic disposition
+/// otherwise. A read-only attribute does not stop it.
+pub(crate) fn delete(handle: &Handle) -> io::Result<()> {
+    let extended = FILE_DISPOSITION_INFO_EX {
+        Flags: FILE_DISPOSITION_FLAG_DELETE
+            | FILE_DISPOSITION_FLAG_POSIX_SEMANTICS
+            | FILE_DISPOSITION_FLAG_IGNORE_READONLY_ATTRIBUTE,
+    };
+    let size = u32::try_from(size_of::<FILE_DISPOSITION_INFO_EX>()).map_err(io::Error::other)?;
+    // SAFETY: invariant: the buffer is one `FILE_DISPOSITION_INFO_EX` of
+    // `size` bytes and the handle was opened with `DELETE`. Why unsafe: FFI
+    // call. Why it holds: `extended` is a local; callers open with
+    // `Want::Remove` or `Want::Movable`, both of which request `DELETE`.
+    let ok = unsafe {
+        SetFileInformationByHandle(
+            handle.0,
+            FileDispositionInfoEx,
+            (&raw const extended).cast(),
+            size,
+        )
+    };
+    if ok != 0 {
+        return Ok(());
+    }
+    let error = io::Error::last_os_error();
+    let unsupported = matches!(
+        error.raw_os_error().and_then(|c| u32::try_from(c).ok()),
+        Some(ERROR_INVALID_PARAMETER | ERROR_NOT_SUPPORTED)
+    );
+    if !unsupported {
+        return Err(error);
+    }
+    let classic = FILE_DISPOSITION_INFO { DeleteFile: true };
+    let size = u32::try_from(size_of::<FILE_DISPOSITION_INFO>()).map_err(io::Error::other)?;
+    // SAFETY: as above, with the classic structure.
+    let ok = unsafe {
+        SetFileInformationByHandle(
+            handle.0,
+            FileDispositionInfo,
+            (&raw const classic).cast(),
+            size,
+        )
+    };
+    if ok == 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
 }

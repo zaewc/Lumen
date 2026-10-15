@@ -14,8 +14,9 @@
 //! replacing anything, and [`finalize`] permanently removes it from the store
 //! after checking all of it first (Unix). On Windows, [`observe`] and
 //! [`verify`] walk by relative native opens and [`open_store`] opens or creates
-//! a store private to its owner (ADR-0033); moving, restoring and finalizing
-//! follow (roadmap 9.10c–9.10d).
+//! a store private to its owner, [`move_into`] and [`restore`] rename without
+//! replacing, and [`finalize`] removes a checked tree from the store
+//! (ADR-0033). The Windows executor follows (roadmap 9.10d).
 
 // `unsafe` is forbidden everywhere except the Windows system-call module
 // (ADR-0033).
@@ -40,6 +41,8 @@ mod store;
 #[cfg(unix)]
 mod verify;
 #[cfg(windows)]
+mod win_finalize;
+#[cfg(windows)]
 mod win_move;
 #[cfg(windows)]
 mod win_store;
@@ -51,8 +54,8 @@ mod win_verify;
 #[cfg(unix)]
 pub use executor::Executor;
 #[cfg(unix)]
-pub use finalize::{FinalizeError, MAX_DEPTH, Removed, finalize};
-pub use location::Left;
+pub use finalize::{FinalizeError, MAX_DEPTH, finalize};
+pub use location::{Left, Removed};
 #[cfg(unix)]
 pub use move_into::{MoveError, move_into};
 #[cfg(unix)]
@@ -63,6 +66,8 @@ pub use sidecar::{MAX_SIDECAR_BYTES, SidecarError, read_sidecar, write_sidecar};
 pub use store::{Store, StoreError, open_store};
 #[cfg(unix)]
 pub use verify::{ExpectedLeaf, LeafKind, Mismatch, PlanItem, UnixIdentity, Verified, verify};
+#[cfg(windows)]
+pub use win_finalize::{MAX_DEPTH, WinFinalizeError, finalize};
 #[cfg(windows)]
 pub use win_move::{Direction, WinMoveError, WinRestored, move_into, restore, write_sidecar};
 #[cfg(windows)]
