@@ -1,0 +1,28 @@
+{
+  "id": "jetbrains-system-directory",
+  "tool": "JetBrains IDEs",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/JetBrains/*"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "local_app_data" },
+      "path": "JetBrains/*"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/JetBrains/*"
+    }
+  ],
+  "safety_class": "not_regenerable",
+  "regeneration": { "effort": "impossible", "network": false },
+  "sources": [
+    "https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#system-directory",
+    "https://www.jetbrains.com/help/idea/invalidate-caches.html"
+  ],
+  "last_verified": "2026-10-15"
+}

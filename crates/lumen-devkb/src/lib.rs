@@ -36,6 +36,14 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/claude-code-session-data.json"),
     ),
     (
+        "cocoapods-download-cache.json",
+        include_str!("../entries/cocoapods-download-cache.json"),
+    ),
+    (
+        "docker-desktop-disk-image.json",
+        include_str!("../entries/docker-desktop-disk-image.json"),
+    ),
+    (
         "go-build-cache.json",
         include_str!("../entries/go-build-cache.json"),
     ),
@@ -51,6 +59,10 @@ const BUILTIN: &[(&str, &str)] = &[
         "homebrew-download-cache.json",
         include_str!("../entries/homebrew-download-cache.json"),
     ),
+    (
+        "jetbrains-system-directory.json",
+        include_str!("../entries/jetbrains-system-directory.json"),
+    ),
     ("npm-cache.json", include_str!("../entries/npm-cache.json")),
     (
         "pnpm-store.json",
@@ -64,6 +76,10 @@ const BUILTIN: &[(&str, &str)] = &[
     (
         "xcode-ios-device-support.json",
         include_str!("../entries/xcode-ios-device-support.json"),
+    ),
+    (
+        "xcode-simulator-devices.json",
+        include_str!("../entries/xcode-simulator-devices.json"),
     ),
 ];
 

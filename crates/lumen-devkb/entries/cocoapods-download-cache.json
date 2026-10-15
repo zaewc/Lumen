@@ -1,0 +1,23 @@
+{
+  "id": "cocoapods-download-cache",
+  "tool": "CocoaPods",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/CocoaPods/Pods"
+    }
+  ],
+  "safety_class": "tool_action",
+  "regeneration": { "effort": "minutes", "network": true },
+  "official_action": {
+    "program": "pod",
+    "args": ["cache", "clean", "--all"]
+  },
+  "sources": [
+    "https://guides.cocoapods.org/terminal/commands.html#tab_pod_cache_clean",
+    "https://blog.cocoapods.org/CocoaPods-0.37/",
+    "https://github.com/CocoaPods/CocoaPods/blob/master/lib/cocoapods/config.rb"
+  ],
+  "last_verified": "2026-10-15"
+}

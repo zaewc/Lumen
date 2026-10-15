@@ -1,0 +1,33 @@
+{
+  "id": "docker-desktop-disk-image",
+  "tool": "Docker Desktop",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".docker/desktop/vms/0/data/Docker.raw"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "local_app_data" },
+      "path": "Docker/wsl/disk/docker_data.vhdx"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "local_app_data" },
+      "path": "Docker/vm-data/DockerDesktop.vhdx"
+    }
+  ],
+  "safety_class": "not_regenerable",
+  "regeneration": { "effort": "impossible", "network": false },
+  "sources": [
+    "https://docs.docker.com/desktop/settings-and-maintenance/backup-and-restore/",
+    "https://docs.docker.com/desktop/troubleshoot-and-support/faqs/macfaqs/"
+  ],
+  "last_verified": "2026-10-15"
+}

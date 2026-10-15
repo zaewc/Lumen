@@ -1,0 +1,21 @@
+{
+  "id": "xcode-simulator-devices",
+  "tool": "Xcode",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Developer/CoreSimulator/Devices"
+    }
+  ],
+  "safety_class": "tool_action",
+  "regeneration": { "effort": "minutes", "network": false },
+  "official_action": {
+    "program": "xcrun",
+    "args": ["simctl", "delete", "unavailable"]
+  },
+  "sources": [
+    "https://developer.apple.com/forums/thread/812408"
+  ],
+  "last_verified": "2026-10-15"
+}
