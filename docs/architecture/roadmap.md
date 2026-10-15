@@ -243,7 +243,7 @@ test that forbids them today changes in the same PR.
 | 10.3 | `feat(application): collect inventory evidence` | `ApplicationPresent` (with `Basis::Absence` only from complete sources) from `InventorySource`s; `Context.complete_sources` from their status |
 | 10.4 | `feat(application): collect in-use evidence` | `InUseProbe` answers as `InUse` / `NotInUseByVisibleProcesses` evidence (ADR-0030) |
 | 10.5 | `feat(devkb): map safety classes to knowledge classes` | `SafetyClass` → `KnowledgeClass` for `PolicyInput.knowledge` |
-| 10.6 | `feat(application): build the evidence graph for a scan` | devkb matches and macOS support locations as evidence and relationships, recorded in `index.db`, graph loaded back |
+| 10.6 | `feat(application): gather a scan's evidence` | producers' evidence and relationships (devkb matches, support locations) combined with scanned-entry facts and owners' installation state, unique by ID; recording in `index.db` and loading the graph back happen in the composition root (10.13) |
 | 10.7 | `feat(store): read coverage and reclaim back` | listing completeness per directory and a per-subject `ReclaimEstimate` for `Observed` |
 | 10.8 | `feat(application): assess candidates` | subject selection, `PolicyInput` assembly (bundle hash and evidence, paths, `Context` with platform capabilities, `Observed`), `decide` with an optional judge, traces stored, explanations |
 | 10.9 | `docs(adr): confirm cleanup plans from the command line` | plan model, plan hash, a CLI confirmation surface bound to the hash, re-run of the policy on fresh facts |
