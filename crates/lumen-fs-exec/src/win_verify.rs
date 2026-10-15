@@ -98,22 +98,23 @@ pub enum WinMismatch {
 
 /// A verified item: its parent's handle and its own, ready to be renamed.
 #[derive(Debug)]
-#[expect(dead_code, reason = "read by the Windows move, roadmap 9.10c")]
 pub struct WinVerified {
     /// The parent directory.
     pub(crate) parent: Handle,
     /// The item itself, opened for `DELETE`.
     pub(crate) leaf: Handle,
+    /// The item's name in its parent.
+    pub(crate) name: Vec<u16>,
 }
 
-const fn identity(facts: &Facts) -> WinIdentity {
+pub(crate) const fn identity(facts: &Facts) -> WinIdentity {
     WinIdentity {
         volume: facts.volume,
         file: facts.file,
     }
 }
 
-const fn is_reparse(facts: &Facts) -> bool {
+pub(crate) const fn is_reparse(facts: &Facts) -> bool {
     facts.attributes & FILE_ATTRIBUTE_REPARSE_POINT != 0
 }
 
@@ -138,7 +139,7 @@ fn unreachable(what: &'static str) -> impl Fn(io::Error) -> WinMismatch {
 }
 
 /// Opens the root and walks to the parent, checking every directory.
-fn walk(root: &[u16], components: &[Vec<u16>]) -> Result<(Facts, Handle), WinMismatch> {
+pub(crate) fn walk(root: &[u16], components: &[Vec<u16>]) -> Result<(Facts, Handle), WinMismatch> {
     let mut path = root.to_vec();
     path.push(0);
     let mut dir = win_sys::open_root(&path).map_err(unreachable("the scan root"))?;
@@ -242,7 +243,11 @@ pub fn verify(item: &WinPlanItem) -> Result<WinVerified, WinMismatch> {
     let leaf = win_sys::open_at(&parent, &item.leaf, want).map_err(unreachable("the item"))?;
     let facts = win_sys::facts(&leaf).map_err(unreachable("the item"))?;
     check_leaf(&facts, &item.expected)?;
-    Ok(WinVerified { parent, leaf })
+    Ok(WinVerified {
+        parent,
+        leaf,
+        name: item.leaf.clone(),
+    })
 }
 
 #[cfg(test)]

@@ -51,10 +51,6 @@ pub enum WinStoreError {
 #[derive(Debug)]
 pub struct WinStore {
     /// The store directory.
-    #[expect(
-        dead_code,
-        reason = "the destination of the Windows move, roadmap 9.10c"
-    )]
     pub(crate) dir: Handle,
     /// Its identity.
     pub identity: WinIdentity,

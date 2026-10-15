@@ -28,6 +28,7 @@ mod executor;
 mod fault;
 #[cfg(unix)]
 mod finalize;
+mod location;
 #[cfg(unix)]
 mod move_into;
 #[cfg(unix)]
@@ -39,6 +40,8 @@ mod store;
 #[cfg(unix)]
 mod verify;
 #[cfg(windows)]
+mod win_move;
+#[cfg(windows)]
 mod win_store;
 #[cfg(windows)]
 mod win_sys;
@@ -49,8 +52,9 @@ mod win_verify;
 pub use executor::Executor;
 #[cfg(unix)]
 pub use finalize::{FinalizeError, MAX_DEPTH, Removed, finalize};
+pub use location::Left;
 #[cfg(unix)]
-pub use move_into::{Left, MoveError, move_into};
+pub use move_into::{MoveError, move_into};
 #[cfg(unix)]
 pub use restore::{RestoreError, Restored, restore};
 #[cfg(unix)]
@@ -59,6 +63,8 @@ pub use sidecar::{MAX_SIDECAR_BYTES, SidecarError, read_sidecar, write_sidecar};
 pub use store::{Store, StoreError, open_store};
 #[cfg(unix)]
 pub use verify::{ExpectedLeaf, LeafKind, Mismatch, PlanItem, UnixIdentity, Verified, verify};
+#[cfg(windows)]
+pub use win_move::{Direction, WinMoveError, WinRestored, move_into, restore, write_sidecar};
 #[cfg(windows)]
 pub use win_store::{WinStore, WinStoreError, open_store};
 #[cfg(windows)]

@@ -19,14 +19,7 @@ use crate::fault::{self, Point};
 use crate::store::Store;
 use crate::verify::{ExpectedLeaf, Mismatch, Verified, check_leaf};
 
-/// Where an item is after a failed move.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Left {
-    /// Untouched at its original location.
-    AtSource,
-    /// In the quarantine store, restorable.
-    InStore,
-}
+pub(crate) use crate::location::Left;
 
 /// Why a move failed, and where it left the item.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

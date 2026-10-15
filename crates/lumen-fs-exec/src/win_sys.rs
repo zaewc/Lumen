@@ -32,11 +32,12 @@ use windows_sys::Win32::Security::{
 };
 use windows_sys::Win32::Storage::FileSystem::{
     CreateFileW, DELETE, FILE_ATTRIBUTE_NOT_CONTENT_INDEXED, FILE_ATTRIBUTE_TAG_INFO,
-    FILE_BASIC_INFO, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_ID_INFO,
-    FILE_INFO_BY_HANDLE_CLASS, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ,
-    FILE_SHARE_WRITE, FILE_STANDARD_INFO, FILE_TRAVERSE, FileAttributeTagInfo, FileBasicInfo,
-    FileIdInfo, FileStandardInfo, GetFileInformationByHandleEx, OPEN_EXISTING, READ_CONTROL,
-    SYNCHRONIZE,
+    FILE_BASIC_INFO, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_GENERIC_WRITE,
+    FILE_ID_INFO, FILE_INFO_BY_HANDLE_CLASS, FILE_READ_ATTRIBUTES, FILE_RENAME_INFO,
+    FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO, FILE_TRAVERSE,
+    FileAttributeTagInfo, FileBasicInfo, FileIdInfo, FileRenameInfo, FileStandardInfo,
+    FlushFileBuffers, GetFileInformationByHandleEx, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
+    SetFileInformationByHandle, WriteFile,
 };
 use windows_sys::Win32::System::IO::IO_STATUS_BLOCK;
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
@@ -493,4 +494,123 @@ pub(crate) fn owner_and_dacl(handle: &Handle) -> io::Result<String> {
     }
     let descriptor = Local(descriptor);
     descriptor_sddl(descriptor.0)
+}
+
+/// Renames the object of `item` to `name` in `dir`, never replacing anything
+/// (`FileRenameInfo` with `ReplaceIfExists = FALSE`, ADR-0033).
+pub(crate) fn rename_into(item: &Handle, dir: &Handle, name: &[u16]) -> io::Result<()> {
+    if !plain_name(name) {
+        return Err(io::Error::from(io::ErrorKind::InvalidInput));
+    }
+    let header = std::mem::offset_of!(FILE_RENAME_INFO, FileName);
+    let name_bytes = name.len() * 2;
+    let total = header + name_bytes + 2;
+    // `u64` storage keeps the handle field aligned.
+    let mut buffer = vec![0_u64; total.div_ceil(8)];
+    let info = buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>();
+    let length = u32::try_from(name_bytes).map_err(io::Error::other)?;
+    // SAFETY: invariant: `buffer` holds at least `total` zeroed, 8-byte
+    // aligned bytes: a `FILE_RENAME_INFO` header followed by room for the
+    // name and a NUL. Why unsafe: writing through raw pointers into it. Why it
+    // holds: `total` is the header offset plus the name and terminator, and
+    // `buffer` was sized to cover it.
+    unsafe {
+        (*info).Anonymous.ReplaceIfExists = false;
+        (*info).RootDirectory = dir.0;
+        (*info).FileNameLength = length;
+        std::ptr::copy_nonoverlapping(
+            name.as_ptr().cast::<u8>(),
+            buffer.as_mut_ptr().cast::<u8>().add(header),
+            name_bytes,
+        );
+    }
+    let size = u32::try_from(total).map_err(io::Error::other)?;
+    // SAFETY: invariant: the buffer is a complete `FILE_RENAME_INFO` of `size`
+    // bytes and both handles are open. Why unsafe: FFI call. Why it holds:
+    // filled just above; `item` and `dir` are live `Handle`s.
+    let ok =
+        unsafe { SetFileInformationByHandle(item.0, FileRenameInfo, buffer.as_ptr().cast(), size) };
+    if ok == 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
+/// Creates the file `name` in `dir` (never an existing one), writes all of
+/// `bytes` and flushes it. It inherits the directory's DACL.
+pub(crate) fn create_file_at(dir: &Handle, name: &[u16], bytes: &[u8]) -> io::Result<()> {
+    if !plain_name(name) {
+        return Err(io::Error::from(io::ErrorKind::InvalidInput));
+    }
+    let name_bytes =
+        u16::try_from(name.len() * 2).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
+    let unicode = UNICODE_STRING {
+        Length: name_bytes,
+        MaximumLength: name_bytes,
+        Buffer: name.as_ptr().cast_mut(),
+    };
+    let attributes = OBJECT_ATTRIBUTES {
+        Length: u32::try_from(size_of::<OBJECT_ATTRIBUTES>()).unwrap_or(u32::MAX),
+        RootDirectory: dir.0,
+        ObjectName: &raw const unicode,
+        Attributes: OBJ_CASE_INSENSITIVE,
+        SecurityDescriptor: std::ptr::null(),
+        SecurityQualityOfService: std::ptr::null(),
+    };
+    let mut handle: HANDLE = std::ptr::null_mut();
+    let mut io_status = MaybeUninit::<IO_STATUS_BLOCK>::zeroed();
+    // SAFETY: as in `open_at`; `FILE_CREATE` fails if the name exists.
+    let status = unsafe {
+        NtCreateFile(
+            &raw mut handle,
+            FILE_GENERIC_WRITE | SYNCHRONIZE,
+            &raw const attributes,
+            io_status.as_mut_ptr(),
+            std::ptr::null(),
+            FILE_ATTRIBUTE_NOT_CONTENT_INDEXED,
+            FILE_SHARE_READ,
+            FILE_CREATE,
+            FILE_NON_DIRECTORY_FILE | FILE_OPEN_REPARSE_POINT | FILE_SYNCHRONOUS_IO_NONALERT,
+            std::ptr::null(),
+            0,
+        )
+    };
+    if status < 0 {
+        return Err(status_error(status));
+    }
+    let file = Handle(handle);
+    let mut rest = bytes;
+    while !rest.is_empty() {
+        let chunk = u32::try_from(rest.len()).unwrap_or(u32::MAX);
+        let mut written = 0_u32;
+        // SAFETY: invariant: the system reads at most `chunk` bytes from
+        // `rest` and writes `written`. Why unsafe: FFI call with raw pointers.
+        // Why it holds: `chunk <= rest.len()`, both are live locals, and the
+        // handle is synchronous (no `OVERLAPPED`).
+        let ok = unsafe {
+            WriteFile(
+                file.0,
+                rest.as_ptr(),
+                chunk,
+                &raw mut written,
+                std::ptr::null_mut(),
+            )
+        };
+        if ok == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        if written == 0 {
+            return Err(io::Error::from(io::ErrorKind::WriteZero));
+        }
+        rest = rest
+            .get(usize::try_from(written).unwrap_or(rest.len())..)
+            .unwrap_or_default();
+    }
+    // SAFETY: invariant: the handle is open with write access. Why unsafe:
+    // FFI call. Why it holds: opened just above with `FILE_GENERIC_WRITE`.
+    if unsafe { FlushFileBuffers(file.0) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
 }
