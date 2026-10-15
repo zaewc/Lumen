@@ -12,6 +12,7 @@
 #![forbid(unsafe_code)]
 
 mod cancel;
+pub mod collect;
 pub mod consult;
 pub mod finalize;
 pub mod ports;
