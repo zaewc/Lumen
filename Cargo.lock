@@ -686,6 +686,7 @@ name = "lumen-application"
 version = "0.0.0"
 dependencies = [
  "lumen-domain",
+ "lumen-graph",
  "lumen-policy",
  "lumen-testkit",
  "thiserror",

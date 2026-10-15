@@ -10,6 +10,8 @@ license.workspace = true
 
 [dependencies]
 lumen-domain.workspace = true
+# Evidence bundles for assessment (roadmap 10.8); IO-free.
+lumen-graph.workspace = true
 lumen-policy.workspace = true
 thiserror.workspace = true
 

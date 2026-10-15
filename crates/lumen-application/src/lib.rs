@@ -11,6 +11,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod assess;
 mod cancel;
 pub mod collect;
 pub mod consult;
