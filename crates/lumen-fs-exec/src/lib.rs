@@ -16,7 +16,7 @@
 //! [`verify`] walk by relative native opens and [`open_store`] opens or creates
 //! a store private to its owner, [`move_into`] and [`restore`] rename without
 //! replacing, and [`finalize`] removes a checked tree from the store
-//! (ADR-0033). The Windows executor follows (roadmap 9.10d).
+//! (ADR-0033); [`Executor`] implements the same port as on Unix.
 
 // `unsafe` is forbidden everywhere except the Windows system-call module
 // (ADR-0033).
@@ -40,6 +40,8 @@ mod sidecar;
 mod store;
 #[cfg(unix)]
 mod verify;
+#[cfg(windows)]
+mod win_executor;
 #[cfg(windows)]
 mod win_finalize;
 #[cfg(windows)]
@@ -66,6 +68,8 @@ pub use sidecar::{MAX_SIDECAR_BYTES, SidecarError, read_sidecar, write_sidecar};
 pub use store::{Store, StoreError, open_store};
 #[cfg(unix)]
 pub use verify::{ExpectedLeaf, LeafKind, Mismatch, PlanItem, UnixIdentity, Verified, verify};
+#[cfg(windows)]
+pub use win_executor::Executor;
 #[cfg(windows)]
 pub use win_finalize::{MAX_DEPTH, WinFinalizeError, finalize};
 #[cfg(windows)]

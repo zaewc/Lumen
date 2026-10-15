@@ -184,6 +184,26 @@ pub(crate) fn check_leaf(facts: &Facts, expected: &WinExpected) -> Result<(), Wi
     Ok(())
 }
 
+/// Checks an item held in a store: a file in full, a directory by identity
+/// and kind (an interrupted finalization may have changed its contents; the
+/// store is private to its owner, ADR-0015).
+pub(crate) fn check_held(facts: &Facts, expected: &WinExpected) -> Result<(), WinMismatch> {
+    if !expected.directory {
+        return check_leaf(facts, expected);
+    }
+    if is_reparse(facts) {
+        return Err(WinMismatch::ReparsePoint("the item"));
+    }
+    if identity(facts) != expected.identity {
+        return Err(WinMismatch::IdentityChanged);
+    }
+    if facts.directory {
+        Ok(())
+    } else {
+        Err(WinMismatch::KindChanged)
+    }
+}
+
 /// Records `relative` below `root` as it is now.
 ///
 /// # Errors
