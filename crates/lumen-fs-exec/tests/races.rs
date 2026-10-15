@@ -184,6 +184,11 @@ fn finalizing_a_hard_linked_file_keeps_its_other_name() {
 fn a_directory_that_gains_an_entry_is_refused() {
     let (_fx, root, executor) = setup();
     let item = prepare(&executor, &root, "cache/dir");
+    // File system timestamps advance in clock ticks (NTFS: the system timer,
+    // up to ~15.6 ms; Linux: the coarse clock). A change in the same tick as the
+    // directory's last modification is invisible to the time check, so the
+    // test waits past one tick; the residual is recorded in the threat model.
+    std::thread::sleep(std::time::Duration::from_millis(50));
     std::fs::write(root.join("cache/dir/new"), b"new").unwrap_or_else(|e| unreachable!("{e}"));
     assert_eq!(executor.quarantine(&item, op(7), b"{}"), REFUSED);
     assert!(root.join("cache/dir/new").exists());
