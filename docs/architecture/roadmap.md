@@ -247,7 +247,7 @@ test that forbids them today changes in the same PR.
 | 10.7 | `feat(store): read coverage and reclaim back` | listing completeness per directory and a per-subject `ReclaimEstimate` for `Observed` |
 | 10.8 | `feat(application): select candidates and assemble their policy input` | candidates are entries some evidence identifies (knowledge-base match, app data location, declared cache), outermost only; `PolicyInput` with the bundle (relationships within two hops, evidence about every reached subject, fresh probe evidence) and its hash, paths, context, `Observed` |
 | 10.8b | `feat(application): decide and explain candidates` | probe in use and ownership, `decide` with an optional judge and its request, traces stored, explanations |
-| 10.9 | `docs(adr): confirm cleanup plans from the command line` | plan model, plan hash, a CLI confirmation surface bound to the hash, re-run of the policy on fresh facts |
+| 10.9 | `docs(adr): confirm cleanup plans from the command line` | ADR-0034: `lumen plan` shows QUARANTINE items and the plan hash; `lumen quarantine --plan --confirm <hash>` executes only that plan, re-deciding every item on fresh evidence; stale plans and root refused |
 | 10.10 | `feat(domain): add cleanup plans` | `CleanupPlan`, `PlanHash` computation, `ConfirmationSurface::CommandLine` |
 | 10.11 | `feat(store): persist plans and decisions` | plans, items and their decisions in `index.db` |
 | 10.12 | `feat(application): confirm a plan` | re-verify each item, re-run the policy, prepare it, build its `quarantine.manifest/1`, allocate operation IDs, produce `ConfirmedItem`s |

@@ -42,3 +42,4 @@ recommended option.
 | [0031](0031-jev-on-typesafe-via-openrouter.md) | Use TypeSafe's Jev model through OpenRouter as the cloud judge | Accepted |
 | [0032](0032-test-only-fault-points.md) | Inject executor faults through test-only fault points | Accepted |
 | [0033](0033-windows-executor-mechanics.md) | Build the Windows executor on relative NT opens, confined unsafe code | Accepted |
+| [0034](0034-command-line-plan-confirmation.md) | Confirm cleanup plans from the command line by plan hash | Accepted |
