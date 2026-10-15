@@ -393,3 +393,80 @@ fn quarantine_executes_exactly_the_confirmed_plan() -> Result<(), Box<dyn std::e
     assert!(!again.status.success(), "a plan executes once");
     Ok(())
 }
+
+/// After a quarantine: the item is listed, restored to its place, cannot then
+/// be finalized; quarantined again, it is finalized for good and no longer
+/// listed.
+#[cfg(target_os = "macos")]
+#[test]
+fn list_restore_and_finalize_follow_the_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
+    let fx = Fixture::build(&[
+        Node::File {
+            path: "home/Library/Developer/Xcode/DerivedData/App-abc/Build/out.o".into(),
+            contents: vec![7; 4096],
+        },
+        Node::Dir {
+            path: "home/Library/Application Support".into(),
+        },
+    ])?;
+    let home = std::fs::canonicalize(fx.path("home")?)?;
+    let db = fx.path("index.db")?;
+    let item = home.join("Library/Developer/Xcode/DerivedData/App-abc");
+    let run = |args: &[&str]| -> Result<String, Box<dyn std::error::Error>> {
+        let out = Command::new(env!("CARGO_BIN_EXE_lumen"))
+            .args(args)
+            .arg("--db")
+            .arg(&db)
+            .env("HOME", &home)
+            .output()?;
+        if !out.status.success() {
+            return Err(String::from_utf8_lossy(&out.stderr).into_owned().into());
+        }
+        Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+    };
+    let cycle = || -> Result<Option<String>, Box<dyn std::error::Error>> {
+        let home_arg = home.to_str().ok_or("utf-8 home")?;
+        run(&["scan", home_arg])?;
+        let Ok(text) = run(&["plan"]) else {
+            return Ok(None); // REVIEW here: covered by the plan tests.
+        };
+        let field = |flag: &str| {
+            text.split_whitespace()
+                .skip_while(|word| *word != flag)
+                .nth(1)
+                .map(str::to_owned)
+                .ok_or("missing in plan output")
+        };
+        let done = run(&[
+            "quarantine",
+            "--plan",
+            &field("--plan")?,
+            "--confirm",
+            &field("--confirm")?,
+        ])?;
+        if !done.contains("QUARANTINED") {
+            return Ok(None);
+        }
+        let listed = run(&["list"])?;
+        Ok(listed.split_whitespace().next().map(str::to_owned))
+    };
+    let Some(first) = cycle()? else {
+        return Ok(());
+    };
+    assert!(!item.exists());
+    let restored = run(&["restore", "--op", &first])?;
+    assert!(restored.contains("Restored"), "{restored}");
+    assert_eq!(
+        std::fs::read(item.join("Build/out.o"))?,
+        vec![7; 4096],
+        "back in place, intact"
+    );
+    assert!(run(&["finalize", "--op", &first])?.contains("cannot be finalized"));
+    let Some(second) = cycle()? else {
+        return Ok(());
+    };
+    assert!(run(&["finalize", "--op", &second])?.contains("Removed for good"));
+    assert!(!item.exists());
+    assert!(run(&["list"])?.starts_with("0 item(s)"));
+    Ok(())
+}

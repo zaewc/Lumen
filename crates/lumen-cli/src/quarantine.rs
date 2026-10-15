@@ -34,7 +34,7 @@ const MAX_PLAN_AGE_SECS: i64 = 24 * 60 * 60;
 type StoreLocation = (PathBuf, Vec<Vec<u8>>);
 
 /// Where quarantine stores live (ADR-0015).
-fn store_location() -> Result<StoreLocation, Box<dyn Error>> {
+pub(crate) fn store_location() -> Result<StoreLocation, Box<dyn Error>> {
     let home = std::env::home_dir().ok_or("the home directory is unknown")?;
     if cfg!(target_os = "macos") {
         Ok((

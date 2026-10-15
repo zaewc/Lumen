@@ -5,6 +5,9 @@
 //! lumen assess --db <FILE> [--json]
 //! lumen plan --db <FILE>
 //! lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>
+//! lumen list --db <FILE>
+//! lumen restore --db <FILE> --op <ID>
+//! lumen finalize --db <FILE> --op <ID>
 //! ```
 //!
 //! `assess` decides the latest completed scan in the database and reports each
@@ -12,7 +15,9 @@
 //! stores the QUARANTINE candidates as a plan and prints its hash; it moves
 //! nothing either (roadmap 10.13c, ADR-0034). `quarantine` executes exactly
 //! that plan, re-deciding every item first, and only with its full hash; it
-//! moves items into a restorable store (roadmap 10.14b).
+//! moves items into a restorable store (roadmap 10.14b). `list` shows what the
+//! store holds, `restore` puts one item back, and `finalize` removes one item
+//! for good (roadmap 10.15b).
 //!
 //! Scans are **read-only**: Lumen never modifies the scanned files. With `--db`,
 //! results and a snapshot are written to that `index.db` file (and nothing else).
@@ -28,6 +33,8 @@ use std::process::ExitCode;
 
 #[cfg(any(unix, windows))]
 mod assess;
+#[cfg(unix)]
+mod held;
 #[cfg(any(unix, windows))]
 mod plan;
 #[cfg(unix)]
@@ -37,7 +44,7 @@ mod report;
 #[cfg(any(unix, windows))]
 mod system;
 
-const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>";
+const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -60,7 +67,31 @@ enum Command {
     Assess(AssessArgs),
     Plan(PathBuf),
     Quarantine(QuarantineArgs),
+    List(PathBuf),
+    Restore(OpArgs),
+    Finalize(OpArgs),
     Help,
+}
+
+/// Parsed arguments naming one quarantine operation.
+#[derive(Debug, PartialEq, Eq)]
+struct OpArgs {
+    db: PathBuf,
+    op: String,
+}
+
+fn parse_op(args: &[String]) -> Result<OpArgs, String> {
+    match args {
+        [a, db, b, op] if a == "--db" && b == "--op" => Ok(OpArgs {
+            db: PathBuf::from(db),
+            op: op.clone(),
+        }),
+        [a, op, b, db] if a == "--op" && b == "--db" => Ok(OpArgs {
+            db: PathBuf::from(db),
+            op: op.clone(),
+        }),
+        _ => Err("needs exactly --db <FILE> --op <ID>".into()),
+    }
 }
 
 /// Parsed `quarantine` arguments.
@@ -133,6 +164,14 @@ fn parse(args: &[String]) -> Result<Command, String> {
         Some("assess") => return parse_assess(iter.as_slice()),
         Some("plan") => return parse_plan(iter.as_slice()),
         Some("quarantine") => return parse_quarantine(iter.as_slice()),
+        Some("list") => {
+            return match iter.as_slice() {
+                [flag, db] if flag == "--db" => Ok(Command::List(PathBuf::from(db))),
+                _ => Err("list needs exactly --db <FILE>".into()),
+            };
+        }
+        Some("restore") => return parse_op(iter.as_slice()).map(Command::Restore),
+        Some("finalize") => return parse_op(iter.as_slice()).map(Command::Finalize),
         Some("-h" | "--help" | "help") | None => return Ok(Command::Help),
         Some(other) => return Err(format!("unknown command: {other}")),
     }
@@ -173,6 +212,13 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Ok(Command::List(db)) => report(run_held(HeldAction::List, &db, None)),
+        Ok(Command::Restore(args)) => {
+            report(run_held(HeldAction::Restore, &args.db, Some(&args.op)))
+        }
+        Ok(Command::Finalize(args)) => {
+            report(run_held(HeldAction::Finalize, &args.db, Some(&args.op)))
+        }
         Ok(Command::Quarantine(args)) => match run_quarantine(&args) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
@@ -267,6 +313,55 @@ fn run_quarantine(args: &QuarantineArgs) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Prints an error and exits with failure, or exits with success.
+fn report(result: Result<(), Box<dyn Error>>) -> ExitCode {
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("error: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// What to do with held items.
+#[derive(Debug, Clone, Copy)]
+enum HeldAction {
+    List,
+    Restore,
+    Finalize,
+}
+
+#[cfg(unix)]
+fn run_held(
+    action: HeldAction,
+    db: &std::path::Path,
+    op: Option<&str>,
+) -> Result<(), Box<dyn Error>> {
+    let operation = || -> Result<lumen_domain::OperationId, Box<dyn Error>> {
+        let op = op.ok_or("an operation ID is needed")?;
+        op.parse()
+            .map_err(|_| format!("not an operation ID: {op}").into())
+    };
+    let clock = system::SystemClock;
+    let text = match action {
+        HeldAction::List => held::list(db, &clock)?,
+        HeldAction::Restore => held::restore(db, operation()?, &clock)?,
+        HeldAction::Finalize => held::finalize(db, operation()?, &clock)?,
+    };
+    print!("{text}");
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn run_held(
+    _action: HeldAction,
+    _db: &std::path::Path,
+    _op: Option<&str>,
+) -> Result<(), Box<dyn Error>> {
+    Err("quarantine from the command line is not available on this platform yet".into())
+}
+
 #[cfg(not(unix))]
 fn run_quarantine(_args: &QuarantineArgs) -> Result<(), Box<dyn Error>> {
     Err("quarantine from the command line is not available on this platform yet".into())
@@ -354,6 +449,34 @@ mod tests {
             "no shortcut"
         );
         assert!(parse(&args(&["assess", "--db", "x.db", "/a"])).is_err());
+    }
+
+    #[test]
+    fn parses_list_restore_and_finalize() {
+        assert_eq!(
+            parse(&args(&["list", "--db", "x.db"])),
+            Ok(Command::List("x.db".into()))
+        );
+        let op = OpArgs {
+            db: "x.db".into(),
+            op: "o".into(),
+        };
+        assert_eq!(
+            parse(&args(&["restore", "--db", "x.db", "--op", "o"])),
+            Ok(Command::Restore(op))
+        );
+        assert!(matches!(
+            parse(&args(&["finalize", "--op", "o", "--db", "x.db"])),
+            Ok(Command::Finalize(_))
+        ));
+        assert!(
+            parse(&args(&["finalize", "--db", "x.db"])).is_err(),
+            "one named operation"
+        );
+        assert!(
+            parse(&args(&["finalize", "--db", "x.db", "--all"])).is_err(),
+            "no bulk removal"
+        );
     }
 
     #[test]

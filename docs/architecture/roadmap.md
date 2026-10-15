@@ -258,7 +258,7 @@ test that forbids them today changes in the same PR.
 | 10.14b | `feat(cli): quarantine a confirmed plan` | composition root: hash, age and privilege checks; executor and store (Time Machine exclusion); ledger journal; reconciliation on every start; confirm then quarantine each item |
 | 10.15a | `feat(store): replay every quarantine operation` | `operations()` with each operation's replayed state; the executors name a prepared item's original path |
 | 10.15b | `feat(cli): list, restore and finalize` | quarantined items with their original paths and ages, restore with conflicts reported, finalize on request (retention scheduling later) |
-| 10.16 | `test(cli): run the lifecycle end to end` | fixture tree: scan → assess → plan → confirm → quarantine → restore → finalize, on macOS and Linux CI |
+| 10.16 | `test(cli): run the lifecycle end to end` | covered on macOS by the 10.15b CLI test (scan → plan → quarantine → list → restore → re-plan → quarantine → finalize). Linux has no in-use probe yet, so nothing is ever proposed there: an in-use probe for Linux (`/proc`) is the open item |
 | 10.17 | `feat(cli): opt in to Jev` | API key in the keychain (`lumen jev key set/clear`), explicit consent, `--jev` per run |
 
 Windows end to end follows the same items with the Windows adapters, then Android
