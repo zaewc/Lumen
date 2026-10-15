@@ -254,7 +254,8 @@ test that forbids them today changes in the same PR.
 | 10.13 | `feat(store): find the latest completed scan and its roots` | assessment reads only completed scans; roots split item paths for the executor |
 | 10.13b | `feat(cli): assess the latest scan` | composition: inventory, devkb and support-location producers, gather, record and load the graph, select, decide; read-only report with reasons |
 | 10.13c | `feat(cli): plan` | QUARANTINE items into a stored plan, printed with reasons and the plan hash (ADR-0034) |
-| 10.14 | `feat(cli): quarantine a confirmed plan` | composition root: executor and store (Time Machine exclusion), ledger journal, in-use probe, reconciliation on every start |
+| 10.14a | `refactor(cli): reuse the assessment for confirmation` | the assessment's context (roots, entries, listings, evidence, graph, policy context) built once and reused; `StdFsEnumerator` verifies candidates |
+| 10.14b | `feat(cli): quarantine a confirmed plan` | composition root: hash, age and privilege checks; executor and store (Time Machine exclusion); ledger journal; reconciliation on every start; confirm then quarantine each item |
 | 10.15 | `feat(cli): list, restore and finalize` | quarantined items, restore with conflicts reported, finalize after retention or on request |
 | 10.16 | `test(cli): run the lifecycle end to end` | fixture tree: scan → assess → plan → confirm → quarantine → restore → finalize, on macOS and Linux CI |
 | 10.17 | `feat(cli): opt in to Jev` | API key in the keychain (`lumen jev key set/clear`), explicit consent, `--jev` per run |

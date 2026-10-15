@@ -24,7 +24,7 @@ use std::os::unix::fs::MetadataExt as _;
 use std::path::Path;
 use std::time::SystemTime;
 
-use lumen_application::ports::{DirEnumerator, DirOutcome, EnumerateError};
+use lumen_application::ports::{CandidateVerifier, DirEnumerator, DirOutcome, EnumerateError};
 use lumen_domain::{
     AccessState, ByteCount, DenialReason, EntryKind, EntryTimes, FailureKind, FileId, FileIdentity,
     FilesystemEntry, PathFlavor, Protection, RawPath, SizeFacts, SizeFlags, Timestamp, VolumeId,
@@ -33,6 +33,25 @@ use lumen_domain::{
 /// Enumerates directories with `std::fs`. Stateless and thread-safe.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct StdFsEnumerator;
+
+/// Fresh facts for a planned item (roadmap 10.14a): the object at the path,
+/// described without following a final link, must still be the expected one.
+impl CandidateVerifier for StdFsEnumerator {
+    fn verify(
+        &self,
+        path: &RawPath,
+        expected: &FileIdentity,
+    ) -> Result<FilesystemEntry, EnumerateError> {
+        let entry = self.stat(path)?;
+        if entry.identity() != expected {
+            return Err(EnumerateError::IdentityChanged {
+                path: path.clone(),
+                expected: expected.clone(),
+            });
+        }
+        Ok(entry)
+    }
+}
 
 impl DirEnumerator for StdFsEnumerator {
     fn stat(&self, path: &RawPath) -> Result<FilesystemEntry, EnumerateError> {
@@ -393,6 +412,25 @@ mod tests {
         assert!(matches!(
             list(&raw(&fx, "alias")?),
             Err(EnumerateError::NotADirectory { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn verification_returns_fresh_facts_only_for_the_same_object()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let fx = Fixture::build(&[Node::File {
+            path: "f".into(),
+            contents: b"x".to_vec(),
+        }])?;
+        let path = RawPath::from_unix_bytes(fx.path("f")?.as_os_str().as_bytes().to_vec())?;
+        let entry = StdFsEnumerator.stat(&path)?;
+        assert_eq!(StdFsEnumerator.verify(&path, entry.identity())?, entry);
+        let mut other = entry.identity().clone();
+        other.file = FileId::new(other.file.get() ^ 1);
+        assert!(matches!(
+            StdFsEnumerator.verify(&path, &other),
+            Err(EnumerateError::IdentityChanged { .. })
         ));
         Ok(())
     }

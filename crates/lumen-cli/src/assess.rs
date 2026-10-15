@@ -163,7 +163,7 @@ fn platform_contributions(
 }
 
 /// The platform's probes and their source names.
-fn with_probes<T>(run: impl FnOnce(&Probes<'_>) -> T) -> Result<T, Box<dyn Error>> {
+pub(crate) fn with_probes<T>(run: impl FnOnce(&Probes<'_>) -> T) -> Result<T, Box<dyn Error>> {
     #[cfg(target_os = "macos")]
     let (in_use, in_use_name): (Box<dyn InUseProbe>, &str) = (
         Box::new(lumen_platform_macos::ProcessProbe),
@@ -194,12 +194,48 @@ fn with_probes<T>(run: impl FnOnce(&Probes<'_>) -> T) -> Result<T, Box<dyn Error
     }))
 }
 
-/// Assesses the latest completed scan in `db`.
-pub(crate) fn assess(db: &Path, clock: &dyn Clock) -> Result<Vec<Assessed>, Box<dyn Error>> {
+/// Everything an assessment of the latest completed scan decides from; reused
+/// to re-decide planned items at confirmation (roadmap 10.14).
+pub(crate) struct Assessment {
+    /// The scan's roots.
+    #[expect(dead_code, reason = "read by `lumen quarantine`, roadmap 10.14b")]
+    pub roots: Vec<RawPath>,
+    /// Its entries.
+    pub entries: Vec<lumen_domain::FilesystemEntry>,
+    /// Its directory listings.
+    pub listings: Vec<(RawPath, lumen_application::ports::DirOutcome)>,
+    /// Gathered evidence and relationships.
+    pub gathered: lumen_application::gather::Gathered,
+    /// The graph loaded back from `index.db`.
+    pub graph: lumen_graph::Graph,
+    /// The machine.
+    pub context: Context,
+    /// Knowledge-base classes.
+    pub knowledge: std::collections::BTreeMap<SourceName, lumen_policy::KnowledgeClass>,
+}
+
+impl Assessment {
+    /// The sources the policy decides from.
+    pub(crate) fn sources(&self) -> Sources<'_> {
+        Sources {
+            graph: &self.graph,
+            gathered: &self.gathered,
+            scanned: &self.entries,
+            listings: &self.listings,
+            context: &self.context,
+            knowledge: &self.knowledge,
+        }
+    }
+}
+
+/// Collects, gathers and records everything about the latest completed scan
+/// in `db`.
+pub(crate) fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, Box<dyn Error>> {
     let mut store = IndexStore::new(open_index(db)?);
     let scan = store
         .latest_completed_scan()?
         .ok_or("no completed scan in this database; run `lumen scan` first")?;
+    let roots = store.scan_roots(scan)?;
     let entries = store.entries(scan)?;
     let listings = store.listings(scan)?;
     let now = clock.now();
@@ -239,16 +275,22 @@ pub(crate) fn assess(db: &Path, clock: &dyn Clock) -> Result<Vec<Assessed>, Box<
         mechanisms,
         complete_sources: inventory.complete_sources.clone(),
     };
-    let knowledge = kb.knowledge();
-    let sources = Sources {
-        graph: &graph,
-        gathered: &gathered,
-        scanned: &entries,
-        listings: &listings,
-        context: &context,
-        knowledge: &knowledge,
-    };
-    let candidates = select(&gathered, &entries);
+    Ok(Assessment {
+        roots,
+        entries,
+        listings,
+        gathered,
+        graph,
+        context,
+        knowledge: kb.knowledge(),
+    })
+}
+
+/// Assesses the latest completed scan in `db`.
+pub(crate) fn assess(db: &Path, clock: &dyn Clock) -> Result<Vec<Assessed>, Box<dyn Error>> {
+    let assessment = prepare(db, clock)?;
+    let sources = assessment.sources();
+    let candidates = select(&assessment.gathered, &assessment.entries);
     with_probes(|probes| {
         candidates
             .into_iter()
