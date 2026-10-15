@@ -10,7 +10,6 @@
 //! stays restorable in the store.
 
 use std::error::Error;
-use std::os::fd::AsFd as _;
 use std::os::unix::fs::MetadataExt as _;
 use std::path::{Path, PathBuf};
 
@@ -68,7 +67,9 @@ fn prepare_store(base: &Path, names: &[Vec<u8>]) -> Result<(), Box<dyn Error>> {
     let names: Vec<&[u8]> = names.iter().map(Vec::as_slice).collect();
     let store = open_store(base, &names, volume)?;
     #[cfg(target_os = "macos")]
-    if let Err(error) = lumen_platform_macos::exclude_from_backup(store.handle().as_fd()) {
+    if let Err(error) =
+        lumen_platform_macos::exclude_from_backup(std::os::fd::AsFd::as_fd(store.handle()))
+    {
         eprintln!("warning: the quarantine store could not be excluded from Time Machine: {error}");
     }
     let _store = store;
