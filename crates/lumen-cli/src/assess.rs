@@ -17,13 +17,10 @@ use std::sync::Arc;
 use std::task::{Context as TaskContext, Poll, Wake, Waker};
 use std::thread::{self, Thread};
 
-use lumen_application::CancelToken;
 use lumen_application::assess::{Assessed, Probes, Sources, decide_candidate, select};
 use lumen_application::collect::{Inventory, summarize};
 use lumen_application::gather::gather;
-use lumen_application::ports::{
-    Clock, InUseProbe, InventoryReport, InventorySource, NoopJudge, OwnershipProbe,
-};
+use lumen_application::ports::{Clock, InUseProbe, InventoryReport, NoopJudge, OwnershipProbe};
 use lumen_devkb::{Environment, KnowledgeBase};
 use lumen_domain::{
     ByteCount, CleanupMechanism, Evidence, Platform, PlatformCapabilities, RawPath, Relationship,
@@ -100,6 +97,8 @@ fn platform_contributions(
     home: Option<&RawPath>,
     now: lumen_domain::Timestamp,
 ) -> Contributions {
+    use lumen_application::CancelToken;
+    use lumen_application::ports::InventorySource as _;
     use lumen_platform_macos::{AppInventory, LaunchdInventory, support::link_support_locations};
     let cancel = CancelToken::new();
     let reports = vec![
@@ -132,6 +131,8 @@ fn platform_contributions(
     _home: Option<&RawPath>,
     now: lumen_domain::Timestamp,
 ) -> Contributions {
+    use lumen_application::CancelToken;
+    use lumen_application::ports::InventorySource as _;
     use lumen_platform_windows::cleanup::{declared_caches, read_declarations};
     use lumen_platform_windows::{InstalledApps, Services, StartupEntries};
     let cancel = CancelToken::new();
