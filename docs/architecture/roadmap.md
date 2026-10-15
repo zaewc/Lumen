@@ -215,7 +215,11 @@ re-verifies identity, and uses no-replace renames only. Any mismatch fails close
 | 9.9b | `test(fs-exec): add race suites` | symlink and directory swaps between prepare and execute, leaf replacement, hard links, read-only directories |
 | 9.9c | `test(application): crash at every journal step` | a model of the item's location and a journal that crashes after each entry: after restart, reconciliation (quarantine) and finalization (restore) leave the journal replaying to where the item physically is |
 | 9.9d | `test(fs-exec): inject faults at every system call` | ADR-0032 test-only fault points after each flush, post-move check, sidecar write and finalize unlink; every reported location (`left`, `removed`) matches the filesystem afterwards |
-| 9.10 | `feat(fs-exec): add the Windows executor` | handle-relative walk, `FileRenameInfoEx` without replace, `FILE_FLAG_OPEN_REPARSE_POINT` |
+| 9.10 | `docs(adr): decide the Windows executor mechanics` | ADR-0033: relative `NtCreateFile` per component with `FILE_OPEN_REPARSE_POINT`, `FileRenameInfo` without replace, `FileDispositionInfoEx`, store DACL, `unsafe` confined to `win_sys` |
+| 9.10a | `feat(fs-exec): verify plan items on Windows` | `win_sys` (relative open, queries, `NTSTATUS` mapping); handle walk refusing reparse points and other volumes; identity, kind, size, time and link comparison |
+| 9.10b | `feat(fs-exec): open Windows quarantine stores` | `$LumenQuarantine\<UserSID>` created with owner and protected DACL, not content-indexed; foreign or loose stores refused |
+| 9.10c | `feat(fs-exec): move, restore and finalize on Windows` | `FileRenameInfo` without replace between verified handles, sidecars, restore, checked-first finalize |
+| 9.10d | `feat(fs-exec): implement the Windows executor` | `QuarantineExecutor` on Windows; name and race suites on the Windows runner |
 | 9.11 | `chore(fs-exec): protect the executor` | CODEOWNERS and threat-model section |
 
 ## Later phases (outline)

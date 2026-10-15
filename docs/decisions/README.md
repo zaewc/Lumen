@@ -41,3 +41,4 @@ recommended option.
 | [0030](0030-partial-in-use-visibility.md) | Accept partial in-use visibility for reversible quarantine of the user's own files | Accepted |
 | [0031](0031-jev-on-typesafe-via-openrouter.md) | Use TypeSafe's Jev model through OpenRouter as the cloud judge | Accepted |
 | [0032](0032-test-only-fault-points.md) | Inject executor faults through test-only fault points | Accepted |
+| [0033](0033-windows-executor-mechanics.md) | Build the Windows executor on relative NT opens, confined unsafe code | Accepted |
