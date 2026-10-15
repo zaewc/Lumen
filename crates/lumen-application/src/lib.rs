@@ -16,6 +16,7 @@ pub mod collect;
 pub mod consult;
 pub mod finalize;
 pub mod gather;
+pub mod observe;
 pub mod ports;
 pub mod quarantine;
 pub mod reconcile;

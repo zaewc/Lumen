@@ -393,6 +393,40 @@ impl IndexStore {
         let rows = query.query_map([scan.to_string()], |row| Ok(entry_from_row(row)))?;
         rows.map(|row| row?).collect()
     }
+
+    /// Every directory listing outcome of a scan, ordered by path bytes
+    /// (roadmap 10.7): how completely each directory was read.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Corrupt`] for any row that fails validation, or
+    /// [`StoreError`] if SQLite fails.
+    pub fn listings(&self, scan: ScanId) -> Result<Vec<(RawPath, DirOutcome)>, StoreError> {
+        let mut query = self.conn.prepare_cached(
+            "SELECT flavor, path, access, complete FROM listings WHERE scan_id = ?1 ORDER BY flavor, path",
+        )?;
+        let rows = query.query_map([scan.to_string()], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, Vec<u8>>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, bool>(3)?,
+            ))
+        })?;
+        rows.map(|row| {
+            let (flavor, path, access, complete) = row?;
+            let path = RawPath::from_stored(parse_flavor(&flavor)?, path)
+                .map_err(|_| corrupt("listings.path"))?;
+            Ok((
+                path,
+                DirOutcome {
+                    access: parse_access(&access)?,
+                    complete,
+                },
+            ))
+        })
+        .collect()
+    }
 }
 
 /// Volume of the most specific root containing `path` (whole segments).
@@ -786,6 +820,16 @@ mod tests {
                 },
             )],
         )?;
+        assert_eq!(
+            store.listings(scan)?,
+            [(
+                RawPath::from_unix_bytes(b"/r".to_vec())?,
+                DirOutcome {
+                    access: AccessState::Denied(DenialReason::Posix),
+                    complete: false,
+                },
+            )]
+        );
         store.finish_scan(scan, ScanState::Cancelled, "2026-10-12T00:00:00Z".parse()?)?;
         assert_eq!(store.scan_state(scan)?, Some(ScanState::Cancelled));
         assert_eq!(store.scan_state(scan_id(5))?, None);
