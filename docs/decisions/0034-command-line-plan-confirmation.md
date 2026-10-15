@@ -69,8 +69,13 @@ Chosen option: **2**.
 For each item, in plan order:
 
 1. The item is assessed again on fresh evidence (roadmap 10.8b). If the verdict is
-   no longer `QUARANTINE` or the evidence hash differs from the plan's, the item is
-   skipped and reported as `REVIEW`; nothing about it moves.
+   no longer `QUARANTINE`, or it is `QUARANTINE` for other reasons (a different set
+   of fired rules) than the stored plan decision, the item is skipped and reported
+   as `REVIEW`; nothing about it moves. (Amended 2026-10-15: the first version
+   compared evidence hashes, which can never match, because facts probed at
+   confirmation carry their observation time and the partial in-use fact counts
+   processes that come and go. The plan keeps each decision's evidence hash for
+   the audit trail.)
 2. Otherwise it is prepared by the executor, its manifest built, and it is
    quarantined through `quarantine_item` (in-use re-probe, journaled intent,
    no-replace move, verification).

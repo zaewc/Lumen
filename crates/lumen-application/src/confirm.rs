@@ -6,9 +6,11 @@
 //! 1. the object at its path must still be the planned object (fresh facts
 //!    from the `CandidateVerifier`), and lie under one of the scan roots;
 //! 2. it is probed and decided again ([`decide_candidate`]); the verdict must
-//!    still be `QUARANTINE` and the evidence hash must equal the planned one,
-//!    so any change in what the decision saw (in use, ownership, the item
-//!    itself) skips it;
+//!    still be `QUARANTINE` and for the same reasons (the same rules fired) as
+//!    the planned decision. The evidence hash cannot be compared: facts probed
+//!    now carry the time they were observed, so a fresh bundle never hashes
+//!    like the plan's. Any change that alters the decision (in use, ownership,
+//!    the owner's state, the item itself) still skips it;
 //! 3. the executor records it as it is now (`prepare`), and its
 //!    `quarantine.manifest/1` is built.
 //!
@@ -16,9 +18,11 @@
 //! a confirmation never authorizes an item the policy would no longer
 //! propose.
 
+use std::collections::BTreeSet;
+
 use lumen_domain::{
     Confirmation, DeviceId, JevRequest, OperationId, PathFlavor, PlanId, PlannedItem,
-    QuarantineManifest, RawPath, Subject, Verdict,
+    PolicyDecision, QuarantineManifest, RawPath, Subject, Verdict,
 };
 use lumen_policy::PolicyInput;
 
@@ -38,8 +42,8 @@ pub enum Skip {
     OutsideRoots,
     /// The policy no longer proposes quarantine.
     NoLongerProposed(Verdict),
-    /// The decision saw different evidence than the plan's.
-    EvidenceChanged,
+    /// The policy proposes quarantine for different reasons than planned.
+    ReasonsChanged,
     /// The executor could not record it.
     NotPrepared,
     /// Its manifest could not be serialized (a programming error).
@@ -120,9 +124,20 @@ impl std::fmt::Debug for Confirming<'_> {
     }
 }
 
-/// Confirms `item` of `plan` under `confirmation`.
+/// The rules a decision fired, by ID.
+fn rules(decision: &PolicyDecision) -> BTreeSet<&str> {
+    decision
+        .fired_rules()
+        .iter()
+        .map(|fired| fired.rule.as_str())
+        .collect()
+}
+
+/// Confirms `item` of `plan`, planned with decision `planned`, under
+/// `confirmation`.
 pub async fn confirm_item(
     item: &PlannedItem,
+    planned: &PolicyDecision,
     plan: PlanId,
     confirmation: &Confirmation,
     with: &Confirming<'_>,
@@ -156,8 +171,8 @@ pub async fn confirm_item(
     if decision.verdict() != Verdict::Quarantine {
         return skip(Skip::NoLongerProposed(decision.verdict()));
     }
-    if decision.evidence_hash() != item.evidence_hash {
-        return skip(Skip::EvidenceChanged);
+    if rules(&decision) != rules(planned) {
+        return skip(Skip::ReasonsChanged);
     }
     let Ok(prepared) = with.executor.prepare(&root, &relative) else {
         return skip(Skip::NotPrepared);
@@ -369,10 +384,9 @@ mod tests {
         SourceName::new("test").unwrap_or_else(|_| unreachable!())
     }
 
-    /// A regenerable knowledge-base match on `/root/cache/x.bin`: the policy
-    /// proposes quarantine when it is free and observed.
-    fn run(present: bool, planned_hash: Option<EvidenceHash>) -> Confirmed {
-        let gathered = Gathered {
+    /// A regenerable knowledge-base match on the item.
+    fn gathered() -> Gathered {
+        Gathered {
             evidence: vec![Evidence {
                 subject: Subject::File {
                     identity: identity(),
@@ -387,17 +401,28 @@ mod tests {
                 },
             }],
             relationships: Vec::new(),
-        };
-        let scanned = [entry()];
-        let graph = Graph::new();
-        let context = Context {
+        }
+    }
+
+    /// A macOS machine that can quarantine by rename.
+    fn context() -> Context {
+        Context {
             platform: Platform::Macos,
             home: Some(raw("/Users/ana")),
             windows_dir: None,
             local_app_data: None,
             mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
             complete_sources: BTreeSet::new(),
-        };
+        }
+    }
+
+    /// A regenerable knowledge-base match on `/root/cache/x.bin`: the policy
+    /// proposes quarantine when it is free and observed.
+    fn run(present: bool, planned_other: bool) -> Confirmed {
+        let gathered = gathered();
+        let scanned = [entry()];
+        let graph = Graph::new();
+        let context = context();
         let knowledge = BTreeMap::from([(
             SourceName::new("x-cache").unwrap_or_else(|_| unreachable!()),
             KnowledgeClass::Regenerable,
@@ -454,7 +479,7 @@ mod tests {
             },
             path: entry().path,
             policy_version: now.decision.policy_version(),
-            evidence_hash: planned_hash.unwrap_or(now.decision.evidence_hash()),
+            evidence_hash: now.decision.evidence_hash(),
             reclaim: now.input.observed.map(|o| o.reclaim).unwrap_or_default(),
         };
         let confirmation = Confirmation {
@@ -462,12 +487,44 @@ mod tests {
             confirmed_at: Timestamp::UNIX_EPOCH,
             surface: ConfirmationSurface::CommandLine,
         };
-        ready(confirm_item(&item, Ids.plan_id(), &confirmation, &with))
+        let planned = if planned_other {
+            other_decision()
+        } else {
+            now.decision.clone()
+        };
+        ready(confirm_item(
+            &item,
+            &planned,
+            Ids.plan_id(),
+            &confirmation,
+            &with,
+        ))
+    }
+
+    /// A `QUARANTINE` decision for another reason than the one made now.
+    fn other_decision() -> PolicyDecision {
+        PolicyDecision::new(
+            Verdict::Quarantine,
+            lumen_policy::POLICY_VERSION,
+            EvidenceHash::from_bytes([3; 32]),
+            [lumen_domain::FiredRule {
+                rule: lumen_domain::RuleId::new("classify.app-cache")
+                    .unwrap_or_else(|e| unreachable!("{e}")),
+                stage: lumen_domain::PolicyStage::Classification,
+                evidence: BTreeSet::new(),
+            }],
+            lumen_domain::Risk {
+                level: lumen_domain::RiskLevel::Low,
+                factors: BTreeSet::new(),
+            },
+            lumen_domain::JevEffect::None,
+        )
+        .unwrap_or_else(|e| unreachable!("{e}"))
     }
 
     #[test]
     fn an_unchanged_proposed_item_is_ready_with_its_manifest() {
-        let Confirmed::Ready(item) = run(true, None) else {
+        let Confirmed::Ready(item) = run(true, false) else {
             unreachable!("expected ready");
         };
         assert_eq!(item.operation, Ids.operation_id());
@@ -481,18 +538,18 @@ mod tests {
     }
 
     #[test]
-    fn changed_items_and_evidence_are_skipped() {
+    fn changed_items_and_reasons_are_skipped() {
         assert!(matches!(
-            run(false, None),
+            run(false, false),
             Confirmed::Skipped {
                 reason: Skip::Changed,
                 ..
             }
         ));
         assert!(matches!(
-            run(true, Some(EvidenceHash::from_bytes([3; 32]))),
+            run(true, true),
             Confirmed::Skipped {
-                reason: Skip::EvidenceChanged,
+                reason: Skip::ReasonsChanged,
                 ..
             }
         ));
