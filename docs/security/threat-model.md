@@ -188,6 +188,11 @@ GOAL: a file the user needs is permanently lost because of Lumen
   crash is resolved by reconciliation, never guessed.
 - `parent_replaced` on restore is best effort: a recreated parent may reuse the old
   inode or file ID.
+- A directory's contents are compared by its modification time, which advances in
+  clock ticks (NTFS: up to ~15.6 ms; Linux: the coarse kernel clock). An entry added
+  within the same tick as the directory's previous change, between preparation and
+  the move, goes undetected and is quarantined with the directory; it stays
+  restorable. Found by the Windows race suite on 2026-10-15.
 
 ## 8. Security testing obligations
 
