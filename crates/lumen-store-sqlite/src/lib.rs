@@ -27,7 +27,7 @@ use rusqlite::Connection;
 use rusqlite::config::DbConfig;
 use rusqlite_migration::{M, Migrations};
 
-pub use index::{IndexStore, RootSnapshot};
+pub use index::{IndexStore, RootSnapshot, StoredPlan};
 pub use ledger::{JournalEntry, LedgerJournal, LedgerStore};
 pub use writer::{IndexWriter, WriteStats, WriterConfig};
 
@@ -40,6 +40,7 @@ const INDEX_MIGRATIONS: &[M<'static>] = &[
     M::up(include_str!("migrations/index/0001_initial.sql")),
     M::up(include_str!("migrations/index/0002_snapshots.sql")),
     M::up(include_str!("migrations/index/0003_graph.sql")),
+    M::up(include_str!("migrations/index/0004_plans.sql")),
 ];
 
 /// Migrations for `ledger.db`, in order. Never edit a released migration; add a
@@ -100,6 +101,18 @@ pub enum StoreError {
         /// Requested scan.
         scan: lumen_domain::ScanId,
     },
+    /// The plan does not exist.
+    #[error("plan {plan} does not exist")]
+    UnknownPlan {
+        /// Requested plan.
+        plan: lumen_domain::PlanId,
+    },
+    /// A plan must be saved with exactly one decision per item.
+    #[error("a plan's decisions do not match its items")]
+    PlanMismatch,
+    /// The plan's lifecycle forbids the event.
+    #[error(transparent)]
+    PlanTransition(#[from] lumen_domain::PlanTransitionError),
 }
 
 /// Durability setting per database class.
@@ -224,7 +237,7 @@ mod tests {
     #[test]
     fn opening_applies_schema_and_hardening() -> Result<(), Box<dyn std::error::Error>> {
         let (_fx, conn) = fresh()?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 3);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 4);
         assert_eq!(
             pragma::<String>(&conn, "journal_mode")?.to_lowercase(),
             "wal"
@@ -242,7 +255,7 @@ mod tests {
         let path = fx.path("index.db")?;
         drop(open_index(&path)?);
         let conn = open_index(&path)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 3);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 4);
         Ok(())
     }
 
@@ -295,7 +308,7 @@ mod tests {
             assert_eq!(pragma::<i64>(&conn, "user_version")?, 1);
         }
         let conn = open_index(&path)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 3);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 4);
         let scans: i64 = conn.query_row("SELECT count(*) FROM scans", [], |row| row.get(0))?;
         assert_eq!(scans, 1, "existing data survives the upgrade");
         Ok(())

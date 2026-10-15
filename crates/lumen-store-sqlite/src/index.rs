@@ -46,6 +46,9 @@ pub struct IndexStore {
 }
 
 mod graph;
+mod plans;
+
+pub use plans::StoredPlan;
 
 impl IndexStore {
     /// Wraps a connection opened with [`open_index`](crate::open_index).
