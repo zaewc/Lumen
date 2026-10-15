@@ -128,3 +128,80 @@ fn usage_errors_exit_with_status_2() -> Result<(), Box<dyn std::error::Error>> {
     }
     Ok(())
 }
+
+#[test]
+fn assess_needs_a_completed_scan() -> Result<(), Box<dyn std::error::Error>> {
+    let fx = Fixture::build(&[])?;
+    let db = fx.path("index.db")?;
+    let out = lumen(&["assess".as_ref(), "--db".as_ref(), db.as_os_str()])?;
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("no completed scan"));
+    Ok(())
+}
+
+/// A known regenerable artifact under a fixture home is assessed, explained and
+/// left exactly where it is.
+#[cfg(target_os = "macos")]
+#[test]
+fn assess_reports_a_known_artifact_and_moves_nothing() -> Result<(), Box<dyn std::error::Error>> {
+    let fx = Fixture::build(&[Node::File {
+        path: "home/Library/Developer/Xcode/DerivedData/App-abc/Build/out.o".into(),
+        contents: vec![7; 4096],
+    }])?;
+    // The scanner keeps paths as given; the home must match them exactly.
+    let home = std::fs::canonicalize(fx.path("home")?)?;
+    let db = fx.path("index.db")?;
+    let run = |args: &[&std::ffi::OsStr]| {
+        Command::new(env!("CARGO_BIN_EXE_lumen"))
+            .args(args)
+            .env("HOME", &home)
+            .output()
+    };
+    let scan = run(&[
+        "scan".as_ref(),
+        home.as_os_str(),
+        "--db".as_ref(),
+        db.as_os_str(),
+    ])?;
+    assert!(
+        scan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&scan.stderr)
+    );
+    let out = run(&[
+        "assess".as_ref(),
+        "--db".as_ref(),
+        db.as_os_str(),
+        "--json".as_ref(),
+    ])?;
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&out.stdout)?;
+    let candidates = report["candidates"].as_array().ok_or("no candidates")?;
+    let item = candidates
+        .iter()
+        .find(|c| {
+            c["path"]
+                .as_str()
+                .is_some_and(|p| p.ends_with("DerivedData/App-abc"))
+        })
+        .ok_or("the DerivedData folder is a candidate")?;
+    assert!(
+        matches!(item["verdict"].as_str(), Some("QUARANTINE" | "REVIEW")),
+        "{item}"
+    );
+    assert_ne!(
+        item["reasons"].as_array().map(Vec::len),
+        Some(0),
+        "explained"
+    );
+    assert_eq!(
+        std::fs::read(home.join("Library/Developer/Xcode/DerivedData/App-abc/Build/out.o"))?,
+        vec![7; 4096],
+        "assessment moves nothing"
+    );
+    Ok(())
+}

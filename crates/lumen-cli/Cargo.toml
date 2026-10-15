@@ -14,6 +14,9 @@ path = "src/main.rs"
 
 [dependencies]
 lumen-application.workspace = true
+# Assessment (roadmap 10.13b): knowledge base and policy context.
+lumen-devkb.workspace = true
+lumen-policy.workspace = true
 lumen-domain.workspace = true
 lumen-scan.workspace = true
 lumen-store-sqlite.workspace = true

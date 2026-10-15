@@ -58,13 +58,13 @@ fn enumerator() -> impl DirEnumerator {
 }
 
 #[cfg(unix)]
-fn raw_path(path: &Path) -> Result<RawPath, PathError> {
+pub(crate) fn raw_path(path: &Path) -> Result<RawPath, PathError> {
     use std::os::unix::ffi::OsStrExt as _;
     RawPath::from_unix_bytes(path.as_os_str().as_bytes().to_vec())
 }
 
 #[cfg(windows)]
-fn raw_path(path: &Path) -> Result<RawPath, PathError> {
+pub(crate) fn raw_path(path: &Path) -> Result<RawPath, PathError> {
     use std::os::windows::ffi::OsStrExt as _;
     RawPath::from_windows_wide(&path.as_os_str().encode_wide().collect::<Vec<_>>())
 }

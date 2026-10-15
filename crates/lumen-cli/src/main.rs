@@ -2,7 +2,11 @@
 //!
 //! ```text
 //! lumen scan <PATH>... [--db <FILE>] [--json]
+//! lumen assess --db <FILE> [--json]
 //! ```
+//!
+//! `assess` decides the latest completed scan in the database and reports each
+//! candidate's verdict and reasons; it moves nothing (roadmap 10.13b).
 //!
 //! Scans are **read-only**: Lumen never modifies the scanned files. With `--db`,
 //! results and a snapshot are written to that `index.db` file (and nothing else).
@@ -17,11 +21,14 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 #[cfg(any(unix, windows))]
+mod assess;
+#[cfg(any(unix, windows))]
 mod report;
 #[cfg(any(unix, windows))]
 mod system;
 
-const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]";
+const USAGE: &str =
+    "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -31,16 +38,46 @@ struct ScanArgs {
     json: bool,
 }
 
+/// Parsed `assess` arguments.
+#[derive(Debug, PartialEq, Eq)]
+struct AssessArgs {
+    db: PathBuf,
+    json: bool,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
     Scan(ScanArgs),
+    Assess(AssessArgs),
     Help,
+}
+
+fn parse_assess(args: &[String]) -> Result<Command, String> {
+    let mut iter = args.iter();
+    let mut db = None;
+    let mut json = false;
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--json" => json = true,
+            "--db" => {
+                let path = iter.next().ok_or("--db needs a file path")?;
+                if db.replace(PathBuf::from(path)).is_some() {
+                    return Err("--db given more than once".into());
+                }
+            }
+            "-h" | "--help" => return Ok(Command::Help),
+            other => return Err(format!("unknown argument: {other}")),
+        }
+    }
+    let db = db.ok_or("assess needs --db <FILE>")?;
+    Ok(Command::Assess(AssessArgs { db, json }))
 }
 
 fn parse(args: &[String]) -> Result<Command, String> {
     let mut iter = args.iter();
     match iter.next().map(String::as_str) {
         Some("scan") => {}
+        Some("assess") => return parse_assess(iter.as_slice()),
         Some("-h" | "--help" | "help") | None => return Ok(Command::Help),
         Some(other) => return Err(format!("unknown command: {other}")),
     }
@@ -81,6 +118,13 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Ok(Command::Assess(assess)) => match run_assess(&assess) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        },
         Err(message) => {
             eprintln!("error: {message}\n{USAGE}");
             ExitCode::from(2)
@@ -109,6 +153,25 @@ fn run(_args: &ScanArgs) -> Result<(), Box<dyn Error>> {
     Err("scanning is not supported on this platform".into())
 }
 
+#[cfg(any(unix, windows))]
+fn run_assess(args: &AssessArgs) -> Result<(), Box<dyn Error>> {
+    let assessed = assess::assess(&args.db, &system::SystemClock)?;
+    if args.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&assess::to_json(&assessed))?
+        );
+    } else {
+        print!("{}", assess::to_text(&assessed));
+    }
+    Ok(())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn run_assess(_args: &AssessArgs) -> Result<(), Box<dyn Error>> {
+    Err("assessment is not supported on this platform".into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,6 +190,19 @@ mod tests {
                 json: true,
             }))
         );
+    }
+
+    #[test]
+    fn parses_assess_arguments() {
+        assert_eq!(
+            parse(&args(&["assess", "--db", "x.db", "--json"])),
+            Ok(Command::Assess(AssessArgs {
+                db: "x.db".into(),
+                json: true,
+            }))
+        );
+        assert!(parse(&args(&["assess"])).is_err(), "needs --db");
+        assert!(parse(&args(&["assess", "--db", "x.db", "/a"])).is_err());
     }
 
     #[test]
