@@ -14,21 +14,32 @@ use std::mem::{MaybeUninit, size_of};
 
 use windows_sys::Wdk::Foundation::OBJECT_ATTRIBUTES;
 use windows_sys::Wdk::Storage::FileSystem::{
-    FILE_DIRECTORY_FILE, FILE_NON_DIRECTORY_FILE, FILE_OPEN, FILE_OPEN_REPARSE_POINT,
+    FILE_CREATE, FILE_DIRECTORY_FILE, FILE_NON_DIRECTORY_FILE, FILE_OPEN, FILE_OPEN_REPARSE_POINT,
     FILE_SYNCHRONOUS_IO_NONALERT, NtCreateFile,
 };
 use windows_sys::Win32::Foundation::{
-    CloseHandle, HANDLE, INVALID_HANDLE_VALUE, NTSTATUS, OBJ_CASE_INSENSITIVE,
+    CloseHandle, HANDLE, INVALID_HANDLE_VALUE, LocalFree, NTSTATUS, OBJ_CASE_INSENSITIVE,
     RtlNtStatusToDosError, UNICODE_STRING,
 };
+use windows_sys::Win32::Security::Authorization::{
+    ConvertSecurityDescriptorToStringSecurityDescriptorW, ConvertSidToStringSidW,
+    ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityInfo, SDDL_REVISION_1,
+    SE_FILE_OBJECT,
+};
+use windows_sys::Win32::Security::{
+    DACL_SECURITY_INFORMATION, GetTokenInformation, OWNER_SECURITY_INFORMATION,
+    PSECURITY_DESCRIPTOR, TOKEN_QUERY, TOKEN_USER, TokenUser,
+};
 use windows_sys::Win32::Storage::FileSystem::{
-    CreateFileW, DELETE, FILE_ATTRIBUTE_TAG_INFO, FILE_BASIC_INFO, FILE_FLAG_BACKUP_SEMANTICS,
-    FILE_FLAG_OPEN_REPARSE_POINT, FILE_ID_INFO, FILE_INFO_BY_HANDLE_CLASS, FILE_READ_ATTRIBUTES,
-    FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO, FILE_TRAVERSE,
-    FileAttributeTagInfo, FileBasicInfo, FileIdInfo, FileStandardInfo,
-    GetFileInformationByHandleEx, OPEN_EXISTING, SYNCHRONIZE,
+    CreateFileW, DELETE, FILE_ATTRIBUTE_NOT_CONTENT_INDEXED, FILE_ATTRIBUTE_TAG_INFO,
+    FILE_BASIC_INFO, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_ID_INFO,
+    FILE_INFO_BY_HANDLE_CLASS, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ,
+    FILE_SHARE_WRITE, FILE_STANDARD_INFO, FILE_TRAVERSE, FileAttributeTagInfo, FileBasicInfo,
+    FileIdInfo, FileStandardInfo, GetFileInformationByHandleEx, OPEN_EXISTING, READ_CONTROL,
+    SYNCHRONIZE,
 };
 use windows_sys::Win32::System::IO::IO_STATUS_BLOCK;
+use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
 /// An open handle, closed on drop.
 #[derive(Debug)]
@@ -58,6 +69,18 @@ pub(crate) enum Want {
     Directory,
     /// A directory or file that may be renamed or deleted.
     Movable { directory: bool },
+    /// A store directory, whose owner and DACL are checked.
+    Store,
+}
+
+/// One name: not empty, `.` or `..`, and without separators or NUL.
+fn plain_name(name: &[u16]) -> bool {
+    !name.is_empty()
+        && name != [u16::from(b'.')]
+        && name != [u16::from(b'.'), u16::from(b'.')]
+        && !name
+            .iter()
+            .any(|&u| u == 0 || u == u16::from(b'\\') || u == u16::from(b'/'))
 }
 
 /// The error for a failed native call, as a Win32 error code.
@@ -96,11 +119,7 @@ pub(crate) fn open_root(path: &[u16]) -> io::Result<Handle> {
 
 /// Opens `name` (one component, no separators) relative to `dir`.
 pub(crate) fn open_at(dir: &Handle, name: &[u16], want: Want) -> io::Result<Handle> {
-    if name.is_empty()
-        || name
-            .iter()
-            .any(|&u| u == 0 || u == u16::from(b'\\') || u == u16::from(b'/'))
-    {
+    if !plain_name(name) {
         return Err(io::Error::from(io::ErrorKind::InvalidInput));
     }
     let bytes =
@@ -108,6 +127,10 @@ pub(crate) fn open_at(dir: &Handle, name: &[u16], want: Want) -> io::Result<Hand
     let (access, options) = match want {
         Want::Directory => (
             FILE_TRAVERSE | FILE_READ_ATTRIBUTES | SYNCHRONIZE,
+            FILE_DIRECTORY_FILE,
+        ),
+        Want::Store => (
+            FILE_TRAVERSE | FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE,
             FILE_DIRECTORY_FILE,
         ),
         Want::Movable { directory } => (
@@ -234,4 +257,209 @@ pub(crate) fn facts(handle: &Handle) -> io::Result<Facts> {
         links: standard.NumberOfLinks,
         directory: standard.Directory,
     })
+}
+
+/// Memory the system allocated with `LocalAlloc`, freed on drop.
+struct Local(*mut core::ffi::c_void);
+
+impl Drop for Local {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            // SAFETY: invariant: the pointer came from a system call documented
+            // to allocate it with `LocalAlloc`, and nothing else frees it. Why
+            // unsafe: FFI call. Why it holds: `Local` is only built from such
+            // out-parameters, once each.
+            let _previous = unsafe { LocalFree(self.0) };
+        }
+    }
+}
+
+/// The UTF-16 units of a NUL-terminated wide string the system returned.
+fn wide_until_nul(text: *const u16) -> Vec<u16> {
+    let mut out = Vec::new();
+    if text.is_null() {
+        return out;
+    }
+    let mut index = 0;
+    loop {
+        // SAFETY: invariant: `text` points to a NUL-terminated string and
+        // `index` has not passed its NUL. Why unsafe: raw pointer read. Why it
+        // holds: the callers pass strings the documented APIs return
+        // NUL-terminated, and the loop stops at the first NUL.
+        let unit = unsafe { *text.add(index) };
+        if unit == 0 {
+            return out;
+        }
+        out.push(unit);
+        index += 1;
+    }
+}
+
+/// The current user's SID in string form (`S-1-5-21-…`).
+pub(crate) fn current_user_sid() -> io::Result<String> {
+    let mut token: HANDLE = std::ptr::null_mut();
+    // SAFETY: invariant: the out-pointer is writable. Why unsafe: FFI call.
+    // Why it holds: `token` is a local; the pseudo-handle from
+    // `GetCurrentProcess` needs no closing.
+    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &raw mut token) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let token = Handle(token);
+    let mut needed = 0_u32;
+    // SAFETY: invariant: a null buffer of length 0 only asks for the size.
+    // Why unsafe: FFI call. Why it holds: the API allows it and writes only
+    // `needed`.
+    let _sizing = unsafe {
+        GetTokenInformation(token.0, TokenUser, std::ptr::null_mut(), 0, &raw mut needed)
+    };
+    let words = usize::try_from(needed)
+        .map_err(io::Error::other)?
+        .div_ceil(8);
+    let mut buffer = vec![0_u64; words.max(1)];
+    let length = u32::try_from(buffer.len() * 8).map_err(io::Error::other)?;
+    // SAFETY: invariant: the system writes at most `length` bytes into
+    // `buffer`. Why unsafe: FFI call writing through a raw pointer. Why it
+    // holds: `buffer` is `length` bytes, 8-byte aligned for `TOKEN_USER`.
+    let ok = unsafe {
+        GetTokenInformation(
+            token.0,
+            TokenUser,
+            buffer.as_mut_ptr().cast(),
+            length,
+            &raw mut needed,
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: invariant: the buffer starts with a `TOKEN_USER`. Why unsafe:
+    // reading a struct through a cast pointer. Why it holds: the call above
+    // succeeded with `TokenUser`, and the buffer is aligned for it.
+    let user = unsafe { buffer.as_ptr().cast::<TOKEN_USER>().read() };
+    let mut text: *mut u16 = std::ptr::null_mut();
+    // SAFETY: invariant: `Sid` points into `buffer`, which is alive; the
+    // out-pointer is writable. Why unsafe: FFI call. Why it holds: `buffer`
+    // outlives the call and `text` is a local.
+    if unsafe { ConvertSidToStringSidW(user.User.Sid, &raw mut text) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let text = Local(text.cast());
+    String::from_utf16(&wide_until_nul(text.0.cast())).map_err(io::Error::other)
+}
+
+/// Creates the directory `name` in `dir` with the security descriptor
+/// `sddl`, not content-indexed, and opens it for walking and inspection.
+pub(crate) fn create_dir_at(dir: &Handle, name: &[u16], sddl: &str) -> io::Result<Handle> {
+    let mut sddl: Vec<u16> = sddl.encode_utf16().collect();
+    sddl.push(0);
+    let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
+    // SAFETY: invariant: `sddl` is NUL-terminated and the out-pointer is
+    // writable; the size out-pointer may be null. Why unsafe: FFI call. Why it
+    // holds: both are locals that outlive the call.
+    let ok = unsafe {
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            sddl.as_ptr(),
+            SDDL_REVISION_1,
+            &raw mut descriptor,
+            std::ptr::null_mut(),
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let descriptor = Local(descriptor);
+    create_with(dir, name, descriptor.0)
+}
+
+/// `NtCreateFile(FILE_CREATE)` of a directory with `descriptor`.
+fn create_with(dir: &Handle, name: &[u16], descriptor: PSECURITY_DESCRIPTOR) -> io::Result<Handle> {
+    if !plain_name(name) {
+        return Err(io::Error::from(io::ErrorKind::InvalidInput));
+    }
+    let bytes =
+        u16::try_from(name.len() * 2).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
+    let unicode = UNICODE_STRING {
+        Length: bytes,
+        MaximumLength: bytes,
+        Buffer: name.as_ptr().cast_mut(),
+    };
+    let attributes = OBJECT_ATTRIBUTES {
+        Length: u32::try_from(size_of::<OBJECT_ATTRIBUTES>()).unwrap_or(u32::MAX),
+        RootDirectory: dir.0,
+        ObjectName: &raw const unicode,
+        Attributes: OBJ_CASE_INSENSITIVE,
+        SecurityDescriptor: descriptor.cast_const().cast(),
+        SecurityQualityOfService: std::ptr::null(),
+    };
+    let mut handle: HANDLE = std::ptr::null_mut();
+    let mut io_status = MaybeUninit::<IO_STATUS_BLOCK>::zeroed();
+    // SAFETY: as in `open_at`; additionally `descriptor` is a live,
+    // self-relative security descriptor owned by the caller for the call.
+    let status = unsafe {
+        NtCreateFile(
+            &raw mut handle,
+            FILE_TRAVERSE | FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE,
+            &raw const attributes,
+            io_status.as_mut_ptr(),
+            std::ptr::null(),
+            FILE_ATTRIBUTE_NOT_CONTENT_INDEXED,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            FILE_CREATE,
+            FILE_DIRECTORY_FILE | FILE_OPEN_REPARSE_POINT | FILE_SYNCHRONOUS_IO_NONALERT,
+            std::ptr::null(),
+            0,
+        )
+    };
+    if status < 0 {
+        Err(status_error(status))
+    } else {
+        Ok(Handle(handle))
+    }
+}
+
+/// The owner and DACL of `handle`'s object in SDDL form.
+pub(crate) fn owner_and_dacl(handle: &Handle) -> io::Result<String> {
+    let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
+    let which = OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION;
+    // SAFETY: invariant: the handle is open with `READ_CONTROL`, and the
+    // out-pointers are writable or null. Why unsafe: FFI call. Why it holds:
+    // `handle` is a live `Handle`; the owner/group/DACL/SACL pointers are not
+    // requested separately (null), only the whole descriptor.
+    let error = unsafe {
+        GetSecurityInfo(
+            handle.0,
+            SE_FILE_OBJECT,
+            which,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &raw mut descriptor,
+        )
+    };
+    if error != 0 {
+        return Err(io::Error::from_raw_os_error(
+            i32::try_from(error).unwrap_or(i32::MAX),
+        ));
+    }
+    let descriptor = Local(descriptor);
+    let mut text: *mut u16 = std::ptr::null_mut();
+    let mut length = 0_u32;
+    // SAFETY: invariant: `descriptor` is the live descriptor just returned;
+    // the out-pointers are writable. Why unsafe: FFI call. Why it holds: all
+    // are locals that outlive the call.
+    let ok = unsafe {
+        ConvertSecurityDescriptorToStringSecurityDescriptorW(
+            descriptor.0,
+            SDDL_REVISION_1,
+            which,
+            &raw mut text,
+            &raw mut length,
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let text = Local(text.cast());
+    String::from_utf16(&wide_until_nul(text.0.cast())).map_err(io::Error::other)
 }

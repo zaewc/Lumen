@@ -13,8 +13,9 @@
 //! stores its manifest next to it, and [`restore`] moves it back without
 //! replacing anything, and [`finalize`] permanently removes it from the store
 //! after checking all of it first (Unix). On Windows, [`observe`] and
-//! [`verify`] walk by relative native opens (ADR-0033); moving, restoring and
-//! finalizing follow (roadmap 9.10b–9.10d).
+//! [`verify`] walk by relative native opens and [`open_store`] opens or creates
+//! a store private to its owner (ADR-0033); moving, restoring and finalizing
+//! follow (roadmap 9.10c–9.10d).
 
 // `unsafe` is forbidden everywhere except the Windows system-call module
 // (ADR-0033).
@@ -38,6 +39,8 @@ mod store;
 #[cfg(unix)]
 mod verify;
 #[cfg(windows)]
+mod win_store;
+#[cfg(windows)]
 mod win_sys;
 #[cfg(windows)]
 mod win_verify;
@@ -56,6 +59,8 @@ pub use sidecar::{MAX_SIDECAR_BYTES, SidecarError, read_sidecar, write_sidecar};
 pub use store::{Store, StoreError, open_store};
 #[cfg(unix)]
 pub use verify::{ExpectedLeaf, LeafKind, Mismatch, PlanItem, UnixIdentity, Verified, verify};
+#[cfg(windows)]
+pub use win_store::{WinStore, WinStoreError, open_store};
 #[cfg(windows)]
 pub use win_verify::{
     WinExpected, WinIdentity, WinMismatch, WinPlanItem, WinVerified, observe, verify,
