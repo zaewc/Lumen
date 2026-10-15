@@ -12,10 +12,14 @@
 //! a verified item into it without replacing anything, and [`write_sidecar`]
 //! stores its manifest next to it, and [`restore`] moves it back without
 //! replacing anything, and [`finalize`] permanently removes it from the store
-//! after checking all of it first (Unix). The Windows executor follows
-//! (roadmap 9.10).
+//! after checking all of it first (Unix). On Windows, [`observe`] and
+//! [`verify`] walk by relative native opens (ADR-0033); moving, restoring and
+//! finalizing follow (roadmap 9.10b–9.10d).
 
-#![forbid(unsafe_code)]
+// `unsafe` is forbidden everywhere except the Windows system-call module
+// (ADR-0033).
+#![cfg_attr(not(windows), forbid(unsafe_code))]
+#![cfg_attr(windows, deny(unsafe_code))]
 
 #[cfg(unix)]
 mod executor;
@@ -33,6 +37,10 @@ mod sidecar;
 mod store;
 #[cfg(unix)]
 mod verify;
+#[cfg(windows)]
+mod win_sys;
+#[cfg(windows)]
+mod win_verify;
 
 #[cfg(unix)]
 pub use executor::Executor;
@@ -48,3 +56,7 @@ pub use sidecar::{MAX_SIDECAR_BYTES, SidecarError, read_sidecar, write_sidecar};
 pub use store::{Store, StoreError, open_store};
 #[cfg(unix)]
 pub use verify::{ExpectedLeaf, LeafKind, Mismatch, PlanItem, UnixIdentity, Verified, verify};
+#[cfg(windows)]
+pub use win_verify::{
+    WinExpected, WinIdentity, WinMismatch, WinPlanItem, WinVerified, observe, verify,
+};
