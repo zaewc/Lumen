@@ -419,6 +419,35 @@ mod tests {
         );
     }
 
+    /// An inner `*` stands for exactly one name: each Visual Studio
+    /// instance's cache, never the instance folder or anything deeper.
+    #[test]
+    fn an_inner_wildcard_matches_one_name() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let mut win = env(Platform::Windows);
+        win.local_app_data = Some(windows(r"C:\Users\ana\AppData\Local"));
+        let vs = r"C:\Users\ana\AppData\Local\Microsoft\VisualStudio";
+        let scanned: Vec<FilesystemEntry> = [
+            r"\17.0_1a2b3c4d\ComponentModelCache",
+            r"\17.0_1a2b3c4d",
+            r"\ComponentModelCache",
+            r"\17.0_1a2b3c4d\Extensions\ComponentModelCache",
+        ]
+        .iter()
+        .zip(1..)
+        .map(|(tail, ino)| object(windows(&format!("{vs}{tail}")), EntryKind::Directory, ino))
+        .collect();
+        let found: Vec<u128> = builtin
+            .matches(&win, &scanned, Timestamp::UNIX_EPOCH)
+            .into_iter()
+            .filter_map(|e| match e.subject {
+                Subject::File { identity } => Some(identity.file.get()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(found, [1]);
+    }
+
     #[test]
     fn projects_need_a_scanned_marker() {
         let found = matched(

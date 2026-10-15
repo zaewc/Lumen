@@ -70,6 +70,10 @@ const BUILTIN: &[(&str, &str)] = &[
     ),
     ("uv-cache.json", include_str!("../entries/uv-cache.json")),
     (
+        "visual-studio-component-model-cache.json",
+        include_str!("../entries/visual-studio-component-model-cache.json"),
+    ),
+    (
         "xcode-derived-data.json",
         include_str!("../entries/xcode-derived-data.json"),
     ),

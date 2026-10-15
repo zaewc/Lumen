@@ -1,0 +1,18 @@
+{
+  "id": "visual-studio-component-model-cache",
+  "tool": "Visual Studio",
+  "locations": [
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "local_app_data" },
+      "path": "Microsoft/VisualStudio/*/ComponentModelCache"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": false },
+  "sources": [
+    "https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/ide/troubleshooting-docker-errors",
+    "https://learn.microsoft.com/en-us/visualstudio/gamedev/unity/troubleshooting/troubleshooting-and-known-issues-visual-studio-tools-for-unity"
+  ],
+  "last_verified": "2026-10-16"
+}
