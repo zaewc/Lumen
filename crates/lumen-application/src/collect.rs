@@ -13,6 +13,9 @@
 //! [`application_evidence`] states whether the applications that evidence
 //! names as owners are installed (roadmap 10.3).
 //!
+//! An in-use probe's answer becomes evidence through [`in_use_evidence`]
+//! (roadmap 10.4).
+//!
 //! Ownership is not in scanned entries; [`ownership_evidence`] states what an
 //! `OwnershipProbe` established when the item is assessed (roadmap 10.2b).
 //!
@@ -27,7 +30,7 @@ use lumen_domain::{
     SourceStatus, Subject, Timestamp,
 };
 
-use crate::ports::InventoryReport;
+use crate::ports::{InUse, InventoryReport};
 
 /// The source named in the provenance of scan-derived facts.
 pub const SCAN_SOURCE: &str = "lumen.scan";
@@ -159,6 +162,41 @@ pub fn application_evidence<'a>(
             })
         })
         .collect()
+}
+
+/// What an in-use probe found about the file `identity`, as `source` reported
+/// it (roadmap 10.4, ADR-0030).
+///
+/// - `Yes` and `No` are facts about every process: `InUse(true)` and
+///   `InUse(false)`.
+/// - `Partial` is not proof of non-use, so it becomes
+///   `NotInUseByVisibleProcesses`, which the policy accepts only for the
+///   reversible quarantine of the user's own files.
+/// - `Unknown` states nothing: without a not-in-use fact the policy never
+///   makes an item eligible.
+pub fn in_use_evidence(
+    identity: &FileIdentity,
+    answer: &InUse,
+    source: &SourceName,
+    observed_at: Timestamp,
+) -> Option<Evidence> {
+    let fact = match answer {
+        InUse::Yes(_) => Fact::InUse(true),
+        InUse::No => Fact::InUse(false),
+        InUse::Partial { unseen } => Fact::NotInUseByVisibleProcesses { unseen: *unseen },
+        InUse::Unknown { .. } => return None,
+    };
+    Some(Evidence {
+        subject: Subject::File {
+            identity: identity.clone(),
+        },
+        fact,
+        basis: Basis::Observed,
+        provenance: Provenance {
+            source: source.clone(),
+            observed_at,
+        },
+    })
 }
 
 #[cfg(test)]
@@ -338,6 +376,21 @@ mod tests {
         let inventory = summarize(&[report("macos.applications", SourceStatus::Unavailable, &[])]);
         let gone = app_id("com.example.gone");
         assert_eq!(application_evidence([&gone], &inventory, at(1)), []);
+    }
+
+    #[test]
+    fn in_use_answers_become_facts_and_unknown_states_nothing() {
+        let identity = entry(AccessState::Readable).identity().clone();
+        let source = SourceName::new("macos.proc-pidinfo").unwrap_or_else(|_| unreachable!());
+        let fact =
+            |answer: InUse| in_use_evidence(&identity, &answer, &source, at(1)).map(|e| e.fact);
+        assert_eq!(fact(InUse::No), Some(Fact::InUse(false)));
+        assert_eq!(fact(InUse::Yes(Vec::new())), Some(Fact::InUse(true)));
+        assert_eq!(
+            fact(InUse::Partial { unseen: Some(3) }),
+            Some(Fact::NotInUseByVisibleProcesses { unseen: Some(3) })
+        );
+        assert_eq!(fact(InUse::Unknown { reason: "changed" }), None);
     }
 
     #[test]
