@@ -17,6 +17,8 @@ lumen-application.workspace = true
 # Assessment (roadmap 10.13b): knowledge base and policy context.
 lumen-devkb.workspace = true
 lumen-graph.workspace = true
+# Jev's API key check and judge (roadmap 10.17).
+lumen-jev.workspace = true
 lumen-policy.workspace = true
 lumen-domain.workspace = true
 lumen-scan.workspace = true

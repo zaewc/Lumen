@@ -8,6 +8,7 @@
 //! lumen list --db <FILE>
 //! lumen restore --db <FILE> --op <ID>
 //! lumen finalize --db <FILE> --op <ID>
+//! lumen jev key set|clear|status
 //! ```
 //!
 //! `assess` decides the latest completed scan in the database and reports each
@@ -17,7 +18,9 @@
 //! that plan, re-deciding every item first, and only with its full hash; it
 //! moves items into a restorable store (roadmap 10.14b). `list` shows what the
 //! store holds, `restore` puts one item back, and `finalize` removes one item
-//! for good (roadmap 10.15b).
+//! for good (roadmap 10.15b). `jev key` stores, removes or checks the
+//! `OpenRouter` API key in the system's secret store, reading it from standard
+//! input (roadmap 10.17).
 //!
 //! Scans are **read-only**: Lumen never modifies the scanned files. With `--db`,
 //! results and a snapshot are written to that `index.db` file (and nothing else).
@@ -36,6 +39,8 @@ mod assess;
 #[cfg(unix)]
 mod held;
 #[cfg(any(unix, windows))]
+mod jev;
+#[cfg(any(unix, windows))]
 mod plan;
 #[cfg(unix)]
 mod quarantine;
@@ -44,7 +49,7 @@ mod report;
 #[cfg(any(unix, windows))]
 mod system;
 
-const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>";
+const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen jev key set|clear|status   (set reads the key from standard input)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -70,7 +75,16 @@ enum Command {
     List(PathBuf),
     Restore(OpArgs),
     Finalize(OpArgs),
+    JevKey(KeyAction),
     Help,
+}
+
+/// What to do with the Jev API key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum KeyAction {
+    Set,
+    Clear,
+    Status,
 }
 
 /// Parsed arguments naming one quarantine operation.
@@ -171,6 +185,17 @@ fn parse(args: &[String]) -> Result<Command, String> {
             };
         }
         Some("restore") => return parse_op(iter.as_slice()).map(Command::Restore),
+        Some("jev") => {
+            return match iter.as_slice() {
+                [key, action] if key == "key" => match action.as_str() {
+                    "set" => Ok(Command::JevKey(KeyAction::Set)),
+                    "clear" => Ok(Command::JevKey(KeyAction::Clear)),
+                    "status" => Ok(Command::JevKey(KeyAction::Status)),
+                    _ => Err("jev key needs set, clear or status".into()),
+                },
+                _ => Err("usage: lumen jev key set|clear|status (the key is read from standard input, never an argument)".into()),
+            };
+        }
         Some("finalize") => return parse_op(iter.as_slice()).map(Command::Finalize),
         Some("-h" | "--help" | "help") | None => return Ok(Command::Help),
         Some(other) => return Err(format!("unknown command: {other}")),
@@ -213,6 +238,7 @@ fn main() -> ExitCode {
             }
         },
         Ok(Command::List(db)) => report(run_held(HeldAction::List, &db, None)),
+        Ok(Command::JevKey(action)) => report(run_jev_key(action)),
         Ok(Command::Restore(args)) => {
             report(run_held(HeldAction::Restore, &args.db, Some(&args.op)))
         }
@@ -322,6 +348,22 @@ fn report(result: Result<(), Box<dyn Error>>) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+#[cfg(any(unix, windows))]
+fn run_jev_key(action: KeyAction) -> Result<(), Box<dyn Error>> {
+    let text = match action {
+        KeyAction::Set => jev::set()?,
+        KeyAction::Clear => jev::clear()?,
+        KeyAction::Status => jev::status()?,
+    };
+    print!("{text}");
+    Ok(())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn run_jev_key(_action: KeyAction) -> Result<(), Box<dyn Error>> {
+    Err("Jev is not available on this platform".into())
 }
 
 /// What to do with held items.
@@ -477,6 +519,20 @@ mod tests {
             parse(&args(&["finalize", "--db", "x.db", "--all"])).is_err(),
             "no bulk removal"
         );
+    }
+
+    #[test]
+    fn the_jev_key_is_never_an_argument() {
+        assert_eq!(
+            parse(&args(&["jev", "key", "set"])),
+            Ok(Command::JevKey(KeyAction::Set))
+        );
+        assert_eq!(
+            parse(&args(&["jev", "key", "status"])),
+            Ok(Command::JevKey(KeyAction::Status))
+        );
+        assert!(parse(&args(&["jev", "key", "set", "sk-or-v1-secret"])).is_err());
+        assert!(parse(&args(&["jev", "key"])).is_err());
     }
 
     #[test]

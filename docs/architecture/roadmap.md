@@ -259,7 +259,8 @@ test that forbids them today changes in the same PR.
 | 10.15a | `feat(store): replay every quarantine operation` | `operations()` with each operation's replayed state; the executors name a prepared item's original path |
 | 10.15b | `feat(cli): list, restore and finalize` | quarantined items with their original paths and ages, restore with conflicts reported, finalize on request (retention scheduling later) |
 | 10.16 | `test(cli): run the lifecycle end to end` | covered on macOS by the 10.15b CLI test (scan → plan → quarantine → list → restore → re-plan → quarantine → finalize). Linux has no in-use probe yet, so nothing is ever proposed there: an in-use probe for Linux (`/proc`) is the open item |
-| 10.17 | `feat(cli): opt in to Jev` | API key in the keychain (`lumen jev key set/clear`), explicit consent, `--jev` per run |
+| 10.17a | `feat(cli): manage the Jev API key` | `lumen jev key set/clear/status`: the key read from standard input, checked, kept in the macOS keychain or Windows Credential Manager, never printed |
+| 10.17b | `feat(cli): consult Jev on request` | `--jev` per run on `assess`/`plan`: a notice of what is sent, the request built from each candidate's metadata only, traces in the ledger |
 
 Windows end to end follows the same items with the Windows adapters, then Android
 (performance spike first) and iOS.
