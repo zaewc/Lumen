@@ -7,6 +7,10 @@
 # Safety policy, destructive executor and quarantine (ADR-0014, ADR-0015, ADR-0016)
 /crates/lumen-policy/               @zaewc
 /crates/lumen-fs-exec/              @zaewc
+# The executor's only `unsafe` code and its fault points (ADR-0032, ADR-0033);
+# reviewed against docs/security/executor-review.md.
+/crates/lumen-fs-exec/src/win_sys.rs @zaewc
+/crates/lumen-fs-exec/src/fault.rs  @zaewc
 /clippy.toml                        @zaewc
 
 # IPC and trust boundaries (ADR-0023)

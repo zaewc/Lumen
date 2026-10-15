@@ -222,7 +222,7 @@ re-verifies identity, and uses no-replace renames only. Any mismatch fails close
 | 9.10c2 | `feat(fs-exec): finalize on Windows` | directory listing by handle, checked-first tree removal with `FileDispositionInfoEx`, links removed as links |
 | 9.10d | `feat(fs-exec): implement the Windows executor` | `QuarantineExecutor` on Windows over verify, store, move, restore, sidecar and finalize; local drive roots only (verbatim `\\?\`), network roots refused |
 | 9.10e | `test(fs-exec): run the name and race suites on Windows` | the lifecycle with hostile names, junction swaps, replaced items and held-open files through the Windows executor |
-| 9.11 | `chore(fs-exec): protect the executor` | CODEOWNERS and threat-model section |
+| 9.11 | `chore(fs-exec): protect the executor` | CODEOWNERS for `win_sys` and fault points, executor review checklist, threat-model executor section and residual risks updated |
 
 ## Later phases (outline)
 

@@ -98,10 +98,13 @@ Assumptions:
 
 | Threat | Example | Controls |
 | --- | --- | --- |
-| Tampering | Another process modifies or replaces quarantined items | Owner-only permissions on stores; manifests record identity and size facts; restore verifies before rename |
-| Denial of service | Crash mid-move loses track of a file | Durable journal intent before each move; reconciliation on start; sidecar manifests |
-| Tampering | Restore overwrites a newer file at the original path | No-replace rename; conflicts go to the user |
-| Information disclosure | Quarantine store indexed or backed up to the cloud | Excluded from Spotlight/Windows Search and from backups where the OS allows; documented |
+| Tampering | Another process modifies or replaces quarantined items | Stores private to their owner (Unix: owner and mode 0700; Windows: owner and protected DACL compared exactly), planted stores refused, never repaired; restore and finalize re-check identity, kind, size, time and links |
+| Denial of service | Crash mid-move loses track of a file | Durable journal intent before each move; startup reconciliation resolves every unfinished operation from where the item is, and leaves contradictions for the user (roadmap 9.6c); crash points tested at every journal step (9.9c) |
+| Tampering | Restore overwrites a newer file at the original path | No-replace rename in both directions; a taken name is a conflict for the user |
+| Elevation of privilege | Finalize follows a link or a mount point inside a quarantined directory and removes something else | The whole tree is checked first (same volume, depth limit, readable); links and junctions are removed as themselves; entries opened by handle relative to their directory |
+| Repudiation / integrity | An executor error misreports where it left an item, so the journal records the wrong location | Every error reports `Left`/`Removed`; fault points after each system call test that the report matches the filesystem ([ADR-0032](../decisions/0032-test-only-fault-points.md)) |
+| Elevation of privilege | Memory-safety bug in Windows FFI | `unsafe` confined to `win_sys`, each block with a SAFETY comment; CODEOWNERS and the [executor review checklist](executor-review.md) ([ADR-0033](../decisions/0033-windows-executor-mechanics.md)) |
+| Information disclosure | Quarantine store indexed or backed up to the cloud | macOS: sticky Time Machine exclusion of each store; Windows: stores not content-indexed. macOS has no documented programmatic Spotlight exclusion, so stores stay indexed there (owner-only) |
 
 ### TB4: Core → privileged helper (future)
 
@@ -178,10 +181,20 @@ GOAL: a file the user needs is permanently lost because of Lumen
   lists, the `StartupApproved` format, BTM versions, Recycle Bin internals.
 - Statistical limits of Jev calibration for rare artifact classes. Those classes stay
   "Jev cannot promote".
+- macOS quarantine stores remain visible to Spotlight for their owner: Apple documents
+  no programmatic exclusion for a directory (research report 10, row 29).
+- Windows cannot flush individual directory entries (`FlushFileBuffers` needs
+  `GENERIC_WRITE`, not grantable on directories); a rename NTFS has not logged at a
+  crash is resolved by reconciliation, never guessed.
+- `parent_replaced` on restore is best effort: a recreated parent may reuse the old
+  inode or file ID.
 
 ## 8. Security testing obligations
 
-- Race tests (symlink/junction flips mid-execution) on macOS, Windows and Linux CI.
+- Race tests (symlink/junction flips mid-execution) on macOS, Windows and Linux CI
+  (`crates/lumen-fs-exec/tests/{races,names,windows}.rs`), fault points after every
+  executor system call, and crash points at every journal step.
+- Every executor change reviewed against the [executor checklist](executor-review.md).
 - A malicious-name corpus (control, bidi, newline, invalid UTF-8, NFC/NFD and case
   twins, long paths).
 - IPC peer-rejection tests per transport.
