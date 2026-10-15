@@ -689,6 +689,7 @@ dependencies = [
  "lumen-graph",
  "lumen-policy",
  "lumen-testkit",
+ "serde_json",
  "thiserror",
 ]
 

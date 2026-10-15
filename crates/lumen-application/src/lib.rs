@@ -14,6 +14,7 @@
 pub mod assess;
 mod cancel;
 pub mod collect;
+pub mod confirm;
 pub mod consult;
 pub mod finalize;
 pub mod gather;

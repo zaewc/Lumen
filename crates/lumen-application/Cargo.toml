@@ -13,6 +13,8 @@ lumen-domain.workspace = true
 # Evidence bundles for assessment (roadmap 10.8); IO-free.
 lumen-graph.workspace = true
 lumen-policy.workspace = true
+# Serializing quarantine manifests (roadmap 10.12).
+serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
