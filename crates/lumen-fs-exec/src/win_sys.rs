@@ -417,6 +417,55 @@ fn create_with(dir: &Handle, name: &[u16], descriptor: PSECURITY_DESCRIPTOR) -> 
     }
 }
 
+/// The owner and DACL of a self-relative descriptor in SDDL form, with the
+/// system's own aliases for well-known SIDs.
+fn descriptor_sddl(descriptor: PSECURITY_DESCRIPTOR) -> io::Result<String> {
+    let which = OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION;
+    let mut text: *mut u16 = std::ptr::null_mut();
+    let mut length = 0_u32;
+    // SAFETY: invariant: `descriptor` is a live security descriptor; the
+    // out-pointers are writable. Why unsafe: FFI call. Why it holds: callers
+    // pass a descriptor they hold for the call, and the rest are locals.
+    let ok = unsafe {
+        ConvertSecurityDescriptorToStringSecurityDescriptorW(
+            descriptor,
+            SDDL_REVISION_1,
+            which,
+            &raw mut text,
+            &raw mut length,
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let text = Local(text.cast());
+    String::from_utf16(&wide_until_nul(text.0.cast())).map_err(io::Error::other)
+}
+
+/// `sddl` as the system prints it back (aliases such as `LA` or `SY` for
+/// well-known SIDs), so it compares equal to [`owner_and_dacl`].
+pub(crate) fn canonical_sddl(sddl: &str) -> io::Result<String> {
+    let mut wide: Vec<u16> = sddl.encode_utf16().collect();
+    wide.push(0);
+    let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
+    // SAFETY: invariant: `wide` is NUL-terminated and the out-pointer is
+    // writable; the size out-pointer may be null. Why unsafe: FFI call. Why it
+    // holds: both are locals that outlive the call.
+    let ok = unsafe {
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            wide.as_ptr(),
+            SDDL_REVISION_1,
+            &raw mut descriptor,
+            std::ptr::null_mut(),
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let descriptor = Local(descriptor);
+    descriptor_sddl(descriptor.0)
+}
+
 /// The owner and DACL of `handle`'s object in SDDL form.
 pub(crate) fn owner_and_dacl(handle: &Handle) -> io::Result<String> {
     let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
@@ -443,23 +492,5 @@ pub(crate) fn owner_and_dacl(handle: &Handle) -> io::Result<String> {
         ));
     }
     let descriptor = Local(descriptor);
-    let mut text: *mut u16 = std::ptr::null_mut();
-    let mut length = 0_u32;
-    // SAFETY: invariant: `descriptor` is the live descriptor just returned;
-    // the out-pointers are writable. Why unsafe: FFI call. Why it holds: all
-    // are locals that outlive the call.
-    let ok = unsafe {
-        ConvertSecurityDescriptorToStringSecurityDescriptorW(
-            descriptor.0,
-            SDDL_REVISION_1,
-            which,
-            &raw mut text,
-            &raw mut length,
-        )
-    };
-    if ok == 0 {
-        return Err(io::Error::last_os_error());
-    }
-    let text = Local(text.cast());
-    String::from_utf16(&wide_until_nul(text.0.cast())).map_err(io::Error::other)
+    descriptor_sddl(descriptor.0)
 }

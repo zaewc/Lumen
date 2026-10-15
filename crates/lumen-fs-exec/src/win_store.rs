@@ -81,10 +81,15 @@ fn private_sddl(user: &str) -> String {
     format!("O:{user}D:P(A;OICI;FA;;;{user})(A;OICI;FA;;;SY)")
 }
 
-/// Whether `actual` is the private descriptor. Windows may report the DACL as
-/// auto-inherited (`PAI`) as well as protected; nothing else is accepted.
+/// Whether `actual` (as the system prints it) is the private descriptor.
+/// The expected one is printed by the system too, so well-known SIDs use the
+/// same aliases (`LA` for the built-in Administrator, `SY`). Windows may
+/// report the DACL as auto-inherited (`PAI`) as well as protected; nothing
+/// else is accepted.
 fn is_private(actual: &str, user: &str) -> bool {
-    let expected = private_sddl(user);
+    let Ok(expected) = win_sys::canonical_sddl(&private_sddl(user)) else {
+        return false;
+    };
     actual == expected || actual == expected.replacen("D:P(", "D:PAI(", 1)
 }
 
