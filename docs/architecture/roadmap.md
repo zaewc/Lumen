@@ -186,7 +186,7 @@ only become more cautious (7.6). Lumen works fully with `NoopJudge`.
 | 8.10b | `feat(platform-macos): store secrets in the keychain` | Security framework generic-password items; real-keychain test opt-in |
 | 8.10c | `feat(platform-windows): store secrets in Credential Manager` | `CredWriteW`/`CredReadW`/`CredDeleteW` generic credentials |
 
-## Phase 9: Quarantine
+## Phase 9: Quarantine (complete)
 
 `lumen-fs-exec` is the only crate that may move or delete user files
 ([ADR-0015](../decisions/0015-quarantine-and-reversible-cleanup.md),
@@ -224,10 +224,41 @@ re-verifies identity, and uses no-replace renames only. Any mismatch fails close
 | 9.10e | `test(fs-exec): run the name and race suites on Windows` | the lifecycle with hostile names, junction swaps, replaced items and held-open files through the Windows executor |
 | 9.11 | `chore(fs-exec): protect the executor` | CODEOWNERS for `win_sys` and fault points, executor review checklist, threat-model executor section and residual risks updated |
 
+## Phase 10: macOS end to end
+
+Every piece from scanner to executor exists as a library; nothing past the scan is
+wired yet. This phase connects them in the CLI composition root on macOS (Linux CI
+runs the same path), following the pipeline in [system.md](system.md):
+collect evidence → build relationships → policy (optional Jev) → explain → plan →
+user confirms → quarantine → verify → retain → finalize or roll back. Destructive
+commands arrive only with an explicit, hash-bound confirmation (10.9), and the CLI
+test that forbids them today changes in the same PR.
+
+| # | PR | Scope |
+| --- | --- | --- |
+| 10.1 | `feat(cli): add the system clock and ID adapters` | `Clock` and `IdGenerator` (UUIDv7) for the composition root; the scan command uses them |
+| 10.2 | `feat(application): collect filesystem evidence` | `LastModified`/`LastAccessed`, `CloudBacked`, `OwnedByCurrentUser` (ownership producers deferred by 7.11) from stored entries |
+| 10.3 | `feat(application): collect inventory evidence` | `ApplicationPresent` (with `Basis::Absence` only from complete sources) from `InventorySource`s; `Context.complete_sources` from their status |
+| 10.4 | `feat(application): collect in-use evidence` | `InUseProbe` answers as `InUse` / `NotInUseByVisibleProcesses` evidence (ADR-0030) |
+| 10.5 | `feat(devkb): map safety classes to knowledge classes` | `SafetyClass` → `KnowledgeClass` for `PolicyInput.knowledge` |
+| 10.6 | `feat(application): build the evidence graph for a scan` | devkb matches and macOS support locations as evidence and relationships, recorded in `index.db`, graph loaded back |
+| 10.7 | `feat(store): read coverage and reclaim back` | listing completeness per directory and a per-subject `ReclaimEstimate` for `Observed` |
+| 10.8 | `feat(application): assess candidates` | subject selection, `PolicyInput` assembly (bundle hash and evidence, paths, `Context` with platform capabilities, `Observed`), `decide` with an optional judge, traces stored, explanations |
+| 10.9 | `docs(adr): confirm cleanup plans from the command line` | plan model, plan hash, a CLI confirmation surface bound to the hash, re-run of the policy on fresh facts |
+| 10.10 | `feat(domain): add cleanup plans` | `CleanupPlan`, `PlanHash` computation, `ConfirmationSurface::CommandLine` |
+| 10.11 | `feat(store): persist plans and decisions` | plans, items and their decisions in `index.db` |
+| 10.12 | `feat(application): confirm a plan` | re-verify each item, re-run the policy, prepare it, build its `quarantine.manifest/1`, allocate operation IDs, produce `ConfirmedItem`s |
+| 10.13 | `feat(cli): assess and plan` | `lumen assess` (read-only report with reasons) and `lumen plan` |
+| 10.14 | `feat(cli): quarantine a confirmed plan` | composition root: executor and store (Time Machine exclusion), ledger journal, in-use probe, reconciliation on every start |
+| 10.15 | `feat(cli): list, restore and finalize` | quarantined items, restore with conflicts reported, finalize after retention or on request |
+| 10.16 | `test(cli): run the lifecycle end to end` | fixture tree: scan → assess → plan → confirm → quarantine → restore → finalize, on macOS and Linux CI |
+| 10.17 | `feat(cli): opt in to Jev` | API key in the keychain (`lumen jev key set/clear`), explicit consent, `--jev` per run |
+
+Windows end to end follows the same items with the Windows adapters, then Android
+(performance spike first) and iOS.
+
 ## Later phases (outline)
 
-- **Phase 10, Platform integrations:** macOS end to end → Windows → Android
-  (performance spike first) → iOS.
 - **Phase 11, UI:** JavaScript bootstrap (pnpm, Biome, TS 7, Turborepo), `apps/web`
   (FSD), `apps/desktop` (Tauri), `apps/mobile` (Expo).
 - **Phase 12, Hardening:** benchmarks, observability, evaluation gates, release
