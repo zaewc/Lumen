@@ -8,12 +8,16 @@
 //!   (`Fact::CloudBacked`), where removal could propagate to the cloud;
 //! - its modification and access times, when the platform reported them.
 //!
+//! Ownership is not in scanned entries; [`ownership_evidence`] states what an
+//! `OwnershipProbe` established when the item is assessed (roadmap 10.2b).
+//!
 //! Facts come only from metadata the scanner actually read. An entry whose
 //! metadata was not read (or a directory whose listing was not) yields nothing:
 //! unknown is never stated as "unprotected" or "local" (ADR-0008).
 
 use lumen_domain::{
-    Basis, Evidence, Fact, FilesystemEntry, Provenance, SourceName, Subject, Timestamp,
+    Basis, Evidence, Fact, FileIdentity, FilesystemEntry, Provenance, SourceName, Subject,
+    Timestamp,
 };
 
 /// The source named in the provenance of scan-derived facts.
@@ -46,6 +50,27 @@ pub fn filesystem_evidence(entry: &FilesystemEntry, observed_at: Timestamp) -> V
             },
         })
         .collect()
+}
+
+/// The fact that the file `identity` is (or is not) owned by the current user,
+/// as `source` established it. An unknown owner states nothing.
+pub fn ownership_evidence(
+    identity: &FileIdentity,
+    owned: Option<bool>,
+    source: &SourceName,
+    observed_at: Timestamp,
+) -> Option<Evidence> {
+    Some(Evidence {
+        subject: Subject::File {
+            identity: identity.clone(),
+        },
+        fact: Fact::OwnedByCurrentUser(owned?),
+        basis: Basis::Observed,
+        provenance: Provenance {
+            source: source.clone(),
+            observed_at,
+        },
+    })
 }
 
 #[cfg(test)]
@@ -126,6 +151,15 @@ mod tests {
         let evidence = filesystem_evidence(&entry(AccessState::Readable), at(1));
         assert!(facts(&evidence).contains(&Fact::Protected(Protection::default())));
         assert!(facts(&evidence).contains(&Fact::CloudBacked(false)));
+    }
+
+    #[test]
+    fn ownership_is_stated_only_when_known() {
+        let identity = entry(AccessState::Readable).identity().clone();
+        let source = SourceName::new("unix.owner").unwrap_or_else(|_| unreachable!());
+        let mine = ownership_evidence(&identity, Some(true), &source, at(1));
+        assert_eq!(mine.map(|e| e.fact), Some(Fact::OwnedByCurrentUser(true)));
+        assert_eq!(ownership_evidence(&identity, None, &source, at(1)), None);
     }
 
     #[test]

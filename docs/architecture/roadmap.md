@@ -238,7 +238,8 @@ test that forbids them today changes in the same PR.
 | --- | --- | --- |
 | 10.1 | `feat(cli): add the system clock and ID adapters` | `Clock` and `IdGenerator` (UUIDv7) for the composition root; the scan command uses them |
 | 10.2 | `feat(application): collect filesystem evidence` | `Protected` (always, for the hard-protection stage), `CloudBacked`, `LastModified`/`LastAccessed` from stored entries; nothing from unread metadata |
-| 10.2b | `feat(platform): collect ownership evidence` | `OwnedByCurrentUser` (ownership producers deferred by 7.11): the owner is not in scanned entries, so it is read by handle when assessing (Unix owner ID, Windows owner SID) |
+| 10.2b | `feat(scan): collect ownership evidence on Unix` | `OwnershipProbe` port (ownership producers deferred by 7.11): the owner is not in scanned entries, so it is read when assessing; Unix probe (`lstat`, scanner identity rule, effective user ID); `ownership_evidence` |
+| 10.2c | `feat(platform-windows): probe ownership on Windows` | owner SID of the object, opened as itself and identity-checked, against the process token's user |
 | 10.3 | `feat(application): collect inventory evidence` | `ApplicationPresent` (with `Basis::Absence` only from complete sources) from `InventorySource`s; `Context.complete_sources` from their status |
 | 10.4 | `feat(application): collect in-use evidence` | `InUseProbe` answers as `InUse` / `NotInUseByVisibleProcesses` evidence (ADR-0030) |
 | 10.5 | `feat(devkb): map safety classes to knowledge classes` | `SafetyClass` → `KnowledgeClass` for `PolicyInput.knowledge` |

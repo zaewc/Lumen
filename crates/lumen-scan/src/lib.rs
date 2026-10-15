@@ -17,12 +17,16 @@ mod aggregate;
 #[cfg(all(unix, feature = "conformance"))]
 pub mod conformance;
 mod coverage;
+#[cfg(unix)]
+mod owner;
 mod scheduler;
 #[cfg(unix)]
 mod std_fs;
 
 pub use aggregate::{DirTotals, SizeAggregator};
 pub use coverage::CoverageBuilder;
+#[cfg(unix)]
+pub use owner::UnixOwnershipProbe;
 pub use scheduler::{
     ScanConfig, ScanItem, ScanProgress, ScanSummary, SkipReason, StopReason, resume, scan,
 };

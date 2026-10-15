@@ -17,6 +17,10 @@ lumen-application.workspace = true
 lumen-domain.workspace = true
 lumen-testkit = { workspace = true, optional = true }
 
+[target.'cfg(unix)'.dependencies]
+# `geteuid` for ownership (roadmap 10.2b); already the executor's system-call crate.
+rustix.workspace = true
+
 [dev-dependencies]
 criterion.workspace = true
 # The crate's own integration tests run the conformance suite.

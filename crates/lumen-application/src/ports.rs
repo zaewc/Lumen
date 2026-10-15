@@ -340,6 +340,16 @@ pub enum Located {
     Unknown,
 }
 
+/// Who owns a filesystem object, against the account Lumen runs as (roadmap
+/// 10.2b, ADR-0030). Scanned entries do not carry their owner, so it is read
+/// when an item is assessed.
+pub trait OwnershipProbe: Send + Sync {
+    /// Whether the object at `path`, if it is still `expected`, belongs to the
+    /// current user; `None` if that cannot be established (missing, replaced or
+    /// unreadable), never a guess.
+    fn owned_by_current_user(&self, path: &RawPath, expected: &FileIdentity) -> Option<bool>;
+}
+
 /// Lumen's only path to moving user files (ADR-0015, ADR-0016), implemented
 /// by `lumen-fs-exec`.
 pub trait QuarantineExecutor: Send + Sync {
