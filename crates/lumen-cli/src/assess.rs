@@ -50,10 +50,10 @@ pub(crate) fn block_on<F: Future>(future: F) -> F::Output {
 
 /// A probe for platforms without one: every answer is unknown, so nothing is
 /// ever eligible there.
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
 struct NoInUseProbe;
 
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
 impl InUseProbe for NoInUseProbe {
     fn probe(
         &self,
@@ -174,7 +174,10 @@ pub(crate) fn with_probes<T>(run: impl FnOnce(&Probes<'_>) -> T) -> Result<T, Bo
         Box::new(lumen_platform_windows::RestartManagerProbe),
         "windows.restart-manager",
     );
-    #[cfg(not(any(target_os = "macos", windows)))]
+    #[cfg(target_os = "linux")]
+    let (in_use, in_use_name): (Box<dyn InUseProbe>, &str) =
+        (Box::new(lumen_scan::ProcProbe), "linux.proc");
+    #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
     let (in_use, in_use_name): (Box<dyn InUseProbe>, &str) = (Box::new(NoInUseProbe), "none");
     #[cfg(unix)]
     let (ownership, ownership_name): (Box<dyn OwnershipProbe>, &str) =

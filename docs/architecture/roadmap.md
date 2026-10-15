@@ -258,7 +258,7 @@ test that forbids them today changes in the same PR.
 | 10.14b | `feat(cli): quarantine a confirmed plan` | composition root: hash, age and privilege checks; executor and store (Time Machine exclusion); ledger journal; reconciliation on every start; confirm then quarantine each item |
 | 10.15a | `feat(store): replay every quarantine operation` | `operations()` with each operation's replayed state; the executors name a prepared item's original path |
 | 10.15b | `feat(cli): list, restore and finalize` | quarantined items with their original paths and ages, restore with conflicts reported, finalize on request (retention scheduling later) |
-| 10.16 | `test(cli): run the lifecycle end to end` | covered on macOS by the 10.15b CLI test (scan → plan → quarantine → list → restore → re-plan → quarantine → finalize). Linux has no in-use probe yet, so nothing is ever proposed there: an in-use probe for Linux (`/proc`) is the open item |
+| 10.16 | `test(cli): run the lifecycle end to end` | covered on macOS by the 10.15b CLI test (scan → plan → quarantine → list → restore → re-plan → quarantine → finalize). Linux gains an in-use probe on `/proc` (open descriptors, working directory, executable and mapped files; other users' processes count as unseen) |
 | 10.17a | `feat(cli): manage the Jev API key` | `lumen jev key set/clear/status`: the key read from standard input, checked, kept in the macOS keychain or Windows Credential Manager, never printed |
 | 10.17b | `feat(cli): consult Jev on request` | `--jev` per run on `assess`/`plan`: a notice of what is sent, the request built from each candidate's metadata only, traces in the ledger |
 

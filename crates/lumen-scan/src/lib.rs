@@ -19,6 +19,8 @@ pub mod conformance;
 mod coverage;
 #[cfg(unix)]
 mod owner;
+#[cfg(target_os = "linux")]
+mod proc_probe;
 mod scheduler;
 #[cfg(unix)]
 mod std_fs;
@@ -27,6 +29,8 @@ pub use aggregate::{DirTotals, SizeAggregator};
 pub use coverage::CoverageBuilder;
 #[cfg(unix)]
 pub use owner::UnixOwnershipProbe;
+#[cfg(target_os = "linux")]
+pub use proc_probe::ProcProbe;
 pub use scheduler::{
     ScanConfig, ScanItem, ScanProgress, ScanSummary, SkipReason, StopReason, resume, scan,
 };
