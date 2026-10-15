@@ -251,7 +251,9 @@ test that forbids them today changes in the same PR.
 | 10.10 | `feat(domain): add cleanup plans` | `CleanupPlan`, `PlanHash` computation, `ConfirmationSurface::CommandLine` |
 | 10.11 | `feat(store): persist plans and decisions` | plans, items and their decisions in `index.db` |
 | 10.12 | `feat(application): confirm a plan` | re-verify each item, re-run the policy, prepare it, build its `quarantine.manifest/1`, allocate operation IDs, produce `ConfirmedItem`s |
-| 10.13 | `feat(cli): assess and plan` | `lumen assess` (read-only report with reasons) and `lumen plan` |
+| 10.13 | `feat(store): find the latest completed scan and its roots` | assessment reads only completed scans; roots split item paths for the executor |
+| 10.13b | `feat(cli): assess the latest scan` | composition: inventory, devkb and support-location producers, gather, record and load the graph, select, decide; read-only report with reasons |
+| 10.13c | `feat(cli): plan` | QUARANTINE items into a stored plan, printed with reasons and the plan hash (ADR-0034) |
 | 10.14 | `feat(cli): quarantine a confirmed plan` | composition root: executor and store (Time Machine exclusion), ledger journal, in-use probe, reconciliation on every start |
 | 10.15 | `feat(cli): list, restore and finalize` | quarantined items, restore with conflicts reported, finalize after retention or on request |
 | 10.16 | `test(cli): run the lifecycle end to end` | fixture tree: scan → assess → plan → confirm → quarantine → restore → finalize, on macOS and Linux CI |

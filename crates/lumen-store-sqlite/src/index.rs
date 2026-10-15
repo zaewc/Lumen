@@ -223,6 +223,48 @@ impl IndexStore {
         text.map(|t| parse_scan_state(&t)).transpose()
     }
 
+    /// The most recently started scan that completed, if any (roadmap 10.13).
+    /// Cancelled, failed and unfinished scans are never assessed: what they
+    /// did not read is unknown, not absent (ADR-0008).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] if SQLite fails or a stored ID is invalid.
+    pub fn latest_completed_scan(&self) -> Result<Option<ScanId>, StoreError> {
+        let id: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT id FROM scans WHERE state = 'completed'
+                 ORDER BY started_secs DESC, started_nanos DESC, id DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?;
+        id.map(|id| id.parse().map_err(|_| corrupt("id")))
+            .transpose()
+    }
+
+    /// The roots of `scan`, ordered by path bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Corrupt`] for an invalid stored path, or
+    /// [`StoreError`] if SQLite fails.
+    pub fn scan_roots(&self, scan: ScanId) -> Result<Vec<RawPath>, StoreError> {
+        let mut query = self.conn.prepare_cached(
+            "SELECT flavor, path FROM scan_roots WHERE scan_id = ?1 ORDER BY flavor, path",
+        )?;
+        let rows = query.query_map([scan.to_string()], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+        })?;
+        rows.map(|row| {
+            let (flavor, path) = row?;
+            RawPath::from_stored(parse_flavor(&flavor)?, path)
+                .map_err(|_| corrupt("scan_roots.path"))
+        })
+        .collect()
+    }
+
     /// Scans that started but never finished (still `running`), oldest first.
     ///
     /// # Errors
@@ -799,6 +841,35 @@ mod tests {
                 );
             }
         }
+        Ok(())
+    }
+
+    #[test]
+    fn the_latest_completed_scan_and_its_roots_are_found() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let (_fx, mut store) = store()?;
+        assert_eq!(store.latest_completed_scan()?, None);
+        let root = RawPath::from_unix_bytes(b"/Users/ana".to_vec())?;
+        for (n, secs, state) in [
+            (1, 10, ScanState::Completed),
+            (2, 20, ScanState::Completed),
+            (3, 30, ScanState::Cancelled),
+        ] {
+            store.begin_scan(
+                scan_id(n),
+                Timestamp::from_unix(secs, 0)?,
+                std::slice::from_ref(&root),
+            )?;
+            store.finish_scan(scan_id(n), state, Timestamp::from_unix(secs + 1, 0)?)?;
+        }
+        store.begin_scan(scan_id(4), Timestamp::from_unix(40, 0)?, &[])?;
+        assert_eq!(
+            store.latest_completed_scan()?,
+            Some(scan_id(2)),
+            "newer cancelled and running scans are never assessed"
+        );
+        assert_eq!(store.scan_roots(scan_id(2))?, [root]);
+        assert_eq!(store.scan_roots(scan_id(4))?, []);
         Ok(())
     }
 
