@@ -3,10 +3,13 @@
 //! ```text
 //! lumen scan <PATH>... [--db <FILE>] [--json]
 //! lumen assess --db <FILE> [--json]
+//! lumen plan --db <FILE>
 //! ```
 //!
 //! `assess` decides the latest completed scan in the database and reports each
-//! candidate's verdict and reasons; it moves nothing (roadmap 10.13b).
+//! candidate's verdict and reasons; it moves nothing (roadmap 10.13b). `plan`
+//! stores the QUARANTINE candidates as a plan and prints its hash; it moves
+//! nothing either (roadmap 10.13c, ADR-0034).
 //!
 //! Scans are **read-only**: Lumen never modifies the scanned files. With `--db`,
 //! results and a snapshot are written to that `index.db` file (and nothing else).
@@ -23,12 +26,13 @@ use std::process::ExitCode;
 #[cfg(any(unix, windows))]
 mod assess;
 #[cfg(any(unix, windows))]
+mod plan;
+#[cfg(any(unix, windows))]
 mod report;
 #[cfg(any(unix, windows))]
 mod system;
 
-const USAGE: &str =
-    "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]";
+const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -49,7 +53,16 @@ struct AssessArgs {
 enum Command {
     Scan(ScanArgs),
     Assess(AssessArgs),
+    Plan(PathBuf),
     Help,
+}
+
+fn parse_plan(args: &[String]) -> Result<Command, String> {
+    match args {
+        [flag, path] if flag == "--db" => Ok(Command::Plan(PathBuf::from(path))),
+        [flag] if flag == "-h" || flag == "--help" => Ok(Command::Help),
+        _ => Err("plan needs exactly --db <FILE>".into()),
+    }
 }
 
 fn parse_assess(args: &[String]) -> Result<Command, String> {
@@ -78,6 +91,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
     match iter.next().map(String::as_str) {
         Some("scan") => {}
         Some("assess") => return parse_assess(iter.as_slice()),
+        Some("plan") => return parse_plan(iter.as_slice()),
         Some("-h" | "--help" | "help") | None => return Ok(Command::Help),
         Some(other) => return Err(format!("unknown command: {other}")),
     }
@@ -112,6 +126,13 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Ok(Command::Scan(scan)) => match run(&scan) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        },
+        Ok(Command::Plan(db)) => match run_plan(&db) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e}");
@@ -172,6 +193,18 @@ fn run_assess(_args: &AssessArgs) -> Result<(), Box<dyn Error>> {
     Err("assessment is not supported on this platform".into())
 }
 
+#[cfg(any(unix, windows))]
+fn run_plan(db: &std::path::Path) -> Result<(), Box<dyn Error>> {
+    let planned = plan::plan(db, &system::SystemClock, &system::UuidV7Ids)?;
+    print!("{}", plan::to_text(&planned, db));
+    Ok(())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn run_plan(_db: &std::path::Path) -> Result<(), Box<dyn Error>> {
+    Err("planning is not supported on this platform".into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,6 +235,15 @@ mod tests {
             }))
         );
         assert!(parse(&args(&["assess"])).is_err(), "needs --db");
+        assert_eq!(
+            parse(&args(&["plan", "--db", "x.db"])),
+            Ok(Command::Plan("x.db".into()))
+        );
+        assert!(parse(&args(&["plan"])).is_err());
+        assert!(
+            parse(&args(&["plan", "--db", "x.db", "--yes"])).is_err(),
+            "no shortcut"
+        );
         assert!(parse(&args(&["assess", "--db", "x.db", "/a"])).is_err());
     }
 

@@ -205,3 +205,72 @@ fn assess_reports_a_known_artifact_and_moves_nothing() -> Result<(), Box<dyn std
     );
     Ok(())
 }
+
+#[test]
+fn plan_with_nothing_proposed_says_so() -> Result<(), Box<dyn std::error::Error>> {
+    let fx = fixture()?;
+    let db = fx.path("index.db")?;
+    let root = fx.path("root")?;
+    let scan = lumen(&[
+        "scan".as_ref(),
+        root.as_os_str(),
+        "--db".as_ref(),
+        db.as_os_str(),
+    ])?;
+    assert!(
+        scan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&scan.stderr)
+    );
+    let out = lumen(&["plan".as_ref(), "--db".as_ref(), db.as_os_str()])?;
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("nothing to plan"));
+    Ok(())
+}
+
+/// A proposed artifact is planned with a hash and the exact command to run;
+/// nothing moves.
+#[cfg(target_os = "macos")]
+#[test]
+fn plan_prints_the_hash_and_moves_nothing() -> Result<(), Box<dyn std::error::Error>> {
+    let fx = Fixture::build(&[Node::File {
+        path: "home/Library/Developer/Xcode/DerivedData/App-abc/Build/out.o".into(),
+        contents: vec![7; 4096],
+    }])?;
+    let home = std::fs::canonicalize(fx.path("home")?)?;
+    let db = fx.path("index.db")?;
+    let run = |args: &[&std::ffi::OsStr]| {
+        Command::new(env!("CARGO_BIN_EXE_lumen"))
+            .args(args)
+            .env("HOME", &home)
+            .output()
+    };
+    let scan = run(&[
+        "scan".as_ref(),
+        home.as_os_str(),
+        "--db".as_ref(),
+        db.as_os_str(),
+    ])?;
+    assert!(
+        scan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&scan.stderr)
+    );
+    let out = run(&["plan".as_ref(), "--db".as_ref(), db.as_os_str()])?;
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    if out.status.success() {
+        assert!(stdout.contains("DerivedData/App-abc"), "{stdout}");
+        assert!(stdout.contains("Plan hash: b3:"), "{stdout}");
+        assert!(stdout.contains("--confirm b3:"), "{stdout}");
+        assert!(stdout.contains("Nothing has been moved."), "{stdout}");
+    } else {
+        // Where in-use visibility keeps it in REVIEW, there is nothing to plan.
+        assert!(String::from_utf8_lossy(&out.stderr).contains("nothing to plan"));
+    }
+    assert_eq!(
+        std::fs::read(home.join("Library/Developer/Xcode/DerivedData/App-abc/Build/out.o"))?,
+        vec![7; 4096],
+        "planning moves nothing"
+    );
+    Ok(())
+}
