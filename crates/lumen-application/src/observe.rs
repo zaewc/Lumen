@@ -10,7 +10,7 @@
 
 use std::collections::HashMap;
 
-use lumen_domain::{EntryKind, FilesystemEntry, PathFlavor, RawPath, ReclaimEstimate};
+use lumen_domain::{AccessState, EntryKind, FilesystemEntry, PathFlavor, RawPath, ReclaimEstimate};
 use lumen_policy::Observed;
 
 use crate::ports::DirOutcome;
@@ -60,17 +60,23 @@ pub fn observed(
         .iter()
         .filter(|entry| below(&entry.path, &subject.path))
         .collect();
-    let complete = subject.access.is_observed()
-        && fully_listed(&listings, &subject.path)
+    // A stored directory entry is written when the directory is discovered,
+    // before it is read; how reading it went is its listing. The entry handed
+    // to the policy carries that outcome (no listing: still not scanned).
+    let mut entry = subject.clone();
+    entry.access = listings
+        .get(&subject.path)
+        .map_or(AccessState::NotScanned, |outcome| outcome.access);
+    let complete = fully_listed(&listings, &subject.path)
         && descendants
             .iter()
             .filter(|entry| entry.kind == EntryKind::Directory)
-            .all(|dir| dir.access.is_observed() && fully_listed(&listings, &dir.path));
+            .all(|dir| fully_listed(&listings, &dir.path));
     let reclaim = ReclaimEstimate::for_selection(
         std::iter::once(&subject.size).chain(descendants.iter().map(|entry| &entry.size)),
     );
     Observed {
-        entry: subject.clone(),
+        entry,
         complete,
         reclaim,
     }
@@ -81,8 +87,8 @@ mod tests {
     use std::num::NonZeroU32;
 
     use lumen_domain::{
-        AccessState, ByteCount, DenialReason, EntryTimes, FileId, FileIdentity, Protection,
-        SizeFacts, SizeFlags, VolumeId,
+        ByteCount, DenialReason, EntryTimes, FileId, FileIdentity, Protection, SizeFacts,
+        SizeFlags, VolumeId,
     };
 
     use super::*;
@@ -117,14 +123,22 @@ mod tests {
         )
     }
 
+    /// As the scanner stores it: directories are written when discovered,
+    /// not yet read; how reading them went is in the listings.
     fn tree() -> Vec<FilesystemEntry> {
-        vec![
+        let mut entries = vec![
             entry("/c", EntryKind::Directory, 1, 0),
             entry("/c/a", EntryKind::File, 2, 4096),
             entry("/c/sub", EntryKind::Directory, 3, 0),
             entry("/c/sub/b", EntryKind::File, 4, 8192),
             entry("/cache-sibling", EntryKind::File, 5, 1_000_000),
-        ]
+        ];
+        for entry in &mut entries {
+            if entry.kind == EntryKind::Directory {
+                entry.access = AccessState::NotScanned;
+            }
+        }
+        entries
     }
 
     #[test]
@@ -136,6 +150,11 @@ mod tests {
         ];
         let observed = observed(&scanned[0], &scanned, &listings);
         assert!(observed.complete);
+        assert_eq!(
+            observed.entry.access,
+            AccessState::Readable,
+            "the entry carries its listing's outcome"
+        );
         assert_eq!(
             observed.reclaim,
             ReclaimEstimate::for_selection(scanned[..4].iter().map(|e| &e.size)),

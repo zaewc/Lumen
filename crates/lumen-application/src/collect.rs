@@ -19,14 +19,15 @@
 //! Ownership is not in scanned entries; [`ownership_evidence`] states what an
 //! `OwnershipProbe` established when the item is assessed (roadmap 10.2b).
 //!
-//! Facts come only from metadata the scanner actually read. An entry whose
-//! metadata was not read (or a directory whose listing was not) yields nothing:
-//! unknown is never stated as "unprotected" or "local" (ADR-0008).
+//! Facts come only from metadata the scanner actually read. A file whose
+//! metadata was not read yields nothing: unknown is never stated as
+//! "unprotected" or "local" (ADR-0008). A directory's own metadata comes from
+//! its parent's listing, so it is always stated.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use lumen_domain::{
-    AppId, Basis, Evidence, Fact, FileIdentity, FilesystemEntry, Provenance, SourceName,
+    AppId, Basis, EntryKind, Evidence, Fact, FileIdentity, FilesystemEntry, Provenance, SourceName,
     SourceStatus, Subject, Timestamp,
 };
 
@@ -36,8 +37,13 @@ use crate::ports::{InUse, InventoryReport};
 pub const SCAN_SOURCE: &str = "lumen.scan";
 
 /// The facts the scan established about `entry`, observed at `observed_at`.
+///
+/// A stored directory's metadata always came from its parent's listing; its
+/// `access` says whether its *contents* were read (recorded separately as a
+/// listing), so its own facts are stated either way. A file's facts are
+/// stated only if its metadata was read.
 pub fn filesystem_evidence(entry: &FilesystemEntry, observed_at: Timestamp) -> Vec<Evidence> {
-    if !entry.access.is_observed() {
+    if entry.kind != EntryKind::Directory && !entry.access.is_observed() {
         return Vec::new();
     }
     let Ok(source) = SourceName::new(SCAN_SOURCE) else {
@@ -391,6 +397,16 @@ mod tests {
             Some(Fact::NotInUseByVisibleProcesses { unseen: Some(3) })
         );
         assert_eq!(fact(InUse::Unknown { reason: "changed" }), None);
+    }
+
+    #[test]
+    fn a_discovered_directory_states_its_own_facts() {
+        let mut dir = entry(AccessState::NotScanned);
+        dir.kind = EntryKind::Directory;
+        assert!(
+            facts(&filesystem_evidence(&dir, at(1)))
+                .contains(&Fact::Protected(Protection::default()))
+        );
     }
 
     #[test]
