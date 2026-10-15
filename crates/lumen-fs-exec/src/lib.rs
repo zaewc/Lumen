@@ -54,7 +54,7 @@ mod win_sys;
 mod win_verify;
 
 #[cfg(unix)]
-pub use executor::Executor;
+pub use executor::{Executor, original_path};
 #[cfg(unix)]
 pub use finalize::{FinalizeError, MAX_DEPTH, finalize};
 pub use location::{Left, Removed};
@@ -69,7 +69,7 @@ pub use store::{Store, StoreError, open_store};
 #[cfg(unix)]
 pub use verify::{ExpectedLeaf, LeafKind, Mismatch, PlanItem, UnixIdentity, Verified, verify};
 #[cfg(windows)]
-pub use win_executor::Executor;
+pub use win_executor::{Executor, original_path};
 #[cfg(windows)]
 pub use win_finalize::{MAX_DEPTH, WinFinalizeError, finalize};
 #[cfg(windows)]

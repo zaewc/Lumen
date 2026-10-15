@@ -136,6 +136,19 @@ fn parse(item: &PreparedItem) -> Option<WinPlanItem> {
     serde_json::from_slice::<Prepared>(&item.0).ok()?.plan()
 }
 
+/// The path `item` was prepared from, for showing quarantined items (roadmap
+/// 10.15). `None` if the record is not this executor's.
+pub fn original_path(item: &PreparedItem) -> Option<PathBuf> {
+    use std::os::windows::ffi::OsStringExt as _;
+    let plan = parse(item)?;
+    let mut path = PathBuf::from(std::ffi::OsString::from_wide(&plan.root));
+    for component in &plan.components {
+        path.push(std::ffi::OsString::from_wide(component));
+    }
+    path.push(std::ffi::OsString::from_wide(&plan.leaf));
+    Some(path)
+}
+
 fn name_of(operation: OperationId) -> Vec<u16> {
     operation.to_string().encode_utf16().collect()
 }

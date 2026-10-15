@@ -105,6 +105,34 @@ impl LedgerStore {
             .collect())
     }
 
+    /// Every journaled operation with the state its entries replay to, in
+    /// operation order (roadmap 10.15): what is held in quarantine, restored,
+    /// finalized or unfinished.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError::Corrupt`] if an operation's entries do not form a valid
+    /// lifecycle, or [`StoreError`] if SQLite fails.
+    pub fn operations(&self) -> Result<Vec<(QuarantineState, Vec<JournalEntry>)>, StoreError> {
+        let mut by_operation: BTreeMap<OperationId, Vec<JournalEntry>> = BTreeMap::new();
+        for entry in self.entries()? {
+            by_operation.entry(entry.operation).or_default().push(entry);
+        }
+        by_operation
+            .into_values()
+            .map(|entries| {
+                let state = entries
+                    .iter()
+                    .try_fold(QuarantineState::Planned, |state, e| {
+                        state
+                            .apply(e.event)
+                            .map_err(|_| corrupt("quarantine_journal.event"))
+                    })?;
+                Ok((state, entries))
+            })
+            .collect()
+    }
+
     /// Operations that stopped after their intent and before retention, with
     /// the state each reached and its entries.
     ///
@@ -113,27 +141,16 @@ impl LedgerStore {
     /// Returns [`StoreError::Corrupt`] if an operation's history is not a valid
     /// lifecycle, or [`StoreError`] if SQLite fails.
     pub fn unfinished(&self) -> Result<Vec<(QuarantineState, Vec<JournalEntry>)>, StoreError> {
-        let mut by_operation: BTreeMap<OperationId, Vec<JournalEntry>> = BTreeMap::new();
-        for entry in self.entries()? {
-            by_operation.entry(entry.operation).or_default().push(entry);
-        }
-        let mut unfinished = Vec::new();
-        for entries in by_operation.into_values() {
-            let state = entries
-                .iter()
-                .try_fold(QuarantineState::Planned, |state, e| {
-                    state
-                        .apply(e.event)
-                        .map_err(|_| corrupt("quarantine_journal.event"))
-                })?;
-            if matches!(
-                state,
-                QuarantineState::Journaled | QuarantineState::Moved | QuarantineState::Verified
-            ) {
-                unfinished.push((state, entries));
-            }
-        }
-        Ok(unfinished)
+        Ok(self
+            .operations()?
+            .into_iter()
+            .filter(|(state, _)| {
+                matches!(
+                    state,
+                    QuarantineState::Journaled | QuarantineState::Moved | QuarantineState::Verified
+                )
+            })
+            .collect())
     }
 }
 
@@ -204,6 +221,14 @@ mod tests {
             ]
         );
         assert_eq!(store.operation(op(3))?.len(), 4);
+        let states: Vec<(OperationId, QuarantineState)> = store
+            .operations()?
+            .into_iter()
+            .map(|(state, entries)| (entries[0].operation, state))
+            .collect();
+        assert_eq!(states.len(), 5, "every operation, finished or not");
+        assert_eq!(states[2], (op(3), QuarantineState::Retained));
+        assert!(matches!(states[3].1, QuarantineState::Failed { .. }));
         Ok(())
     }
 

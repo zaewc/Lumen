@@ -256,7 +256,8 @@ test that forbids them today changes in the same PR.
 | 10.13c | `feat(cli): plan` | QUARANTINE items into a stored plan, printed with reasons and the plan hash (ADR-0034) |
 | 10.14a | `refactor(cli): reuse the assessment for confirmation` | the assessment's context (roots, entries, listings, evidence, graph, policy context) built once and reused; `StdFsEnumerator` verifies candidates |
 | 10.14b | `feat(cli): quarantine a confirmed plan` | composition root: hash, age and privilege checks; executor and store (Time Machine exclusion); ledger journal; reconciliation on every start; confirm then quarantine each item |
-| 10.15 | `feat(cli): list, restore and finalize` | quarantined items, restore with conflicts reported, finalize after retention or on request |
+| 10.15a | `feat(store): replay every quarantine operation` | `operations()` with each operation's replayed state; the executors name a prepared item's original path |
+| 10.15b | `feat(cli): list, restore and finalize` | quarantined items with their original paths and ages, restore with conflicts reported, finalize on request (retention scheduling later) |
 | 10.16 | `test(cli): run the lifecycle end to end` | fixture tree: scan → assess → plan → confirm → quarantine → restore → finalize, on macOS and Linux CI |
 | 10.17 | `feat(cli): opt in to Jev` | API key in the keychain (`lumen jev key set/clear`), explicit consent, `--jev` per run |
 

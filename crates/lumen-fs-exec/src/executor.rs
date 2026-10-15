@@ -151,6 +151,18 @@ fn parse(item: &PreparedItem) -> Option<Prepared> {
     serde_json::from_slice(&item.0).ok()
 }
 
+/// The path `item` was prepared from, for showing quarantined items (roadmap
+/// 10.15). `None` if the record is not this executor's.
+pub fn original_path(item: &PreparedItem) -> Option<PathBuf> {
+    let prepared = parse(item)?;
+    let mut path = PathBuf::from(OsStr::from_bytes(&prepared.root));
+    for component in &prepared.components {
+        path.push(OsStr::from_bytes(component));
+    }
+    path.push(OsStr::from_bytes(&prepared.leaf));
+    Some(path)
+}
+
 impl QuarantineExecutor for Executor {
     fn prepare(
         &self,
@@ -360,6 +372,19 @@ mod tests {
             std::fs::read(root.join("cache/app/data.bin")).unwrap_or_default(),
             b"0123456789"
         );
+    }
+
+    #[test]
+    fn a_prepared_item_names_its_original_path() {
+        let (_fx, root, executor) = setup();
+        let prepared = executor
+            .prepare(&raw(&root), &relative())
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            original_path(&prepared),
+            Some(root.join("cache/app/data.bin"))
+        );
+        assert_eq!(original_path(&PreparedItem(b"{}".to_vec())), None);
     }
 
     #[test]
