@@ -4,12 +4,15 @@
 //! lumen scan <PATH>... [--db <FILE>] [--json]
 //! lumen assess --db <FILE> [--json]
 //! lumen plan --db <FILE>
+//! lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>
 //! ```
 //!
 //! `assess` decides the latest completed scan in the database and reports each
 //! candidate's verdict and reasons; it moves nothing (roadmap 10.13b). `plan`
 //! stores the QUARANTINE candidates as a plan and prints its hash; it moves
-//! nothing either (roadmap 10.13c, ADR-0034).
+//! nothing either (roadmap 10.13c, ADR-0034). `quarantine` executes exactly
+//! that plan, re-deciding every item first, and only with its full hash; it
+//! moves items into a restorable store (roadmap 10.14b).
 //!
 //! Scans are **read-only**: Lumen never modifies the scanned files. With `--db`,
 //! results and a snapshot are written to that `index.db` file (and nothing else).
@@ -27,12 +30,14 @@ use std::process::ExitCode;
 mod assess;
 #[cfg(any(unix, windows))]
 mod plan;
+#[cfg(unix)]
+mod quarantine;
 #[cfg(any(unix, windows))]
 mod report;
 #[cfg(any(unix, windows))]
 mod system;
 
-const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>";
+const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -54,7 +59,42 @@ enum Command {
     Scan(ScanArgs),
     Assess(AssessArgs),
     Plan(PathBuf),
+    Quarantine(QuarantineArgs),
     Help,
+}
+
+/// Parsed `quarantine` arguments.
+#[derive(Debug, PartialEq, Eq)]
+struct QuarantineArgs {
+    db: PathBuf,
+    plan: String,
+    confirm: String,
+}
+
+fn parse_quarantine(args: &[String]) -> Result<Command, String> {
+    let mut iter = args.iter();
+    let (mut db, mut plan, mut confirm) = (None, None, None);
+    while let Some(arg) = iter.next() {
+        let slot = match arg.as_str() {
+            "--db" => &mut db,
+            "--plan" => &mut plan,
+            "--confirm" => &mut confirm,
+            "-h" | "--help" => return Ok(Command::Help),
+            other => return Err(format!("unknown argument: {other}")),
+        };
+        let value = iter.next().ok_or_else(|| format!("{arg} needs a value"))?;
+        if slot.replace(value.clone()).is_some() {
+            return Err(format!("{arg} given more than once"));
+        }
+    }
+    match (db, plan, confirm) {
+        (Some(db), Some(plan), Some(confirm)) => Ok(Command::Quarantine(QuarantineArgs {
+            db: PathBuf::from(db),
+            plan,
+            confirm,
+        })),
+        _ => Err("quarantine needs --db <FILE> --plan <ID> --confirm <HASH>".into()),
+    }
 }
 
 fn parse_plan(args: &[String]) -> Result<Command, String> {
@@ -92,6 +132,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
         Some("scan") => {}
         Some("assess") => return parse_assess(iter.as_slice()),
         Some("plan") => return parse_plan(iter.as_slice()),
+        Some("quarantine") => return parse_quarantine(iter.as_slice()),
         Some("-h" | "--help" | "help") | None => return Ok(Command::Help),
         Some(other) => return Err(format!("unknown command: {other}")),
     }
@@ -126,6 +167,13 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Ok(Command::Scan(scan)) => match run(&scan) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        },
+        Ok(Command::Quarantine(args)) => match run_quarantine(&args) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e}");
@@ -200,6 +248,30 @@ fn run_plan(db: &std::path::Path) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[cfg(unix)]
+fn run_quarantine(args: &QuarantineArgs) -> Result<(), Box<dyn Error>> {
+    let plan = args
+        .plan
+        .parse()
+        .map_err(|_| format!("not a plan ID: {}", args.plan))?;
+    print!(
+        "{}",
+        quarantine::quarantine(
+            &args.db,
+            plan,
+            &args.confirm,
+            &system::SystemClock,
+            &system::UuidV7Ids,
+        )?
+    );
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn run_quarantine(_args: &QuarantineArgs) -> Result<(), Box<dyn Error>> {
+    Err("quarantine from the command line is not available on this platform yet".into())
+}
+
 #[cfg(not(any(unix, windows)))]
 fn run_plan(_db: &std::path::Path) -> Result<(), Box<dyn Error>> {
     Err("planning is not supported on this platform".into())
@@ -242,6 +314,43 @@ mod tests {
         assert!(parse(&args(&["plan"])).is_err());
         assert!(
             parse(&args(&["plan", "--db", "x.db", "--yes"])).is_err(),
+            "no shortcut"
+        );
+        assert_eq!(
+            parse(&args(&[
+                "quarantine",
+                "--db",
+                "x.db",
+                "--plan",
+                "p",
+                "--confirm",
+                "h"
+            ])),
+            Ok(Command::Quarantine(QuarantineArgs {
+                db: "x.db".into(),
+                plan: "p".into(),
+                confirm: "h".into(),
+            }))
+        );
+        for missing in [
+            &["quarantine", "--db", "x.db", "--plan", "p"][..],
+            &["quarantine", "--db", "x.db", "--confirm", "h"],
+            &["quarantine", "--plan", "p", "--confirm", "h"],
+        ] {
+            assert!(parse(&args(missing)).is_err(), "{missing:?}");
+        }
+        assert!(
+            parse(&args(&[
+                "quarantine",
+                "--db",
+                "x",
+                "--plan",
+                "p",
+                "--confirm",
+                "h",
+                "--yes"
+            ]))
+            .is_err(),
             "no shortcut"
         );
         assert!(parse(&args(&["assess", "--db", "x.db", "/a"])).is_err());

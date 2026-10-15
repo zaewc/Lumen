@@ -274,3 +274,122 @@ fn plan_prints_the_hash_and_moves_nothing() -> Result<(), Box<dyn std::error::Er
     );
     Ok(())
 }
+
+#[test]
+fn quarantine_refuses_an_unknown_plan() -> Result<(), Box<dyn std::error::Error>> {
+    let fx = Fixture::build(&[])?;
+    let db = fx.path("index.db")?;
+    let out = lumen(&[
+        "quarantine".as_ref(),
+        "--db".as_ref(),
+        db.as_os_str(),
+        "--plan".as_ref(),
+        "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a3".as_ref(),
+        "--confirm".as_ref(),
+        "b3:00".as_ref(),
+    ])?;
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("does not exist"));
+    Ok(())
+}
+
+/// The whole command-line path on a fixture home: a wrong hash moves nothing;
+/// the right one quarantines the planned folder into a private store with its
+/// manifest (or skips it, where in-use visibility keeps it in REVIEW); running
+/// the plan again is refused.
+#[cfg(target_os = "macos")]
+#[test]
+fn quarantine_executes_exactly_the_confirmed_plan() -> Result<(), Box<dyn std::error::Error>> {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let fx = Fixture::build(&[
+        Node::File {
+            path: "home/Library/Developer/Xcode/DerivedData/App-abc/Build/out.o".into(),
+            contents: vec![7; 4096],
+        },
+        Node::Dir {
+            path: "home/Library/Application Support".into(),
+        },
+    ])?;
+    let home = std::fs::canonicalize(fx.path("home")?)?;
+    let db = fx.path("index.db")?;
+    let item = home.join("Library/Developer/Xcode/DerivedData/App-abc");
+    let run = |args: &[&std::ffi::OsStr]| {
+        Command::new(env!("CARGO_BIN_EXE_lumen"))
+            .args(args)
+            .env("HOME", &home)
+            .output()
+    };
+    let scan = run(&[
+        "scan".as_ref(),
+        home.as_os_str(),
+        "--db".as_ref(),
+        db.as_os_str(),
+    ])?;
+    assert!(
+        scan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&scan.stderr)
+    );
+    let planned = run(&["plan".as_ref(), "--db".as_ref(), db.as_os_str()])?;
+    if !planned.status.success() {
+        return Ok(()); // REVIEW here: nothing to plan, covered by the plan tests.
+    }
+    let text = String::from_utf8_lossy(&planned.stdout).into_owned();
+    let field = |flag: &str| {
+        text.split_whitespace()
+            .skip_while(|word| *word != flag)
+            .nth(1)
+            .map(str::to_owned)
+            .ok_or("missing in plan output")
+    };
+    let (plan, hash) = (field("--plan")?, field("--confirm")?);
+    let quarantine = |confirm: &str| {
+        run(&[
+            "quarantine".as_ref(),
+            "--db".as_ref(),
+            db.as_os_str(),
+            "--plan".as_ref(),
+            plan.as_ref(),
+            "--confirm".as_ref(),
+            confirm.as_ref(),
+        ])
+    };
+    let wrong = quarantine("b3:0000")?;
+    assert!(!wrong.status.success());
+    assert!(item.exists(), "a wrong hash moves nothing");
+    let done = quarantine(&hash)?;
+    assert!(
+        done.status.success(),
+        "{}",
+        String::from_utf8_lossy(&done.stderr)
+    );
+    let report = String::from_utf8_lossy(&done.stdout);
+    let store = home.join("Library/Application Support/Lumen/Quarantine");
+    if report.contains("QUARANTINED") {
+        assert!(!item.exists(), "moved out of its place");
+        let names: Vec<String> = std::fs::read_dir(&store)?
+            .filter_map(|e| e.ok().map(|e| e.file_name().to_string_lossy().into_owned()))
+            .collect();
+        assert_eq!(names.len(), 2, "the item and its manifest: {names:?}");
+        let moved = names
+            .iter()
+            .find(|n| !n.ends_with(".manifest.json"))
+            .ok_or("item")?;
+        assert_eq!(
+            std::fs::read(store.join(moved).join("Build/out.o"))?,
+            vec![7; 4096],
+            "contents intact"
+        );
+        assert_eq!(
+            std::fs::metadata(&store)?.permissions().mode() & 0o777,
+            0o700
+        );
+    } else {
+        assert!(report.contains("REVIEW"), "{report}");
+        assert!(item.exists());
+    }
+    let again = quarantine(&hash)?;
+    assert!(!again.status.success(), "a plan executes once");
+    Ok(())
+}

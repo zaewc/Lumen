@@ -25,6 +25,11 @@ serde_json.workspace = true
 # Time-ordered scan and snapshot IDs.
 uuid = { workspace = true, features = ["v7"] }
 
+[target.'cfg(unix)'.dependencies]
+# The quarantine command (roadmap 10.14b): the executor and `geteuid`.
+lumen-fs-exec.workspace = true
+rustix.workspace = true
+
 [target.'cfg(target_os = "macos")'.dependencies]
 lumen-platform-macos.workspace = true
 
