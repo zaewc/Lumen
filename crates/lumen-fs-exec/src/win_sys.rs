@@ -75,7 +75,7 @@ pub(crate) enum Want {
 }
 
 /// One name: not empty, `.` or `..`, and without separators or NUL.
-fn plain_name(name: &[u16]) -> bool {
+pub(crate) fn plain_name(name: &[u16]) -> bool {
     !name.is_empty()
         && name != [u16::from(b'.')]
         && name != [u16::from(b'.'), u16::from(b'.')]
@@ -504,7 +504,9 @@ pub(crate) fn rename_into(item: &Handle, dir: &Handle, name: &[u16]) -> io::Resu
     }
     let header = std::mem::offset_of!(FILE_RENAME_INFO, FileName);
     let name_bytes = name.len() * 2;
-    let total = header + name_bytes + 2;
+    // The system requires at least the whole struct (whose one-unit `FileName`
+    // and padding then hold the terminator) plus the name.
+    let total = size_of::<FILE_RENAME_INFO>() + name_bytes;
     // `u64` storage keeps the handle field aligned.
     let mut buffer = vec![0_u64; total.div_ceil(8)];
     let info = buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>();
@@ -512,8 +514,8 @@ pub(crate) fn rename_into(item: &Handle, dir: &Handle, name: &[u16]) -> io::Resu
     // SAFETY: invariant: `buffer` holds at least `total` zeroed, 8-byte
     // aligned bytes: a `FILE_RENAME_INFO` header followed by room for the
     // name and a NUL. Why unsafe: writing through raw pointers into it. Why it
-    // holds: `total` is the header offset plus the name and terminator, and
-    // `buffer` was sized to cover it.
+    // holds: `total` is the struct size plus the name, which covers the
+    // header offset, the name and a terminator, and `buffer` covers `total`.
     unsafe {
         (*info).Anonymous.ReplaceIfExists = false;
         (*info).RootDirectory = dir.0;

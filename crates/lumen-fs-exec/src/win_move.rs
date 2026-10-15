@@ -94,7 +94,6 @@ fn rename_error(error: &io::Error) -> WinMoveError {
         Some(ERROR_ALREADY_EXISTS | ERROR_FILE_EXISTS) => WinMoveError::NameTaken,
         Some(ERROR_NOT_SAME_DEVICE) => WinMoveError::OtherVolume,
         Some(ERROR_SHARING_VIOLATION) => WinMoveError::InUse,
-        _ if error.kind() == io::ErrorKind::InvalidInput => WinMoveError::InvalidName,
         _ => WinMoveError::Rename(code(error)),
     }
 }
@@ -144,6 +143,9 @@ pub fn move_into(
     name: &[u16],
     expected: &WinExpected,
 ) -> Result<(), WinMoveError> {
+    if !win_sys::plain_name(name) {
+        return Err(WinMoveError::InvalidName);
+    }
     win_sys::rename_into(&verified.leaf, &store.dir, name).map_err(|e| rename_error(&e))?;
     check_after(&verified.parent, &verified.name, &store.dir, name, expected)
 }
@@ -158,18 +160,17 @@ pub fn restore(
     name: &[u16],
     item: &WinPlanItem,
 ) -> Result<WinRestored, WinMoveError> {
+    if !win_sys::plain_name(name) || !win_sys::plain_name(&item.leaf) {
+        return Err(WinMoveError::InvalidName);
+    }
     let want = Want::Movable {
         directory: item.expected.directory,
     };
     let held = win_sys::open_at(&store.dir, name, want).map_err(|error| {
-        if error.kind() == io::ErrorKind::InvalidInput {
-            WinMoveError::InvalidName
-        } else {
-            WinMoveError::NotInStore(WinMismatch::Unreachable {
-                what: "the quarantined item",
-                code: code(&error),
-            })
-        }
+        WinMoveError::NotInStore(WinMismatch::Unreachable {
+            what: "the quarantined item",
+            code: code(&error),
+        })
     })?;
     let facts = win_sys::facts(&held).map_err(|error| {
         WinMoveError::NotInStore(WinMismatch::Unreachable {
