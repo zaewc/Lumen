@@ -202,8 +202,10 @@ pub(crate) fn quarantine(
     let assessment = prepare(db, clock)?;
     #[cfg(target_os = "macos")]
     let verifier = lumen_platform_macos::BulkEnumerator::new();
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(all(unix, not(target_os = "macos")))]
     let verifier = lumen_scan::StdFsEnumerator;
+    #[cfg(windows)]
+    let verifier = lumen_platform_windows::HandleEnumerator;
     index.apply_plan_event(plan, PlanEvent::Start)?;
     let mut all = true;
     let mut moved: u64 = 0;
