@@ -18,6 +18,8 @@ use std::process::ExitCode;
 
 #[cfg(any(unix, windows))]
 mod report;
+#[cfg(any(unix, windows))]
+mod system;
 
 const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]";
 
@@ -88,7 +90,12 @@ fn main() -> ExitCode {
 
 #[cfg(any(unix, windows))]
 fn run(args: &ScanArgs) -> Result<(), Box<dyn Error>> {
-    let report = report::scan(&args.roots, args.db.as_deref())?;
+    let report = report::scan(
+        &args.roots,
+        args.db.as_deref(),
+        &system::SystemClock,
+        &system::UuidV7Ids,
+    )?;
     if args.json {
         println!("{}", serde_json::to_string_pretty(&report.to_json())?);
     } else {

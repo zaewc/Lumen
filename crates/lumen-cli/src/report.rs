@@ -3,14 +3,10 @@
 use std::error::Error;
 use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
 
 use lumen_application::CancelToken;
-use lumen_application::ports::DirEnumerator;
-use lumen_domain::{
-    ByteCount, DenialReason, PathError, RawPath, RootCoverage, ScanId, ScanState, SnapshotId,
-    Timestamp,
-};
+use lumen_application::ports::{Clock, DirEnumerator, IdGenerator};
+use lumen_domain::{ByteCount, DenialReason, PathError, RawPath, RootCoverage, ScanId, ScanState};
 use lumen_scan::{
     CoverageBuilder, ScanConfig, ScanItem, SizeAggregator, StopReason, scan as run_scan,
 };
@@ -73,16 +69,13 @@ fn raw_path(path: &Path) -> Result<RawPath, PathError> {
     RawPath::from_windows_wide(&path.as_os_str().encode_wide().collect::<Vec<_>>())
 }
 
-fn now() -> Result<Timestamp, Box<dyn Error>> {
-    let since = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-    Ok(Timestamp::from_unix(
-        i64::try_from(since.as_secs())?,
-        since.subsec_nanos(),
-    )?)
-}
-
 /// Scans `roots` read-only; with `db`, stores results and a snapshot there.
-pub(crate) fn scan(roots: &[PathBuf], db: Option<&Path>) -> Result<Report, Box<dyn Error>> {
+pub(crate) fn scan(
+    roots: &[PathBuf],
+    db: Option<&Path>,
+    clock: &dyn Clock,
+    ids: &dyn IdGenerator,
+) -> Result<Report, Box<dyn Error>> {
     let raw_roots = roots
         .iter()
         .map(|root| {
@@ -91,8 +84,8 @@ pub(crate) fn scan(roots: &[PathBuf], db: Option<&Path>) -> Result<Report, Box<d
             Ok(raw_path(&std::path::absolute(root)?)?)
         })
         .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
-    let scan_id = ScanId::new(uuid::Uuid::now_v7())?;
-    let started = now()?;
+    let scan_id = ids.scan_id();
+    let started = clock.now();
 
     let writer = match db {
         Some(path) => Some(IndexWriter::start(
@@ -151,7 +144,7 @@ pub(crate) fn scan(roots: &[PathBuf], db: Option<&Path>) -> Result<Report, Box<d
         .collect();
 
     if let Some(writer) = writer {
-        let finished = now()?;
+        let finished = clock.now();
         let state = match (&write_error, summary.stop) {
             (Some(_), _) => ScanState::Failed,
             (None, None) => ScanState::Completed,
@@ -174,7 +167,7 @@ pub(crate) fn scan(roots: &[PathBuf], db: Option<&Path>) -> Result<Report, Box<d
                 complete: r.coverage.is_complete(),
             })
             .collect();
-        store.record_snapshot(SnapshotId::new(uuid::Uuid::now_v7())?, scan_id, &snapshots)?;
+        store.record_snapshot(ids.snapshot_id(), scan_id, &snapshots)?;
     }
 
     Ok(Report {
