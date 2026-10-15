@@ -713,6 +713,7 @@ version = "0.0.0"
 dependencies = [
  "jsonschema",
  "lumen-domain",
+ "lumen-policy",
  "schemars",
  "serde",
  "serde_json",

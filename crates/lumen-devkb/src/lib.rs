@@ -15,9 +15,10 @@
 mod matcher;
 mod validate;
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-use lumen_domain::{Platform, Timestamp};
+use lumen_domain::{Platform, SourceName, Timestamp};
+use lumen_policy::KnowledgeClass;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -150,6 +151,17 @@ pub enum SafetyClass {
     Regenerable,
     /// Cannot be regenerated: `REVIEW` only, never an action.
     NotRegenerable,
+}
+
+impl From<SafetyClass> for KnowledgeClass {
+    fn from(class: SafetyClass) -> Self {
+        match class {
+            SafetyClass::SelfManaged => Self::SelfManaged,
+            SafetyClass::ToolAction => Self::ToolAction,
+            SafetyClass::Regenerable => Self::Regenerable,
+            SafetyClass::NotRegenerable => Self::NotRegenerable,
+        }
+    }
 }
 
 /// What regenerating an artifact costs.
@@ -305,6 +317,17 @@ impl KnowledgeBase {
         self.entries.iter().find(|e| e.id == id)
     }
 
+    /// Every entry's safety class as the policy sees it, by entry ID: the
+    /// `PolicyInput.knowledge` map (roadmap 10.5). Entry IDs are valid source
+    /// names by construction (`[a-z][a-z0-9-]*`), the same names
+    /// `KnowledgeBaseMatch` evidence carries.
+    pub fn knowledge(&self) -> BTreeMap<SourceName, KnowledgeClass> {
+        self.entries
+            .iter()
+            .filter_map(|e| Some((SourceName::new(&e.id).ok()?, e.safety_class.into())))
+            .collect()
+    }
+
     /// Entries verified more than `max_age_days` before `today`, or after it.
     pub fn date_issues(&self, today: Timestamp, max_age_days: i64) -> Vec<(&Entry, DateIssue)> {
         self.entries
@@ -424,5 +447,35 @@ mod tests {
             Some(DateIssue::InFuture)
         );
         Ok(())
+    }
+
+    #[test]
+    fn every_builtin_entry_has_a_policy_class() {
+        let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let knowledge = kb.knowledge();
+        assert_eq!(knowledge.len(), kb.entries().len(), "no entry dropped");
+        for entry in kb.entries() {
+            let name = SourceName::new(&entry.id).unwrap_or_else(|e| unreachable!("{e}"));
+            assert_eq!(knowledge.get(&name), Some(&entry.safety_class.into()));
+        }
+    }
+
+    #[test]
+    fn classes_map_one_to_one() {
+        assert_eq!(
+            [
+                SafetyClass::SelfManaged,
+                SafetyClass::ToolAction,
+                SafetyClass::Regenerable,
+                SafetyClass::NotRegenerable,
+            ]
+            .map(KnowledgeClass::from),
+            [
+                KnowledgeClass::SelfManaged,
+                KnowledgeClass::ToolAction,
+                KnowledgeClass::Regenerable,
+                KnowledgeClass::NotRegenerable,
+            ]
+        );
     }
 }

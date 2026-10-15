@@ -10,6 +10,8 @@ license.workspace = true
 
 [dependencies]
 lumen-domain.workspace = true
+# The policy's view of safety classes (roadmap 10.5); IO-free like this crate.
+lumen-policy.workspace = true
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
