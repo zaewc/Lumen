@@ -27,8 +27,9 @@ pub(crate) fn plan(
     db: &Path,
     clock: &dyn Clock,
     ids: &dyn IdGenerator,
+    judge: &dyn lumen_application::ports::JudgeModel,
 ) -> Result<Planned, Box<dyn Error>> {
-    let chosen: Vec<Assessed> = crate::assess::assess(db, clock)?
+    let chosen: Vec<Assessed> = crate::assess::assess(db, clock, judge)?
         .into_iter()
         .filter(|a| a.decision.verdict() == Verdict::Quarantine)
         .collect();

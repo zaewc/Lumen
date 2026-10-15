@@ -51,6 +51,38 @@ pub(crate) fn set() -> Result<String, Box<dyn Error>> {
     Ok("Stored the OpenRouter API key in the system's secret store. Jev is used only when a run passes --jev.\n".into())
 }
 
+/// The judge for a run that passed `--jev`: Jev with the stored key, after
+/// telling the user what will be sent. Without a stored key the run stops
+/// rather than silently deciding without the judgment the user asked for.
+pub(crate) fn judge() -> Result<lumen_jev::openrouter::JevJudge, Box<dyn Error>> {
+    let secret = store()?
+        .get(SecretName::OPENROUTER_API_KEY)?
+        .ok_or("--jev needs an OpenRouter API key: run `lumen jev key set` first")?;
+    let key = ApiKey::new(secret.expose()).ok_or("the stored OpenRouter API key is not valid")?;
+    eprintln!(
+        "Jev: for each candidate the policy does not keep, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to TypeSafe's Jev through OpenRouter with your key. Jev can only make a decision more cautious."
+    );
+    Ok(lumen_jev::openrouter::JevJudge::new(key)?)
+}
+
+/// Records every Jev consultation of `assessed` in the ledger next to `db`.
+pub(crate) fn record_traces(
+    db: &std::path::Path,
+    assessed: &[lumen_application::assess::Assessed],
+) -> Result<(), Box<dyn Error>> {
+    let traces: Vec<_> = assessed.iter().filter_map(|a| a.trace.as_ref()).collect();
+    if traces.is_empty() {
+        return Ok(());
+    }
+    let mut ledger = lumen_store_sqlite::LedgerStore::new(lumen_store_sqlite::open_ledger(
+        &db.with_file_name("ledger.db"),
+    )?);
+    for trace in traces {
+        ledger.append_jev_trace(trace)?;
+    }
+    Ok(())
+}
+
 /// Removes the stored key.
 pub(crate) fn clear() -> Result<String, Box<dyn Error>> {
     Ok(if store()?.delete(SecretName::OPENROUTER_API_KEY)? {

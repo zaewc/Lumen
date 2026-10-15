@@ -20,7 +20,7 @@ use std::thread::{self, Thread};
 use lumen_application::assess::{Assessed, Probes, Sources, decide_candidate, select};
 use lumen_application::collect::{Inventory, summarize};
 use lumen_application::gather::gather;
-use lumen_application::ports::{Clock, InUseProbe, InventoryReport, NoopJudge, OwnershipProbe};
+use lumen_application::ports::{Clock, InUseProbe, InventoryReport, OwnershipProbe};
 use lumen_devkb::{Environment, KnowledgeBase};
 use lumen_domain::{
     ByteCount, CleanupMechanism, Evidence, Platform, PlatformCapabilities, RawPath, Relationship,
@@ -215,6 +215,8 @@ pub(crate) struct Assessment {
     pub context: Context,
     /// Knowledge-base classes.
     pub knowledge: std::collections::BTreeMap<SourceName, lumen_policy::KnowledgeClass>,
+    /// Whether every inventory source was read completely (for Jev's notes).
+    pub inventories_complete: bool,
 }
 
 impl Assessment {
@@ -246,6 +248,11 @@ pub(crate) fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, Box<dy
     let home = home();
     let contributions = platform_contributions(&entries, home.as_ref(), now);
     let inventory: Inventory = summarize(&contributions.reports);
+    let inventories_complete = !contributions.reports.is_empty()
+        && contributions
+            .reports
+            .iter()
+            .all(|r| r.status == lumen_domain::SourceStatus::Complete);
     let kb = KnowledgeBase::builtin()?;
     let env = Environment {
         platform,
@@ -286,25 +293,85 @@ pub(crate) fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, Box<dy
         graph,
         context,
         knowledge: kb.knowledge(),
+        inventories_complete,
     })
 }
 
-/// Assesses the latest completed scan in `db`.
-pub(crate) fn assess(db: &Path, clock: &dyn Clock) -> Result<Vec<Assessed>, Box<dyn Error>> {
+/// What kind of item the evidence says `input`'s subject is, for Jev.
+fn category(input: &lumen_policy::PolicyInput) -> lumen_domain::Category {
+    use lumen_domain::{AppDataKind, Category, Fact};
+    let about = || {
+        input
+            .evidence
+            .iter()
+            .filter(|e| e.subject == input.subject)
+            .map(|e| &e.fact)
+    };
+    if about().any(|f| matches!(f, Fact::KnowledgeBaseMatch { .. })) {
+        Category::DeveloperCache
+    } else if about().any(|f| {
+        matches!(
+            f,
+            Fact::VendorDeclaredCache { .. }
+                | Fact::AppDataLocation {
+                    kind: AppDataKind::Caches
+                }
+        )
+    }) {
+        Category::AppCache
+    } else {
+        Category::Other
+    }
+}
+
+/// The Jev request for `input`: metadata only (ADR-0020), built by
+/// `lumen-jev`. `None` if it cannot be built; the policy then decides alone.
+fn jev_request(
+    input: &lumen_policy::PolicyInput,
+    item: u32,
+    inventories_complete: bool,
+    now: lumen_domain::Timestamp,
+) -> Option<lumen_domain::JevRequest> {
+    let observed = input.observed.as_ref()?;
+    let candidate = lumen_jev::request::Candidate {
+        item_ref: lumen_domain::ItemRef::new(format!("item-{item}")).ok()?,
+        subject: &input.subject,
+        category: category(input),
+        path: input.paths.first(),
+        size: &observed.reclaim,
+        observed_completely: observed.complete,
+        inventories_complete,
+        evidence: &input.evidence,
+    };
+    let env = lumen_jev::request::Environment {
+        home: input.context.home.as_ref(),
+        now,
+    };
+    lumen_jev::request::build(&candidate, env).ok()
+}
+
+/// Assesses the latest completed scan in `db`, consulting `judge` when it is
+/// configured (a `NoopJudge` never is).
+pub(crate) fn assess(
+    db: &Path,
+    clock: &dyn Clock,
+    judge: &dyn lumen_application::ports::JudgeModel,
+) -> Result<Vec<Assessed>, Box<dyn Error>> {
     let assessment = prepare(db, clock)?;
     let sources = assessment.sources();
     let candidates = select(&assessment.gathered, &assessment.entries);
+    let counter = std::cell::Cell::new(0_u32);
+    let now = clock.now();
+    let request = |input: &lumen_policy::PolicyInput| {
+        counter.set(counter.get().saturating_add(1));
+        jev_request(input, counter.get(), assessment.inventories_complete, now)
+    };
     with_probes(|probes| {
         candidates
             .into_iter()
             .filter_map(|candidate| {
                 block_on(decide_candidate(
-                    candidate,
-                    &sources,
-                    probes,
-                    &NoopJudge,
-                    clock,
-                    &|_| None,
+                    candidate, &sources, probes, judge, clock, &request,
                 ))
                 .ok()
             })
@@ -367,4 +434,104 @@ pub(crate) fn to_json(assessed: &[Assessed]) -> Value {
             "reasons": item.reasons,
         })).collect::<Vec<_>>(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::num::NonZeroU32;
+
+    use lumen_domain::{
+        AccessState, AppDataKind, Basis, ByteCount, Category, EntryKind, EntryTimes, EvidenceHash,
+        Fact, FileId, FileIdentity, FilesystemEntry, Protection, Provenance, ReclaimEstimate,
+        SizeFacts, SizeFlags, Subject, Timestamp, VolumeId,
+    };
+    use lumen_policy::{Observed, PolicyInput};
+
+    use super::*;
+
+    fn input(facts: &[Fact]) -> PolicyInput {
+        let identity = FileIdentity {
+            volume: VolumeId::new("v").unwrap_or_else(|e| unreachable!("{e}")),
+            file: FileId::new(1),
+        };
+        let subject = Subject::File {
+            identity: identity.clone(),
+        };
+        let size = SizeFacts {
+            identity,
+            logical: ByteCount::new(4096),
+            allocated: ByteCount::new(4096),
+            private: None,
+            clone_id: None,
+            link_count: NonZeroU32::MIN,
+            flags: SizeFlags::default(),
+        };
+        let path = RawPath::from_unix_bytes(b"/Users/ana/Library/Caches/x".to_vec())
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        PolicyInput {
+            subject: subject.clone(),
+            evidence_hash: EvidenceHash::from_bytes([1; 32]),
+            evidence: facts
+                .iter()
+                .map(|fact| Evidence {
+                    subject: subject.clone(),
+                    fact: fact.clone(),
+                    basis: Basis::Observed,
+                    provenance: Provenance {
+                        source: SourceName::new("test").unwrap_or_else(|e| unreachable!("{e}")),
+                        observed_at: Timestamp::UNIX_EPOCH,
+                    },
+                })
+                .collect(),
+            paths: vec![path.clone()],
+            context: Context {
+                platform: Platform::Macos,
+                home: RawPath::from_unix_bytes(b"/Users/ana".to_vec()).ok(),
+                windows_dir: None,
+                local_app_data: None,
+                mechanisms: BTreeSet::new(),
+                complete_sources: BTreeSet::new(),
+            },
+            observed: Some(Observed {
+                entry: FilesystemEntry {
+                    path,
+                    kind: EntryKind::Directory,
+                    size: size.clone(),
+                    times: EntryTimes::default(),
+                    protection: Protection::default(),
+                    access: AccessState::Readable,
+                },
+                complete: true,
+                reclaim: ReclaimEstimate::for_selection([&size]),
+            }),
+            knowledge: std::collections::BTreeMap::new(),
+            jev: None,
+        }
+    }
+
+    #[test]
+    fn the_category_follows_the_evidence() {
+        let kb = Fact::KnowledgeBaseMatch {
+            entry: SourceName::new("npm-cache").unwrap_or_else(|e| unreachable!("{e}")),
+        };
+        let caches = Fact::AppDataLocation {
+            kind: AppDataKind::Caches,
+        };
+        assert_eq!(category(&input(&[kb])), Category::DeveloperCache);
+        assert_eq!(category(&input(&[caches])), Category::AppCache);
+        assert_eq!(
+            category(&input(&[Fact::CloudBacked(false)])),
+            Category::Other
+        );
+    }
+
+    #[test]
+    fn a_request_is_built_from_metadata_only_when_observed() {
+        let with = input(&[Fact::CloudBacked(false)]);
+        let request = jev_request(&with, 1, true, Timestamp::UNIX_EPOCH);
+        assert!(request.is_some(), "an observed candidate gets a request");
+        let mut unobserved = with;
+        unobserved.observed = None;
+        assert!(jev_request(&unobserved, 2, true, Timestamp::UNIX_EPOCH).is_none());
+    }
 }

@@ -64,13 +64,15 @@ struct ScanArgs {
 struct AssessArgs {
     db: PathBuf,
     json: bool,
+    /// Consult Jev for this run (explicit consent, roadmap 10.17b).
+    jev: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
     Scan(ScanArgs),
     Assess(AssessArgs),
-    Plan(PathBuf),
+    Plan(PlanArgs),
     Quarantine(QuarantineArgs),
     List(PathBuf),
     Restore(OpArgs),
@@ -143,20 +145,34 @@ fn parse_quarantine(args: &[String]) -> Result<Command, String> {
 }
 
 fn parse_plan(args: &[String]) -> Result<Command, String> {
-    match args {
-        [flag, path] if flag == "--db" => Ok(Command::Plan(PathBuf::from(path))),
-        [flag] if flag == "-h" || flag == "--help" => Ok(Command::Help),
-        _ => Err("plan needs exactly --db <FILE>".into()),
-    }
+    let (db, jev) = match args {
+        [flag, path] if flag == "--db" => (path, false),
+        [flag, path, j] | [j, flag, path] if flag == "--db" && j == "--jev" => (path, true),
+        [flag] if flag == "-h" || flag == "--help" => return Ok(Command::Help),
+        _ => return Err("plan needs --db <FILE> [--jev]".into()),
+    };
+    Ok(Command::Plan(PlanArgs {
+        db: PathBuf::from(db),
+        jev,
+    }))
+}
+
+/// Parsed `plan` arguments.
+#[derive(Debug, PartialEq, Eq)]
+struct PlanArgs {
+    db: PathBuf,
+    jev: bool,
 }
 
 fn parse_assess(args: &[String]) -> Result<Command, String> {
     let mut iter = args.iter();
     let mut db = None;
     let mut json = false;
+    let mut jev = false;
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--json" => json = true,
+            "--jev" => jev = true,
             "--db" => {
                 let path = iter.next().ok_or("--db needs a file path")?;
                 if db.replace(PathBuf::from(path)).is_some() {
@@ -168,7 +184,7 @@ fn parse_assess(args: &[String]) -> Result<Command, String> {
         }
     }
     let db = db.ok_or("assess needs --db <FILE>")?;
-    Ok(Command::Assess(AssessArgs { db, json }))
+    Ok(Command::Assess(AssessArgs { db, json, jev }))
 }
 
 fn parse(args: &[String]) -> Result<Command, String> {
@@ -252,7 +268,7 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
-        Ok(Command::Plan(db)) => match run_plan(&db) {
+        Ok(Command::Plan(args)) => match run_plan(&args) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e}");
@@ -294,9 +310,31 @@ fn run(_args: &ScanArgs) -> Result<(), Box<dyn Error>> {
     Err("scanning is not supported on this platform".into())
 }
 
+/// Runs `with` with Jev when `jev` was asked for, and records its traces.
+#[cfg(any(unix, windows))]
+fn with_judge<T>(
+    jev_wanted: bool,
+    db: &std::path::Path,
+    with: impl FnOnce(&dyn lumen_application::ports::JudgeModel) -> Result<T, Box<dyn Error>>,
+    traces: impl Fn(&T) -> &[lumen_application::assess::Assessed],
+) -> Result<T, Box<dyn Error>> {
+    if !jev_wanted {
+        return with(&lumen_application::ports::NoopJudge);
+    }
+    let judge = jev::judge()?;
+    let result = with(&judge)?;
+    jev::record_traces(db, traces(&result))?;
+    Ok(result)
+}
+
 #[cfg(any(unix, windows))]
 fn run_assess(args: &AssessArgs) -> Result<(), Box<dyn Error>> {
-    let assessed = assess::assess(&args.db, &system::SystemClock)?;
+    let assessed = with_judge(
+        args.jev,
+        &args.db,
+        |judge| assess::assess(&args.db, &system::SystemClock, judge),
+        Vec::as_slice,
+    )?;
     if args.json {
         println!(
             "{}",
@@ -314,9 +352,14 @@ fn run_assess(_args: &AssessArgs) -> Result<(), Box<dyn Error>> {
 }
 
 #[cfg(any(unix, windows))]
-fn run_plan(db: &std::path::Path) -> Result<(), Box<dyn Error>> {
-    let planned = plan::plan(db, &system::SystemClock, &system::UuidV7Ids)?;
-    print!("{}", plan::to_text(&planned, db));
+fn run_plan(args: &PlanArgs) -> Result<(), Box<dyn Error>> {
+    let planned = with_judge(
+        args.jev,
+        &args.db,
+        |judge| plan::plan(&args.db, &system::SystemClock, &system::UuidV7Ids, judge),
+        |planned| planned.items.as_slice(),
+    )?;
+    print!("{}", plan::to_text(&planned, &args.db));
     Ok(())
 }
 
@@ -410,7 +453,7 @@ fn run_quarantine(_args: &QuarantineArgs) -> Result<(), Box<dyn Error>> {
 }
 
 #[cfg(not(any(unix, windows)))]
-fn run_plan(_db: &std::path::Path) -> Result<(), Box<dyn Error>> {
+fn run_plan(_args: &PlanArgs) -> Result<(), Box<dyn Error>> {
     Err("planning is not supported on this platform".into())
 }
 
@@ -441,12 +484,16 @@ mod tests {
             Ok(Command::Assess(AssessArgs {
                 db: "x.db".into(),
                 json: true,
+                jev: false,
             }))
         );
         assert!(parse(&args(&["assess"])).is_err(), "needs --db");
         assert_eq!(
             parse(&args(&["plan", "--db", "x.db"])),
-            Ok(Command::Plan("x.db".into()))
+            Ok(Command::Plan(PlanArgs {
+                db: "x.db".into(),
+                jev: false,
+            }))
         );
         assert!(parse(&args(&["plan"])).is_err());
         assert!(
@@ -519,6 +566,21 @@ mod tests {
             parse(&args(&["finalize", "--db", "x.db", "--all"])).is_err(),
             "no bulk removal"
         );
+    }
+
+    #[test]
+    fn jev_is_asked_for_per_run() {
+        assert_eq!(
+            parse(&args(&["plan", "--db", "x.db", "--jev"])),
+            Ok(Command::Plan(PlanArgs {
+                db: "x.db".into(),
+                jev: true,
+            }))
+        );
+        assert!(matches!(
+            parse(&args(&["assess", "--jev", "--db", "x.db"])),
+            Ok(Command::Assess(AssessArgs { jev: true, .. }))
+        ));
     }
 
     #[test]
