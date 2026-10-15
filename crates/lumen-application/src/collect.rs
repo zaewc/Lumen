@@ -8,6 +8,11 @@
 //!   (`Fact::CloudBacked`), where removal could propagate to the cloud;
 //! - its modification and access times, when the platform reported them.
 //!
+//! Installed applications come from inventory sources: [`summarize`] records
+//! which were read completely and what they found, and
+//! [`application_evidence`] states whether the applications that evidence
+//! names as owners are installed (roadmap 10.3).
+//!
 //! Ownership is not in scanned entries; [`ownership_evidence`] states what an
 //! `OwnershipProbe` established when the item is assessed (roadmap 10.2b).
 //!
@@ -15,10 +20,14 @@
 //! metadata was not read (or a directory whose listing was not) yields nothing:
 //! unknown is never stated as "unprotected" or "local" (ADR-0008).
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use lumen_domain::{
-    Basis, Evidence, Fact, FileIdentity, FilesystemEntry, Provenance, SourceName, Subject,
-    Timestamp,
+    AppId, Basis, Evidence, Fact, FileIdentity, FilesystemEntry, Provenance, SourceName,
+    SourceStatus, Subject, Timestamp,
 };
+
+use crate::ports::InventoryReport;
 
 /// The source named in the provenance of scan-derived facts.
 pub const SCAN_SOURCE: &str = "lumen.scan";
@@ -71,6 +80,85 @@ pub fn ownership_evidence(
             observed_at,
         },
     })
+}
+
+/// The source named in the provenance of inventory conclusions.
+pub const INVENTORY_SOURCE: &str = "lumen.inventory";
+
+/// What a set of inventory reports establishes (roadmap 10.3).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Inventory {
+    /// Sources read completely; only their silence counts as absence, and they
+    /// become `Context.complete_sources`.
+    pub complete_sources: BTreeSet<SourceName>,
+    /// Every identifier of every application any source found, with a source
+    /// that reported it.
+    pub found: BTreeMap<AppId, SourceName>,
+}
+
+/// Summarizes `reports`.
+pub fn summarize(reports: &[InventoryReport]) -> Inventory {
+    let mut inventory = Inventory::default();
+    for report in reports {
+        if report.status == SourceStatus::Complete {
+            inventory.complete_sources.insert(report.source.clone());
+        }
+        for app in &report.applications {
+            for id in &app.ids {
+                inventory
+                    .found
+                    .entry(id.clone())
+                    .or_insert_with(|| report.source.clone());
+            }
+        }
+    }
+    inventory
+}
+
+/// Whether each application in `apps` is installed, as `inventory` shows.
+///
+/// A found application is present (observed by the source that reported it).
+/// One no source found is absent only as far as complete sources were
+/// searched (`Basis::Absence`); with no complete source nothing is stated,
+/// because silence from a partial or unavailable source proves nothing
+/// (ADR-0008).
+pub fn application_evidence<'a>(
+    apps: impl IntoIterator<Item = &'a AppId>,
+    inventory: &Inventory,
+    observed_at: Timestamp,
+) -> Vec<Evidence> {
+    let Ok(conclusion) = SourceName::new(INVENTORY_SOURCE) else {
+        return Vec::new();
+    };
+    let wanted: BTreeSet<&AppId> = apps.into_iter().collect();
+    wanted
+        .into_iter()
+        .filter_map(|app| {
+            let (present, basis, source) = match inventory.found.get(app) {
+                Some(source) => (true, Basis::Observed, source.clone()),
+                None if !inventory.complete_sources.is_empty() => (
+                    false,
+                    Basis::Absence {
+                        searched: inventory.complete_sources.clone(),
+                    },
+                    conclusion.clone(),
+                ),
+                None => return None,
+            };
+            Some(Evidence {
+                subject: Subject::Application { id: app.clone() },
+                fact: Fact::ApplicationPresent {
+                    app: app.clone(),
+                    present,
+                },
+                basis,
+                provenance: Provenance {
+                    source,
+                    observed_at,
+                },
+            })
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -160,6 +248,96 @@ mod tests {
         let mine = ownership_evidence(&identity, Some(true), &source, at(1));
         assert_eq!(mine.map(|e| e.fact), Some(Fact::OwnedByCurrentUser(true)));
         assert_eq!(ownership_evidence(&identity, None, &source, at(1)), None);
+    }
+
+    fn app_id(value: &str) -> AppId {
+        AppId {
+            scheme: lumen_domain::AppIdScheme::BundleId,
+            value: lumen_domain::UntrustedText::new(value),
+        }
+    }
+
+    fn report(source: &str, status: SourceStatus, apps: &[&str]) -> InventoryReport {
+        InventoryReport {
+            source: SourceName::new(source).unwrap_or_else(|_| unreachable!()),
+            status,
+            applications: apps
+                .iter()
+                .map(|id| lumen_domain::Application {
+                    ids: BTreeSet::from([app_id(id)]),
+                    name: None,
+                    version: None,
+                    vendor: None,
+                    signature: None,
+                    install_locations: Vec::new(),
+                    sources: BTreeSet::new(),
+                })
+                .collect(),
+            services: Vec::new(),
+            packages: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn found_apps_are_present_and_missing_ones_absent_only_from_complete_sources() {
+        let inventory = summarize(&[
+            report(
+                "macos.applications",
+                SourceStatus::Complete,
+                &["com.example.kept"],
+            ),
+            report(
+                "macos.launchd-plists",
+                SourceStatus::Partial,
+                &["com.example.agent"],
+            ),
+        ]);
+        assert_eq!(
+            inventory.complete_sources,
+            BTreeSet::from([
+                SourceName::new("macos.applications").unwrap_or_else(|_| unreachable!())
+            ])
+        );
+        let (kept, agent, gone) = (
+            app_id("com.example.kept"),
+            app_id("com.example.agent"),
+            app_id("com.example.gone"),
+        );
+        let evidence = application_evidence([&kept, &agent, &gone], &inventory, at(1));
+        let by_app: BTreeMap<&AppId, &Evidence> = evidence
+            .iter()
+            .filter_map(|e| match &e.fact {
+                Fact::ApplicationPresent { app, .. } => Some((app, e)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(by_app.len(), 3);
+        assert_eq!(by_app[&kept].basis, Basis::Observed);
+        assert_eq!(
+            by_app[&agent].provenance.source.as_str(),
+            "macos.launchd-plists",
+            "found by a partial source still counts as present"
+        );
+        assert_eq!(
+            by_app[&gone].fact,
+            Fact::ApplicationPresent {
+                app: gone.clone(),
+                present: false
+            }
+        );
+        assert_eq!(
+            by_app[&gone].basis,
+            Basis::Absence {
+                searched: inventory.complete_sources.clone()
+            }
+        );
+    }
+
+    #[test]
+    fn without_a_complete_source_absence_is_never_stated() {
+        let inventory = summarize(&[report("macos.applications", SourceStatus::Unavailable, &[])]);
+        let gone = app_id("com.example.gone");
+        assert_eq!(application_evidence([&gone], &inventory, at(1)), []);
     }
 
     #[test]
