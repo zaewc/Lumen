@@ -180,6 +180,23 @@ mod tests {
     }
 
     #[test]
+    fn a_created_directory_reports_the_private_descriptor() {
+        let (_fx, _root, base, _volume) = setup();
+        let user = win_sys::current_user_sid().unwrap_or_else(|e| unreachable!("{e}"));
+        let mut path = base.clone();
+        path.push(0);
+        let parent = win_sys::open_root(&path).unwrap_or_else(|e| unreachable!("{e}"));
+        let created = win_sys::create_dir_at(&parent, &wide("Probe"), &private_sddl(&user))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        let actual = win_sys::owner_and_dacl(&created).unwrap_or_else(|e| unreachable!("{e}"));
+        assert!(
+            is_private(&actual, &user),
+            "expected {}, Windows reports {actual}",
+            private_sddl(&user)
+        );
+    }
+
+    #[test]
     fn a_widened_dacl_is_refused_not_repaired() {
         let (_fx, root, base, volume) = setup();
         let name = wide("Quarantine");
