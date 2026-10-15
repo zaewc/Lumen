@@ -16,7 +16,9 @@
 use std::io;
 use std::ops::ControlFlow;
 
-use lumen_application::ports::{CandidateVerifier, DirEnumerator, DirOutcome, EnumerateError};
+use lumen_application::ports::{
+    CandidateVerifier, DirEnumerator, DirOutcome, EnumerateError, OwnershipProbe,
+};
 use lumen_domain::{
     AccessState, DenialReason, EntryKind, FailureKind, FileId, FileIdentity, FilesystemEntry,
     PathFlavor, RawPath, VolumeId,
@@ -168,6 +170,24 @@ impl CandidateVerifier for HandleEnumerator {
     }
 }
 
+impl OwnershipProbe for HandleEnumerator {
+    /// Opens the object as itself (never a link target), checks it is still the
+    /// scanned object, and compares its owner SID with the process token's
+    /// user (roadmap 10.2c). Anything unestablished is `None`.
+    fn owned_by_current_user(&self, path: &RawPath, expected: &FileIdentity) -> Option<bool> {
+        let wide = windows_path(path).ok()?;
+        let _guard = PlaceholdersExposed::enter().ok()?;
+        let handle = sys::open(&wide, Access::Owner).ok()?;
+        let (volume, record) = describe(&handle).ok()?;
+        let identity = FileIdentity {
+            volume,
+            file: FileId::new(record.file_id),
+        };
+        check_identity(path, &identity, Some(expected)).ok()?;
+        sys::owned_by_current_user(&handle).ok()
+    }
+}
+
 impl HandleEnumerator {
     /// The directory could not be opened for listing. Tells a missing, swapped or
     /// non-directory object (errors) from a directory whose contents are refused
@@ -289,6 +309,34 @@ mod tests {
             .next()
             .unwrap_or_default()
             .to_owned()
+    }
+
+    #[test]
+    fn ownership_is_known_for_observed_objects_and_never_guessed() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("mine.txt");
+        std::fs::write(&file, b"x")?;
+        let path = raw(&file)?;
+        let entry = HandleEnumerator.stat(&path)?;
+        // Under an elevated token new files belong to Administrators, so only
+        // that the answer is known is asserted for a file the test made.
+        assert!(
+            HandleEnumerator
+                .owned_by_current_user(&path, entry.identity())
+                .is_some()
+        );
+        // System files belong to TrustedInstaller, never to the user.
+        let system = raw(Path::new(r"C:\Windows\System32\kernel32.dll"))?;
+        let system_entry = HandleEnumerator.stat(&system)?;
+        assert_eq!(
+            HandleEnumerator.owned_by_current_user(&system, system_entry.identity()),
+            Some(false)
+        );
+        // A replaced object is never attributed.
+        let mut other = entry.identity().clone();
+        other.file = FileId::new(other.file.get() ^ 1);
+        assert_eq!(HandleEnumerator.owned_by_current_user(&path, &other), None);
+        Ok(())
     }
 
     #[test]

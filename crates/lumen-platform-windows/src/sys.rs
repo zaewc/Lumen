@@ -16,7 +16,12 @@ use std::mem::{MaybeUninit, size_of};
 
 use windows_sys::Wdk::Storage::FileSystem::RtlSetThreadPlaceholderCompatibilityMode;
 use windows_sys::Win32::Foundation::{
-    CloseHandle, ERROR_NO_MORE_FILES, HANDLE, INVALID_HANDLE_VALUE, WAIT_TIMEOUT,
+    CloseHandle, ERROR_NO_MORE_FILES, HANDLE, INVALID_HANDLE_VALUE, LocalFree, WAIT_TIMEOUT,
+};
+use windows_sys::Win32::Security::Authorization::{GetSecurityInfo, SE_FILE_OBJECT};
+use windows_sys::Win32::Security::{
+    EqualSid, GetTokenInformation, OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID,
+    TOKEN_QUERY, TOKEN_USER, TokenUser,
 };
 use windows_sys::Win32::Storage::FileSystem::{
     CreateFileW, FILE_ATTRIBUTE_TAG_INFO, FILE_BASIC_INFO, FILE_COMPRESSION_INFO,
@@ -27,11 +32,12 @@ use windows_sys::Win32::Storage::FileSystem::{
     FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO,
     FileAttributeTagInfo, FileBasicInfo, FileCompressionInfo, FileIdExtdDirectoryInfo, FileIdInfo,
     FileStandardInfo, GetFileInformationByHandleEx, GetVolumeInformationByHandleW, OPEN_EXISTING,
-    ReadDirectoryChangesW, SYNCHRONIZE,
+    READ_CONTROL, ReadDirectoryChangesW, SYNCHRONIZE,
 };
 use windows_sys::Win32::System::IO::{
     CancelIoEx, GetOverlappedResult, GetOverlappedResultEx, OVERLAPPED,
 };
+use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
 use crate::winpath::{nul_terminated, verbatim};
 
@@ -65,6 +71,8 @@ pub(crate) enum Access {
     Attributes,
     /// Watch a directory for changes (overlapped I/O).
     Watch,
+    /// Read the object's attributes and owner.
+    Owner,
 }
 
 /// Opens the object at `path` itself (never a link target).
@@ -78,6 +86,7 @@ pub(crate) fn open(path: &[u16], access: Access) -> io::Result<Handle> {
     let (rights, overlapped) = match access {
         Access::List => (FILE_LIST_DIRECTORY | SYNCHRONIZE, 0),
         Access::Attributes => (FILE_READ_ATTRIBUTES | SYNCHRONIZE, 0),
+        Access::Owner => (FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE, 0),
         Access::Watch => (FILE_LIST_DIRECTORY, FILE_FLAG_OVERLAPPED),
     };
     // SAFETY: invariant: `path` is a NUL-terminated UTF-16 string that outlives
@@ -448,6 +457,96 @@ impl Drop for PlaceholdersExposed {
             // The thread keeps placeholders exposed: the safe direction.
         }
     }
+}
+
+/// Memory a system call allocated with `LocalAlloc`, freed on drop.
+struct LocalMemory(*mut core::ffi::c_void);
+
+impl Drop for LocalMemory {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            // SAFETY: invariant: the pointer came from a call documented to
+            // allocate it with `LocalAlloc`, and nothing else frees it. Why
+            // unsafe: FFI call. Why it holds: `LocalMemory` is only built from
+            // such out-parameters, once each.
+            let _previous = unsafe { LocalFree(self.0) };
+        }
+    }
+}
+
+/// Whether the owner of `handle`'s object (opened with [`Access::Owner`]) is
+/// the user of this process's token. An object owned by a group (for example
+/// Administrators, the default owner under an elevated token) is not.
+pub(crate) fn owned_by_current_user(handle: &Handle) -> io::Result<bool> {
+    let mut owner: PSID = std::ptr::null_mut();
+    let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
+    // SAFETY: invariant: the handle is open with `READ_CONTROL` and the
+    // out-pointers are writable; unrequested parts are null. Why unsafe: FFI
+    // call. Why it holds: `handle` is a live `Handle` and the out-pointers are
+    // locals; `owner` points into `descriptor`, which is kept alive below.
+    let error = unsafe {
+        GetSecurityInfo(
+            handle.0,
+            SE_FILE_OBJECT,
+            OWNER_SECURITY_INFORMATION,
+            &raw mut owner,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &raw mut descriptor,
+        )
+    };
+    if error != 0 {
+        return Err(io::Error::from_raw_os_error(
+            i32::try_from(error).unwrap_or(i32::MAX),
+        ));
+    }
+    let descriptor = LocalMemory(descriptor);
+    let mut token: HANDLE = std::ptr::null_mut();
+    // SAFETY: invariant: the out-pointer is writable. Why unsafe: FFI call.
+    // Why it holds: `token` is a local; the process pseudo-handle needs no
+    // closing.
+    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &raw mut token) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let token = Handle(token);
+    let mut needed = 0_u32;
+    // SAFETY: invariant: a null buffer of length 0 only asks for the size.
+    // Why unsafe: FFI call. Why it holds: the API allows it and writes only
+    // `needed`.
+    let _sizing = unsafe {
+        GetTokenInformation(token.0, TokenUser, std::ptr::null_mut(), 0, &raw mut needed)
+    };
+    let words = usize::try_from(needed)
+        .map_err(io::Error::other)?
+        .div_ceil(8);
+    let mut buffer = vec![0_u64; words.max(1)];
+    let length = u32::try_from(buffer.len() * 8).map_err(io::Error::other)?;
+    // SAFETY: invariant: the system writes at most `length` bytes into
+    // `buffer`. Why unsafe: FFI call writing through a raw pointer. Why it
+    // holds: `buffer` is `length` bytes, 8-byte aligned for `TOKEN_USER`.
+    let ok = unsafe {
+        GetTokenInformation(
+            token.0,
+            TokenUser,
+            buffer.as_mut_ptr().cast(),
+            length,
+            &raw mut needed,
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: invariant: the buffer starts with a `TOKEN_USER`. Why unsafe:
+    // reading a struct through a cast pointer. Why it holds: the call above
+    // succeeded with `TokenUser` and the buffer is aligned for it.
+    let user = unsafe { buffer.as_ptr().cast::<TOKEN_USER>().read() };
+    // SAFETY: invariant: both SIDs are valid. Why unsafe: FFI call. Why it
+    // holds: `owner` points into `descriptor` and `user.User.Sid` into
+    // `buffer`, both alive here.
+    let equal = unsafe { EqualSid(owner, user.User.Sid) } != 0;
+    drop(descriptor);
+    Ok(equal)
 }
 
 #[cfg(test)]

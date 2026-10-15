@@ -18,12 +18,14 @@ windows-sys = { workspace = true, features = [
   "Wdk_Storage_FileSystem",
   "Win32_Foundation",
   "Win32_Security",
+  "Win32_Security_Authorization",
   "Win32_Security_Credentials",
   "Win32_Storage_FileSystem",
   "Win32_System_IO",
   "Win32_System_Registry",
   "Win32_System_RestartManager",
   "Win32_System_Services",
+  "Win32_System_Threading",
 ] }
 
 [dev-dependencies]
