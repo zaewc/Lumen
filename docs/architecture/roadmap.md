@@ -261,6 +261,7 @@ test that forbids them today changes in the same PR.
 | 10.16 | `test(cli): run the lifecycle end to end` | covered on macOS by the 10.15b CLI test (scan → plan → quarantine → list → restore → re-plan → quarantine → finalize). Linux gains an in-use probe on `/proc` (open descriptors, working directory, executable and mapped files; other users' processes count as unseen) |
 | 10.17a | `feat(cli): manage the Jev API key` | `lumen jev key set/clear/status`: the key read from standard input, checked, kept in the macOS keychain or Windows Credential Manager, never printed |
 | 10.17b | `feat(cli): consult Jev on request` | `--jev` per run on `assess`/`plan`: a notice of what is sent, the request built from each candidate's metadata only, traces in the ledger |
+| 10.18 | `feat(cli): quarantine, list, restore and finalize on Windows` | the same commands through the Windows executor; store in `%LOCALAPPDATA%\Lumen\Quarantine` (ADR-0015 amended), so items on other volumes stay in place; an elevated token is refused (ADR-0005) |
 
 Windows end to end follows the same items with the Windows adapters, then Android
 (performance spike first) and iOS.

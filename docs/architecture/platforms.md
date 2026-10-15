@@ -155,7 +155,9 @@ Lumen never calls `RmShutdown`.
 **Quarantine:**
 
 - `SetFileInformationByHandle(FileRenameInfoEx)` on the verified handle into
-  `X:\$LumenQuarantine\<UserSID>\` with an owner-only DACL.
+  `%LOCALAPPDATA%\Lumen\Quarantine\` on the profile's volume, or
+  `X:\$LumenQuarantine\<UserSID>\` on other volumes (later), with an owner-only DACL.
+- The command line refuses to run elevated (ADR-0005).
 - Manifests are kept in the database and as sidecar files.
 - Recycle Bin release is optional; Storage Sense may purge it, so the UI does not call
   it recoverable.

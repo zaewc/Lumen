@@ -21,7 +21,7 @@ use windows_sys::Win32::Foundation::{
 use windows_sys::Win32::Security::Authorization::{GetSecurityInfo, SE_FILE_OBJECT};
 use windows_sys::Win32::Security::{
     EqualSid, GetTokenInformation, OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID,
-    TOKEN_QUERY, TOKEN_USER, TokenUser,
+    TOKEN_ELEVATION, TOKEN_QUERY, TOKEN_USER, TokenElevation, TokenUser,
 };
 use windows_sys::Win32::Storage::FileSystem::{
     CreateFileW, FILE_ATTRIBUTE_TAG_INFO, FILE_BASIC_INFO, FILE_COMPRESSION_INFO,
@@ -549,6 +549,39 @@ pub(crate) fn owned_by_current_user(handle: &Handle) -> io::Result<bool> {
     Ok(equal)
 }
 
+/// Whether this process runs with an elevated token (ADR-0005): the
+/// command line acts only as the user, never as an administrator.
+pub(crate) fn process_is_elevated() -> io::Result<bool> {
+    let mut token: HANDLE = std::ptr::null_mut();
+    // SAFETY: invariant: the out-pointer is writable. Why unsafe: FFI call.
+    // Why it holds: `token` is a local; the process pseudo-handle needs no
+    // closing.
+    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &raw mut token) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let token = Handle(token);
+    let mut elevation = TOKEN_ELEVATION { TokenIsElevated: 0 };
+    let length = u32::try_from(size_of::<TOKEN_ELEVATION>()).map_err(io::Error::other)?;
+    let mut written = 0_u32;
+    // SAFETY: invariant: the system writes at most `length` bytes into
+    // `elevation`. Why unsafe: FFI call writing through a raw pointer. Why it
+    // holds: `elevation` is a `TOKEN_ELEVATION` of exactly `length` bytes, the
+    // structure `TokenElevation` returns.
+    let ok = unsafe {
+        GetTokenInformation(
+            token.0,
+            TokenElevation,
+            (&raw mut elevation).cast(),
+            length,
+            &raw mut written,
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(elevation.TokenIsElevated != 0)
+}
+
 #[cfg(test)]
 mod tests {
     use std::mem::offset_of;
@@ -560,6 +593,11 @@ mod tests {
 
     use super::*;
     use crate::dirinfo::{HEADER, records};
+
+    #[test]
+    fn the_token_elevation_can_be_read() {
+        assert!(process_is_elevated().is_ok());
+    }
 
     #[test]
     fn the_parser_layout_matches_the_sdk() {

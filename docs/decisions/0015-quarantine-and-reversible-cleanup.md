@@ -44,7 +44,12 @@ Mechanics (desktop):
 
 - Stores: macOS `~/Library/Application Support/Lumen/Quarantine/` for the Data volume
   and `<volume>/.LumenQuarantine/<uid>/` elsewhere; Windows
-  `X:\$LumenQuarantine\<UserSID>\` with an owner-only DACL. Stores are excluded from
+  `X:\$LumenQuarantine\<UserSID>\` with an owner-only DACL. (Amended 2026-10-16,
+  roadmap 10.18: as on macOS, the volume of the user's profile uses
+  `%LOCALAPPDATA%\Lumen\Quarantine\`, per user and never roamed, so it needs no
+  shared parent that several users must be able to create entries in; the per-volume
+  `X:\$LumenQuarantine\<UserSID>\` stays the design for other volumes, and items there
+  stay in place until it exists. Research report 10, verification log row 37.) Stores are excluded from
   backups and indexing. (Clarified in roadmap 9.2b: on macOS the backup exclusion is a
   sticky `CSBackupSetItemExcluded`; macOS documents no programmatic Spotlight
   exclusion for a directory, so stores stay indexable there and only the owner can

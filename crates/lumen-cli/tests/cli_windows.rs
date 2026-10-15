@@ -77,3 +77,70 @@ fn a_missing_path_is_an_incomplete_scan_not_an_empty_one() -> Result<(), Box<dyn
     assert_eq!(report["roots"][0]["failed"], 1);
     Ok(())
 }
+
+/// `lumen` with its quarantine store under `local` (the `LOCALAPPDATA` it
+/// sees), never the real one.
+fn lumen_in(local: &std::path::Path, args: &[&std::ffi::OsStr]) -> std::io::Result<Output> {
+    Command::new(env!("CARGO_BIN_EXE_lumen"))
+        .args(args)
+        .env("LOCALAPPDATA", local)
+        .output()
+}
+
+#[test]
+fn an_empty_quarantine_lists_nothing() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    let db = dir.path().join("index.db");
+    let out = lumen_in(
+        dir.path(),
+        &["list".as_ref(), "--db".as_ref(), db.as_os_str()],
+    )?;
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(String::from_utf8_lossy(&out.stdout).starts_with("0 item(s)"));
+    Ok(())
+}
+
+/// An unknown plan or operation moves nothing. An elevated process is refused
+/// before either is looked up (ADR-0005).
+#[test]
+fn quarantine_and_restore_refuse_what_they_cannot_do() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    let db = dir.path().join("index.db");
+    let refused = |out: &Output, unknown: &str| {
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        !out.status.success() && (stderr.contains(unknown) || stderr.contains("elevated"))
+    };
+    let out = lumen_in(
+        dir.path(),
+        &[
+            "quarantine".as_ref(),
+            "--db".as_ref(),
+            db.as_os_str(),
+            "--plan".as_ref(),
+            "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a3".as_ref(),
+            "--confirm".as_ref(),
+            "b3:00".as_ref(),
+        ],
+    )?;
+    assert!(refused(&out, "does not exist"), "{out:?}");
+    let out = lumen_in(
+        dir.path(),
+        &[
+            "restore".as_ref(),
+            "--db".as_ref(),
+            db.as_os_str(),
+            "--op".as_ref(),
+            "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a3".as_ref(),
+        ],
+    )?;
+    assert!(refused(&out, "no quarantine operation"), "{out:?}");
+    assert!(
+        !dir.path().join("Lumen").exists(),
+        "no store is created for a refused command"
+    );
+    Ok(())
+}

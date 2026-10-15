@@ -44,3 +44,14 @@ pub use services::Services;
 pub use startup::StartupEntries;
 #[cfg(windows)]
 pub use watcher::DirectoryChangesFeed;
+
+/// Whether this process runs with an elevated (administrator) token. Lumen's
+/// command line refuses to move files then (ADR-0005).
+///
+/// # Errors
+///
+/// The OS error if the process token cannot be read.
+#[cfg(windows)]
+pub fn process_is_elevated() -> std::io::Result<bool> {
+    sys::process_is_elevated()
+}

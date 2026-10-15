@@ -36,13 +36,13 @@ use std::process::ExitCode;
 
 #[cfg(any(unix, windows))]
 mod assess;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod held;
 #[cfg(any(unix, windows))]
 mod jev;
 #[cfg(any(unix, windows))]
 mod plan;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod quarantine;
 #[cfg(any(unix, windows))]
 mod report;
@@ -363,7 +363,7 @@ fn run_plan(args: &PlanArgs) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 fn run_quarantine(args: &QuarantineArgs) -> Result<(), Box<dyn Error>> {
     let plan = args
         .plan
@@ -417,7 +417,7 @@ enum HeldAction {
     Finalize,
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 fn run_held(
     action: HeldAction,
     db: &std::path::Path,
@@ -438,7 +438,7 @@ fn run_held(
     Ok(())
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn run_held(
     _action: HeldAction,
     _db: &std::path::Path,
@@ -447,7 +447,7 @@ fn run_held(
     Err("quarantine from the command line is not available on this platform yet".into())
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn run_quarantine(_args: &QuarantineArgs) -> Result<(), Box<dyn Error>> {
     Err("quarantine from the command line is not available on this platform yet".into())
 }

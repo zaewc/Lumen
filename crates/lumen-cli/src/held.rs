@@ -18,7 +18,7 @@ use lumen_domain::{ItemLocation, OperationId, QuarantineEvent, QuarantineState, 
 use lumen_fs_exec::{Executor, original_path};
 use lumen_store_sqlite::{JournalEntry, LedgerJournal, LedgerStore, open_ledger};
 
-use crate::quarantine::store_location;
+use crate::quarantine::{refuse_privileged, store_location};
 
 /// One operation as the journal knows it.
 struct Held {
@@ -110,20 +110,13 @@ fn executor() -> Result<Executor, Box<dyn Error>> {
     Ok(Executor::new(base, names))
 }
 
-fn refuse_root() -> Result<(), Box<dyn Error>> {
-    if rustix::process::geteuid().is_root() {
-        return Err("refusing to act as root; run as the user who owns the files".into());
-    }
-    Ok(())
-}
-
 /// Moves the item of `operation` back to where it was.
 pub(crate) fn restore(
     db: &Path,
     operation: OperationId,
     clock: &dyn Clock,
 ) -> Result<String, Box<dyn Error>> {
-    refuse_root()?;
+    refuse_privileged()?;
     let mut store = ledger(db)?;
     let held = find(&store, operation)?;
     let executor = executor()?;
@@ -168,7 +161,7 @@ pub(crate) fn finalize(
     operation: OperationId,
     clock: &dyn Clock,
 ) -> Result<String, Box<dyn Error>> {
-    refuse_root()?;
+    refuse_privileged()?;
     let mut store = ledger(db)?;
     let held = find(&store, operation)?;
     let executor = executor()?;

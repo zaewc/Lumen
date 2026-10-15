@@ -201,10 +201,6 @@ pub(crate) fn with_probes<T>(run: impl FnOnce(&Probes<'_>) -> T) -> Result<T, Bo
 /// to re-decide planned items at confirmation (roadmap 10.14).
 pub(crate) struct Assessment {
     /// The scan's roots.
-    #[cfg_attr(
-        not(unix),
-        expect(dead_code, reason = "read by `lumen quarantine`, Unix only for now")
-    )]
     pub roots: Vec<RawPath>,
     /// Its entries.
     pub entries: Vec<lumen_domain::FilesystemEntry>,
