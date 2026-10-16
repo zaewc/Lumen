@@ -9,6 +9,7 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+lumen-api.workspace = true
 lumen-devkb.workspace = true
 lumen-domain.workspace = true
 schemars.workspace = true

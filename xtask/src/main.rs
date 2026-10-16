@@ -2,8 +2,9 @@
 //!
 //! Commands:
 //!
-//! - `schema`: write JSON Schemas for Lumen's persisted and AI-facing records to
-//!   `schemas/` (ADR-0011).
+//! - `schema`: write JSON Schemas for Lumen's persisted and AI-facing records,
+//!   and the local API's `OpenAPI` description (`openapi.json`), to `schemas/`
+//!   (ADR-0011).
 //! - `schema --check`: regenerate in memory and fail if the committed files differ,
 //!   so a contract change cannot merge without a reviewed schema diff.
 //! - `devkb --max-age-days <N>`: fail if a knowledge-base entry was last verified
@@ -105,6 +106,18 @@ fn schema(check: bool) -> Result<usize, Box<dyn Error>> {
             fs::write(&path, text)?;
             println!("wrote schemas/{file}");
         }
+    }
+    // The local API (ADR-0011): one `OpenAPI` document.
+    let openapi = serde_json::to_string_pretty(&lumen_api::openapi())? + "\n";
+    let path = dir.join("openapi.json");
+    if check {
+        if fs::read_to_string(&path).ok().as_deref() != Some(openapi.as_str()) {
+            eprintln!("schemas/openapi.json is missing or out of date");
+            problems += 1;
+        }
+    } else {
+        fs::write(&path, openapi)?;
+        println!("wrote schemas/openapi.json");
     }
     if check && dir.is_dir() {
         for entry in fs::read_dir(&dir)? {

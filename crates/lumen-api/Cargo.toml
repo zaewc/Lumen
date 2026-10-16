@@ -1,0 +1,23 @@
+[package]
+name = "lumen-api"
+description = "Lumen's local API contract: view models and their OpenAPI description (ADR-0011)."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+lumen-app.workspace = true
+lumen-application.workspace = true
+lumen-domain.workspace = true
+serde.workspace = true
+# OpenAPI 3.1 from the Rust types (ADR-0011).
+utoipa.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

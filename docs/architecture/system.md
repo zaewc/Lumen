@@ -84,7 +84,7 @@ Crates are created only when their first code lands.
  lumen-scan   lumen-fs-exec  lumen-store-sqlite  lumen-jev   lumen-platform-*
  lumen-devkb  lumen-telemetry
         ▲            ▲            ▲             ▲              ▲
-             lumen-app  ·  lumen-ffi  ·  apps/desktop (Tauri host)  ·  lumen-cli
+      lumen-app  ·  lumen-api  ·  lumen-ffi  ·  apps/desktop (Tauri host)  ·  lumen-cli
 ```
 
 Dependency rules (enforced by Cargo, and checked in CI):

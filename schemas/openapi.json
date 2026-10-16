@@ -1,0 +1,641 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Lumen local API",
+    "description": "View models for Lumen's desktop UI and browser dashboard (ADR-0011).",
+    "license": {
+      "name": "Apache-2.0",
+      "identifier": "Apache-2.0"
+    },
+    "version": "0.0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "CandidateView": {
+        "type": "object",
+        "description": "One assessed candidate.",
+        "required": [
+          "path",
+          "verdict",
+          "reclaimable_bytes",
+          "reasons"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Where it is."
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Why, in plain sentences."
+          },
+          "reclaimable_bytes": {
+            "type": "string",
+            "description": "What removing it would free now, in bytes."
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/VerdictView",
+            "description": "The policy's verdict."
+          }
+        }
+      },
+      "ExecuteRequest": {
+        "type": "object",
+        "description": "A request to execute a plan: its ID and, as the confirmation, its full\nhash.",
+        "required": [
+          "plan",
+          "confirmation"
+        ],
+        "properties": {
+          "confirmation": {
+            "type": "string",
+            "description": "The plan's full hash, as shown."
+          },
+          "plan": {
+            "type": "string",
+            "description": "The plan's ID."
+          }
+        },
+        "additionalProperties": false
+      },
+      "FinalizeOutcomeView": {
+        "type": "object",
+        "description": "What a finalization did to one held item.",
+        "required": [
+          "operation",
+          "outcome"
+        ],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "description": "The operation."
+          },
+          "original": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where the item was, if known."
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/FinalizeView",
+            "description": "What happened."
+          }
+        }
+      },
+      "FinalizeView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Removed for good.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "finalized"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Back at its original place already; nothing removed.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "found_at_source"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Not in the store; nothing removed.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_found"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The removal stopped part way.",
+            "required": [
+              "removed",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              },
+              "removed": {
+                "$ref": "#/components/schemas/RemovedView",
+                "description": "How much is gone."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It may be in use, or that cannot be checked; nothing removed.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "maybe_in_use"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Not retained; nothing done.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_finalizable"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What a finalization did."
+      },
+      "HeldItemView": {
+        "type": "object",
+        "description": "One item in quarantine.",
+        "required": [
+          "operation",
+          "state",
+          "since"
+        ],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "description": "The operation that moved it."
+          },
+          "original": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where it was, if known."
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was quarantined."
+          },
+          "state": {
+            "$ref": "#/components/schemas/HeldStateView",
+            "description": "Why it is held."
+          }
+        }
+      },
+      "HeldStateView": {
+        "type": "string",
+        "description": "Why an item is held.",
+        "enum": [
+          "retained",
+          "held_after_failure"
+        ]
+      },
+      "ItemReportView": {
+        "type": "object",
+        "description": "One planned item and what became of it.",
+        "required": [
+          "path",
+          "reclaimable_bytes",
+          "result"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Where it was."
+          },
+          "reclaimable_bytes": {
+            "type": "string",
+            "description": "What it would free, as planned, in bytes."
+          },
+          "result": {
+            "$ref": "#/components/schemas/ItemResultView",
+            "description": "What happened."
+          }
+        }
+      },
+      "ItemResultView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Not moved; it is `REVIEW` at most now.",
+            "required": [
+              "reason",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "skipped"
+                ]
+              },
+              "reason": {
+                "$ref": "#/components/schemas/SkipView",
+                "description": "Why."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Moved into quarantine, restorable.",
+            "required": [
+              "operation",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "quarantined"
+                ]
+              },
+              "operation": {
+                "type": "string",
+                "description": "The operation, for restoring or finalizing it."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The move failed.",
+            "required": [
+              "reason",
+              "left",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              },
+              "left": {
+                "$ref": "#/components/schemas/LocationView",
+                "description": "Where the item is."
+              },
+              "reason": {
+                "type": "string",
+                "description": "Why, as the executor's code."
+              }
+            }
+          }
+        ],
+        "description": "What became of one planned item."
+      },
+      "LocationView": {
+        "type": "string",
+        "description": "Where an item is after a failure.",
+        "enum": [
+          "source",
+          "quarantine",
+          "gone"
+        ]
+      },
+      "NotRestoredView": {
+        "type": "string",
+        "description": "Why a restore did not happen.",
+        "enum": [
+          "name_taken",
+          "origin_unreachable",
+          "item_changed",
+          "failed"
+        ]
+      },
+      "PlanView": {
+        "type": "object",
+        "description": "A cleanup plan, waiting for confirmation.",
+        "required": [
+          "plan",
+          "hash",
+          "created_at",
+          "items"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was made; it expires 24 hours later."
+          },
+          "hash": {
+            "type": "string",
+            "description": "Its full hash: the confirmation the user gives to execute it."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CandidateView"
+            },
+            "description": "Its items, each with what it would free and why."
+          },
+          "plan": {
+            "type": "string",
+            "description": "The plan's ID."
+          }
+        }
+      },
+      "QuarantineReportView": {
+        "type": "object",
+        "description": "What executing a plan did.",
+        "required": [
+          "plan",
+          "resolved",
+          "items",
+          "moved_bytes",
+          "warnings"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemReportView"
+            },
+            "description": "Each item, in plan order."
+          },
+          "moved_bytes": {
+            "type": "string",
+            "description": "What the quarantined items will free once finalized, in bytes."
+          },
+          "plan": {
+            "type": "string",
+            "description": "The plan."
+          },
+          "resolved": {
+            "type": "string",
+            "description": "Interrupted operations from earlier runs that were resolved first."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Problems that did not stop the execution."
+          }
+        }
+      },
+      "RemovedView": {
+        "type": "string",
+        "description": "How much a failed removal took.",
+        "enum": [
+          "nothing",
+          "partly",
+          "item"
+        ]
+      },
+      "RestoreOutcomeView": {
+        "type": "object",
+        "description": "What a restore did to one held item.",
+        "required": [
+          "operation",
+          "outcome"
+        ],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "description": "The operation."
+          },
+          "original": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where the item was, if known."
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/RestoreView",
+            "description": "What happened."
+          }
+        }
+      },
+      "RestoreView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Back at its original place.",
+            "required": [
+              "parent_replaced",
+              "verified",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "restored"
+                ]
+              },
+              "parent_replaced": {
+                "type": "boolean",
+                "description": "Its folder had been recreated since."
+              },
+              "verified": {
+                "type": "boolean",
+                "description": "It matched its record after the move."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Still in quarantine.",
+            "required": [
+              "reason",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_restored"
+                ]
+              },
+              "reason": {
+                "$ref": "#/components/schemas/NotRestoredView",
+                "description": "Why."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Not in a state that can be restored; nothing was done.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_restorable"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What a restore did."
+      },
+      "RootView": {
+        "type": "object",
+        "description": "What a scan found below one root.",
+        "required": [
+          "root",
+          "files",
+          "logical_bytes",
+          "allocated_bytes",
+          "reclaimable_bytes",
+          "reclaimable_exact",
+          "coverage_complete",
+          "denied",
+          "failed",
+          "not_scanned"
+        ],
+        "properties": {
+          "allocated_bytes": {
+            "type": "string",
+            "description": "Their allocated size in bytes."
+          },
+          "coverage_complete": {
+            "type": "boolean",
+            "description": "Whether everything below it could be read. If not, every size here is\na lower bound."
+          },
+          "denied": {
+            "type": "string",
+            "description": "Entries access was denied to."
+          },
+          "failed": {
+            "type": "string",
+            "description": "Entries that could not be read for other reasons."
+          },
+          "files": {
+            "type": "string",
+            "description": "Files below it."
+          },
+          "logical_bytes": {
+            "type": "string",
+            "description": "Their logical size in bytes."
+          },
+          "not_scanned": {
+            "type": "string",
+            "description": "Entries not scanned."
+          },
+          "reclaimable_bytes": {
+            "type": "string",
+            "description": "What removing everything below it would free now, in bytes."
+          },
+          "reclaimable_exact": {
+            "type": "boolean",
+            "description": "Whether `reclaimable_bytes` is exact rather than a lower bound."
+          },
+          "root": {
+            "type": "string",
+            "description": "The root."
+          }
+        }
+      },
+      "ScanRequest": {
+        "type": "object",
+        "description": "A request to scan the given roots, read-only.",
+        "required": [
+          "roots"
+        ],
+        "properties": {
+          "roots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The folders to scan, as the user chose them."
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScanView": {
+        "type": "object",
+        "description": "What a scan found.",
+        "required": [
+          "scan",
+          "roots",
+          "entries",
+          "partial"
+        ],
+        "properties": {
+          "entries": {
+            "type": "string",
+            "description": "Entries seen."
+          },
+          "partial": {
+            "type": "boolean",
+            "description": "Whether the scan stopped early (cancelled), so results are partial."
+          },
+          "roots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RootView"
+            },
+            "description": "Each root."
+          },
+          "scan": {
+            "type": "string",
+            "description": "The scan's ID."
+          }
+        }
+      },
+      "SkipView": {
+        "type": "string",
+        "description": "Why a planned item was not moved.",
+        "enum": [
+          "changed",
+          "outside_roots",
+          "now_keep",
+          "now_review",
+          "reasons_changed",
+          "not_prepared",
+          "manifest"
+        ]
+      },
+      "VerdictView": {
+        "type": "string",
+        "description": "The policy's verdict.",
+        "enum": [
+          "keep",
+          "review",
+          "quarantine"
+        ]
+      }
+    }
+  }
+}
