@@ -266,9 +266,11 @@ test that forbids them today changes in the same PR.
 | 10.20 | `feat(cli): finalize items past their retention` | `lumen finalize --expired`: every retained item quarantined 30 or more days ago (ADR-0015's default), each probed for use first; items held after a failure wait for the user. A configurable period and scheduled runs come with the agent (Phase 11) |
 | 10.21 | `fix(fs-exec): forget the sidecars of restored items` | once `Restore` is journaled, the executor removes the operation's manifest sidecar from the store, and only while nothing in the store has the item's name; a sidecar that stays is harmless, because the journal is the record |
 | 10.22 | `feat(fs-exec): record Unix mode and owner in manifests` | the Unix executor keeps `st_mode`, `st_uid` and `st_gid` from the stat it prepares from, and the manifest's `unix` field carries them (ADR-0015); records from before still parse |
+| 10.23 | `feat(ffi): build the mobile core for Android` | `lumen-ffi` (UniFFI; MPL-2.0 approved for the `uniffi*` crates) exports `core_version`; `cargo xtask android` builds it for `arm64-v8a` and `x86_64` through the NDK's clang (r28+, `minSdk 30`), fails unless every `LOAD` segment is 16 KB-aligned, and generates the Kotlin bindings; CI runs it |
 
-Windows end to end follows the same items with the Windows adapters, then Android
-(performance spike first) and iOS.
+Windows end to end follows the same items with the Windows adapters (10.18). Android
+comes next: the core builds for Android first (10.23), then the Expo app and the
+performance spike that gates mobile UI work (ADR-0007), then iOS.
 
 ## Later phases (outline)
 

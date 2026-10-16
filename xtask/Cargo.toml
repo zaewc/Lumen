@@ -1,6 +1,6 @@
 [package]
 name = "xtask"
-description = "Repository automation for Lumen (schema export and drift checks)."
+description = "Repository automation for Lumen (schema export and drift checks, Android builds)."
 edition.workspace = true
 rust-version.workspace = true
 version.workspace = true

@@ -67,6 +67,13 @@ Rejected:
 - Option 5: no TypeScript reuse and still needs platform channels.
 - Option 6: a WebView UI is a poor fit for large media grids.
 
+### Licensing (2026-10-16)
+
+UniFFI is MPL-2.0, outside `deny.toml`'s permissive allow-list. The owner approved
+it for the `uniffi*` crates only, as crate-scoped exceptions. MPL-2.0 is file-level
+copyleft: Lumen's own code keeps its license, and changes to UniFFI's files or to
+the bindings it generates are published if they ship.
+
 ## More information
 
 - [iOS and mobile framework research, Implication 8](../research/06-ios-and-mobile-framework.md)

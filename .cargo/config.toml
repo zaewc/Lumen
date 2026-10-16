@@ -1,3 +1,13 @@
 [alias]
 # Repository automation (ADR-0003): `cargo xtask schema [--check]`.
 xtask = "run --quiet --locked --package xtask --"
+
+# Android native libraries must support 16 KB pages (Google Play; research
+# report 05 §10). NDK r28+ clang aligns to 16 KB by default; the flag makes it
+# explicit, and `cargo xtask android` checks the result. The linker itself is
+# host-specific and set by that command.
+[target.aarch64-linux-android]
+rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]
+
+[target.x86_64-linux-android]
+rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]

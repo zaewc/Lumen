@@ -9,6 +9,8 @@
 //! - `devkb --max-age-days <N>`: fail if a knowledge-base entry was last verified
 //!   more than `N` days ago, or on a future date (ADR-0021). Run on a schedule, not
 //!   on pull requests, so time passing never fails unrelated changes.
+//! - `android`: build the mobile core for every Android ABI, check 16 KB page
+//!   alignment and generate the Kotlin bindings (ADR-0007; needs an NDK).
 
 // A command-line tool reports to the terminal by design.
 #![allow(clippy::print_stdout, clippy::print_stderr)]
@@ -20,6 +22,8 @@ use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use lumen_devkb::{DateIssue, KnowledgeBase};
+
+mod android;
 use lumen_domain as d;
 use schemars::{JsonSchema, schema_for};
 
@@ -154,8 +158,9 @@ fn main() -> ExitCode {
         ["schema"] => schema(false),
         ["schema", "--check"] => schema(true),
         ["devkb", "--max-age-days", days] => devkb(days),
+        ["android"] => android::android(),
         _ => {
-            eprintln!("usage: cargo xtask schema [--check] | devkb --max-age-days <N>");
+            eprintln!("usage: cargo xtask schema [--check] | devkb --max-age-days <N> | android");
             return ExitCode::from(2);
         }
     };

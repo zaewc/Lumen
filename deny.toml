@@ -42,6 +42,43 @@ private = { ignore = true }
 crate = "webpki-root-certs"
 allow = ["CDLA-Permissive-2.0"]
 
+# UniFFI (ADR-0007), the Kotlin and Swift bindings for the mobile core:
+# MPL-2.0, approved by the owner on 2026-10-16 for these crates only. MPL-2.0 is
+# file-level copyleft: Lumen's own code is unaffected; changes to UniFFI's files,
+# or to the binding files it generates, would be published if shipped. No other
+# crate may use MPL-2.0 without its own review.
+[[licenses.exceptions]]
+crate = "uniffi"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "uniffi_bindgen"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "uniffi_core"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "uniffi_internal_macros"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "uniffi_macros"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "uniffi_meta"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "uniffi_pipeline"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "uniffi_udl"
+allow = ["MPL-2.0"]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"

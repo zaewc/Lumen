@@ -17,6 +17,7 @@ lumen-application = { path = "crates/lumen-application" }
 lumen-cli = { path = "crates/lumen-cli" }
 lumen-devkb = { path = "crates/lumen-devkb" }
 lumen-domain = { path = "crates/lumen-domain" }
+lumen-ffi = { path = "crates/lumen-ffi" }
 lumen-fs-exec = { path = "crates/lumen-fs-exec" }
 lumen-graph = { path = "crates/lumen-graph" }
 lumen-jev = { path = "crates/lumen-jev" }
@@ -57,6 +58,9 @@ tempfile = "3.27.0"
 # Win32 FFI declarations for the Windows adapter (raw-dylib, no build script).
 windows-sys = "0.61.2"
 thiserror = "2.0.21"
+# Kotlin and Swift bindings for the mobile core (ADR-0007). MPL-2.0, scoped in
+# deny.toml; only the `cli` feature (bindings generator) pulls in more.
+uniffi = { version = "0.32.2", default-features = false }
 # Blocking HTTPS client for the Jev transport (ADR-0031): rustls with the OS
 # trust store (platform verifier), no bundled roots, no compression.
 ureq = { version = "3.4.2", default-features = false, features = ["rustls-no-provider", "platform-verifier"] }

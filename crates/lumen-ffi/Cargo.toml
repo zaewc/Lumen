@@ -1,0 +1,32 @@
+[package]
+name = "lumen-ffi"
+description = "Lumen's Rust core for the mobile apps, exposed through UniFFI (ADR-0007)."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lib]
+# `cdylib` for Android (`.so` per ABI), `staticlib` for the iOS XCFramework,
+# `lib` for tests and the bindings generator.
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+# Generates the Kotlin and Swift bindings from the built library (UniFFI's
+# library mode); only built when asked for.
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+# `cargo-metadata` lets library mode read the crate's `uniffi.toml` settings.
+bindgen = ["uniffi/cli", "uniffi/cargo-metadata"]
+
+[dependencies]
+# Bindings for Kotlin and Swift (ADR-0007; MPL-2.0, approved 2026-10-16).
+uniffi.workspace = true
+
+[lints]
+workspace = true
