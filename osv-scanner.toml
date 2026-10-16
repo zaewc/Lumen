@@ -1,0 +1,14 @@
+# Reviewed OSV-Scanner exceptions (ADR-0026). Each one names the advisory, why
+# it cannot be reached or fixed now, and an expiry so it is reviewed again.
+
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2027-01-16T00:00:00Z
+reason = """
+braces <= 3.0.3: stack exhaustion from deeply nested brace patterns supplied \
+by an attacker; no fixed version exists (advisory published 2026-09-18). It \
+reaches the repository only through steiger (dev-only FSD linter) -> globby -> \
+fast-glob/micromatch, which expand glob patterns from Lumen's own config over \
+Lumen's own source tree. No untrusted pattern reaches it and nothing ships in \
+the app. Re-check for a fixed braces or a steiger without it before expiry.\
+"""
