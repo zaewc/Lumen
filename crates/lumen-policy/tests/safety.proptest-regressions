@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 042a06cd40a0b4742b4a7681299ba88b8b9f51d3a9cb877a873241aa0e6a8cf1 # QUARANTINE that relied on a partial in-use answer under ADR-0030 (CI, 2026-10-16)

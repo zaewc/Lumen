@@ -216,6 +216,23 @@ fn decide(input: &PolicyInput) -> Result<PolicyDecision, TestCaseError> {
     evaluate(input).map_err(|e| TestCaseError::fail(format!("evaluate failed: {e}")))
 }
 
+/// ADR-0030: a partial in-use answer passes only for the user's own items
+/// below their home, when the reversible quarantine rename is available.
+fn adr_0030(input: &PolicyInput) -> bool {
+    let facts: Vec<&Fact> = input.evidence.iter().map(|e| &e.fact).collect();
+    facts.contains(&&Fact::OwnedByCurrentUser(true))
+        && !facts.contains(&&Fact::OwnedByCurrentUser(false))
+        && !input.paths.is_empty()
+        && input
+            .paths
+            .iter()
+            .all(|p| p.as_bytes().starts_with(b"/home/t/"))
+        && input
+            .context
+            .mechanisms
+            .contains(&CleanupMechanism::QuarantineRename)
+}
+
 /// Whether the input carries a fact or state that must keep the item.
 fn must_keep(input: &PolicyInput) -> bool {
     let facts: Vec<&Fact> = input.evidence.iter().map(|e| &e.fact).collect();
@@ -228,20 +245,7 @@ fn must_keep(input: &PolicyInput) -> bool {
     let partial = facts
         .iter()
         .any(|f| matches!(f, Fact::NotInUseByVisibleProcesses { .. }));
-    // ADR-0030: a partial answer passes only for the user's own items below
-    // their home, when the reversible quarantine rename is available.
-    let adr_0030 = facts.contains(&&Fact::OwnedByCurrentUser(true))
-        && !facts.contains(&&Fact::OwnedByCurrentUser(false))
-        && !input.paths.is_empty()
-        && input
-            .paths
-            .iter()
-            .all(|p| p.as_bytes().starts_with(b"/home/t/"))
-        && input
-            .context
-            .mechanisms
-            .contains(&CleanupMechanism::QuarantineRename);
-    let in_use_gate_passes = complete_no || (partial && adr_0030);
+    let in_use_gate_passes = complete_no || (partial && adr_0030(input));
     let incomplete = input
         .observed
         .as_ref()
@@ -297,11 +301,18 @@ proptest! {
                 rules.contains(&"classify.devkb-regenerable") || rules.contains(&"classify.app-cache"),
                 "{:?}", rules
             );
+            // No cap fired. The one eligibility rule that may fire records
+            // reliance on a partial in-use answer (ADR-0030), and then only
+            // under that ADR's conditions.
             prop_assert!(
-                decision.fired_rules().iter().all(|r| r.stage != PolicyStage::Eligibility
-                    && r.stage != PolicyStage::HardProtection),
+                decision.fired_rules().iter().all(|r| r.stage != PolicyStage::HardProtection
+                    && (r.stage != PolicyStage::Eligibility
+                        || r.rule.as_str() == "eligible.in-use-partial")),
                 "{:?}", rules
             );
+            if rules.contains(&"eligible.in-use-partial") {
+                prop_assert!(adr_0030(&input), "{:?}", rules);
+            }
             prop_assert!(input.context.mechanisms.contains(&CleanupMechanism::QuarantineRename));
         }
     }
