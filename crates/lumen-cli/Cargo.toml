@@ -23,10 +23,6 @@ lumen-scan.workspace = true
 lumen-store-sqlite.workspace = true
 serde_json.workspace = true
 
-[target.'cfg(any(unix, windows))'.dependencies]
-# The quarantine command (roadmap 10.14b, 10.18): the executor.
-lumen-fs-exec.workspace = true
-
 [target.'cfg(target_os = "macos")'.dependencies]
 lumen-platform-macos.workspace = true
 

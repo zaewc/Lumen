@@ -9,6 +9,8 @@ pub mod assess;
 #[cfg(any(unix, windows))]
 pub mod held;
 pub mod plan;
+#[cfg(any(unix, windows))]
+pub mod quarantine;
 pub mod scan;
 #[cfg(any(unix, windows))]
 pub mod store;

@@ -875,7 +875,6 @@ dependencies = [
  "lumen-app",
  "lumen-application",
  "lumen-domain",
- "lumen-fs-exec",
  "lumen-jev",
  "lumen-platform-macos",
  "lumen-platform-windows",
