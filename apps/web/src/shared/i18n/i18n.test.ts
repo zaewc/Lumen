@@ -41,7 +41,7 @@ describe("catalogs", () => {
       }
     }
     expect(reasonText(ko, { rule: "classify.app-cache", text: "" })).toBe(
-      "격리 제안: 앱의 캐시이며, 앱이 다시 만듭니다.",
+      "정리 제안: 앱의 캐시라서 앱이 다시 만들어요.",
     );
   });
 
@@ -50,7 +50,7 @@ describe("catalogs", () => {
     expect(reasonText(en, { rule, text: "" })).toBe(
       "Kept: it is in a protected location (macos-sip-usr).",
     );
-    expect(reasonText(ko, { rule, text: "" })).toBe("유지: 보호된 위치(macos-sip-usr)에 있습니다.");
+    expect(reasonText(ko, { rule, text: "" })).toBe("유지: 보호된 위치(macos-sip-usr)에 있어요.");
     const unknown = { rule: "made.up", text: "Rule made.up applied." };
     expect(reasonText(ko, unknown)).toBe("Rule made.up applied.");
   });
@@ -59,9 +59,7 @@ describe("catalogs", () => {
     expect(countFormat("en")(1204)).toBe("1,204");
     expect(countFormat("ko")("18446744073709551615")).toBe("18,446,744,073,709,551,615");
     expect(countFormat("ko")("n/a")).toBe("n/a");
-    expect(ko.confirm.title(1204, "4.2 GB")).toBe(
-      "항목 1,204개(4.2 GB)를 격리함으로 옮기시겠습니까?",
-    );
+    expect(ko.confirm.title(1204, "4.2 GB")).toBe("항목 1,204개(4.2 GB)를 격리함으로 옮길까요?");
     expect(en.confirm.title(1, "4.2 GB")).toBe("Move 1 item (4.2 GB) to Quarantine?");
     expect(en.done.title(1204, "9.2 GB")).toBe("Moved 1,204 items (9.2 GB) to Quarantine.");
   });
@@ -158,5 +156,51 @@ describe("plain words", () => {
     expect(ko.held.days(30)).toBe("30일");
     expect(en.common.items(1)).toBe("1 item");
     expect(ko.common.items(2)).toBe("항목 2개");
+  });
+});
+
+/** Every message in a catalog, with functions called on sample arguments. */
+function texts(value: unknown, path = ""): [string, string][] {
+  if (typeof value === "string") {
+    return [[path, value]];
+  }
+  if (typeof value === "function") {
+    return texts(value(...Array.from({ length: value.length }, () => "2")), path);
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value).flatMap(([key, inner]) => texts(inner, `${path}.${key}`));
+  }
+  return [];
+}
+
+describe("Korean tone (docs/design/ux-writing.md)", () => {
+  const all = texts(ko);
+
+  it("speaks 해요체: no 합니다체 or plain -다 sentence endings", () => {
+    for (const [path, text] of all) {
+      expect(text, path).not.toMatch(/[가-힣]다(?=[.?!…]|$)/u);
+      expect(text, path).not.toMatch(/니다|니까/u);
+    }
+  });
+
+  it("uses no ‘~시’ honorifics, only ‘~해 주세요’ for requests", () => {
+    for (const [path, text] of all) {
+      expect(text, path).not.toMatch(/십시오|시겠|시나요|(?<!주)세요|께서/u);
+    }
+  });
+
+  it("says 돼요 rather than 되어요, and never 취소", () => {
+    for (const [path, text] of all) {
+      expect(text, path).not.toMatch(/되어요|취소/u);
+    }
+  });
+
+  it("names the action on every dialog's confirming button", () => {
+    expect(ko.common.close).toBe("닫기");
+    expect(en.common.close).toBe("Close");
+    expect(ko.confirm.move).toBe("격리함으로 옮기기");
+    expect(ko.held.removeForGood).toBe("영구 삭제");
+    expect(ko.ai.consent.confirm).toBe("AI 검토 켜기");
+    expect(en.ai.consent.confirm).toBe("Turn on AI review");
   });
 });

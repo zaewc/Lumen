@@ -32,7 +32,7 @@ export function HeldRow({
   const warning = useId();
   const [confirming, setConfirming] = useState(false);
   const ask = useRef<HTMLButtonElement>(null);
-  const cancel = useRef<HTMLButtonElement>(null);
+  const dismiss = useRef<HTMLButtonElement>(null);
   const asked = useRef(false);
   const refresh = async () => {
     await queries.invalidateQueries({ queryKey: QUERY_KEYS.held });
@@ -58,7 +58,7 @@ export function HeldRow({
   useEffect(() => {
     if (confirming) {
       asked.current = true;
-      cancel.current?.focus();
+      dismiss.current?.focus();
     } else if (asked.current) {
       asked.current = false;
       ask.current?.focus();
@@ -118,13 +118,13 @@ export function HeldRow({
           </p>
           <div className="flex gap-2">
             <button
-              ref={cancel}
+              ref={dismiss}
               type="button"
               onClick={() => setConfirming(false)}
               disabled={busy}
               className={buttonClass("secondary", "sm")}
             >
-              {m.common.cancel}
+              {m.common.close}
             </button>
             <button
               type="button"

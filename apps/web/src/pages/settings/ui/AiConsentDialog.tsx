@@ -32,7 +32,7 @@ export function AiConsentDialog({
   const description = useId();
   const field = useId();
   const hint = useId();
-  const cancel = useRef<HTMLButtonElement>(null);
+  const dismiss = useRef<HTMLButtonElement>(null);
   const [key, setKey] = useState("");
   const asking = needsKey(settings);
   const turnOn = useMutation({
@@ -73,7 +73,7 @@ export function AiConsentDialog({
       labelledBy={title}
       describedBy={description}
       dismissible={!busy}
-      initialFocus={cancel}
+      initialFocus={dismiss}
       returnFocus={returnFocus}
     >
       <form onSubmit={submit}>
@@ -117,13 +117,13 @@ export function AiConsentDialog({
         )}
         <div className="mt-6 flex flex-col-reverse gap-2 min-[480px]:flex-row min-[480px]:justify-end">
           <button
-            ref={cancel}
+            ref={dismiss}
             type="button"
             onClick={close}
             disabled={busy}
             className={buttonClass("secondary")}
           >
-            {m.common.cancel}
+            {m.common.close}
           </button>
           <button
             type="submit"

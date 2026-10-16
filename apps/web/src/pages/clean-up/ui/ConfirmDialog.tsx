@@ -29,7 +29,7 @@ export function ConfirmDialog({
   const { locale, m } = useI18n();
   const title = useId();
   const description = useId();
-  const cancel = useRef<HTMLButtonElement>(null);
+  const dismiss = useRef<HTMLButtonElement>(null);
   const empty = plan.items.length === 0;
   const size = formatBytes(sumBytes(plan.items.map((item) => item.reclaimable_bytes)));
   return (
@@ -39,7 +39,7 @@ export function ConfirmDialog({
       labelledBy={title}
       describedBy={description}
       dismissible={!busy}
-      initialFocus={cancel}
+      initialFocus={dismiss}
       returnFocus={returnFocus}
     >
       <h2 id={title} className="text-[15px] leading-snug font-semibold text-ink">
@@ -75,13 +75,13 @@ export function ConfirmDialog({
       )}
       <div className="mt-6 flex flex-col-reverse gap-2 min-[480px]:flex-row min-[480px]:justify-end">
         <button
-          ref={cancel}
+          ref={dismiss}
           type="button"
           onClick={onClose}
           disabled={busy}
           className={buttonClass("secondary")}
         >
-          {m.common.cancel}
+          {m.common.close}
         </button>
         {!empty && (
           <button

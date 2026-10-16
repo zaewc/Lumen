@@ -19,7 +19,6 @@ export const en = {
   },
   common: {
     loading: "Loading…",
-    cancel: "Cancel",
     close: "Close",
     details: "Details",
     tryAgain: "Try again",

@@ -24,13 +24,13 @@ describe("outcomeText", () => {
 
   it("says it in Korean, keeping the core's failure code", () => {
     expect(outcomeText(ko, { kind: "quarantined", operation: "op" })).toBe(
-      "격리함으로 옮겼습니다(복원 가능).",
+      "격리함으로 옮겼어요. 복원할 수 있어요.",
     );
     expect(outcomeText(ko, { kind: "skipped", reason: "outside_roots" })).toBe(
-      "옮기지 않았습니다: 검사한 폴더 밖에 있습니다.",
+      "검사한 폴더 밖에 있어서 옮기지 않았어요.",
     );
     expect(outcomeText(ko, { kind: "failed", reason: "IdentityMismatch", left: "gone" })).toBe(
-      "옮기지 못했습니다(IdentityMismatch). 항목이 사라졌습니다.",
+      "옮기지 못했어요(IdentityMismatch). 항목이 사라졌어요.",
     );
   });
 });
