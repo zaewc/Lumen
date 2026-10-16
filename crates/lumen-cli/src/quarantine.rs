@@ -10,7 +10,7 @@
 //! stays restorable in the store.
 
 use std::error::Error;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use lumen_application::confirm::{Confirmed, Confirming, Skip, confirm_item};
 use lumen_application::ports::{Clock, IdGenerator, NoopJudge};
@@ -24,59 +24,10 @@ use lumen_store_sqlite::{
     IndexStore, LedgerJournal, LedgerStore, StoredPlan, open_index, open_ledger,
 };
 
-use lumen_app::{block_on, prepare, with_probes};
+use lumen_app::{block_on, prepare, refuse_privileged, store_location, with_probes};
 
 /// How long a plan may wait for its confirmation.
 const MAX_PLAN_AGE_SECS: i64 = 24 * 60 * 60;
-
-/// A base directory and the store's names below it.
-type StoreLocation = (PathBuf, Vec<Vec<u8>>);
-
-/// Where quarantine stores live (ADR-0015).
-#[cfg(unix)]
-pub(crate) fn store_location() -> Result<StoreLocation, Box<dyn Error>> {
-    let home = std::env::home_dir().ok_or("the home directory is unknown")?;
-    if cfg!(target_os = "macos") {
-        Ok((
-            home.join("Library/Application Support"),
-            vec![b"Lumen".to_vec(), b"Quarantine".to_vec()],
-        ))
-    } else {
-        let data = std::env::var_os("XDG_DATA_HOME")
-            .map_or_else(|| home.join(".local/share"), PathBuf::from);
-        Ok((data, vec![b"lumen".to_vec(), b"quarantine".to_vec()]))
-    }
-}
-
-/// Where quarantine stores live (ADR-0015): the user's local, non-roaming
-/// application data. Items on other volumes cannot be moved there and stay
-/// in place.
-#[cfg(windows)]
-pub(crate) fn store_location() -> Result<StoreLocation, Box<dyn Error>> {
-    let local = std::env::var_os("LOCALAPPDATA")
-        .map(PathBuf::from)
-        .filter(|path| path.is_absolute())
-        .ok_or("the local application data folder is unknown")?;
-    Ok((local, vec![b"Lumen".to_vec(), b"Quarantine".to_vec()]))
-}
-
-/// Refuses to move files as root or with an elevated Windows token
-/// (ADR-0005): the store, the journal and the ownership checks are the
-/// user's own.
-pub(crate) fn refuse_privileged() -> Result<(), Box<dyn Error>> {
-    #[cfg(unix)]
-    if rustix::process::geteuid().is_root() {
-        return Err("refusing to run as root; run as the user who owns the files".into());
-    }
-    #[cfg(windows)]
-    if lumen_platform_windows::process_is_elevated()? {
-        return Err(
-            "refusing to run elevated (as administrator); run as the user who owns the files"
-                .into(),
-        );
-    }
-    Ok(())
-}
 
 /// This installation's device ID, kept next to the database.
 fn device(db: &Path, ids: &dyn IdGenerator) -> Result<DeviceId, Box<dyn Error>> {

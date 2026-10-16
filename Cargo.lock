@@ -841,6 +841,7 @@ dependencies = [
  "lumen-application",
  "lumen-devkb",
  "lumen-domain",
+ "lumen-fs-exec",
  "lumen-graph",
  "lumen-jev",
  "lumen-platform-macos",
@@ -849,6 +850,8 @@ dependencies = [
  "lumen-scan",
  "lumen-store-sqlite",
  "lumen-testkit",
+ "rustix",
+ "serde_json",
  "thiserror",
  "uuid",
 ]
@@ -879,7 +882,6 @@ dependencies = [
  "lumen-scan",
  "lumen-store-sqlite",
  "lumen-testkit",
- "rustix",
  "serde_json",
  "tempfile",
 ]

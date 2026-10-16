@@ -19,9 +19,18 @@ lumen-jev.workspace = true
 lumen-policy.workspace = true
 lumen-scan.workspace = true
 lumen-store-sqlite.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 # Time-ordered scan, snapshot, plan and operation IDs.
 uuid = { workspace = true, features = ["v7"] }
+
+[target.'cfg(any(unix, windows))'.dependencies]
+# Quarantine, restore and finalize: the executor.
+lumen-fs-exec.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+# `geteuid`, to refuse running as root.
+rustix.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 lumen-platform-macos.workspace = true

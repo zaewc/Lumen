@@ -27,10 +27,6 @@ serde_json.workspace = true
 # The quarantine command (roadmap 10.14b, 10.18): the executor.
 lumen-fs-exec.workspace = true
 
-[target.'cfg(unix)'.dependencies]
-# `geteuid`, to refuse running as root.
-rustix.workspace = true
-
 [target.'cfg(target_os = "macos")'.dependencies]
 lumen-platform-macos.workspace = true
 
