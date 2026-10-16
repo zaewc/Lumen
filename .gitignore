@@ -55,3 +55,6 @@ local.properties
 !.vscode/settings.json
 .DS_Store
 Thumbs.db
+
+# Generated-code drift checks
+.gen-check/

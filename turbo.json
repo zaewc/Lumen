@@ -4,6 +4,9 @@
     "typecheck": {
       "dependsOn": ["^typecheck"],
       "outputs": []
+    },
+    "gen-check": {
+      "outputs": []
     }
   }
 }

@@ -1,0 +1,23 @@
+{
+  "name": "@lumen/api-client",
+  "private": true,
+  "description": "Types and Zod schemas for Lumen's local API, generated from schemas/openapi.json (ADR-0011).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "openapi-ts",
+    "gen-check": "rm -rf .gen-check && API_CLIENT_OUT=.gen-check openapi-ts --silent && diff -r .gen-check src/gen && rm -rf .gen-check",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "catalog:",
+    "@lumen/config": "workspace:*",
+    "typescript": "catalog:ts6"
+  }
+}

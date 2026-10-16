@@ -8,8 +8,17 @@ packages:
 catalogMode: strict
 catalog:
   "@biomejs/biome": 2.5.15
+  "@hey-api/openapi-ts": 0.99.0
   turbo: 2.11.7
   typescript: 7.0.2
+  zod: 4.6.7
+
+# TypeScript 7 has no compiler API until 7.1, so a package whose tools need it
+# (the API client's generator) takes the TypeScript 6 compatibility package
+# as its `typescript`; type checks still run TypeScript 7 (ADR-0025).
+catalogs:
+  ts6:
+    typescript: npm:@typescript/typescript6@6.0.2
 
 # Supply-chain defaults (ADR-0024, ADR-0026): a release must be 3 days old
 # before it can be installed, exotic transitive sources are refused, a package
@@ -20,3 +29,4 @@ blockExoticSubdeps: true
 trustPolicy: no-downgrade
 strictDepBuilds: true
 allowBuilds: {}
+
