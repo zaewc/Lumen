@@ -11,8 +11,10 @@
 //! `fsync`ed and the result is checked. A failure before the rename leaves
 //! the item in the store; after it, the item is back at its source.
 //!
-//! The manifest sidecar stays in the store as the record of the operation;
-//! finalization (roadmap 9.8) clears it.
+//! The manifest sidecar stays in the store until the restore is journaled;
+//! then [`forget`](crate::forget) removes it (roadmap 10.21), so restored
+//! operations leave nothing behind. Finalization (roadmap 9.8) clears the
+//! sidecars of items it removes.
 
 use std::os::fd::OwnedFd;
 

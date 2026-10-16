@@ -6,7 +6,9 @@
 //! exactly when the item is back at its source, even if the check after the
 //! move failed, so the journal always says where the item is. An item still in
 //! the store keeps its state, and the reason goes to the user (a taken name is
-//! theirs to resolve).
+//! theirs to resolve). Once `Restore` is journaled, the executor forgets the
+//! operation's manifest sidecar; one that stays is harmless, because the
+//! journal is the record.
 
 use lumen_domain::{ItemLocation, OperationId, QuarantineEvent, QuarantineState};
 
@@ -54,6 +56,7 @@ pub fn restore_item(
     };
     let detail = format!(r#"{{"parent_replaced":{parent_replaced},"verified":{verified}}}"#);
     journal.append(operation, QuarantineEvent::Restore, detail.as_bytes())?;
+    let _forgotten: bool = executor.forget(item, operation);
     Ok(RestoreOutcome::Restored {
         parent_replaced,
         verified,
@@ -64,10 +67,12 @@ pub fn restore_item(
 mod tests {
     use lumen_domain::{QuarantineFailure, RawPath};
 
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
     use super::*;
     use crate::ports::{ExecutionFailure, Located, RestoreFailure, RestoredItem, Unfinished};
 
-    struct Executor(Result<RestoredItem, RestoreFailure>);
+    struct Executor(Result<RestoredItem, RestoreFailure>, AtomicUsize);
 
     impl QuarantineExecutor for Executor {
         fn prepare(
@@ -106,6 +111,11 @@ mod tests {
         ) -> Result<(), crate::ports::Removal> {
             unreachable!("restoring finalizes nothing")
         }
+
+        fn forget(&self, _item: &PreparedItem, _operation: OperationId) -> bool {
+            self.1.fetch_add(1, Ordering::Relaxed);
+            true
+        }
     }
 
     #[derive(Default)]
@@ -138,14 +148,21 @@ mod tests {
         state: QuarantineState,
     ) -> (RestoreOutcome, Journal) {
         let mut journal = Journal::default();
+        let executor = Executor(result, AtomicUsize::new(0));
         let outcome = restore_item(
-            &Executor(result),
+            &executor,
             &mut journal,
             op(),
             state,
             &PreparedItem(b"{}".to_vec()),
         )
         .unwrap_or_else(|e| unreachable!("{e}"));
+        let restored = matches!(outcome, RestoreOutcome::Restored { .. });
+        assert_eq!(
+            executor.1.load(Ordering::Relaxed),
+            usize::from(restored),
+            "the sidecar is forgotten exactly when the restore is journaled"
+        );
         (outcome, journal)
     }
 

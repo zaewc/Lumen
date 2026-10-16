@@ -22,7 +22,8 @@ exception is recorded in an ADR.
 - [ ] Renames never replace (`RENAME_NOREPLACE` / `RENAME_EXCL` /
       `ReplaceIfExists = FALSE`); nothing is ever copied and deleted.
 - [ ] Permanent removal happens only inside a store, through `finalize`, after the
-      whole tree is checked.
+      whole tree is checked. The only other removal is `forget`: one manifest
+      sidecar, inside the store, and only while nothing there has the item's name.
 - [ ] Every error says where it left the item (`Left`, `Removed`), and a test checks
       that the answer matches the filesystem afterwards.
 - [ ] Store directories are private (Unix: owner, mode 0700; Windows: owner and

@@ -88,6 +88,7 @@ pub fn finalize_item(
                 QuarantineEvent::Restore,
                 br#"{"found_at_source":true}"#,
             )?;
+            let _forgotten: bool = executor.forget(item, operation);
             return Ok(FinalizeOutcome::FoundAtSource);
         }
         Located::Unknown => return Ok(FinalizeOutcome::NotFound),

@@ -99,16 +99,19 @@ fn every_name_survives_quarantine_restore_and_finalize() {
         assert_eq!(executor.quarantine(&item, op(n), b"{}"), Ok(()), "{name:?}");
         assert_eq!(executor.locate(&item, op(n)), Located::InStore, "{name:?}");
         assert!(!path.exists(), "{name:?} left its source");
+        assert!(!executor.forget(&item, op(n)), "held: {name:?}");
         assert!(executor.restore(&item, op(n)).is_ok(), "{name:?}");
         assert_eq!(
             std::fs::read(&path).unwrap_or_default(),
             b"payload",
             "{name:?}"
         );
+        assert!(executor.forget(&item, op(n)), "restored: {name:?}");
         let again = prepare(&executor, &raw, &[wide("cache"), name.clone()]);
         assert_eq!(executor.quarantine(&again, op(n + 100), b"{}"), Ok(()));
         assert_eq!(executor.finalize(&again, op(n + 100)), Ok(()), "{name:?}");
         assert_eq!(executor.locate(&again, op(n + 100)), Located::Unknown);
+        assert!(store_is_empty(&root), "nothing left behind: {name:?}");
     }
     assert!(
         tested >= names.len() - 2,

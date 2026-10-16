@@ -13,7 +13,9 @@
 
 use std::io;
 
-use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND};
+use windows_sys::Win32::Foundation::{
+    ERROR_ALREADY_EXISTS, ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND,
+};
 use windows_sys::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT,
 };
@@ -178,6 +180,37 @@ pub fn finalize(
     }
     win_sys::delete(&held).map_err(|e| WinFinalizeError::Removal(code(&e)))?;
     drop(held);
+    let mut sidecar = name.to_vec();
+    sidecar.extend(".manifest.json".encode_utf16());
+    match win_sys::open_at(&store.dir, &sidecar, Want::Remove { directory: false }) {
+        Ok(handle) => win_sys::delete(&handle).map_err(|e| WinFinalizeError::Sidecar(code(&e))),
+        Err(error) if gone(&error) => Ok(()),
+        Err(error) => Err(WinFinalizeError::Sidecar(code(&error))),
+    }
+}
+
+/// Removes the manifest sidecar of `name` once its item has left `store`
+/// (it was restored). Nothing is removed while anything in the store has the
+/// item's name, or while that cannot be told.
+///
+/// # Errors
+///
+/// [`WinFinalizeError::InvalidName`] for a bad name;
+/// [`WinFinalizeError::Unreadable`] if the item's name is taken or cannot be
+/// checked; [`WinFinalizeError::Sidecar`] if the removal fails. A missing
+/// sidecar is not an error.
+pub fn forget(store: &WinStore, name: &[u16]) -> Result<(), WinFinalizeError> {
+    match win_sys::open_at(&store.dir, name, Want::Remove { directory: false }) {
+        Err(error) if gone(&error) => {}
+        Err(error) if error.kind() == io::ErrorKind::InvalidInput => {
+            return Err(WinFinalizeError::InvalidName);
+        }
+        Ok(_) => {
+            let taken = i32::try_from(ERROR_ALREADY_EXISTS).unwrap_or(i32::MAX);
+            return Err(WinFinalizeError::Unreadable(taken));
+        }
+        Err(error) => return Err(WinFinalizeError::Unreadable(code(&error))),
+    }
     let mut sidecar = name.to_vec();
     sidecar.extend(".manifest.json".encode_utf16());
     match win_sys::open_at(&store.dir, &sidecar, Want::Remove { directory: false }) {

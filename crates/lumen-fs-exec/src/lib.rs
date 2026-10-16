@@ -56,7 +56,7 @@ mod win_verify;
 #[cfg(unix)]
 pub use executor::{Executor, original_path};
 #[cfg(unix)]
-pub use finalize::{FinalizeError, MAX_DEPTH, finalize};
+pub use finalize::{FinalizeError, MAX_DEPTH, finalize, forget};
 pub use location::{Left, Removed};
 #[cfg(unix)]
 pub use move_into::{MoveError, move_into};
@@ -71,7 +71,7 @@ pub use verify::{ExpectedLeaf, LeafKind, Mismatch, PlanItem, UnixIdentity, Verif
 #[cfg(windows)]
 pub use win_executor::{Executor, original_path};
 #[cfg(windows)]
-pub use win_finalize::{MAX_DEPTH, WinFinalizeError, finalize};
+pub use win_finalize::{MAX_DEPTH, WinFinalizeError, finalize, forget};
 #[cfg(windows)]
 pub use win_move::{Direction, WinMoveError, WinRestored, move_into, restore, write_sidecar};
 #[cfg(windows)]

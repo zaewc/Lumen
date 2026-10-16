@@ -25,7 +25,7 @@ use lumen_domain::{
 use rustix::fs::{AtFlags, FileType, Mode, OFlags, fstat, open, openat, statat};
 use serde::{Deserialize, Serialize};
 
-use crate::finalize::{Removed, finalize};
+use crate::finalize::{Removed, finalize, forget};
 use crate::move_into::{Left, MoveError, move_into};
 use crate::restore::{RestoreError, restore};
 use crate::sidecar::write_sidecar;
@@ -277,6 +277,14 @@ impl QuarantineExecutor for Executor {
         })
     }
 
+    fn forget(&self, item: &PreparedItem, operation: OperationId) -> bool {
+        let Some(prepared) = parse(item) else {
+            return false;
+        };
+        self.store(prepared.plan().expected.identity.dev)
+            .is_some_and(|store| forget(&store, operation.to_string().as_bytes()).is_ok())
+    }
+
     fn held(&self, item: &PreparedItem, operation: OperationId) -> Option<(RawPath, FileIdentity)> {
         let plan = parse(item)?.plan();
         let store = self.store(plan.expected.identity.dev)?;
@@ -368,6 +376,14 @@ mod tests {
             .prepare(&raw(&root), &relative())
             .unwrap_or_else(|e| unreachable!("{e}"));
         assert_eq!(executor.quarantine(&prepared, op(3), b"{}"), Ok(()));
+        let sidecar = root
+            .join("Quarantine")
+            .join(format!("{}.manifest.json", op(3)));
+        assert!(
+            !executor.forget(&prepared, op(3)),
+            "nothing is forgotten while the item is held"
+        );
+        assert!(sidecar.exists());
         std::fs::write(root.join("cache/app/data.bin"), b"newcomer")
             .unwrap_or_else(|e| unreachable!("{e}"));
         assert_eq!(
@@ -393,6 +409,12 @@ mod tests {
         assert_eq!(
             std::fs::read(root.join("cache/app/data.bin")).unwrap_or_default(),
             b"0123456789"
+        );
+        assert!(executor.forget(&prepared, op(3)), "restored: forgotten");
+        assert!(!sidecar.exists());
+        assert!(
+            executor.forget(&prepared, op(3)),
+            "forgetting twice is fine"
         );
     }
 

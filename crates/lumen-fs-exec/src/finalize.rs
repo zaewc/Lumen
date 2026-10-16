@@ -13,6 +13,9 @@
 //! entered), it is at most [`MAX_DEPTH`] deep, and nothing is followed (a link
 //! is removed as a link, never its target). Only then is it removed bottom-up.
 //! The manifest sidecar goes last, then the store is flushed.
+//!
+//! [`forget`] removes only the sidecar of an item that has left the store
+//! (restored), and only while nothing in the store has the item's name.
 
 use std::ffi::CString;
 use std::os::fd::OwnedFd;
@@ -172,6 +175,33 @@ pub fn finalize(store: &Store, name: &[u8], expected: &ExpectedLeaf) -> Result<(
     match unlinkat(store.handle(), sidecar.as_slice(), AtFlags::empty())
         .and_then(|()| fault::check(Point::FinalizeSidecar))
     {
+        Ok(()) | Err(Errno::NOENT) => {}
+        Err(errno) => return Err(FinalizeError::Sidecar(errno)),
+    }
+    fsync(store.handle()).map_err(FinalizeError::Sidecar)
+}
+
+/// Removes the manifest sidecar of `name` once its item has left `store`
+/// (it was restored). Nothing is removed while anything in the store has the
+/// item's name.
+///
+/// # Errors
+///
+/// [`FinalizeError::InvalidName`] for a bad name;
+/// [`FinalizeError::Unreadable`] if the item's name is taken (`EEXIST`) or
+/// cannot be checked; [`FinalizeError::Sidecar`] if the removal fails. A
+/// missing sidecar is not an error.
+pub fn forget(store: &Store, name: &[u8]) -> Result<(), FinalizeError> {
+    if !plain(name) {
+        return Err(FinalizeError::InvalidName);
+    }
+    match statat(store.handle(), name, AtFlags::SYMLINK_NOFOLLOW) {
+        Err(Errno::NOENT) => {}
+        Ok(_) => return Err(FinalizeError::Unreadable(Errno::EXIST)),
+        Err(errno) => return Err(FinalizeError::Unreadable(errno)),
+    }
+    let sidecar = sidecar_name(name).map_err(|_| FinalizeError::InvalidName)?;
+    match unlinkat(store.handle(), sidecar.as_slice(), AtFlags::empty()) {
         Ok(()) | Err(Errno::NOENT) => {}
         Err(errno) => return Err(FinalizeError::Sidecar(errno)),
     }

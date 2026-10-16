@@ -20,7 +20,7 @@ use lumen_domain::{
 use serde::{Deserialize, Serialize};
 
 use crate::location::{Left, Removed};
-use crate::win_finalize::finalize;
+use crate::win_finalize::{finalize, forget};
 use crate::win_move::{Direction, WinMoveError, move_into, restore, write_sidecar};
 use crate::win_store::{WinStore, open_store};
 use crate::win_sys::{self, Want};
@@ -282,6 +282,14 @@ impl QuarantineExecutor for Executor {
                 Removed::Item => Removal::Item,
             }
         })
+    }
+
+    fn forget(&self, item: &PreparedItem, operation: OperationId) -> bool {
+        let Some(plan) = parse(item) else {
+            return false;
+        };
+        self.store(plan.expected.identity.volume)
+            .is_some_and(|store| forget(&store, &name_of(operation)).is_ok())
     }
 
     fn held(&self, item: &PreparedItem, operation: OperationId) -> Option<(RawPath, FileIdentity)> {

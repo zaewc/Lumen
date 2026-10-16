@@ -400,6 +400,16 @@ pub trait QuarantineExecutor: Send + Sync {
     /// How much a failed finalization removed.
     fn finalize(&self, item: &PreparedItem, operation: OperationId) -> Result<(), Removal>;
 
+    /// Removes the manifest sidecar of `operation` once its item has been
+    /// restored, so that restored operations leave nothing in the store.
+    /// `true` if no sidecar remains. Nothing is removed while the store still
+    /// has an object with the item's name. An executor that cannot say keeps
+    /// the default, and the sidecar stays.
+    fn forget(&self, item: &PreparedItem, operation: OperationId) -> bool {
+        let _ = (item, operation);
+        false
+    }
+
     /// Where the item of `operation` is held in the store, and its identity
     /// in the enumerators' form, so that it can be probed for use right before
     /// finalization (ADR-0030). `None` unless it is there, unchanged. An
