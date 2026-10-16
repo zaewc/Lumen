@@ -1,0 +1,9 @@
+{
+  "name": "@lumen/config",
+  "private": true,
+  "description": "Shared TypeScript configuration (ADR-0024, ADR-0025).",
+  "license": "Apache-2.0",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json"
+  }
+}

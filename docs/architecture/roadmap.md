@@ -272,6 +272,12 @@ Windows end to end follows the same items with the Windows adapters (10.18). And
 comes next: the core builds for Android first (10.23), then the Expo app and the
 performance spike that gates mobile UI work (ADR-0007), then iOS.
 
+## Phase 11: UI and mobile
+
+| # | PR | Scope |
+| --- | --- | --- |
+| 11.1 | `build(js): bootstrap the JavaScript workspace` | pnpm 12 workspace (`apps/*`, `packages/*`) with a strict catalog and the ADR-0024 supply-chain settings, Biome, Turborepo for the JS task graph, TypeScript 7 with an explicit shared `tsconfig` (`packages/config`); `just check`, the pre-commit hook and a `js` CI workflow run Biome and typecheck |
+
 ## Later phases (outline)
 
 - **Phase 11, UI:** JavaScript bootstrap (pnpm, Biome, TS 7, Turborepo), `apps/web`

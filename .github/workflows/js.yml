@@ -1,0 +1,41 @@
+name: js
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+env:
+  # Turborepo sends anonymous usage data unless told not to (ADR-0022).
+  TURBO_TELEMETRY_DISABLED: "1"
+
+concurrency:
+  group: js-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: js check
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      # pnpm comes from `packageManager` through Corepack, so its version has a
+      # single source (ADR-0024). No dependency cache: installs stay exact.
+      - name: Install the workspace exactly as locked
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Format, lint and type-check (ADR-0025)
+        run: pnpm run check

@@ -1,0 +1,22 @@
+# JavaScript workspace (ADR-0024). Turborepo runs the JS task graph; Cargo,
+# Xcode and Gradle keep their native builds.
+packages:
+  - apps/*
+  - packages/*
+
+# Exact versions, declared once (ADR-0024: `catalogMode: strict`).
+catalogMode: strict
+catalog:
+  "@biomejs/biome": 2.5.15
+  turbo: 2.11.7
+  typescript: 7.0.2
+
+# Supply-chain defaults (ADR-0024, ADR-0026): a release must be 3 days old
+# before it can be installed, exotic transitive sources are refused, a package
+# whose trust level drops is refused, and no dependency may run install
+# scripts unless it is listed here.
+minimumReleaseAge: 4320
+blockExoticSubdeps: true
+trustPolicy: no-downgrade
+strictDepBuilds: true
+allowBuilds: {}

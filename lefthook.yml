@@ -8,6 +8,9 @@ pre-commit:
     rustfmt:
       glob: "*.rs"
       run: cargo fmt --all --check
+    biome:
+      glob: "{apps,packages}/**/*.{js,jsx,ts,tsx,json,jsonc}"
+      run: pnpm exec biome check --no-errors-on-unmatched {staged_files}
     gitleaks:
       run: gitleaks git --pre-commit --staged --redact --no-banner .
 

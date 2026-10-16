@@ -42,8 +42,8 @@ files you will touch, trace dependencies, inspect tests, then change.
 3. **Plan the smallest change** that is one logical unit. If it would exceed about
    400 changed lines of non-generated code, or mixes concerns: **stop and split**.
 4. **Implement** on a branch named `<type>/<short-slug>` from an up-to-date `main`.
-5. **Verify:** `just check` (today: format, clippy, tests, cargo-deny; typecheck
-   and schema drift join when that code exists). Run relevant integration tests.
+5. **Verify:** `just check` (format, clippy, tests, cargo-deny, schema drift, and
+   the JavaScript workspace's Biome and typecheck). Run relevant integration tests.
    Fix root causes; never weaken a check.
 6. **Commit** one Conventional Commit (`type(scope): summary`).
 7. **PR:** `gh pr create` with the template sections (Summary, Why, Changes, Tests,
@@ -53,7 +53,8 @@ files you will touch, trace dependencies, inspect tests, then change.
 9. **Continue** with the next atomic change.
 
 One-time setup per clone: install rustup, `cargo-nextest`, `cargo-deny`, `just`,
-`lefthook` and `gitleaks`, then run `lefthook install`. CI runs the same checks
+`lefthook`, `gitleaks` and Node.js 24 (then `corepack enable`), then run
+`lefthook install`. CI runs the same checks
 plus OSV-Scanner, CodeQL, zizmor, actionlint, the MSRV build and the PR-title check.
 
 ## Hard rules
@@ -117,3 +118,14 @@ plus OSV-Scanner, CodeQL, zizmor, actionlint, the MSRV build and the PR-title ch
   choose.
 - Low confidence: choose the safer, reversible option and say so. Do not manufacture
   confidence.
+
+<!-- BEGIN:turborepo-agent-rules -->
+
+# This is NOT the Turborepo you know
+
+Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
+
+Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
+
+This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+<!-- END:turborepo-agent-rules -->

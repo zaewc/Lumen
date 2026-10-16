@@ -1,0 +1,21 @@
+{
+  "name": "lumen",
+  "private": true,
+  "description": "Lumen's JavaScript workspace (ADR-0024): apps/* and packages/*.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@12.11.2",
+  "engines": {
+    "node": ">=24.13.0"
+  },
+  "scripts": {
+    "check": "biome ci && turbo run typecheck",
+    "fmt": "biome format --write",
+    "lint": "biome lint",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:"
+  }
+}

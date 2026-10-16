@@ -1,9 +1,13 @@
 # Polyglot task entry point (ADR-0024). Run `just` to list recipes.
 # Prerequisites: rustup (toolchain from rust-toolchain.toml), cargo-nextest,
-# cargo-deny. JavaScript recipes are added with the first TypeScript code.
+# cargo-deny; Node.js 24 with Corepack enabled (`corepack enable`) for the
+# JavaScript workspace (pnpm comes from `packageManager`).
 # `cargo xtask` is an alias defined in .cargo/config.toml.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# Turborepo sends anonymous usage data unless told not to (ADR-0022).
+export TURBO_TELEMETRY_DISABLED := "1"
 
 # List available recipes.
 default:
@@ -43,5 +47,13 @@ gen:
 schema-check:
     cargo xtask schema --check
 
-# Everything CI checks for Rust; run before every commit.
-check: fmt-check lint test deny schema-check
+# Install the JavaScript workspace exactly as locked (ADR-0024).
+js-install:
+    pnpm install --frozen-lockfile
+
+# Format, lint and type-check the JavaScript workspace (ADR-0025).
+js-check: js-install
+    pnpm run check
+
+# Everything CI checks; run before every commit.
+check: fmt-check lint test deny schema-check js-check
