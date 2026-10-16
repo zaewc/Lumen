@@ -144,15 +144,17 @@ fn prepare_store(base: &Path, names: &[Vec<u8>]) -> Result<Vec<String>, Quaranti
     let volume = std::fs::metadata(base).map_err(|e| unavailable(&e))?.dev();
     let names: Vec<&[u8]> = names.iter().map(Vec::as_slice).collect();
     let store = open_store(base, &names, volume).map_err(|e| unavailable(&e))?;
-    let mut warnings = Vec::new();
     #[cfg(target_os = "macos")]
-    if let Err(error) =
+    let warnings: Vec<String> =
         lumen_platform_macos::exclude_from_backup(std::os::fd::AsFd::as_fd(store.handle()))
-    {
-        warnings.push(format!(
-            "the quarantine store could not be excluded from Time Machine: {error}"
-        ));
-    }
+            .err()
+            .map(|error| {
+                format!("the quarantine store could not be excluded from Time Machine: {error}")
+            })
+            .into_iter()
+            .collect();
+    #[cfg(not(target_os = "macos"))]
+    let warnings = Vec::new();
     drop(store);
     Ok(warnings)
 }
