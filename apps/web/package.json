@@ -1,0 +1,35 @@
+{
+  "name": "@lumen/web",
+  "private": true,
+  "description": "Lumen's UI: one SPA for the desktop webview and the browser dashboard (ADR-0009).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p .",
+    "test": "vitest run",
+    "fsd": "steiger ./src"
+  },
+  "dependencies": {
+    "@lumen/api-client": "workspace:*",
+    "@tanstack/react-query": "catalog:",
+    "@tanstack/react-router": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@feature-sliced/steiger-plugin": "catalog:",
+    "@lumen/config": "workspace:*",
+    "@tailwindcss/vite": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "steiger": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

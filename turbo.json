@@ -7,6 +7,15 @@
     },
     "gen-check": {
       "outputs": []
+    },
+    "test": {
+      "outputs": []
+    },
+    "fsd": {
+      "outputs": []
+    },
+    "build": {
+      "outputs": ["dist/**"]
     }
   }
 }
