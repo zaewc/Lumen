@@ -278,6 +278,17 @@ and the performance spike that gates mobile UI work (ADR-0007).
 | # | PR | Scope |
 | --- | --- | --- |
 | 11.1 | `build(js): bootstrap the JavaScript workspace` | pnpm 12 workspace (`apps/*`, `packages/*`) with a strict catalog and the ADR-0024 supply-chain settings, Biome, Turborepo for the JS task graph, TypeScript 7 with an explicit shared `tsconfig` (`packages/config`); `just check`, the pre-commit hook and a `js` CI workflow run Biome and typecheck |
+| 11.2 | `refactor(app): move the scan composition into lumen-app` | a `lumen-app` library crate (system.md §5.1) takes the platform enumerator choice, clock, ID generator and recording of a scan from `lumen-cli`; it returns structured summaries and `thiserror` errors, and the CLI only formats them |
+| 11.3 | `refactor(app): move assessment and planning into lumen-app` | the assessment context, probes, platform contributions and plan creation, with typed results; Jev stays opt-in per call |
+| 11.4 | `refactor(app): move quarantine, restore and finalize into lumen-app` | the privilege, hash and age checks, store location, reconciliation and the held-item operations, unchanged in behaviour; `lumen-cli` becomes a thin shell over `lumen-app` |
+| 11.5 | `feat(app): describe the local API in OpenAPI` | view models for scans, candidates, plans and held items (ADR-0011 encoding: 64-bit numbers as decimal strings, RFC 3339 times, display paths plus opaque handles); `utoipa` emits `schemas/openapi.json`, and `cargo xtask schema --check` fails on drift |
+| 11.6 | `build(js): generate the API client` | `packages/api-client` (types, Zod schemas, `fetch` SDK) generated from the committed spec with an exactly pinned generator; CI fails on drift |
+| 11.7 | `feat(web): bootstrap the web app` | `apps/web` (Vite, React, TanStack Router and Query, Tailwind, Zod; ADR-0009) in Feature-Sliced Design with Steiger; the `LumenTransport` port with an in-memory adapter for development and tests |
+| 11.8 | `feat(desktop): host the core in Tauri` | `apps/desktop` (Tauri 2.12.x, ADR-0004): the core in the host process, one command per read or intent (selection IDs, plan ID plus confirmation; never a path for mutation), per-window capabilities, strict CSP, isolation pattern, navigation and permission requests denied; `TauriTransport` |
+| 11.9 | `feat(web): show scans and assessments` | start a scan of chosen roots, progress over a channel, coverage, and candidates with verdicts and reasons (read-only) |
+| 11.10 | `feat(web): plan and quarantine with confirmation` | build a plan from `QUARANTINE` candidates, show it with its hash, confirm explicitly, execute, show each outcome |
+| 11.11 | `feat(web): restore and finalize held items` | the held items with age and retention, restore with conflicts explained, finalize only on explicit request |
+| 11.12 | `test(desktop): run the desktop flow end to end` | the scan → plan → quarantine → restore → finalize flow through the real host on a fixture directory |
 
 ## Later phases (outline)
 
