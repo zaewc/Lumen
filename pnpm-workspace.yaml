@@ -30,3 +30,10 @@ trustPolicy: no-downgrade
 strictDepBuilds: true
 allowBuilds: {}
 
+
+# Security fixes for transitive dependencies, each with its advisory.
+overrides:
+  # GHSA-2883-xcg3-v3hh, GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj (CVSS 7.5),
+  # fixed in 4.3.2; pulled in by @hey-api/json-schema-ref-parser, which pins
+  # 4.2.0.
+  "js-yaml@<4.3.2": 4.3.2
