@@ -193,7 +193,7 @@ pub async fn confirm_item(
         moved_at: with.clock.now(),
         original_path: item.path.clone(),
         entry: entry.clone(),
-        unix: None,
+        unix: with.executor.unix_ownership(&prepared),
         decision,
         confirmed_at: confirmation.confirmed_at,
         jev_request: assessed.trace.map(|trace| trace.request_hash),

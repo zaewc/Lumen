@@ -153,6 +153,16 @@ fn links(stat: &Stat) -> u64 {
     stat.st_nlink as u64
 }
 
+#[allow(
+    clippy::cast_lossless,
+    clippy::unnecessary_cast,
+    reason = "st_mode is u16 on Apple platforms and u32 on Linux; uid and gid are u32"
+)]
+/// `(st_mode, st_uid, st_gid)`, for the item's manifest.
+pub(crate) fn ownership(stat: &Stat) -> (u32, u32, u32) {
+    (stat.st_mode as u32, stat.st_uid as u32, stat.st_gid as u32)
+}
+
 /// Whether `name` is one plain directory entry name.
 pub(crate) fn plain(name: &[u8]) -> bool {
     !name.is_empty() && name != b"." && name != b".." && !name.contains(&b'/') && !name.contains(&0)

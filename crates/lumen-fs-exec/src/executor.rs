@@ -20,7 +20,8 @@ use lumen_application::ports::{
     RestoreFailure, RestoredItem,
 };
 use lumen_domain::{
-    FileId, FileIdentity, ItemLocation, OperationId, QuarantineFailure, RawPath, VolumeId,
+    FileId, FileIdentity, ItemLocation, OperationId, QuarantineFailure, RawPath, UnixOwnership,
+    VolumeId,
 };
 use rustix::fs::{AtFlags, FileType, Mode, OFlags, fstat, open, openat, statat};
 use serde::{Deserialize, Serialize};
@@ -30,7 +31,9 @@ use crate::move_into::{Left, MoveError, move_into};
 use crate::restore::{RestoreError, restore};
 use crate::sidecar::write_sidecar;
 use crate::store::{Store, open_store};
-use crate::verify::{ExpectedLeaf, LeafKind, PlanItem, UnixIdentity, check_held, identity, verify};
+use crate::verify::{
+    ExpectedLeaf, LeafKind, PlanItem, UnixIdentity, check_held, identity, ownership, verify,
+};
 
 /// The JSON form of a prepared item.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -46,6 +49,10 @@ struct Prepared {
     size: u64,
     modified: (i64, i64),
     links: u64,
+    /// `(st_mode, st_uid, st_gid)` when prepared; absent in records from
+    /// before roadmap 10.22.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    unix: Option<(u32, u32, u32)>,
 }
 
 fn pair(id: UnixIdentity) -> (u64, u64) {
@@ -146,6 +153,7 @@ fn prepare(root: &Path, relative: &[Vec<u8>]) -> Option<Prepared> {
         size: expected.size,
         modified: expected.modified,
         links: expected.links,
+        unix: Some(ownership(&stat)),
     })
 }
 
@@ -275,6 +283,11 @@ impl QuarantineExecutor for Executor {
             Removed::Partly => Removal::Partly,
             Removed::Item => Removal::Item,
         })
+    }
+
+    fn unix_ownership(&self, item: &PreparedItem) -> Option<UnixOwnership> {
+        let (mode, uid, gid) = parse(item)?.unix?;
+        Some(UnixOwnership { mode, uid, gid })
     }
 
     fn forget(&self, item: &PreparedItem, operation: OperationId) -> bool {
@@ -416,6 +429,36 @@ mod tests {
             executor.forget(&prepared, op(3)),
             "forgetting twice is fine"
         );
+    }
+
+    #[test]
+    fn a_prepared_item_records_its_unix_ownership() {
+        let (_fx, root, executor) = setup();
+        let prepared = executor
+            .prepare(&raw(&root), &relative())
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        let meta = std::fs::symlink_metadata(root.join("cache/app/data.bin"))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            executor.unix_ownership(&prepared),
+            Some(UnixOwnership {
+                mode: std::os::unix::fs::MetadataExt::mode(&meta),
+                uid: std::os::unix::fs::MetadataExt::uid(&meta),
+                gid: std::os::unix::fs::MetadataExt::gid(&meta),
+            })
+        );
+        let mut older: serde_json::Value =
+            serde_json::from_slice(&prepared.0).unwrap_or_else(|e| unreachable!("{e}"));
+        if let Some(fields) = older.as_object_mut() {
+            let _removed = fields.remove("unix");
+        }
+        let older = PreparedItem(serde_json::to_vec(&older).unwrap_or_default());
+        assert_eq!(
+            executor.unix_ownership(&older),
+            None,
+            "a record from before still parses"
+        );
+        assert_eq!(original_path(&older), original_path(&prepared));
     }
 
     #[test]

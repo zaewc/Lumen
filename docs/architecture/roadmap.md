@@ -265,6 +265,7 @@ test that forbids them today changes in the same PR.
 | 10.19 | `fix(application): probe in-use state before finalizing` | the executors name the held object (path and identity in the enumerators' form); finalization probes it there first and keeps anything `Yes`, `Unknown` or unnamed (ADR-0030 clarified) |
 | 10.20 | `feat(cli): finalize items past their retention` | `lumen finalize --expired`: every retained item quarantined 30 or more days ago (ADR-0015's default), each probed for use first; items held after a failure wait for the user. A configurable period and scheduled runs come with the agent (Phase 11) |
 | 10.21 | `fix(fs-exec): forget the sidecars of restored items` | once `Restore` is journaled, the executor removes the operation's manifest sidecar from the store, and only while nothing in the store has the item's name; a sidecar that stays is harmless, because the journal is the record |
+| 10.22 | `feat(fs-exec): record Unix mode and owner in manifests` | the Unix executor keeps `st_mode`, `st_uid` and `st_gid` from the stat it prepares from, and the manifest's `unix` field carries them (ADR-0015); records from before still parse |
 
 Windows end to end follows the same items with the Windows adapters, then Android
 (performance spike first) and iOS.

@@ -10,7 +10,7 @@ use lumen_domain::{
     AccessState, Application, FileIdentity, FilesystemEntry, ItemLocation, JevRequest,
     JudgeDescriptor, Judgment, JudgmentRejection, OperationId, Package, PlanId, Process,
     QuarantineEvent, QuarantineFailure, QuarantineState, RawPath, ScanId, Service, SnapshotId,
-    SourceName, SourceStatus, Timestamp, VolumeId,
+    SourceName, SourceStatus, Timestamp, UnixOwnership, VolumeId,
 };
 
 use crate::CancelToken;
@@ -399,6 +399,13 @@ pub trait QuarantineExecutor: Send + Sync {
     ///
     /// How much a failed finalization removed.
     fn finalize(&self, item: &PreparedItem, operation: OperationId) -> Result<(), Removal>;
+
+    /// The item's Unix mode and owner as prepared, for its manifest
+    /// (ADR-0015). `None` where the platform has none.
+    fn unix_ownership(&self, item: &PreparedItem) -> Option<UnixOwnership> {
+        let _ = item;
+        None
+    }
 
     /// Removes the manifest sidecar of `operation` once its item has been
     /// restored, so that restored operations leave nothing in the store.
