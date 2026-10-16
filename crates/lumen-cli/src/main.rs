@@ -8,6 +8,7 @@
 //! lumen list --db <FILE>
 //! lumen restore --db <FILE> --op <ID>
 //! lumen finalize --db <FILE> --op <ID>
+//! lumen finalize --db <FILE> --expired
 //! lumen jev key set|clear|status
 //! ```
 //!
@@ -18,7 +19,8 @@
 //! that plan, re-deciding every item first, and only with its full hash; it
 //! moves items into a restorable store (roadmap 10.14b). `list` shows what the
 //! store holds, `restore` puts one item back, and `finalize` removes one item
-//! for good (roadmap 10.15b). `jev key` stores, removes or checks the
+//! for good (roadmap 10.15b), or, with `--expired`, every retained item past
+//! its 30-day retention (roadmap 10.20). `jev key` stores, removes or checks the
 //! `OpenRouter` API key in the system's secret store, reading it from standard
 //! input (roadmap 10.17).
 //!
@@ -49,7 +51,7 @@ mod report;
 #[cfg(any(unix, windows))]
 mod system;
 
-const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen jev key set|clear|status   (set reads the key from standard input)";
+const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status   (set reads the key from standard input)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -77,6 +79,7 @@ enum Command {
     List(PathBuf),
     Restore(OpArgs),
     Finalize(OpArgs),
+    FinalizeExpired(PathBuf),
     JevKey(KeyAction),
     Help,
 }
@@ -212,7 +215,14 @@ fn parse(args: &[String]) -> Result<Command, String> {
                 _ => Err("usage: lumen jev key set|clear|status (the key is read from standard input, never an argument)".into()),
             };
         }
-        Some("finalize") => return parse_op(iter.as_slice()).map(Command::Finalize),
+        Some("finalize") => {
+            return match iter.as_slice() {
+                [a, db, b] | [b, a, db] if a == "--db" && b == "--expired" => {
+                    Ok(Command::FinalizeExpired(PathBuf::from(db)))
+                }
+                rest => parse_op(rest).map(Command::Finalize),
+            };
+        }
         Some("-h" | "--help" | "help") | None => return Ok(Command::Help),
         Some(other) => return Err(format!("unknown command: {other}")),
     }
@@ -257,6 +267,9 @@ fn main() -> ExitCode {
         Ok(Command::JevKey(action)) => report(run_jev_key(action)),
         Ok(Command::Restore(args)) => {
             report(run_held(HeldAction::Restore, &args.db, Some(&args.op)))
+        }
+        Ok(Command::FinalizeExpired(db)) => {
+            report(run_held(HeldAction::FinalizeExpired, &db, None))
         }
         Ok(Command::Finalize(args)) => {
             report(run_held(HeldAction::Finalize, &args.db, Some(&args.op)))
@@ -415,6 +428,7 @@ enum HeldAction {
     List,
     Restore,
     Finalize,
+    FinalizeExpired,
 }
 
 #[cfg(any(unix, windows))]
@@ -433,6 +447,7 @@ fn run_held(
         HeldAction::List => held::list(db, &clock)?,
         HeldAction::Restore => held::restore(db, operation()?, &clock)?,
         HeldAction::Finalize => held::finalize(db, operation()?, &clock)?,
+        HeldAction::FinalizeExpired => held::finalize_expired(db, &clock)?,
     };
     print!("{text}");
     Ok(())
@@ -565,6 +580,22 @@ mod tests {
         assert!(
             parse(&args(&["finalize", "--db", "x.db", "--all"])).is_err(),
             "no bulk removal"
+        );
+        assert_eq!(
+            parse(&args(&["finalize", "--expired", "--db", "x.db"])),
+            Ok(Command::FinalizeExpired("x.db".into())),
+            "only what retention allows"
+        );
+        assert!(
+            parse(&args(&[
+                "finalize",
+                "--db",
+                "x.db",
+                "--expired",
+                "--op",
+                "o"
+            ]))
+            .is_err()
         );
     }
 

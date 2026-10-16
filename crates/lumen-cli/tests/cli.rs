@@ -454,6 +454,10 @@ fn list_restore_and_finalize_follow_the_lifecycle() -> Result<(), Box<dyn std::e
         return Ok(());
     };
     assert!(!item.exists());
+    assert!(
+        run(&["finalize", "--expired"])?.contains("nothing was removed"),
+        "a fresh item is not past its retention"
+    );
     let restored = run(&["restore", "--op", &first])?;
     assert!(restored.contains("Restored"), "{restored}");
     assert_eq!(
