@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 /// The operating system's clock, in UTC.
 #[derive(Debug, Clone, Copy, Default)]
-pub(crate) struct SystemClock;
+pub struct SystemClock;
 
 impl Clock for SystemClock {
     /// The current time. A clock set before 1970 or beyond the timestamp range
@@ -29,7 +29,7 @@ impl Clock for SystemClock {
 
 /// Time-ordered identifiers (`UUIDv7`).
 #[derive(Debug, Clone, Copy, Default)]
-pub(crate) struct UuidV7Ids;
+pub struct UuidV7Ids;
 
 /// A fresh `UUIDv7` accepted by `make`. `now_v7` never returns the nil UUID
 /// (its version bits are set), which is all the ID types reject, so the loop

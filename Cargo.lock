@@ -835,6 +835,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
+name = "lumen-app"
+version = "0.0.0"
+dependencies = [
+ "lumen-application",
+ "lumen-domain",
+ "lumen-platform-macos",
+ "lumen-platform-windows",
+ "lumen-scan",
+ "lumen-store-sqlite",
+ "lumen-testkit",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
 name = "lumen-application"
 version = "0.0.0"
 dependencies = [
@@ -850,6 +865,7 @@ dependencies = [
 name = "lumen-cli"
 version = "0.0.0"
 dependencies = [
+ "lumen-app",
  "lumen-application",
  "lumen-devkb",
  "lumen-domain",

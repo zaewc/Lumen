@@ -13,6 +13,8 @@ name = "lumen"
 path = "src/main.rs"
 
 [dependencies]
+# The composition root shared with the desktop host (roadmap 11.2).
+lumen-app.workspace = true
 lumen-application.workspace = true
 # Assessment (roadmap 10.13b): knowledge base and policy context.
 lumen-devkb.workspace = true

@@ -48,8 +48,6 @@ mod plan;
 mod quarantine;
 #[cfg(any(unix, windows))]
 mod report;
-#[cfg(any(unix, windows))]
-mod system;
 
 const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status   (set reads the key from standard input)";
 
@@ -304,16 +302,20 @@ fn main() -> ExitCode {
 
 #[cfg(any(unix, windows))]
 fn run(args: &ScanArgs) -> Result<(), Box<dyn Error>> {
-    let report = report::scan(
+    let summary = lumen_app::scan(
         &args.roots,
         args.db.as_deref(),
-        &system::SystemClock,
-        &system::UuidV7Ids,
+        &lumen_app::SystemClock,
+        &lumen_app::UuidV7Ids,
+        &lumen_application::CancelToken::new(),
     )?;
     if args.json {
-        println!("{}", serde_json::to_string_pretty(&report.to_json())?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report::to_json(&summary))?
+        );
     } else {
-        print!("{}", report.to_text());
+        print!("{}", report::to_text(&summary));
     }
     Ok(())
 }
@@ -345,7 +347,7 @@ fn run_assess(args: &AssessArgs) -> Result<(), Box<dyn Error>> {
     let assessed = with_judge(
         args.jev,
         &args.db,
-        |judge| assess::assess(&args.db, &system::SystemClock, judge),
+        |judge| assess::assess(&args.db, &lumen_app::SystemClock, judge),
         Vec::as_slice,
     )?;
     if args.json {
@@ -369,7 +371,14 @@ fn run_plan(args: &PlanArgs) -> Result<(), Box<dyn Error>> {
     let planned = with_judge(
         args.jev,
         &args.db,
-        |judge| plan::plan(&args.db, &system::SystemClock, &system::UuidV7Ids, judge),
+        |judge| {
+            plan::plan(
+                &args.db,
+                &lumen_app::SystemClock,
+                &lumen_app::UuidV7Ids,
+                judge,
+            )
+        },
         |planned| planned.items.as_slice(),
     )?;
     print!("{}", plan::to_text(&planned, &args.db));
@@ -388,8 +397,8 @@ fn run_quarantine(args: &QuarantineArgs) -> Result<(), Box<dyn Error>> {
             &args.db,
             plan,
             &args.confirm,
-            &system::SystemClock,
-            &system::UuidV7Ids,
+            &lumen_app::SystemClock,
+            &lumen_app::UuidV7Ids,
         )?
     );
     Ok(())
@@ -442,7 +451,7 @@ fn run_held(
         op.parse()
             .map_err(|_| format!("not an operation ID: {op}").into())
     };
-    let clock = system::SystemClock;
+    let clock = lumen_app::SystemClock;
     let text = match action {
         HeldAction::List => held::list(db, &clock)?,
         HeldAction::Restore => held::restore(db, operation()?, &clock)?,

@@ -77,11 +77,11 @@ const fn platform() -> Platform {
 }
 
 fn home() -> Option<RawPath> {
-    std::env::home_dir().and_then(|home| crate::report::raw_path(&home).ok())
+    std::env::home_dir().and_then(|home| lumen_app::raw_path(&home).ok())
 }
 
 fn env_path(name: &str) -> Option<RawPath> {
-    std::env::var_os(name).and_then(|value| crate::report::raw_path(Path::new(&value)).ok())
+    std::env::var_os(name).and_then(|value| lumen_app::raw_path(Path::new(&value)).ok())
 }
 
 /// What the platform contributes: inventory reports, evidence, relationships.

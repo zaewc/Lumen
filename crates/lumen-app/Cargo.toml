@@ -1,0 +1,30 @@
+[package]
+name = "lumen-app"
+description = "Lumen's composition root as a library: the platform adapters wired to the use cases, for the CLI and the desktop host."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+lumen-application.workspace = true
+lumen-domain.workspace = true
+lumen-scan.workspace = true
+lumen-store-sqlite.workspace = true
+thiserror.workspace = true
+# Time-ordered scan, snapshot, plan and operation IDs.
+uuid = { workspace = true, features = ["v7"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+lumen-platform-macos.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+lumen-platform-windows.workspace = true
+
+[dev-dependencies]
+lumen-testkit.workspace = true
+
+[lints]
+workspace = true
