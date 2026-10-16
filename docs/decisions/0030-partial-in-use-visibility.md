@@ -50,7 +50,12 @@ if **every** condition holds:
    `No` or `Partial`.
 
 `Yes` and `Unknown` always block. Finalization (permanent removal after retention)
-requires `No`, or the same conditions with a fresh probe at that time. Every decision
+requires `No`, or the same conditions with a fresh probe at that time. (Clarified
+2026-10-16, roadmap 10.19: the item is then probed where it is held, in the user's own
+private store under their home, immediately before removal; `Partial` passes there,
+`Yes` and `Unknown` keep it, and an executor that cannot name the held object keeps
+it too. "The same conditions" are 1, 3 and 4; condition 2 is what limits `Partial`
+to quarantine elsewhere.) Every decision
 records which answer it relied on, so `Partial` is visible in explanations
 ("not in use by your applications; system processes could not be checked").
 

@@ -5,8 +5,9 @@
 //! Items are named by their operation ID, as `lumen quarantine` printed it.
 //! Restoring moves an item back without replacing anything; a taken name is
 //! reported and the item stays held. Finalizing is the only permanent
-//! removal: it acts on one named operation, only a retained one, and only
-//! after finding it in the store.
+//! removal: it acts on one named operation, only a retained one, only after
+//! finding it in the store, and only if no visible process uses it there
+//! (ADR-0030).
 
 use std::error::Error;
 use std::path::Path;
@@ -18,6 +19,7 @@ use lumen_domain::{ItemLocation, OperationId, QuarantineEvent, QuarantineState, 
 use lumen_fs_exec::{Executor, original_path};
 use lumen_store_sqlite::{JournalEntry, LedgerJournal, LedgerStore, open_ledger};
 
+use crate::assess::with_probes;
 use crate::quarantine::{refuse_privileged, store_location};
 
 /// One operation as the journal knows it.
@@ -167,28 +169,33 @@ pub(crate) fn finalize(
     let executor = executor()?;
     let mut journal = LedgerJournal::new(&mut store, clock);
     let path = path_text(&held.item);
-    Ok(
-        match finalize_item(
+    let outcome = with_probes(|probes| {
+        finalize_item(
             &executor,
             &mut journal,
             operation,
             held.state,
             &held.item,
             FinalizeReason::UserRequest,
-        )? {
-            FinalizeOutcome::Finalized => format!("Removed for good: {path}.\n"),
-            FinalizeOutcome::FoundAtSource => {
-                format!("{path} is back at its original place already; nothing was removed.\n")
-            }
-            FinalizeOutcome::NotFound => {
-                format!("{path} is not in the quarantine store; nothing was removed.\n")
-            }
-            FinalizeOutcome::Failed { removed } => {
-                format!("Could not remove {path} completely ({removed:?}); run finalize again.\n")
-            }
-            FinalizeOutcome::NotFinalizable(state) => {
-                format!("Operation {operation} cannot be finalized (state: {state:?}).\n")
-            }
-        },
-    )
+            probes.in_use,
+        )
+    })??;
+    Ok(match outcome {
+        FinalizeOutcome::Finalized => format!("Removed for good: {path}.\n"),
+        FinalizeOutcome::FoundAtSource => {
+            format!("{path} is back at its original place already; nothing was removed.\n")
+        }
+        FinalizeOutcome::NotFound => {
+            format!("{path} is not in the quarantine store; nothing was removed.\n")
+        }
+        FinalizeOutcome::Failed { removed } => {
+            format!("Could not remove {path} completely ({removed:?}); run finalize again.\n")
+        }
+        FinalizeOutcome::MaybeInUse => format!(
+            "{path} may be in use, or that cannot be checked; nothing was removed. Close the programs that use it and try again.\n"
+        ),
+        FinalizeOutcome::NotFinalizable(state) => {
+            format!("Operation {operation} cannot be finalized (state: {state:?}).\n")
+        }
+    })
 }

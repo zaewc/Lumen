@@ -19,7 +19,9 @@ use lumen_application::ports::{
     ExecutionFailure, Located, NotRestored, PreparedItem, QuarantineExecutor, Removal,
     RestoreFailure, RestoredItem,
 };
-use lumen_domain::{ItemLocation, OperationId, QuarantineFailure, RawPath};
+use lumen_domain::{
+    FileId, FileIdentity, ItemLocation, OperationId, QuarantineFailure, RawPath, VolumeId,
+};
 use rustix::fs::{AtFlags, FileType, Mode, OFlags, fstat, open, openat, statat};
 use serde::{Deserialize, Serialize};
 
@@ -274,6 +276,26 @@ impl QuarantineExecutor for Executor {
             Removed::Item => Removal::Item,
         })
     }
+
+    fn held(&self, item: &PreparedItem, operation: OperationId) -> Option<(RawPath, FileIdentity)> {
+        let plan = parse(item)?.plan();
+        let store = self.store(plan.expected.identity.dev)?;
+        let name = operation.to_string();
+        let stat = statat(store.handle(), name.as_bytes(), AtFlags::SYMLINK_NOFOLLOW).ok()?;
+        check_held(&stat, &plan.expected).ok()?;
+        let mut path = self.store_base.clone();
+        path.extend(self.store_names.iter().map(|n| OsStr::from_bytes(n)));
+        path.push(&name);
+        // The enumerators' identity rule (`dev:<hex>`, inode).
+        let held = identity(&stat);
+        Some((
+            RawPath::from_unix_bytes(path.as_os_str().as_bytes().to_vec()).ok()?,
+            FileIdentity {
+                volume: VolumeId::new(format!("dev:{:x}", held.dev)).ok()?,
+                file: FileId::new(u128::from(held.ino)),
+            },
+        ))
+    }
 }
 
 #[cfg(test)]
@@ -393,8 +415,24 @@ mod tests {
         let prepared = executor
             .prepare(&raw(&root), &relative())
             .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(executor.held(&prepared, op(4)), None, "not yet held");
         assert_eq!(executor.quarantine(&prepared, op(4), b"{}"), Ok(()));
+        let (path, identity) = executor
+            .held(&prepared, op(4))
+            .unwrap_or_else(|| unreachable!("held"));
+        let stored = root.join("Quarantine").join(op(4).to_string());
+        assert_eq!(path, raw(&stored), "named where it is held");
+        let meta = std::fs::symlink_metadata(&stored).unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            (identity.volume.as_str(), identity.file.get()),
+            (
+                format!("dev:{:x}", std::os::unix::fs::MetadataExt::dev(&meta)).as_str(),
+                u128::from(std::os::unix::fs::MetadataExt::ino(&meta))
+            ),
+            "in the enumerators' form"
+        );
         assert_eq!(executor.finalize(&prepared, op(4)), Ok(()));
+        assert_eq!(executor.held(&prepared, op(4)), None, "gone");
         assert_eq!(executor.locate(&prepared, op(4)), Located::Unknown);
         let left = std::fs::read_dir(root.join("Quarantine"))
             .unwrap_or_else(|e| unreachable!("{e}"))

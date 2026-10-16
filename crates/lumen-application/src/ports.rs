@@ -399,6 +399,16 @@ pub trait QuarantineExecutor: Send + Sync {
     ///
     /// How much a failed finalization removed.
     fn finalize(&self, item: &PreparedItem, operation: OperationId) -> Result<(), Removal>;
+
+    /// Where the item of `operation` is held in the store, and its identity
+    /// in the enumerators' form, so that it can be probed for use right before
+    /// finalization (ADR-0030). `None` unless it is there, unchanged. An
+    /// executor that cannot say keeps the default, and then nothing is
+    /// finalized.
+    fn held(&self, item: &PreparedItem, operation: OperationId) -> Option<(RawPath, FileIdentity)> {
+        let _ = (item, operation);
+        None
+    }
 }
 
 /// How much a failed finalization removed.

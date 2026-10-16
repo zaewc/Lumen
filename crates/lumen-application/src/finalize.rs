@@ -4,7 +4,9 @@
 //! user's request (the caller decides which and says why). The item is
 //! located first:
 //!
-//! - in the store: it is removed permanently and `Finalize` is journaled;
+//! - in the store: it is probed for use first, as it is held there (ADR-0030):
+//!   only `No`, or `Partial` (the store is the user's own, under their home),
+//!   lets it be removed permanently, and then `Finalize` is journaled;
 //! - at its source: a restore happened whose journal entry was lost, so
 //!   `Restore` is journaled and nothing is removed;
 //! - anywhere else: nothing happens and the user is told.
@@ -16,7 +18,8 @@
 use lumen_domain::{OperationId, QuarantineEvent, QuarantineState};
 
 use crate::ports::{
-    JournalError, Located, PreparedItem, QuarantineExecutor, QuarantineJournal, Removal,
+    InUse, InUseProbe, JournalError, Located, PreparedItem, QuarantineExecutor, QuarantineJournal,
+    Removal,
 };
 
 /// Why an item is finalized.
@@ -53,6 +56,9 @@ pub enum FinalizeOutcome {
     },
     /// The item is not retained; nothing done.
     NotFinalizable(QuarantineState),
+    /// A process may be using the item, or that cannot be told; nothing
+    /// done.
+    MaybeInUse,
 }
 
 /// Finalizes the item of `operation`, currently in `state`.
@@ -69,6 +75,7 @@ pub fn finalize_item(
     state: QuarantineState,
     item: &PreparedItem,
     reason: FinalizeReason,
+    probe: &dyn InUseProbe,
 ) -> Result<FinalizeOutcome, JournalError> {
     if state != QuarantineState::Retained {
         return Ok(FinalizeOutcome::NotFinalizable(state));
@@ -85,6 +92,17 @@ pub fn finalize_item(
         }
         Located::Unknown => return Ok(FinalizeOutcome::NotFound),
     }
+    let free = executor
+        .held(item, operation)
+        .is_some_and(|(path, identity)| {
+            matches!(
+                probe.probe(&path, &identity),
+                InUse::No | InUse::Partial { .. }
+            )
+        });
+    if !free {
+        return Ok(FinalizeOutcome::MaybeInUse);
+    }
     match executor.finalize(item, operation) {
         Ok(()) | Err(Removal::Item) => {
             let detail = format!(r#"{{"reason":"{}"}}"#, reason.as_str());
@@ -99,7 +117,7 @@ pub fn finalize_item(
 mod tests {
     use std::sync::Mutex;
 
-    use lumen_domain::RawPath;
+    use lumen_domain::{FileId, FileIdentity, RawPath, VolumeId};
 
     use super::*;
     use crate::ports::{ExecutionFailure, RestoreFailure, RestoredItem, Unfinished};
@@ -108,6 +126,7 @@ mod tests {
         located: Located,
         result: Result<(), Removal>,
         calls: Mutex<usize>,
+        held: bool,
     }
 
     impl QuarantineExecutor for Executor {
@@ -147,6 +166,31 @@ mod tests {
                 .unwrap_or_else(std::sync::PoisonError::into_inner) += 1;
             self.result
         }
+
+        fn held(
+            &self,
+            _item: &PreparedItem,
+            _operation: OperationId,
+        ) -> Option<(RawPath, FileIdentity)> {
+            self.held.then(|| {
+                (
+                    RawPath::from_unix_bytes(b"/store/op".to_vec())
+                        .unwrap_or_else(|_| unreachable!()),
+                    FileIdentity {
+                        volume: VolumeId::new("dev:1").unwrap_or_else(|_| unreachable!()),
+                        file: FileId::new(2),
+                    },
+                )
+            })
+        }
+    }
+
+    struct Probe(InUse);
+
+    impl InUseProbe for Probe {
+        fn probe(&self, _path: &RawPath, _expected: &FileIdentity) -> InUse {
+            self.0.clone()
+        }
     }
 
     #[derive(Default)]
@@ -168,15 +212,30 @@ mod tests {
         }
     }
 
-    fn run(
+    type Run = (FinalizeOutcome, Vec<(QuarantineEvent, Vec<u8>)>, usize);
+
+    fn run(located: Located, result: Result<(), Removal>, state: QuarantineState) -> Run {
+        run_probed(
+            located,
+            result,
+            state,
+            true,
+            InUse::Partial { unseen: None },
+        )
+    }
+
+    fn run_probed(
         located: Located,
         result: Result<(), Removal>,
         state: QuarantineState,
-    ) -> (FinalizeOutcome, Vec<(QuarantineEvent, Vec<u8>)>, usize) {
+        held: bool,
+        in_use: InUse,
+    ) -> Run {
         let executor = Executor {
             located,
             result,
             calls: Mutex::new(0),
+            held,
         };
         let mut journal = Journal::default();
         let outcome = finalize_item(
@@ -188,6 +247,7 @@ mod tests {
             state,
             &PreparedItem(b"{}".to_vec()),
             FinalizeReason::RetentionElapsed,
+            &Probe(in_use),
         )
         .unwrap_or_else(|e| unreachable!("{e}"));
         let calls = *executor
@@ -249,5 +309,32 @@ mod tests {
             assert_eq!(outcome, FinalizeOutcome::NotFinalizable(state));
             assert_eq!((journal.len(), calls), (0, 0));
         }
+    }
+
+    #[test]
+    fn an_item_that_may_be_in_use_is_kept() {
+        for (held, in_use) in [
+            (true, InUse::Yes(Vec::new())),
+            (true, InUse::Unknown { reason: "changed" }),
+            (false, InUse::No),
+        ] {
+            let (outcome, journal, calls) = run_probed(
+                Located::InStore,
+                Ok(()),
+                QuarantineState::Retained,
+                held,
+                in_use,
+            );
+            assert_eq!(outcome, FinalizeOutcome::MaybeInUse);
+            assert_eq!((journal.len(), calls), (0, 0), "nothing removed");
+        }
+        let (outcome, _, calls) = run_probed(
+            Located::InStore,
+            Ok(()),
+            QuarantineState::Retained,
+            true,
+            InUse::No,
+        );
+        assert_eq!((outcome, calls), (FinalizeOutcome::Finalized, 1));
     }
 }

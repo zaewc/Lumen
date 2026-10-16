@@ -13,7 +13,10 @@ use lumen_application::ports::{
     ExecutionFailure, Located, NotRestored, PreparedItem, QuarantineExecutor, Removal,
     RestoreFailure, RestoredItem,
 };
-use lumen_domain::{ItemLocation, OperationId, PathFlavor, QuarantineFailure, RawPath};
+use lumen_domain::{
+    FileId, FileIdentity, ItemLocation, OperationId, PathFlavor, QuarantineFailure, RawPath,
+    VolumeId,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::location::{Left, Removed};
@@ -279,6 +282,35 @@ impl QuarantineExecutor for Executor {
                 Removed::Item => Removal::Item,
             }
         })
+    }
+
+    fn held(&self, item: &PreparedItem, operation: OperationId) -> Option<(RawPath, FileIdentity)> {
+        let plan = parse(item)?;
+        let store = self.store(plan.expected.identity.volume)?;
+        let name = name_of(operation);
+        let want = Want::Movable {
+            directory: plan.expected.directory,
+        };
+        let facts = win_sys::open_at(&store.dir, &name, want)
+            .and_then(|handle| win_sys::facts(&handle))
+            .ok()?;
+        check_held(&facts, &plan.expected).ok()?;
+        let separator = u16::from(b'\\');
+        let mut path = self.store_base.clone();
+        for component in self.store_names.iter().chain([&name]) {
+            if path.last() != Some(&separator) {
+                path.push(separator);
+            }
+            path.extend_from_slice(component);
+        }
+        // The enumerators' identity rule (`vsn:<serial>`, 128-bit file ID).
+        Some((
+            RawPath::from_windows_wide(&path).ok()?,
+            FileIdentity {
+                volume: VolumeId::new(format!("vsn:{:016x}", facts.volume)).ok()?,
+                file: FileId::new(facts.file),
+            },
+        ))
     }
 }
 

@@ -267,6 +267,7 @@ fn a_crash_while_restoring_is_corrected_before_anything_is_removed() {
             state,
             &PreparedItem(b"{}".to_vec()),
             FinalizeReason::RetentionElapsed,
+            &Free,
         )
         .unwrap_or_else(|e| unreachable!("{e}"));
         assert_eq!(outcome, expected);

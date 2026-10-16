@@ -262,6 +262,7 @@ test that forbids them today changes in the same PR.
 | 10.17a | `feat(cli): manage the Jev API key` | `lumen jev key set/clear/status`: the key read from standard input, checked, kept in the macOS keychain or Windows Credential Manager, never printed |
 | 10.17b | `feat(cli): consult Jev on request` | `--jev` per run on `assess`/`plan`: a notice of what is sent, the request built from each candidate's metadata only, traces in the ledger |
 | 10.18 | `feat(cli): quarantine, list, restore and finalize on Windows` | the same commands through the Windows executor; store in `%LOCALAPPDATA%\Lumen\Quarantine` (ADR-0015 amended), so items on other volumes stay in place; an elevated token is refused (ADR-0005) |
+| 10.19 | `fix(application): probe in-use state before finalizing` | the executors name the held object (path and identity in the enumerators' form); finalization probes it there first and keeps anything `Yes`, `Unknown` or unnamed (ADR-0030 clarified) |
 
 Windows end to end follows the same items with the Windows adapters, then Android
 (performance spike first) and iOS.
