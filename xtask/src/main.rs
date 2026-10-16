@@ -11,6 +11,9 @@
 //!   on pull requests, so time passing never fails unrelated changes.
 //! - `android`: build the mobile core for every Android ABI, check 16 KB page
 //!   alignment and generate the Kotlin bindings (ADR-0007; needs an NDK).
+//! - `ios`: build the mobile core for iOS devices and the simulator as
+//!   `LumenCore.xcframework`, generate the Swift bindings and call the core
+//!   through them (ADR-0007; needs macOS and Xcode).
 
 // A command-line tool reports to the terminal by design.
 #![allow(clippy::print_stdout, clippy::print_stderr)]
@@ -24,6 +27,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lumen_devkb::{DateIssue, KnowledgeBase};
 
 mod android;
+mod ios;
 use lumen_domain as d;
 use schemars::{JsonSchema, schema_for};
 
@@ -159,8 +163,11 @@ fn main() -> ExitCode {
         ["schema", "--check"] => schema(true),
         ["devkb", "--max-age-days", days] => devkb(days),
         ["android"] => android::android(),
+        ["ios"] => ios::ios(),
         _ => {
-            eprintln!("usage: cargo xtask schema [--check] | devkb --max-age-days <N> | android");
+            eprintln!(
+                "usage: cargo xtask schema [--check] | devkb --max-age-days <N> | android | ios"
+            );
             return ExitCode::from(2);
         }
     };

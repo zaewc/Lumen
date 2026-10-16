@@ -121,6 +121,25 @@ jobs:
         # The runner image ships several NDKs; use the newest (r28+ is required).
         run: ANDROID_NDK_HOME="${ANDROID_NDK_LATEST_HOME}" cargo xtask android
 
+  ios:
+    name: ios
+    runs-on: macos-26
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned toolchain and iOS targets
+        run: |
+          rustup toolchain install
+          rustup target add aarch64-apple-ios aarch64-apple-ios-sim
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Mobile core for iOS as an XCFramework, Swift bindings proven on the host (ADR-0007)
+        run: cargo xtask ios
+
   schemas:
     name: schemas
     runs-on: ubuntu-24.04
