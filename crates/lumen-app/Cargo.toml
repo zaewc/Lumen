@@ -10,7 +10,13 @@ license.workspace = true
 
 [dependencies]
 lumen-application.workspace = true
+# Assessment (roadmap 10.13b): knowledge base, graph and policy context.
+lumen-devkb.workspace = true
 lumen-domain.workspace = true
+lumen-graph.workspace = true
+# Jev requests are built from metadata only (ADR-0020).
+lumen-jev.workspace = true
+lumen-policy.workspace = true
 lumen-scan.workspace = true
 lumen-store-sqlite.workspace = true
 thiserror.workspace = true

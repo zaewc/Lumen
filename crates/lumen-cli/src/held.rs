@@ -21,8 +21,8 @@ use lumen_domain::{ItemLocation, OperationId, QuarantineEvent, QuarantineState, 
 use lumen_fs_exec::{Executor, original_path};
 use lumen_store_sqlite::{JournalEntry, LedgerJournal, LedgerStore, open_ledger};
 
-use crate::assess::with_probes;
 use crate::quarantine::{refuse_privileged, store_location};
+use lumen_app::with_probes;
 
 /// One operation as the journal knows it.
 struct Held {

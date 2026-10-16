@@ -347,7 +347,7 @@ fn run_assess(args: &AssessArgs) -> Result<(), Box<dyn Error>> {
     let assessed = with_judge(
         args.jev,
         &args.db,
-        |judge| assess::assess(&args.db, &lumen_app::SystemClock, judge),
+        |judge| Ok(lumen_app::assess(&args.db, &lumen_app::SystemClock, judge)?),
         Vec::as_slice,
     )?;
     if args.json {
@@ -372,12 +372,12 @@ fn run_plan(args: &PlanArgs) -> Result<(), Box<dyn Error>> {
         args.jev,
         &args.db,
         |judge| {
-            plan::plan(
+            Ok(lumen_app::plan(
                 &args.db,
                 &lumen_app::SystemClock,
                 &lumen_app::UuidV7Ids,
                 judge,
-            )
+            )?)
         },
         |planned| planned.items.as_slice(),
     )?;

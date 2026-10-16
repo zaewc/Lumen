@@ -24,7 +24,7 @@ use lumen_store_sqlite::{
     IndexStore, LedgerJournal, LedgerStore, StoredPlan, open_index, open_ledger,
 };
 
-use crate::assess::{block_on, prepare, with_probes};
+use lumen_app::{block_on, prepare, with_probes};
 
 /// How long a plan may wait for its confirmation.
 const MAX_PLAN_AGE_SECS: i64 = 24 * 60 * 60;

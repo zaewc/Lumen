@@ -16,18 +16,12 @@ path = "src/main.rs"
 # The composition root shared with the desktop host (roadmap 11.2).
 lumen-app.workspace = true
 lumen-application.workspace = true
-# Assessment (roadmap 10.13b): knowledge base and policy context.
-lumen-devkb.workspace = true
-lumen-graph.workspace = true
 # Jev's API key check and judge (roadmap 10.17).
 lumen-jev.workspace = true
-lumen-policy.workspace = true
 lumen-domain.workspace = true
 lumen-scan.workspace = true
 lumen-store-sqlite.workspace = true
 serde_json.workspace = true
-# Time-ordered scan and snapshot IDs.
-uuid = { workspace = true, features = ["v7"] }
 
 [target.'cfg(any(unix, windows))'.dependencies]
 # The quarantine command (roadmap 10.14b, 10.18): the executor.
