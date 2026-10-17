@@ -1,8 +1,8 @@
 import type { ScanView } from "@lumen/api-client";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { CandidateList } from "@/entities/candidate";
 import { useTransport } from "@/shared/api";
-import { CandidateList } from "./CandidateList";
 import { RootCard } from "./RootCard";
 import { ScanForm } from "./ScanForm";
 
