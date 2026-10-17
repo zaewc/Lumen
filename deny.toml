@@ -8,7 +8,14 @@ version = 2
 # Vulnerable, unmaintained and unsound crates are reported from the RustSec
 # advisory database. Any ignore entry needs an issue link and an expiry plan.
 yanked = "deny"
-ignore = []
+ignore = [
+  # proc-macro-error is unmaintained (not vulnerable): a compile-time macro used
+  # by glib-macros in Tauri's Linux GTK3 stack (ADR-0004); it never runs in the
+  # app. Upstream: https://github.com/tauri-apps/tauri/issues/10910, resolved by
+  # the GTK4 migration (https://github.com/tauri-apps/tauri/issues/7335).
+  # Review by 2027-01-18 or when Tauri moves to GTK4.
+  { id = "RUSTSEC-2024-0370", reason = "unmaintained compile-time macro in Tauri's Linux GTK3 stack; tauri-apps/tauri#10910" },
+]
 
 [licenses]
 version = 2
@@ -77,6 +84,31 @@ allow = ["MPL-2.0"]
 
 [[licenses.exceptions]]
 crate = "uniffi_udl"
+allow = ["MPL-2.0"]
+
+# Tauri (ADR-0004), the desktop shell: MPL-2.0 crates in its dependency tree,
+# approved by the owner on 2026-10-18 for these crates only. cssparser,
+# cssparser-macros, dtoa-short and selectors (Servo) do the HTML handling that
+# injects the CSP and runs the isolation pattern; option-ext comes with dirs.
+# File-level copyleft, as for UniFFI above.
+[[licenses.exceptions]]
+crate = "cssparser"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "cssparser-macros"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "dtoa-short"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "option-ext"
+allow = ["MPL-2.0"]
+
+[[licenses.exceptions]]
+crate = "selectors"
 allow = ["MPL-2.0"]
 
 [bans]

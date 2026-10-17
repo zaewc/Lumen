@@ -1,0 +1,26 @@
+[package]
+name = "lumen-desktop"
+description = "Lumen's desktop app: the Tauri host with the core in process (ADR-0004)."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[build-dependencies]
+# Generates the context and one permission per command (ADR-0004), exact.
+tauri-build = { version = "=2.7.2", features = ["isolation"] }
+
+[dependencies]
+lumen-api.workspace = true
+lumen-app.workspace = true
+lumen-application.workspace = true
+lumen-domain.workspace = true
+serde.workspace = true
+# The desktop shell (ADR-0004), exact; `isolation` for the IPC isolation pattern.
+tauri = { version = "=2.12.3", features = ["isolation"] }
+thiserror.workspace = true
+
+[lints]
+workspace = true

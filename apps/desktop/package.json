@@ -1,0 +1,12 @@
+{
+  "name": "@lumen/desktop",
+  "private": true,
+  "description": "Lumen's desktop app: the Tauri host around apps/web (ADR-0004).",
+  "license": "Apache-2.0",
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "catalog:"
+  }
+}

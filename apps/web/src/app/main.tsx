@@ -1,7 +1,8 @@
 import { RouterProvider } from "@tanstack/react-router";
+import { isTauri } from "@tauri-apps/api/core";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { memoryTransport } from "@/shared/api";
+import { memoryTransport, tauriTransport } from "@/shared/api";
 import { Providers } from "./Providers";
 import { router } from "./router";
 import "./styles.css";
@@ -11,11 +12,13 @@ if (element === null) {
   throw new Error("index.html has no #root");
 }
 
-// The desktop host (11.8) supplies the Tauri transport; until then the app
-// runs on the in-memory one.
+// Inside the desktop host the app talks to the core over Tauri IPC; in a
+// plain browser (development) it runs on the in-memory transport.
+const transport = isTauri() ? tauriTransport() : memoryTransport();
+
 createRoot(element).render(
   <StrictMode>
-    <Providers transport={memoryTransport()}>
+    <Providers transport={transport}>
       <RouterProvider router={router} />
     </Providers>
   </StrictMode>,

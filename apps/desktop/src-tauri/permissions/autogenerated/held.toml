@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-held"
+description = "Enables the held command without any pre-configured scope."
+commands.allow = ["held"]
+
+[[permission]]
+identifier = "deny-held"
+description = "Denies the held command without any pre-configured scope."
+commands.deny = ["held"]

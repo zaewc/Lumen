@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-assess"
+description = "Enables the assess command without any pre-configured scope."
+commands.allow = ["assess"]
+
+[[permission]]
+identifier = "deny-assess"
+description = "Denies the assess command without any pre-configured scope."
+commands.deny = ["assess"]

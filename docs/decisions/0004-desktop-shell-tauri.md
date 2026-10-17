@@ -68,6 +68,14 @@ Rejected:
 - Slint, egui and Dioxus offer no dashboard reuse and weaker data-visualisation and
   accessibility ecosystems. egui remains acceptable for internal developer tools.
 
+### Licensing (2026-10-18)
+
+Tauri's dependency tree contains five MPL-2.0 crates that ship in the binary:
+cssparser, cssparser-macros, dtoa-short and selectors (Servo; HTML handling for CSP
+injection and the isolation pattern) and option-ext (via dirs). The owner approved
+them as crate-scoped exceptions in `deny.toml`; as with UniFFI (ADR-0007), Lumen's own
+code keeps its license.
+
 ## More information
 
 - [Desktop architecture research](../research/01-desktop-architecture.md)

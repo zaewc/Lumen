@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/*", "xtask"]
+members = ["crates/*", "xtask", "apps/desktop/src-tauri"]
 # A virtual manifest has no edition to infer the resolver from (ADR-0003).
 resolver = "3"
 

@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "The main window may call Lumen's own commands and nothing else: no plugins, no file system, no shell (ADR-0004).",
+  "windows": ["main"],
+  "permissions": [
+    "allow-scan",
+    "allow-assess",
+    "allow-plan",
+    "allow-execute",
+    "allow-held",
+    "allow-restore",
+    "allow-finalize"
+  ]
+}

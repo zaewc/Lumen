@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-finalize"
+description = "Enables the finalize command without any pre-configured scope."
+commands.allow = ["finalize"]
+
+[[permission]]
+identifier = "deny-finalize"
+description = "Denies the finalize command without any pre-configured scope."
+commands.deny = ["finalize"]
