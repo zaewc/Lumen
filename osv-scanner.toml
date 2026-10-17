@@ -12,3 +12,29 @@ fast-glob/micromatch, which expand glob patterns from Lumen's own config over \
 Lumen's own source tree. No untrusted pattern reaches it and nothing ships in \
 the app. Re-check for a fixed braces or a steiger without it before expiry.\
 """
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0429"
+ignoreUntil = 2027-01-18T00:00:00Z
+reason = """
+glib 0.18.5 (alias GHSA-wrw7-89jp-8q8g): unsound VariantStrIter, fixed in \
+glib 0.20. It comes only with Tauri's Linux GTK3 stack (gtk 0.18, \
+webkit2gtk), whose bindings cannot move to glib 0.20; neither Lumen nor Tauri \
+iterates GLib variants, and upstream judged it not to affect Tauri \
+(tauri-apps/tauri#12048, closed in favour of the GTK4 move, #7335). Review \
+when Tauri moves to GTK4.\
+"""
+
+[[IgnoredVulns]]
+id = "GHSA-wrw7-89jp-8q8g"
+ignoreUntil = 2027-01-18T00:00:00Z
+reason = "Alias of RUSTSEC-2024-0429 (glib VariantStrIter); see that entry."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0370"
+ignoreUntil = 2027-01-18T00:00:00Z
+reason = """
+proc-macro-error is unmaintained, not vulnerable: a compile-time macro used \
+by glib-macros in Tauri's Linux GTK3 stack; it never runs in the app. Also \
+ignored in deny.toml. Upstream: tauri-apps/tauri#10910.\
+"""
