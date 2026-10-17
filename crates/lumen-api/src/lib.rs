@@ -101,4 +101,15 @@ mod tests {
         assert_eq!(json["items"][0]["result"]["left"], "source");
         assert_eq!(json["moved_bytes"], "0");
     }
+
+    #[test]
+    fn absent_values_are_required_and_null() {
+        let doc = serde_json::to_value(openapi()).unwrap_or_default();
+        let held = &doc["components"]["schemas"]["HeldItemView"];
+        let required: Vec<&str> = held["required"]
+            .as_array()
+            .map(|r| r.iter().filter_map(serde_json::Value::as_str).collect())
+            .unwrap_or_default();
+        assert!(required.contains(&"original"), "{required:?}");
+    }
 }

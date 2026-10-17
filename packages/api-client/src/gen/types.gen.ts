@@ -52,7 +52,7 @@ export type FinalizeOutcomeView = {
   /**
    * Where the item was, if known.
    */
-  original?: string | null;
+  original: string | null;
   /**
    * What happened.
    */
@@ -97,7 +97,7 @@ export type HeldItemView = {
   /**
    * Where it was, if known.
    */
-  original?: string | null;
+  original: string | null;
   /**
    * When it was quarantined.
    */
@@ -235,7 +235,7 @@ export type RestoreOutcomeView = {
   /**
    * Where the item was, if known.
    */
-  original?: string | null;
+  original: string | null;
   /**
    * What happened.
    */

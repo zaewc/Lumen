@@ -5,7 +5,8 @@
 //! RFC 3339 UTC, identifiers are strings the UI treats as opaque, and paths
 //! are display strings for people to read, never handed back to act on.
 //! Outcomes are tagged unions with stable `snake_case` codes, so the UI can
-//! match them exhaustively.
+//! match them exhaustively. An absent value is always sent, as `null`, so
+//! optional fields are required and nullable in the schema.
 
 use lumen_app::held::{HeldItem, Outcome};
 use lumen_app::quarantine::{ItemResult, QuarantineReport};
@@ -343,6 +344,7 @@ pub struct HeldItemView {
     /// Why it is held.
     pub state: HeldStateView,
     /// Where it was, if known.
+    #[schema(required = true)]
     pub original: Option<String>,
     /// When it was quarantined.
     #[schema(value_type = String, format = DateTime)]
@@ -437,6 +439,7 @@ pub struct RestoreOutcomeView {
     /// The operation.
     pub operation: String,
     /// Where the item was, if known.
+    #[schema(required = true)]
     pub original: Option<String>,
     /// What happened.
     pub outcome: RestoreView,
@@ -448,6 +451,7 @@ pub struct FinalizeOutcomeView {
     /// The operation.
     pub operation: String,
     /// Where the item was, if known.
+    #[schema(required = true)]
     pub original: Option<String>,
     /// What happened.
     pub outcome: FinalizeView,

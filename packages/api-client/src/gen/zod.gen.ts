@@ -21,7 +21,7 @@ export const zHeldStateView = z.enum(["retained", "held_after_failure"]);
  */
 export const zHeldItemView = z.object({
   operation: z.string(),
-  original: z.string().nullish(),
+  original: z.string().nullable(),
   since: z.iso.datetime(),
   state: zHeldStateView,
 });
@@ -76,7 +76,7 @@ export const zFinalizeView = z.union([
  */
 export const zFinalizeOutcomeView = z.object({
   operation: z.string(),
-  original: z.string().nullish(),
+  original: z.string().nullable(),
   outcome: zFinalizeView,
 });
 
@@ -103,7 +103,7 @@ export const zRestoreView = z.union([
  */
 export const zRestoreOutcomeView = z.object({
   operation: z.string(),
-  original: z.string().nullish(),
+  original: z.string().nullable(),
   outcome: zRestoreView,
 });
 

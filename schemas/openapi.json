@@ -67,6 +67,7 @@
         "description": "What a finalization did to one held item.",
         "required": [
           "operation",
+          "original",
           "outcome"
         ],
         "properties": {
@@ -193,6 +194,7 @@
         "required": [
           "operation",
           "state",
+          "original",
           "since"
         ],
         "properties": {
@@ -423,6 +425,7 @@
         "description": "What a restore did to one held item.",
         "required": [
           "operation",
+          "original",
           "outcome"
         ],
         "properties": {
