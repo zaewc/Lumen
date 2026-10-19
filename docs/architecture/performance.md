@@ -35,6 +35,26 @@ Readings:
   the quick pass itself costs more (ADR-0028: 39 s → 78 s on 1.3 M files, single
   threaded). The per-file cost, not the ratio, is the figure to track.
 
+## Policy and grouping (2026-10-19, same machine)
+
+| Benchmark | Median time | Notes |
+| --- | --- | --- |
+| `policy/decide quarantine candidate` | 8.8 µs | one regenerable cache through every stage to `QUARANTINE`; about 110,000 decisions/s |
+| `cluster/group 5k x 768` | 33 ms | 5,000 feature prints (1,000 originals with 4 near-copies each), all pairs on 12 cores with early exit |
+
+Readings:
+
+- A full assessment's cost is gathering and probing, not the policy: deciding 10,000
+  candidates takes about 90 ms.
+- Grouping 5,000 photos is far below the time to compute their feature prints on a
+  phone (ADR-0007's spike measures both).
+
+## CI hardware
+
+The `bench` workflow (manual) runs the same benchmarks on GitHub's `ubuntu-24.04` and
+`macos-26` runners and keeps criterion's reports as artifacts. Shared runners vary,
+so compare runs of the same workflow with each other, never with the numbers above.
+
 ## Real tree: `lumen scan ~/Library`
 
 | Measure | Before streaming aggregation (#131) | After |

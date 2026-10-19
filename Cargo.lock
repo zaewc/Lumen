@@ -2548,6 +2548,7 @@ dependencies = [
 name = "lumen-policy"
 version = "0.0.0"
 dependencies = [
+ "criterion",
  "lumen-domain",
  "proptest",
  "serde",
