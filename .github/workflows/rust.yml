@@ -134,6 +134,24 @@ jobs:
       - name: Mobile core for Android, 16 KB page alignment and Kotlin bindings (ADR-0007)
         # The runner image ships several NDKs; use the newest (r28+ is required).
         run: ANDROID_NDK_HOME="${ANDROID_NDK_LATEST_HOME}" cargo xtask android
+      # The generated Kotlin must compile before an app ever builds it: a field
+      # named `message` once clashed with Throwable.message (#292).
+      - name: Compile the generated Kotlin bindings
+        env:
+          KOTLIN_VERSION: 2.4.20
+          KOTLIN_SHA256: 59e9ca74c7904ef2c122b12114937673ccce68de820a663f0ed66ccf8799e0b7
+          JNA_VERSION: 5.19.1
+          JNA_SHA256: 4fb141dd8ef6b0585ffceea4bc49602fbc6312fa977e2c488794ea3e6aafecae
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -fsSL -o kotlin.zip \
+            "https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip"
+          echo "${KOTLIN_SHA256}  kotlin.zip" | sha256sum -c -
+          curl -fsSL -o jna.jar \
+            "https://repo1.maven.org/maven2/net/java/dev/jna/jna/${JNA_VERSION}/jna-${JNA_VERSION}.jar"
+          echo "${JNA_SHA256}  jna.jar" | sha256sum -c -
+          unzip -q kotlin.zip
+          ./kotlinc/bin/kotlinc "$GITHUB_WORKSPACE/target/android/kotlin" -cp jna.jar -d bindings.jar
 
   ios:
     name: ios
