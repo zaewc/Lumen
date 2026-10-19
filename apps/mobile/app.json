@@ -9,7 +9,8 @@
       "bundleIdentifier": "dev.lumen.mobile",
       "supportsTablet": true,
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Lumen reads your photo library to find near-duplicate photos for you to review. Nothing is changed without your confirmation."
+        "NSPhotoLibraryUsageDescription": "Lumen reads your photo library to find near-duplicate photos for you to review. Nothing is changed without your confirmation.",
+        "BGTaskSchedulerPermittedIdentifiers": ["dev.lumen.mobile.analyze"]
       }
     },
     "android": {

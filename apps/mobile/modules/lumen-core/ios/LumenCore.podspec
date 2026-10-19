@@ -14,6 +14,7 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
+  s.frameworks = 'Photos', 'Vision', 'BackgroundTasks'
 
   s.source_files = '*.swift', 'rust/lumen_ffi.swift'
   s.vendored_frameworks = 'rust/LumenCore.xcframework'

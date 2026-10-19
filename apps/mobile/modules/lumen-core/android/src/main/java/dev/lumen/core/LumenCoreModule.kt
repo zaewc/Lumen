@@ -13,5 +13,12 @@ class LumenCoreModule : Module() {
 
     // The version of the Rust core this app loaded.
     Function("coreVersion") { uniffi.lumen_ffi.coreVersion() }
+
+    // Groups of near-duplicates among the newest `limit` photos (spike).
+    AsyncFunction("analyze") { limit: Int, threshold: Double ->
+      val resolver = appContext.reactContext?.contentResolver
+        ?: throw IllegalStateException("no content resolver")
+      Analyzer.analyze(resolver, limit, threshold.toFloat())
+    }
   }
 }
