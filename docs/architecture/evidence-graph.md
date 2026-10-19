@@ -136,6 +136,13 @@ validation and acyclic containment hold for whatever the database contains.
 | In-use probes (`libproc`, Restart Manager) | answers for `opened_by` edges and `InUse` evidence; a partial answer is recorded as `NotInUseByVisibleProcesses`, never as `InUse(false)` (ADR-0030). |
 | `lumen-devkb` | `KnowledgeBaseMatch` evidence (source `devkb`) for each scanned file or directory that is exactly an entry's location, resolved against the machine's home, known folders and environment variables. Descendants, links and projects without a scanned marker never match. |
 
+The scan's own facts about an entry (protection, cloud backing, times) are
+gathered only for entries a producer said something about or a relationship
+connects. Every candidate is such an entry, and a decision sees only subjects that
+relationships reach from its candidate, so no other entry's facts could ever reach
+a decision. On `~/Library/Developer` (198 k entries) this recorded 30 records
+instead of 790 k, with identical decisions.
+
 ## Explanation chains
 
 ```text

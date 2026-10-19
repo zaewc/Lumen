@@ -3,9 +3,15 @@
 //!
 //! Platform producers (the developer knowledge base, application support
 //! locations, declared caches) each contribute evidence and relationships. To
-//! those the scan's own facts are added: what was observed of every entry
-//! ([`filesystem_evidence`]) and whether each application named as an owner
-//! is installed ([`application_evidence`]). Records are content-addressed, so
+//! those the scan's own facts are added: what was observed of every entry a
+//! producer said something about or a relationship connects
+//! ([`filesystem_evidence`]), and whether each application named as an owner
+//! is installed ([`application_evidence`]).
+//!
+//! A decision sees only its candidate and the subjects relationships reach
+//! from it (roadmap 10.8), and every candidate is an entry some producer
+//! identified. The facts of any other entry could never reach a decision, so
+//! they are not gathered: on a whole disk that is millions of records. Records are content-addressed, so
 //! the same fact from two producers is kept once. The result is what the
 //! composition root records in `index.db` and loads back as a graph.
 //!
@@ -14,7 +20,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use lumen_domain::{AppId, Evidence, EvidenceId, Fact, FilesystemEntry, Relationship, Timestamp};
+use lumen_domain::{
+    AppId, Evidence, EvidenceId, Fact, FilesystemEntry, Relationship, Subject, Timestamp,
+};
 
 use crate::collect::{Inventory, application_evidence, filesystem_evidence};
 
@@ -41,10 +49,23 @@ pub fn gather(
     scanned_at: Timestamp,
     observed_at: Timestamp,
 ) -> Gathered {
-    let mut by_id: BTreeMap<EvidenceId, Evidence> = BTreeMap::new();
-    let scanned = entries
+    let evidence: Vec<Evidence> = evidence.into_iter().collect();
+    let relationships: BTreeSet<Relationship> = relationships.into_iter().collect();
+    let mut reachable: BTreeSet<&Subject> = evidence.iter().map(|record| &record.subject).collect();
+    for relationship in &relationships {
+        reachable.insert(relationship.from());
+        reachable.insert(relationship.to());
+    }
+    let scanned: Vec<Evidence> = entries
         .iter()
-        .flat_map(|entry| filesystem_evidence(entry, scanned_at));
+        .filter(|entry| {
+            reachable.contains(&Subject::File {
+                identity: entry.identity().clone(),
+            })
+        })
+        .flat_map(|entry| filesystem_evidence(entry, scanned_at))
+        .collect();
+    let mut by_id: BTreeMap<EvidenceId, Evidence> = BTreeMap::new();
     for record in evidence.into_iter().chain(scanned) {
         by_id.entry(record.id()).or_insert(record);
     }
@@ -58,7 +79,6 @@ pub fn gather(
     for record in application_evidence(&owners, inventory, observed_at) {
         by_id.entry(record.id()).or_insert(record);
     }
-    let relationships: BTreeSet<Relationship> = relationships.into_iter().collect();
     Gathered {
         evidence: by_id.into_values().collect(),
         relationships: relationships.into_iter().collect(),
@@ -167,8 +187,8 @@ mod tests {
                 .iter()
                 .filter(|f| matches!(f, Fact::Protected(_)))
                 .count(),
-            2,
-            "both entries' protections"
+            1,
+            "only the owned entry's protection: nothing reaches entry 2"
         );
         assert!(facts.contains(&&Fact::ApplicationPresent {
             app: app(),
@@ -188,12 +208,47 @@ mod tests {
     fn the_same_scan_gathers_the_same_evidence_whenever_it_is_assessed() {
         let inventory = summarize(&[]);
         let ids = |now| {
-            gather(&[entry(1), entry(2)], &inventory, [], [], at(1), now)
-                .evidence
-                .iter()
-                .map(Evidence::id)
-                .collect::<BTreeSet<EvidenceId>>()
+            gather(
+                &[entry(1), entry(2)],
+                &inventory,
+                [owned(1)],
+                [],
+                at(1),
+                now,
+            )
+            .evidence
+            .iter()
+            .map(Evidence::id)
+            .collect::<BTreeSet<EvidenceId>>()
         };
         assert_eq!(ids(at(2)), ids(at(3)));
+    }
+
+    #[test]
+    fn entries_nothing_identifies_or_connects_add_no_evidence() {
+        let inventory = summarize(&[]);
+        let entries: Vec<FilesystemEntry> = (1..=100).map(entry).collect();
+        let gathered = gather(&entries, &inventory, [owned(7)], [], at(1), at(2));
+        let subjects: BTreeSet<&Subject> = gathered
+            .evidence
+            .iter()
+            .map(|record| &record.subject)
+            .collect();
+        let seven = Subject::File {
+            identity: entry(7).identity().clone(),
+        };
+        assert!(
+            subjects
+                .iter()
+                .all(|s| **s == seven || matches!(s, Subject::Application { .. })),
+            "{subjects:?}"
+        );
+        assert!(
+            gathered
+                .evidence
+                .iter()
+                .any(|record| record.subject == seven && matches!(record.fact, Fact::Protected(_))),
+            "the identified entry keeps its scan facts"
+        );
     }
 }

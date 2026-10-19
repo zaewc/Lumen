@@ -127,7 +127,7 @@ incomplete subtree are lower bounds.
   database's volume (`lumen_app::space`). A scan checks before it starts and at
   every progress snapshot, and if space runs short it stops with partial,
   incomplete results (`out_of_space`). An assessment checks its estimated writes
-  (3 kB per entry) before it starts. Free space that cannot be measured counts as
+  (100 bytes per entry, a wide margin) before it starts. Free space that cannot be measured counts as
   too little.
 - Proof: `lumen-app` `scan::tests::recording_*` with an injected disk that fills.
 
