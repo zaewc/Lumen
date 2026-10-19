@@ -260,11 +260,13 @@ fn database(command: &Command) -> Option<&std::path::Path> {
     }
 }
 
-/// Local, redacted telemetry (ADR-0022): a rolling JSON log in `logs/` next
+/// Local, redacted telemetry (ADR-0022): a rolling JSON log in `lumen-logs/` next
 /// to the database; nothing is written without one, and nothing leaves the
 /// machine. Telemetry never stops a command: a failure only warns.
 fn telemetry(command: &Command) -> Option<lumen_telemetry::Telemetry> {
-    let dir = database(command)?.with_file_name("logs");
+    // A folder named for Lumen: old logs in it are pruned by name, and a
+    // generic `logs` folder next to the database could hold the user's files.
+    let dir = database(command)?.with_file_name("lumen-logs");
     let config = lumen_telemetry::Config {
         log_dir: Some(&dir),
         ..lumen_telemetry::Config::default()

@@ -12,12 +12,15 @@ them.
 
 | Surface | Location |
 | --- | --- |
-| Command line (`lumen`) | `logs/lumen.log.<date>` next to the database given with `--db`; nothing without `--db` |
+| Command line (`lumen`) | `lumen-logs/lumen.log.<date>` next to the database given with `--db`; nothing without `--db` |
 | Desktop app | `logs/lumen.log.<date>` in the app's local data folder (macOS: `~/Library/Application Support/dev.lumen.desktop`) |
 | Both | the most recent 1,000 events in memory, for review and export |
 
 One JSON object per line: time (`ts_ms`), level, the code location (`target`), the
-operation (`spans`) and the fields below. The log rotates daily.
+operation (`spans`) and the fields below. The log rotates daily (at midnight UTC; the
+date in the file name is the UTC date) and only the latest 14 daily files are kept:
+older `lumen.log.*` files in the `logs` folder are removed when Lumen starts and at
+each rotation. Other files in that folder are never touched.
 
 ## Signals
 

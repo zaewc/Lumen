@@ -3,7 +3,8 @@
 //! Lumen instruments its work with `tracing` spans and events. This crate
 //! turns them into one JSON line per event, written to two local sinks only:
 //!
-//! - a daily rolling log file (`lumen.log.<date>`) in a folder the app owns;
+//! - a daily rolling log file (`lumen.log.<date>`, UTC date) in a folder the
+//!   app owns, of which only the latest [`KEEP_DAILY_LOGS`] files are kept;
 //! - an in-memory ring buffer of the latest events, which the person can
 //!   review and export for support ([`Telemetry::recent`]).
 //!
@@ -24,12 +25,28 @@ use serde_json::{Map, Value};
 use tracing::field::{Field, Visit};
 use tracing::{Event, Level, Subscriber};
 use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
+use tracing_appender::rolling::{InitError, RollingFileAppender, Rotation};
 use tracing_subscriber::Layer;
 use tracing_subscriber::layer::{Context, SubscriberExt as _};
 use tracing_subscriber::registry::LookupSpan;
 
 /// The value written instead of a sensitive field.
 pub const REDACTED: &str = "[redacted]";
+
+/// The file name prefix of the daily log: files are named `lumen.log.<date>`.
+const LOG_PREFIX: &str = "lumen.log";
+
+/// How many daily log files are kept; older ones are removed.
+///
+/// The removal is done by `tracing-appender` itself (Lumen writes no deletion
+/// code outside `lumen-fs-exec`). It prunes when telemetry starts and at each
+/// daily rollover: if the folder holds this many or more regular files whose
+/// names start with `lumen.log`, the oldest (by creation time, else by the
+/// date in the name) are removed until one fewer remain, and then the current
+/// day's file is opened, so at most this many remain. Directories, symbolic
+/// links and files with other names are never touched, which is why the log
+/// folder must hold Lumen's logs only.
+pub const KEEP_DAILY_LOGS: usize = 14;
 
 /// Why telemetry could not start.
 #[derive(Debug, thiserror::Error)]
@@ -38,6 +55,9 @@ pub enum TelemetryError {
     /// The log folder could not be created.
     #[error("the log folder could not be created: {0}")]
     LogDir(std::io::Error),
+    /// The rolling log file could not be opened.
+    #[error("the log file could not be opened: {0}")]
+    LogFile(InitError),
     /// A global subscriber was already installed.
     #[error("telemetry was already started")]
     AlreadyStarted,
@@ -251,7 +271,8 @@ impl Telemetry {
 ///
 /// # Errors
 ///
-/// [`TelemetryError::LogDir`] if the log folder cannot be created.
+/// [`TelemetryError::LogDir`] if the log folder cannot be created, or
+/// [`TelemetryError::LogFile`] if the day's log file cannot be opened.
 pub fn layer(
     config: &Config<'_>,
 ) -> Result<(JsonLayer, Ring, Option<WorkerGuard>), TelemetryError> {
@@ -259,7 +280,12 @@ pub fn layer(
     let (file, guard) = match config.log_dir {
         Some(dir) => {
             std::fs::create_dir_all(dir).map_err(TelemetryError::LogDir)?;
-            let appender = tracing_appender::rolling::daily(dir, "lumen.log");
+            let appender = RollingFileAppender::builder()
+                .rotation(Rotation::DAILY)
+                .filename_prefix(LOG_PREFIX)
+                .max_log_files(KEEP_DAILY_LOGS)
+                .build(dir)
+                .map_err(TelemetryError::LogFile)?;
             let (writer, guard) = tracing_appender::non_blocking(appender);
             (Some(Mutex::new(writer)), Some(guard))
         }
@@ -279,8 +305,8 @@ pub fn layer(
 ///
 /// # Errors
 ///
-/// A [`TelemetryError`] if the log folder cannot be created or telemetry is
-/// already running.
+/// A [`TelemetryError`] if the log folder or file cannot be created or
+/// telemetry is already running.
 pub fn start(config: &Config<'_>) -> Result<Telemetry, TelemetryError> {
     let (json, ring, guard) = layer(config)?;
     let subscriber = tracing_subscriber::registry()
@@ -298,7 +324,7 @@ pub fn start(config: &Config<'_>) -> Result<Telemetry, TelemetryError> {
 
 #[cfg(test)]
 mod tests {
-    use lumen_testkit::Fixture;
+    use lumen_testkit::{Fixture, Node};
 
     use super::*;
 
@@ -376,6 +402,62 @@ mod tests {
             .collect();
         assert!(text.contains(REDACTED), "{text}");
         assert!(!text.contains("Secret.app"), "{text}");
+    }
+
+    #[test]
+    fn only_the_latest_daily_logs_are_kept() {
+        // Twenty old daily logs (dates long past, so today's file is new) and
+        // one file that is not a log.
+        let mut nodes: Vec<Node> = (1..=20_u8)
+            .map(|day| Node::File {
+                path: format!("logs/lumen.log.2020-01-{day:02}"),
+                contents: b"old\n".to_vec(),
+            })
+            .collect();
+        nodes.push(Node::File {
+            path: "logs/notes.txt".to_owned(),
+            contents: b"keep me".to_vec(),
+        });
+        let fx = Fixture::build(&nodes).unwrap_or_else(|e| unreachable!("{e}"));
+        let dir = fx.path("logs").unwrap_or_else(|e| unreachable!("{e}"));
+        {
+            let config = Config {
+                log_dir: Some(&dir),
+                level: Level::INFO,
+                ring: 10,
+            };
+            // `tracing-appender` prunes when the appender is built (and again
+            // at each daily rollover), before opening today's file: it removes
+            // the oldest logs until `KEEP_DAILY_LOGS - 1` remain, then today's
+            // file makes `KEEP_DAILY_LOGS`. No rollover is needed to see it.
+            let (json, _ring, guard) = layer(&config).unwrap_or_else(|e| unreachable!("{e}"));
+            let subscriber = tracing_subscriber::registry().with(json);
+            tracing::subscriber::with_default(subscriber, || {
+                tracing::info!(files = 1_u64, "today");
+            });
+            drop(guard);
+        }
+        let names: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap_or_else(|e| unreachable!("{e}"))
+            .filter_map(Result::ok)
+            .filter_map(|entry| entry.file_name().into_string().ok())
+            .collect();
+        let logs: Vec<&String> = names
+            .iter()
+            .filter(|n| n.starts_with("lumen.log."))
+            .collect();
+        assert_eq!(logs.len(), KEEP_DAILY_LOGS, "{names:?}");
+        let today: String = logs
+            .iter()
+            .filter(|n| !n.starts_with("lumen.log.2020-"))
+            .map(|n| std::fs::read_to_string(dir.join(n)).unwrap_or_default())
+            .collect();
+        assert!(
+            today.contains("\"today\""),
+            "today's file has the event: {today}"
+        );
+        let other = std::fs::read(dir.join("notes.txt")).unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(other, b"keep me", "other files are untouched");
     }
 
     #[test]
