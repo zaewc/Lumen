@@ -41,6 +41,9 @@ const INDEX_MIGRATIONS: &[M<'static>] = &[
     M::up(include_str!("migrations/index/0002_snapshots.sql")),
     M::up(include_str!("migrations/index/0003_graph.sql")),
     M::up(include_str!("migrations/index/0004_plans.sql")),
+    M::up(include_str!(
+        "migrations/index/0005_drop_identity_index.sql"
+    )),
 ];
 
 /// Migrations for `ledger.db`, in order. Never edit a released migration; add a
@@ -237,7 +240,7 @@ mod tests {
     #[test]
     fn opening_applies_schema_and_hardening() -> Result<(), Box<dyn std::error::Error>> {
         let (_fx, conn) = fresh()?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 4);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 5);
         assert_eq!(
             pragma::<String>(&conn, "journal_mode")?.to_lowercase(),
             "wal"
@@ -250,12 +253,34 @@ mod tests {
     }
 
     #[test]
+    fn entries_are_read_by_primary_key_without_an_identity_index()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let (_fx, conn) = fresh()?;
+        let indexes: i64 = conn.query_row(
+            "SELECT count(*) FROM sqlite_schema WHERE type = 'index' AND name = 'entries_by_identity'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(indexes, 0);
+        let plan: Vec<String> = conn
+            .prepare(
+                "EXPLAIN QUERY PLAN SELECT path FROM entries WHERE scan_id = ?1 ORDER BY flavor, path",
+            )?
+            .query_map(["s"], |row| row.get::<_, String>(3))?
+            .collect::<Result<_, _>>()?;
+        let plan = plan.join("; ");
+        assert!(plan.contains("PRIMARY KEY"), "{plan}");
+        assert!(!plan.contains("TEMP B-TREE"), "no sort needed: {plan}");
+        Ok(())
+    }
+
+    #[test]
     fn reopening_is_idempotent() -> Result<(), Box<dyn std::error::Error>> {
         let fx = Fixture::build(&[])?;
         let path = fx.path("index.db")?;
         drop(open_index(&path)?);
         let conn = open_index(&path)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 4);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 5);
         Ok(())
     }
 
@@ -308,7 +333,7 @@ mod tests {
             assert_eq!(pragma::<i64>(&conn, "user_version")?, 1);
         }
         let conn = open_index(&path)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 4);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 5);
         let scans: i64 = conn.query_row("SELECT count(*) FROM scans", [], |row| row.get(0))?;
         assert_eq!(scans, 1, "existing data survives the upgrade");
         Ok(())
