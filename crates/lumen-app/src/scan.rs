@@ -144,6 +144,7 @@ fn absolute_roots(roots: &[PathBuf]) -> Result<Vec<RawPath>, ScanError> {
 /// A [`ScanError`] if a root is unusable or the database fails. Unreadable
 /// parts of the tree are not errors: they are reported in each root's
 /// coverage, never treated as empty (ADR-0008).
+#[tracing::instrument(name = "scan", skip_all, fields(roots = roots.len()))]
 pub fn scan(
     roots: &[PathBuf],
     db: Option<&Path>,
@@ -151,6 +152,7 @@ pub fn scan(
     ids: &dyn IdGenerator,
     cancel: &CancelToken,
 ) -> Result<ScanSummary, ScanError> {
+    let timer = std::time::Instant::now();
     let raw_roots = absolute_roots(roots)?;
     let scan_id = ids.scan_id();
     let started = clock.now();
@@ -238,7 +240,7 @@ pub fn scan(
         store.record_snapshot(ids.snapshot_id(), scan_id, &snapshots)?;
     }
 
-    Ok(ScanSummary {
+    let result = ScanSummary {
         scan: scan_id,
         roots: roots_summary,
         entries: summary.totals.entries,
@@ -246,7 +248,28 @@ pub fn scan(
         skipped: summary.totals.skipped,
         stopped: summary.stop,
         database: db.map(Path::to_path_buf),
-    })
+    };
+    finished(&result, timer.elapsed());
+    Ok(result)
+}
+
+/// The scan's summary event: counts and timing only, never paths (ADR-0022).
+fn finished(summary: &ScanSummary, elapsed: std::time::Duration) {
+    tracing::info!(
+        entries = summary.entries,
+        directories = summary.directories,
+        skipped = summary.skipped,
+        files = summary.roots.iter().map(|r| r.files).sum::<u64>(),
+        complete_roots = summary
+            .roots
+            .iter()
+            .filter(|r| r.coverage.is_complete())
+            .count(),
+        elapsed_ms = u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX),
+        stopped_early = summary.stopped.is_some(),
+        recorded = summary.database.is_some(),
+        "scan finished"
+    );
 }
 
 #[cfg(test)]

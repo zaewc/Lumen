@@ -192,6 +192,7 @@ fn checked_plan(
 /// A [`QuarantineError`] if the plan may not run or the store, database or
 /// journal fails. Items that were skipped or failed are not errors; they are
 /// reported in [`QuarantineReport::items`].
+#[tracing::instrument(name = "quarantine", skip_all)]
 pub fn quarantine(
     db: &Path,
     plan: PlanId,
@@ -274,6 +275,17 @@ pub fn quarantine(
             .filter(|i| matches!(i.result, ItemResult::Quarantined(_)))
             .map(|i| i.reclaim.get())
             .fold(0_u64, u64::saturating_add),
+    );
+    let count = |kind: fn(&ItemResult) -> bool| items.iter().filter(|i| kind(&i.result)).count();
+    tracing::info!(
+        items = items.len(),
+        quarantined = count(|r| matches!(r, ItemResult::Quarantined(_))),
+        skipped = count(|r| matches!(r, ItemResult::Skipped(_))),
+        failed = count(|r| matches!(r, ItemResult::Failed { .. })),
+        resolved,
+        moved_bytes = moved.get(),
+        warnings = warnings.len(),
+        "plan executed"
     );
     Ok(QuarantineReport {
         plan,

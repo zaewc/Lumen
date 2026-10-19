@@ -148,6 +148,7 @@ fn executor() -> Result<Executor, HeldError> {
 ///
 /// A [`HeldError`] if the process is privileged, the operation is unknown,
 /// or the ledger or journal fails.
+#[tracing::instrument(name = "restore", skip_all)]
 pub fn restore(
     db: &Path,
     operation: OperationId,
@@ -159,6 +160,7 @@ pub fn restore(
     let executor = executor()?;
     let mut journal = LedgerJournal::new(&mut store, clock);
     let outcome = restore_item(&executor, &mut journal, operation, held.state, &held.item)?;
+    tracing::info!(outcome = restore_code(outcome), "restore finished");
     Ok(Outcome {
         operation,
         original: held.original,
@@ -171,6 +173,7 @@ pub fn restore(
 /// # Errors
 ///
 /// A [`HeldError`], as for [`restore`].
+#[tracing::instrument(name = "finalize", skip_all)]
 pub fn finalize(
     db: &Path,
     operation: OperationId,
@@ -192,11 +195,33 @@ pub fn finalize(
             probes.in_use,
         )
     })??;
+    tracing::info!(outcome = finalize_code(outcome), "finalize finished");
     Ok(Outcome {
         operation,
         original: held.original,
         outcome,
     })
+}
+
+/// A stable code for a restore outcome, for telemetry.
+const fn restore_code(outcome: RestoreOutcome) -> &'static str {
+    match outcome {
+        RestoreOutcome::Restored { .. } => "restored",
+        RestoreOutcome::NotRestored(_) => "not_restored",
+        RestoreOutcome::NotRestorable(_) => "not_restorable",
+    }
+}
+
+/// A stable code for a finalization outcome, for telemetry.
+const fn finalize_code(outcome: FinalizeOutcome) -> &'static str {
+    match outcome {
+        FinalizeOutcome::Finalized => "finalized",
+        FinalizeOutcome::FoundAtSource => "found_at_source",
+        FinalizeOutcome::NotFound => "not_found",
+        FinalizeOutcome::Failed { .. } => "failed",
+        FinalizeOutcome::MaybeInUse => "maybe_in_use",
+        FinalizeOutcome::NotFinalizable(_) => "not_finalizable",
+    }
 }
 
 /// The retained operations quarantined at least [`RETENTION_DAYS`] ago,
@@ -218,6 +243,7 @@ fn expired(operations: Vec<(QuarantineState, Vec<JournalEntry>)>, now: Timestamp
 /// # Errors
 ///
 /// A [`HeldError`], as for [`restore`].
+#[tracing::instrument(name = "finalize_expired", skip_all)]
 pub fn finalize_expired(
     db: &Path,
     clock: &dyn Clock,

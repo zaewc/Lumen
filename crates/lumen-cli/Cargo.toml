@@ -21,6 +21,8 @@ lumen-jev.workspace = true
 lumen-domain.workspace = true
 lumen-scan.workspace = true
 lumen-store-sqlite.workspace = true
+# Local, redacted logs (ADR-0022, roadmap 12.4).
+lumen-telemetry.workspace = true
 serde_json.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]

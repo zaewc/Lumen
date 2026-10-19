@@ -45,6 +45,16 @@ pub fn app<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .setup(|app| {
             let data = app.path().app_local_data_dir()?;
             std::fs::create_dir_all(&data)?;
+            // Local, redacted logs in the app's data folder (ADR-0022); kept
+            // alive by the app's state. A failure leaves telemetry off.
+            let logs = data.join("logs");
+            let config = lumen_telemetry::Config {
+                log_dir: Some(&logs),
+                ..lumen_telemetry::Config::default()
+            };
+            if let Ok(telemetry) = lumen_telemetry::start(&config) {
+                app.manage(telemetry);
+            }
             app.manage(commands::Core {
                 db: data.join("index.db"),
             });

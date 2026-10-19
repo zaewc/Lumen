@@ -43,6 +43,7 @@ pub struct Planned {
 ///
 /// A [`PlanError`]: the assessment failed, nothing is proposed, or the plan
 /// could not be stored.
+#[tracing::instrument(name = "plan", skip_all)]
 pub fn plan(
     db: &Path,
     clock: &dyn Clock,
@@ -83,6 +84,7 @@ pub fn plan(
     }
     let decisions: Vec<_> = ordered.iter().map(|a| a.decision.clone()).collect();
     IndexStore::new(open_index(db)?).save_plan(&plan, &decisions)?;
+    tracing::info!(items = plan.items().len(), "plan stored");
     Ok(Planned {
         plan,
         items: ordered,

@@ -21,6 +21,7 @@ lumen-api.workspace = true
 lumen-app.workspace = true
 lumen-application.workspace = true
 lumen-domain.workspace = true
+lumen-telemetry.workspace = true
 serde.workspace = true
 # The desktop shell (ADR-0004), exact; `isolation` for the IPC isolation pattern.
 tauri = { version = "=2.12.3", features = ["isolation"] }

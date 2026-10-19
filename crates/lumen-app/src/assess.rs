@@ -381,11 +381,13 @@ fn jev_request(
 /// # Errors
 ///
 /// An [`AssessError`], as for [`prepare`].
+#[tracing::instrument(name = "assess", skip_all)]
 pub fn assess(
     db: &Path,
     clock: &dyn Clock,
     judge: &dyn lumen_application::ports::JudgeModel,
 ) -> Result<Vec<Assessed>, AssessError> {
+    let timer = std::time::Instant::now();
     let assessment = prepare(db, clock)?;
     let sources = assessment.sources();
     let candidates = select(&assessment.gathered, &assessment.entries);
@@ -395,7 +397,7 @@ pub fn assess(
         counter.set(counter.get().saturating_add(1));
         jev_request(input, counter.get(), assessment.inventories_complete, now)
     };
-    with_probes(|probes| {
+    let assessed: Vec<Assessed> = with_probes(|probes| {
         candidates
             .into_iter()
             .filter_map(|candidate| {
@@ -405,7 +407,23 @@ pub fn assess(
                 .ok()
             })
             .collect()
-    })
+    })?;
+    let count = |verdict: lumen_domain::Verdict| {
+        assessed
+            .iter()
+            .filter(|a| a.decision.verdict() == verdict)
+            .count()
+    };
+    tracing::info!(
+        candidates = assessed.len(),
+        keep = count(lumen_domain::Verdict::Keep),
+        review = count(lumen_domain::Verdict::Review),
+        quarantine = count(lumen_domain::Verdict::Quarantine),
+        jev_consulted = assessed.iter().filter(|a| a.trace.is_some()).count(),
+        elapsed_ms = u64::try_from(timer.elapsed().as_millis()).unwrap_or(u64::MAX),
+        "assessment finished"
+    );
+    Ok(assessed)
 }
 
 #[cfg(test)]

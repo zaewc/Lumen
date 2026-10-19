@@ -2362,6 +2362,7 @@ dependencies = [
  "rustix",
  "serde_json",
  "thiserror 2.0.21",
+ "tracing",
  "uuid",
 ]
 
@@ -2389,6 +2390,7 @@ dependencies = [
  "lumen-platform-windows",
  "lumen-scan",
  "lumen-store-sqlite",
+ "lumen-telemetry",
  "lumen-testkit",
  "serde_json",
  "tempfile",
@@ -2410,6 +2412,7 @@ dependencies = [
  "lumen-app",
  "lumen-application",
  "lumen-domain",
+ "lumen-telemetry",
  "lumen-testkit",
  "serde",
  "serde_json",

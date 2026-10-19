@@ -247,9 +247,38 @@ fn parse(args: &[String]) -> Result<Command, String> {
     Ok(Command::Scan(ScanArgs { roots, db, json }))
 }
 
+/// The database a command works on, if any.
+fn database(command: &Command) -> Option<&std::path::Path> {
+    match command {
+        Command::Scan(args) => args.db.as_deref(),
+        Command::Assess(args) => Some(&args.db),
+        Command::Plan(args) => Some(&args.db),
+        Command::Quarantine(args) => Some(&args.db),
+        Command::List(db) | Command::FinalizeExpired(db) => Some(db),
+        Command::Restore(args) | Command::Finalize(args) => Some(&args.db),
+        Command::JevKey(_) | Command::Help => None,
+    }
+}
+
+/// Local, redacted telemetry (ADR-0022): a rolling JSON log in `logs/` next
+/// to the database; nothing is written without one, and nothing leaves the
+/// machine. Telemetry never stops a command: a failure only warns.
+fn telemetry(command: &Command) -> Option<lumen_telemetry::Telemetry> {
+    let dir = database(command)?.with_file_name("logs");
+    let config = lumen_telemetry::Config {
+        log_dir: Some(&dir),
+        ..lumen_telemetry::Config::default()
+    };
+    lumen_telemetry::start(&config)
+        .inspect_err(|e| eprintln!("warning: telemetry is off: {e}"))
+        .ok()
+}
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match parse(&args) {
+    let parsed = parse(&args);
+    let _telemetry = parsed.as_ref().ok().and_then(telemetry);
+    match parsed {
         Ok(Command::Help) => {
             println!("{USAGE}");
             ExitCode::SUCCESS

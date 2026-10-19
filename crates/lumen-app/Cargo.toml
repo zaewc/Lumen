@@ -21,6 +21,8 @@ lumen-scan.workspace = true
 lumen-store-sqlite.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+# Spans and summary events for local telemetry (ADR-0022, roadmap 12.4).
+tracing.workspace = true
 # Time-ordered scan, snapshot, plan and operation IDs.
 uuid = { workspace = true, features = ["v7"] }
 
