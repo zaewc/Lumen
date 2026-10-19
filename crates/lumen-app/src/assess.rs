@@ -298,12 +298,16 @@ pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> 
         vars: Vec::new(),
     };
     let mut evidence = contributions.evidence;
-    evidence.extend(kb.matches(&env, &entries, now));
+    // The scan's facts and what is derived from them alone are dated by the
+    // scan, so assessing it again records nothing new.
+    let scanned_at = store.scan_finished_at(scan)?.unwrap_or(now);
+    evidence.extend(kb.matches(&env, &entries, scanned_at));
     let gathered = gather(
         &entries,
         &inventory,
         evidence,
         contributions.relationships,
+        scanned_at,
         now,
     );
     store.record_evidence(&gathered.evidence)?;

@@ -244,6 +244,28 @@ impl IndexStore {
             .transpose()
     }
 
+    /// When `scan` finished, if it exists and has finished: the time its
+    /// facts were observed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Corrupt`] for an invalid stored time, or
+    /// [`StoreError`] if SQLite fails.
+    pub fn scan_finished_at(&self, scan: ScanId) -> Result<Option<Timestamp>, StoreError> {
+        let row: Option<(Option<i64>, Option<u32>)> = self
+            .conn
+            .query_row(
+                "SELECT finished_secs, finished_nanos FROM scans WHERE id = ?1",
+                [scan.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        match row {
+            Some((secs, nanos)) => join_time("scans.finished", secs, nanos),
+            None => Ok(None),
+        }
+    }
+
     /// The roots of `scan`, ordered by path bytes.
     ///
     /// # Errors
@@ -870,6 +892,12 @@ mod tests {
         );
         assert_eq!(store.scan_roots(scan_id(2))?, [root]);
         assert_eq!(store.scan_roots(scan_id(4))?, []);
+        assert_eq!(
+            store.scan_finished_at(scan_id(2))?,
+            Some(Timestamp::from_unix(21, 0)?)
+        );
+        assert_eq!(store.scan_finished_at(scan_id(4))?, None, "still running");
+        assert_eq!(store.scan_finished_at(scan_id(9))?, None, "no such scan");
         Ok(())
     }
 

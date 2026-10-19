@@ -28,18 +28,23 @@ pub struct Gathered {
 }
 
 /// Combines the producers' `evidence` and `relationships` with the scan's own
-/// facts about `entries` and the installation state of every owner.
+/// facts about `entries`, observed when the scan finished (`scanned_at`), and
+/// the installation state of every owner, observed now (`observed_at`).
+///
+/// Dating the scan's facts by the scan, not by the assessment, keeps their
+/// IDs stable: assessing the same scan again records nothing new.
 pub fn gather(
     entries: &[FilesystemEntry],
     inventory: &Inventory,
     evidence: impl IntoIterator<Item = Evidence>,
     relationships: impl IntoIterator<Item = Relationship>,
+    scanned_at: Timestamp,
     observed_at: Timestamp,
 ) -> Gathered {
     let mut by_id: BTreeMap<EvidenceId, Evidence> = BTreeMap::new();
     let scanned = entries
         .iter()
-        .flat_map(|entry| filesystem_evidence(entry, observed_at));
+        .flat_map(|entry| filesystem_evidence(entry, scanned_at));
     for record in evidence.into_iter().chain(scanned) {
         by_id.entry(record.id()).or_insert(record);
     }
@@ -149,6 +154,7 @@ mod tests {
             &inventory,
             [ownership.clone(), ownership.clone()],
             [relationship.clone(), relationship.clone()],
+            at(1),
             at(2),
         );
         let ids: BTreeSet<EvidenceId> = gathered.evidence.iter().map(Evidence::id).collect();
@@ -168,5 +174,26 @@ mod tests {
             app: app(),
             present: false
         }));
+        for record in &gathered.evidence {
+            let expected = match record.fact {
+                Fact::ApplicationPresent { .. } => at(2),
+                _ if record.id() == ownership.id() => record.provenance.observed_at,
+                _ => at(1),
+            };
+            assert_eq!(record.provenance.observed_at, expected, "{:?}", record.fact);
+        }
+    }
+
+    #[test]
+    fn the_same_scan_gathers_the_same_evidence_whenever_it_is_assessed() {
+        let inventory = summarize(&[]);
+        let ids = |now| {
+            gather(&[entry(1), entry(2)], &inventory, [], [], at(1), now)
+                .evidence
+                .iter()
+                .map(Evidence::id)
+                .collect::<BTreeSet<EvidenceId>>()
+        };
+        assert_eq!(ids(at(2)), ids(at(3)));
     }
 }
