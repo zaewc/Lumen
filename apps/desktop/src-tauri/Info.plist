@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Shown when macOS 14+ asks to let Lumen read other apps' containers (ADR-0006). -->
+	<key>NSAppDataUsageDescription</key>
+	<string>Lumen reads the size and dates of other apps' data to find caches that are safe to clean. It never reads file contents and never removes anything without your confirmation.</string>
+</dict>
+</plist>

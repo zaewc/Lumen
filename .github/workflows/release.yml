@@ -1,7 +1,7 @@
 name: release
 
-# Release artifacts (ADR-0026): the CLI for each platform with a CycloneDX
-# SBOM, SHA-256 checksums and build-provenance attestations, published as a
+# Release artifacts (ADR-0026): the CLI and the desktop app for each
+# platform, with CycloneDX SBOMs, SHA-256 checksums and build-provenance attestations, published as a
 # draft release on a `v*` tag. Builds are unsigned until signing lands
 # (roadmap 12.8). Pull requests that change this workflow run the builds as a
 # dry run; nothing is attested or published from them.
@@ -102,6 +102,92 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # The desktop app, unsigned until roadmap 12.8: a universal macOS disk
+  # image, a per-user Windows installer, and Linux .deb and AppImage packages.
+  desktop:
+    name: desktop (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-26
+            target: universal-apple-darwin
+            bundles: dmg
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # Audit, not block: the Ubuntu package mirrors this job needs are not
+      # pinned down yet. The build and SBOM jobs block.
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        if: runner.os == 'Linux'
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned toolchain
+        run: rustup toolchain install
+      - name: Add both macOS architectures
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - name: Install the desktop host's system libraries (Tauri on Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          # Release builds never restore a cache (ADR-0026).
+          package-manager-cache: false
+      - name: Check that the tag matches the app version
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(jq -r .version apps/desktop/src-tauri/tauri.conf.json)
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::tag $TAG does not match the desktop app $version"
+            exit 1
+          fi
+      - name: Install the workspace exactly as locked
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Bundle
+        env:
+          TARGET: ${{ matrix.target }}
+          BUNDLES: ${{ matrix.bundles }}
+          TURBO_TELEMETRY_DISABLED: "1"
+        run: pnpm --filter @lumen/desktop tauri build --ci --target "$TARGET" --bundles "$BUNDLES"
+      - name: Collect
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          mkdir -p dist
+          find "target/$TARGET/release/bundle" -maxdepth 2 -type f \
+            \( -name '*.dmg' -o -name '*-setup.exe' -o -name '*.deb' -o -name '*.AppImage' \) \
+            -exec cp {} dist/ \;
+          ls -l dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-desktop-${{ matrix.target }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
   # SBOMs come from Cargo.lock, not the binaries, so one Linux job with egress
   # blocked writes them for every target.
   sbom:
@@ -123,6 +209,7 @@ jobs:
             static.crates.io:443
             results-receiver.actions.githubusercontent.com:443
             *.blob.core.windows.net:443
+            registry.npmjs.org:443
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -131,6 +218,11 @@ jobs:
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: cargo-cyclonedx@0.5.9
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          # Release builds never restore a cache (ADR-0026).
+          package-manager-cache: false
       # The dependencies compiled into each target's binary.
       - name: SBOMs
         run: |
@@ -140,7 +232,16 @@ jobs:
               --format json --spec-version 1.5 --target "$target" \
               --override-filename "lumen-$target.cdx"
             cp "crates/lumen-cli/lumen-$target.cdx.json" dist/
+            cargo cyclonedx --manifest-path apps/desktop/src-tauri/Cargo.toml \
+              --format json --spec-version 1.5 --target "$target" \
+              --override-filename "lumen-desktop-$target.cdx"
+            cp "apps/desktop/src-tauri/lumen-desktop-$target.cdx.json" dist/
           done
+          # The desktop app's interface: the web packages bundled into it.
+          corepack enable
+          pnpm --filter @lumen/web sbom --lockfile-only --prod \
+            --sbom-format cyclonedx --sbom-spec-version 1.5 --sbom-type application \
+            --out "$PWD/dist/lumen-desktop-web.cdx.json"
           ls -l dist
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -151,7 +252,7 @@ jobs:
 
   attest:
     name: attest
-    needs: [build, sbom]
+    needs: [build, desktop, sbom]
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     # Only first-party actions run with the signing token; no repository code.

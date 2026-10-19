@@ -10,30 +10,39 @@
 | `lumen-aarch64-apple-darwin.tar.gz` | the `lumen` command line for Apple silicon Macs |
 | `lumen-x86_64-unknown-linux-gnu.tar.gz` | for 64-bit Linux with glibc 2.39 or later (built on Ubuntu 24.04) |
 | `lumen-x86_64-pc-windows-msvc.zip` | for 64-bit Windows |
+| `Lumen_<version>_universal.dmg` | the desktop app for macOS 13 or later, Apple silicon and Intel |
+| `Lumen_<version>_x64-setup.exe` | the desktop app's per-user Windows installer (no administrator rights needed) |
+| `Lumen_<version>_amd64.deb`, `Lumen_<version>_amd64.AppImage` | the desktop app for 64-bit Linux |
 | `lumen-<target>.cdx.json` | a CycloneDX 1.5 SBOM per target: every crate compiled into that binary, from `Cargo.lock` |
+| `lumen-desktop-<target>.cdx.json` | the same for the desktop app's Rust host |
+| `lumen-desktop-web.cdx.json` | the npm packages bundled into the desktop app's interface, from `pnpm-lock.yaml` |
 | `SHA256SUMS` | SHA-256 checksums of every file above |
 
 Each archive holds the binary, `LICENSE` and `README.md`. Every file listed in
 `SHA256SUMS` carries a signed SLSA build-provenance attestation, which ties it to the
 workflow run, commit and tag that built it.
 
-The binaries are **not signed** yet: macOS Gatekeeper and Windows SmartScreen warn
-about them. Signing and notarization are roadmap 12.8. Desktop bundles follow in a
-separate change.
+Nothing is **signed** yet, so macOS Gatekeeper and Windows SmartScreen warn about
+these files. The macOS app is only ad-hoc signed, so Apple silicon will run it, but
+Gatekeeper still blocks it until it is allowed in System Settings › Privacy &
+Security. Signing and notarization are roadmap 12.8.
 
 ## Cutting a release
 
-1. Set `version` in the root `Cargo.toml` to the new version, in its own pull request.
+1. Set `version` in the root `Cargo.toml` and in
+   `apps/desktop/src-tauri/tauri.conf.json` to the new version, in its own pull
+   request.
 2. Once that is merged, tag the merge commit `v<version>` and push the tag. The build
-   fails if the tag does not match the version.
+   fails if the tag does not match either version.
 3. The workflow builds each target, writes the SBOMs and checksums, attests them and
    creates a **draft** release with generated notes.
 4. Review the draft (files, checksums, notes), then publish it.
 
 The build jobs can read the repository and nothing else; only the attest job can mint
 a signing token, and only the release job can write releases. Neither runs repository
-code. Release builds use no cache. On Linux, the build and SBOM jobs may reach only the
-toolchain, crates.io, GitHub and artifact storage. The macOS and Windows runners
+code. Release builds use no cache. On Linux, the CLI build and SBOM jobs may reach only the
+toolchain, crates.io, npm, GitHub and artifact storage; the desktop job audits its
+network use while its package mirrors are pinned down. The macOS and Windows runners
 cannot enforce that limit.
 
 A pull request that changes the workflow runs the builds as a dry run; nothing is
