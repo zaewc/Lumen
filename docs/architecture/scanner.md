@@ -123,6 +123,13 @@ incomplete subtree are lower bounds.
   [performance.md](performance.md)).
 - Proof: scheduler cancellation and backpressure tests; benchmarks assert entry
   counts.
+- Disk: recording a scan or an assessment never leaves less than 2 GB free on the
+  database's volume (`lumen_app::space`). A scan checks before it starts and at
+  every progress snapshot, and if space runs short it stops with partial,
+  incomplete results (`out_of_space`). An assessment checks its estimated writes
+  (3 kB per entry) before it starts. Free space that cannot be measured counts as
+  too little.
+- Proof: `lumen-app` `scan::tests::recording_*` with an injected disk that fills.
 
 ### 9. Change feeds are advisory
 

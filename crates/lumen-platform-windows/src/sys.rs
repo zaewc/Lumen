@@ -582,6 +582,37 @@ pub(crate) fn process_is_elevated() -> io::Result<bool> {
     Ok(elevation.TokenIsElevated != 0)
 }
 
+/// Bytes this user may still write on the volume holding the directory
+/// `path`, after quotas.
+pub(crate) fn available_space(path: &std::path::Path) -> io::Result<u64> {
+    use std::os::windows::ffi::OsStrExt as _;
+
+    use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+
+    let wide: Vec<u16> = path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let mut available = 0_u64;
+    // SAFETY: invariant: the name is NUL-terminated and the one requested
+    // output is writable; the other two are null, which the API allows. Why
+    // unsafe: FFI call. Why it holds: `wide` ends with the NUL chained above
+    // and outlives the call; `available` is a local `u64`.
+    let ok = unsafe {
+        GetDiskFreeSpaceExW(
+            wide.as_ptr(),
+            &raw mut available,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(available)
+}
+
 #[cfg(test)]
 mod tests {
     use std::mem::offset_of;

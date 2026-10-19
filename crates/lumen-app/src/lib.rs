@@ -12,6 +12,7 @@ pub mod plan;
 #[cfg(any(unix, windows))]
 pub mod quarantine;
 pub mod scan;
+pub mod space;
 #[cfg(any(unix, windows))]
 pub mod store;
 pub mod system;

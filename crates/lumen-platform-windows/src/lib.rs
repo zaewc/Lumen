@@ -55,3 +55,14 @@ pub use watcher::DirectoryChangesFeed;
 pub fn process_is_elevated() -> std::io::Result<bool> {
     sys::process_is_elevated()
 }
+
+/// Bytes this user may still write on the volume holding the directory
+/// `path`, after quotas.
+///
+/// # Errors
+///
+/// The OS error if the volume cannot be queried.
+#[cfg(windows)]
+pub fn available_space(path: &std::path::Path) -> std::io::Result<u64> {
+    sys::available_space(path)
+}

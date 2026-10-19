@@ -27,6 +27,8 @@ use lumen_domain::{
 use lumen_policy::Context;
 use lumen_store_sqlite::{IndexStore, StoreError, open_index};
 
+use crate::space::{self, ASSESS_BYTES_PER_ENTRY, SpaceError};
+
 /// Why an assessment could not run.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -43,6 +45,10 @@ pub enum AssessError {
     /// A probe's source name is invalid.
     #[error("invalid source name: {0}")]
     SourceName(#[from] SourceNameError),
+    /// Recording the evidence would leave too little free space, or it
+    /// cannot be measured.
+    #[error(transparent)]
+    Space(#[from] SpaceError),
 }
 
 /// Runs `future` to completion on this thread.
@@ -258,8 +264,9 @@ impl Assessment {
 ///
 /// # Errors
 ///
-/// An [`AssessError`] if there is no completed scan or the database or the
-/// knowledge base fails.
+/// An [`AssessError`] if there is no completed scan, the database or the
+/// knowledge base fails, or recording would leave less than
+/// [`space::RESERVE`] free on the database's disk.
 pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> {
     let mut store = IndexStore::new(open_index(db)?);
     let scan = store
@@ -267,6 +274,10 @@ pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> 
         .ok_or(AssessError::NoCompletedScan)?;
     let roots = store.scan_roots(scan)?;
     let entries = store.entries(scan)?;
+    let needed = u64::try_from(entries.len())
+        .unwrap_or(u64::MAX)
+        .saturating_mul(ASSESS_BYTES_PER_ENTRY);
+    space::ensure(db, needed)?;
     let listings = store.listings(scan)?;
     let now = clock.now();
     let platform = platform();

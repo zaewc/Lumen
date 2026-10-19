@@ -92,6 +92,9 @@ pub(crate) fn to_text(summary: &ScanSummary) -> String {
         ),
     );
     let partial = match summary.stopped {
+        _ if summary.out_of_space => Some(
+            "scan stopped: the disk holding the database is nearly full (Lumen keeps 2 GB free); results are partial",
+        ),
         Some(StopReason::Cancelled) => Some("scan was cancelled; results are partial"),
         Some(StopReason::Consumer) => Some("scan stopped early; results are partial"),
         None => None,
@@ -129,6 +132,7 @@ pub(crate) fn to_json(summary: &ScanSummary) -> Value {
         "directories": summary.directories,
         "skipped": summary.skipped,
         "partial": summary.stopped.is_some(),
+        "out_of_space": summary.out_of_space,
         "database": summary.database.as_ref().map(|d| d.display().to_string()),
     })
 }
