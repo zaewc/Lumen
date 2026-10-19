@@ -98,6 +98,8 @@ export const en = {
       "Reads every folder on the startup disk, one disk at a time; this can take a few minutes. Your system may ask to allow access to some folders; folders you do not allow are reported as unread, never as empty.",
     found: "What was found",
     partial: "The scan stopped early; results are partial.",
+    outOfSpace:
+      "The scan stopped because the disk is nearly full: Lumen always leaves 2 GB free. Results are partial. Free some space and scan again.",
     assessment: "Assessment",
     nothingMoved: "Nothing has been moved.",
     deciding: "Deciding…",

@@ -380,6 +380,11 @@ export type ScanView = {
    */
   entries: string;
   /**
+   * Whether it stopped because the disk holding the database was nearly
+   * full; then `partial` is true too.
+   */
+  out_of_space: boolean;
+  /**
    * Whether the scan stopped early (cancelled), so results are partial.
    */
   partial: boolean;

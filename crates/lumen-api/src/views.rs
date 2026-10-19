@@ -95,6 +95,9 @@ pub struct ScanView {
     pub entries: String,
     /// Whether the scan stopped early (cancelled), so results are partial.
     pub partial: bool,
+    /// Whether it stopped because the disk holding the database was nearly
+    /// full; then `partial` is true too.
+    pub out_of_space: bool,
 }
 
 impl From<&ScanSummary> for ScanView {
@@ -104,6 +107,7 @@ impl From<&ScanSummary> for ScanView {
             roots: summary.roots.iter().map(RootView::from).collect(),
             entries: summary.entries.to_string(),
             partial: summary.stopped.is_some(),
+            out_of_space: summary.out_of_space,
         }
     }
 }

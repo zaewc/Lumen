@@ -155,6 +155,7 @@ export const zScanRequest = z.object({
  */
 export const zScanView = z.object({
   entries: z.string(),
+  out_of_space: z.boolean(),
   partial: z.boolean(),
   roots: z.array(zRootView),
   scan: z.string(),

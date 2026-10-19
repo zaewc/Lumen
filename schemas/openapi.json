@@ -652,12 +652,17 @@
           "scan",
           "roots",
           "entries",
-          "partial"
+          "partial",
+          "out_of_space"
         ],
         "properties": {
           "entries": {
             "type": "string",
             "description": "Entries seen."
+          },
+          "out_of_space": {
+            "type": "boolean",
+            "description": "Whether it stopped because the disk holding the database was nearly\nfull; then `partial` is true too."
           },
           "partial": {
             "type": "boolean",

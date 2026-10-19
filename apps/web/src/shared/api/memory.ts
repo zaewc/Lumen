@@ -22,6 +22,7 @@ const scanView: ScanView = {
   ],
   entries: "1580",
   partial: false,
+  out_of_space: false,
 };
 
 const candidate: CandidateView = {

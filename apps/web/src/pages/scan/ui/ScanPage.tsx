@@ -28,7 +28,11 @@ export function ScanPage() {
       {scan && (
         <section className="space-y-3">
           <h2 className="text-lg font-medium">{m.scan.found}</h2>
-          {scan.partial && <p className="text-sm text-amber-800">{m.scan.partial}</p>}
+          {scan.partial && (
+            <p className="text-sm text-amber-800">
+              {scan.out_of_space ? m.scan.outOfSpace : m.scan.partial}
+            </p>
+          )}
           {scan.roots.map((root) => (
             <RootCard key={root.root} root={root} />
           ))}
