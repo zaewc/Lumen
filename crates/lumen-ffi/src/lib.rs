@@ -25,11 +25,12 @@ pub fn core_version() -> String {
 /// Why feature prints could not be grouped.
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum GroupError {
-    /// The input was refused; the message says why.
-    #[error("{message}")]
+    /// The input was refused; `reason` says why. (Not `message`: Kotlin's
+    /// generated exception would clash with `Throwable.message`.)
+    #[error("{reason}")]
     Invalid {
         /// Why.
-        message: String,
+        reason: String,
     },
 }
 
@@ -47,7 +48,7 @@ pub enum GroupError {
     reason = "UniFFI hands exported functions owned arguments"
 )]
 pub fn group_feature_prints(prints: Vec<Vec<f32>>, threshold: f32) -> Result<Vec<u32>, GroupError> {
-    let invalid = |message: String| GroupError::Invalid { message };
+    let invalid = |reason: String| GroupError::Invalid { reason };
     let refs: Vec<&[f32]> = prints.iter().map(Vec::as_slice).collect();
     lumen_cluster::group(&refs, threshold)
         .map_err(|e| invalid(e.to_string()))?
