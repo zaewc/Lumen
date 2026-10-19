@@ -307,7 +307,8 @@ and the performance spike that gates mobile UI work (ADR-0007).
 | 12.4 | `feat(app): instrument scans, decisions and quarantine` | spans and aggregate counters in `lumen-app` (files/s, decisions by verdict, quarantine outcomes, rollbacks, Jev latency and validation failures); the CLI and desktop host install the subscriber |
 | 12.5 | `docs(operations): list every signal` | `docs/operations/privacy.md`: each span, event and metric, what it carries and where it goes (ADR-0022: no hidden telemetry) |
 | 12.6 | `perf: record benchmark baselines` | the scan, policy and grouping benchmarks in `performance.md`, and a manual workflow that runs them on CI hardware for comparison |
-| 12.7 | `build(release): build release artifacts on tags` | a tag-triggered workflow: the CLI for macOS, Windows and Linux and unsigned desktop bundles, with SHA-256 checksums, a CycloneDX SBOM and build-provenance attestations, published as a draft release |
+| 12.7a | `build(release): build release artifacts on tags` | a tag-triggered workflow: the CLI for macOS (arm64), Windows and Linux (x86_64), with SHA-256 checksums, a CycloneDX SBOM per target and build-provenance attestations, published as a draft release (docs/operations/release.md) |
+| 12.7b | `build(release): bundle the desktop app` | unsigned desktop bundles (`.dmg`, `.msi`, `.AppImage`/`.deb`) added to the same release, with icons for every platform |
 | 12.8 | `build(release): sign and notarize` | macOS Developer ID, Hardened Runtime and notarization, and Windows Azure Artifact Signing (ADR-0006), once the owner provides the accounts as protected-environment secrets |
 
 ## Later phases (outline)
