@@ -9,6 +9,7 @@ import type {
   PlanView,
   QuarantineReportView,
   RestoreOutcomeView,
+  ScanProgressView,
   ScanRequest,
   ScanView,
 } from "@lumen/api-client";
@@ -26,8 +27,11 @@ export function operationOf(view: { readonly operation: string }): OperationId {
 
 /** What the UI can ask of the core. Mutations name plans and operations, never paths. */
 export interface LumenTransport {
-  /** Scans the chosen roots, read-only. */
-  scan(request: ScanRequest): Promise<ScanView>;
+  /**
+   * Scans the chosen roots (none: the whole disk), read-only; `onProgress`
+   * receives the totals a few times a second while it runs.
+   */
+  scan(request: ScanRequest, onProgress?: (progress: ScanProgressView) => void): Promise<ScanView>;
   /** Decides the latest completed scan; moves nothing. */
   assess(): Promise<readonly CandidateView[]>;
   /** Plans every candidate proposed for quarantine; moves nothing. */

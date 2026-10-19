@@ -108,6 +108,24 @@ impl From<&ScanSummary> for ScanView {
     }
 }
 
+/// A running scan's totals so far, sent a few times a second while it runs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ScanProgressView {
+    /// Entries seen so far.
+    pub entries: String,
+    /// Folders listed so far.
+    pub directories: String,
+    /// Disk space the files seen so far take up, in bytes.
+    pub allocated_bytes: String,
+    /// Folders that could not be read so far.
+    pub unreadable: String,
+    /// The folder listed most recently, if any.
+    #[schema(required = true)]
+    pub current: Option<String>,
+    /// Milliseconds since the scan started.
+    pub elapsed_ms: String,
+}
+
 /// The policy's verdict.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]

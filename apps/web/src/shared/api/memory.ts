@@ -53,7 +53,17 @@ const held: HeldItemView = {
 /** A transport that answers from fixed data. */
 export function memoryTransport(): LumenTransport {
   return {
-    scan: () => Promise.resolve(scanView),
+    scan: (_request, onProgress) => {
+      onProgress?.({
+        entries: "1580",
+        directories: "120",
+        allocated_bytes: "4200000000",
+        unreadable: "0",
+        current: "/Users/ana/Library/Developer/Xcode/DerivedData",
+        elapsed_ms: "250",
+      });
+      return Promise.resolve(scanView);
+    },
     assess: () => Promise.resolve([candidate]),
     plan: () => Promise.resolve(planView),
     execute: (request) =>

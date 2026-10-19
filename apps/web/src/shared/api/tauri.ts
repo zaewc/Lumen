@@ -8,15 +8,26 @@ import {
   zPlanView,
   zQuarantineReportView,
   zRestoreOutcomeView,
+  zScanProgressView,
   zScanView,
 } from "@lumen/api-client";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import type { LumenTransport } from "./transport";
 
 /** A transport that calls the desktop host. */
 export function tauriTransport(): LumenTransport {
   return {
-    scan: async (request) => zScanView.parse(await invoke("scan", { request })),
+    scan: async (request, onProgress) => {
+      const progress = new Channel<unknown>();
+      progress.onmessage = (message) => {
+        // Progress is advisory: a malformed message is dropped, never shown.
+        const parsed = zScanProgressView.safeParse(message);
+        if (parsed.success) {
+          onProgress?.(parsed.data);
+        }
+      };
+      return zScanView.parse(await invoke("scan", { request, progress }));
+    },
     assess: async () => zCandidateView.array().parse(await invoke("assess")),
     plan: async () => zPlanView.parse(await invoke("plan")),
     execute: async (request) => zQuarantineReportView.parse(await invoke("execute", { request })),

@@ -10,14 +10,15 @@ use std::path::PathBuf;
 
 use lumen_api::views::{
     CandidateView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, PlanView,
-    QuarantineReportView, RestoreOutcomeView, ScanRequest, ScanView,
+    QuarantineReportView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
 };
-use lumen_app::{SystemClock, UuidV7Ids};
+use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
 use lumen_application::CancelToken;
 use lumen_application::ports::NoopJudge;
 use lumen_domain::{ConfirmationSurface, OperationId, PlanId};
 use serde::Serialize;
 use tauri::State;
+use tauri::ipc::Channel;
 
 /// The core's state for this app: where its databases live.
 #[derive(Debug)]
@@ -51,12 +52,58 @@ async fn blocking<T: Send + 'static>(
         .map_err(CommandError::new)?
 }
 
+/// How often a running scan reports its totals to the window.
+const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_millis(250);
+
+/// Turns scan events into progress views, at most every [`PROGRESS_EVERY`].
+struct Progress {
+    started: std::time::Instant,
+    last: Option<std::time::Instant>,
+    unreadable: u64,
+}
+
+impl Progress {
+    fn view(&mut self, event: &ScanEvent) -> Option<ScanProgressView> {
+        match event {
+            ScanEvent::Unreadable { .. } => {
+                self.unreadable += 1;
+                None
+            }
+            ScanEvent::Progress {
+                totals,
+                allocated,
+                current,
+            } => {
+                let now = std::time::Instant::now();
+                if self
+                    .last
+                    .is_some_and(|last| now.duration_since(last) < PROGRESS_EVERY)
+                {
+                    return None;
+                }
+                self.last = Some(now);
+                Some(ScanProgressView {
+                    entries: totals.entries.to_string(),
+                    directories: totals.directories.to_string(),
+                    allocated_bytes: allocated.get().to_string(),
+                    unreadable: self.unreadable.to_string(),
+                    current: current.as_ref().map(lumen_domain::RawPath::display),
+                    elapsed_ms: now.duration_since(self.started).as_millis().to_string(),
+                })
+            }
+            _ => None,
+        }
+    }
+}
+
 /// Scans the chosen roots, or the whole startup disk when none are given,
-/// read-only, and records the scan.
+/// read-only, and records the scan. `progress` receives the totals while it
+/// runs.
 #[tauri::command]
 pub(crate) async fn scan(
     core: State<'_, Core>,
     request: ScanRequest,
+    progress: Channel<ScanProgressView>,
 ) -> Result<ScanView, CommandError> {
     let db = core.db.clone();
     blocking(move || {
@@ -70,13 +117,27 @@ pub(crate) async fn scan(
                 "no folder was chosen and the whole disk could not be found",
             ));
         }
+        let mut live = Progress {
+            started: std::time::Instant::now(),
+            last: None,
+            unreadable: 0,
+        };
+        let mut listening = true;
         let summary = lumen_app::scan(
             &roots,
             Some(&db),
             &SystemClock,
             &UuidV7Ids,
             &CancelToken::new(),
-            &mut |_| {},
+            &mut |event| {
+                // Once the window is gone, stop sending; the scan still
+                // finishes and is recorded.
+                if let Some(view) = live.view(event)
+                    && listening
+                {
+                    listening = progress.send(view).is_ok();
+                }
+            },
         )
         .map_err(CommandError::new)?;
         Ok(ScanView::from(&summary))
@@ -178,4 +239,53 @@ pub(crate) async fn finalize(
         Ok(FinalizeOutcomeView::from(&outcome))
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use lumen_domain::{AccessState, ByteCount, DenialReason, RawPath};
+    use lumen_scan::ScanProgress;
+
+    use super::*;
+
+    fn path(text: &str) -> RawPath {
+        RawPath::from_unix_bytes(text.as_bytes().to_vec()).unwrap_or_else(|e| unreachable!("{e}"))
+    }
+
+    #[test]
+    fn progress_counts_unreadable_folders_and_is_throttled() {
+        let mut live = Progress {
+            started: std::time::Instant::now(),
+            last: None,
+            unreadable: 0,
+        };
+        let denied = ScanEvent::Unreadable {
+            path: path("/Users/ana/Desktop"),
+            access: AccessState::Denied(DenialReason::Tcc),
+        };
+        assert_eq!(live.view(&denied), None);
+        let totals = ScanEvent::Progress {
+            totals: ScanProgress {
+                entries: 1_000,
+                directories: 10,
+                skipped: 0,
+                file_bytes: ByteCount::new(5_000),
+            },
+            allocated: ByteCount::new(4_096),
+            current: Some(path("/Users/ana/Library")),
+        };
+        let first = live
+            .view(&totals)
+            .unwrap_or_else(|| unreachable!("the first totals are sent"));
+        assert_eq!(
+            (
+                first.entries.as_str(),
+                first.allocated_bytes.as_str(),
+                first.unreadable.as_str()
+            ),
+            ("1000", "4096", "1")
+        );
+        assert_eq!(first.current.as_deref(), Some("/Users/ana/Library"));
+        assert_eq!(live.view(&totals), None, "at most every 250 ms");
+    }
 }

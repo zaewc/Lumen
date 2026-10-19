@@ -1,8 +1,9 @@
-import type { ScanView } from "@lumen/api-client";
+import type { ScanProgressView, ScanView } from "@lumen/api-client";
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
+import { formatBytes } from "@/shared/lib";
 
 /** The roots typed into the form, one per line, blank lines ignored. */
 export function rootsOf(text: string): string[] {
@@ -17,8 +18,12 @@ export function ScanForm({ onScanned }: { readonly onScanned: (scan: ScanView) =
   const { m } = useI18n();
   const transport = useTransport();
   const [text, setText] = useState("");
+  const [progress, setProgress] = useState<ScanProgressView | null>(null);
   const scan = useMutation({
-    mutationFn: (roots: string[]) => transport.scan({ roots }),
+    mutationFn: (roots: string[]) => {
+      setProgress(null);
+      return transport.scan({ roots }, setProgress);
+    },
     onSuccess: onScanned,
   });
   const roots = rootsOf(text);
@@ -62,6 +67,25 @@ export function ScanForm({ onScanned }: { readonly onScanned: (scan: ScanView) =
       <p id="whole-disk-hint" className="text-xs text-neutral-600">
         {m.scan.wholeDiskHint}
       </p>
+      {scan.isPending && progress && (
+        <div role="status" className="space-y-0.5 text-sm text-neutral-700">
+          <p>
+            {m.scan.progress(
+              progress.entries,
+              progress.directories,
+              formatBytes(progress.allocated_bytes),
+            )}
+          </p>
+          {progress.unreadable !== "0" && (
+            <p className="text-amber-800">{m.scan.unreadableSoFar(progress.unreadable)}</p>
+          )}
+          {progress.current && (
+            <p className="truncate font-mono text-xs text-neutral-500">
+              {m.scan.reading(progress.current)}
+            </p>
+          )}
+        </div>
+      )}
       {scan.isError && <p className="text-sm text-red-700">{String(scan.error)}</p>}
     </form>
   );

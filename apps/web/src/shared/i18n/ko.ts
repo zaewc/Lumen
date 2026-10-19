@@ -99,6 +99,10 @@ export const ko = {
     scanning: "스캔하는 중…",
     submit: "스캔",
     wholeDisk: "디스크 전체 스캔",
+    progress: (entries: string, folders: string, size: string) =>
+      `항목 ${count(entries)}개 · 폴더 ${count(folders)}개 · 디스크 사용 ${size}`,
+    unreadableSoFar: (folders: string) => `지금까지 읽지 못한 폴더 ${count(folders)}개`,
+    reading: (folder: string) => `읽는 중: ${folder}`,
     wholeDiskHint:
       "시동 디스크의 모든 폴더를 읽으며, 몇 분 걸릴 수 있습니다. 시스템이 일부 폴더에 대한 접근 허용을 물을 수 있으며, 허용하지 않은 폴더는 비어 있는 것이 아니라 읽지 못한 것으로 표시됩니다.",
     found: "스캔 결과",

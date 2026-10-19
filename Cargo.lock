@@ -2412,6 +2412,7 @@ dependencies = [
  "lumen-app",
  "lumen-application",
  "lumen-domain",
+ "lumen-scan",
  "lumen-telemetry",
  "lumen-testkit",
  "serde",

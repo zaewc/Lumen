@@ -19,6 +19,7 @@ export type {
   RestoreOutcomeView,
   RestoreView,
   RootView,
+  ScanProgressView,
   ScanRequest,
   ScanView,
   SkipView,

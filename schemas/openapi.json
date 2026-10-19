@@ -587,6 +587,47 @@
           }
         }
       },
+      "ScanProgressView": {
+        "type": "object",
+        "description": "A running scan's totals so far, sent a few times a second while it runs.",
+        "required": [
+          "entries",
+          "directories",
+          "allocated_bytes",
+          "unreadable",
+          "current",
+          "elapsed_ms"
+        ],
+        "properties": {
+          "allocated_bytes": {
+            "type": "string",
+            "description": "Disk space the files seen so far take up, in bytes."
+          },
+          "current": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The folder listed most recently, if any."
+          },
+          "directories": {
+            "type": "string",
+            "description": "Folders listed so far."
+          },
+          "elapsed_ms": {
+            "type": "string",
+            "description": "Milliseconds since the scan started."
+          },
+          "entries": {
+            "type": "string",
+            "description": "Entries seen so far."
+          },
+          "unreadable": {
+            "type": "string",
+            "description": "Folders that could not be read so far."
+          }
+        }
+      },
       "ScanRequest": {
         "type": "object",
         "description": "A request to scan the given roots, read-only.",

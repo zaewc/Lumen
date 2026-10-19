@@ -132,6 +132,18 @@ export const zRootView = z.object({
 });
 
 /**
+ * A running scan's totals so far, sent a few times a second while it runs.
+ */
+export const zScanProgressView = z.object({
+  allocated_bytes: z.string(),
+  current: z.string().nullable(),
+  directories: z.string(),
+  elapsed_ms: z.string(),
+  entries: z.string(),
+  unreadable: z.string(),
+});
+
+/**
  * A request to scan the given roots, read-only.
  */
 export const zScanRequest = z.object({

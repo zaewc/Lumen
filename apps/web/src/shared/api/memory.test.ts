@@ -5,6 +5,7 @@ import {
   zPlanView,
   zQuarantineReportView,
   zRestoreOutcomeView,
+  zScanProgressView,
   zScanView,
 } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
@@ -14,7 +15,9 @@ import { operationOf } from "./transport";
 describe("memoryTransport", () => {
   it("answers with data the generated schemas accept", async () => {
     const transport = memoryTransport();
-    zScanView.parse(await transport.scan({ roots: ["/Users/ana"] }));
+    const progress: unknown[] = [];
+    zScanView.parse(await transport.scan({ roots: ["/Users/ana"] }, (p) => progress.push(p)));
+    expect(progress.map((p) => zScanProgressView.parse(p).entries)).toEqual(["1580"]);
     for (const candidate of await transport.assess()) {
       zCandidateView.parse(candidate);
     }

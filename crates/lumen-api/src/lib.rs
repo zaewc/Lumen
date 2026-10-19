@@ -21,6 +21,7 @@ use utoipa::OpenApi;
     components(schemas(
         views::ScanRequest,
         views::ScanView,
+        views::ScanProgressView,
         views::RootView,
         views::VerdictView,
         views::CandidateView,
@@ -69,7 +70,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 21);
+        assert_eq!(schemas, 22);
     }
 
     #[test]

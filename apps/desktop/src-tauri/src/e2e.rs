@@ -57,7 +57,10 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
     );
     let item = home.join("Library/Developer/Xcode/DerivedData/App-abc");
     let cycle = || -> Option<String> {
-        let scan = ok("scan", json!({ "request": { "roots": [home] } }));
+        let scan = ok(
+            "scan",
+            json!({ "request": { "roots": [home] }, "progress": "__CHANNEL__:7" }),
+        );
         assert_eq!(scan["roots"][0]["coverage_complete"], true, "{scan}");
         // REVIEW instead of QUARANTINE (in-use visibility): covered elsewhere.
         let plan = invoke(&window, "plan", json!({})).ok()?;

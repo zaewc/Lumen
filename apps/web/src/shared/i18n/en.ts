@@ -90,6 +90,10 @@ export const en = {
     scanning: "Scanning…",
     submit: "Scan",
     wholeDisk: "Scan the whole disk",
+    progress: (entries: string, folders: string, size: string) =>
+      `${count(entries)} entries · ${count(folders)} folders · ${size} on disk`,
+    unreadableSoFar: (folders: string) => `${count(folders)} folders could not be read so far`,
+    reading: (folder: string) => `Reading ${folder}`,
     wholeDiskHint:
       "Reads every folder on the startup disk, one disk at a time; this can take a few minutes. Your system may ask to allow access to some folders; folders you do not allow are reported as unread, never as empty.",
     found: "What was found",

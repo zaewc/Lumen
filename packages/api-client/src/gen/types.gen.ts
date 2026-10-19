@@ -331,6 +331,36 @@ export type RootView = {
 };
 
 /**
+ * A running scan's totals so far, sent a few times a second while it runs.
+ */
+export type ScanProgressView = {
+  /**
+   * Disk space the files seen so far take up, in bytes.
+   */
+  allocated_bytes: string;
+  /**
+   * The folder listed most recently, if any.
+   */
+  current: string | null;
+  /**
+   * Folders listed so far.
+   */
+  directories: string;
+  /**
+   * Milliseconds since the scan started.
+   */
+  elapsed_ms: string;
+  /**
+   * Entries seen so far.
+   */
+  entries: string;
+  /**
+   * Folders that could not be read so far.
+   */
+  unreadable: string;
+};
+
+/**
  * A request to scan the given roots, read-only.
  */
 export type ScanRequest = {

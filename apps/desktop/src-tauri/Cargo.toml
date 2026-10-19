@@ -28,6 +28,8 @@ tauri = { version = "=2.12.3", features = ["isolation"] }
 thiserror.workspace = true
 
 [dev-dependencies]
+# Scan totals, to build progress events in tests.
+lumen-scan.workspace = true
 lumen-testkit.workspace = true
 serde_json.workspace = true
 # The mock runtime, to drive the real invoke handler and capabilities in tests.
