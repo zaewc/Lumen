@@ -59,3 +59,7 @@ Thumbs.db
 # Generated-code drift checks
 .gen-check/
 .bundle-check/
+
+# Gradle output of local Expo modules
+apps/mobile/modules/*/android/build/
+apps/mobile/modules/*/android/.cxx/

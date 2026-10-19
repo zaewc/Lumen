@@ -1,9 +1,0 @@
-dev.lumen.core.lumen-core-pngs-0 /Users/user/Desktop/Lumen/apps/mobile/modules/lumen-core/android/build/generated/res/pngs/debug
-dev.lumen.core.lumen-core-updated_navigation_xml-1 /Users/user/Desktop/Lumen/apps/mobile/modules/lumen-core/android/build/generated/updated_navigation_xml/debug
-dev.lumen.core.lumen-core-mergeDebugResources-2 /Users/user/Desktop/Lumen/apps/mobile/modules/lumen-core/android/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
-dev.lumen.core.lumen-core-mergeDebugResources-3 /Users/user/Desktop/Lumen/apps/mobile/modules/lumen-core/android/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
-dev.lumen.core.lumen-core-debug-4 /Users/user/Desktop/Lumen/apps/mobile/modules/lumen-core/android/build/intermediates/merged_res/debug/mergeDebugResources
-dev.lumen.core.lumen-core-debug-5 /Users/user/Desktop/Lumen/apps/mobile/modules/lumen-core/android/build/intermediates/packaged_res/debug/packageDebugResources
-dev.lumen.core.lumen-core-debug-6 /Users/user/Desktop/Lumen/apps/mobile/modules/lumen-core/android/src/debug/res
-dev.lumen.core.lumen-core-main-7 /Users/user/Desktop/Lumen/apps/mobile/modules/lumen-core/android/src/main/res
-gradleHome-0 /Users/user/.gradle
