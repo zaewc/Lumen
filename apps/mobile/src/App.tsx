@@ -1,5 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text, View } from "react-native";
+import { coreVersion } from "../modules/lumen-core";
 
 /**
  * The mobile app's shell (ADR-0007). JavaScript only ever receives paged,
@@ -13,6 +14,7 @@ export function App() {
       <Text style={styles.body}>
         Storage cleanup that keeps everything reversible until you decide otherwise.
       </Text>
+      <Text style={styles.version}>Core {coreVersion()}</Text>
       <StatusBar style="auto" />
     </View>
   );
@@ -22,4 +24,5 @@ const styles = StyleSheet.create({
   screen: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   title: { fontSize: 28, fontWeight: "600" },
   body: { marginTop: 8, textAlign: "center", color: "#525252" },
+  version: { marginTop: 24, fontSize: 12, color: "#737373" },
 });

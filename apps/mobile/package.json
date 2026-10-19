@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "expo": "catalog:",
+    "expo-modules-core": "catalog:",
     "expo-status-bar": "catalog:",
     "react": "catalog:",
     "react-native": "catalog:"

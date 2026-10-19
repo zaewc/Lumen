@@ -7,7 +7,9 @@
 //! be aligned to at least 16 KB, as Google Play requires; the check reads the
 //! program headers with the NDK's `llvm-readelf` instead of trusting the
 //! defaults. Finally the Kotlin bindings are generated from the arm64 library
-//! (`UniFFI` library mode) into `target/android/kotlin`.
+//! (`UniFFI` library mode) into `target/android/kotlin`, and every ABI's library
+//! is laid out as `target/android/jniLibs/<abi>/liblumen_ffi.so`, which is
+//! where the mobile app's `lumen-core` module picks both up (roadmap 11.14).
 //!
 //! The NDK is found through `ANDROID_NDK_HOME`, `ANDROID_NDK_ROOT` or
 //! `ANDROID_NDK_LATEST_HOME`, or as the newest `ndk/<version>` below
@@ -141,6 +143,8 @@ pub(crate) fn android() -> Result<usize, Box<dyn Error>> {
     let exe = if cfg!(windows) { ".exe" } else { "" };
     let readelf = bin.join(format!("llvm-readelf{exe}"));
     let root = root();
+    let jni_libs = root.join("target/android/jniLibs");
+    crate::ios::clear(&root, &jni_libs)?;
     let mut problems = 0;
     for (target, prefix, abi) in ABIS {
         let clang = bin.join(format!("{prefix}{MIN_SDK}-clang{suffix}"));
@@ -169,8 +173,13 @@ pub(crate) fn android() -> Result<usize, Box<dyn Error>> {
             eprintln!("{abi}: LOAD alignments {alignments:x?} are not all >= 0x4000");
             problems += 1;
         }
+        // Into the folder just cleared, so nothing is overwritten.
+        let abi_dir = jni_libs.join(abi);
+        fs::create_dir_all(&abi_dir)?;
+        fs::write(abi_dir.join("liblumen_ffi.so"), fs::read(&library)?)?;
     }
     let out_dir = root.join("target/android/kotlin");
+    crate::ios::clear(&root, &out_dir)?;
     run(Command::new(env!("CARGO"))
         .current_dir(&root)
         .args([

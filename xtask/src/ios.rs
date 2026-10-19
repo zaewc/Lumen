@@ -52,7 +52,7 @@ fn cargo_build(root: &Path, target: Option<&str>) -> Result<(), Box<dyn Error>> 
     clippy::disallowed_methods,
     reason = "regenerated build output under target/, never user files"
 )]
-fn clear(root: &Path, dir: &Path) -> Result<(), Box<dyn Error>> {
+pub(crate) fn clear(root: &Path, dir: &Path) -> Result<(), Box<dyn Error>> {
     if !dir.starts_with(root.join("target")) {
         return Err(format!("refusing to clear {} outside target/", dir.display()).into());
     }

@@ -6,5 +6,5 @@
     "moduleResolution": "bundler",
     "customConditions": ["react-native"]
   },
-  "include": ["index.ts", "src"]
+  "include": ["index.ts", "src", "modules/*/index.ts"]
 }

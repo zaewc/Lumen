@@ -1,0 +1,33 @@
+// The Rust core for Android (ADR-0007, roadmap 11.14): the UniFFI Kotlin
+// bindings and the 16 KB-aligned libraries that `cargo xtask android` writes
+// to target/android. Run that command before building the app.
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'dev.lumen.core'
+version = '0.0.0'
+
+def rustOut = new File(projectDir, '../../../../../target/android').canonicalFile
+
+android {
+  namespace "dev.lumen.core"
+  defaultConfig {
+    versionCode 1
+    versionName "0.0.0"
+  }
+  sourceSets {
+    main {
+      java.srcDirs += new File(rustOut, 'kotlin')
+      jniLibs.srcDirs += new File(rustOut, 'jniLibs')
+    }
+  }
+}
+
+dependencies {
+  implementation 'com.facebook.react:react-android'
+  // UniFFI's Kotlin runtime; 5.17+ has 16 KB-aligned native code, and 5.19.1
+  // restores support for older Android releases (research report 05).
+  implementation 'net.java.dev.jna:jna:5.19.1@aar'
+}
