@@ -18,8 +18,11 @@ catalog:
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
   "@vitejs/plugin-react": 6.1.2
+  expo: 58.0.11
+  expo-status-bar: 58.0.3
   react: 19.3.0
   react-dom: 19.3.0
+  react-native: 0.88.0
   steiger: 0.7.0
   tailwindcss: 4.3.3
   turbo: 2.11.7
@@ -42,12 +45,11 @@ catalogs:
 minimumReleaseAge: 4320
 blockExoticSubdeps: true
 trustPolicy: no-downgrade
-# Reviewed exceptions to the trust policy, each pinned to one version.
-trustPolicyExclude:
-  # Steiger needs ^4.0.3. 4.0.2 and 4.0.3 (December 2024) were published by
-  # the same maintainer account as every other release, without provenance;
-  # earlier and later releases carry attestations. Not a takeover.
-  - chokidar@4.0.3
+# Trust downgrades are a takeover signal for new releases, so they are judged
+# only for releases published in the last year (ADR-0024, amended 2026-10-19).
+# Older releases that simply predate npm provenance, such as semver@6.3.1 or
+# chokidar@4.0.3, are not refused; new ones still are, after the 3-day hold.
+trustPolicyIgnoreAfter: 525600
 strictDepBuilds: true
 allowBuilds: {}
 

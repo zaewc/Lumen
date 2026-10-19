@@ -1,0 +1,25 @@
+{
+  "name": "@lumen/mobile",
+  "private": true,
+  "description": "Lumen's mobile app: Expo with local native modules around the Rust core (ADR-0007).",
+  "license": "Apache-2.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "EXPO_NO_TELEMETRY=1 expo start",
+    "android": "EXPO_NO_TELEMETRY=1 expo run:android",
+    "ios": "EXPO_NO_TELEMETRY=1 expo run:ios",
+    "typecheck": "tsc -p .",
+    "bundle": "rm -rf .bundle-check && EXPO_NO_TELEMETRY=1 expo export --platform android --platform ios --output-dir .bundle-check && rm -rf .bundle-check"
+  },
+  "dependencies": {
+    "expo": "catalog:",
+    "expo-status-bar": "catalog:",
+    "react": "catalog:",
+    "react-native": "catalog:"
+  },
+  "devDependencies": {
+    "@lumen/config": "workspace:*",
+    "@types/react": "catalog:",
+    "typescript": "catalog:"
+  }
+}

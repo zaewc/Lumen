@@ -58,3 +58,4 @@ Thumbs.db
 
 # Generated-code drift checks
 .gen-check/
+.bundle-check/

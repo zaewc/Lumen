@@ -17,6 +17,9 @@
     },
     "build": {
       "outputs": ["dist/**"]
+    },
+    "bundle": {
+      "outputs": []
     }
   }
 }

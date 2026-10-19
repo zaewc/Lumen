@@ -289,6 +289,10 @@ and the performance spike that gates mobile UI work (ADR-0007).
 | 11.10 | `feat(web): plan and quarantine with confirmation` | build a plan from `QUARANTINE` candidates, show it with its hash, confirm explicitly, execute, show each outcome |
 | 11.11 | `feat(web): restore and finalize held items` | the held items with age and retention, restore with conflicts explained, finalize only on explicit request |
 | 11.12 | `test(desktop): run the desktop flow end to end` | the scan → plan → quarantine → restore → finalize flow through the real host on a fixture directory |
+| 11.13 | `feat(mobile): bootstrap the Expo app` | `apps/mobile` on Expo SDK 58 (React Native 0.88, New Architecture), continuous native generation (no committed `ios/`/`android/`); typecheck and a JavaScript bundle export for both platforms in `pnpm run check`; Expo telemetry off |
+| 11.14 | `feat(mobile): load the Rust core on Android` | a local Expo module (`lumen-core`) wrapping the UniFFI Kotlin bindings and the 16 KB-aligned `.so` files from `cargo xtask android`; the app shows `coreVersion()` on an emulator |
+| 11.15 | `feat(mobile): load the Rust core on iOS` | the same module in Swift over `LumenCore.xcframework` from `cargo xtask ios`; verified on the simulator |
+| 11.16 | `spike(mobile): measure the review grid` | ADR-0007's decision gate: 50k assets enumerated, 5k feature prints, clustering in Rust, a review grid at ≥ 60 fps with < 4 ms JS per frame on mid-range devices; needs physical devices |
 
 ## Later phases (outline)
 

@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Lumen",
+    "slug": "lumen",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "dev.lumen.mobile",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "dev.lumen.mobile"
+    }
+  }
+}

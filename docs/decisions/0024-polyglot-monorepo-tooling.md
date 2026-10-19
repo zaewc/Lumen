@@ -50,6 +50,12 @@ pnpm:
   through `packageManager`.
 - `minimumReleaseAge` raised to 3 days; `blockExoticSubdeps` and `strictDepBuilds`
   kept on; an explicit `allowBuilds` allowlist; `trustPolicy: no-downgrade`.
+  (Amended 2026-10-19: `trustPolicyIgnoreAfter: 525600` limits the trust check to
+  releases from the last year. Many long-established releases were published
+  without provenance before their projects adopted it, for example semver@6.3.1,
+  @babel/core and chokidar@4.0.3, which pnpm's own documentation lists as exclusions.
+  A takeover shows up as a new release, which is still checked and still waits 3
+  days.)
 
 Tasks:
 

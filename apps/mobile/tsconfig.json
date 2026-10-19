@@ -1,0 +1,10 @@
+{
+  "extends": "@lumen/config/tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2024"],
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "customConditions": ["react-native"]
+  },
+  "include": ["index.ts", "src"]
+}
