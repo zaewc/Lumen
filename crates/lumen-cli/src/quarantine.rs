@@ -10,6 +10,8 @@ use lumen_application::confirm::Skip;
 use lumen_application::ports::{Clock, IdGenerator};
 use lumen_domain::{ConfirmationSurface, PlanId, Verdict};
 
+use crate::report::human;
+
 fn skip_text(reason: Skip) -> String {
     match reason {
         Skip::Changed => "it changed or cannot be observed".into(),
@@ -69,8 +71,8 @@ pub(crate) fn quarantine(
         });
     }
     lines.push(format!(
-        "{} B now in quarantine (restorable; space is freed only when finalized).",
-        report.moved.get()
+        "{} now in quarantine (restorable; space is freed only when finalized).",
+        human(report.moved)
     ));
     Ok(lines.join("\n") + "\n")
 }

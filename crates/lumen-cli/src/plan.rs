@@ -5,6 +5,9 @@
 use std::path::Path;
 
 use lumen_app::Planned;
+use lumen_domain::ByteCount;
+
+use crate::report::human;
 
 /// The plan as text, ending with the command that executes it.
 pub(crate) fn to_text(planned: &Planned, db: &Path) -> String {
@@ -14,16 +17,17 @@ pub(crate) fn to_text(planned: &Planned, db: &Path) -> String {
         let bytes = item.reclaim.reclaimable_now.get();
         total = total.saturating_add(bytes);
         lines.push(format!(
-            "{:>3}. {:>12} B  {}",
+            "{:>3}. {:>9}  {}",
             n + 1,
-            bytes,
+            human(ByteCount::new(bytes)),
             item.path.display()
         ));
         lines.extend(assessed.reasons.iter().map(|r| format!("        - {r}")));
     }
     lines.push(format!(
-        "{} items, {total} B. Nothing has been moved.",
-        planned.plan.items().len()
+        "{} items, {}. Nothing has been moved.",
+        planned.plan.items().len(),
+        human(ByteCount::new(total))
     ));
     lines.push(format!("Plan hash: {}", planned.plan.hash()));
     lines.push(format!(

@@ -6,6 +6,8 @@ use lumen_application::assess::Assessed;
 use lumen_domain::{ByteCount, Verdict};
 use serde_json::{Value, json};
 
+use crate::report::human;
+
 fn verdict_text(verdict: Verdict) -> &'static str {
     match verdict {
         Verdict::Keep => "KEEP",
@@ -27,9 +29,9 @@ pub(crate) fn to_text(assessed: &[Assessed]) -> String {
     let mut lines = Vec::new();
     for item in assessed {
         lines.push(format!(
-            "{:<10} {:>12} B  {}",
+            "{:<10} {:>9}  {}",
             verdict_text(item.decision.verdict()),
-            reclaim(item).get(),
+            human(reclaim(item)),
             item.candidate.path.display()
         ));
         lines.extend(
@@ -44,8 +46,9 @@ pub(crate) fn to_text(assessed: &[Assessed]) -> String {
         .map(|a| reclaim(a).get())
         .sum();
     lines.push(format!(
-        "{} candidates; {proposed} B proposed for quarantine (nothing has been moved)",
-        assessed.len()
+        "{} candidates; {} proposed for quarantine (nothing has been moved)",
+        assessed.len(),
+        human(ByteCount::new(proposed))
     ));
     lines.join("\n") + "\n"
 }
