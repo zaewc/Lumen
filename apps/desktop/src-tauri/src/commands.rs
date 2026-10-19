@@ -66,6 +66,7 @@ pub(crate) async fn scan(
             &SystemClock,
             &UuidV7Ids,
             &CancelToken::new(),
+            &mut |_| {},
         )
         .map_err(CommandError::new)?;
         Ok(ScanView::from(&summary))

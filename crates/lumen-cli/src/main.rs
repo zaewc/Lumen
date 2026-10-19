@@ -45,6 +45,8 @@ mod jev;
 #[cfg(any(unix, windows))]
 mod plan;
 #[cfg(any(unix, windows))]
+mod progress;
+#[cfg(any(unix, windows))]
 mod quarantine;
 #[cfg(any(unix, windows))]
 mod report;
@@ -331,13 +333,24 @@ fn main() -> ExitCode {
 
 #[cfg(any(unix, windows))]
 fn run(args: &ScanArgs) -> Result<(), Box<dyn Error>> {
+    let started = std::time::Instant::now();
+    let mut log = progress::ScanLog::new();
     let summary = lumen_app::scan(
         &args.roots,
         args.db.as_deref(),
         &lumen_app::SystemClock,
         &lumen_app::UuidV7Ids,
         &lumen_application::CancelToken::new(),
+        &mut |event| {
+            for line in log.lines(event, started.elapsed()) {
+                eprintln!("{line}");
+            }
+        },
     )?;
+    if let Some(line) = log.finish() {
+        eprintln!("{line}");
+    }
+    eprintln!("[{:>7.1}s] done", started.elapsed().as_secs_f64());
     if args.json {
         println!(
             "{}",

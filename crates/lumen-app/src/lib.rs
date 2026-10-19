@@ -18,7 +18,7 @@ pub mod system;
 
 pub use assess::{AssessError, Assessment, assess, block_on, prepare, with_probes};
 pub use plan::{PlanError, Planned, plan};
-pub use scan::{RootSummary, ScanError, ScanSummary, raw_path, scan};
+pub use scan::{RootSummary, ScanError, ScanEvent, ScanSummary, raw_path, scan};
 #[cfg(any(unix, windows))]
 pub use store::{LocationError, PrivilegeError, StoreLocation, refuse_privileged, store_location};
 pub use system::{SystemClock, UuidV7Ids};

@@ -82,6 +82,13 @@ fn database_receives_a_completed_scan_and_a_snapshot() -> Result<(), Box<dyn std
     let text = String::from_utf8(out.stdout)?;
     assert!(text.contains("coverage     complete"), "{text}");
     assert!(text.contains("nothing was modified"));
+    // The live log goes to standard error, leaving standard output to the
+    // summary.
+    let log = String::from_utf8(out.stderr)?;
+    assert!(log.contains("] scanning "), "{log}");
+    assert!(log.contains(" entries · "), "{log}");
+    assert!(log.trim_end().ends_with("] done"), "{log}");
+    assert!(!text.contains("] scanning "), "{text}");
 
     let store = lumen_store_sqlite::IndexStore::new(lumen_store_sqlite::open_index(&db)?);
     assert!(

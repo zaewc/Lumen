@@ -6,7 +6,7 @@ use lumen_scan::StopReason;
 use serde_json::{Value, json};
 
 /// Decimal units, as Finder and Explorer's "size" use.
-fn human(bytes: ByteCount) -> String {
+pub(crate) fn human(bytes: ByteCount) -> String {
     const UNITS: [&str; 6] = ["B", "kB", "MB", "GB", "TB", "PB"];
     let mut value = bytes.get();
     let mut unit = 0;
