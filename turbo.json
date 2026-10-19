@@ -12,6 +12,10 @@
     "test": {
       "outputs": []
     },
+    "@lumen/web#test": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/crates/lumen-policy/src/explain.rs"],
+      "outputs": []
+    },
     "fsd": {
       "outputs": []
     },

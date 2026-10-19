@@ -1,43 +1,44 @@
 import type { ItemResultView, LocationView, SkipView } from "@lumen/api-client";
+import type { Messages } from "@/shared/i18n";
 
-function skipText(reason: SkipView): string {
+function skipText(m: Messages, reason: SkipView): string {
   switch (reason) {
     case "changed":
-      return "it changed or can no longer be observed";
+      return m.item.skipChanged;
     case "outside_roots":
-      return "it is outside the scanned folders";
+      return m.item.skipOutsideRoots;
     case "now_keep":
-      return "the policy now keeps it";
+      return m.item.skipNowKeep;
     case "now_review":
-      return "the policy now wants you to review it";
+      return m.item.skipNowReview;
     case "reasons_changed":
-      return "it would now be proposed for different reasons";
+      return m.item.skipReasonsChanged;
     case "not_prepared":
-      return "it could not be recorded for a safe move";
+      return m.item.skipNotPrepared;
     case "manifest":
-      return "its record could not be written";
+      return m.item.skipManifest;
   }
 }
 
-function locationText(left: LocationView): string {
+function locationText(m: Messages, left: LocationView): string {
   switch (left) {
     case "source":
-      return "it is untouched in its place";
+      return m.item.leftSource;
     case "quarantine":
-      return "it is in quarantine and can be restored";
+      return m.item.leftQuarantine;
     case "gone":
-      return "it is gone";
+      return m.item.leftGone;
   }
 }
 
-/** One item's outcome, in words. */
-export function outcomeText(result: ItemResultView): string {
+/** One item's outcome, in words. The failure reason is the core's own code. */
+export function outcomeText(m: Messages, result: ItemResultView): string {
   switch (result.kind) {
     case "quarantined":
-      return "Moved into quarantine (restorable).";
+      return m.item.quarantined;
     case "skipped":
-      return `Not moved: ${skipText(result.reason)}.`;
+      return m.item.skipped(skipText(m, result.reason));
     case "failed":
-      return `The move failed (${result.reason}); ${locationText(result.left)}.`;
+      return m.item.failed(result.reason, locationText(m, result.left));
   }
 }

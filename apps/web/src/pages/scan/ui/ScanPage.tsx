@@ -3,11 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { CandidateList } from "@/entities/candidate";
 import { useTransport } from "@/shared/api";
+import { useI18n } from "@/shared/i18n";
 import { RootCard } from "./RootCard";
 import { ScanForm } from "./ScanForm";
 
 /** Scan chosen folders, then see what the policy decides about them. */
 export function ScanPage() {
+  const { m } = useI18n();
   const transport = useTransport();
   const [scan, setScan] = useState<ScanView | null>(null);
   const assessment = useQuery({
@@ -17,14 +19,12 @@ export function ScanPage() {
   });
   return (
     <main className="mx-auto max-w-3xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold">Scan</h1>
+      <h1 className="text-2xl font-semibold">{m.scan.title}</h1>
       <ScanForm onScanned={setScan} />
       {scan && (
         <section className="space-y-3">
-          <h2 className="text-lg font-medium">What was found</h2>
-          {scan.partial && (
-            <p className="text-sm text-amber-800">The scan stopped early; results are partial.</p>
-          )}
+          <h2 className="text-lg font-medium">{m.scan.found}</h2>
+          {scan.partial && <p className="text-sm text-amber-800">{m.scan.partial}</p>}
           {scan.roots.map((root) => (
             <RootCard key={root.root} root={root} />
           ))}
@@ -32,9 +32,9 @@ export function ScanPage() {
       )}
       {scan && (
         <section className="space-y-3">
-          <h2 className="text-lg font-medium">Assessment</h2>
-          <p className="text-xs text-neutral-600">Nothing has been moved.</p>
-          {assessment.isPending && <p className="text-sm">Deciding…</p>}
+          <h2 className="text-lg font-medium">{m.scan.assessment}</h2>
+          <p className="text-xs text-neutral-600">{m.scan.nothingMoved}</p>
+          {assessment.isPending && <p className="text-sm">{m.scan.deciding}</p>}
           {assessment.isError && <p className="text-sm text-red-700">{String(assessment.error)}</p>}
           {assessment.data && <CandidateList candidates={assessment.data} />}
         </section>

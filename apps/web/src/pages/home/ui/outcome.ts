@@ -1,64 +1,65 @@
 import type { FinalizeView, NotRestoredView, RemovedView, RestoreView } from "@lumen/api-client";
+import type { Messages } from "@/shared/i18n";
 
-function notRestoredText(reason: NotRestoredView): string {
+function notRestoredText(m: Messages, reason: NotRestoredView): string {
   switch (reason) {
     case "name_taken":
-      return "something now has its name at the original place; move that away and try again";
+      return m.restore.nameTaken;
     case "origin_unreachable":
-      return "its original folder cannot be reached safely";
+      return m.restore.originUnreachable;
     case "item_changed":
-      return "the quarantined item changed";
+      return m.restore.itemChanged;
     case "failed":
-      return "the move back failed";
+      return m.restore.moveFailed;
   }
 }
 
 /** What a restore did, in words. */
-export function restoreText(outcome: RestoreView): string {
+export function restoreText(m: Messages, outcome: RestoreView): string {
   switch (outcome.kind) {
     case "restored": {
-      const parts = ["Restored to its original place."];
+      const parts = [m.restore.restored];
       if (outcome.parent_replaced) {
-        parts.push("Its folder had been recreated since.");
+        parts.push(m.restore.parentReplaced);
       }
       if (!outcome.verified) {
-        parts.push("It is back but did not match its record exactly; check it.");
+        parts.push(m.restore.unverified);
       }
       return parts.join(" ");
     }
     case "not_restored":
-      return `Not restored: ${notRestoredText(outcome.reason)}. It stays in quarantine.`;
+      return m.restore.notRestored(notRestoredText(m, outcome.reason));
     case "not_restorable":
-      return "This item cannot be restored in its current state.";
+      return m.restore.notRestorable;
   }
 }
 
-function removedText(removed: RemovedView): string {
+function removedText(m: Messages, removed: RemovedView): string {
   switch (removed) {
     case "nothing":
-      return "nothing was removed";
+      return m.finalize.removedNothing;
     case "partly":
-      return "part of it was removed; try again to finish";
+      return m.finalize.removedPartly;
     case "item":
-      return "the item is gone, only its record remains";
+      return m.finalize.removedItem;
   }
 }
 
 /** What a finalization did, in words. */
-export function finalizeText(outcome: FinalizeView): string {
+export function finalizeText(m: Messages, outcome: FinalizeView): string {
   switch (outcome.kind) {
     case "finalized":
-      return "Removed for good.";
+      return m.finalize.finalized;
     case "found_at_source":
-      return "It is back at its original place already; nothing was removed.";
+      return m.finalize.foundAtSource;
     case "not_found":
-      return "It is not in quarantine; nothing was removed.";
+      return m.finalize.notFound;
     case "failed":
-      return `Could not remove it completely: ${removedText(outcome.removed)}.`;
+      return m.finalize.failed(removedText(m, outcome.removed));
     case "maybe_in_use":
-      return "It may be in use, or that cannot be checked; nothing was removed. Close the programs that use it and try again.";
+      return m.finalize.maybeInUse;
     case "not_finalizable":
-      return "Only retained items can be removed for good.";
+      return m.finalize.notFinalizable;
   }
 }
 

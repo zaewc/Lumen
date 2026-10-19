@@ -1,31 +1,29 @@
 import type { RootView } from "@lumen/api-client";
+import { useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 
 /** One scanned root: its sizes and, above all, whether they are complete. */
 export function RootCard({ root }: { readonly root: RootView }) {
+  const { m } = useI18n();
+  const reclaimable = formatBytes(root.reclaimable_bytes);
   return (
     <article className="rounded border border-neutral-200 p-4">
       <h3 className="font-mono text-sm">{root.root}</h3>
       <dl className="mt-2 grid grid-cols-2 gap-x-4 text-sm">
-        <dt>Files</dt>
-        <dd>{root.files}</dd>
-        <dt>Size</dt>
+        <dt>{m.root.files}</dt>
+        <dd>{m.root.fileCount(root.files)}</dd>
+        <dt>{m.root.size}</dt>
         <dd>
-          {formatBytes(root.logical_bytes)} (allocated {formatBytes(root.allocated_bytes)})
+          {m.root.sizeValue(formatBytes(root.logical_bytes), formatBytes(root.allocated_bytes))}
         </dd>
-        <dt>Reclaimable</dt>
-        <dd>
-          {formatBytes(root.reclaimable_bytes)}
-          {root.reclaimable_exact ? "" : " at least"}
-        </dd>
+        <dt>{m.root.reclaimable}</dt>
+        <dd>{root.reclaimable_exact ? reclaimable : m.root.atLeast(reclaimable)}</dd>
       </dl>
       {root.coverage_complete ? (
-        <p className="mt-2 text-sm text-green-800">Everything below it was read.</p>
+        <p className="mt-2 text-sm text-green-800">{m.root.complete}</p>
       ) : (
         <p className="mt-2 text-sm text-amber-800">
-          Not everything could be read ({root.denied} denied, {root.failed} failed,{" "}
-          {root.not_scanned} not scanned). The sizes are lower bounds, and nothing unread is treated
-          as empty.
+          {m.root.incomplete(root.denied, root.failed, root.not_scanned)}
         </p>
       )}
     </article>
