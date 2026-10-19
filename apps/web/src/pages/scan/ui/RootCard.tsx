@@ -1,6 +1,7 @@
 import type { RootView } from "@lumen/api-client";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
+import { InfoTip } from "@/shared/ui";
 
 /** One scanned root: its sizes and, above all, whether they are complete. */
 export function RootCard({ root }: { readonly root: RootView }) {
@@ -16,16 +17,22 @@ export function RootCard({ root }: { readonly root: RootView }) {
         <dd>
           {m.root.sizeValue(formatBytes(root.logical_bytes), formatBytes(root.allocated_bytes))}
         </dd>
-        <dt>{m.root.reclaimable}</dt>
+        <dt className="flex items-center gap-2">
+          {m.root.reclaimable}
+          <InfoTip term="reclaimable" />
+        </dt>
         <dd>{root.reclaimable_exact ? reclaimable : m.root.atLeast(reclaimable)}</dd>
       </dl>
-      {root.coverage_complete ? (
-        <p className="mt-2 text-sm text-green-800">{m.root.complete}</p>
-      ) : (
-        <p className="mt-2 text-sm text-amber-800">
-          {m.root.incomplete(root.denied, root.failed, root.not_scanned)}
-        </p>
-      )}
+      <div className="mt-2 flex items-start gap-2 text-sm">
+        {root.coverage_complete ? (
+          <p className="text-green-800">{m.root.complete}</p>
+        ) : (
+          <p className="text-amber-800">
+            {m.root.incomplete(root.denied, root.failed, root.not_scanned)}
+          </p>
+        )}
+        <InfoTip term="coverage" />
+      </div>
     </article>
   );
 }

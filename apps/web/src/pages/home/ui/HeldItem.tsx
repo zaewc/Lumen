@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { operationOf, useTransport } from "@/shared/api";
 import { type Messages, useI18n } from "@/shared/i18n";
+import { InfoTip } from "@/shared/ui";
 import { daysHeld, finalizeText, restoreText } from "./outcome";
 
 /** The last action's outcome, kept as data so it follows a language switch. */
@@ -50,11 +51,14 @@ export function HeldItem({ item }: { readonly item: HeldItemView }) {
   return (
     <li className="space-y-1 rounded border border-neutral-200 p-3 text-sm">
       <div className="font-mono break-all">{item.original ?? m.held.unknownPath}</div>
-      <div className="text-neutral-600">
-        {retained ? m.held.retained : m.held.heldAfterFailure} ·{" "}
-        {m.held.age(daysHeld(item.since, new Date()))}
+      <div className="flex items-center gap-2 text-neutral-600">
+        <span>
+          {retained ? m.held.retained : m.held.heldAfterFailure} ·{" "}
+          {m.held.age(daysHeld(item.since, new Date()))}
+        </span>
+        <InfoTip term="held" />
       </div>
-      <div className="flex flex-wrap gap-2 pt-1">
+      <div className="flex flex-wrap items-center gap-2 pt-1">
         <button
           type="button"
           onClick={() => restore.mutate()}
@@ -63,6 +67,7 @@ export function HeldItem({ item }: { readonly item: HeldItemView }) {
         >
           {m.held.restore}
         </button>
+        <InfoTip term="restore" />
         {retained && !confirming && (
           <button
             type="button"
@@ -73,9 +78,11 @@ export function HeldItem({ item }: { readonly item: HeldItemView }) {
             {m.held.removeForGoodAsk}
           </button>
         )}
+        {retained && !confirming && <InfoTip term="finalize" />}
         {retained && confirming && (
           <>
             <span className="self-center text-red-800">{m.held.removeForGoodWarning}</span>
+            <InfoTip term="finalize" />
             <button
               type="button"
               onClick={() => finalize.mutate()}

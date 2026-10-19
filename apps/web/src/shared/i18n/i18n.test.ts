@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import explainSource from "../../../../../crates/lumen-policy/src/explain.rs?raw";
-import { en, type Messages } from "./en";
+import { en, type GlossaryTerm, type Messages } from "./en";
 import { countFormat } from "./format";
 import { ko } from "./ko";
 import { detectLocale, LOCALES } from "./locale";
@@ -104,5 +104,42 @@ describe("locale storage", () => {
     expect(storedLocale()).toBe("ko");
     items.set("lumen.locale", "fr");
     expect(storedLocale()).toBeNull();
+  });
+});
+
+describe("glossary", () => {
+  const terms = [
+    "scan",
+    "coverage",
+    "reclaimable",
+    "verdicts",
+    "keep",
+    "review",
+    "proposed",
+    "plan",
+    "quarantine",
+    "finalize",
+    "restore",
+    "held",
+  ] as const satisfies readonly GlossaryTerm[];
+
+  it("explains every term in every language", () => {
+    expect(Object.keys(en.glossary).sort()).toEqual([...terms].sort());
+    for (const locale of LOCALES) {
+      for (const term of terms) {
+        const { title, body } = MESSAGES[locale].glossary[term];
+        expect(title.trim(), `${locale} ${term}`).not.toBe("");
+        expect(body.trim().length, `${locale} ${term}`).toBeGreaterThan(title.length);
+      }
+    }
+  });
+
+  it("asks about each term naturally", () => {
+    expect(en.whatIs(en.glossary.plan.title)).toBe("What does “Plan” mean?");
+    expect(ko.whatIs(ko.glossary.plan.title)).toBe("‘정리 계획’이란?");
+    expect(ko.whatIs(ko.glossary.quarantine.title)).toBe("‘격리’란?");
+    expect(ko.whatIs(ko.glossary.coverage.title)).toBe("‘스캔 범위’란?");
+    expect(ko.whatIs(ko.glossary.restore.title)).toBe("‘복원’이란?");
+    expect(ko.whatIs("Lumen")).toBe("‘Lumen’이란?");
   });
 });

@@ -1,6 +1,7 @@
 import type { CandidateView, VerdictView } from "@lumen/api-client";
-import { type Messages, reasonText, useI18n } from "@/shared/i18n";
+import { type GlossaryTerm, type Messages, reasonText, useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
+import { InfoTip } from "@/shared/ui";
 
 function verdictLabel(m: Messages, verdict: VerdictView): string {
   switch (verdict) {
@@ -10,6 +11,17 @@ function verdictLabel(m: Messages, verdict: VerdictView): string {
       return m.candidates.review;
     case "keep":
       return m.candidates.keep;
+  }
+}
+
+function verdictTerm(verdict: VerdictView): GlossaryTerm {
+  switch (verdict) {
+    case "quarantine":
+      return "proposed";
+    case "review":
+      return "review";
+    case "keep":
+      return "keep";
   }
 }
 
@@ -30,9 +42,12 @@ export function CandidateList({ candidates }: { readonly candidates: readonly Ca
         }
         return (
           <section key={verdict}>
-            <h3 className="font-medium">
-              {m.candidates.group(verdictLabel(m, verdict), group.length)}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium">
+                {m.candidates.group(verdictLabel(m, verdict), group.length)}
+              </h3>
+              <InfoTip term={verdictTerm(verdict)} />
+            </div>
             <ul className="mt-2 space-y-3">
               {group.map((candidate) => (
                 <li key={candidate.path} className="text-sm">

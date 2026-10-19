@@ -5,6 +5,7 @@ import { CandidateList } from "@/entities/candidate";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
+import { InfoTip } from "@/shared/ui";
 import { outcomeText } from "./outcome";
 
 function total(plan: PlanView): string {
@@ -40,7 +41,10 @@ export function PlanPage() {
   });
   return (
     <main className="mx-auto max-w-3xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold">{m.plan.title}</h1>
+      <div className="flex items-center gap-2">
+        <h1 className="text-2xl font-semibold">{m.plan.title}</h1>
+        <InfoTip term="plan" />
+      </div>
       <section className="space-y-2">
         <p className="text-sm">{m.plan.intro}</p>
         <button
@@ -62,14 +66,17 @@ export function PlanPage() {
             {m.plan.made(plan.created_at)} <span className="font-mono break-all">{plan.hash}</span>
           </p>
           <CandidateList candidates={plan.items} />
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={understood}
-              onChange={(event) => setUnderstood(event.target.checked)}
-            />
-            <span>{m.plan.confirm}</span>
-          </label>
+          <div className="flex items-start gap-2">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={understood}
+                onChange={(event) => setUnderstood(event.target.checked)}
+              />
+              <span>{m.plan.confirm}</span>
+            </label>
+            <InfoTip term="quarantine" />
+          </div>
           <button
             type="button"
             onClick={() => execute.mutate(plan)}

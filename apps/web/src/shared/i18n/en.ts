@@ -113,6 +113,57 @@ export const en = {
     keep: "Kept",
     group: (label: string, items: number) => `${label} (${count(items)})`,
   },
+  whatIs: (term: string) => `What does “${term}” mean?`,
+  glossary: {
+    scan: {
+      title: "Scan",
+      body: "A scan reads the folders you choose and measures what is inside them. It only reads: nothing is moved, changed or deleted. It looks at file details such as names and sizes, never opens files, and never downloads files that live only in the cloud.",
+    },
+    coverage: {
+      title: "Coverage",
+      body: "Coverage says whether Lumen could read everything inside a folder. When everything was read, the sizes are complete. When some items were denied, failed or not scanned, the sizes shown are lower bounds. Lumen never treats what it could not read as empty, and never proposes removing what it could not check.",
+    },
+    reclaimable: {
+      title: "Reclaimable",
+      body: "Reclaimable is the space you would get back if items were removed for good; space other files still share (hard links, clones, snapshots) is not counted. Nothing is freed while items are only in quarantine. “At least” means part of the folder could not be read, so the real figure may be larger. Size is how much data the files hold; allocated is how much of the disk they occupy.",
+    },
+    verdicts: {
+      title: "Verdicts",
+      body: "Lumen decides about every item with a fixed safety policy, not by guessing. Each item is Kept, Needs your review, or Proposed for quarantine, with its reasons listed below it. When Lumen is unsure, it keeps the item or asks you, and nothing is moved until you confirm a plan.",
+    },
+    keep: {
+      title: "Kept",
+      body: "Lumen will not touch this item. It may be protected by the system, in use, synced with a cloud service or not fully readable, or Lumen knows it is needed. Kept items are never moved.",
+    },
+    review: {
+      title: "Needs your review",
+      body: "Lumen cannot decide safely on its own, for example because it does not recognise the item or the item holds an application's own data. It is never moved automatically. Read the reasons and decide for yourself.",
+    },
+    proposed: {
+      title: "Proposed for quarantine",
+      body: "The policy found this item safe to set aside, for example a cache that its tool or application re-creates. Proposing moves nothing: the item only goes into a plan that you read and confirm. Even then it goes to quarantine, where it can be restored.",
+    },
+    plan: {
+      title: "Plan",
+      body: "A plan is a frozen list of the items proposed for quarantine in the latest scan, sealed with a hash so that exactly what you read is what runs. It is valid for 24 hours, and making it moves nothing. When you confirm it, each item is checked again first; anything that changed is skipped and stays where it is.",
+    },
+    quarantine: {
+      title: "Quarantine",
+      body: "Quarantine moves items into a private Lumen folder instead of deleting them. Every quarantined item can be restored to its original place. Quarantined items still use disk space until you remove them for good.",
+    },
+    finalize: {
+      title: "Remove for good",
+      body: "Removing for good deletes a quarantined item permanently and frees its space. It is the only step that cannot be undone. Lumen first checks that nothing is using the item, and removes nothing if it is in use or that cannot be checked. Only retained items can be removed for good.",
+    },
+    restore: {
+      title: "Restore",
+      body: "Restoring moves an item from quarantine back to its original place, under its original name. Lumen never overwrites anything: if something now has that name, or the original folder cannot be reached safely, the item stays in quarantine and Lumen tells you why.",
+    },
+    held: {
+      title: "Held items",
+      body: "Retained means the item was moved into quarantine and checked against its record; it waits there until you restore it or remove it for good. Held after a failed move means something went wrong during the move, so the item was kept safely in quarantine without that check. Such items can be restored, but not removed for good.",
+    },
+  },
   reasons: {
     location: (name: string) => `Kept: it is in a protected location (${name}).`,
     rules: {
@@ -154,3 +205,6 @@ export const en = {
 
 /** What every catalog provides: the same keys and message signatures as `en`. */
 export type Messages = typeof en;
+
+/** A concept the glossary explains. */
+export type GlossaryTerm = keyof Messages["glossary"];
