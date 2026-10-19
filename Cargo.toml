@@ -30,6 +30,7 @@ lumen-platform-windows = { path = "crates/lumen-platform-windows" }
 lumen-policy = { path = "crates/lumen-policy" }
 lumen-scan = { path = "crates/lumen-scan" }
 lumen-store-sqlite = { path = "crates/lumen-store-sqlite" }
+lumen-telemetry = { path = "crates/lumen-telemetry" }
 lumen-testkit = { path = "crates/lumen-testkit" }
 blake3 = "1.8.7"
 # Benchmarks only (roadmap 5.19); default features add plotting we do not use.
@@ -61,6 +62,11 @@ tempfile = "3.27.0"
 # Win32 FFI declarations for the Windows adapter (raw-dylib, no build script).
 windows-sys = "0.61.2"
 thiserror = "2.0.21"
+# Local, redacted telemetry (ADR-0022): spans and events, a rolling log file,
+# and the subscriber registry only (no default formatters or ANSI).
+tracing = { version = "0.1.44", default-features = false, features = ["std", "attributes"] }
+tracing-appender = "0.2.5"
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["registry", "std"] }
 # Kotlin and Swift bindings for the mobile core (ADR-0007). MPL-2.0, scoped in
 # deny.toml; only the `cli` feature (bindings generator) pulls in more.
 uniffi = { version = "0.32.2", default-features = false }
