@@ -37,7 +37,22 @@ fixture definition ─▶ build fixture tree (tempdir) ─▶ scan (real lumen-s
   precision, recall and abstention. Policy-violation and canary gates join with the
   golden dataset (roadmap 8.7c).
 
-## Commands (planned)
+## Commands
+
+Implemented (roadmap 12.1):
+
+```text
+lumen-jev-eval run --dataset 2026.10.0 --cassette <FILE> [--ai ai] [--gate full|observed] [--json]
+```
+
+`run` replays the cassette over the dataset's golden and adversarial cases and exits 0
+when the chosen gate passes, 1 when it fails and 2 for bad input. `full` is the release
+gate (critical-FPR upper bound and canaries). It needs about 800 critical cases to be
+able to pass a 0.5% bound, so the seed dataset (17 golden cases) cannot pass it.
+`observed` (no observed critical false positive, clean canaries) is a regression check
+for small datasets and never a release gate.
+
+Planned:
 
 ```text
 lumen-jev-eval run      --dataset ai/golden --split test-locked --config configs/sonnet-5-5.toml --mode replay

@@ -7,7 +7,8 @@
 //! Mock mode uses `lumen_testkit::MockJudge`. [`run`] grades cases
 //! (`jev.case/1`) against a judge and reports the critical false-positive gate;
 //! [`load`] verifies a dataset version against its manifest and
-//! [`run_dataset`] adds the injection-canary gate. The CLI follows.
+//! [`run_dataset`] adds the injection-canary gate. The `lumen-jev-eval run`
+//! command applies the gates to a dataset and a cassette (roadmap 12.1).
 
 #![forbid(unsafe_code)]
 
