@@ -25,7 +25,8 @@ jobs:
   build:
     name: build (${{ matrix.target }})
     strategy:
-      fail-fast: true
+      # Each target reports its own result; the release still needs all three.
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-24.04
