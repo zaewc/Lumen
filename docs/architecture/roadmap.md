@@ -297,6 +297,19 @@ and the performance spike that gates mobile UI work (ADR-0007).
 | 11.16c | `feat(mobile): group photos in the spike` | Vision feature prints (iOS) in a user-started background task, a perceptual-hash fallback (Android), grouping in Rust, groups shown in the grid |
 | 11.16d | `docs(research): measure the mobile spike` | the measurement protocol and the owner's results on mid-range iPhone and Android devices: ≥ 60 fps scrolling and < 4 ms JS per frame decide React Native vs native screens (ADR-0007) |
 
+## Phase 12: Hardening
+
+| # | PR | Scope |
+| --- | --- | --- |
+| 12.1 | `feat(jev-eval): run evaluations from the command line` | `lumen-jev-eval run`: a dataset version (manifest-verified) against the mock judge or a replay cassette; the gate report as text and JSON; a non-zero exit when a gate fails (docs/ai/evaluation.md) |
+| 12.2 | `ci: gate Jev changes on the evaluation` | a workflow on changes to `ai/`, `crates/lumen-jev*`, `crates/lumen-policy` and the Jev contract: the golden and adversarial sets replayed, failing on any gate |
+| 12.3 | `feat(telemetry): add local, redacted telemetry` | `lumen-telemetry` (ADR-0022): `tracing` with a redaction layer (no paths, names or content hashes at `info` and above), a rolling JSON log in the app data folder and an in-memory ring buffer the user can review and export; nothing leaves the machine |
+| 12.4 | `feat(app): instrument scans, decisions and quarantine` | spans and aggregate counters in `lumen-app` (files/s, decisions by verdict, quarantine outcomes, rollbacks, Jev latency and validation failures); the CLI and desktop host install the subscriber |
+| 12.5 | `docs(operations): list every signal` | `docs/operations/privacy.md`: each span, event and metric, what it carries and where it goes (ADR-0022: no hidden telemetry) |
+| 12.6 | `perf: record benchmark baselines` | the scan, policy and grouping benchmarks in `performance.md`, and a manual workflow that runs them on CI hardware for comparison |
+| 12.7 | `build(release): build release artifacts on tags` | a tag-triggered workflow: the CLI for macOS, Windows and Linux and unsigned desktop bundles, with SHA-256 checksums, a CycloneDX SBOM and build-provenance attestations, published as a draft release |
+| 12.8 | `build(release): sign and notarize` | macOS Developer ID, Hardened Runtime and notarization, and Windows Azure Artifact Signing (ADR-0006), once the owner provides the accounts as protected-environment secrets |
+
 ## Later phases (outline)
 
 - **Phase 11, UI:** JavaScript bootstrap (pnpm, Biome, TS 7, Turborepo), `apps/web`
