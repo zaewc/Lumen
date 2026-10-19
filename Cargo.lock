@@ -2389,6 +2389,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "lumen-cluster"
+version = "0.0.0"
+dependencies = [
+ "criterion",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "lumen-desktop"
 version = "0.0.0"
 dependencies = [
@@ -2435,6 +2443,8 @@ dependencies = [
 name = "lumen-ffi"
 version = "0.0.0"
 dependencies = [
+ "lumen-cluster",
+ "thiserror 2.0.21",
  "uniffi",
 ]
 

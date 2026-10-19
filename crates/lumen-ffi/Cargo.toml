@@ -25,6 +25,9 @@ required-features = ["bindgen"]
 bindgen = ["uniffi/cli", "uniffi/cargo-metadata"]
 
 [dependencies]
+# Near-duplicate grouping of feature prints (ADR-0019, roadmap 11.16a).
+lumen-cluster.workspace = true
+thiserror.workspace = true
 # Bindings for Kotlin and Swift (ADR-0007; MPL-2.0, approved 2026-10-16).
 uniffi.workspace = true
 

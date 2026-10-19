@@ -292,7 +292,10 @@ and the performance spike that gates mobile UI work (ADR-0007).
 | 11.13 | `feat(mobile): bootstrap the Expo app` | `apps/mobile` on Expo SDK 58 (React Native 0.88, New Architecture), continuous native generation (no committed `ios/`/`android/`); typecheck and a JavaScript bundle export for both platforms in `pnpm run check`; Expo telemetry off |
 | 11.14 | `feat(mobile): load the Rust core on Android` | a local Expo module (`lumen-core`) wrapping the UniFFI Kotlin bindings and the 16 KB-aligned `.so` files from `cargo xtask android`; the app shows `coreVersion()` on an emulator |
 | 11.15 | `feat(mobile): load the Rust core on iOS` | the same module in Swift over `LumenCore.xcframework` from `cargo xtask ios`; verified on the simulator |
-| 11.16 | `spike(mobile): measure the review grid` | ADR-0007's decision gate: 50k assets enumerated, 5k feature prints, clustering in Rust, a review grid at ≥ 60 fps with < 4 ms JS per frame on mid-range devices; needs physical devices |
+| 11.16a | `feat(cluster): group near-duplicate feature prints` | `lumen-cluster` (pure): single-linkage groups of vectors within a Euclidean threshold, all-pairs on scoped threads with early exit, at most 20,000 vectors; exported as `group_feature_prints` from `lumen-ffi`; 5,000 × 768 in about 33 ms on an M-series Mac |
+| 11.16b | `feat(mobile): build the photo review grid spike` | the photo library enumerated natively (PhotoKit, MediaStore) into paged view models, a thumbnail grid in React Native, an on-screen frame-time probe |
+| 11.16c | `feat(mobile): group photos in the spike` | Vision feature prints (iOS) in a user-started background task, a perceptual-hash fallback (Android), grouping in Rust, groups shown in the grid |
+| 11.16d | `docs(research): measure the mobile spike` | the measurement protocol and the owner's results on mid-range iPhone and Android devices: ≥ 60 fps scrolling and < 4 ms JS per frame decide React Native vs native screens (ADR-0007) |
 
 ## Later phases (outline)
 

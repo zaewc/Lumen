@@ -17,6 +17,7 @@ lumen-api = { path = "crates/lumen-api" }
 lumen-app = { path = "crates/lumen-app" }
 lumen-application = { path = "crates/lumen-application" }
 lumen-cli = { path = "crates/lumen-cli" }
+lumen-cluster = { path = "crates/lumen-cluster" }
 lumen-devkb = { path = "crates/lumen-devkb" }
 lumen-domain = { path = "crates/lumen-domain" }
 lumen-ffi = { path = "crates/lumen-ffi" }

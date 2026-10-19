@@ -5,8 +5,10 @@
 //! like `lumen-cli`: it selects adapters and hands the apps paged, read-only
 //! results, never per-file calls in hot loops.
 //!
-//! For now it exposes only [`core_version`], so that an app can check which
-//! core it loaded and the Android and iOS builds can be verified end to end.
+//! It exposes [`core_version`], so that an app can check which core it loaded,
+//! and [`group_feature_prints`], which groups near-duplicate photos from the
+//! feature vectors the apps compute natively (ADR-0019; the performance spike
+//! of ADR-0007).
 
 // The `UniFFI` scaffolding exports `extern "C"` functions; the generated code is
 // UniFFI's, not Lumen's, and this crate writes no `unsafe` of its own.
@@ -20,6 +22,40 @@ pub fn core_version() -> String {
     env!("CARGO_PKG_VERSION").to_owned()
 }
 
+/// Why feature prints could not be grouped.
+#[derive(Debug, thiserror::Error, uniffi::Error)]
+pub enum GroupError {
+    /// The input was refused; the message says why.
+    #[error("{message}")]
+    Invalid {
+        /// Why.
+        message: String,
+    },
+}
+
+/// The group of each feature print: the index of the first print in its
+/// group, so equal numbers mean near-duplicates. Prints at most `threshold`
+/// apart (Euclidean) are near-duplicates, transitively.
+///
+/// # Errors
+///
+/// [`GroupError::Invalid`] for more than 20,000 prints, prints of different
+/// lengths, or values that are not finite.
+#[uniffi::export]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "UniFFI hands exported functions owned arguments"
+)]
+pub fn group_feature_prints(prints: Vec<Vec<f32>>, threshold: f32) -> Result<Vec<u32>, GroupError> {
+    let invalid = |message: String| GroupError::Invalid { message };
+    let refs: Vec<&[f32]> = prints.iter().map(Vec::as_slice).collect();
+    lumen_cluster::group(&refs, threshold)
+        .map_err(|e| invalid(e.to_string()))?
+        .into_iter()
+        .map(|g| u32::try_from(g).map_err(|e| invalid(e.to_string())))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -27,5 +63,15 @@ mod tests {
     #[test]
     fn reports_the_crate_version() {
         assert_eq!(core_version(), env!("CARGO_PKG_VERSION"));
+    }
+
+    #[test]
+    fn groups_near_duplicates_and_refuses_bad_input() {
+        let prints = vec![vec![0.0, 0.0], vec![0.1, 0.0], vec![5.0, 5.0]];
+        assert_eq!(group_feature_prints(prints, 0.2).ok(), Some(vec![0, 0, 2]));
+        assert!(matches!(
+            group_feature_prints(vec![vec![0.0], vec![0.0, 1.0]], 0.2),
+            Err(GroupError::Invalid { .. })
+        ));
     }
 }
