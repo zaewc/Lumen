@@ -79,17 +79,6 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
         run: cargo build --release --locked -p lumen-cli --target "$TARGET"
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: cargo-cyclonedx@0.5.9
-      # The dependencies compiled into this target's binary, from Cargo.lock.
-      - name: SBOM
-        env:
-          TARGET: ${{ matrix.target }}
-        run: >
-          cargo cyclonedx --manifest-path crates/lumen-cli/Cargo.toml
-          --format json --spec-version 1.5 --target "$TARGET"
-          --override-filename "lumen-$TARGET.cdx"
       - name: Package
         env:
           TARGET: ${{ matrix.target }}
@@ -97,7 +86,6 @@ jobs:
           name="lumen-$TARGET"
           mkdir -p "dist/$name"
           cp LICENSE README.md "dist/$name/"
-          cp "crates/lumen-cli/$name.cdx.json" dist/
           if [ "$RUNNER_OS" = "Windows" ]; then
             cp "target/$TARGET/release/lumen.exe" "dist/$name/"
             (cd dist && 7z a -tzip "$name.zip" "$name" >/dev/null)
@@ -114,9 +102,56 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # SBOMs come from Cargo.lock, not the binaries, so one Linux job with egress
+  # blocked writes them for every target.
+  sbom:
+    name: sbom
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            static.rust-lang.org:443
+            index.crates.io:443
+            static.crates.io:443
+            results-receiver.actions.githubusercontent.com:443
+            *.blob.core.windows.net:443
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned toolchain
+        run: rustup toolchain install
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: cargo-cyclonedx@0.5.9
+      # The dependencies compiled into each target's binary.
+      - name: SBOMs
+        run: |
+          mkdir dist
+          for target in aarch64-apple-darwin x86_64-unknown-linux-gnu x86_64-pc-windows-msvc; do
+            cargo cyclonedx --manifest-path crates/lumen-cli/Cargo.toml \
+              --format json --spec-version 1.5 --target "$target" \
+              --override-filename "lumen-$target.cdx"
+            cp "crates/lumen-cli/lumen-$target.cdx.json" dist/
+          done
+          ls -l dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-sbom
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
   attest:
     name: attest
-    needs: build
+    needs: [build, sbom]
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     # Only first-party actions run with the signing token; no repository code.
