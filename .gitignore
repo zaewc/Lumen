@@ -63,3 +63,4 @@ Thumbs.db
 # Gradle output of local Expo modules
 apps/mobile/modules/*/android/build/
 apps/mobile/modules/*/android/.cxx/
+apps/mobile/modules/*/ios/rust/

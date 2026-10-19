@@ -7,6 +7,9 @@
 //! metadata is the same on every target), and both slices are packaged with
 //! the C header and module map as `target/ios/LumenCore.xcframework`.
 //!
+//! The `XCFramework` and the Swift bindings are also copied into the mobile
+//! app's `lumen-core` module (`apps/mobile/modules/lumen-core/ios/rust`).
+//!
 //! The bindings are then proven, not just generated: they are compiled with
 //! the host static library into a small program that calls `coreVersion()`
 //! and must print the crate version.
@@ -18,6 +21,11 @@ use std::process::Command;
 
 /// The app's minimum iOS version (Expo SDK 56+; research report 06).
 const MIN_IOS: &str = "16.4";
+
+/// Where the mobile app's `lumen-core` module takes the `XCFramework` and the
+/// Swift bindings from (git-ignored; `CocoaPods` only vendors files inside the
+/// pod's own folder).
+const MODULE_RUST: &str = "apps/mobile/modules/lumen-core/ios/rust";
 
 /// `(Rust target, XCFramework slice)`.
 const TARGETS: [&str; 2] = ["aarch64-apple-ios", "aarch64-apple-ios-sim"];
@@ -53,8 +61,12 @@ fn cargo_build(root: &Path, target: Option<&str>) -> Result<(), Box<dyn Error>> 
     reason = "regenerated build output under target/, never user files"
 )]
 pub(crate) fn clear(root: &Path, dir: &Path) -> Result<(), Box<dyn Error>> {
-    if !dir.starts_with(root.join("target")) {
-        return Err(format!("refusing to clear {} outside target/", dir.display()).into());
+    if !(dir.starts_with(root.join("target")) || dir.starts_with(root.join(MODULE_RUST))) {
+        return Err(format!(
+            "refusing to clear {} outside target/ and {MODULE_RUST}",
+            dir.display()
+        )
+        .into());
     }
     if dir.exists() {
         fs::remove_dir_all(dir)?;
@@ -182,5 +194,33 @@ pub(crate) fn ios() -> Result<usize, Box<dyn Error>> {
     }
     cargo_build(&root, None)?;
     let (bindings, headers) = bindings(&root, &out)?;
-    Ok(package(&root, &out, &headers)? + prove(&root, &out, &bindings, &headers)?)
+    let problems = package(&root, &out, &headers)? + prove(&root, &out, &bindings, &headers)?;
+    // For the app's `lumen-core` Expo module (roadmap 11.15).
+    let module = root.join(MODULE_RUST);
+    clear(&root, &module)?;
+    copy_tree(
+        &out.join("LumenCore.xcframework"),
+        &module.join("LumenCore.xcframework"),
+    )?;
+    fs::write(
+        module.join("lumen_ffi.swift"),
+        fs::read(bindings.join("lumen_ffi.swift"))?,
+    )?;
+    println!("lumen-core module: {}", module.display());
+    Ok(problems)
+}
+
+/// Copies the tree at `from` into `to`, which must not exist yet.
+fn copy_tree(from: &Path, to: &Path) -> Result<(), Box<dyn Error>> {
+    fs::create_dir_all(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_tree(&entry.path(), &target)?;
+        } else {
+            fs::write(target, fs::read(entry.path())?)?;
+        }
+    }
+    Ok(())
 }
