@@ -46,7 +46,7 @@ fallback.
   loops.
 - Expo Go is not used (it cannot load custom native code).
 
-**Decision gate (before mobile UI work):** a spike that enumerates 50k `PHAsset`s,
+**Decision gate (before mobile UI work; protocol and results in [research report 11](../research/11-mobile-spike.md)):** a spike that enumerates 50k `PHAsset`s,
 computes 5k Vision feature prints in a `BGContinuedProcessingTask`, clusters them in
 Rust and renders a review grid. Pass criteria: ≥ 60 fps scrolling on a mid-range
 iPhone and Android device and < 4 ms of JS-thread work per frame. On failure, switch to
