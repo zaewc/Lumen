@@ -32,7 +32,7 @@ separate change.
 
 The build jobs can read the repository and nothing else; only the attest job can mint
 a signing token, and only the release job can write releases. Neither runs repository
-code. Release builds use no cache. On Linux, the build job may reach only the
+code. Release builds use no cache. On Linux, the build and SBOM jobs may reach only the
 toolchain, crates.io, GitHub and artifact storage. The macOS and Windows runners
 cannot enforce that limit.
 
