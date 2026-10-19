@@ -1,4 +1,11 @@
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 import type { Messages } from "./en";
 import { detectLocale, type Locale } from "./locale";
 import { MESSAGES } from "./messages";
@@ -23,7 +30,9 @@ function initialLocale(): Locale {
 /** Provides the remembered (or the browser's preferred) language. */
 export function I18nProvider({ children }: { readonly children: ReactNode }) {
   const [locale, setLocale] = useState(initialLocale);
-  useEffect(() => {
+  // index.html says lang="en" until this runs; a layout effect sets the real
+  // language in the first commit, before anything is painted or announced.
+  useLayoutEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
   const value = useMemo<I18n>(

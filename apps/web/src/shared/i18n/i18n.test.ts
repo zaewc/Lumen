@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import explainSource from "../../../../../crates/lumen-policy/src/explain.rs?raw";
 import { en, type GlossaryTerm, type Messages } from "./en";
-import { countFormat } from "./format";
+import { countFormat, formatDateTime } from "./format";
 import { ko } from "./ko";
 import { detectLocale, LOCALES } from "./locale";
 import { MESSAGES, reasonText } from "./messages";
@@ -60,6 +60,21 @@ describe("catalogs", () => {
     expect(countFormat("ko")("18446744073709551615")).toBe("18,446,744,073,709,551,615");
     expect(countFormat("ko")("n/a")).toBe("n/a");
     expect(ko.plan.execute(1204)).toBe("항목 1,204개 격리");
+  });
+
+  it("show timestamps as a date and time in each language", () => {
+    expect(formatDateTime("en", "2026-10-16T09:00:00Z", "UTC")).toBe("Oct 16, 2026, 9:00 AM");
+    expect(formatDateTime("ko", "2026-10-16T09:00:00Z", "UTC")).toBe("2026. 10. 16. 오전 9:00");
+    expect(formatDateTime("en", "2026-10-16T18:30:00.5+09:00", "UTC")).toBe(
+      "Oct 16, 2026, 9:30 AM",
+    );
+  });
+
+  it("show anything that is not an RFC 3339 timestamp as it came", () => {
+    for (const raw of ["", "n/a", "1", "2026-10-16", "2026-99-99T99:99:99Z"]) {
+      expect(formatDateTime("en", raw)).toBe(raw);
+      expect(formatDateTime("ko", raw)).toBe(raw);
+    }
   });
 });
 

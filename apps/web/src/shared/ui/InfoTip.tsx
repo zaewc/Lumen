@@ -1,11 +1,12 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { type GlossaryTerm, useI18n } from "@/shared/i18n";
-import { nextTip, type TipEvent } from "./tip";
+import { nextTip, panelShift, type TipEvent } from "./tip";
 
 /**
  * An "i" button that shows what a term means, from the glossary. It is a
  * real button (click, Enter or Space toggles; Escape or a click outside
- * closes), so it works the same with touch, mouse and keyboard.
+ * closes), so it works the same with touch, mouse and keyboard. Its panel
+ * opens under the button and slides left as needed to stay on screen.
  */
 export function InfoTip({ term }: { readonly term: GlossaryTerm }) {
   const { m } = useI18n();
@@ -14,6 +15,25 @@ export function InfoTip({ term }: { readonly term: GlossaryTerm }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
   const button = useRef<HTMLButtonElement>(null);
+  const note = useRef<HTMLSpanElement>(null);
+  const [shift, setShift] = useState(0);
+
+  // Place the panel before it is painted, and again if the window resizes.
+  useLayoutEffect(() => {
+    if (!open) {
+      return;
+    }
+    const place = () => {
+      const anchor = root.current?.getBoundingClientRect().left;
+      const width = note.current?.offsetWidth;
+      if (anchor !== undefined && width !== undefined) {
+        setShift(panelShift(anchor, width, document.documentElement.clientWidth));
+      }
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -61,10 +81,12 @@ export function InfoTip({ term }: { readonly term: GlossaryTerm }) {
         i
       </button>
       <span
+        ref={note}
         id={panel}
         role="note"
         hidden={!open}
-        className="absolute top-full left-0 z-20 mt-2 block w-[min(24rem,calc(100vw-2rem))] rounded border border-neutral-200 bg-white p-3 text-left text-sm font-normal text-neutral-800 shadow-lg"
+        style={{ left: shift }}
+        className="absolute top-full z-20 mt-2 block w-[min(24rem,calc(100vw-2rem))] rounded border border-neutral-200 bg-white p-3 text-left text-sm font-normal text-neutral-800 shadow-lg"
       >
         <span className="block font-medium">{title}</span>
         <span className="mt-1 block">{body}</span>

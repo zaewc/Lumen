@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { CandidateList } from "@/entities/candidate";
 import { useTransport } from "@/shared/api";
-import { useI18n } from "@/shared/i18n";
+import { formatDateTime, useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { InfoTip } from "@/shared/ui";
 import { outcomeText } from "./outcome";
@@ -17,7 +17,7 @@ function total(plan: PlanView): string {
  * quarantine exactly that plan (ADR-0034). Everything moved stays restorable.
  */
 export function PlanPage() {
-  const { m } = useI18n();
+  const { locale, m } = useI18n();
   const transport = useTransport();
   const queries = useQueryClient();
   const [plan, setPlan] = useState<PlanView | null>(null);
@@ -63,7 +63,8 @@ export function PlanPage() {
             {m.plan.summary(plan.items.length, formatBytes(total(plan)))}
           </h2>
           <p className="text-xs text-neutral-600">
-            {m.plan.made(plan.created_at)} <span className="font-mono break-all">{plan.hash}</span>
+            {m.plan.made(formatDateTime(locale, plan.created_at))}{" "}
+            <span className="font-mono break-all">{plan.hash}</span>
           </p>
           <CandidateList candidates={plan.items} />
           <div className="flex items-start gap-2">

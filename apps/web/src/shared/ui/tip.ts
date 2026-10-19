@@ -22,3 +22,22 @@ export function nextTip(open: boolean, event: TipEvent): TipChange {
       return { open: false, focusButton: false };
   }
 }
+
+/** The space (px, 1rem) a tip's panel keeps from each edge of the viewport. */
+export const TIP_GUTTER = 16;
+
+/**
+ * Where a tip's panel goes, as a shift (px) from its button's left edge: it
+ * opens under the button and slides left only as far as it must to end
+ * `gutter` px inside the viewport. A panel wider than the room left keeps
+ * its left edge in view, so its start is never cut off.
+ */
+export function panelShift(
+  buttonLeft: number,
+  panelWidth: number,
+  viewportWidth: number,
+  gutter = TIP_GUTTER,
+): number {
+  const left = Math.max(gutter, Math.min(buttonLeft, viewportWidth - gutter - panelWidth));
+  return left - buttonLeft;
+}
