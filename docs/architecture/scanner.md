@@ -138,6 +138,22 @@ volume UUID, no ID regression; `ReadDirectoryChangesW`: no history, so always a
 rescan). Coalesced, dropped or unparseable events widen the rescan. Nothing acts on
 a feed without verification by handle.
 
+## The whole disk
+
+With no folder given, `lumen scan` scans the startup disk (`lumen_app::roots`):
+
+- macOS: each data-volume firmlink in `/usr/share/firmlinks` (`/Users`,
+  `/Applications`, `/Library`, `/private`, `/opt`, `/usr/local` and the system's
+  asset and cache folders), but not `/Volumes`. The sealed system volume holds
+  nothing that can be cleaned.
+- Linux: `/`, and the home folder if it is on another file system.
+- Windows: the system drive.
+
+Each root stays on its own volume, so other disks and network or cloud mounts are
+never entered. On a 461 GB Mac it read 4.9 M entries (431 GB allocated) in 62 s
+without a database. Folders macOS keeps private without Full Disk Access are
+reported as denied, never as empty.
+
 ## Where `unsafe` lives
 
 Every block has a `// SAFETY:` comment stating the invariant, why `unsafe` is

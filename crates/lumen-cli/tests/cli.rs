@@ -125,7 +125,7 @@ fn a_missing_path_is_an_incomplete_scan_not_an_empty_one() -> Result<(), Box<dyn
 #[test]
 fn usage_errors_exit_with_status_2() -> Result<(), Box<dyn std::error::Error>> {
     for args in [
-        &["scan"][..],
+        &["scan", "--db"][..],
         &["scan", "/tmp", "--frobnicate"],
         &["remove", "/tmp"],
     ] {

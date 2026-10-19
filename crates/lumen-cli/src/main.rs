@@ -51,7 +51,7 @@ mod quarantine;
 #[cfg(any(unix, windows))]
 mod report;
 
-const USAGE: &str = "usage: lumen scan <PATH>... [--db <FILE>] [--json]\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status   (set reads the key from standard input)";
+const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status   (set reads the key from standard input)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -243,9 +243,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
             path => roots.push(PathBuf::from(path)),
         }
     }
-    if roots.is_empty() {
-        return Err("scan needs at least one path".into());
-    }
+    // No path: the whole disk, chosen when the scan runs.
     Ok(Command::Scan(ScanArgs { roots, db, json }))
 }
 
@@ -335,8 +333,25 @@ fn main() -> ExitCode {
 fn run(args: &ScanArgs) -> Result<(), Box<dyn Error>> {
     let started = std::time::Instant::now();
     let mut log = progress::ScanLog::new();
+    let roots = if args.roots.is_empty() {
+        let roots = lumen_app::roots::whole_disk();
+        if roots.is_empty() {
+            return Err(
+                "no path given and the whole disk could not be found; name a folder".into(),
+            );
+        }
+        eprintln!("no path given: scanning the whole disk, one volume at a time");
+        if cfg!(target_os = "macos") {
+            eprintln!(
+                "macOS may ask to allow access to some folders; folders you do not allow are reported as unreadable, never as empty"
+            );
+        }
+        roots
+    } else {
+        args.roots.clone()
+    };
     let summary = lumen_app::scan(
-        &args.roots,
+        &roots,
         args.db.as_deref(),
         &lumen_app::SystemClock,
         &lumen_app::UuidV7Ids,
@@ -541,6 +556,15 @@ mod tests {
                 json: true,
             }))
         );
+        assert_eq!(
+            parse(&args(&["scan", "--db", "x.db"])),
+            Ok(Command::Scan(ScanArgs {
+                roots: Vec::new(),
+                db: Some("x.db".into()),
+                json: false,
+            })),
+            "no path means the whole disk"
+        );
     }
 
     #[test]
@@ -681,7 +705,10 @@ mod tests {
 
     #[test]
     fn rejects_bad_usage() {
-        assert!(parse(&args(&["scan"])).is_err(), "needs a path");
+        assert!(
+            parse(&args(&["scan", "--json"])).is_ok(),
+            "no path: the whole disk"
+        );
         assert!(
             parse(&args(&["scan", "/a", "--db"])).is_err(),
             "--db needs a value"

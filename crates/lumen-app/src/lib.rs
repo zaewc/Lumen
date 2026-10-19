@@ -11,6 +11,7 @@ pub mod held;
 pub mod plan;
 #[cfg(any(unix, windows))]
 pub mod quarantine;
+pub mod roots;
 pub mod scan;
 pub mod space;
 #[cfg(any(unix, windows))]
