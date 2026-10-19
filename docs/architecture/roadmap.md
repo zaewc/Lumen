@@ -311,9 +311,44 @@ and the performance spike that gates mobile UI work (ADR-0007).
 | 12.7b | `build(release): bundle the desktop app` | unsigned desktop bundles (universal `.dmg`, per-user NSIS installer, `.deb`/`.AppImage`) and their SBOMs added to the same release, with icons for every platform |
 | 12.8 | `build(release): sign and notarize` | macOS Developer ID, Hardened Runtime and notarization, and Windows Azure Artifact Signing (ADR-0006), once the owner provides the accounts as protected-environment secrets |
 
+## Phase 13: First use
+
+Found by the owner trying the CLI and the desktop app (2026-10-19). Done:
+
+| # | PR | Scope |
+| --- | --- | --- |
+| 13.1 | `feat(cli): log scan progress as it runs` (#302) | a live, log-style view on standard error; `lumen_app::ScanEvent` |
+| 13.2 | `feat(app): never fill the disk when recording` (#303) | `lumen_app::space`: 2 GB always left free; scans stop with `out_of_space`, assessments check first |
+| 13.3 | `feat(api): carry the rule behind each reason` (#304) | `ReasonView { rule, text }` |
+| 13.4 | `fix(app): record a scan's evidence once` (#305) | scan facts dated by the scan, so re-assessing adds nothing |
+| 13.5 | `feat(web): add a Korean locale` (#306) | typed en/ko catalogs, no dependency |
+| 13.6 | `feat(cli): scan the whole disk when no path is given` (#307) | `lumen_app::roots::whole_disk` |
+| 13.7 | `feat(cli): show sizes in readable units` (#308) | |
+| 13.8 | `perf(application): gather scan facts only where a decision can reach` (#309) | 790 k → 30 evidence records for 198 k entries; identical decisions |
+| 13.9 | `feat(web): explain terms with info buttons` (#310) | `InfoTip`, a bilingual glossary |
+| 13.10 | `feat(desktop): …` (#312–#314) | whole-disk button, live scan progress, the out-of-space reason |
+| 13.11 | `feat(telemetry): keep only the last 14 days of logs` (#315) | |
+| 13.12 | `feat(web): localize dates and keep tips on screen` (#316) | |
+| 13.13 | `fix(macos): name privacy and integrity refusals` (#317) | `EPERM` → TCC or SIP by `SF_RESTRICTED` |
+| 13.14 | `perf(store): drop the unused entry identity index` (#318) | scan database −39% |
+| 13.15 | `ci: compile the generated Kotlin bindings` | pinned Kotlin and JNA |
+
+Open:
+
+| # | Scope | Needs |
+| --- | --- | --- |
+| 13.a | Per-volume quarantine stores (`X:\$LumenQuarantine\<SID>\` on Windows, per-volume on macOS) so items on other drives can be quarantined; today they stay where they are (ADR-0015) | an executor review |
+| 13.b | Tool-action guidance for items that cannot be regenerated, such as Docker's disk image (`docker system prune`); the knowledge base forbids actions on `not_regenerable` entries by design | an ADR |
+| 13.c | Smaller scan storage per entry (about 0.6 kB after 13.14), for whole-disk databases on small disks | |
+| 13.d | Pin the release desktop job's egress and switch it to `block`; tighten the attest and release jobs after the first release | the first release's egress report |
+| 13.e | release-please for versioning (ADR-0026) | |
+| 13.f | Jev with the owner's key: record cassettes (12.1b) and gate CI on them (12.2) | an OpenRouter key (`sk-or-v1-…`); a TypeSafe console key needs a direct transport and a retention review |
+| 13.g | Signing and notarization (12.8), the first tagged release, mobile device measurements (11.16d) | the owner |
+
 ## Later phases (outline)
 
 - **Phase 11, UI:** JavaScript bootstrap (pnpm, Biome, TS 7, Turborepo), `apps/web`
   (FSD), `apps/desktop` (Tauri), `apps/mobile` (Expo).
 - **Phase 12, Hardening:** benchmarks, observability, evaluation gates, release
   pipeline, signing.
+- **Phase 13, First use:** what trying the product showed; see above.
