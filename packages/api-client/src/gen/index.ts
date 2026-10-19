@@ -14,6 +14,7 @@ export type {
   NotRestoredView,
   PlanView,
   QuarantineReportView,
+  ReasonView,
   RemovedView,
   RestoreOutcomeView,
   RestoreView,

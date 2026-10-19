@@ -13,9 +13,9 @@ export type CandidateView = {
    */
   path: string;
   /**
-   * Why, in plain sentences.
+   * Why: one reason per policy rule that fired, in the policy's order.
    */
-  reasons: Array<string>;
+  reasons: Array<ReasonView>;
   /**
    * What removing it would free now, in bytes.
    */
@@ -217,6 +217,21 @@ export type QuarantineReportView = {
    * Problems that did not stop the execution.
    */
   warnings: Array<string>;
+};
+
+/**
+ * One policy rule that fired, and its fixed sentence (ADR-0014).
+ */
+export type ReasonView = {
+  /**
+   * The rule's stable identifier, such as `classify.devkb-regenerable`, so
+   * an interface can show the reason in the user's language.
+   */
+  rule: string;
+  /**
+   * The reason in English.
+   */
+  text: string;
 };
 
 /**

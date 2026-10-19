@@ -42,6 +42,14 @@ export const zNotRestoredView = z.enum([
 ]);
 
 /**
+ * One policy rule that fired, and its fixed sentence (ADR-0014).
+ */
+export const zReasonView = z.object({
+  rule: z.string(),
+  text: z.string(),
+});
+
+/**
  * How much a failed removal took.
  */
 export const zRemovedView = z.enum(["nothing", "partly", "item"]);
@@ -202,7 +210,7 @@ export const zVerdictView = z.enum(["keep", "review", "quarantine"]);
  */
 export const zCandidateView = z.object({
   path: z.string(),
-  reasons: z.array(z.string()),
+  reasons: z.array(zReasonView),
   reclaimable_bytes: z.string(),
   verdict: zVerdictView,
 });

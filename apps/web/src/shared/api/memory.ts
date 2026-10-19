@@ -28,7 +28,12 @@ const candidate: CandidateView = {
   path: "/Users/ana/Library/Developer/Xcode/DerivedData/App-abc",
   verdict: "quarantine",
   reclaimable_bytes: "4200000000",
-  reasons: ["Xcode rebuilds this folder when it is gone."],
+  reasons: [
+    {
+      rule: "classify.devkb-regenerable",
+      text: "Quarantine proposed: the tool that made it can regenerate it.",
+    },
+  ],
 };
 
 const planView: PlanView = {

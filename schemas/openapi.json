@@ -29,9 +29,9 @@
           "reasons": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ReasonView"
             },
-            "description": "Why, in plain sentences."
+            "description": "Why: one reason per policy rule that fired, in the policy's order."
           },
           "reclaimable_bytes": {
             "type": "string",
@@ -408,6 +408,24 @@
               "type": "string"
             },
             "description": "Problems that did not stop the execution."
+          }
+        }
+      },
+      "ReasonView": {
+        "type": "object",
+        "description": "One policy rule that fired, and its fixed sentence (ADR-0014).",
+        "required": [
+          "rule",
+          "text"
+        ],
+        "properties": {
+          "rule": {
+            "type": "string",
+            "description": "The rule's stable identifier, such as `classify.devkb-regenerable`, so\nan interface can show the reason in the user's language."
+          },
+          "text": {
+            "type": "string",
+            "description": "The reason in English."
           }
         }
       },

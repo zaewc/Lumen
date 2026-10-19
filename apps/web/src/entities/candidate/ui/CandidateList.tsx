@@ -40,7 +40,7 @@ export function CandidateList({ candidates }: { readonly candidates: readonly Ca
                   </div>
                   <ul className="mt-1 list-disc pl-5 text-neutral-600">
                     {candidate.reasons.map((reason) => (
-                      <li key={reason}>{reason}</li>
+                      <li key={reason.rule}>{reason.text}</li>
                     ))}
                   </ul>
                 </li>

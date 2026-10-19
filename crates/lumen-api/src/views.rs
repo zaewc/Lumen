@@ -138,17 +138,38 @@ pub struct CandidateView {
     pub verdict: VerdictView,
     /// What removing it would free now, in bytes.
     pub reclaimable_bytes: String,
-    /// Why, in plain sentences.
-    pub reasons: Vec<String>,
+    /// Why: one reason per policy rule that fired, in the policy's order.
+    pub reasons: Vec<ReasonView>,
+}
+
+/// One policy rule that fired, and its fixed sentence (ADR-0014).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ReasonView {
+    /// The rule's stable identifier, such as `classify.devkb-regenerable`, so
+    /// an interface can show the reason in the user's language.
+    pub rule: String,
+    /// The reason in English.
+    pub text: String,
 }
 
 impl From<&Assessed> for CandidateView {
     fn from(assessed: &Assessed) -> Self {
+        // `explain` renders one sentence per fired rule, in the same order.
+        let reasons = assessed
+            .decision
+            .fired_rules()
+            .iter()
+            .zip(&assessed.reasons)
+            .map(|(fired, text)| ReasonView {
+                rule: fired.rule.as_str().to_owned(),
+                text: text.clone(),
+            })
+            .collect();
         Self {
             path: assessed.candidate.path.display(),
             verdict: assessed.decision.verdict().into(),
             reclaimable_bytes: bytes(reclaim(assessed)),
-            reasons: assessed.reasons.clone(),
+            reasons,
         }
     }
 }
