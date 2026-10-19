@@ -212,9 +212,27 @@ impl BulkEnumerator {
         }
         check_identity(path, entry.identity(), expected)?;
         Ok(DirOutcome {
-            access: access_from_io(open_error),
+            access: refused(
+                access_from_io(open_error),
+                entry.protection.system_restricted,
+            ),
             complete: false,
         })
+    }
+}
+
+/// Names the refusal of a directory that could not be opened, now that its
+/// own metadata is known. `EPERM` comes from System Integrity Protection on a
+/// directory flagged `SF_RESTRICTED`, and otherwise from privacy protection
+/// (TCC: Full Disk Access, or another app's container or data vault).
+/// Either way its contents stay unknown, never empty (ADR-0008).
+fn refused(access: AccessState, system_restricted: bool) -> AccessState {
+    match access {
+        AccessState::Denied(DenialReason::Unknown) if system_restricted => {
+            AccessState::Denied(DenialReason::Sip)
+        }
+        AccessState::Denied(DenialReason::Unknown) => AccessState::Denied(DenialReason::Tcc),
+        other => other,
     }
 }
 
@@ -297,6 +315,28 @@ fn access_from_io(error: &io::Error) -> AccessState {
 #[cfg(test)]
 mod tests {
     use std::fs;
+
+    #[test]
+    fn an_unopenable_directory_names_privacy_or_integrity_protection() {
+        use super::refused;
+        let unknown = AccessState::Denied(DenialReason::Unknown);
+        assert_eq!(
+            refused(unknown, false),
+            AccessState::Denied(DenialReason::Tcc)
+        );
+        assert_eq!(
+            refused(unknown, true),
+            AccessState::Denied(DenialReason::Sip)
+        );
+        let posix = AccessState::Denied(DenialReason::Posix);
+        assert_eq!(
+            refused(posix, true),
+            posix,
+            "permission bits stay permission bits"
+        );
+        let gone = AccessState::Failed(FailureKind::Vanished);
+        assert_eq!(refused(gone, false), gone);
+    }
 
     use lumen_scan::StdFsEnumerator;
     use lumen_testkit::{Fixture, Node};
