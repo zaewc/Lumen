@@ -39,6 +39,9 @@ jobs:
     # repository and nothing else: no tokens to sign or publish with.
     permissions:
       contents: read
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         if: runner.os == 'Linux'
@@ -62,7 +65,6 @@ jobs:
         run: rustup toolchain install
       - name: Check that the tag matches the version
         if: github.event_name == 'push'
-        shell: bash
         env:
           TAG: ${{ github.ref_name }}
         run: |
@@ -81,7 +83,6 @@ jobs:
           tool: cargo-cyclonedx@0.5.9
       # The dependencies compiled into this target's binary, from Cargo.lock.
       - name: SBOM
-        shell: bash
         env:
           TARGET: ${{ matrix.target }}
         run: >
@@ -89,7 +90,6 @@ jobs:
           --format json --spec-version 1.5 --target "$TARGET"
           --override-filename "lumen-$TARGET.cdx"
       - name: Package
-        shell: bash
         env:
           TARGET: ${{ matrix.target }}
         run: |
