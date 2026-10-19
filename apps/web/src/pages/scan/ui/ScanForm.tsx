@@ -40,13 +40,28 @@ export function ScanForm({ onScanned }: { readonly onScanned: (scan: ScanView) =
         placeholder="/Users/you/Library/Developer"
       />
       <p className="text-xs text-neutral-600">{m.scan.readOnly}</p>
-      <button
-        type="submit"
-        disabled={roots.length === 0 || scan.isPending}
-        className="rounded bg-neutral-900 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-      >
-        {scan.isPending ? m.scan.scanning : m.scan.submit}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="submit"
+          disabled={roots.length === 0 || scan.isPending}
+          className="rounded bg-neutral-900 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+        >
+          {scan.isPending ? m.scan.scanning : m.scan.submit}
+        </button>
+        {/* No roots: the core scans the whole startup disk. */}
+        <button
+          type="button"
+          onClick={() => scan.mutate([])}
+          disabled={scan.isPending}
+          aria-describedby="whole-disk-hint"
+          className="rounded border border-neutral-400 px-3 py-1.5 text-sm disabled:opacity-40"
+        >
+          {m.scan.wholeDisk}
+        </button>
+      </div>
+      <p id="whole-disk-hint" className="text-xs text-neutral-600">
+        {m.scan.wholeDiskHint}
+      </p>
       {scan.isError && <p className="text-sm text-red-700">{String(scan.error)}</p>}
     </form>
   );

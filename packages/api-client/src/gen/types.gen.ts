@@ -335,7 +335,8 @@ export type RootView = {
  */
 export type ScanRequest = {
   /**
-   * The folders to scan, as the user chose them.
+   * The folders to scan, as the user chose them. Empty means the whole
+   * startup disk (`lumen_app::roots::whole_disk`).
    */
   roots: Array<string>;
 };

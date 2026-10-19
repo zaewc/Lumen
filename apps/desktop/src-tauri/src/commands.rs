@@ -51,7 +51,8 @@ async fn blocking<T: Send + 'static>(
         .map_err(CommandError::new)?
 }
 
-/// Scans the chosen roots, read-only, and records the scan.
+/// Scans the chosen roots, or the whole startup disk when none are given,
+/// read-only, and records the scan.
 #[tauri::command]
 pub(crate) async fn scan(
     core: State<'_, Core>,
@@ -59,7 +60,16 @@ pub(crate) async fn scan(
 ) -> Result<ScanView, CommandError> {
     let db = core.db.clone();
     blocking(move || {
-        let roots: Vec<PathBuf> = request.roots.iter().map(PathBuf::from).collect();
+        let roots: Vec<PathBuf> = if request.roots.is_empty() {
+            lumen_app::roots::whole_disk()
+        } else {
+            request.roots.iter().map(PathBuf::from).collect()
+        };
+        if roots.is_empty() {
+            return Err(CommandError::new(
+                "no folder was chosen and the whole disk could not be found",
+            ));
+        }
         let summary = lumen_app::scan(
             &roots,
             Some(&db),

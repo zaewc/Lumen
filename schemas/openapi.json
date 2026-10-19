@@ -599,7 +599,7 @@
             "items": {
               "type": "string"
             },
-            "description": "The folders to scan, as the user chose them."
+            "description": "The folders to scan, as the user chose them. Empty means the whole\nstartup disk (`lumen_app::roots::whole_disk`)."
           }
         },
         "additionalProperties": false

@@ -36,7 +36,8 @@ fn reclaim(assessed: &Assessed) -> ByteCount {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ScanRequest {
-    /// The folders to scan, as the user chose them.
+    /// The folders to scan, as the user chose them. Empty means the whole
+    /// startup disk (`lumen_app::roots::whole_disk`).
     pub roots: Vec<String>,
 }
 

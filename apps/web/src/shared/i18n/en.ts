@@ -89,6 +89,9 @@ export const en = {
     readOnly: "Scanning only reads; nothing is changed.",
     scanning: "Scanning…",
     submit: "Scan",
+    wholeDisk: "Scan the whole disk",
+    wholeDiskHint:
+      "Reads every folder on the startup disk, one disk at a time; this can take a few minutes. Your system may ask to allow access to some folders; folders you do not allow are reported as unread, never as empty.",
     found: "What was found",
     partial: "The scan stopped early; results are partial.",
     assessment: "Assessment",
