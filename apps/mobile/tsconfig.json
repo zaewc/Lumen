@@ -1,7 +1,7 @@
 {
   "extends": "@lumen/config/tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["es2024"],
+    "lib": ["es2024", "dom"],
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
     "customConditions": ["react-native"]

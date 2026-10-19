@@ -10,6 +10,7 @@ catalog:
   "@biomejs/biome": 2.5.15
   "@feature-sliced/steiger-plugin": 0.8.0
   "@hey-api/openapi-ts": 0.99.0
+  "@shopify/flash-list": 2.3.2
   "@tailwindcss/vite": 4.3.3
   "@tanstack/react-query": 5.104.2
   "@tanstack/react-router": 1.170.43
@@ -19,6 +20,7 @@ catalog:
   "@types/react-dom": 19.3.0
   "@vitejs/plugin-react": 6.1.2
   expo: 58.0.11
+  expo-image: 58.0.15
   expo-modules-core: 58.0.19
   expo-status-bar: 58.0.3
   react: 19.3.0

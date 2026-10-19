@@ -1,0 +1,9 @@
+{
+  "platforms": ["android", "apple"],
+  "android": {
+    "modules": ["dev.lumen.photos.LumenPhotosModule"]
+  },
+  "apple": {
+    "modules": ["LumenPhotosModule"]
+  }
+}

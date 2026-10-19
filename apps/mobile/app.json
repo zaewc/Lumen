@@ -7,10 +7,14 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "dev.lumen.mobile",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Lumen reads your photo library to find near-duplicate photos for you to review. Nothing is changed without your confirmation."
+      }
     },
     "android": {
-      "package": "dev.lumen.mobile"
+      "package": "dev.lumen.mobile",
+      "permissions": ["android.permission.READ_MEDIA_IMAGES"]
     }
   }
 }

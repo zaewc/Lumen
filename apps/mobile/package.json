@@ -9,10 +9,13 @@
     "android": "EXPO_NO_TELEMETRY=1 expo run:android",
     "ios": "EXPO_NO_TELEMETRY=1 expo run:ios",
     "typecheck": "tsc -p .",
-    "bundle": "rm -rf .bundle-check && EXPO_NO_TELEMETRY=1 expo export --platform android --platform ios --output-dir .bundle-check && rm -rf .bundle-check"
+    "bundle": "rm -rf .bundle-check && EXPO_NO_TELEMETRY=1 expo export --platform android --platform ios --output-dir .bundle-check && rm -rf .bundle-check",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@shopify/flash-list": "catalog:",
     "expo": "catalog:",
+    "expo-image": "catalog:",
     "expo-modules-core": "catalog:",
     "expo-status-bar": "catalog:",
     "react": "catalog:",
@@ -21,6 +24,7 @@
   "devDependencies": {
     "@lumen/config": "workspace:*",
     "@types/react": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
