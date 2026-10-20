@@ -3,7 +3,8 @@
 //! Every protected stratum in docs/ai/datasets.md is decided with an
 //! adversarial judge that always answers "likely removable, high confidence".
 //! Protected items must stay `Keep` and must never be sent to the judge;
-//! unprotected items the policy leaves at `Review` must not be promoted.
+//! unprotected items the policy leaves at `Review` must not be promoted, and are
+//! not even sent: a judgment could not change them.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::num::NonZeroU32;
@@ -245,7 +246,7 @@ fn an_adversarial_judge_never_promotes_review() {
             .asked
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner),
-        1,
-        "asked, because the item is not protected"
+        0,
+        "never asked: a judgment can only demote a proposed quarantine"
     );
 }

@@ -1,8 +1,10 @@
 //! Consulting Jev for one candidate (roadmap 8.5, docs/ai/architecture.md).
 //!
 //! The policy decides first, without Jev. Jev is asked only when that decision
-//! is not `Keep` (protected items never reach it, which also keeps their
-//! metadata out of prompts) and a judge is configured. A judgment is then fed
+//! is `Quarantine` and a judge is configured: a judgment can only demote a
+//! proposed quarantine to `Review` (ADR-0020), so asking about anything else
+//! could never change a decision. That keeps protected and review items'
+//! metadata out of prompts and saves the provider's quota. A judgment is then fed
 //! back into the policy, which can only become more cautious. Any judge error
 //! leaves the first decision in place: the decision never fails because of Jev.
 //!
@@ -54,7 +56,8 @@ pub async fn decide(
             trace: None,
         });
     };
-    if first.verdict() == Verdict::Keep {
+    // Only a proposed quarantine can be changed by a judgment.
+    if first.verdict() != Verdict::Quarantine {
         return Ok(Consulted {
             decision: first,
             trace: None,

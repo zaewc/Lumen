@@ -79,7 +79,7 @@ pub(crate) fn judge() -> Result<lumen_jev::openrouter::JevJudge, Box<dyn Error>>
     if let Some(secret) = store.get(SecretName::JEB_API_KEY)? {
         let key = ApiKey::new(secret.expose()).ok_or("the stored Jeb API key is not valid")?;
         eprintln!(
-            "Jeb: for each candidate the policy does not keep, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to the school's Jeb server (jeb.https.gsmsv.site) with your key. Its operator may keep requests. Jeb can only make a decision more cautious."
+            "Jeb: for each item proposed for quarantine, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to the school's Jeb server (jeb.https.gsmsv.site) with your key. Its operator may keep requests. Jeb can only make a decision more cautious."
         );
         return Ok(lumen_jev::openrouter::JevJudge::jeb(key)?);
     }
@@ -88,7 +88,7 @@ pub(crate) fn judge() -> Result<lumen_jev::openrouter::JevJudge, Box<dyn Error>>
         .ok_or("--jev needs an API key: run `lumen jev key set` (Jeb) or `lumen jev key set --openrouter` first")?;
     let key = ApiKey::new(secret.expose()).ok_or("the stored OpenRouter API key is not valid")?;
     eprintln!(
-        "Jev: for each candidate the policy does not keep, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to TypeSafe's Jev through OpenRouter with your key. Jev can only make a decision more cautious."
+        "Jev: for each item proposed for quarantine, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to TypeSafe's Jev through OpenRouter with your key. Jev can only make a decision more cautious."
     );
     Ok(lumen_jev::openrouter::JevJudge::new(key)?)
 }

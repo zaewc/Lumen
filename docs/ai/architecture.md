@@ -29,15 +29,18 @@ Evidence graph ─▶ EvidenceBundle ─▶ Deterministic policy (stages 1–3)
                  PolicyDecision ─▶ explanation (Jev rationale shown separately, labelled)
 ```
 
-Jev is never consulted for items already fixed by hard protections (stage 1): they are
-`KEEP` regardless. This also keeps protected-class metadata out of prompts.
+Jev is consulted only about items the policy proposes for quarantine: a judgment can
+only demote those to `REVIEW`, so asking about anything else could never change a
+decision. Items fixed by hard protections (stage 1, `KEEP` regardless) and items
+already at `REVIEW` never reach it, which keeps their metadata out of prompts and
+saves the provider's quota.
 
 ## Components
 
 | Component | Crate | Responsibility |
 | --- | --- | --- |
 | `JudgeModel` port | `lumen-application` | `descriptor()` and `judge(&EvidenceBundle) -> Result<Judgment, JudgeError>` |
-| Consultation | `lumen-application::consult` | Ask only when the policy's first decision is not `KEEP` and a judge is configured; re-evaluate with the judgment; trace every consultation |
+| Consultation | `lumen-application::consult` | Ask only when the policy's first decision is `QUARANTINE` and a judge is configured; re-evaluate with the judgment; trace every consultation |
 | Request builder | `lumen-jev` | Canonical, redacted, versioned request from a bundle; untrusted strings JSON-encoded in labelled fields |
 | Adapters | `lumen-jev` | Provider-specific transport only; no parsing logic of their own |
 | Response validator | `lumen-jev` | `stop_reason` handling, JSON Schema validation, enum and length checks, evidence-ID membership, pinned-model check |
