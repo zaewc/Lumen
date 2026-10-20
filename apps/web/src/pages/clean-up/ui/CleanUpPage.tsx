@@ -5,6 +5,7 @@ import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, Card } from "@/shared/ui";
 import { cleanUpStep } from "../model/step";
+import { AiReviewCard } from "./AiReviewCard";
 import { DoneCard } from "./DoneCard";
 import { Results } from "./Results";
 import { ScanningCard } from "./ScanningCard";
@@ -72,13 +73,16 @@ export function CleanUpPage() {
     switch (step) {
       case "start":
         return (
-          <StartCard
-            folders={folders}
-            onFoldersChange={setFolders}
-            onScan={start}
-            error={scan.error}
-            focus={acted}
-          />
+          <>
+            <StartCard
+              folders={folders}
+              onFoldersChange={setFolders}
+              onScan={start}
+              error={scan.error}
+              focus={acted}
+            />
+            <AiReviewCard />
+          </>
         );
       case "scanning":
       case "deciding":

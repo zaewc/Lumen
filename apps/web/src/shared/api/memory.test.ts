@@ -1,4 +1,5 @@
 import {
+  zAiSettingsView,
   zCandidateView,
   zFinalizeOutcomeView,
   zHeldItemView,
@@ -35,6 +36,24 @@ describe("memoryTransport", () => {
     expect(zFinalizeOutcomeView.parse(await transport.finalize(operation)).outcome.kind).toBe(
       "finalized",
     );
+  });
+
+  it("keeps AI review off until a key is stored and it is turned on", async () => {
+    const transport = memoryTransport();
+    expect(zAiSettingsView.parse(await transport.aiSettings())).toEqual({
+      enabled: false,
+      consented_at: null,
+      key: "none",
+    });
+    await expect(transport.setAiReview(true)).rejects.toThrow();
+    await expect(transport.setAiKey("not a key")).rejects.toThrow();
+    expect((await transport.setAiKey(" jeb-key ")).key).toBe("jeb");
+    const on = zAiSettingsView.parse(await transport.setAiReview(true));
+    expect(on.enabled).toBe(true);
+    expect(on.consented_at).not.toBeNull();
+    const off = zAiSettingsView.parse(await transport.setAiReview(false));
+    expect(off).toEqual({ ...on, enabled: false });
+    expect(await transport.aiSettings()).toEqual(off);
   });
 
   it("paces the scan for people, reporting growing totals", async () => {

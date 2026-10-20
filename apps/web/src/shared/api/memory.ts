@@ -1,7 +1,14 @@
 // An in-memory LumenTransport for development and tests: fixed, plausible
 // data that the tests validate with the same schemas as real responses. It
-// never touches a filesystem.
-import type { CandidateView, HeldItemView, PlanView, ScanView } from "@lumen/api-client";
+// never touches a filesystem, a keychain or the network.
+import type {
+  AiSettingsView,
+  CandidateView,
+  HeldItemView,
+  PlanView,
+  ScanView,
+} from "@lumen/api-client";
+import { isApiKey } from "@/shared/lib";
 import type { LumenTransport } from "./transport";
 
 const scanView: ScanView = {
@@ -114,6 +121,9 @@ function wait(ms: number): Promise<void> {
  * milliseconds) with pauses that let a person see each step.
  */
 export function memoryTransport({ pace = 0 }: { readonly pace?: number } = {}): LumenTransport {
+  // AI review, as the host keeps it: off and without a key at first. The key
+  // itself is not kept, only that one was given.
+  let ai: AiSettingsView = { enabled: false, consented_at: null, key: "none" };
   return {
     scan: async (_request, onProgress) => {
       // Paced, the scan reports a few growing totals, as a real one does.
@@ -163,5 +173,26 @@ export function memoryTransport({ pace = 0 }: { readonly pace?: number } = {}): 
         original: held.original ?? null,
         outcome: { kind: "finalized" },
       }),
+    aiSettings: () => Promise.resolve(ai),
+    setAiReview: (enabled) => {
+      if (enabled && ai.key === "none") {
+        return Promise.reject(new Error("AI review needs an API key: add your Jeb key first"));
+      }
+      ai = {
+        ...ai,
+        enabled,
+        consented_at: enabled ? new Date().toISOString() : ai.consented_at,
+      };
+      return Promise.resolve(ai);
+    },
+    setAiKey: (key) => {
+      if (!isApiKey(key)) {
+        return Promise.reject(
+          new Error("that is not an API key (1-256 visible ASCII characters); nothing was stored"),
+        );
+      }
+      ai = { ...ai, key: "jeb" };
+      return Promise.resolve(ai);
+    },
   };
 }

@@ -41,6 +41,36 @@ export const ko = {
     scanFolders: "이 폴더 검사",
     failed: "검사를 마치지 못했습니다. 아무것도 변경하지 않았습니다.",
   },
+  ai: {
+    title: "AI 검토",
+    offIntro:
+      "Lumen이 정리를 제안한 항목을 AI 모델이 한 번 더 확인할 수 있습니다. AI는 Lumen을 더 신중하게 만들 수만 있습니다. 직접 켜기 전까지는 꺼져 있습니다.",
+    turnOn: "AI 검토 켜기",
+    on: (service: string) => `AI 검토가 켜져 있습니다(${service})`,
+    onIntro:
+      "항목의 정리를 제안하기 전에 그 정보(내용은 제외)를 보내 의견을 한 번 더 받습니다. AI는 Lumen을 더 신중하게 만들 수만 있습니다.",
+    turnOff: "끄기",
+    turningOff: "끄는 중…",
+    statusOn: (service: string) => `AI 검토: 켜짐(${service})`,
+    statusOff: "AI 검토: 꺼짐",
+    loadFailed: "AI 검토 설정을 불러오지 못했습니다.",
+    changeFailed: "AI 검토 설정을 바꾸지 못했습니다.",
+    consent: {
+      title: "AI 검토를 켜시겠습니까?",
+      what: "격리를 제안한 항목마다 메타데이터를 보냅니다. 경로(홈 폴더는 ~로 표시), 크기, 경과 기간, 판단 근거가 포함됩니다. 파일 내용은 보내지 않습니다.",
+      whereJeb:
+        "API 키와 함께 학교의 Jeb 서버(jeb.https.gsmsv.site)로 보냅니다. 서버 운영자가 요청을 보관할 수 있습니다.",
+      whereOpenRouter: "API 키와 함께 OpenRouter를 거쳐 TypeSafe의 Jev로 보냅니다.",
+      cautious:
+        "AI는 판단을 더 신중하게 바꿀 수만 있습니다. 무엇을 옮기거나 삭제할지는 정하지 않습니다.",
+      revocable: "켜고 나면 끌 때까지 모든 검사에 AI 검토를 적용하며, 언제든지 끌 수 있습니다.",
+      keyLabel: "Jeb API 키",
+      keyHint: "시스템의 보안 저장소에 보관하며, 다시 표시하지 않습니다.",
+      keyInvalid: "키 전체를 붙여 넣으십시오(공백 없이 1~256자).",
+      confirm: "켜기",
+      turningOn: "켜는 중…",
+    },
+  },
   scanning: {
     title: "검사하는 중…",
     deciding: "정리해도 안전한 항목을 판단하는 중…",

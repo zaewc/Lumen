@@ -2,6 +2,7 @@
 // surface. UI code never builds URLs or calls Tauri directly, and every
 // response is validated against the generated schemas before use.
 import type {
+  AiSettingsView,
   CandidateView,
   ExecuteRequest,
   FinalizeOutcomeView,
@@ -44,4 +45,10 @@ export interface LumenTransport {
   restore(operation: OperationId): Promise<RestoreOutcomeView>;
   /** Removes one item for good, only if nothing uses it. */
   finalize(operation: OperationId): Promise<FinalizeOutcomeView>;
+  /** Whether AI review is on, and which key is stored (never the key). */
+  aiSettings(): Promise<AiSettingsView>;
+  /** Turns AI review on (the user's consent; needs a stored key) or off. */
+  setAiReview(enabled: boolean): Promise<AiSettingsView>;
+  /** Stores a Jeb API key in the system's secret store; it is never returned. */
+  setAiKey(key: string): Promise<AiSettingsView>;
 }

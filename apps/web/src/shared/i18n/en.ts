@@ -32,6 +32,37 @@ export const en = {
     scanFolders: "Scan these folders",
     failed: "The scan could not finish. Nothing was changed.",
   },
+  ai: {
+    title: "AI review",
+    offIntro:
+      "An AI model can double-check what Lumen proposes to clean up. It can only make Lumen more careful. It stays off until you turn it on.",
+    turnOn: "Turn on AI review",
+    on: (service: string) => `AI review is on (${service})`,
+    onIntro:
+      "Before an item is proposed for clean-up, its details (never its contents) are sent for a second opinion. It can only make Lumen more careful.",
+    turnOff: "Turn off",
+    turningOff: "Turning off…",
+    statusOn: (service: string) => `AI review: on (${service})`,
+    statusOff: "AI review: off",
+    loadFailed: "The AI review setting could not be loaded.",
+    changeFailed: "The AI review setting could not be changed.",
+    consent: {
+      title: "Turn on AI review?",
+      what: "For each item proposed for quarantine, Lumen sends its metadata: the path (with your home folder shown as ~), sizes, ages and evidence facts. File contents are never sent.",
+      whereJeb:
+        "It goes to your school's Jeb server (jeb.https.gsmsv.site) with your API key. The server's operator may keep the requests.",
+      whereOpenRouter: "It goes to TypeSafe's Jev through OpenRouter with your API key.",
+      cautious:
+        "The AI can only make a decision more cautious. It never chooses what is moved or removed.",
+      revocable:
+        "AI review then stays on for every scan until you turn it off, which you can do at any time.",
+      keyLabel: "Jeb API key",
+      keyHint: "Kept in your system's secure storage and never shown again.",
+      keyInvalid: "Paste the whole key: 1–256 characters, no spaces.",
+      confirm: "Turn on",
+      turningOn: "Turning on…",
+    },
+  },
   scanning: {
     title: "Scanning…",
     deciding: "Deciding what is safe to clean up…",

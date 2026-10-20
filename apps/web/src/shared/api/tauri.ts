@@ -2,6 +2,7 @@
 // one per operation. Responses come from the host, but are still validated
 // with the generated schemas before the UI uses them (ADR-0011).
 import {
+  zAiSettingsView,
   zCandidateView,
   zFinalizeOutcomeView,
   zHeldItemView,
@@ -36,5 +37,9 @@ export function tauriTransport(): LumenTransport {
       zRestoreOutcomeView.parse(await invoke("restore", { operationId })),
     finalize: async (operationId) =>
       zFinalizeOutcomeView.parse(await invoke("finalize", { operationId })),
+    aiSettings: async () => zAiSettingsView.parse(await invoke("ai_settings")),
+    setAiReview: async (enabled) =>
+      zAiSettingsView.parse(await invoke("set_ai_review", { enabled })),
+    setAiKey: async (key) => zAiSettingsView.parse(await invoke("set_ai_key", { key })),
   };
 }
