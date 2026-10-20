@@ -90,8 +90,8 @@ pub(crate) fn clear(service: Service) -> Result<String, Box<dyn Error>> {
 /// Which keys are stored (never the keys), and which one `--jev` uses.
 pub(crate) fn status() -> Result<String, Box<dyn Error>> {
     let store = store()?;
-    let jeb = store.get(SecretName::JEB_API_KEY)?.is_some();
-    let openrouter = store.get(SecretName::OPENROUTER_API_KEY)?.is_some();
+    let jeb = store.contains(SecretName::JEB_API_KEY)?;
+    let openrouter = store.contains(SecretName::OPENROUTER_API_KEY)?;
     let stored = |yes: bool| if yes { "stored" } else { "not stored" };
     let used = match (jeb, openrouter) {
         (true, _) => "--jev uses Jeb.",

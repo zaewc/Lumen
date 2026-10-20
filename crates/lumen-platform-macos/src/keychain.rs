@@ -142,6 +142,27 @@ impl SecretStore for KeychainStore {
         Ok(Some(Secret::new(text)))
     }
 
+    /// Matches the item without returning its data, so the keychain never
+    /// asks the user: only reading a value is guarded by the item's access
+    /// list.
+    fn contains(&self, name: SecretName) -> Result<bool, SecretError> {
+        let k = keys();
+        let query = query(
+            &self.service,
+            name,
+            &[(k.match_limit, k.match_limit_one.as_ref())],
+        );
+        // SAFETY: invariant: `query` is a live dictionary of CFString keys and
+        // CF values; no result is requested. Why unsafe: FFI call. Why it
+        // holds: the result out-pointer is null, so nothing is written back.
+        let status = unsafe { SecItemCopyMatching(query.as_opaque(), ptr::null_mut()) };
+        match status {
+            s if s == errSecSuccess => Ok(true),
+            s if s == errSecItemNotFound => Ok(false),
+            s => Err(unavailable(s)),
+        }
+    }
+
     fn set(&self, name: SecretName, secret: &Secret) -> Result<(), SecretError> {
         let k = keys();
         let data = CFData::from_bytes(secret.expose().as_bytes());
@@ -230,7 +251,9 @@ mod tests {
         let cleanup = store.delete(name);
         assert!(cleanup.is_ok(), "{cleanup:?}");
         assert_eq!(store.get(name)?, None);
+        assert!(!store.contains(name)?);
         store.set(name, &Secret::new("sk-or-first"))?;
+        assert!(store.contains(name)?, "found without reading the value");
         store.set(name, &Secret::new("sk-or-second"))?;
         assert_eq!(
             store.get(name)?.map(|s| s.expose().to_owned()),
@@ -239,6 +262,7 @@ mod tests {
         assert!(store.delete(name)?);
         assert!(!store.delete(name)?);
         assert_eq!(store.get(name)?, None);
+        assert!(!store.contains(name)?);
         Ok(())
     }
 }

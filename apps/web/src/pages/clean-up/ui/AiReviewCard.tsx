@@ -25,7 +25,16 @@ export function AiReviewCard() {
     onSuccess: saved,
   });
   if (settings.isPending) {
-    return null;
+    // Shown at once, so a slow answer (the system may be asking about the
+    // keychain) never hides the card.
+    return (
+      <Card>
+        <div className="space-y-3">
+          <h2 className="font-semibold tracking-tight">{m.ai.title}</h2>
+          <p className="text-sm text-neutral-600 dark:text-neutral-400">{m.ai.checking}</p>
+        </div>
+      </Card>
+    );
   }
   if (settings.isError) {
     return <ErrorNotice message={m.ai.loadFailed} error={settings.error} />;

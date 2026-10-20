@@ -36,6 +36,7 @@ export const en = {
     title: "AI review",
     offIntro:
       "An AI model can double-check what Lumen proposes to clean up. It can only make Lumen more careful. It stays off until you turn it on.",
+    checking: "Checking whether AI review is on…",
     turnOn: "Turn on AI review",
     on: (service: string) => `AI review is on (${service})`,
     onIntro:

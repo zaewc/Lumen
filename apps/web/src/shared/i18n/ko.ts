@@ -45,6 +45,7 @@ export const ko = {
     title: "AI 검토",
     offIntro:
       "Lumen이 정리를 제안한 항목을 AI 모델이 한 번 더 확인할 수 있습니다. AI는 Lumen을 더 신중하게 만들 수만 있습니다. 직접 켜기 전까지는 꺼져 있습니다.",
+    checking: "AI 검토 설정을 확인하는 중…",
     turnOn: "AI 검토 켜기",
     on: (service: string) => `AI 검토가 켜져 있습니다(${service})`,
     onIntro:

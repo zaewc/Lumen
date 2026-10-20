@@ -134,7 +134,8 @@ pub fn os_store() -> Option<Box<dyn SecretStore>> {
 /// A [`SecretError`] if the store cannot be read.
 pub fn stored_service(store: &dyn SecretStore) -> Result<Option<Service>, SecretError> {
     for service in Service::PREFERENCE {
-        if store.get(service.secret())?.is_some() {
+        // Existence only: reading the value would make the keychain ask.
+        if store.contains(service.secret())? {
             return Ok(Some(service));
         }
     }

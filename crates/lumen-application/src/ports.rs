@@ -571,6 +571,17 @@ pub trait SecretStore: Send + Sync {
     /// [`SecretError`] if the store cannot be read.
     fn get(&self, name: SecretName) -> Result<Option<Secret>, SecretError>;
 
+    /// Whether a secret is stored, without reading it. Stores that guard their
+    /// values (the macOS keychain asks the user before an app reads another
+    /// app's item) answer this without asking.
+    ///
+    /// # Errors
+    ///
+    /// [`SecretError`] if the store cannot be read.
+    fn contains(&self, name: SecretName) -> Result<bool, SecretError> {
+        Ok(self.get(name)?.is_some())
+    }
+
     /// Stores `secret`, replacing any previous value.
     ///
     /// # Errors
