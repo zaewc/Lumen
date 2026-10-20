@@ -15,7 +15,9 @@ use std::path::{Path, PathBuf};
 use lumen_application::finalize::{FinalizeOutcome, FinalizeReason, finalize_item};
 use lumen_application::ports::{Clock, JournalError, PreparedItem};
 use lumen_application::restore::{RestoreOutcome, restore_item};
-use lumen_domain::{ItemLocation, OperationId, QuarantineEvent, QuarantineState, Timestamp};
+use lumen_domain::{
+    ByteCount, ItemLocation, OperationId, QuarantineEvent, QuarantineState, Timestamp,
+};
 use lumen_fs_exec::{Executor, original_path};
 use lumen_store_sqlite::{JournalEntry, LedgerJournal, LedgerStore, StoreError, open_ledger};
 
@@ -61,6 +63,9 @@ pub struct HeldItem {
     pub original: Option<PathBuf>,
     /// When it was quarantined.
     pub since: Timestamp,
+    /// What removing it for good would free, as the confirmed plan estimated;
+    /// `None` for items quarantined before sizes were recorded.
+    pub reclaim: Option<ByteCount>,
     /// The executor's record of it.
     item: PreparedItem,
 }
@@ -86,6 +91,7 @@ fn held(entries: &[JournalEntry], state: QuarantineState) -> Option<HeldItem> {
         state,
         original: original_path(&item),
         since: intent.at,
+        reclaim: None,
         item,
     })
 }
@@ -118,11 +124,17 @@ pub const fn days_between(since: Timestamp, now: Timestamp) -> i64 {
 ///
 /// [`HeldError::Store`] if the ledger fails.
 pub fn list(db: &Path) -> Result<Vec<HeldItem>, HeldError> {
-    let mut held: Vec<HeldItem> = ledger(db)?
+    let ledger = ledger(db)?;
+    let reclaims = ledger.reclaims()?;
+    let mut held: Vec<HeldItem> = ledger
         .operations()?
         .into_iter()
         .filter(|(state, _)| in_store(*state))
         .filter_map(|(state, entries)| held(&entries, state))
+        .map(|mut item| {
+            item.reclaim = reclaims.get(&item.operation).copied();
+            item
+        })
         .collect();
     held.sort_by_key(|h| (h.since, h.operation));
     Ok(held)

@@ -53,6 +53,7 @@ const LEDGER_MIGRATIONS: &[M<'static>] = &[
     M::up(include_str!(
         "migrations/ledger/0002_quarantine_journal.sql"
     )),
+    M::up(include_str!("migrations/ledger/0003_quarantine_sizes.sql")),
 ];
 
 /// Errors opening or migrating a database.
@@ -226,7 +227,7 @@ mod tests {
     fn the_ledger_is_durable_and_hardened() -> Result<(), Box<dyn std::error::Error>> {
         let fx = Fixture::build(&[])?;
         let conn = open_ledger(&fx.path("ledger.db")?)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 2);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 3);
         assert_eq!(
             pragma::<String>(&conn, "journal_mode")?.to_lowercase(),
             "wal"

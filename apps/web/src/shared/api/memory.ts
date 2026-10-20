@@ -88,6 +88,7 @@ const held: HeldItemView = {
   state: "retained",
   original: candidate.path,
   since: "2026-10-01T09:00:00Z",
+  reclaim_bytes: candidate.reclaimable_bytes,
 };
 
 /** Entries read and folders unreadable so far, as a scan reports them. */

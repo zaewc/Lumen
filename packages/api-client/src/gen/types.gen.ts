@@ -99,6 +99,11 @@ export type HeldItemView = {
    */
   original: string | null;
   /**
+   * What removing it for good would free, in bytes, as the confirmed plan
+   * estimated; `null` for items quarantined before sizes were recorded.
+   */
+  reclaim_bytes: string | null;
+  /**
    * When it was quarantined.
    */
   since: string;

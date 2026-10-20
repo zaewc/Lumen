@@ -9,7 +9,9 @@ use lumen_app::held::{self, Outcome, RETENTION_DAYS, days_between};
 use lumen_application::finalize::FinalizeOutcome;
 use lumen_application::ports::{Clock, NotRestored};
 use lumen_application::restore::RestoreOutcome;
-use lumen_domain::{OperationId, QuarantineState};
+use lumen_domain::{ByteCount, OperationId, QuarantineState};
+
+use crate::report::human;
 
 fn path_text(path: Option<&PathBuf>) -> String {
     path.map_or_else(|| "(unknown path)".into(), |p| p.display().to_string())
@@ -28,15 +30,25 @@ pub(crate) fn list(db: &Path, clock: &dyn Clock) -> Result<String, Box<dyn Error
             } else {
                 "held after a failure"
             };
+            let size = h.reclaim.map_or_else(|| "?".to_owned(), human);
             format!(
-                "{}  {state:<20} {days:>4} d  {}",
+                "{}  {state:<20} {days:>4} d  {size:>9}  {}",
                 h.operation,
                 path_text(h.original.as_ref())
             )
         })
         .collect();
+    let known = held
+        .iter()
+        .filter_map(|h| h.reclaim)
+        .fold(ByteCount::ZERO, ByteCount::saturating_add);
+    let total = if held.iter().all(|h| h.reclaim.is_some()) {
+        human(known)
+    } else {
+        format!("at least {}", human(known))
+    };
     lines.push(format!(
-        "{} item(s) in quarantine. Restore with `lumen restore --db {db} --op <ID>`; remove for good with `lumen finalize --db {db} --op <ID>`, or all retained for {RETENTION_DAYS} days or more with `lumen finalize --db {db} --expired`.",
+        "{} item(s) in quarantine, {total}. Restore with `lumen restore --db {db} --op <ID>`; remove for good with `lumen finalize --db {db} --op <ID>`, or all retained for {RETENTION_DAYS} days or more with `lumen finalize --db {db} --expired`.",
         held.len(),
         db = db.display(),
     ));

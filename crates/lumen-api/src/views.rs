@@ -393,6 +393,10 @@ pub struct HeldItemView {
     /// When it was quarantined.
     #[schema(value_type = String, format = DateTime)]
     pub since: lumen_domain::Timestamp,
+    /// What removing it for good would free, in bytes, as the confirmed plan
+    /// estimated; `null` for items quarantined before sizes were recorded.
+    #[schema(required = true)]
+    pub reclaim_bytes: Option<String>,
 }
 
 impl From<&HeldItem> for HeldItemView {
@@ -406,6 +410,7 @@ impl From<&HeldItem> for HeldItemView {
             },
             original: item.original.as_ref().map(|p| p.display().to_string()),
             since: item.since,
+            reclaim_bytes: item.reclaim.map(bytes),
         }
     }
 }

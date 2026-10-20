@@ -195,7 +195,8 @@
           "operation",
           "state",
           "original",
-          "since"
+          "since",
+          "reclaim_bytes"
         ],
         "properties": {
           "operation": {
@@ -208,6 +209,13 @@
               "null"
             ],
             "description": "Where it was, if known."
+          },
+          "reclaim_bytes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What removing it for good would free, in bytes, as the confirmed plan\nestimated; `null` for items quarantined before sizes were recorded."
           },
           "since": {
             "type": "string",

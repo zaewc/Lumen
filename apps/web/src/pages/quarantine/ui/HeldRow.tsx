@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState } from "react";
 import { operationOf, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
-import { baseName } from "@/shared/lib";
+import { baseName, formatBytes } from "@/shared/lib";
 import { buttonClass, ErrorNotice, InfoTip } from "@/shared/ui";
 import { daysHeld, type LastAction } from "../lib/outcome";
 
@@ -62,6 +62,11 @@ export function HeldRow({
         <div className="min-w-0">
           <p className="font-semibold break-words text-neutral-900">
             {item.original === null ? m.held.unknownPath : baseName(item.original)}
+            {item.reclaim_bytes !== null && (
+              <span className="ml-2 font-normal text-neutral-600">
+                {formatBytes(item.reclaim_bytes)}
+              </span>
+            )}
           </p>
           {item.original !== null && (
             <p className="mt-0.5 font-mono text-xs break-all text-neutral-500">{item.original}</p>

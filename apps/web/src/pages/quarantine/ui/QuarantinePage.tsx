@@ -3,9 +3,10 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
-import { baseName } from "@/shared/lib";
+import { baseName, formatBytes } from "@/shared/lib";
 import { buttonClass, Card, ErrorNotice, InfoTip, Notice } from "@/shared/ui";
 import { doneText, doneWell, type LastAction } from "../lib/outcome";
+import { heldTotal } from "../lib/total";
 import { HeldRow } from "./HeldRow";
 
 /** Like a trash can: what quarantine holds, to restore or remove for good. */
@@ -16,6 +17,7 @@ export function QuarantinePage() {
   // Shown above the list, so it stays after a restored item leaves the list.
   const [last, setLast] = useState<LastAction | null>(null);
   const items = held.data ?? [];
+  const total = heldTotal(items);
   return (
     <main className="mx-auto max-w-3xl space-y-4 px-4 py-8 sm:px-6 sm:py-12">
       <div className="px-1">
@@ -26,7 +28,12 @@ export function QuarantinePage() {
           <InfoTip term="quarantine" />
         </div>
         {items.length > 0 && (
-          <p className="mt-1 text-neutral-600">{m.quarantine.count(items.length)}</p>
+          <p className="mt-1 text-neutral-600">
+            {m.quarantine.count(items.length)} ·{" "}
+            {total.exact
+              ? m.quarantine.total(formatBytes(total.bytes))
+              : m.quarantine.totalAtLeast(formatBytes(total.bytes))}
+          </p>
         )}
       </div>
       <div role="status">

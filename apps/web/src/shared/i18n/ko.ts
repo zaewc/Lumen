@@ -126,6 +126,8 @@ export const ko = {
   quarantine: {
     title: "격리함",
     count: (n: number) => `보관 중인 ${items(n)}`,
+    total: (size: string) => `영구 삭제하면 ${size}를 확보합니다`,
+    totalAtLeast: (size: string) => `영구 삭제하면 최소 ${size}를 확보합니다`,
     intro:
       "정리한 항목은 이곳에 보관됩니다. 복원하면 원래 위치로 돌아가고, 영구 삭제하면 공간이 확보됩니다.",
     loadFailed: "격리함을 불러오지 못했습니다.",

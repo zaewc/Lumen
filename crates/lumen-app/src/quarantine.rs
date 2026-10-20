@@ -159,6 +159,20 @@ fn prepare_store(base: &Path, names: &[Vec<u8>]) -> Result<Vec<String>, Quaranti
     Ok(warnings)
 }
 
+/// Records what each retained item will free, for the quarantine's totals.
+/// The items are already safe in the store, so a failure here only warns.
+fn record_sizes(ledger: &mut LedgerStore, items: &[ItemReport], warnings: &mut Vec<String>) {
+    for item in items {
+        if let ItemResult::Quarantined(operation) = item.result
+            && let Err(error) = ledger.record_reclaim(operation, item.reclaim)
+        {
+            warnings.push(format!(
+                "the size of a quarantined item was not recorded: {error}"
+            ));
+        }
+    }
+}
+
 fn age_secs(now: Timestamp, then: Timestamp) -> i64 {
     now.unix_seconds().saturating_sub(then.unix_seconds())
 }
@@ -217,9 +231,9 @@ pub fn quarantine(
         })?;
     let (base, names) = store_location()?;
     #[cfg(unix)]
-    let warnings = prepare_store(&base, &names)?;
+    let mut warnings = prepare_store(&base, &names)?;
     #[cfg(not(unix))]
-    let warnings = Vec::new();
+    let mut warnings = Vec::new();
     let executor = Executor::new(base, names);
     let mut ledger = LedgerStore::new(open_ledger(&db.with_file_name("ledger.db"))?);
     let mut journal = LedgerJournal::new(&mut ledger, clock);
@@ -267,6 +281,7 @@ pub fn quarantine(
         }
         Ok(items)
     })??;
+    record_sizes(&mut ledger, &items, &mut warnings);
     let all_succeeded = items
         .iter()
         .all(|i| matches!(i.result, ItemResult::Quarantined(_)));

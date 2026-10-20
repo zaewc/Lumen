@@ -22,6 +22,7 @@ export const zHeldStateView = z.enum(["retained", "held_after_failure"]);
 export const zHeldItemView = z.object({
   operation: z.string(),
   original: z.string().nullable(),
+  reclaim_bytes: z.string().nullable(),
   since: z.iso.datetime(),
   state: zHeldStateView,
 });

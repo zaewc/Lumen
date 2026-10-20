@@ -78,6 +78,12 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
     assert!(!item.exists(), "moved out of its place");
     let held = ok("held", json!({}));
     assert_eq!(held[0]["operation"], first.as_str(), "{held}");
+    assert!(
+        held[0]["reclaim_bytes"]
+            .as_str()
+            .is_some_and(|bytes| bytes.parse::<u64>().is_ok_and(|b| b >= 4096)),
+        "the plan's estimate is recorded with the item: {held}"
+    );
     let restored = ok("restore", json!({ "operationId": first }));
     assert_eq!(restored["outcome"]["kind"], "restored", "{restored}");
     assert_eq!(
