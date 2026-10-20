@@ -118,7 +118,7 @@ pub fn store_key(
 /// The platform's secret store: the macOS keychain or the Windows Credential
 /// Manager; `None` where there is none yet.
 #[must_use]
-pub fn system_secrets() -> Option<Box<dyn SecretStore>> {
+pub fn os_store() -> Option<Box<dyn SecretStore>> {
     #[cfg(target_os = "macos")]
     return Some(Box::new(lumen_platform_macos::KeychainStore::new()));
     #[cfg(windows)]

@@ -84,8 +84,8 @@ pub fn app<R: Runtime>(builder: Builder<R>, secrets: Option<Arc<dyn SecretStore>
 ///
 /// A [`tauri::Error`] if the app cannot start.
 pub fn run() -> Result<(), tauri::Error> {
-    let secrets = lumen_app::ai::system_secrets().map(Arc::from);
-    app(Builder::default(), secrets).run(context())
+    let store = lumen_app::ai::os_store().map(Arc::from);
+    app(Builder::default(), store).run(context())
 }
 
 /// The app's configuration, assets and capabilities, embedded at build time.

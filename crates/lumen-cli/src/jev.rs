@@ -17,7 +17,7 @@ use crate::jev_service::Service;
 
 /// The platform's secret store (an error where there is none).
 fn store() -> Result<Box<dyn SecretStore>, Box<dyn Error>> {
-    lumen_app::ai::system_secrets()
+    lumen_app::ai::os_store()
         .ok_or_else(|| "no secret store on this platform yet; Jev is unavailable here".into())
 }
 
