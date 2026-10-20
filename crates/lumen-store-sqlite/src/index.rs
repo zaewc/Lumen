@@ -461,6 +461,114 @@ impl IndexStore {
         rows.map(|row| row?).collect()
     }
 
+    /// Up to `limit` entries of a scan that come after `after` in path order
+    /// (flavor, then path bytes), so a whole scan can be read a page at a time
+    /// instead of all at once. Start with `None`; continue from the last path
+    /// of the previous page; an empty page is the end.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Corrupt`] for any row that fails validation, or
+    /// [`StoreError`] if SQLite fails.
+    pub fn entries_page(
+        &self,
+        scan: ScanId,
+        after: Option<&RawPath>,
+        limit: usize,
+    ) -> Result<Vec<FilesystemEntry>, StoreError> {
+        let mut query = self.conn.prepare_cached(
+            "SELECT flavor, path, volume, file_id, kind, logical, allocated, private, clone_id, link_count, size_flags,
+                    protection, modified_secs, modified_nanos, accessed_secs, accessed_nanos, changed_secs, changed_nanos,
+                    created_secs, created_nanos, access
+             FROM entries WHERE scan_id = ?1 AND (flavor, path) > (?2, ?3)
+             ORDER BY flavor, path LIMIT ?4",
+        )?;
+        // Every flavor sorts after the empty text, so `None` starts at the first row.
+        let (flavor, path) =
+            after.map_or(("", &[][..]), |p| (flavor_text(p.flavor()), p.as_bytes()));
+        let limit = i64::try_from(limit).map_err(|_| corrupt("limit"))?;
+        let rows = query.query_map(params![scan.to_string(), flavor, path, limit], |row| {
+            Ok(entry_from_row(row))
+        })?;
+        rows.map(|row| row?).collect()
+    }
+
+    /// The entries of a scan whose path starts with `dir`'s bytes, in path
+    /// order: `dir` itself, everything below it, and siblings that merely share
+    /// the prefix (`/a/bc` for `/a/b`), which callers filter by whole segments.
+    /// A range on the primary key, so only that part of the scan is read.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Corrupt`] for any row that fails validation, or
+    /// [`StoreError`] if SQLite fails.
+    pub fn entries_within(
+        &self,
+        scan: ScanId,
+        dir: &RawPath,
+    ) -> Result<Vec<FilesystemEntry>, StoreError> {
+        // Both bounds are bound values, so SQLite seeks the range on the
+        // primary key instead of reading to the end of the scan.
+        let end = prefix_end(dir.as_bytes());
+        let mut query = self.conn.prepare_cached(if end.is_some() {
+            "SELECT flavor, path, volume, file_id, kind, logical, allocated, private, clone_id, link_count, size_flags,
+                    protection, modified_secs, modified_nanos, accessed_secs, accessed_nanos, changed_secs, changed_nanos,
+                    created_secs, created_nanos, access
+             FROM entries WHERE scan_id = ?1 AND flavor = ?2 AND path >= ?3 AND path < ?4
+             ORDER BY flavor, path"
+        } else {
+            "SELECT flavor, path, volume, file_id, kind, logical, allocated, private, clone_id, link_count, size_flags,
+                    protection, modified_secs, modified_nanos, accessed_secs, accessed_nanos, changed_secs, changed_nanos,
+                    created_secs, created_nanos, access
+             FROM entries WHERE scan_id = ?1 AND flavor = ?2 AND path >= ?3 AND ?4 IS NULL
+             ORDER BY flavor, path"
+        })?;
+        let rows = query.query_map(
+            params![
+                scan.to_string(),
+                flavor_text(dir.flavor()),
+                dir.as_bytes(),
+                end
+            ],
+            |row| Ok(entry_from_row(row)),
+        )?;
+        rows.map(|row| row?).collect()
+    }
+
+    /// The listing outcomes of a scan whose path starts with `dir`'s bytes, as
+    /// for [`Self::entries_within`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Corrupt`] for any row that fails validation, or
+    /// [`StoreError`] if SQLite fails.
+    pub fn listings_within(
+        &self,
+        scan: ScanId,
+        dir: &RawPath,
+    ) -> Result<Vec<(RawPath, DirOutcome)>, StoreError> {
+        let end = prefix_end(dir.as_bytes());
+        let mut query = self.conn.prepare_cached(if end.is_some() {
+            "SELECT flavor, path, access, complete FROM listings
+             WHERE scan_id = ?1 AND flavor = ?2 AND path >= ?3 AND path < ?4
+             ORDER BY flavor, path"
+        } else {
+            "SELECT flavor, path, access, complete FROM listings
+             WHERE scan_id = ?1 AND flavor = ?2 AND path >= ?3 AND ?4 IS NULL
+             ORDER BY flavor, path"
+        })?;
+        let rows = query.query_map(
+            params![
+                scan.to_string(),
+                flavor_text(dir.flavor()),
+                dir.as_bytes(),
+                end
+            ],
+            listing_row,
+        )?;
+        rows.map(|row| listing_from(row?)).collect()
+    }
+
     /// Every directory listing outcome of a scan, ordered by path bytes
     /// (roadmap 10.7): how completely each directory was read.
     ///
@@ -472,28 +580,43 @@ impl IndexStore {
         let mut query = self.conn.prepare_cached(
             "SELECT flavor, path, access, complete FROM listings WHERE scan_id = ?1 ORDER BY flavor, path",
         )?;
-        let rows = query.query_map([scan.to_string()], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, Vec<u8>>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, bool>(3)?,
-            ))
-        })?;
-        rows.map(|row| {
-            let (flavor, path, access, complete) = row?;
-            let path = RawPath::from_stored(parse_flavor(&flavor)?, path)
-                .map_err(|_| corrupt("listings.path"))?;
-            Ok((
-                path,
-                DirOutcome {
-                    access: parse_access(&access)?,
-                    complete,
-                },
-            ))
-        })
-        .collect()
+        let rows = query.query_map([scan.to_string()], listing_row)?;
+        rows.map(|row| listing_from(row?)).collect()
     }
+}
+
+/// One `listings` row's columns: flavor, path, access, complete.
+type ListingRow = (String, Vec<u8>, String, bool);
+
+fn listing_row(row: &Row<'_>) -> rusqlite::Result<ListingRow> {
+    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+}
+
+fn listing_from(
+    (flavor, path, access, complete): ListingRow,
+) -> Result<(RawPath, DirOutcome), StoreError> {
+    let path =
+        RawPath::from_stored(parse_flavor(&flavor)?, path).map_err(|_| corrupt("listings.path"))?;
+    Ok((
+        path,
+        DirOutcome {
+            access: parse_access(&access)?,
+            complete,
+        },
+    ))
+}
+
+/// The smallest byte string greater than every string that starts with
+/// `prefix`, or `None` if there is none (the prefix is all `0xFF`).
+fn prefix_end(prefix: &[u8]) -> Option<Vec<u8>> {
+    let mut end = prefix.to_vec();
+    while let Some(last) = end.pop() {
+        if last < u8::MAX {
+            end.push(last + 1);
+            return Some(end);
+        }
+    }
+    None
 }
 
 /// Volume of the most specific root containing `path` (whole segments).
@@ -948,6 +1071,83 @@ mod tests {
 
     fn raw(p: &[u8]) -> RawPath {
         RawPath::from_unix_bytes(p.to_vec()).unwrap_or_else(|_| unreachable!())
+    }
+
+    #[test]
+    fn a_scan_reads_back_page_by_page_and_by_subtree() -> Result<(), Box<dyn std::error::Error>> {
+        let (_fx, mut store) = store()?;
+        let scan = scan_id(9);
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[])?;
+        let paths: [&[u8]; 6] = [b"/a", b"/a/b", b"/a/b/c", b"/a/bc", b"/a/c", b"/z"];
+        let entries: Vec<FilesystemEntry> =
+            paths.iter().zip(1..).map(|(p, n)| entry(p, n)).collect();
+        store.insert_entries(scan, &entries)?;
+        let listed = |p: &[u8]| {
+            (
+                raw(p),
+                DirOutcome {
+                    access: AccessState::Readable,
+                    complete: true,
+                },
+            )
+        };
+        store.insert_listings(
+            scan,
+            &[
+                listed(b"/a"),
+                listed(b"/a/b"),
+                listed(b"/a/bc"),
+                listed(b"/z"),
+            ],
+        )?;
+
+        let mut paged = Vec::new();
+        let mut after: Option<RawPath> = None;
+        loop {
+            let page = store.entries_page(scan, after.as_ref(), 4)?;
+            let Some(last) = page.last() else { break };
+            after = Some(last.path.clone());
+            paged.extend(page);
+        }
+        assert_eq!(
+            paged,
+            store.entries(scan)?,
+            "pages cover the scan once, in order"
+        );
+
+        let within: Vec<Vec<u8>> = store
+            .entries_within(scan, &raw(b"/a/b"))?
+            .iter()
+            .map(|e| e.path.as_bytes().to_vec())
+            .collect();
+        assert_eq!(
+            within,
+            [&b"/a/b"[..], b"/a/b/c", b"/a/bc"],
+            "prefix, filtered by callers"
+        );
+        let listed_within: Vec<RawPath> = store
+            .listings_within(scan, &raw(b"/a/b"))?
+            .into_iter()
+            .map(|(p, _)| p)
+            .collect();
+        assert_eq!(listed_within, [raw(b"/a/b"), raw(b"/a/bc")]);
+        let plan: String = store
+            .conn
+            .prepare(
+                "EXPLAIN QUERY PLAN SELECT path FROM entries
+                 WHERE scan_id = ?1 AND flavor = ?2 AND path >= ?3 AND path < ?4",
+            )?
+            .query_map(
+                params!["s", "unix", b"/a".as_slice(), b"/b".as_slice()],
+                |row| row.get::<_, String>(3),
+            )?
+            .collect::<Result<Vec<_>, _>>()?
+            .join("; ");
+        assert!(plan.contains("path>? AND path<?"), "a range seek: {plan}");
+        assert_eq!(prefix_end(b"ab"), Some(b"ac".to_vec()));
+        assert_eq!(prefix_end(&[b'a', 0xFF]), Some(b"b".to_vec()));
+        assert_eq!(prefix_end(&[0xFF, 0xFF]), None);
+        Ok(())
     }
 
     #[test]
