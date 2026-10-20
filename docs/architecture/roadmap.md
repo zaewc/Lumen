@@ -331,7 +331,8 @@ Found by the owner trying the CLI and the desktop app (2026-10-19). Done:
 | 13.12 | `feat(web): localize dates and keep tips on screen` (#316) | |
 | 13.13 | `fix(macos): name privacy and integrity refusals` (#317) | `EPERM` → TCC or SIP by `SF_RESTRICTED` |
 | 13.14 | `perf(store): drop the unused entry identity index` (#318) | scan database −39% |
-| 13.15 | `ci: compile the generated Kotlin bindings` | pinned Kotlin and JNA |
+| 13.15 | `ci: compile the generated Kotlin bindings` (#319) | pinned Kotlin and JNA |
+| 13.16 | `perf: stream the assessment` (#322, #323 and this) | paged reads, chunked knowledge-base matching, per-candidate subtrees: whole-disk `assess` 5.0 GB → 1.0 GB, 36 s → 25 s, identical output |
 
 Open:
 
@@ -340,7 +341,6 @@ Open:
 | 13.a | Per-volume quarantine stores (`X:\$LumenQuarantine\<SID>\` on Windows, per-volume on macOS) so items on other drives can be quarantined; today they stay where they are (ADR-0015) | an executor review |
 | 13.b | Tool-action guidance for items that cannot be regenerated, such as Docker's disk image (`docker system prune`); the knowledge base forbids actions on `not_regenerable` entries by design | an ADR |
 | 13.c | Smaller scan storage per entry: a directory table plus names instead of full paths (whole disk measured at 365 B per entry, 1.77 GB; about 30% less) | |
-| 13.h | Stream assessment instead of loading every entry: whole-disk `assess` peaks at 4.7 GB (performance.md) | a store and producer refactor |
 | 13.d | Pin the release desktop job's egress and switch it to `block`; tighten the attest and release jobs after the first release | the first release's egress report |
 | 13.e | release-please for versioning (ADR-0026) | |
 | 13.f | Jev with the owner's key: record cassettes (12.1b) and gate CI on them (12.2) | an OpenRouter key (`sk-or-v1-…`); a TypeSafe console key needs a direct transport and a retention review |

@@ -86,13 +86,14 @@ on `main` at #320 (identity index dropped, unreachable facts not gathered):
 | --- | --- | --- | --- |
 | scan, recorded | 107 s | 745 MB | 4,863,694 entries, 580,329 directories; `index.db` 1.77 GB (about 365 B per entry) |
 | assess | 36 s | 4.7 GB | 234 candidates: 25 proposed for quarantine (9.2 GB), 172 for review, 37 kept |
+| assess, streamed (13.h) | 25 s | 1.0 GB | identical output (`diff` of the two runs on the same database is empty) |
 
 Storage per entry is dominated by the full path (about 240 B on this disk); a
-directory table plus names would save about 30% more (roadmap 13.c). Assessment
-memory grows with the number of scanned entries, because every entry is loaded to
-find candidates and measure their subtrees; streaming them would make it grow with
-the candidates instead (13.h). Both stay within this machine's limits; on an 8 GB
-machine the assessment would swap.
+directory table plus names would save about 30% more (roadmap 13.c). The assessment
+first loaded every entry to find candidates and measure their subtrees (4.7–5.0 GB).
+It now reads the scan in pages of 50,000 to find candidates and reads each
+candidate's subtree by a primary-key range when it is decided (13.h), so memory
+follows the page and the largest candidate, not the disk.
 
 ## How to measure a real tree
 

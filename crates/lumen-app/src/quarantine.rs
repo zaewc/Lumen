@@ -234,20 +234,22 @@ pub fn quarantine(
     let verifier = lumen_platform_windows::HandleEnumerator;
     index.apply_plan_event(plan, PlanEvent::Start)?;
     let items = with_probes(|probes| -> Result<Vec<ItemReport>, QuarantineError> {
-        let with = Confirming {
-            sources: assessment.sources(),
-            roots: &assessment.roots,
-            verifier: &verifier,
-            probes: *probes,
-            executor: &executor,
-            judge: &NoopJudge,
-            clock,
-            ids,
-            device,
-            request: &|_| None,
-        };
         let mut items = Vec::new();
         for (item, planned) in stored.plan.items().iter().zip(&stored.decisions) {
+            // Each item is decided again from its own part of the scan.
+            let subtree = assessment.subtree(&item.path)?;
+            let with = Confirming {
+                sources: assessment.sources(&subtree),
+                roots: &assessment.roots,
+                verifier: &verifier,
+                probes: *probes,
+                executor: &executor,
+                judge: &NoopJudge,
+                clock,
+                ids,
+                device,
+                request: &|_| None,
+            };
             let result = match block_on(confirm_item(item, planned, plan, &confirmation, &with)) {
                 Confirmed::Skipped { reason, .. } => ItemResult::Skipped(reason),
                 Confirmed::Ready(ready) => {

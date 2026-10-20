@@ -8,7 +8,7 @@
 //! Jev (roadmap 10.17). Nothing is moved; each candidate comes back with its
 //! decision and the reasons, for the caller to present.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::path::Path;
 use std::pin::pin;
 use std::sync::Arc;
@@ -18,16 +18,17 @@ use std::thread::{self, Thread};
 use lumen_application::assess::{Assessed, Probes, Sources, decide_candidate, select};
 use lumen_application::collect::{Inventory, summarize};
 use lumen_application::gather::gather;
+use lumen_application::observe::below;
 use lumen_application::ports::{Clock, InUseProbe, InventoryReport, OwnershipProbe};
-use lumen_devkb::{Environment, KnowledgeBase};
+use lumen_devkb::{Environment, KnowledgeBase, Markers};
 use lumen_domain::{
-    CleanupMechanism, Evidence, Platform, PlatformCapabilities, RawPath, Relationship, SourceName,
-    SourceNameError,
+    CleanupMechanism, Evidence, Platform, PlatformCapabilities, RawPath, Relationship, ScanId,
+    SourceName, SourceNameError, Subject,
 };
 use lumen_policy::Context;
 use lumen_store_sqlite::{IndexStore, StoreError, open_index};
 
-use crate::space::{self, ASSESS_BYTES_PER_ENTRY, SpaceError};
+use crate::space::{self, RECORD_BYTES, SpaceError};
 
 /// Why an assessment could not run.
 #[derive(Debug, thiserror::Error)]
@@ -105,56 +106,64 @@ fn env_path(name: &str) -> Option<RawPath> {
     std::env::var_os(name).and_then(|value| crate::raw_path(Path::new(&value)).ok())
 }
 
-/// What the platform contributes: inventory reports, evidence, relationships.
-struct Contributions {
+/// The platform's inventory, read once per assessment, and what its
+/// producers need to link scanned entries to it.
+struct PlatformInventory {
     reports: Vec<InventoryReport>,
+    #[cfg(target_os = "macos")]
+    apps: Vec<lumen_domain::Application>,
+    #[cfg(windows)]
+    declarations: Vec<lumen_platform_windows::cleanup::CacheDeclaration>,
+}
+
+/// What the platform's producers say about one chunk of scanned entries.
+#[derive(Default)]
+struct Contributions {
     evidence: Vec<Evidence>,
     relationships: Vec<Relationship>,
 }
 
 #[cfg(target_os = "macos")]
-fn platform_contributions(
-    entries: &[lumen_domain::FilesystemEntry],
-    home: Option<&RawPath>,
-    now: lumen_domain::Timestamp,
-) -> Contributions {
+fn platform_inventory() -> PlatformInventory {
     use lumen_application::CancelToken;
     use lumen_application::ports::InventorySource as _;
-    use lumen_platform_macos::{AppInventory, LaunchdInventory, support::link_support_locations};
+    use lumen_platform_macos::{AppInventory, LaunchdInventory};
     let cancel = CancelToken::new();
     let reports = vec![
         AppInventory::new().collect(&cancel),
         LaunchdInventory::new().collect(&cancel),
     ];
-    let apps: Vec<_> = reports
+    let apps = reports
         .iter()
         .flat_map(|r| r.applications.iter().cloned())
         .collect();
-    let mut evidence = Vec::new();
-    let mut relationships = Vec::new();
+    PlatformInventory { reports, apps }
+}
+
+#[cfg(target_os = "macos")]
+fn platform_contributions(
+    inventory: &PlatformInventory,
+    entries: &[lumen_domain::FilesystemEntry],
+    home: Option<&RawPath>,
+    now: lumen_domain::Timestamp,
+) -> Contributions {
+    use lumen_platform_macos::support::link_support_locations;
+    let mut contributions = Contributions::default();
     if let Some(home) = home {
-        for link in link_support_locations(home, &apps, entries, now) {
-            evidence.push(link.evidence);
-            evidence.push(link.location);
-            relationships.push(link.relationship);
+        for link in link_support_locations(home, &inventory.apps, entries, now) {
+            contributions.evidence.push(link.evidence);
+            contributions.evidence.push(link.location);
+            contributions.relationships.push(link.relationship);
         }
     }
-    Contributions {
-        reports,
-        evidence,
-        relationships,
-    }
+    contributions
 }
 
 #[cfg(windows)]
-fn platform_contributions(
-    entries: &[lumen_domain::FilesystemEntry],
-    _home: Option<&RawPath>,
-    now: lumen_domain::Timestamp,
-) -> Contributions {
+fn platform_inventory() -> PlatformInventory {
     use lumen_application::CancelToken;
     use lumen_application::ports::InventorySource as _;
-    use lumen_platform_windows::cleanup::{declared_caches, read_declarations};
+    use lumen_platform_windows::cleanup::read_declarations;
     use lumen_platform_windows::{InstalledApps, Services, StartupEntries};
     let cancel = CancelToken::new();
     let reports = vec![
@@ -163,24 +172,41 @@ fn platform_contributions(
         Services.collect(&cancel),
     ];
     let (declarations, _status) = read_declarations();
-    Contributions {
+    PlatformInventory {
         reports,
-        evidence: declared_caches(&declarations, entries, now),
+        declarations,
+    }
+}
+
+#[cfg(windows)]
+fn platform_contributions(
+    inventory: &PlatformInventory,
+    entries: &[lumen_domain::FilesystemEntry],
+    _home: Option<&RawPath>,
+    now: lumen_domain::Timestamp,
+) -> Contributions {
+    use lumen_platform_windows::cleanup::declared_caches;
+    Contributions {
+        evidence: declared_caches(&inventory.declarations, entries, now),
         relationships: Vec::new(),
     }
 }
 
 #[cfg(not(any(target_os = "macos", windows)))]
+fn platform_inventory() -> PlatformInventory {
+    PlatformInventory {
+        reports: Vec::new(),
+    }
+}
+
+#[cfg(not(any(target_os = "macos", windows)))]
 fn platform_contributions(
+    _inventory: &PlatformInventory,
     _entries: &[lumen_domain::FilesystemEntry],
     _home: Option<&RawPath>,
     _now: lumen_domain::Timestamp,
 ) -> Contributions {
-    Contributions {
-        reports: Vec::new(),
-        evidence: Vec::new(),
-        relationships: Vec::new(),
-    }
+    Contributions::default()
 }
 
 /// The platform's probes and their source names.
@@ -223,16 +249,28 @@ pub fn with_probes<T>(run: impl FnOnce(&Probes<'_>) -> T) -> Result<T, AssessErr
     }))
 }
 
+/// Scanned entries are read this many at a time, so an assessment's memory
+/// follows the page and the candidates, not the size of the scan.
+const PAGE: usize = 50_000;
+
+/// One candidate's part of the scan: the candidate, everything below it, and
+/// their listings, read from `index.db` when the candidate is decided.
+#[derive(Debug, Default)]
+pub struct Subtree {
+    entries: Vec<lumen_domain::FilesystemEntry>,
+    listings: Vec<(RawPath, lumen_application::ports::DirOutcome)>,
+}
+
 /// Everything an assessment of the latest completed scan decides from; reused
 /// to re-decide planned items at confirmation (roadmap 10.14).
 #[derive(Debug)]
 pub struct Assessment {
     /// The scan's roots.
     pub roots: Vec<RawPath>,
-    /// Its entries.
+    /// The entries a producer said something about or a relationship
+    /// connects: every candidate is one of them. The rest of the scan stays
+    /// in `index.db` and is read per candidate ([`Assessment::subtree`]).
     pub entries: Vec<lumen_domain::FilesystemEntry>,
-    /// Its directory listings.
-    pub listings: Vec<(RawPath, lumen_application::ports::DirOutcome)>,
     /// Gathered evidence and relationships.
     pub gathered: lumen_application::gather::Gathered,
     /// The graph loaded back from `index.db`.
@@ -243,24 +281,127 @@ pub struct Assessment {
     pub knowledge: std::collections::BTreeMap<SourceName, lumen_policy::KnowledgeClass>,
     /// Whether every inventory source was read completely (for Jev's notes).
     pub inventories_complete: bool,
+    store: IndexStore,
+    scan: ScanId,
 }
 
 impl Assessment {
-    /// The sources the policy decides from.
-    pub fn sources(&self) -> Sources<'_> {
+    /// The part of the scan at and below `path`, with its listings.
+    ///
+    /// # Errors
+    ///
+    /// [`AssessError::Store`] if `index.db` cannot be read.
+    pub fn subtree(&self, path: &RawPath) -> Result<Subtree, AssessError> {
+        // The store returns everything sharing the path's bytes as a prefix;
+        // keep whole segments only (`/a/b`, not `/a/bc`).
+        let within = |p: &RawPath| p == path || below(p, path);
+        Ok(Subtree {
+            entries: self
+                .store
+                .entries_within(self.scan, path)?
+                .into_iter()
+                .filter(|entry| within(&entry.path))
+                .collect(),
+            listings: self
+                .store
+                .listings_within(self.scan, path)?
+                .into_iter()
+                .filter(|(listed, _)| within(listed))
+                .collect(),
+        })
+    }
+
+    /// The sources the policy decides one candidate from: the assessment's
+    /// evidence and graph, and the candidate's `subtree`.
+    pub fn sources<'a>(&'a self, subtree: &'a Subtree) -> Sources<'a> {
         Sources {
             graph: &self.graph,
             gathered: &self.gathered,
-            scanned: &self.entries,
-            listings: &self.listings,
+            scanned: &subtree.entries,
+            listings: &subtree.listings,
             context: &self.context,
             knowledge: &self.knowledge,
         }
     }
 }
 
+/// Calls `each` with the scan's entries, a page at a time, in path order.
+fn for_each_page(
+    store: &IndexStore,
+    scan: ScanId,
+    mut each: impl FnMut(&[lumen_domain::FilesystemEntry]),
+) -> Result<(), StoreError> {
+    let mut after: Option<RawPath> = None;
+    loop {
+        let page = store.entries_page(scan, after.as_ref(), PAGE)?;
+        let Some(last) = page.last() else {
+            return Ok(());
+        };
+        after = Some(last.path.clone());
+        each(&page);
+    }
+}
+
+/// What the producers found in the whole scan, and the entries it is about.
+struct Found {
+    evidence: Vec<Evidence>,
+    relationships: Vec<Relationship>,
+    entries: Vec<lumen_domain::FilesystemEntry>,
+}
+
+/// Runs the platform's producers and the knowledge base over the scan, a page
+/// at a time: first the knowledge base's markers (a marker can qualify an
+/// entry in another page), then the producers. Keeps only the entries their
+/// output names; no other entry's facts could reach a decision (roadmap 10.8).
+fn find(
+    store: &IndexStore,
+    scan: ScanId,
+    inventory: &PlatformInventory,
+    matcher: &lumen_devkb::Matcher<'_>,
+    home: Option<&RawPath>,
+    times: (lumen_domain::Timestamp, lumen_domain::Timestamp),
+) -> Result<Found, StoreError> {
+    let (scanned_at, now) = times;
+    let mut markers = Markers::new();
+    for_each_page(store, scan, |page| matcher.add_markers(page, &mut markers))?;
+    let mut found = Found {
+        evidence: Vec::new(),
+        relationships: Vec::new(),
+        entries: Vec::new(),
+    };
+    for_each_page(store, scan, |page| {
+        let produced = platform_contributions(inventory, page, home, now);
+        let known = matcher.matches(page, &markers, scanned_at);
+        let named: HashSet<&Subject> = produced
+            .evidence
+            .iter()
+            .chain(&known)
+            .map(|record| &record.subject)
+            .chain(
+                produced
+                    .relationships
+                    .iter()
+                    .flat_map(|r| [r.from(), r.to()]),
+            )
+            .collect();
+        found.entries.extend(
+            page.iter()
+                .filter(|entry| {
+                    named.contains(&Subject::File {
+                        identity: entry.identity().clone(),
+                    })
+                })
+                .cloned(),
+        );
+        found.evidence.extend(produced.evidence);
+        found.evidence.extend(known);
+        found.relationships.extend(produced.relationships);
+    })?;
+    Ok(found)
+}
+
 /// Collects, gathers and records everything about the latest completed scan
-/// in `db`.
+/// in `db`, reading the scan a page at a time.
 ///
 /// # Errors
 ///
@@ -273,19 +414,13 @@ pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> 
         .latest_completed_scan()?
         .ok_or(AssessError::NoCompletedScan)?;
     let roots = store.scan_roots(scan)?;
-    let entries = store.entries(scan)?;
-    let needed = u64::try_from(entries.len())
-        .unwrap_or(u64::MAX)
-        .saturating_mul(ASSESS_BYTES_PER_ENTRY);
-    space::ensure(db, needed)?;
-    let listings = store.listings(scan)?;
     let now = clock.now();
     let platform = platform();
     let home = home();
-    let contributions = platform_contributions(&entries, home.as_ref(), now);
-    let inventory: Inventory = summarize(&contributions.reports);
-    let inventories_complete = !contributions.reports.is_empty()
-        && contributions
+    let platform_inventory = platform_inventory();
+    let inventory: Inventory = summarize(&platform_inventory.reports);
+    let inventories_complete = !platform_inventory.reports.is_empty()
+        && platform_inventory
             .reports
             .iter()
             .all(|r| r.status == lumen_domain::SourceStatus::Complete);
@@ -297,19 +432,35 @@ pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> 
         roaming_app_data: env_path("APPDATA"),
         vars: Vec::new(),
     };
-    let mut evidence = contributions.evidence;
     // The scan's facts and what is derived from them alone are dated by the
     // scan, so assessing it again records nothing new.
     let scanned_at = store.scan_finished_at(scan)?.unwrap_or(now);
-    evidence.extend(kb.matches(&env, &entries, scanned_at));
+    let found = find(
+        &store,
+        scan,
+        &platform_inventory,
+        &kb.matcher(&env),
+        home.as_ref(),
+        (scanned_at, now),
+    )?;
     let gathered = gather(
-        &entries,
+        &found.entries,
         &inventory,
-        evidence,
-        contributions.relationships,
+        found.evidence,
+        found.relationships,
         scanned_at,
         now,
     );
+    let records = gathered
+        .evidence
+        .len()
+        .saturating_add(gathered.relationships.len());
+    space::ensure(
+        db,
+        u64::try_from(records)
+            .unwrap_or(u64::MAX)
+            .saturating_mul(RECORD_BYTES),
+    )?;
     store.record_evidence(&gathered.evidence)?;
     store.record_relationships(&gathered.relationships)?;
     let graph = store.load_graph()?;
@@ -327,13 +478,14 @@ pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> 
     };
     Ok(Assessment {
         roots,
-        entries,
-        listings,
+        entries: found.entries,
         gathered,
         graph,
         context,
         knowledge: kb.knowledge(),
         inventories_complete,
+        store,
+        scan,
     })
 }
 
@@ -404,7 +556,6 @@ pub fn assess(
 ) -> Result<Vec<Assessed>, AssessError> {
     let timer = std::time::Instant::now();
     let assessment = prepare(db, clock)?;
-    let sources = assessment.sources();
     let candidates = select(&assessment.gathered, &assessment.entries);
     let counter = std::cell::Cell::new(0_u32);
     let now = clock.now();
@@ -412,17 +563,21 @@ pub fn assess(
         counter.set(counter.get().saturating_add(1));
         jev_request(input, counter.get(), assessment.inventories_complete, now)
     };
-    let assessed: Vec<Assessed> = with_probes(|probes| {
-        candidates
-            .into_iter()
-            .filter_map(|candidate| {
-                block_on(decide_candidate(
-                    candidate, &sources, probes, judge, clock, &request,
-                ))
-                .ok()
-            })
-            .collect()
-    })?;
+    let assessed = with_probes(|probes| -> Result<Vec<Assessed>, AssessError> {
+        let mut assessed = Vec::new();
+        for candidate in candidates {
+            // Only this candidate's part of the scan is read, and dropped
+            // after its decision.
+            let subtree = assessment.subtree(&candidate.path)?;
+            let sources = assessment.sources(&subtree);
+            if let Ok(decided) = block_on(decide_candidate(
+                candidate, &sources, probes, judge, clock, &request,
+            )) {
+                assessed.push(decided);
+            }
+        }
+        Ok(assessed)
+    })??;
     let count = |verdict: lumen_domain::Verdict| {
         assessed
             .iter()

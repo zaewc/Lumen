@@ -10,11 +10,10 @@ use lumen_domain::ByteCount;
 /// Free space Lumen leaves on the database's volume: 2 GB.
 pub const RESERVE: ByteCount = ByteCount::new(2_000_000_000);
 
-/// Space an assessment writes per scanned entry, with a wide margin. Only
-/// entries a producer identified or a relationship connects get evidence: 30
-/// records for the 198,495 entries of `~/Library/Developer`, which no longer
-/// grew `index.db` measurably (before that, 2.8 kB per entry).
-pub const ASSESS_BYTES_PER_ENTRY: u64 = 100;
+/// Space an assessment writes per evidence record or relationship, with a
+/// wide margin: a record measured about 340 bytes with its index (1.58 M
+/// records took 515 MB). The assessment counts its records before it writes.
+pub const RECORD_BYTES: u64 = 1_000;
 
 /// Why writing to the database would not leave the reserve free.
 #[derive(Debug, thiserror::Error)]

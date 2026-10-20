@@ -16,7 +16,7 @@ use lumen_policy::Observed;
 use crate::ports::DirOutcome;
 
 /// Whether `path` lies strictly below the directory `dir` (same flavor).
-pub(crate) fn below(path: &RawPath, dir: &RawPath) -> bool {
+pub fn below(path: &RawPath, dir: &RawPath) -> bool {
     if path.flavor() != dir.flavor() {
         return false;
     }
