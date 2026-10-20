@@ -16,6 +16,10 @@
 //!   case-insensitive, and exactly elsewhere;
 //! - a project location matches only if one of its markers was itself scanned:
 //!   an unscanned marker is unknown, so no evidence is produced.
+//!
+//! [`KnowledgeBase::matches`] matches a whole scan at once. A [`Matcher`]
+//! matches one in chunks with the same result: it gathers the scan's
+//! [`Markers`] in a first pass and matches each chunk against them in a second.
 
 use std::collections::{BTreeSet, HashSet};
 
@@ -98,6 +102,7 @@ fn fits(names: &[Component], pattern: &[Component]) -> bool {
 }
 
 /// A location resolved against the environment.
+#[derive(Debug)]
 struct Resolved<'kb> {
     entry: &'kb Entry,
     /// The absolute root, or `None` for a project location.
@@ -160,19 +165,68 @@ impl Resolved<'_> {
     }
 }
 
+/// Scanned paths that can serve as a project location's marker, gathered by
+/// [`Matcher::add_markers`] from any number of scan chunks.
+///
+/// Only paths whose last name is one of the matcher's marker names are kept,
+/// so the set stays small however large the scan is. Paths are folded for the
+/// matcher's platform: use a set only with the [`Matcher`] that filled it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Markers {
+    paths: HashSet<Vec<Component>>,
+}
+
+impl Markers {
+    /// An empty set.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Adds every marker of `other`, such as one gathered from another chunk.
+    pub fn merge(&mut self, other: Self) {
+        self.paths.extend(other.paths);
+    }
+
+    /// The number of marker paths.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.paths.len()
+    }
+
+    /// Whether no marker path was found.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.paths.is_empty()
+    }
+}
+
+/// A knowledge base resolved against one [`Environment`], ready to match scan
+/// entries in chunks so a caller never needs the whole scan in memory.
+///
+/// A project location matches only if a marker beside it was scanned, and that
+/// marker may be in any chunk. Matching a chunked scan therefore takes two
+/// passes over it:
+///
+/// 1. [`Matcher::add_markers`] for every chunk, gathering one [`Markers`] set;
+/// 2. [`Matcher::matches`] for every chunk against that complete set.
+///
+/// Evidence for a chunk is in the chunk's order, so concatenating the output
+/// for consecutive chunks gives exactly what [`KnowledgeBase::matches`] gives
+/// for the whole scan.
+#[derive(Debug)]
+pub struct Matcher<'kb> {
+    platform: Platform,
+    resolved: Vec<Resolved<'kb>>,
+    /// The last names of all markers: the only paths a marker set keeps.
+    marker_names: HashSet<Component>,
+}
+
 impl KnowledgeBase {
-    /// `KnowledgeBaseMatch` evidence for every scanned file or directory that is
-    /// one of this knowledge base's locations in `env`, at most once per object
-    /// and entry.
-    pub fn matches(
-        &self,
-        env: &Environment,
-        scanned: &[FilesystemEntry],
-        observed_at: Timestamp,
-    ) -> Vec<Evidence> {
-        let Ok(source) = SourceName::new(SOURCE) else {
-            return Vec::new();
-        };
+    /// This knowledge base's locations resolved against `env`; locations that
+    /// do not apply there are left out.
+    #[must_use]
+    pub fn matcher(&self, env: &Environment) -> Matcher<'_> {
         let resolved: Vec<Resolved<'_>> = self
             .entries()
             .iter()
@@ -183,30 +237,94 @@ impl KnowledgeBase {
                     .filter_map(|l| resolve(entry, l, env))
             })
             .collect();
-        // Markers are looked up among scanned paths; keep only paths that could
-        // be one, rather than every path of the scan.
-        let marker_names: HashSet<&Component> = resolved
+        let marker_names = resolved
             .iter()
-            .flat_map(|r| r.markers.iter().filter_map(|m| m.last()))
+            .flat_map(|r| r.markers.iter().filter_map(|m| m.last().cloned()))
             .collect();
-        let paths: Vec<Vec<Component>> = scanned
-            .iter()
-            .map(|e| components(&e.path, env.platform))
-            .collect();
-        let markers: HashSet<Vec<Component>> = paths
-            .iter()
-            .filter(|p| p.last().is_some_and(|name| marker_names.contains(name)))
-            .cloned()
-            .collect();
+        Matcher {
+            platform: env.platform,
+            resolved,
+            marker_names,
+        }
+    }
 
+    /// `KnowledgeBaseMatch` evidence for every scanned file or directory that is
+    /// one of this knowledge base's locations in `env`, at most once per object
+    /// and entry, in scan order. Markers are looked up in `scanned` itself; to
+    /// match a scan in chunks, use [`KnowledgeBase::matcher`].
+    pub fn matches(
+        &self,
+        env: &Environment,
+        scanned: &[FilesystemEntry],
+        observed_at: Timestamp,
+    ) -> Vec<Evidence> {
+        let matcher = self.matcher(env);
+        let paths = matcher.paths(scanned);
+        let mut markers = Markers::new();
+        matcher.collect_markers(&paths, &mut markers);
+        matcher.evidence(scanned, &paths, &markers, observed_at)
+    }
+}
+
+impl Matcher<'_> {
+    /// Pass 1: adds the marker paths among `chunk` to `markers`.
+    pub fn add_markers(&self, chunk: &[FilesystemEntry], markers: &mut Markers) {
+        self.collect_markers(&self.paths(chunk), markers);
+    }
+
+    /// Pass 2: `KnowledgeBaseMatch` evidence for every file or directory in
+    /// `chunk` that is one of the knowledge base's locations, at most once per
+    /// object and entry, in chunk order. `markers` must hold the markers of the
+    /// whole scan, gathered by this matcher; a marker missing from it is
+    /// unknown, so its project location does not match.
+    #[must_use]
+    pub fn matches(
+        &self,
+        chunk: &[FilesystemEntry],
+        markers: &Markers,
+        observed_at: Timestamp,
+    ) -> Vec<Evidence> {
+        self.evidence(chunk, &self.paths(chunk), markers, observed_at)
+    }
+
+    fn paths(&self, scanned: &[FilesystemEntry]) -> Vec<Vec<Component>> {
+        scanned
+            .iter()
+            .map(|e| components(&e.path, self.platform))
+            .collect()
+    }
+
+    fn collect_markers(&self, paths: &[Vec<Component>], markers: &mut Markers) {
+        markers.paths.extend(
+            paths
+                .iter()
+                .filter(|p| {
+                    p.last()
+                        .is_some_and(|name| self.marker_names.contains(name))
+                })
+                .cloned(),
+        );
+    }
+
+    fn evidence(
+        &self,
+        scanned: &[FilesystemEntry],
+        paths: &[Vec<Component>],
+        markers: &Markers,
+        observed_at: Timestamp,
+    ) -> Vec<Evidence> {
+        let Ok(source) = SourceName::new(SOURCE) else {
+            return Vec::new();
+        };
         let mut found = Vec::new();
-        for (object, names) in scanned.iter().zip(&paths) {
+        for (object, names) in scanned.iter().zip(paths) {
             if !matches!(object.kind, EntryKind::File | EntryKind::Directory) {
                 continue;
             }
-            let ids: BTreeSet<&str> = resolved
+            let ids: BTreeSet<&str> = self
+                .resolved
                 .iter()
-                .filter(|r| r.matches(names, &markers))
+                .filter(|r| r.matches(names, &markers.paths))
                 .map(|r| r.entry.id.as_str())
                 .collect();
             for id in ids {
@@ -471,5 +589,101 @@ mod tests {
             matched(&both, &[dir("/Users/ana/.cache/sample", 1)]).len(),
             1
         );
+    }
+
+    /// Two-pass matching of `chunks`: every chunk's markers first, then every
+    /// chunk's evidence against them, concatenated.
+    fn chunked(
+        kb: &KnowledgeBase,
+        env: &Environment,
+        chunks: &[&[FilesystemEntry]],
+    ) -> Vec<Evidence> {
+        let matcher = kb.matcher(env);
+        let mut markers = Markers::new();
+        for chunk in chunks {
+            matcher.add_markers(chunk, &mut markers);
+        }
+        chunks
+            .iter()
+            .flat_map(|chunk| matcher.matches(chunk, &markers, Timestamp::UNIX_EPOCH))
+            .collect()
+    }
+
+    #[test]
+    fn a_marker_in_another_chunk_still_qualifies_its_project() {
+        let kb = kb();
+        let linux = env(Platform::Linux);
+        let scanned = [
+            dir("/src/app/target", 1),
+            dir("/src/app/src", 2),
+            object(unix("/src/app/Cargo.toml"), EntryKind::File, 3),
+        ];
+        let whole = kb.matches(&linux, &scanned, Timestamp::UNIX_EPOCH);
+        assert_eq!(whole.len(), 1);
+        let (first, second) = scanned.split_at(2);
+        assert!(
+            kb.matches(&linux, first, Timestamp::UNIX_EPOCH).is_empty(),
+            "one pass over a chunk cannot see the marker"
+        );
+        assert_eq!(chunked(&kb, &linux, &[first, second]), whole);
+        // Markers gathered per chunk merge into the same set.
+        let matcher = kb.matcher(&linux);
+        let mut merged = Markers::new();
+        for chunk in [second, first] {
+            let mut part = Markers::new();
+            matcher.add_markers(chunk, &mut part);
+            merged.merge(part);
+        }
+        assert_eq!(merged.len(), 1, "only marker paths are kept");
+        assert_eq!(
+            [first, second]
+                .iter()
+                .flat_map(|c| matcher.matches(c, &merged, Timestamp::UNIX_EPOCH))
+                .collect::<Vec<_>>(),
+            whole
+        );
+    }
+
+    /// Any chunking of a scan gives exactly the evidence, in the same order,
+    /// that matching the whole scan at once gives.
+    #[test]
+    fn every_chunking_matches_like_the_whole_scan() {
+        let kb = kb();
+        let mut mac = env(Platform::Macos);
+        mac.vars = vec![("SAMPLE_CACHE".to_owned(), unix("/Users/ana/.cache/sample"))];
+        let scanned = [
+            dir("/Users/ana/src/one/target", 1),
+            dir("/Users/ana/.cache/sample", 2),
+            object(unix("/Users/ana/src/two/Cargo.toml"), EntryKind::File, 3),
+            dir("/Users/ana/Library/Sample/a", 4),
+            dir("/Users/ana/src/two/TARGET", 5),
+            object(unix("/Users/ana/src/one/cargo.toml"), EntryKind::File, 6),
+            dir("/Users/ana/src/three/target", 7),
+            object(unix("/Users/ana/Library/Sample/b"), EntryKind::Symlink, 8),
+            dir("/Users/ana/Library/Sample/c", 9),
+        ];
+        let whole = kb.matches(&mac, &scanned, Timestamp::UNIX_EPOCH);
+        let ids: Vec<u128> = whole
+            .iter()
+            .filter_map(|e| match &e.subject {
+                Subject::File { identity } => Some(identity.file.get()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(ids, [1, 2, 4, 5, 9], "the fixture covers every rule");
+        for size in 1..=scanned.len() {
+            let chunks: Vec<&[FilesystemEntry]> = scanned.chunks(size).collect();
+            assert_eq!(chunked(&kb, &mac, &chunks), whole, "chunks of {size}");
+        }
+        // Uneven chunkings, including empty chunks.
+        for cuts in [&[0, 0, 9][..], &[1, 6], &[3, 3, 8], &[2, 5, 7]] {
+            let mut chunks = Vec::new();
+            let mut start = 0;
+            for &cut in cuts.iter().chain([&scanned.len()]) {
+                chunks.push(&scanned[start..cut]);
+                start = cut;
+            }
+            assert_eq!(chunked(&kb, &mac, &chunks), whole, "cuts at {cuts:?}");
+        }
     }
 }

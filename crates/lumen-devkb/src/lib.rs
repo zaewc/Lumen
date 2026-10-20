@@ -22,7 +22,7 @@ use lumen_policy::KnowledgeClass;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub use matcher::{Environment, SOURCE};
+pub use matcher::{Environment, Markers, Matcher, SOURCE};
 pub use validate::Problem;
 
 /// The built-in entries as `(file name, JSON)`, one per tool (roadmap 6.15+).
