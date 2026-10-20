@@ -60,7 +60,9 @@ pub fn app<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             });
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")
-                .inner_size(1100.0, 760.0)
+                // Sized for the single-column layout; narrow windows still work.
+                .inner_size(900.0, 780.0)
+                .min_inner_size(420.0, 560.0)
                 .on_navigation(allowed)
                 .build()?;
             Ok(())

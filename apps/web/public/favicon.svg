@@ -1,0 +1,62 @@
+<!-- Lumen app icon: a light (lumen) clearing space on a disk. 1024 x 1024,
+     macOS grid: 824 px rounded square centred, 100 px margins. -->
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>Lumen</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b5bf7"/>
+      <stop offset="0.55" stop-color="#4338ca"/>
+      <stop offset="1" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fffbe6" stop-opacity="1"/>
+      <stop offset="0.35" stop-color="#fde68a" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#fbbf24" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="disk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#c7d2fe" stop-opacity="0.95"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000" flood-opacity="0.28"/>
+    </filter>
+    <clipPath id="squircle">
+      <rect x="100" y="100" width="824" height="824" rx="185" ry="185"/>
+    </clipPath>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="url(#bg)"/>
+  </g>
+
+  <g clip-path="url(#squircle)">
+    <!-- Soft light from the upper right. -->
+    <circle cx="690" cy="330" r="330" fill="url(#glow)" opacity="0.55"/>
+
+    <!-- A storage disk, seen at an angle: three stacked platters. -->
+    <g transform="translate(512 600)">
+      <ellipse cx="0" cy="110" rx="250" ry="86" fill="#312e81" opacity="0.55"/>
+      <path d="M -250 30 v 70 a 250 86 0 0 0 500 0 v -70" fill="#a5b4fc" opacity="0.9"/>
+      <ellipse cx="0" cy="30" rx="250" ry="86" fill="url(#disk)"/>
+      <path d="M -250 -50 v 70 a 250 86 0 0 0 500 0 v -70" fill="#c7d2fe"/>
+      <ellipse cx="0" cy="-50" rx="250" ry="86" fill="url(#disk)"/>
+      <ellipse cx="0" cy="-50" rx="70" ry="24" fill="#6366f1" opacity="0.35"/>
+    </g>
+
+    <!-- The light: a four-point sparkle over the disk. -->
+    <g transform="translate(655 330)">
+      <circle r="120" fill="url(#glow)"/>
+      <path d="M 0 -150 C 18 -40 40 -18 150 0 C 40 18 18 40 0 150 C -18 40 -40 18 -150 0 C -40 -18 -18 -40 0 -150 Z"
+            fill="#fffdf5"/>
+      <circle r="30" fill="#ffffff"/>
+    </g>
+    <g transform="translate(400 300) scale(0.32)">
+      <path d="M 0 -150 C 18 -40 40 -18 150 0 C 40 18 18 40 0 150 C -18 40 -40 18 -150 0 C -40 -18 -18 -40 0 -150 Z"
+            fill="#fef3c7" opacity="0.95"/>
+    </g>
+  </g>
+
+  <!-- A hairline edge, as macOS icons have. -->
+  <rect x="100.5" y="100.5" width="823" height="823" rx="185" ry="185" fill="none"
+        stroke="#ffffff" stroke-opacity="0.18" stroke-width="2"/>
+</svg>
