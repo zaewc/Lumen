@@ -61,3 +61,14 @@ buffer. Only xcode@3.0.1 (Expo prebuild, dev tool) uses uuid 7.0.3, and it \
 calls uuid.v4() only (pbxProject.js), which is not affected. Re-check when \
 @expo/config-plugins moves off xcode 3.\
 """
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0374"
+ignoreUntil = 2027-01-20T00:00:00Z
+reason = """
+basic-toml 0.1.10 is unmaintained (not a vulnerability). askama_derive parses \
+its template config with it at compile time inside uniffi_bindgen, which \
+generates the mobile bindings (ADR-0007); it never runs in a shipped binary. \
+No askama or uniffi release without it exists yet. Review when uniffi moves \
+to an askama that drops basic-toml.\
+"""

@@ -15,6 +15,12 @@ ignore = [
   # the GTK4 migration (https://github.com/tauri-apps/tauri/issues/7335).
   # Review by 2027-01-18 or when Tauri moves to GTK4.
   { id = "RUSTSEC-2024-0370", reason = "unmaintained compile-time macro in Tauri's Linux GTK3 stack; tauri-apps/tauri#10910" },
+  # basic-toml is unmaintained (not vulnerable): askama_derive reads its template
+  # config with it at compile time, inside uniffi_bindgen, which generates the
+  # mobile bindings (ADR-0007). It never runs in any shipped binary, and no
+  # askama or uniffi release without it exists yet. Review by 2027-01-20 or when
+  # uniffi moves to an askama without basic-toml.
+  { id = "RUSTSEC-2026-0374", reason = "unmaintained compile-time TOML parser in askama_derive, via uniffi_bindgen; no safe upgrade yet" },
 ]
 
 [licenses]
