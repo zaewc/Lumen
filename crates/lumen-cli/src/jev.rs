@@ -1,5 +1,6 @@
-//! `lumen jev key set | clear | status`: the `OpenRouter` API key for Jev
-//! (roadmap 10.17, ADR-0031).
+//! `lumen jev key set | clear | status [--openrouter]`: the API key for the
+//! judge: Jeb on the school AI Hub by default (ADR-0036), or `TypeSafe`'s Jev
+//! through `OpenRouter` (roadmap 10.17, ADR-0031).
 //!
 //! The key is read from standard input, never from the command line (where
 //! other processes can see it), checked, and kept in the operating system's
@@ -11,6 +12,22 @@ use std::error::Error;
 
 use lumen_application::ports::{Secret, SecretName, SecretStore};
 use lumen_jev::openrouter::ApiKey;
+
+use crate::jev_service::Service;
+
+fn secret(service: Service) -> SecretName {
+    match service {
+        Service::Jeb => SecretName::JEB_API_KEY,
+        Service::OpenRouter => SecretName::OPENROUTER_API_KEY,
+    }
+}
+
+const fn label(service: Service) -> &'static str {
+    match service {
+        Service::Jeb => "Jeb",
+        Service::OpenRouter => "OpenRouter",
+    }
+}
 
 /// The platform's secret store (an error where there is none).
 #[cfg_attr(
@@ -37,27 +54,38 @@ pub(crate) fn read_key(input: &mut dyn std::io::BufRead) -> Result<String, Box<d
     let key = line.trim();
     if ApiKey::new(key).is_none() {
         return Err(
-            "that is not an OpenRouter API key (1-256 visible ASCII characters); nothing was stored"
-                .into(),
+            "that is not an API key (1-256 visible ASCII characters); nothing was stored".into(),
         );
     }
     Ok(key.to_owned())
 }
 
-/// Stores the key read from standard input.
-pub(crate) fn set() -> Result<String, Box<dyn Error>> {
+/// Stores the key read from standard input for `service`.
+pub(crate) fn set(service: Service) -> Result<String, Box<dyn Error>> {
     let key = read_key(&mut std::io::stdin().lock())?;
-    store()?.set(SecretName::OPENROUTER_API_KEY, &Secret::new(key))?;
-    Ok("Stored the OpenRouter API key in the system's secret store. Jev is used only when a run passes --jev.\n".into())
+    store()?.set(secret(service), &Secret::new(key))?;
+    Ok(format!(
+        "Stored the {} API key in the system's secret store. The judge is used only when a run passes --jev.\n",
+        label(service)
+    ))
 }
 
-/// The judge for a run that passed `--jev`: Jev with the stored key, after
-/// telling the user what will be sent. Without a stored key the run stops
-/// rather than silently deciding without the judgment the user asked for.
+/// The judge for a run that passed `--jev`, after telling the user what will
+/// be sent and where: Jeb when its key is stored, otherwise Jev through
+/// `OpenRouter`. Without a stored key the run stops rather than silently
+/// deciding without the judgment the user asked for.
 pub(crate) fn judge() -> Result<lumen_jev::openrouter::JevJudge, Box<dyn Error>> {
-    let secret = store()?
+    let store = store()?;
+    if let Some(secret) = store.get(SecretName::JEB_API_KEY)? {
+        let key = ApiKey::new(secret.expose()).ok_or("the stored Jeb API key is not valid")?;
+        eprintln!(
+            "Jeb: for each candidate the policy does not keep, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to the school's Jeb server (jeb.https.gsmsv.site) with your key. Its operator may keep requests. Jeb can only make a decision more cautious."
+        );
+        return Ok(lumen_jev::openrouter::JevJudge::jeb(key)?);
+    }
+    let secret = store
         .get(SecretName::OPENROUTER_API_KEY)?
-        .ok_or("--jev needs an OpenRouter API key: run `lumen jev key set` first")?;
+        .ok_or("--jev needs an API key: run `lumen jev key set` (Jeb) or `lumen jev key set --openrouter` first")?;
     let key = ApiKey::new(secret.expose()).ok_or("the stored OpenRouter API key is not valid")?;
     eprintln!(
         "Jev: for each candidate the policy does not keep, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to TypeSafe's Jev through OpenRouter with your key. Jev can only make a decision more cautious."
@@ -83,21 +111,31 @@ pub(crate) fn record_traces(
     Ok(())
 }
 
-/// Removes the stored key.
-pub(crate) fn clear() -> Result<String, Box<dyn Error>> {
-    Ok(if store()?.delete(SecretName::OPENROUTER_API_KEY)? {
-        "Removed the OpenRouter API key.\n".into()
+/// Removes the stored key for `service`.
+pub(crate) fn clear(service: Service) -> Result<String, Box<dyn Error>> {
+    Ok(if store()?.delete(secret(service))? {
+        format!("Removed the {} API key.\n", label(service))
     } else {
-        "No OpenRouter API key was stored.\n".into()
+        format!("No {} API key was stored.\n", label(service))
     })
 }
 
-/// Whether a key is stored (never the key).
+/// Which keys are stored (never the keys), and which one `--jev` uses.
 pub(crate) fn status() -> Result<String, Box<dyn Error>> {
-    Ok(match store()?.get(SecretName::OPENROUTER_API_KEY)? {
-        Some(_) => "An OpenRouter API key is stored.\n".into(),
-        None => "No OpenRouter API key is stored.\n".into(),
-    })
+    let store = store()?;
+    let jeb = store.get(SecretName::JEB_API_KEY)?.is_some();
+    let openrouter = store.get(SecretName::OPENROUTER_API_KEY)?.is_some();
+    let stored = |yes: bool| if yes { "stored" } else { "not stored" };
+    let used = match (jeb, openrouter) {
+        (true, _) => "--jev uses Jeb.",
+        (false, true) => "--jev uses Jev through OpenRouter.",
+        (false, false) => "--jev needs a key.",
+    };
+    Ok(format!(
+        "Jeb API key: {}. OpenRouter API key: {}. {used}\n",
+        stored(jeb),
+        stored(openrouter)
+    ))
 }
 
 #[cfg(test)]

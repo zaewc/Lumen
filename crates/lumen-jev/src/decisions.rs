@@ -34,6 +34,58 @@ pub const MODEL: &str = "typesafe/jev-1.13";
 /// The `OpenRouter` Decisions API endpoint.
 pub const ENDPOINT: &str = "https://openrouter.ai/api/alpha/decisions";
 
+/// The owner's school AI Hub, which serves Jeb on the same Decisions protocol
+/// (ADR-0036).
+pub const JEB_ENDPOINT: &str = "https://jeb.https.gsmsv.site/v1/systemone";
+
+/// Jeb's model name on the AI Hub.
+pub const JEB_MODEL: &str = "jeb";
+
+/// Where a judgment is asked: the same questions and answer checks, a
+/// different service.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Provider {
+    /// `TypeSafe`'s Jev through `OpenRouter`, zero-retention endpoints only
+    /// (ADR-0031).
+    OpenRouter,
+    /// Jeb on the owner's school AI Hub (ADR-0036).
+    Jeb,
+}
+
+impl Provider {
+    /// The HTTPS endpoint.
+    pub const fn endpoint(self) -> &'static str {
+        match self {
+            Self::OpenRouter => ENDPOINT,
+            Self::Jeb => JEB_ENDPOINT,
+        }
+    }
+
+    /// The pinned model.
+    pub const fn model(self) -> &'static str {
+        match self {
+            Self::OpenRouter => MODEL,
+            Self::Jeb => JEB_MODEL,
+        }
+    }
+
+    /// The provider's name in judge descriptors and traces.
+    pub const fn source(self) -> &'static str {
+        match self {
+            Self::OpenRouter => "openrouter.typesafe",
+            Self::Jeb => "gsm.jeb",
+        }
+    }
+
+    /// A short name for messages.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::OpenRouter => "OpenRouter",
+            Self::Jeb => "the Jeb server",
+        }
+    }
+}
+
 /// The prompt version of the questions below; changing their wording is a new
 /// version and needs a new evaluation (docs/ai/evaluation.md).
 pub const PROMPT_VERSION: &str = "jev-decisions/1";
@@ -157,6 +209,19 @@ const REASONS: [(ReasonCode, &str, &str); 17] = [
 ///
 /// Only if the request cannot be serialized (it always can).
 pub fn request_body(request: &JevRequest) -> Result<Value, serde_json::Error> {
+    request_body_for(request, Provider::OpenRouter)
+}
+
+/// The Decisions request body for one Jev request at `provider`. Only
+/// `OpenRouter` takes routing constraints; Jeb has a single server.
+///
+/// # Errors
+///
+/// Only if the request cannot be serialized (it always can).
+pub fn request_body_for(
+    request: &JevRequest,
+    provider: Provider,
+) -> Result<Value, serde_json::Error> {
     let criteria = |options: &[(&str, &str)]| -> Value {
         options
             .iter()
@@ -166,8 +231,8 @@ pub fn request_body(request: &JevRequest) -> Result<Value, serde_json::Error> {
     };
     let assessments: Vec<(&str, &str)> = ASSESSMENTS.iter().map(|(_, k, t)| (*k, *t)).collect();
     let reasons: Vec<(&str, &str)> = REASONS.iter().map(|(_, k, t)| (*k, *t)).collect();
-    Ok(json!({
-        "model": MODEL,
+    let mut body = json!({
+        "model": provider.model(),
         "state": serde_json::to_value(request)?,
         "questions": {
             "assessment": {
@@ -189,13 +254,16 @@ pub fn request_body(request: &JevRequest) -> Result<Value, serde_json::Error> {
                 },
             },
         },
-        "provider": {
+    });
+    if provider == Provider::OpenRouter {
+        body["provider"] = json!({
             "only": ["typesafe"],
             "allow_fallbacks": false,
             "zdr": true,
             "data_collection": "deny",
-        },
-    }))
+        });
+    }
+    Ok(body)
 }
 
 #[derive(Debug, Deserialize)]
@@ -250,9 +318,16 @@ fn probability(p: f64) -> Result<f64, JudgeError> {
 /// Whether `model` is the pinned model or a dated snapshot of it
 /// (`typesafe/jev-1.13-YYYYMMDD`).
 pub fn is_pinned(model: &str) -> bool {
-    model == MODEL
+    is_pinned_for(Provider::OpenRouter, model)
+}
+
+/// Whether `model` is `provider`'s pinned model or a dated snapshot of it
+/// (`<model>-YYYYMMDD`).
+pub fn is_pinned_for(provider: Provider, model: &str) -> bool {
+    let pinned = provider.model();
+    model == pinned
         || model
-            .strip_prefix(MODEL)
+            .strip_prefix(pinned)
             .and_then(|rest| rest.strip_prefix('-'))
             .is_some_and(|date| date.len() == 8 && date.bytes().all(|b| b.is_ascii_digit()))
 }
@@ -294,8 +369,22 @@ fn chosen<'a>(answer: &'a ChoiceAnswer, keys: &[&str]) -> Result<(&'a str, f64),
 /// for anything that does not match the expected shape, and
 /// [`JudgeError::Rejected`] if the judgment does not answer this request.
 pub fn judgment(request: &JevRequest, body: &str) -> Result<(Judgment, String), JudgeError> {
+    judgment_for(request, body, Provider::OpenRouter)
+}
+
+/// Maps an answer `body` from `provider` to a judgment for `request`, with the
+/// same checks as [`judgment`] and `provider`'s pinned model.
+///
+/// # Errors
+///
+/// As for [`judgment`].
+pub fn judgment_for(
+    request: &JevRequest,
+    body: &str,
+    provider: Provider,
+) -> Result<(Judgment, String), JudgeError> {
     let response: Response = serde_json::from_str(body).map_err(|_| JudgeError::Malformed)?;
-    if !is_pinned(&response.model) {
+    if !is_pinned_for(provider, &response.model) {
         return Err(JudgeError::NoAnswer("an unexpected model answered"));
     }
     let answers = response.answers;
@@ -397,6 +486,44 @@ mod tests {
         });
         edit(&mut value);
         value.to_string()
+    }
+
+    #[test]
+    fn jeb_gets_the_same_questions_without_routing() -> Result<(), serde_json::Error> {
+        let jeb = request_body_for(&request(2), Provider::Jeb)?;
+        let openrouter = request_body(&request(2))?;
+        assert_eq!(jeb["model"], JEB_MODEL);
+        assert_eq!(jeb.get("provider"), None, "one server, no routing");
+        assert_eq!(jeb["questions"], openrouter["questions"]);
+        assert_eq!(jeb["state"], openrouter["state"]);
+        Ok(())
+    }
+
+    #[test]
+    fn each_provider_accepts_only_its_own_model() {
+        let from = |model: &'static str| {
+            answer(|v| {
+                v["model"] = json!(model);
+                if let Some(o) = v.as_object_mut() {
+                    o.remove("id");
+                    o.remove("provider");
+                }
+            })
+        };
+        let req = request(1);
+        assert!(judgment_for(&req, &from("jeb"), Provider::Jeb).is_ok());
+        assert!(judgment_for(&req, &from("jeb-20261007"), Provider::Jeb).is_ok());
+        assert!(matches!(
+            judgment_for(&req, &from("typesafe/jev-1.13"), Provider::Jeb),
+            Err(JudgeError::NoAnswer(_))
+        ));
+        assert!(matches!(
+            judgment_for(&req, &from("jeb"), Provider::OpenRouter),
+            Err(JudgeError::NoAnswer(_))
+        ));
+        assert!(!is_pinned_for(Provider::Jeb, "jebx"));
+        assert_eq!(Provider::Jeb.endpoint(), JEB_ENDPOINT);
+        assert!(JEB_ENDPOINT.starts_with("https://"));
     }
 
     #[test]

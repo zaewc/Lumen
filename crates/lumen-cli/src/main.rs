@@ -42,6 +42,7 @@ mod assess;
 mod held;
 #[cfg(any(unix, windows))]
 mod jev;
+mod jev_service;
 #[cfg(any(unix, windows))]
 mod plan;
 #[cfg(any(unix, windows))]
@@ -51,7 +52,7 @@ mod quarantine;
 #[cfg(any(unix, windows))]
 mod report;
 
-const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status   (set reads the key from standard input)";
+const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -80,7 +81,7 @@ enum Command {
     Restore(OpArgs),
     Finalize(OpArgs),
     FinalizeExpired(PathBuf),
-    JevKey(KeyAction),
+    JevKey(KeyAction, jev_service::Service),
     Help,
 }
 
@@ -205,14 +206,20 @@ fn parse(args: &[String]) -> Result<Command, String> {
         }
         Some("restore") => return parse_op(iter.as_slice()).map(Command::Restore),
         Some("jev") => {
-            return match iter.as_slice() {
+            let (rest, service) = match iter.as_slice() {
+                [rest @ .., flag] if flag == "--openrouter" => {
+                    (rest, jev_service::Service::OpenRouter)
+                }
+                rest => (rest, jev_service::Service::Jeb),
+            };
+            return match rest {
                 [key, action] if key == "key" => match action.as_str() {
-                    "set" => Ok(Command::JevKey(KeyAction::Set)),
-                    "clear" => Ok(Command::JevKey(KeyAction::Clear)),
-                    "status" => Ok(Command::JevKey(KeyAction::Status)),
+                    "set" => Ok(Command::JevKey(KeyAction::Set, service)),
+                    "clear" => Ok(Command::JevKey(KeyAction::Clear, service)),
+                    "status" => Ok(Command::JevKey(KeyAction::Status, service)),
                     _ => Err("jev key needs set, clear or status".into()),
                 },
-                _ => Err("usage: lumen jev key set|clear|status (the key is read from standard input, never an argument)".into()),
+                _ => Err("usage: lumen jev key set|clear|status [--openrouter] (the key is read from standard input, never an argument)".into()),
             };
         }
         Some("finalize") => {
@@ -256,7 +263,7 @@ fn database(command: &Command) -> Option<&std::path::Path> {
         Command::Quarantine(args) => Some(&args.db),
         Command::List(db) | Command::FinalizeExpired(db) => Some(db),
         Command::Restore(args) | Command::Finalize(args) => Some(&args.db),
-        Command::JevKey(_) | Command::Help => None,
+        Command::JevKey(..) | Command::Help => None,
     }
 }
 
@@ -293,7 +300,7 @@ fn main() -> ExitCode {
             }
         },
         Ok(Command::List(db)) => report(run_held(HeldAction::List, &db, None)),
-        Ok(Command::JevKey(action)) => report(run_jev_key(action)),
+        Ok(Command::JevKey(action, service)) => report(run_jev_key(action, service)),
         Ok(Command::Restore(args)) => {
             report(run_held(HeldAction::Restore, &args.db, Some(&args.op)))
         }
@@ -475,10 +482,10 @@ fn report(result: Result<(), Box<dyn Error>>) -> ExitCode {
 }
 
 #[cfg(any(unix, windows))]
-fn run_jev_key(action: KeyAction) -> Result<(), Box<dyn Error>> {
+fn run_jev_key(action: KeyAction, service: jev_service::Service) -> Result<(), Box<dyn Error>> {
     let text = match action {
-        KeyAction::Set => jev::set()?,
-        KeyAction::Clear => jev::clear()?,
+        KeyAction::Set => jev::set(service)?,
+        KeyAction::Clear => jev::clear(service)?,
         KeyAction::Status => jev::status()?,
     };
     print!("{text}");
@@ -486,7 +493,7 @@ fn run_jev_key(action: KeyAction) -> Result<(), Box<dyn Error>> {
 }
 
 #[cfg(not(any(unix, windows)))]
-fn run_jev_key(_action: KeyAction) -> Result<(), Box<dyn Error>> {
+fn run_jev_key(_action: KeyAction, _service: jev_service::Service) -> Result<(), Box<dyn Error>> {
     Err("Jev is not available on this platform".into())
 }
 
@@ -693,15 +700,22 @@ mod tests {
 
     #[test]
     fn the_jev_key_is_never_an_argument() {
+        use jev_service::Service;
         assert_eq!(
             parse(&args(&["jev", "key", "set"])),
-            Ok(Command::JevKey(KeyAction::Set))
+            Ok(Command::JevKey(KeyAction::Set, Service::Jeb)),
+            "Jeb by default"
+        );
+        assert_eq!(
+            parse(&args(&["jev", "key", "set", "--openrouter"])),
+            Ok(Command::JevKey(KeyAction::Set, Service::OpenRouter))
         );
         assert_eq!(
             parse(&args(&["jev", "key", "status"])),
-            Ok(Command::JevKey(KeyAction::Status))
+            Ok(Command::JevKey(KeyAction::Status, Service::Jeb))
         );
         assert!(parse(&args(&["jev", "key", "set", "sk-or-v1-secret"])).is_err());
+        assert!(parse(&args(&["jev", "key", "set", "--jeb"])).is_err());
         assert!(parse(&args(&["jev", "key"])).is_err());
     }
 

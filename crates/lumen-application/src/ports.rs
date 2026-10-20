@@ -517,6 +517,9 @@ impl SecretName {
     /// The user's `OpenRouter` API key for Jev (ADR-0031).
     pub const OPENROUTER_API_KEY: Self = Self("openrouter-api-key");
 
+    /// The user's API key for Jeb on the school AI Hub (ADR-0036).
+    pub const JEB_API_KEY: Self = Self("jeb-api-key");
+
     /// The name as stored (the account of a keychain item).
     pub const fn as_str(self) -> &'static str {
         self.0

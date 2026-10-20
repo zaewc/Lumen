@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-14
 - Amends: [ADR-0020](0020-jev-evidence-only-judge.md) (adapters and tiers only)
+- Amended by: [ADR-0036](0036-jeb-on-the-school-ai-hub.md) (Jeb is the default provider)
 
 ## Context and problem statement
 

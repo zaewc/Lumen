@@ -1,4 +1,6 @@
-//! The `OpenRouter` transport for `TypeSafe`'s Jev model (roadmap 8.9, ADR-0031).
+//! The HTTPS transport for the judge: `TypeSafe`'s Jev through `OpenRouter`
+//! (roadmap 8.9, ADR-0031), or Jeb on the owner's school AI Hub, which speaks
+//! the same Decisions protocol (ADR-0036).
 //!
 //! [`JevJudge`] posts the Decisions API body built by [`crate::decisions`] over
 //! HTTPS, verifying the server against the operating system's trust store, and
@@ -20,7 +22,7 @@ use lumen_domain::{JevRequest, JudgeDescriptor, Judgment, ModelId, PromptVersion
 use ureq::Agent;
 use ureq::tls::{RootCerts, TlsConfig, TlsProvider};
 
-use crate::decisions::{self, ENDPOINT, MODEL, PROMPT_VERSION};
+use crate::decisions::{self, PROMPT_VERSION, Provider};
 
 /// Longest wait for one answer.
 const TIMEOUT: Duration = Duration::from_secs(30);
@@ -62,18 +64,19 @@ pub enum SetupError {
 #[derive(Debug)]
 pub struct JevJudge {
     key: ApiKey,
+    provider: Provider,
     endpoint: String,
     agent: Agent,
     descriptor: JudgeDescriptor,
 }
 
-fn descriptor() -> Result<JudgeDescriptor, SetupError> {
+fn descriptor(provider: Provider) -> Result<JudgeDescriptor, SetupError> {
     let (name, revision) = PROMPT_VERSION
         .split_once('/')
         .ok_or(SetupError::Descriptor)?;
     Ok(JudgeDescriptor {
-        provider: SourceName::new("openrouter.typesafe").map_err(|_| SetupError::Descriptor)?,
-        model: ModelId::new(MODEL).map_err(|_| SetupError::Descriptor)?,
+        provider: SourceName::new(provider.source()).map_err(|_| SetupError::Descriptor)?,
+        model: ModelId::new(provider.model()).map_err(|_| SetupError::Descriptor)?,
         model_version: None,
         prompt_version: PromptVersion::new(
             name,
@@ -104,10 +107,28 @@ impl JevJudge {
     ///
     /// A [`SetupError`] if TLS or the descriptor cannot be set up.
     pub fn new(key: ApiKey) -> Result<Self, SetupError> {
-        Self::with_endpoint(key, ENDPOINT.to_owned())
+        Self::with_endpoint(
+            key,
+            Provider::OpenRouter,
+            Provider::OpenRouter.endpoint().to_owned(),
+        )
     }
 
-    fn with_endpoint(key: ApiKey, endpoint: String) -> Result<Self, SetupError> {
+    /// A judge using `key`, talking to Jeb on the school AI Hub over HTTPS
+    /// (ADR-0036).
+    ///
+    /// # Errors
+    ///
+    /// A [`SetupError`] if TLS or the descriptor cannot be set up.
+    pub fn jeb(key: ApiKey) -> Result<Self, SetupError> {
+        Self::with_endpoint(key, Provider::Jeb, Provider::Jeb.endpoint().to_owned())
+    }
+
+    fn with_endpoint(
+        key: ApiKey,
+        provider: Provider,
+        endpoint: String,
+    ) -> Result<Self, SetupError> {
         ensure_crypto_provider()?;
         let agent = Agent::config_builder()
             .tls_config(
@@ -122,9 +143,10 @@ impl JevJudge {
             .new_agent();
         Ok(Self {
             key,
+            provider,
             endpoint,
             agent,
-            descriptor: descriptor()?,
+            descriptor: descriptor(provider)?,
         })
     }
 
@@ -143,25 +165,41 @@ impl JevJudge {
                 .limit(MAX_RESPONSE_BYTES)
                 .read_to_string()
                 .map_err(|_| JudgeError::Unavailable("the answer could not be read")),
-            Err(ureq::Error::StatusCode(code)) => Err(JudgeError::Unavailable(match code {
-                401 | 403 => "OpenRouter rejected the API key",
-                402 => "the OpenRouter account has no credits",
-                404 => "no zero-retention endpoint serves the pinned model",
-                408 | 524 => "OpenRouter timed out",
-                429 => "OpenRouter rate limit reached",
-                _ => "OpenRouter returned an error",
-            })),
+            Err(ureq::Error::StatusCode(code)) => {
+                Err(JudgeError::Unavailable(match (self.provider, code) {
+                    (Provider::OpenRouter, 401 | 403) => "OpenRouter rejected the API key",
+                    (Provider::OpenRouter, 402) => "the OpenRouter account has no credits",
+                    (Provider::OpenRouter, 404) => {
+                        "no zero-retention endpoint serves the pinned model"
+                    }
+                    (Provider::OpenRouter, 408 | 524) => "OpenRouter timed out",
+                    (Provider::OpenRouter, 429) => "OpenRouter rate limit reached",
+                    (Provider::OpenRouter, _) => "OpenRouter returned an error",
+                    (Provider::Jeb, 401 | 403) => "the Jeb server rejected the API key",
+                    (Provider::Jeb, 429) => {
+                        "the Jeb server allows one request at a time, or the quota is used up"
+                    }
+                    (Provider::Jeb, 502..=504) => {
+                        "the Jeb server is busy or the request was too long"
+                    }
+                    (Provider::Jeb, _) => "the Jeb server returned an error",
+                }))
+            }
             Err(ureq::Error::Timeout(_)) => Err(JudgeError::Unavailable("the request timed out")),
-            Err(_) => Err(JudgeError::Unavailable("OpenRouter could not be reached")),
+            Err(_) => Err(JudgeError::Unavailable(match self.provider {
+                Provider::OpenRouter => "OpenRouter could not be reached",
+                Provider::Jeb => "the Jeb server could not be reached",
+            })),
         }
     }
 
     fn judge_blocking(&self, request: &JevRequest) -> Result<Judgment, JudgeError> {
-        let body = decisions::request_body(request)
+        let body = decisions::request_body_for(request, self.provider)
             .map_err(|_| JudgeError::Unavailable("the request could not be built"))?
             .to_string();
         let answer = self.post(&body)?;
-        decisions::judgment(request, &answer).map(|(judgment, _snapshot)| judgment)
+        decisions::judgment_for(request, &answer, self.provider)
+            .map(|(judgment, _snapshot)| judgment)
     }
 }
 
@@ -185,6 +223,7 @@ impl JudgeModel for JevJudge {
             let slot = Arc::clone(&slot);
             let judge = Self {
                 key: self.key.clone(),
+                provider: self.provider,
                 endpoint: self.endpoint.clone(),
                 agent: self.agent.clone(),
                 descriptor: self.descriptor.clone(),
@@ -235,6 +274,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+    use crate::decisions::MODEL;
 
     fn request() -> JevRequest {
         JevRequest {
@@ -333,7 +373,8 @@ mod tests {
 
     fn judge_with(endpoint: String) -> JevJudge {
         let key = ApiKey::new("sk-or-test-key").unwrap_or_else(|| unreachable!());
-        JevJudge::with_endpoint(key, endpoint).unwrap_or_else(|e| unreachable!("{e}"))
+        JevJudge::with_endpoint(key, Provider::OpenRouter, endpoint)
+            .unwrap_or_else(|e| unreachable!("{e}"))
     }
 
     fn block<F: Future>(future: F) -> F::Output {
