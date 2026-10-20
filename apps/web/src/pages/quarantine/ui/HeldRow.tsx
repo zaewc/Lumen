@@ -60,18 +60,20 @@ export function HeldRow({
     <li className="py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="font-semibold break-words text-neutral-900">
+          <p className="font-semibold break-words text-neutral-900 dark:text-neutral-100">
             {item.original === null ? m.held.unknownPath : baseName(item.original)}
             {item.reclaim_bytes !== null && (
-              <span className="ml-2 font-normal text-neutral-600">
+              <span className="ml-2 font-normal text-neutral-600 dark:text-neutral-400">
                 {formatBytes(item.reclaim_bytes)}
               </span>
             )}
           </p>
           {item.original !== null && (
-            <p className="mt-0.5 font-mono text-xs break-all text-neutral-500">{item.original}</p>
+            <p className="mt-0.5 font-mono text-xs break-all text-neutral-500 dark:text-neutral-400">
+              {item.original}
+            </p>
           )}
-          <p className="mt-1 text-sm text-neutral-600">
+          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
             {retained ? m.held.days(daysHeld(item.since, new Date())) : m.held.afterFailure}
           </p>
         </div>
@@ -98,9 +100,9 @@ export function HeldRow({
         </div>
       </div>
       {retained && confirming && (
-        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4">
+        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/40">
           <div className="flex items-start gap-2">
-            <p id={warning} className="flex-1 text-sm font-medium text-red-900">
+            <p id={warning} className="flex-1 text-sm font-medium text-red-900 dark:text-red-200">
               {m.held.removeForGoodWarning}
             </p>
             <InfoTip term="finalize" />

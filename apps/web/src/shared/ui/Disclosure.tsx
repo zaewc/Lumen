@@ -18,8 +18,8 @@ export function Disclosure({
 }) {
   return (
     <details open={defaultOpen} className={className}>
-      <summary className="-mx-2 flex cursor-pointer list-none items-center gap-2 rounded-lg px-2 py-1 select-none hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 [&::-webkit-details-marker]:hidden">
-        <ChevronIcon className="text-neutral-500 transition-transform motion-reduce:transition-none [details[open]>summary>&]:rotate-90" />
+      <summary className="-mx-2 flex cursor-pointer list-none items-center gap-2 rounded-lg px-2 py-1 select-none hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 [&::-webkit-details-marker]:hidden dark:hover:bg-neutral-800 dark:focus-visible:outline-indigo-400">
+        <ChevronIcon className="text-neutral-500 transition-transform motion-reduce:transition-none [details[open]>summary>&]:rotate-90 dark:text-neutral-400" />
         {summary}
       </summary>
       <div className="mt-2">{children}</div>

@@ -48,7 +48,9 @@ export function CleanUpAction({
       >
         {plan.isPending ? m.results.preparing : m.results.cleanUp}
       </button>
-      {proposed === 0 && <p className="text-sm text-neutral-600">{m.results.nothing}</p>}
+      {proposed === 0 && (
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">{m.results.nothing}</p>
+      )}
       {plan.isError && <ErrorNotice message={m.results.planFailed} error={plan.error} />}
       {execute.isError && !open && <ErrorNotice message={m.confirm.failed} error={execute.error} />}
       {plan.data && (

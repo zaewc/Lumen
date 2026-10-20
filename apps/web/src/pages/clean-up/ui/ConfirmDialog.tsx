@@ -46,22 +46,27 @@ export function ConfirmDialog({
         {empty ? m.confirm.nothingLeft : m.confirm.title(plan.items.length, size)}
       </h2>
       {!empty && (
-        <ul id={description} className="mt-4 space-y-3 text-sm text-neutral-700">
+        <ul
+          id={description}
+          className="mt-4 space-y-3 text-sm text-neutral-700 dark:text-neutral-300"
+        >
           <li className="flex gap-3">
-            <CheckIcon className="text-emerald-600" />
+            <CheckIcon className="text-emerald-600 dark:text-emerald-400" />
             <span>{m.confirm.checked}</span>
           </li>
           <li className="flex gap-3">
-            <CheckIcon className="text-emerald-600" />
+            <CheckIcon className="text-emerald-600 dark:text-emerald-400" />
             <span>{m.confirm.restorable}</span>
           </li>
         </ul>
       )}
       <Disclosure
         className="mt-4"
-        summary={<span className="text-sm text-neutral-600">{m.common.details}</span>}
+        summary={
+          <span className="text-sm text-neutral-600 dark:text-neutral-400">{m.common.details}</span>
+        }
       >
-        <div className="space-y-1 text-xs text-neutral-600">
+        <div className="space-y-1 text-xs text-neutral-600 dark:text-neutral-400">
           <p>{m.confirm.planMade(formatDateTime(locale, plan.created_at))}</p>
           <p>
             {m.confirm.planHash}: <code className="break-all">{plan.hash}</code>

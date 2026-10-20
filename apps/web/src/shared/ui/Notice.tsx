@@ -6,18 +6,18 @@ export type NoticeTone = "warning" | "success";
 function toneClass(tone: NoticeTone): string {
   switch (tone) {
     case "warning":
-      return "border-amber-200 bg-amber-50 text-amber-950";
+      return "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100";
     case "success":
-      return "border-emerald-200 bg-emerald-50 text-emerald-950";
+      return "border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-100";
   }
 }
 
 function ToneIcon({ tone }: { readonly tone: NoticeTone }) {
   switch (tone) {
     case "warning":
-      return <WarningIcon className="mt-0.5 text-amber-600" />;
+      return <WarningIcon className="mt-0.5 text-amber-600 dark:text-amber-400" />;
     case "success":
-      return <CheckIcon className="mt-0.5 text-emerald-600" />;
+      return <CheckIcon className="mt-0.5 text-emerald-600 dark:text-emerald-400" />;
   }
 }
 
@@ -52,7 +52,9 @@ export function ErrorNotice({
     <div role="alert">
       <Notice tone="warning">
         <p className="font-medium">{message}</p>
-        <p className="font-mono text-xs break-all text-amber-900/80">{String(error)}</p>
+        <p className="font-mono text-xs break-all text-amber-900/80 dark:text-amber-200/80">
+          {String(error)}
+        </p>
       </Notice>
     </div>
   );

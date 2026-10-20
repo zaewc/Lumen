@@ -9,15 +9,15 @@ const BASE =
 function variantClass(variant: ButtonVariant): string {
   switch (variant) {
     case "primary":
-      return "bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-indigo-600 disabled:hover:bg-indigo-600";
+      return "bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-indigo-600 disabled:hover:bg-indigo-600 dark:hover:bg-indigo-500 dark:focus-visible:outline-indigo-400 dark:disabled:hover:bg-indigo-600";
     case "secondary":
-      return "border border-neutral-300 bg-white text-neutral-800 shadow-sm hover:bg-neutral-50 focus-visible:outline-indigo-600";
+      return "border border-neutral-300 bg-white text-neutral-800 shadow-sm hover:bg-neutral-50 focus-visible:outline-indigo-600 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 dark:focus-visible:outline-indigo-400";
     case "quiet":
-      return "text-neutral-700 hover:bg-neutral-100 focus-visible:outline-indigo-600";
+      return "text-neutral-700 hover:bg-neutral-100 focus-visible:outline-indigo-600 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus-visible:outline-indigo-400";
     case "danger":
-      return "bg-red-600 text-white shadow-sm hover:bg-red-700 focus-visible:outline-red-600 disabled:hover:bg-red-600";
+      return "bg-red-600 text-white shadow-sm hover:bg-red-700 focus-visible:outline-red-600 disabled:hover:bg-red-600 dark:focus-visible:outline-red-400";
     case "dangerQuiet":
-      return "text-red-700 hover:bg-red-50 focus-visible:outline-red-600";
+      return "text-red-700 hover:bg-red-50 focus-visible:outline-red-600 dark:text-red-300 dark:hover:bg-red-950/60 dark:focus-visible:outline-red-400";
   }
 }
 

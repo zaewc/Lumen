@@ -80,7 +80,7 @@ export function Dialog({
         }
       }}
       onClose={closed}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(32rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl bg-white p-6 text-neutral-900 shadow-xl outline-none backdrop:bg-neutral-950/40"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(32rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl bg-white p-6 text-neutral-900 shadow-xl outline-none backdrop:bg-neutral-950/40 dark:border dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:backdrop:bg-neutral-950/70"
     >
       {children}
     </dialog>

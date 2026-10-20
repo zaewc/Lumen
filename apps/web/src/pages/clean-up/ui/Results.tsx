@@ -40,7 +40,9 @@ export function Results({
       <Card className="sm:p-8">
         <div className="flex items-start justify-between gap-3">
           <StepHeading focus={focus}>
-            <span className="block text-sm font-medium text-neutral-500">{m.results.canFree}</span>
+            <span className="block text-sm font-medium text-neutral-500 dark:text-neutral-400">
+              {m.results.canFree}
+            </span>
             <span className="mt-1 block text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">
               {formatBytes(proposed.bytes)}
             </span>
@@ -48,7 +50,9 @@ export function Results({
           <InfoTip term="reclaimable" />
         </div>
         {proposed.items.length > 0 && (
-          <p className="mt-2 text-neutral-600">{m.results.proposedCount(proposed.items.length)}</p>
+          <p className="mt-2 text-neutral-600 dark:text-neutral-400">
+            {m.results.proposedCount(proposed.items.length)}
+          </p>
         )}
         <div className="mt-6">
           <CleanUpAction proposed={proposed.items.length} onDone={onDone} />

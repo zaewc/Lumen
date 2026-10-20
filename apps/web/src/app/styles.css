@@ -11,8 +11,20 @@
 }
 
 @layer base {
+  /*
+   * Follow the operating system's light or dark appearance (Tailwind's
+   * `dark:` variant uses the same media query), so native controls,
+   * scrollbars and the <dialog> backdrop match the page.
+   */
   :root {
-    color-scheme: light;
+    color-scheme: light dark;
+    background-color: var(--color-neutral-50);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      background-color: var(--color-neutral-950);
+    }
   }
 
   /* Korean reads best when words are not broken across lines. */

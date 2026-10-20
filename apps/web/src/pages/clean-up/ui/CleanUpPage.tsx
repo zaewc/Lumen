@@ -89,7 +89,7 @@ export function CleanUpPage() {
             <StepHeading focus={acted} className="text-xl font-semibold tracking-tight">
               {m.scanning.failed}
             </StepHeading>
-            <p className="font-mono text-xs break-all text-neutral-500">
+            <p className="font-mono text-xs break-all text-neutral-500 dark:text-neutral-400">
               {String(assessment.error)}
             </p>
             <button type="button" onClick={startOver} className={buttonClass("secondary")}>

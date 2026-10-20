@@ -14,10 +14,10 @@ function Stat({
   readonly warn?: boolean;
 }) {
   return (
-    <div className="min-w-0 rounded-xl bg-neutral-50 p-3">
-      <dt className="text-xs text-neutral-500">{label}</dt>
+    <div className="min-w-0 rounded-xl bg-neutral-50 p-3 dark:bg-neutral-800/60">
+      <dt className="text-xs text-neutral-500 dark:text-neutral-400">{label}</dt>
       <dd
-        className={`mt-1 truncate text-base font-semibold tabular-nums sm:text-lg ${warn ? "text-amber-700" : "text-neutral-900"}`}
+        className={`mt-1 truncate text-base font-semibold tabular-nums sm:text-lg ${warn ? "text-amber-700 dark:text-amber-300" : "text-neutral-900 dark:text-neutral-100"}`}
       >
         {value}
       </dd>
@@ -45,13 +45,13 @@ export function ScanningCard({
           {deciding ? m.scanning.deciding : m.scanning.title}
         </StepHeading>
       </div>
-      <p className="mt-1 text-sm text-neutral-600">{m.scanning.readOnly}</p>
+      <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{m.scanning.readOnly}</p>
       <div
         role="progressbar"
         aria-label={m.scanning.progress}
-        className="mt-6 h-2 overflow-hidden rounded-full bg-indigo-100"
+        className="mt-6 h-2 overflow-hidden rounded-full bg-indigo-100 dark:bg-indigo-950"
       >
-        <div className="h-full w-2/5 animate-[indeterminate_1.6s_ease-in-out_infinite] rounded-full bg-indigo-600 motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50" />
+        <div className="h-full w-2/5 animate-[indeterminate_1.6s_ease-in-out_infinite] rounded-full bg-indigo-600 motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50 dark:bg-indigo-400" />
       </div>
       <dl className="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
         <Stat label={m.scanning.items} value={progress ? count(progress.entries) : none} />
@@ -66,7 +66,10 @@ export function ScanningCard({
         />
       </dl>
       {!deciding && progress?.current && (
-        <p className="mt-4 truncate font-mono text-xs text-neutral-500" title={progress.current}>
+        <p
+          className="mt-4 truncate font-mono text-xs text-neutral-500 dark:text-neutral-400"
+          title={progress.current}
+        >
           {m.scanning.reading(progress.current)}
         </p>
       )}

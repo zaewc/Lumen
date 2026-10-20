@@ -34,7 +34,7 @@ export function StartCard({
       <StepHeading focus={focus} className="text-2xl font-semibold tracking-tight sm:text-3xl">
         {m.start.title}
       </StepHeading>
-      <div className="mt-3 flex items-start gap-2 text-neutral-600">
+      <div className="mt-3 flex items-start gap-2 text-neutral-600 dark:text-neutral-400">
         <p>{m.start.promise}</p>
         <InfoTip term="scan" />
       </div>
@@ -51,17 +51,22 @@ export function StartCard({
       >
         {m.start.wholeDisk}
       </button>
-      <p id={hint} className="mt-3 text-sm text-neutral-500">
+      <p id={hint} className="mt-3 text-sm text-neutral-500 dark:text-neutral-400">
         {m.start.wholeDiskHint}
       </p>
       <Disclosure
-        className="mt-8 border-t border-neutral-100 pt-4"
+        className="mt-8 border-t border-neutral-100 pt-4 dark:border-neutral-800"
         summary={
-          <span className="text-sm font-medium text-neutral-700">{m.start.chooseFolders}</span>
+          <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+            {m.start.chooseFolders}
+          </span>
         }
       >
         <form onSubmit={submit} className="space-y-3">
-          <label htmlFor={field} className="block text-sm font-medium text-neutral-700">
+          <label
+            htmlFor={field}
+            className="block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+          >
             {m.start.foldersLabel}
           </label>
           <textarea
@@ -71,7 +76,7 @@ export function StartCard({
             rows={3}
             spellCheck={false}
             placeholder="/Users/you/Library/Developer"
-            className="w-full rounded-xl border border-neutral-300 bg-white p-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-600"
+            className="w-full rounded-xl border border-neutral-300 bg-white p-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-600 dark:border-neutral-600 dark:bg-neutral-950 dark:focus-visible:outline-indigo-400"
           />
           <button type="submit" disabled={roots.length === 0} className={buttonClass("secondary")}>
             {m.start.scanFolders}
