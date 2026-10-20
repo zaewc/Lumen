@@ -67,9 +67,9 @@ pub enum Problem {
     /// A `tool_action` entry without an action.
     #[error("a tool_action entry needs an official_action")]
     MissingAction,
-    /// A `not_regenerable` entry with an action or a finite effort, or a
-    /// regenerable one whose effort is `impossible`.
-    #[error("not_regenerable entries, and only they, have effort `impossible` and no action")]
+    /// A `not_regenerable` entry with a finite effort, or a regenerable one
+    /// whose effort is `impossible`.
+    #[error("not_regenerable entries, and only they, have effort `impossible`")]
     NotRegenerable,
     /// The action's program or arguments are malformed.
     #[error("official_action: program must be a bare name and arguments non-empty and printable")]
@@ -222,7 +222,8 @@ pub(crate) fn entry(entry: &Entry) -> Result<(), Problem> {
         SafetyClass::ToolAction if entry.official_action.is_none() => {
             return Err(Problem::MissingAction);
         }
-        SafetyClass::NotRegenerable if entry.official_action.is_some() || !impossible => {
+        // Its action, if any, frees space inside it and is only shown (ADR-0035).
+        SafetyClass::NotRegenerable if !impossible => {
             return Err(Problem::NotRegenerable);
         }
         SafetyClass::SelfManaged | SafetyClass::ToolAction | SafetyClass::Regenerable
@@ -424,8 +425,8 @@ mod tests {
                 e.regeneration.effort = Effort::Impossible;
                 e.official_action = Some(tool_action());
             }),
-            Err(Problem::NotRegenerable),
-            "irreplaceable data gets no action"
+            Ok(()),
+            "a command that frees space inside irreplaceable data is shown, never run (ADR-0035)"
         );
         assert_eq!(
             check(|e| e.regeneration.effort = Effort::Impossible),

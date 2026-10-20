@@ -169,7 +169,8 @@ pub enum SafetyClass {
     ToolAction,
     /// May be quarantined; the tool regenerates it.
     Regenerable,
-    /// Cannot be regenerated: `REVIEW` only, never an action.
+    /// Cannot be regenerated: `REVIEW` only. Its action, if any, frees space
+    /// inside it without removing it, and is only shown (ADR-0035).
     NotRegenerable,
 }
 

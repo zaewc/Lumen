@@ -25,9 +25,13 @@
   ],
   "safety_class": "not_regenerable",
   "regeneration": { "effort": "impossible", "network": false },
+  "official_action": {
+    "program": "docker",
+    "args": ["system", "prune"]
+  },
   "sources": [
     "https://docs.docker.com/desktop/settings-and-maintenance/backup-and-restore/",
     "https://docs.docker.com/desktop/troubleshoot-and-support/faqs/macfaqs/"
   ],
-  "last_verified": "2026-10-15"
+  "last_verified": "2026-10-20"
 }

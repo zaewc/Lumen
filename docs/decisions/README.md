@@ -43,3 +43,4 @@ recommended option.
 | [0032](0032-test-only-fault-points.md) | Inject executor faults through test-only fault points | Accepted |
 | [0033](0033-windows-executor-mechanics.md) | Build the Windows executor on relative NT opens, confined unsafe code | Accepted |
 | [0034](0034-command-line-plan-confirmation.md) | Confirm cleanup plans from the command line by plan hash | Accepted |
+| [0035](0035-show-tool-commands-never-run-them.md) | Show tools' own cleanup commands; never run them | Accepted |

@@ -277,7 +277,7 @@
           "const": "regenerable"
         },
         {
-          "description": "Cannot be regenerated: `REVIEW` only, never an action.",
+          "description": "Cannot be regenerated: `REVIEW` only. Its action, if any, frees space\ninside it without removing it, and is only shown (ADR-0035).",
           "type": "string",
           "const": "not_regenerable"
         }

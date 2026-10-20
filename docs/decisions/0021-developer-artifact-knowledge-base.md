@@ -50,7 +50,9 @@ Each knowledge-base entry contains:
   dry-run variant, if any);
 - `sources` (official URLs) and `last_verified`.
 
-Tool actions:
+Tool actions (amended by [ADR-0035](0035-show-tool-commands-never-run-them.md):
+for now Lumen only shows the command and never runs it; irreplaceable entries may
+carry a command that frees space inside them):
 
 - Executed as the user, never elevated, with binaries resolved from known install
   locations (no `PATH` hijack) and signatures verified where possible.
