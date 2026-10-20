@@ -24,7 +24,7 @@ Decisions behind it:
 | `StdFsEnumerator` | `lumen-scan` | portable Unix fallback |
 | `BulkEnumerator`, `FsEventsFeed` | `lumen-platform-macos` | `getattrlistbulk`, `FSEvents` |
 | `HandleEnumerator`, `DirectoryChangesFeed` | `lumen-platform-windows` | directory handles, `ReadDirectoryChangesW` |
-| `IndexStore`, `IndexWriter` | `lumen-store-sqlite` | `index.db`, snapshots, resume frontier |
+| `IndexStore`, `IndexWriter` | `lumen-store-sqlite` | `index.db` (each directory path once, entries as directory plus name; upgrading to schema v6 requires a rescan, [performance](performance.md#scan-storage)), snapshots, resume frontier |
 
 ## Invariants
 

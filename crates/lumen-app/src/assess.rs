@@ -292,8 +292,8 @@ impl Assessment {
     ///
     /// [`AssessError::Store`] if `index.db` cannot be read.
     pub fn subtree(&self, path: &RawPath) -> Result<Subtree, AssessError> {
-        // The store returns everything sharing the path's bytes as a prefix;
-        // keep whole segments only (`/a/b`, not `/a/bc`).
+        // The store returns whole segments (`/a/b`, not `/a/bc`); the filter
+        // keeps that a property of this function, not of the store's layout.
         let within = |p: &RawPath| p == path || below(p, path);
         Ok(Subtree {
             entries: self
@@ -325,7 +325,7 @@ impl Assessment {
     }
 }
 
-/// Calls `each` with the scan's entries, a page at a time, in path order.
+/// Calls `each` with the scan's entries, a page at a time, in the store's order.
 fn for_each_page(
     store: &IndexStore,
     scan: ScanId,

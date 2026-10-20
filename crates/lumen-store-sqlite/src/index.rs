@@ -40,20 +40,67 @@ pub struct RootSnapshot {
 }
 
 /// Scan results in `index.db`.
+///
+/// Paths are stored as a directory, kept once per scan, plus a name (schema
+/// v6), so whole-scan reads return rows ordered by flavor, then directory path
+/// bytes, then name bytes: a directory's own entries come before its
+/// subdirectories' (`/a/bc` before `/a/b/c`).
 #[derive(Debug)]
 pub struct IndexStore {
     conn: Connection,
+    /// Directory ids of the scan being written.
+    dirs: DirCache,
 }
 
+mod dirs;
 mod graph;
 mod plans;
+#[cfg(test)]
+mod size;
 
+use dirs::DirCache;
 pub use plans::StoredPlan;
+
+/// An entry query for scan `?1`: its directory and name first, then the
+/// columns [`entry_from_row`] reads. `$filter` narrows it, `$tail` follows the
+/// ordering (a `LIMIT`). The scan's directories drive the join in path order,
+/// so the ordering comes from the indexes, never from a sort.
+macro_rules! select_entries {
+    ($filter:literal, $tail:literal) => {
+        concat!(
+            "SELECT d.flavor, d.path, e.name, e.volume, e.file_id, e.kind, e.logical, e.allocated, e.private,
+                    e.clone_id, e.link_count, e.size_flags, e.protection, e.modified_secs, e.modified_nanos,
+                    e.accessed_secs, e.accessed_nanos, e.changed_secs, e.changed_nanos, e.created_secs,
+                    e.created_nanos, e.access
+             FROM dirs d CROSS JOIN entries e ON e.dir = d.id
+             WHERE d.scan = (SELECT key FROM scans WHERE id = ?1) ",
+            $filter,
+            " ORDER BY d.flavor, d.path, e.name ",
+            $tail
+        )
+    };
+}
+
+/// A listing query for scan `?1`, as [`select_entries`] for entries.
+macro_rules! select_listings {
+    ($filter:literal) => {
+        concat!(
+            "SELECT d.flavor, d.path, l.name, l.access, l.complete
+             FROM dirs d CROSS JOIN listings l ON l.dir = d.id
+             WHERE d.scan = (SELECT key FROM scans WHERE id = ?1) ",
+            $filter,
+            " ORDER BY d.flavor, d.path, l.name"
+        )
+    };
+}
 
 impl IndexStore {
     /// Wraps a connection opened with [`open_index`](crate::open_index).
     pub fn new(conn: Connection) -> Self {
-        Self { conn }
+        Self {
+            conn,
+            dirs: DirCache::default(),
+        }
     }
 
     /// Records the start of a scan and its roots.
@@ -69,8 +116,13 @@ impl IndexStore {
     ) -> Result<(), StoreError> {
         let tx = self.conn.transaction()?;
         tx.execute(
-            "INSERT INTO scans (id, started_secs, started_nanos, state) VALUES (?1, ?2, ?3, 'running')",
-            params![scan.to_string(), started_at.unix_seconds(), started_at.subsec_nanos()],
+            "INSERT INTO scans (id, started_secs, started_nanos, state, key)
+             VALUES (?1, ?2, ?3, 'running', (SELECT coalesce(max(key), 0) + 1 FROM scans))",
+            params![
+                scan.to_string(),
+                started_at.unix_seconds(),
+                started_at.subsec_nanos()
+            ],
         )?;
         {
             let mut insert = tx.prepare_cached(
@@ -94,22 +146,39 @@ impl IndexStore {
     ///
     /// # Errors
     ///
-    /// Returns [`StoreError`] if a value is out of SQLite's range or SQLite
-    /// fails; no entry of the batch is stored then.
+    /// Returns [`StoreError::UnknownScan`] if the scan was never begun, or
+    /// [`StoreError`] if a value is out of SQLite's range or SQLite fails; no
+    /// entry of the batch is stored then.
     pub fn insert_entries(
         &mut self,
         scan: ScanId,
         entries: &[FilesystemEntry],
     ) -> Result<(), StoreError> {
+        let written = self.write_entries(scan, entries);
+        if written.is_err() {
+            // The rollback also removed directories this batch added.
+            self.dirs.clear();
+        }
+        written
+    }
+
+    fn write_entries(
+        &mut self,
+        scan: ScanId,
+        entries: &[FilesystemEntry],
+    ) -> Result<(), StoreError> {
         let tx = self.conn.transaction()?;
+        let key = self.dirs.scan_key(&tx, scan)?;
         {
             let mut insert = tx.prepare_cached(
-                "INSERT OR REPLACE INTO entries (scan_id, flavor, path, volume, file_id, kind, logical, allocated, private, clone_id,
+                "INSERT OR REPLACE INTO entries (dir, name, volume, file_id, kind, logical, allocated, private, clone_id,
                                       link_count, size_flags, protection, modified_secs, modified_nanos, accessed_secs,
                                       accessed_nanos, changed_secs, changed_nanos, created_secs, created_nanos, access)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
             )?;
             for entry in entries {
+                let (dir, name) = dirs::split(&entry.path);
+                let dir = self.dirs.id(&tx, key, entry.path.flavor(), dir)?;
                 let size = &entry.size;
                 let (modified, accessed, changed, created) = (
                     split(entry.times.modified),
@@ -118,9 +187,8 @@ impl IndexStore {
                     split(entry.times.created),
                 );
                 insert.execute(params![
-                    scan.to_string(),
-                    flavor_text(entry.path.flavor()),
-                    entry.path.as_bytes(),
+                    dir,
+                    name,
                     size.identity.volume.as_str(),
                     size.identity.file.get().to_be_bytes(),
                     kind_text(entry.kind),
@@ -154,24 +222,39 @@ impl IndexStore {
     ///
     /// # Errors
     ///
-    /// Returns [`StoreError`] if SQLite fails; no row of the batch is stored
-    /// then.
+    /// Returns [`StoreError::UnknownScan`] if the scan was never begun, or
+    /// [`StoreError`] if SQLite fails; no row of the batch is stored then.
     pub fn insert_listings(
         &mut self,
         scan: ScanId,
         listings: &[(RawPath, DirOutcome)],
     ) -> Result<(), StoreError> {
+        let written = self.write_listings(scan, listings);
+        if written.is_err() {
+            self.dirs.clear();
+        }
+        written
+    }
+
+    fn write_listings(
+        &mut self,
+        scan: ScanId,
+        listings: &[(RawPath, DirOutcome)],
+    ) -> Result<(), StoreError> {
         let tx = self.conn.transaction()?;
+        let key = self.dirs.scan_key(&tx, scan)?;
         {
-            let mut insert = tx
-                .prepare_cached("INSERT OR REPLACE INTO listings (scan_id, flavor, path, access, complete) VALUES (?1, ?2, ?3, ?4, ?5)")?;
+            let mut insert = tx.prepare_cached(
+                "INSERT OR REPLACE INTO listings (dir, name, access, complete) VALUES (?1, ?2, ?3, ?4)",
+            )?;
             for (path, outcome) in listings {
+                let (dir, name) = dirs::split(path);
+                let dir = self.dirs.id(&tx, key, path.flavor(), dir)?;
                 insert.execute(params![
-                    scan.to_string(),
-                    flavor_text(path.flavor()),
-                    path.as_bytes(),
+                    dir,
+                    name,
                     access_text(outcome.access)?,
-                    outcome.complete,
+                    outcome.complete
                 ])?;
             }
         }
@@ -302,56 +385,40 @@ impl IndexStore {
     }
 
     /// Directories of a scan that were discovered but never listed: where an
-    /// interrupted scan resumes. Directories on a different volume than their
-    /// scan root (mount points the scan deliberately skipped) are excluded.
+    /// interrupted scan resumes, in the scan's [order](Self). Directories on a
+    /// different volume than their scan root (mount points the scan
+    /// deliberately skipped) are excluded.
     ///
     /// # Errors
     ///
     /// Returns [`StoreError`] if SQLite fails or a stored value is invalid.
     pub fn frontier(&self, scan: ScanId) -> Result<Vec<PendingDirectory>, StoreError> {
         // Volume of each root, from the root's own stored entry.
-        let mut roots_query = self.conn.prepare_cached(
-            "SELECT r.flavor, r.path, e.volume FROM scan_roots r
-             JOIN entries e ON e.scan_id = r.scan_id AND e.flavor = r.flavor AND e.path = r.path
-             WHERE r.scan_id = ?1",
-        )?;
-        let roots = roots_query
-            .query_map([scan.to_string()], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, Vec<u8>>(1)?,
-                    row.get::<_, String>(2)?,
-                ))
-            })?
-            .map(|row| {
-                let (flavor, path, volume) = row?;
-                let flavor = parse_flavor(&flavor)?;
-                let path = RawPath::from_stored(flavor, path).map_err(|_| corrupt("path"))?;
-                let volume = VolumeId::new(volume).map_err(|_| corrupt("volume"))?;
-                Ok((path, volume))
-            })
-            .collect::<Result<Vec<_>, StoreError>>()?;
+        let mut roots = Vec::new();
+        for root in self.scan_roots(scan)? {
+            if let Some(entry) = self.entry_at(scan, &root)? {
+                roots.push((root, entry.size.identity.volume));
+            }
+        }
 
         let mut pending_query = self.conn.prepare_cached(
-            "SELECT e.flavor, e.path, e.volume, e.file_id FROM entries e
-             WHERE e.scan_id = ?1 AND e.kind = 'directory'
-               AND NOT EXISTS (SELECT 1 FROM listings l
-                               WHERE l.scan_id = e.scan_id AND l.flavor = e.flavor AND l.path = e.path)
-             ORDER BY e.flavor, e.path",
+            "SELECT d.flavor, d.path, e.name, e.volume, e.file_id
+             FROM dirs d CROSS JOIN entries e ON e.dir = d.id
+             WHERE d.scan = (SELECT key FROM scans WHERE id = ?1) AND e.kind = 'directory'
+               AND NOT EXISTS (SELECT 1 FROM listings l WHERE l.dir = e.dir AND l.name = e.name)
+             ORDER BY d.flavor, d.path, e.name",
         )?;
         let rows = pending_query.query_map([scan.to_string()], |row| {
             Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, Vec<u8>>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, Vec<u8>>(3)?,
+                path_from_row(row),
+                row.get::<_, String>(3)?,
+                row.get::<_, Vec<u8>>(4)?,
             ))
         })?;
         let mut pending = Vec::new();
         for row in rows {
-            let (flavor, path, volume, file_id) = row?;
-            let flavor = parse_flavor(&flavor)?;
-            let path = RawPath::from_stored(flavor, path).map_err(|_| corrupt("path"))?;
+            let (path, volume, file_id) = row?;
+            let path = path?;
             let volume = VolumeId::new(volume).map_err(|_| corrupt("volume"))?;
             let file = u128::from_be_bytes(file_id.try_into().map_err(|_| corrupt("file_id"))?);
             let Some(root_volume) = root_volume_for(&roots, &path) else {
@@ -444,27 +511,24 @@ impl IndexStore {
         rows.map(|row| row?).collect()
     }
 
-    /// All entries of a scan, ordered by path bytes.
+    /// All entries of a scan, in the scan's [order](Self).
     ///
     /// # Errors
     ///
     /// Returns [`StoreError::Corrupt`] for any row that fails validation, or
     /// [`StoreError`] if SQLite fails.
     pub fn entries(&self, scan: ScanId) -> Result<Vec<FilesystemEntry>, StoreError> {
-        let mut query = self.conn.prepare_cached(
-            "SELECT flavor, path, volume, file_id, kind, logical, allocated, private, clone_id, link_count, size_flags,
-                    protection, modified_secs, modified_nanos, accessed_secs, accessed_nanos, changed_secs, changed_nanos,
-                    created_secs, created_nanos, access
-             FROM entries WHERE scan_id = ?1 ORDER BY flavor, path",
-        )?;
+        let mut query = self.conn.prepare_cached(select_entries!("", ""))?;
         let rows = query.query_map([scan.to_string()], |row| Ok(entry_from_row(row)))?;
         rows.map(|row| row?).collect()
     }
 
-    /// Up to `limit` entries of a scan that come after `after` in path order
-    /// (flavor, then path bytes), so a whole scan can be read a page at a time
-    /// instead of all at once. Start with `None`; continue from the last path
-    /// of the previous page; an empty page is the end.
+    /// Up to `limit` entries of a scan that come after `after` in the scan's
+    /// [order](Self) (flavor, directory path, name), so a whole scan can be
+    /// read a page at a time instead of all at once. Start with `None`;
+    /// continue from the last path of the previous page; an empty page is the
+    /// end. Each page is an index seek: the rest of `after`'s directory, then
+    /// the directories after it.
     ///
     /// # Errors
     ///
@@ -476,27 +540,69 @@ impl IndexStore {
         after: Option<&RawPath>,
         limit: usize,
     ) -> Result<Vec<FilesystemEntry>, StoreError> {
-        let mut query = self.conn.prepare_cached(
-            "SELECT flavor, path, volume, file_id, kind, logical, allocated, private, clone_id, link_count, size_flags,
-                    protection, modified_secs, modified_nanos, accessed_secs, accessed_nanos, changed_secs, changed_nanos,
-                    created_secs, created_nanos, access
-             FROM entries WHERE scan_id = ?1 AND (flavor, path) > (?2, ?3)
-             ORDER BY flavor, path LIMIT ?4",
-        )?;
-        // Every flavor sorts after the empty text, so `None` starts at the first row.
-        let (flavor, path) =
-            after.map_or(("", &[][..]), |p| (flavor_text(p.flavor()), p.as_bytes()));
-        let limit = i64::try_from(limit).map_err(|_| corrupt("limit"))?;
-        let rows = query.query_map(params![scan.to_string(), flavor, path, limit], |row| {
-            Ok(entry_from_row(row))
-        })?;
-        rows.map(|row| row?).collect()
+        let mut page = Vec::new();
+        // Every flavor sorts after the empty text, so `None` starts at the first
+        // directory.
+        let (flavor, dir) = match after {
+            Some(after) => {
+                let (dir, name) = dirs::split(after);
+                let flavor = flavor_text(after.flavor());
+                let mut query = self.conn.prepare_cached(select_entries!(
+                    "AND d.flavor = ?2 AND d.path = ?3 AND e.name > ?4",
+                    "LIMIT ?5"
+                ))?;
+                let rows = query.query_map(
+                    params![scan.to_string(), flavor, dir, name, sql_limit(limit)?],
+                    |row| Ok(entry_from_row(row)),
+                )?;
+                for row in rows {
+                    page.push(row??);
+                }
+                (flavor, dir)
+            }
+            None => ("", &[][..]),
+        };
+        let rest = limit.saturating_sub(page.len());
+        if rest > 0 {
+            let mut query = self.conn.prepare_cached(select_entries!(
+                "AND (d.flavor, d.path) > (?2, ?3)",
+                "LIMIT ?4"
+            ))?;
+            let rows = query.query_map(
+                params![scan.to_string(), flavor, dir, sql_limit(rest)?],
+                |row| Ok(entry_from_row(row)),
+            )?;
+            for row in rows {
+                page.push(row??);
+            }
+        }
+        Ok(page)
     }
 
-    /// The entries of a scan whose path starts with `dir`'s bytes, in path
-    /// order: `dir` itself, everything below it, and siblings that merely share
-    /// the prefix (`/a/bc` for `/a/b`), which callers filter by whole segments.
-    /// A range on the primary key, so only that part of the scan is read.
+    /// The entry stored for exactly `path`, if any.
+    fn entry_at(
+        &self,
+        scan: ScanId,
+        path: &RawPath,
+    ) -> Result<Option<FilesystemEntry>, StoreError> {
+        let (dir, name) = dirs::split(path);
+        let mut query = self.conn.prepare_cached(select_entries!(
+            "AND d.flavor = ?2 AND d.path = ?3 AND e.name = ?4",
+            ""
+        ))?;
+        query
+            .query_row(
+                params![scan.to_string(), flavor_text(path.flavor()), dir, name],
+                |row| Ok(entry_from_row(row)),
+            )
+            .optional()?
+            .transpose()
+    }
+
+    /// The entries of a scan at and below `dir` (whole segments: `/a/b` and
+    /// `/a/b/c`, never `/a/bc`), in the scan's [order](Self). Index seeks
+    /// only: `dir`'s own entry, then a range of directory paths, so only that
+    /// part of the scan is read.
     ///
     /// # Errors
     ///
@@ -507,36 +613,28 @@ impl IndexStore {
         scan: ScanId,
         dir: &RawPath,
     ) -> Result<Vec<FilesystemEntry>, StoreError> {
-        // Both bounds are bound values, so SQLite seeks the range on the
-        // primary key instead of reading to the end of the scan.
-        let end = prefix_end(dir.as_bytes());
-        let mut query = self.conn.prepare_cached(if end.is_some() {
-            "SELECT flavor, path, volume, file_id, kind, logical, allocated, private, clone_id, link_count, size_flags,
-                    protection, modified_secs, modified_nanos, accessed_secs, accessed_nanos, changed_secs, changed_nanos,
-                    created_secs, created_nanos, access
-             FROM entries WHERE scan_id = ?1 AND flavor = ?2 AND path >= ?3 AND path < ?4
-             ORDER BY flavor, path"
-        } else {
-            "SELECT flavor, path, volume, file_id, kind, logical, allocated, private, clone_id, link_count, size_flags,
-                    protection, modified_secs, modified_nanos, accessed_secs, accessed_nanos, changed_secs, changed_nanos,
-                    created_secs, created_nanos, access
-             FROM entries WHERE scan_id = ?1 AND flavor = ?2 AND path >= ?3 AND ?4 IS NULL
-             ORDER BY flavor, path"
-        })?;
+        let (start, end) = dirs::below_range(dir);
+        let mut within = Vec::new();
+        // `dir`'s own entry, unless the range holds it (`/` is in `/`).
+        if !dirs::split(dir).0.starts_with(&start) {
+            within.extend(self.entry_at(scan, dir)?);
+        }
+        let mut query = self.conn.prepare_cached(select_entries!(
+            "AND d.flavor = ?2 AND d.path >= ?3 AND d.path < ?4",
+            ""
+        ))?;
         let rows = query.query_map(
-            params![
-                scan.to_string(),
-                flavor_text(dir.flavor()),
-                dir.as_bytes(),
-                end
-            ],
+            params![scan.to_string(), flavor_text(dir.flavor()), start, end],
             |row| Ok(entry_from_row(row)),
         )?;
-        rows.map(|row| row?).collect()
+        for row in rows {
+            within.push(row??);
+        }
+        Ok(within)
     }
 
-    /// The listing outcomes of a scan whose path starts with `dir`'s bytes, as
-    /// for [`Self::entries_within`].
+    /// The listing outcomes of a scan at and below `dir`, as for
+    /// [`Self::entries_within`].
     ///
     /// # Errors
     ///
@@ -547,29 +645,35 @@ impl IndexStore {
         scan: ScanId,
         dir: &RawPath,
     ) -> Result<Vec<(RawPath, DirOutcome)>, StoreError> {
-        let end = prefix_end(dir.as_bytes());
-        let mut query = self.conn.prepare_cached(if end.is_some() {
-            "SELECT flavor, path, access, complete FROM listings
-             WHERE scan_id = ?1 AND flavor = ?2 AND path >= ?3 AND path < ?4
-             ORDER BY flavor, path"
-        } else {
-            "SELECT flavor, path, access, complete FROM listings
-             WHERE scan_id = ?1 AND flavor = ?2 AND path >= ?3 AND ?4 IS NULL
-             ORDER BY flavor, path"
+        let (start, end) = dirs::below_range(dir);
+        let mut within = Vec::new();
+        let (own_dir, own_name) = dirs::split(dir);
+        let flavor = flavor_text(dir.flavor());
+        if !own_dir.starts_with(&start) {
+            let mut query = self.conn.prepare_cached(select_listings!(
+                "AND d.flavor = ?2 AND d.path = ?3 AND l.name = ?4"
+            ))?;
+            let own = query
+                .query_row(
+                    params![scan.to_string(), flavor, own_dir, own_name],
+                    |row| Ok(listing_from_row(row)),
+                )
+                .optional()?;
+            within.extend(own.transpose()?);
+        }
+        let mut query = self.conn.prepare_cached(select_listings!(
+            "AND d.flavor = ?2 AND d.path >= ?3 AND d.path < ?4"
+        ))?;
+        let rows = query.query_map(params![scan.to_string(), flavor, start, end], |row| {
+            Ok(listing_from_row(row))
         })?;
-        let rows = query.query_map(
-            params![
-                scan.to_string(),
-                flavor_text(dir.flavor()),
-                dir.as_bytes(),
-                end
-            ],
-            listing_row,
-        )?;
-        rows.map(|row| listing_from(row?)).collect()
+        for row in rows {
+            within.push(row??);
+        }
+        Ok(within)
     }
 
-    /// Every directory listing outcome of a scan, ordered by path bytes
+    /// Every directory listing outcome of a scan, in the scan's [order](Self)
     /// (roadmap 10.7): how completely each directory was read.
     ///
     /// # Errors
@@ -577,31 +681,33 @@ impl IndexStore {
     /// Returns [`StoreError::Corrupt`] for any row that fails validation, or
     /// [`StoreError`] if SQLite fails.
     pub fn listings(&self, scan: ScanId) -> Result<Vec<(RawPath, DirOutcome)>, StoreError> {
-        let mut query = self.conn.prepare_cached(
-            "SELECT flavor, path, access, complete FROM listings WHERE scan_id = ?1 ORDER BY flavor, path",
-        )?;
-        let rows = query.query_map([scan.to_string()], listing_row)?;
-        rows.map(|row| listing_from(row?)).collect()
+        let mut query = self.conn.prepare_cached(select_listings!(""))?;
+        let rows = query.query_map([scan.to_string()], |row| Ok(listing_from_row(row)))?;
+        rows.map(|row| row?).collect()
     }
 }
 
-/// One `listings` row's columns: flavor, path, access, complete.
-type ListingRow = (String, Vec<u8>, String, bool);
-
-fn listing_row(row: &Row<'_>) -> rusqlite::Result<ListingRow> {
-    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+/// A `LIMIT` value.
+fn sql_limit(limit: usize) -> Result<i64, StoreError> {
+    i64::try_from(limit).map_err(|_| corrupt("limit"))
 }
 
-fn listing_from(
-    (flavor, path, access, complete): ListingRow,
-) -> Result<(RawPath, DirOutcome), StoreError> {
-    let path =
-        RawPath::from_stored(parse_flavor(&flavor)?, path).map_err(|_| corrupt("listings.path"))?;
+/// The path of a row whose first three columns are flavor, directory path and
+/// name.
+fn path_from_row(row: &Row<'_>) -> Result<RawPath, StoreError> {
+    let flavor = parse_flavor(&row.get::<_, String>(0)?)?;
+    let mut path: Vec<u8> = row.get(1)?;
+    path.extend_from_slice(&row.get::<_, Vec<u8>>(2)?);
+    RawPath::from_stored(flavor, path).map_err(|_| corrupt("path"))
+}
+
+/// A listing row: flavor, directory path, name, access, complete.
+fn listing_from_row(row: &Row<'_>) -> Result<(RawPath, DirOutcome), StoreError> {
     Ok((
-        path,
+        path_from_row(row)?,
         DirOutcome {
-            access: parse_access(&access)?,
-            complete,
+            access: parse_access(&row.get::<_, String>(3)?)?,
+            complete: row.get(4)?,
         },
     ))
 }
@@ -800,50 +906,50 @@ fn parse_access(text: &str) -> Result<AccessState, StoreError> {
     serde_json::from_str(text).map_err(|_| corrupt("access"))
 }
 
+/// An entry row: flavor, directory path and name, then the entry's columns.
 fn entry_from_row(row: &Row<'_>) -> Result<FilesystemEntry, StoreError> {
-    let flavor = parse_flavor(&row.get::<_, String>(0)?)?;
-    let path = RawPath::from_stored(flavor, row.get(1)?).map_err(|_| corrupt("path"))?;
-    let volume = VolumeId::new(row.get::<_, String>(2)?).map_err(|_| corrupt("volume"))?;
-    let file_bytes: Vec<u8> = row.get(3)?;
+    let path = path_from_row(row)?;
+    let volume = VolumeId::new(row.get::<_, String>(3)?).map_err(|_| corrupt("volume"))?;
+    let file_bytes: Vec<u8> = row.get(4)?;
     let file = u128::from_be_bytes(file_bytes.try_into().map_err(|_| corrupt("file_id"))?);
     let clone_id = row
-        .get::<_, Option<Vec<u8>>>(8)?
+        .get::<_, Option<Vec<u8>>>(9)?
         .map(|b| {
             <[u8; 8]>::try_from(b)
                 .map(|b| CloneId::new(u64::from_be_bytes(b)))
                 .map_err(|_| corrupt("clone_id"))
         })
         .transpose()?;
-    let link_count = u32::try_from(row.get::<_, i64>(9)?)
+    let link_count = u32::try_from(row.get::<_, i64>(10)?)
         .ok()
         .and_then(NonZeroU32::new)
         .ok_or_else(|| corrupt("link_count"))?;
     Ok(FilesystemEntry {
         path,
-        kind: parse_kind(&row.get::<_, String>(4)?)?,
+        kind: parse_kind(&row.get::<_, String>(5)?)?,
         size: SizeFacts {
             identity: FileIdentity {
                 volume,
                 file: FileId::new(file),
             },
-            logical: ByteCount::new(from_i64("logical", row.get(5)?)?),
-            allocated: ByteCount::new(from_i64("allocated", row.get(6)?)?),
+            logical: ByteCount::new(from_i64("logical", row.get(6)?)?),
+            allocated: ByteCount::new(from_i64("allocated", row.get(7)?)?),
             private: row
-                .get::<_, Option<i64>>(7)?
+                .get::<_, Option<i64>>(8)?
                 .map(|p| from_i64("private", p).map(ByteCount::new))
                 .transpose()?,
             clone_id,
             link_count,
-            flags: size_flags_from(row.get(10)?),
+            flags: size_flags_from(row.get(11)?),
         },
         times: EntryTimes {
-            modified: join_time("modified", row.get(12)?, row.get(13)?)?,
-            accessed: join_time("accessed", row.get(14)?, row.get(15)?)?,
-            changed: join_time("changed", row.get(16)?, row.get(17)?)?,
-            created: join_time("created", row.get(18)?, row.get(19)?)?,
+            modified: join_time("modified", row.get(13)?, row.get(14)?)?,
+            accessed: join_time("accessed", row.get(15)?, row.get(16)?)?,
+            changed: join_time("changed", row.get(17)?, row.get(18)?)?,
+            created: join_time("created", row.get(19)?, row.get(20)?)?,
         },
-        protection: protection_from(row.get(11)?),
-        access: parse_access(&row.get::<_, String>(20)?)?,
+        protection: protection_from(row.get(12)?),
+        access: parse_access(&row.get::<_, String>(21)?)?,
     })
 }
 
@@ -890,6 +996,12 @@ mod tests {
         }
     }
 
+    /// The scan's order: flavor, directory path, name.
+    fn order(path: &RawPath) -> (&'static str, &[u8], &[u8]) {
+        let (dir, name) = dirs::split(path);
+        (flavor_text(path.flavor()), dir, name)
+    }
+
     #[test]
     fn entries_round_trip_including_extremes() -> Result<(), Box<dyn std::error::Error>> {
         let (_fx, mut store) = store()?;
@@ -932,10 +1044,7 @@ mod tests {
         store.insert_entries(scan, &[rich.clone(), windows.clone(), plain.clone()])?;
 
         let mut expected = vec![plain, rich, windows];
-        expected.sort_by(|a, b| {
-            (flavor_text(a.path.flavor()), a.path.as_bytes())
-                .cmp(&(flavor_text(b.path.flavor()), b.path.as_bytes()))
-        });
+        expected.sort_by(|a, b| order(&a.path).cmp(&order(&b.path)));
         assert_eq!(store.entries(scan)?, expected);
         Ok(())
     }
@@ -972,6 +1081,9 @@ mod tests {
             ),
             ("modified", "UPDATE entries SET modified_secs = 0"),
             ("logical", "UPDATE entries SET logical = -1"),
+            ("path", "UPDATE entries SET name = x'00'"),
+            ("path", "UPDATE dirs SET flavor = 'windows', path = x'ff'"),
+            ("flavor", "UPDATE dirs SET flavor = 'dos'"),
         ] {
             let (_fx, mut store) = store()?;
             let scan = scan_id(3);
@@ -1073,80 +1185,197 @@ mod tests {
         RawPath::from_unix_bytes(p.to_vec()).unwrap_or_else(|_| unreachable!())
     }
 
+    /// `EXPLAIN QUERY PLAN` of `sql` with `params`, one step per line.
+    fn plan(
+        store: &IndexStore,
+        sql: &str,
+        params: impl rusqlite::Params,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        Ok(store
+            .conn
+            .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))?
+            .query_map(params, |row| row.get::<_, String>(3))?
+            .collect::<Result<Vec<_>, _>>()?
+            .join("\n"))
+    }
+
     #[test]
     fn a_scan_reads_back_page_by_page_and_by_subtree() -> Result<(), Box<dyn std::error::Error>> {
         let (_fx, mut store) = store()?;
         let scan = scan_id(9);
         store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[])?;
-        let paths: [&[u8]; 6] = [b"/a", b"/a/b", b"/a/b/c", b"/a/bc", b"/a/c", b"/z"];
+        let paths: [&[u8]; 10] = [
+            b"/",
+            b"/a",
+            b"/a/b",
+            b"/a/b/c",
+            b"/a/b/d",
+            b"/a/bc",
+            b"/a/c",
+            b"/a/c/x/y",
+            b"/z",
+            b"rel",
+        ];
         let entries: Vec<FilesystemEntry> =
             paths.iter().zip(1..).map(|(p, n)| entry(p, n)).collect();
         store.insert_entries(scan, &entries)?;
-        let listed = |p: &[u8]| {
-            (
-                raw(p),
-                DirOutcome {
-                    access: AccessState::Readable,
-                    complete: true,
-                },
-            )
-        };
-        store.insert_listings(
-            scan,
-            &[
-                listed(b"/a"),
-                listed(b"/a/b"),
-                listed(b"/a/bc"),
-                listed(b"/z"),
+        // Another scan's rows never show.
+        store.begin_scan(scan_id(10), Timestamp::UNIX_EPOCH, &[])?;
+        store.insert_entries(scan_id(10), &[entry(b"/a/b/c", 99), entry(b"/a/b/e", 98)])?;
+        let all = store.entries(scan)?;
+        let ordered: Vec<&[u8]> = all.iter().map(|e| e.path.as_bytes()).collect();
+        assert_eq!(
+            ordered,
+            [
+                &b"rel"[..],
+                b"/",
+                b"/a",
+                b"/z",
+                b"/a/b",
+                b"/a/bc",
+                b"/a/c",
+                b"/a/b/c",
+                b"/a/b/d",
+                b"/a/c/x/y"
             ],
-        )?;
-
-        let mut paged = Vec::new();
-        let mut after: Option<RawPath> = None;
-        loop {
-            let page = store.entries_page(scan, after.as_ref(), 4)?;
-            let Some(last) = page.last() else { break };
-            after = Some(last.path.clone());
-            paged.extend(page);
+            "by directory path, then name"
+        );
+        for size in 1..=all.len() + 1 {
+            let mut paged = Vec::new();
+            let mut after: Option<RawPath> = None;
+            loop {
+                let page = store.entries_page(scan, after.as_ref(), size)?;
+                assert!(page.len() <= size);
+                let Some(last) = page.last() else { break };
+                after = Some(last.path.clone());
+                paged.extend(page);
+            }
+            assert_eq!(paged, all, "pages of {size} cover the scan once, in order");
         }
-        assert_eq!(
-            paged,
-            store.entries(scan)?,
-            "pages cover the scan once, in order"
-        );
 
-        let within: Vec<Vec<u8>> = store
-            .entries_within(scan, &raw(b"/a/b"))?
-            .iter()
-            .map(|e| e.path.as_bytes().to_vec())
-            .collect();
+        let within = |dir: &[u8]| -> Result<Vec<Vec<u8>>, StoreError> {
+            Ok(store
+                .entries_within(scan, &raw(dir))?
+                .iter()
+                .map(|e| e.path.as_bytes().to_vec())
+                .collect())
+        };
         assert_eq!(
-            within,
-            [&b"/a/b"[..], b"/a/b/c", b"/a/bc"],
-            "prefix, filtered by callers"
+            within(b"/a/b")?,
+            [&b"/a/b"[..], b"/a/b/c", b"/a/b/d"],
+            "whole segments"
         );
+        assert_eq!(within(b"/a/b/")?, [&b"/a/b/c"[..], b"/a/b/d"]);
+        assert_eq!(within(b"/a/c")?, [&b"/a/c"[..], b"/a/c/x/y"]);
+        assert_eq!(within(b"/a/b/c")?, [b"/a/b/c"]);
+        assert_eq!(within(b"/nowhere")?, Vec::<Vec<u8>>::new());
+        assert_eq!(within(b"/")?.len(), 9, "the root and everything absolute");
+        assert_eq!(prefix_end(b"ab"), Some(b"ac".to_vec()));
+        assert_eq!(prefix_end(&[b'a', 0xFF]), Some(b"b".to_vec()));
+        assert_eq!(prefix_end(&[0xFF, 0xFF]), None);
+        Ok(())
+    }
+
+    #[test]
+    fn listings_read_back_by_subtree() -> Result<(), Box<dyn std::error::Error>> {
+        let (_fx, mut store) = store()?;
+        let scan = scan_id(9);
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[])?;
+        let readable = DirOutcome {
+            access: AccessState::Readable,
+            complete: true,
+        };
+        let listed: Vec<(RawPath, DirOutcome)> = [&b"/a"[..], b"/a/b", b"/a/bc", b"/z"]
+            .into_iter()
+            .map(|p| (raw(p), readable))
+            .collect();
+        store.insert_listings(scan, &listed)?;
         let listed_within: Vec<RawPath> = store
             .listings_within(scan, &raw(b"/a/b"))?
             .into_iter()
             .map(|(p, _)| p)
             .collect();
-        assert_eq!(listed_within, [raw(b"/a/b"), raw(b"/a/bc")]);
-        let plan: String = store
-            .conn
-            .prepare(
-                "EXPLAIN QUERY PLAN SELECT path FROM entries
-                 WHERE scan_id = ?1 AND flavor = ?2 AND path >= ?3 AND path < ?4",
-            )?
-            .query_map(
-                params!["s", "unix", b"/a".as_slice(), b"/b".as_slice()],
-                |row| row.get::<_, String>(3),
-            )?
-            .collect::<Result<Vec<_>, _>>()?
-            .join("; ");
-        assert!(plan.contains("path>? AND path<?"), "a range seek: {plan}");
-        assert_eq!(prefix_end(b"ab"), Some(b"ac".to_vec()));
-        assert_eq!(prefix_end(&[b'a', 0xFF]), Some(b"b".to_vec()));
-        assert_eq!(prefix_end(&[0xFF, 0xFF]), None);
+        assert_eq!(listed_within, [raw(b"/a/b")]);
+        let listed_within: Vec<RawPath> = store
+            .listings_within(scan, &raw(b"/a"))?
+            .into_iter()
+            .map(|(p, _)| p)
+            .collect();
+        assert_eq!(listed_within, [raw(b"/a"), raw(b"/a/b"), raw(b"/a/bc")]);
+        assert_eq!(store.listings(scan)?.len(), 4);
+        Ok(())
+    }
+
+    #[test]
+    fn pages_and_subtrees_are_index_seeks_not_sorts() -> Result<(), Box<dyn std::error::Error>> {
+        let (_fx, store) = store()?;
+        let seeks = |sql: &str, plan: &str, dir_seek: &str, inner: &str| {
+            assert!(plan.contains(dir_seek), "{sql}:\n{plan}");
+            assert!(plan.contains(inner), "{sql}:\n{plan}");
+            assert!(!plan.contains("TEMP B-TREE"), "{sql}:\n{plan}");
+            assert!(!plan.contains("SCAN "), "{sql}:\n{plan}");
+        };
+        // The rest of a page's last directory, then the directories after it.
+        let sql = select_entries!(
+            "AND d.flavor = ?2 AND d.path = ?3 AND e.name > ?4",
+            "LIMIT ?5"
+        );
+        let p = plan(
+            &store,
+            sql,
+            params!["s", "unix", b"/a/".as_slice(), b"b".as_slice(), 10],
+        )?;
+        seeks(
+            sql,
+            &p,
+            "(scan=? AND flavor=? AND path=?)",
+            "SEARCH e USING PRIMARY KEY (dir=? AND name>?)",
+        );
+        let sql = select_entries!("AND (d.flavor, d.path) > (?2, ?3)", "LIMIT ?4");
+        let p = plan(&store, sql, params!["s", "unix", b"/a/".as_slice(), 10])?;
+        seeks(
+            sql,
+            &p,
+            "(scan=? AND (flavor,path)>(?,?))",
+            "SEARCH e USING PRIMARY KEY (dir=?)",
+        );
+        // A subtree: its own entry, then a range of directory paths.
+        let sql = select_entries!("AND d.flavor = ?2 AND d.path = ?3 AND e.name = ?4", "");
+        let p = plan(
+            &store,
+            sql,
+            params!["s", "unix", b"/a/".as_slice(), b"b".as_slice()],
+        )?;
+        seeks(
+            sql,
+            &p,
+            "(scan=? AND flavor=? AND path=?)",
+            "SEARCH e USING PRIMARY KEY (dir=? AND name=?)",
+        );
+        let sql = select_entries!("AND d.flavor = ?2 AND d.path >= ?3 AND d.path < ?4", "");
+        let p = plan(
+            &store,
+            sql,
+            params!["s", "unix", b"/a/b/".as_slice(), b"/a/b0".as_slice()],
+        )?;
+        seeks(
+            sql,
+            &p,
+            "(scan=? AND flavor=? AND path>? AND path<?)",
+            "SEARCH e USING PRIMARY KEY (dir=?)",
+        );
+        let sql = select_listings!("AND d.flavor = ?2 AND d.path >= ?3 AND d.path < ?4");
+        let p = plan(
+            &store,
+            sql,
+            params!["s", "unix", b"/a/b/".as_slice(), b"/a/b0".as_slice()],
+        )?;
+        seeks(
+            sql,
+            &p,
+            "(scan=? AND flavor=? AND path>? AND path<?)",
+            "SEARCH l USING PRIMARY KEY (dir=?)",
+        );
         Ok(())
     }
 

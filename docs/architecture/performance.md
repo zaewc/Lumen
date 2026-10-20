@@ -88,12 +88,59 @@ on `main` at #320 (identity index dropped, unreachable facts not gathered):
 | assess | 36 s | 4.7 GB | 234 candidates: 25 proposed for quarantine (9.2 GB), 172 for review, 37 kept |
 | assess, streamed (13.h) | 25 s | 1.0 GB | identical output (`diff` of the two runs on the same database is empty) |
 
-Storage per entry is dominated by the full path (about 240 B on this disk); a
-directory table plus names would save about 30% more (roadmap 13.c). The assessment
+Storage per entry was dominated by the full path (about 240 B on this disk); see
+[Scan storage](#scan-storage) for the directory table that replaced it. The assessment
 first loaded every entry to find candidates and measure their subtrees (4.7–5.0 GB).
 It now reads the scan in pages of 50,000 to find candidates and reads each
 candidate's subtree by a primary-key range when it is decided (13.h), so memory
 follows the page and the largest candidate, not the disk.
+
+## Scan storage (2026-10-20, schema v6)
+
+`index.db` schema v6 (roadmap 13.17) stores each directory path of a scan once, in
+`dirs`, and every entry and listing as (directory, name): the path split after its
+last separator (`/` for Unix, `\` for Windows paths). Directories refer to their scan
+by a small integer key instead of its 36-character ID, and entries and listings
+carry neither the scan nor the flavor.
+
+Measured with the ignored test `index::size::bytes_per_entry` (200,007 synthetic
+entries, 23,505 directories 9 to 15 levels deep, average path 247 B, inserted in
+batches of 2,048 as the writer does):
+
+| Layout | Bytes per entry | Of which |
+| --- | --- | --- |
+| v5: full path per entry and listing | 597 | entries 550, listings 46 |
+| v6: directory table plus names | 217 (−64%) | entries 144, directory paths 29 plus their index 37, listings 6 |
+
+The synthetic tree's names arrive in random order, so its pages are less full than
+the real whole-disk scan's (365 B per entry with v5); the saving per entry, about
+the path length less a name, is what carries over.
+
+On the real disk (same machine, `main` at #328 against v6, run one after the other):
+
+| Scan | v5 | v6 |
+| --- | --- | --- |
+| `~/Library/Developer`, `index.db` | 112 MB | 56 MB (−50%) |
+| whole disk, `index.db` | 1,777 MB | 978 MB (−45%) |
+| whole disk, scan time | 100 s | 71 s |
+| whole disk, `assess` | 23.9 s, 1.36 GB peak | 22.3 s, 1.41 GB peak |
+
+`assess` and `plan` outputs were identical for `~/Library/Developer`; on the whole
+disk the only differences were two folders whose contents changed between the runs.
+
+Reads keep to index seeks (checked by `EXPLAIN QUERY PLAN` in the store's tests): a
+whole scan walks the directory index in path order and each directory's entries by
+primary key, so it is returned by flavor, directory path, then name (`/a/bc` before
+`/a/b/c`) without a sort. `entries_page` continues from the last entry's directory and
+name; `entries_within` and `listings_within` read the directory's own row and then the
+range of directory paths below it, so they return whole segments only.
+
+**Upgrading rescans.** Old rows cannot be split into directories and names in SQL, so
+the v6 migration drops them and marks every scan that had them (created, running,
+paused, completed) `failed`: such a scan is never assessed or resumed, and the user
+scans again. Scan records, snapshots (history), plans and the evidence graph are
+kept. The freed pages are reused by the next scan; the file itself shrinks only on
+`VACUUM`.
 
 ## How to measure a real tree
 

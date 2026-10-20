@@ -2,7 +2,8 @@
 //!
 //! Two database files with different durability:
 //!
-//! - `index.db`: scans, entries and listings. Rebuildable by rescanning, so it
+//! - `index.db`: scans, entries and listings (each directory path stored once,
+//!   entries and listings as directory plus name). Rebuildable by rescanning, so it
 //!   uses `synchronous=NORMAL`.
 //! - `ledger.db`: audit records (Jev traces and the quarantine journal),
 //!   append-only and `synchronous=FULL`.
@@ -44,6 +45,7 @@ const INDEX_MIGRATIONS: &[M<'static>] = &[
     M::up(include_str!(
         "migrations/index/0005_drop_identity_index.sql"
     )),
+    M::up(include_str!("migrations/index/0006_directories.sql")),
 ];
 
 /// Migrations for `ledger.db`, in order. Never edit a released migration; add a
@@ -241,7 +243,7 @@ mod tests {
     #[test]
     fn opening_applies_schema_and_hardening() -> Result<(), Box<dyn std::error::Error>> {
         let (_fx, conn) = fresh()?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 5);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 6);
         assert_eq!(
             pragma::<String>(&conn, "journal_mode")?.to_lowercase(),
             "wal"
@@ -254,8 +256,7 @@ mod tests {
     }
 
     #[test]
-    fn entries_are_read_by_primary_key_without_an_identity_index()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn a_scan_is_read_in_order_by_index_without_a_sort() -> Result<(), Box<dyn std::error::Error>> {
         let (_fx, conn) = fresh()?;
         let indexes: i64 = conn.query_row(
             "SELECT count(*) FROM sqlite_schema WHERE type = 'index' AND name = 'entries_by_identity'",
@@ -265,12 +266,20 @@ mod tests {
         assert_eq!(indexes, 0);
         let plan: Vec<String> = conn
             .prepare(
-                "EXPLAIN QUERY PLAN SELECT path FROM entries WHERE scan_id = ?1 ORDER BY flavor, path",
+                "EXPLAIN QUERY PLAN SELECT d.path, e.name FROM dirs d CROSS JOIN entries e ON e.dir = d.id
+                 WHERE d.scan = (SELECT key FROM scans WHERE id = ?1) ORDER BY d.flavor, d.path, e.name",
             )?
             .query_map(["s"], |row| row.get::<_, String>(3))?
             .collect::<Result<_, _>>()?;
         let plan = plan.join("; ");
-        assert!(plan.contains("PRIMARY KEY"), "{plan}");
+        assert!(
+            plan.contains("SEARCH d USING COVERING INDEX sqlite_autoindex_dirs_1 (scan=?)"),
+            "{plan}"
+        );
+        assert!(
+            plan.contains("SEARCH e USING PRIMARY KEY (dir=?)"),
+            "{plan}"
+        );
         assert!(!plan.contains("TEMP B-TREE"), "no sort needed: {plan}");
         Ok(())
     }
@@ -281,7 +290,7 @@ mod tests {
         let path = fx.path("index.db")?;
         drop(open_index(&path)?);
         let conn = open_index(&path)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 5);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 6);
         Ok(())
     }
 
@@ -299,11 +308,40 @@ mod tests {
             .execute("INSERT INTO scans (id, started_secs, started_nanos, state) VALUES (?1, 0, 1000000000, 'running')", [id])
             .is_err());
         conn.execute("INSERT INTO scans (id, started_secs, started_nanos, state) VALUES (?1, 0, 0, 'running')", [id])?;
+        // A directory belongs to an existing scan, by its key.
+        let dir = "INSERT INTO dirs (id, scan, flavor, path) VALUES (1, ?1, 'unix', x'2f')";
+        assert!(conn.execute(dir, [7]).is_err());
+        conn.execute("UPDATE scans SET key = 7", [])?;
+        assert!(
+            conn.execute(
+                "INSERT INTO dirs (scan, flavor, path) VALUES (7, 'dos', x'2f')",
+                []
+            )
+            .is_err()
+        );
+        conn.execute(dir, [7])?;
         // CHECK: a file always has at least one link.
-        let entry = "INSERT INTO entries (scan_id, flavor, path, volume, file_id, kind, logical, allocated, link_count, size_flags, protection, access)
-                     VALUES (?1, 'unix', x'2f61', 'v', zeroblob(16), 'file', 1, 1, ?2, 0, 0, 'readable')";
-        assert!(conn.execute(entry, rusqlite::params![id, 0]).is_err());
-        conn.execute(entry, rusqlite::params![id, 1])?;
+        let entry = "INSERT INTO entries (dir, name, volume, file_id, kind, logical, allocated, link_count, size_flags, protection, access)
+                     VALUES (?1, x'61', 'v', zeroblob(16), 'file', 1, 1, ?2, 0, 0, 'readable')";
+        assert!(conn.execute(entry, rusqlite::params![1, 0]).is_err());
+        assert!(
+            conn.execute(entry, rusqlite::params![2, 1]).is_err(),
+            "no such directory"
+        );
+        conn.execute(entry, rusqlite::params![1, 1])?;
+        // Deleting the scan deletes its directories, entries and listings.
+        conn.execute(
+            "INSERT INTO listings (dir, name, access, complete) VALUES (1, x'61', 'readable', 1)",
+            [],
+        )?;
+        conn.execute("DELETE FROM scans", [])?;
+        for table in ["dirs", "entries", "listings"] {
+            let rows: i64 =
+                conn.query_row(&format!("SELECT count(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })?;
+            assert_eq!(rows, 0, "{table}");
+        }
         Ok(())
     }
 
@@ -334,9 +372,77 @@ mod tests {
             assert_eq!(pragma::<i64>(&conn, "user_version")?, 1);
         }
         let conn = open_index(&path)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 5);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 6);
         let scans: i64 = conn.query_row("SELECT count(*) FROM scans", [], |row| row.get(0))?;
         assert_eq!(scans, 1, "existing data survives the upgrade");
+        Ok(())
+    }
+
+    #[test]
+    fn version_5_scans_must_be_rescanned_but_history_and_plans_survive()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let fx = Fixture::build(&[])?;
+        let path = fx.path("index.db")?;
+        {
+            // A database as the v5 release left it: scans in every state, one
+            // completed scan's rows, its snapshot, and a plan.
+            let mut conn = Connection::open(&path)?;
+            harden(&conn, Durability::Normal)?;
+            Migrations::from_slice(&INDEX_MIGRATIONS[..5]).to_latest(&mut conn)?;
+            conn.execute_batch(
+                "INSERT INTO scans (id, started_secs, started_nanos, finished_secs, finished_nanos, state) VALUES
+                     ('0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0e01', 0, 0, 1, 0, 'completed'),
+                     ('0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0e02', 2, 0, NULL, NULL, 'running'),
+                     ('0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0e03', 3, 0, 4, 0, 'cancelled');
+                 INSERT INTO scan_roots (scan_id, flavor, path) VALUES ('0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0e01', 'unix', x'2f72');
+                 INSERT INTO entries (scan_id, flavor, path, volume, file_id, kind, logical, allocated, link_count,
+                                      size_flags, protection, access)
+                     VALUES ('0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0e01', 'unix', x'2f72', 'v', zeroblob(16), 'directory',
+                             1, 1, 1, 0, 0, '{\"state\":\"readable\"}');
+                 INSERT INTO listings (scan_id, flavor, path, access, complete)
+                     VALUES ('0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0e01', 'unix', x'2f72', 'x', 1);
+                 INSERT INTO snapshots (id, scan_id, taken_secs, taken_nanos, flavor, root, files, logical, allocated,
+                                        reclaimable, exact, complete)
+                     VALUES ('0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0f01', '0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0e01', 1, 0,
+                             'unix', x'2f72', 1, 1, 1, 0, 1, 1);
+                 INSERT INTO plans (id, hash, body, state) VALUES ('0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0f02', 'h', x'7b7d', x'7b7d');",
+            )?;
+        }
+        let conn = open_index(&path)?;
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 6);
+        let states: Vec<(String, Option<i64>)> = conn
+            .prepare("SELECT state, key FROM scans ORDER BY id")?
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<_, _>>()?;
+        assert_eq!(
+            states,
+            [
+                ("failed".to_owned(), Some(1)),
+                ("failed".to_owned(), Some(2)),
+                ("cancelled".to_owned(), Some(3))
+            ],
+            "never assessed nor resumed without their rows"
+        );
+        for (table, expected) in [
+            ("dirs", 0),
+            ("entries", 0),
+            ("listings", 0),
+            ("scan_roots", 1),
+            ("snapshots", 1),
+            ("plans", 1),
+        ] {
+            let rows: i64 =
+                conn.query_row(&format!("SELECT count(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })?;
+            assert_eq!(rows, expected, "{table}");
+        }
+        // A new scan gets the next key and stores as usual.
+        let mut store = IndexStore::new(conn);
+        let scan: lumen_domain::ScanId = "0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0e04".parse()?;
+        store.begin_scan(scan, lumen_domain::Timestamp::UNIX_EPOCH, &[])?;
+        assert_eq!(store.latest_completed_scan()?, None, "the user rescans");
+        assert_eq!(store.unfinished_scans()?, [scan]);
         Ok(())
     }
 
