@@ -4,12 +4,15 @@
 //! The app's data folder and the quarantine store both follow `HOME`, so the
 //! test re-runs itself as a child process with `HOME` pointing at a fixture.
 //! Nothing outside the fixture is touched, and no environment variable is
-//! changed inside a running process.
+//! changed inside a running process. Judge keys go to an in-memory secret
+//! store, never the keychain, and AI review is off while anything is
+//! assessed, so nothing is sent anywhere.
 
 use std::path::Path;
 use std::process::Command;
+use std::sync::Arc;
 
-use lumen_testkit::{Fixture, Node};
+use lumen_testkit::{Fixture, MemorySecretStore, Node};
 use serde_json::{Value, json};
 use tauri::ipc::{CallbackFn, InvokeBody};
 use tauri::test::{INVOKE_KEY, MockRuntime, get_ipc_response, mock_builder};
@@ -41,8 +44,42 @@ fn invoke(window: &WebviewWindow<MockRuntime>, cmd: &str, body: Value) -> Result
     })
 }
 
-/// The flow itself, in the child: scan → plan → execute → held → restore →
-/// plan → execute → finalize, plus a command the capability does not grant.
+/// AI review: off with no key, a key stored (never shown), on with the time
+/// of consent, then off again.
+fn ai_review(window: &WebviewWindow<MockRuntime>) {
+    let ok = |cmd: &str, body: Value| {
+        invoke(window, cmd, body).unwrap_or_else(|e| unreachable!("{cmd}: {e}"))
+    };
+    assert_eq!(
+        ok("ai_settings", json!({})),
+        json!({ "enabled": false, "consented_at": null, "key": "none" })
+    );
+    assert!(
+        invoke(window, "set_ai_review", json!({ "enabled": true })).is_err(),
+        "not without a key"
+    );
+    let rejected = invoke(window, "set_ai_key", json!({ "key": "not a key" }))
+        .err()
+        .unwrap_or_else(|| unreachable!("a key has no spaces"));
+    assert!(!rejected.to_string().contains("not a key"), "{rejected}");
+    let stored = ok("set_ai_key", json!({ "key": "jeb-e2e-fake-key" }));
+    assert_eq!(stored["key"], "jeb", "{stored}");
+    assert!(!stored.to_string().contains("jeb-e2e-fake-key"), "{stored}");
+    let on = ok("set_ai_review", json!({ "enabled": true }));
+    assert_eq!(on["enabled"], true, "{on}");
+    assert!(on["consented_at"].is_string(), "{on}");
+    let off = ok("set_ai_review", json!({ "enabled": false }));
+    assert_eq!(off["enabled"], false, "{off}");
+    assert_eq!(
+        off["consented_at"], on["consented_at"],
+        "the consent stays on record"
+    );
+    assert_eq!(ok("ai_settings", json!({})), off);
+}
+
+/// The flow itself, in the child: AI review's switch, then scan → plan →
+/// execute → held → restore → plan → execute → finalize, plus a command the
+/// capability does not grant.
 fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
     let window = app
         .get_webview_window("main")
@@ -55,6 +92,7 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
         invoke(&window, "plugin:fs|read_dir", json!({})).is_err(),
         "nothing outside Lumen's own commands is reachable"
     );
+    ai_review(&window);
     let item = home.join("Library/Developer/Xcode/DerivedData/App-abc");
     let cycle = || -> Option<String> {
         let scan = ok(
@@ -104,7 +142,8 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
 fn the_desktop_flow_runs_end_to_end() {
     if let Some(home) = std::env::var_os(CHILD) {
         // The app sets itself up (state, window) when its event loop is ready.
-        let app = crate::app(mock_builder())
+        let secrets = Arc::new(MemorySecretStore::default());
+        let app = crate::app(mock_builder(), Some(secrets))
             .build(crate::context())
             .unwrap_or_else(|e| unreachable!("{e}"));
         let exit = app.run_return(move |handle, event| {

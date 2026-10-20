@@ -42,6 +42,8 @@ use utoipa::OpenApi;
         views::RemovedView,
         views::FinalizeView,
         views::FinalizeOutcomeView,
+        views::AiKeyView,
+        views::AiSettingsView,
     ))
 )]
 pub struct ApiDoc;
@@ -71,7 +73,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 23);
+        assert_eq!(schemas, 25);
     }
 
     #[test]
@@ -120,5 +122,24 @@ mod tests {
             .map(|r| r.iter().filter_map(serde_json::Value::as_str).collect())
             .unwrap_or_default();
         assert!(required.contains(&"tool_command"), "{required:?}");
+        let ai = &doc["components"]["schemas"]["AiSettingsView"];
+        let required: Vec<&str> = ai["required"]
+            .as_array()
+            .map(|r| r.iter().filter_map(serde_json::Value::as_str).collect())
+            .unwrap_or_default();
+        assert!(required.contains(&"consented_at"), "{required:?}");
+    }
+
+    #[test]
+    fn ai_settings_name_the_key_never_show_it() {
+        let view = views::AiSettingsView::new(
+            lumen_app::ai::AiReview::default(),
+            Some(lumen_app::ai::Service::OpenRouter),
+        );
+        let json = serde_json::to_value(view).unwrap_or_default();
+        assert_eq!(
+            json,
+            serde_json::json!({ "enabled": false, "consented_at": null, "key": "openrouter" })
+        );
     }
 }

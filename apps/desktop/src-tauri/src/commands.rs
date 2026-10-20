@@ -5,26 +5,46 @@
 //! confirmation) or an operation; no command accepts a path to act on. Scans
 //! take roots, but only read. Every command runs on a blocking thread so the
 //! webview never waits on the filesystem.
+//!
+//! AI review (ADR-0037) is a setting next to the database: the UI can read
+//! it, turn it on (only with a stored key) or off, and store a Jeb key. No
+//! command returns a key.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use lumen_api::views::{
-    CandidateView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, PlanView,
+    AiSettingsView, CandidateView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, PlanView,
     QuarantineReportView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
 };
+use lumen_app::ai::Service;
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
 use lumen_application::CancelToken;
-use lumen_application::ports::NoopJudge;
+use lumen_application::assess::Assessed;
+use lumen_application::ports::{Clock as _, JudgeModel, NoopJudge, SecretStore};
 use lumen_domain::{ConfirmationSurface, OperationId, PlanId};
 use serde::Serialize;
 use tauri::State;
 use tauri::ipc::Channel;
 
-/// The core's state for this app: where its databases live.
-#[derive(Debug)]
+/// The core's state for this app: where its databases live, and where judge
+/// keys are kept.
 pub(crate) struct Core {
-    /// `index.db` in the app's local data folder; the ledger sits next to it.
+    /// `index.db` in the app's local data folder; the ledger and the AI
+    /// review setting sit next to it.
     pub(crate) db: PathBuf,
+    /// The OS secret store (tests use an in-memory one); `None` where the
+    /// platform has none, which leaves AI review unavailable.
+    pub(crate) secrets: Option<Arc<dyn SecretStore>>,
+}
+
+impl std::fmt::Debug for Core {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Core")
+            .field("db", &self.db)
+            .field("secrets", &self.secrets.is_some())
+            .finish()
+    }
 }
 
 /// A failed command, as the UI sees it: a message for people, never a stack
@@ -145,13 +165,36 @@ pub(crate) async fn scan(
     .await
 }
 
+/// Runs `work` with the judge while AI review is on and a key is stored, and
+/// records its consultations in the ledger; otherwise with no judge. A judge
+/// that cannot be set up or answer never fails the command: the policy
+/// decides alone.
+fn with_judge<T>(
+    db: &Path,
+    secrets: Option<&dyn SecretStore>,
+    work: impl FnOnce(&dyn JudgeModel) -> Result<T, CommandError>,
+    assessed: impl Fn(&T) -> &[Assessed],
+) -> Result<T, CommandError> {
+    let Some(judge) = lumen_app::ai::active_judge(db, secrets) else {
+        return work(&NoopJudge);
+    };
+    let result = work(&judge)?;
+    lumen_app::ai::record_traces(db, assessed(&result)).map_err(CommandError::new)?;
+    Ok(result)
+}
+
 /// Decides the latest completed scan; moves nothing.
 #[tauri::command]
 pub(crate) async fn assess(core: State<'_, Core>) -> Result<Vec<CandidateView>, CommandError> {
     let db = core.db.clone();
+    let secrets = core.secrets.clone();
     blocking(move || {
-        let assessed =
-            lumen_app::assess(&db, &SystemClock, &NoopJudge).map_err(CommandError::new)?;
+        let assessed = with_judge(
+            &db,
+            secrets.as_deref(),
+            |judge| lumen_app::assess(&db, &SystemClock, judge).map_err(CommandError::new),
+            Vec::as_slice,
+        )?;
         Ok(assessed.iter().map(CandidateView::from).collect())
     })
     .await
@@ -161,10 +204,82 @@ pub(crate) async fn assess(core: State<'_, Core>) -> Result<Vec<CandidateView>, 
 #[tauri::command]
 pub(crate) async fn plan(core: State<'_, Core>) -> Result<PlanView, CommandError> {
     let db = core.db.clone();
+    let secrets = core.secrets.clone();
     blocking(move || {
-        let planned = lumen_app::plan(&db, &SystemClock, &UuidV7Ids, &NoopJudge)
-            .map_err(CommandError::new)?;
+        let planned = with_judge(
+            &db,
+            secrets.as_deref(),
+            |judge| {
+                lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge).map_err(CommandError::new)
+            },
+            |planned| planned.items.as_slice(),
+        )?;
         Ok(PlanView::from(&planned))
+    })
+    .await
+}
+
+/// The AI review setting next to `db` and which key is stored.
+fn ai_view(db: &Path, secrets: Option<&dyn SecretStore>) -> Result<AiSettingsView, CommandError> {
+    let key = match secrets {
+        Some(store) => lumen_app::ai::stored_service(store).map_err(CommandError::new)?,
+        None => None,
+    };
+    Ok(AiSettingsView::new(lumen_app::ai::load(db), key))
+}
+
+/// Whether AI review is on, and which key it would use (never the key).
+#[tauri::command]
+pub(crate) async fn ai_settings(core: State<'_, Core>) -> Result<AiSettingsView, CommandError> {
+    let db = core.db.clone();
+    let secrets = core.secrets.clone();
+    blocking(move || ai_view(&db, secrets.as_deref())).await
+}
+
+/// Turns AI review on (the user's consent, recorded with its time) or off.
+/// Turning it on needs a stored key.
+#[tauri::command]
+pub(crate) async fn set_ai_review(
+    core: State<'_, Core>,
+    enabled: bool,
+) -> Result<AiSettingsView, CommandError> {
+    let db = core.db.clone();
+    let secrets = core.secrets.clone();
+    blocking(move || {
+        if enabled {
+            let store = secrets
+                .as_deref()
+                .ok_or_else(|| CommandError::new("AI review is not available on this platform"))?;
+            if lumen_app::ai::stored_key(store)
+                .map_err(CommandError::new)?
+                .is_none()
+            {
+                return Err(CommandError::new(
+                    "AI review needs an API key: add your Jeb key first",
+                ));
+            }
+        }
+        lumen_app::ai::set(&db, enabled, SystemClock.now()).map_err(CommandError::new)?;
+        ai_view(&db, secrets.as_deref())
+    })
+    .await
+}
+
+/// Stores a Jeb API key in the system's secret store. It is checked, never
+/// logged, and never returned; storing it sends nothing anywhere.
+#[tauri::command]
+pub(crate) async fn set_ai_key(
+    core: State<'_, Core>,
+    key: String,
+) -> Result<AiSettingsView, CommandError> {
+    let db = core.db.clone();
+    let secrets = core.secrets.clone();
+    blocking(move || {
+        let store = secrets
+            .as_deref()
+            .ok_or_else(|| CommandError::new("AI review is not available on this platform"))?;
+        lumen_app::ai::store_key(store, Service::Jeb, &key).map_err(CommandError::new)?;
+        ai_view(&db, Some(store))
     })
     .await
 }

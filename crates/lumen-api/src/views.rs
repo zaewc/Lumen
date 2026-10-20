@@ -589,3 +589,50 @@ impl From<&Outcome<FinalizeOutcome>> for FinalizeOutcomeView {
         }
     }
 }
+
+/// Which judge key is stored; never the key itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub enum AiKeyView {
+    /// A Jeb key: requests go to the school's AI Hub (ADR-0036).
+    #[serde(rename = "jeb")]
+    Jeb,
+    /// An `OpenRouter` key: requests go to `TypeSafe`'s Jev (ADR-0031).
+    #[serde(rename = "openrouter")]
+    OpenRouter,
+    /// No key: AI review cannot be turned on.
+    #[serde(rename = "none")]
+    None,
+}
+
+impl From<Option<lumen_app::ai::Service>> for AiKeyView {
+    fn from(service: Option<lumen_app::ai::Service>) -> Self {
+        match service {
+            Some(lumen_app::ai::Service::Jeb) => Self::Jeb,
+            Some(lumen_app::ai::Service::OpenRouter) => Self::OpenRouter,
+            None => Self::None,
+        }
+    }
+}
+
+/// Whether AI review is on (ADR-0037), and which key it would use.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct AiSettingsView {
+    /// Whether assessments ask the judge about proposed quarantines.
+    pub enabled: bool,
+    /// When the user last turned it on; `null` if never.
+    #[schema(value_type = Option<String>, format = DateTime, required = true)]
+    pub consented_at: Option<lumen_domain::Timestamp>,
+    /// Which key is stored.
+    pub key: AiKeyView,
+}
+
+impl AiSettingsView {
+    /// The view of `review` with `key` stored.
+    pub fn new(review: lumen_app::ai::AiReview, key: Option<lumen_app::ai::Service>) -> Self {
+        Self {
+            enabled: review.enabled,
+            consented_at: review.consented_at,
+            key: key.into(),
+        }
+    }
+}

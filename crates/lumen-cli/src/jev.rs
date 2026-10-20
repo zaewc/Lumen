@@ -15,35 +15,10 @@ use lumen_jev::openrouter::ApiKey;
 
 use crate::jev_service::Service;
 
-fn secret(service: Service) -> SecretName {
-    match service {
-        Service::Jeb => SecretName::JEB_API_KEY,
-        Service::OpenRouter => SecretName::OPENROUTER_API_KEY,
-    }
-}
-
-const fn label(service: Service) -> &'static str {
-    match service {
-        Service::Jeb => "Jeb",
-        Service::OpenRouter => "OpenRouter",
-    }
-}
-
 /// The platform's secret store (an error where there is none).
-#[cfg_attr(
-    any(target_os = "macos", windows),
-    expect(
-        clippy::unnecessary_wraps,
-        reason = "fails on platforms without a store"
-    )
-)]
 fn store() -> Result<Box<dyn SecretStore>, Box<dyn Error>> {
-    #[cfg(target_os = "macos")]
-    return Ok(Box::new(lumen_platform_macos::KeychainStore::new()));
-    #[cfg(windows)]
-    return Ok(Box::new(lumen_platform_windows::CredentialStore::new()));
-    #[cfg(not(any(target_os = "macos", windows)))]
-    Err("no secret store on this platform yet; Jev is unavailable here".into())
+    lumen_app::ai::system_secrets()
+        .ok_or_else(|| "no secret store on this platform yet; Jev is unavailable here".into())
 }
 
 /// Reads one key from `input`: the first line, trimmed. A key must be 1–256
@@ -63,10 +38,10 @@ pub(crate) fn read_key(input: &mut dyn std::io::BufRead) -> Result<String, Box<d
 /// Stores the key read from standard input for `service`.
 pub(crate) fn set(service: Service) -> Result<String, Box<dyn Error>> {
     let key = read_key(&mut std::io::stdin().lock())?;
-    store()?.set(secret(service), &Secret::new(key))?;
+    store()?.set(service.secret(), &Secret::new(key))?;
     Ok(format!(
         "Stored the {} API key in the system's secret store. The judge is used only when a run passes --jev.\n",
-        label(service)
+        service.label()
     ))
 }
 
@@ -76,11 +51,8 @@ pub(crate) fn set(service: Service) -> Result<String, Box<dyn Error>> {
 /// deciding without the judgment the user asked for.
 pub(crate) fn judge() -> Result<lumen_jev::openrouter::JevJudge, Box<dyn Error>> {
     let (service, key) = stored_key()?;
-    eprintln!("{}", disclosure_for(service));
-    Ok(match service {
-        Service::Jeb => lumen_jev::openrouter::JevJudge::jeb(key)?,
-        Service::OpenRouter => lumen_jev::openrouter::JevJudge::new(key)?,
-    })
+    eprintln!("{}", service.disclosure());
+    Ok(service.judge(key)?)
 }
 
 /// What turning AI review on will send, and where, for the stored key.
@@ -89,30 +61,13 @@ pub(crate) fn judge() -> Result<lumen_jev::openrouter::JevJudge, Box<dyn Error>>
 ///
 /// If no key is stored: AI review cannot be on without one.
 pub(crate) fn disclosure() -> Result<&'static str, Box<dyn Error>> {
-    Ok(disclosure_for(stored_key()?.0))
+    Ok(stored_key()?.0.disclosure())
 }
 
 fn stored_key() -> Result<(Service, ApiKey), Box<dyn Error>> {
-    let store = store()?;
-    for service in [Service::Jeb, Service::OpenRouter] {
-        if let Some(secret) = store.get(secret(service))? {
-            let key = ApiKey::new(secret.expose())
-                .ok_or_else(|| format!("the stored {} API key is not valid", label(service)))?;
-            return Ok((service, key));
-        }
-    }
-    Err("AI review needs an API key: run `lumen jev key set` (Jeb) or `lumen jev key set --openrouter` first".into())
-}
-
-const fn disclosure_for(service: Service) -> &'static str {
-    match service {
-        Service::Jeb => {
-            "Jeb: for each item proposed for quarantine, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to the school's Jeb server (jeb.https.gsmsv.site) with your key. Its operator may keep requests. Jeb can only make a decision more cautious."
-        }
-        Service::OpenRouter => {
-            "Jev: for each item proposed for quarantine, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to TypeSafe's Jev through OpenRouter with your key. Jev can only make a decision more cautious."
-        }
-    }
+    lumen_app::ai::stored_key(store()?.as_ref())?.ok_or_else(|| {
+        "AI review needs an API key: run `lumen jev key set` (Jeb) or `lumen jev key set --openrouter` first".into()
+    })
 }
 
 /// Records every Jev consultation of `assessed` in the ledger next to `db`.
@@ -120,25 +75,15 @@ pub(crate) fn record_traces(
     db: &std::path::Path,
     assessed: &[lumen_application::assess::Assessed],
 ) -> Result<(), Box<dyn Error>> {
-    let traces: Vec<_> = assessed.iter().filter_map(|a| a.trace.as_ref()).collect();
-    if traces.is_empty() {
-        return Ok(());
-    }
-    let mut ledger = lumen_store_sqlite::LedgerStore::new(lumen_store_sqlite::open_ledger(
-        &db.with_file_name("ledger.db"),
-    )?);
-    for trace in traces {
-        ledger.append_jev_trace(trace)?;
-    }
-    Ok(())
+    Ok(lumen_app::ai::record_traces(db, assessed)?)
 }
 
 /// Removes the stored key for `service`.
 pub(crate) fn clear(service: Service) -> Result<String, Box<dyn Error>> {
-    Ok(if store()?.delete(secret(service))? {
-        format!("Removed the {} API key.\n", label(service))
+    Ok(if store()?.delete(service.secret())? {
+        format!("Removed the {} API key.\n", service.label())
     } else {
-        format!("No {} API key was stored.\n", label(service))
+        format!("No {} API key was stored.\n", service.label())
     })
 }
 

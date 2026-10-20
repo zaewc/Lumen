@@ -13,6 +13,9 @@ mod commands;
 #[cfg(all(test, target_os = "macos"))]
 mod e2e;
 
+use std::sync::Arc;
+
+use lumen_application::ports::SecretStore;
 use tauri::webview::WebviewWindowBuilder;
 use tauri::{Builder, Manager as _, Runtime, Url, WebviewUrl};
 
@@ -30,8 +33,10 @@ fn allowed(url: &Url) -> bool {
 }
 
 /// The app on `builder`'s runtime: its commands, its core state and its one
-/// window. The real app runs it on Wry; the end-to-end test on the mock runtime.
-pub fn app<R: Runtime>(builder: Builder<R>) -> Builder<R> {
+/// window, with judge keys in `secrets` (`None`: AI review is unavailable).
+/// The real app runs it on Wry with the OS secret store; the end-to-end test
+/// on the mock runtime with an in-memory one.
+pub fn app<R: Runtime>(builder: Builder<R>, secrets: Option<Arc<dyn SecretStore>>) -> Builder<R> {
     builder
         .invoke_handler(tauri::generate_handler![
             commands::scan,
@@ -41,8 +46,11 @@ pub fn app<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::held,
             commands::restore,
             commands::finalize,
+            commands::ai_settings,
+            commands::set_ai_review,
+            commands::set_ai_key,
         ])
-        .setup(|app| {
+        .setup(move |app| {
             let data = app.path().app_local_data_dir()?;
             std::fs::create_dir_all(&data)?;
             // Local, redacted logs in the app's data folder (ADR-0022); kept
@@ -57,6 +65,7 @@ pub fn app<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             }
             app.manage(commands::Core {
                 db: data.join("index.db"),
+                secrets,
             });
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")
@@ -75,7 +84,8 @@ pub fn app<R: Runtime>(builder: Builder<R>) -> Builder<R> {
 ///
 /// A [`tauri::Error`] if the app cannot start.
 pub fn run() -> Result<(), tauri::Error> {
-    app(Builder::default()).run(context())
+    let secrets = lumen_app::ai::system_secrets().map(Arc::from);
+    app(Builder::default(), secrets).run(context())
 }
 
 /// The app's configuration, assets and capabilities, embedded at build time.

@@ -20,18 +20,13 @@ lumen-application.workspace = true
 lumen-jev.workspace = true
 lumen-domain.workspace = true
 lumen-scan.workspace = true
-lumen-store-sqlite.workspace = true
 # Local, redacted logs (ADR-0022, roadmap 12.4).
 lumen-telemetry.workspace = true
 serde_json.workspace = true
 
-[target.'cfg(target_os = "macos")'.dependencies]
-lumen-platform-macos.workspace = true
-
-[target.'cfg(windows)'.dependencies]
-lumen-platform-windows.workspace = true
-
 [dev-dependencies]
+# Reading what a run recorded in the index.
+lumen-store-sqlite.workspace = true
 lumen-testkit.workspace = true
 
 [target.'cfg(windows)'.dev-dependencies]

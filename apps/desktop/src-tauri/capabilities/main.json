@@ -10,6 +10,9 @@
     "allow-execute",
     "allow-held",
     "allow-restore",
-    "allow-finalize"
+    "allow-finalize",
+    "allow-ai-settings",
+    "allow-set-ai-review",
+    "allow-set-ai-key"
   ]
 }

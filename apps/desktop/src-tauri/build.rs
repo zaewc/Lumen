@@ -3,7 +3,16 @@
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let commands = &[
-        "scan", "assess", "plan", "execute", "held", "restore", "finalize",
+        "scan",
+        "assess",
+        "plan",
+        "execute",
+        "held",
+        "restore",
+        "finalize",
+        "ai_settings",
+        "set_ai_review",
+        "set_ai_key",
     ];
     tauri_build::try_build(
         tauri_build::Attributes::new()

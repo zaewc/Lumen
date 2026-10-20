@@ -5,6 +5,29 @@ export type ClientOptions = {
 };
 
 /**
+ * Which judge key is stored; never the key itself.
+ */
+export type AiKeyView = "jeb" | "openrouter" | "none";
+
+/**
+ * Whether AI review is on (ADR-0037), and which key it would use.
+ */
+export type AiSettingsView = {
+  /**
+   * When the user last turned it on; `null` if never.
+   */
+  consented_at: string | null;
+  /**
+   * Whether assessments ask the judge about proposed quarantines.
+   */
+  enabled: boolean;
+  /**
+   * Which key is stored.
+   */
+  key: AiKeyView;
+};
+
+/**
  * One assessed candidate.
  */
 export type CandidateView = {

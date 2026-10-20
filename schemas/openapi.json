@@ -12,6 +12,42 @@
   "paths": {},
   "components": {
     "schemas": {
+      "AiKeyView": {
+        "type": "string",
+        "description": "Which judge key is stored; never the key itself.",
+        "enum": [
+          "jeb",
+          "openrouter",
+          "none"
+        ]
+      },
+      "AiSettingsView": {
+        "type": "object",
+        "description": "Whether AI review is on (ADR-0037), and which key it would use.",
+        "required": [
+          "enabled",
+          "consented_at",
+          "key"
+        ],
+        "properties": {
+          "consented_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the user last turned it on; `null` if never."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether assessments ask the judge about proposed quarantines."
+          },
+          "key": {
+            "$ref": "#/components/schemas/AiKeyView",
+            "description": "Which key is stored."
+          }
+        }
+      },
       "CandidateView": {
         "type": "object",
         "description": "One assessed candidate.",

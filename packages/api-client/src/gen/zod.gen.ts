@@ -3,6 +3,20 @@
 import * as z from "zod";
 
 /**
+ * Which judge key is stored; never the key itself.
+ */
+export const zAiKeyView = z.enum(["jeb", "openrouter", "none"]);
+
+/**
+ * Whether AI review is on (ADR-0037), and which key it would use.
+ */
+export const zAiSettingsView = z.object({
+  consented_at: z.iso.datetime().nullable(),
+  enabled: z.boolean(),
+  key: zAiKeyView,
+});
+
+/**
  * A request to execute a plan: its ID and, as the confirmation, its full
  * hash.
  */

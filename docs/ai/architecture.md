@@ -58,6 +58,13 @@ saves the provider's quota.
 
 Apple Private Cloud Compute counts as tier 2.
 
+Tier 2 is turned on with `lumen ai on` in the CLI, or with the AI review card on the
+desktop app's clean-up page. The app's switch shows the same disclosure in a consent
+dialog, takes a Jeb key there if none is stored (into the OS secret store, never
+returned to the UI), and records the choice next to the app's own `index.db`
+(`lumen_app::ai`). While on, the app's `assess` and `plan` commands consult the judge
+and record its traces in the ledger, like the CLI.
+
 ## Failure handling
 
 Every error (network, timeout, refusal, `max_tokens`, schema failure, unknown evidence
