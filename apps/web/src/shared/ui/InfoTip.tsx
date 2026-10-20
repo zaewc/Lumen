@@ -76,7 +76,7 @@ export function InfoTip({ term }: { readonly term: GlossaryTerm }) {
         aria-expanded={open}
         aria-controls={panel}
         onClick={() => setOpen(nextTip(open, "toggle").open)}
-        className="inline-flex size-5 items-center justify-center rounded-full border border-neutral-400 font-serif text-xs font-normal italic leading-none text-neutral-600 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 aria-expanded:border-neutral-900 aria-expanded:bg-neutral-900 aria-expanded:text-white"
+        className="inline-flex size-5 items-center justify-center rounded-full border border-neutral-300 font-serif text-xs font-normal italic leading-none text-neutral-500 hover:border-neutral-400 hover:text-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 aria-expanded:border-indigo-600 aria-expanded:bg-indigo-600 aria-expanded:text-white"
       >
         i
       </button>
@@ -86,9 +86,9 @@ export function InfoTip({ term }: { readonly term: GlossaryTerm }) {
         role="note"
         hidden={!open}
         style={{ left: shift }}
-        className="absolute top-full z-20 mt-2 block w-[min(24rem,calc(100vw-2rem))] rounded border border-neutral-200 bg-white p-3 text-left text-sm font-normal text-neutral-800 shadow-lg"
+        className="absolute top-full z-20 mt-2 block w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-neutral-200 bg-white p-4 text-left text-sm leading-relaxed font-normal tracking-normal text-neutral-700 normal-case shadow-lg"
       >
-        <span className="block font-medium">{title}</span>
+        <span className="block font-semibold text-neutral-900">{title}</span>
         <span className="mt-1 block">{body}</span>
       </span>
     </span>

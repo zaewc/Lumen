@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes } from "./bytes";
+import { formatBytes, sumBytes } from "./bytes";
 
 describe("formatBytes", () => {
   it("uses decimal units and truncates like the CLI", () => {
@@ -13,5 +13,17 @@ describe("formatBytes", () => {
   it("refuses anything that is not a decimal count", () => {
     expect(() => formatBytes("-1")).toThrow();
     expect(() => formatBytes("1e3")).toThrow();
+  });
+});
+
+describe("sumBytes", () => {
+  it("adds exactly, beyond what a JavaScript number holds", () => {
+    expect(sumBytes([])).toBe("0");
+    expect(sumBytes(["1500", "2500"])).toBe("4000");
+    expect(sumBytes(["18446744073709551615", "1"])).toBe("18446744073709551616");
+  });
+
+  it("refuses anything that is not a decimal count", () => {
+    expect(() => sumBytes(["1", "-1"])).toThrow();
   });
 });

@@ -13,8 +13,9 @@ if (element === null) {
 }
 
 // Inside the desktop host the app talks to the core over Tauri IPC; in a
-// plain browser (development) it runs on the in-memory transport.
-const transport = isTauri() ? tauriTransport() : memoryTransport();
+// plain browser (development) it runs on the in-memory transport, paced so
+// that each step of the flow can be seen.
+const transport = isTauri() ? tauriTransport() : memoryTransport({ pace: 700 });
 
 createRoot(element).render(
   <StrictMode>

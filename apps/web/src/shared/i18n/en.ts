@@ -3,174 +3,197 @@ import type { RuleId } from "./rules";
 
 const count = countFormat("en");
 
+/** "1 item", "1,204 items". */
+const items = (n: number) => `${count(n)} ${n === 1 ? "item" : "items"}`;
+
 /** The English catalog. Its shape is the shape of every catalog. */
 export const en = {
   language: "Language",
   nav: {
+    label: "Main",
+    cleanUp: "Clean up",
     quarantine: "Quarantine",
-    scan: "Scan",
-    plan: "Plan",
   },
-  home: {
-    tagline: "Storage cleanup that keeps everything reversible until you decide otherwise.",
-    heading: "In quarantine",
-    spaceNote:
-      "Quarantined items still use space; it is freed only when an item is removed for good.",
+  common: {
     loading: "Loading…",
-    empty: "Nothing is held.",
+    cancel: "Cancel",
+    details: "Details",
+    why: "Why?",
+    scanAgain: "Scan again",
+  },
+  start: {
+    title: "Free up space safely",
+    promise: "Nothing is deleted without your confirmation, and everything can be restored.",
+    wholeDisk: "Scan the whole disk",
+    wholeDiskHint:
+      "Lumen only reads your disk; this can take a few minutes. Your computer may ask whether Lumen may look into some folders.",
+    chooseFolders: "Choose folders…",
+    foldersLabel: "Folders to scan, one per line",
+    scanFolders: "Scan these folders",
+    failed: "The scan could not finish. Nothing was changed.",
+  },
+  scanning: {
+    title: "Scanning…",
+    deciding: "Deciding what is safe to clean up…",
+    readOnly: "Lumen is only reading; nothing is changed.",
+    progress: "Scan progress",
+    items: "Items found",
+    size: "Size on disk",
+    unreadable: "Unreadable folders",
+    reading: (folder: string) => `Reading ${folder}`,
+    failed: "Lumen could not decide about what it found. Nothing was changed.",
+  },
+  results: {
+    canFree: "You can free up",
+    proposedCount: (n: number) => `${items(n)} can be cleaned up safely`,
+    nothing:
+      "Nothing needs cleaning up right now. Lumen only suggests items it is sure are safe to set aside.",
+    cleanUp: "Clean up",
+    preparing: "Preparing…",
+    planFailed: "Lumen could not prepare the clean-up. Nothing was moved.",
+    found: "What Lumen found",
+    proposed: "Can be cleaned up",
+    review: "Needs your review",
+    reviewHint:
+      "Lumen is not sure about these, so it leaves them alone. Look through them yourself if you like.",
+    keep: "Kept",
+    keepHint: "Lumen will not touch these.",
+    section: (n: number, size: string) => `${items(n)} · ${size}`,
+    partial: "The scan stopped early, so these results are incomplete.",
+    outOfSpace:
+      "The scan stopped because the disk is almost full (Lumen always leaves 2 GB free), so these results are incomplete. Free some space and scan again.",
+  },
+  coverage: {
+    incomplete:
+      "Some folders could not be read, so Lumen left them alone. The real sizes may be larger than shown.",
+    fullDiskAccess:
+      "On a Mac this is usually privacy protection. To include those folders, turn on Lumen in System Settings › Privacy & Security › Full Disk Access, then scan again.",
+  },
+  details: {
+    title: "Scan details",
+    entries: (entries: string) => `${count(entries)} entries read`,
+    files: "Files",
+    fileCount: (files: string) => count(files),
+    size: "Size",
+    sizeValue: (logical: string, allocated: string) => `${logical} (${allocated} on disk)`,
+    reclaimable: "Can be freed",
+    atLeast: (size: string) => `at least ${size}`,
+    complete: "Everything was read.",
+    incomplete: (denied: string, failed: string, notScanned: string) =>
+      `Not everything could be read: ${count(denied)} denied, ${count(failed)} failed, ${count(notScanned)} not scanned.`,
+  },
+  confirm: {
+    title: (n: number, size: string) => `Move ${items(n)} (${size}) to Quarantine?`,
+    checked:
+      "Each item is checked again first. Anything that has changed since the scan stays where it is.",
+    restorable:
+      "You can restore everything from Quarantine for at least 30 days, until you remove it for good.",
+    nothingLeft: "There is nothing to move any more. Scan again to see what can be cleaned up.",
+    move: "Move to Quarantine",
+    moving: "Moving…",
+    failed: "The clean-up could not run.",
+    planMade: (createdAt: string) => `Plan made ${createdAt}, valid for 24 hours.`,
+    planHash: "Plan hash",
+  },
+  done: {
+    title: (n: number, size: string) => `Moved ${items(n)} (${size}) to Quarantine.`,
+    noneMoved: "Nothing was moved.",
+    freedNote: "Space is freed when you remove them for good.",
+    openQuarantine: "Open Quarantine",
+    notMoved: (n: number) => `${items(n)} not moved`,
+  },
+  item: {
+    quarantined: "Moved to Quarantine (can be restored).",
+    skipped: (why: string) => `Not moved: ${why}.`,
+    failed: (reason: string, where: string) => `The move failed (${reason}); ${where}.`,
+    skipChanged: "it changed or can no longer be checked",
+    skipOutsideRoots: "it is outside the scanned folders",
+    skipNowKeep: "Lumen now keeps it",
+    skipNowReview: "Lumen now wants you to review it",
+    skipReasonsChanged: "it would now be suggested for different reasons",
+    skipNotPrepared: "it could not be recorded for a safe move",
+    skipManifest: "its record could not be written",
+    leftSource: "it is untouched in its place",
+    leftQuarantine: "it is in Quarantine and can be restored",
+    leftGone: "it is gone",
+  },
+  quarantine: {
+    title: "Quarantine",
+    count: (n: number) => `${items(n)} held`,
+    intro:
+      "Items you clean up wait here. Restore puts an item back where it was; removing it for good frees its space.",
+    loadFailed: "Quarantine could not be loaded.",
+    empty: "Quarantine is empty",
+    emptyHint: "Items you clean up wait here, so you can restore them if you change your mind.",
+    goCleanUp: "Go to Clean up",
   },
   held: {
-    unknownPath: "(unknown path)",
-    retained: "Retained",
-    heldAfterFailure: "Held after a failed move",
-    age: (days: number) => `${count(days)} day(s)`,
+    unknownPath: "(unknown location)",
+    days: (days: number) =>
+      days === 0
+        ? "Moved here today"
+        : `In Quarantine for ${count(days)} ${days === 1 ? "day" : "days"}`,
+    afterFailure:
+      "Kept here safely after a move went wrong. It can be restored, but not removed for good.",
     restore: "Restore",
     removeForGoodAsk: "Remove for good…",
-    removeForGoodWarning: "This cannot be undone. It is checked for use first.",
+    removeForGoodWarning:
+      "This deletes it permanently and cannot be undone. Lumen first checks that nothing is using it.",
     removeForGood: "Remove for good",
-    cancel: "Cancel",
+    failed: "That did not work.",
   },
   restore: {
     restored: "Restored to its original place.",
     parentReplaced: "Its folder had been recreated since.",
     unverified: "It is back but did not match its record exactly; check it.",
-    notRestored: (why: string) => `Not restored: ${why}. It stays in quarantine.`,
+    notRestored: (why: string) => `Not restored: ${why}. It stays in Quarantine.`,
     nameTaken: "something now has its name at the original place; move that away and try again",
     originUnreachable: "its original folder cannot be reached safely",
-    itemChanged: "the quarantined item changed",
+    itemChanged: "the item changed while in Quarantine",
     moveFailed: "the move back failed",
     notRestorable: "This item cannot be restored in its current state.",
   },
   finalize: {
     finalized: "Removed for good.",
     foundAtSource: "It is back at its original place already; nothing was removed.",
-    notFound: "It is not in quarantine; nothing was removed.",
+    notFound: "It is not in Quarantine; nothing was removed.",
     failed: (what: string) => `Could not remove it completely: ${what}.`,
     removedNothing: "nothing was removed",
     removedPartly: "part of it was removed; try again to finish",
     removedItem: "the item is gone, only its record remains",
     maybeInUse:
       "It may be in use, or that cannot be checked; nothing was removed. Close the programs that use it and try again.",
-    notFinalizable: "Only retained items can be removed for good.",
-  },
-  plan: {
-    title: "Plan",
-    intro:
-      "A plan holds every item the policy proposes for quarantine in the latest scan. Making it moves nothing.",
-    planning: "Planning…",
-    make: "Make a plan",
-    summary: (items: number, size: string) => `${count(items)} item(s), ${size}`,
-    made: (createdAt: string) => `Made ${createdAt}; valid for 24 hours. Plan hash`,
-    confirm:
-      "Move exactly these items into quarantine. Each is checked again first, and anything that changed stays where it is. Nothing is deleted: every item can be restored until I remove it for good.",
-    quarantining: "Quarantining…",
-    execute: (items: number) => `Quarantine ${count(items)} item(s)`,
-    moved: (size: string) => `${size} now in quarantine`,
-    freedNote: "Space is freed only when items are removed for good.",
-  },
-  item: {
-    quarantined: "Moved into quarantine (restorable).",
-    skipped: (why: string) => `Not moved: ${why}.`,
-    failed: (reason: string, where: string) => `The move failed (${reason}); ${where}.`,
-    skipChanged: "it changed or can no longer be observed",
-    skipOutsideRoots: "it is outside the scanned folders",
-    skipNowKeep: "the policy now keeps it",
-    skipNowReview: "the policy now wants you to review it",
-    skipReasonsChanged: "it would now be proposed for different reasons",
-    skipNotPrepared: "it could not be recorded for a safe move",
-    skipManifest: "its record could not be written",
-    leftSource: "it is untouched in its place",
-    leftQuarantine: "it is in quarantine and can be restored",
-    leftGone: "it is gone",
-  },
-  scan: {
-    title: "Scan",
-    rootsLabel: "Folders to scan, one per line",
-    readOnly: "Scanning only reads; nothing is changed.",
-    scanning: "Scanning…",
-    submit: "Scan",
-    wholeDisk: "Scan the whole disk",
-    progress: (entries: string, folders: string, size: string) =>
-      `${count(entries)} entries · ${count(folders)} folders · ${size} on disk`,
-    unreadableSoFar: (folders: string) => `${count(folders)} folders could not be read so far`,
-    reading: (folder: string) => `Reading ${folder}`,
-    wholeDiskHint:
-      "Reads every folder on the startup disk, one disk at a time; this can take a few minutes. Your system may ask to allow access to some folders; folders you do not allow are reported as unread, never as empty.",
-    found: "What was found",
-    partial: "The scan stopped early; results are partial.",
-    outOfSpace:
-      "The scan stopped because the disk is nearly full: Lumen always leaves 2 GB free. Results are partial. Free some space and scan again.",
-    assessment: "Assessment",
-    nothingMoved: "Nothing has been moved.",
-    deciding: "Deciding…",
-  },
-  root: {
-    files: "Files",
-    fileCount: (files: string) => count(files),
-    size: "Size",
-    sizeValue: (logical: string, allocated: string) => `${logical} (allocated ${allocated})`,
-    reclaimable: "Reclaimable",
-    atLeast: (size: string) => `${size} at least`,
-    complete: "Everything below it was read.",
-    incomplete: (denied: string, failed: string, notScanned: string) =>
-      `Not everything could be read (${count(denied)} denied, ${count(failed)} failed, ${count(notScanned)} not scanned). The sizes are lower bounds, and nothing unread is treated as empty.`,
-  },
-  candidates: {
-    none: "No candidates were found in the latest scan.",
-    quarantine: "Proposed for quarantine",
-    review: "Needs your review",
-    keep: "Kept",
-    group: (label: string, items: number) => `${label} (${count(items)})`,
+    notFinalizable: "This item can only be restored, not removed for good.",
   },
   whatIs: (term: string) => `What does “${term}” mean?`,
   glossary: {
     scan: {
       title: "Scan",
-      body: "A scan reads the folders you choose and measures what is inside them. It only reads: nothing is moved, changed or deleted. It looks at file details such as names and sizes, never opens files, and never downloads files that live only in the cloud.",
+      body: "Scanning reads your folders and measures what is inside them. It only reads: nothing is moved, changed or deleted. Lumen looks only at details such as names and sizes; it never opens your files and never downloads files that are stored only in the cloud.",
     },
     coverage: {
-      title: "Coverage",
-      body: "Coverage says whether Lumen could read everything inside a folder. When everything was read, the sizes are complete. When some items were denied, failed or not scanned, the sizes shown are lower bounds. Lumen never treats what it could not read as empty, and never proposes removing what it could not check.",
+      title: "Unreadable folders",
+      body: "Sometimes Lumen is not allowed to read a folder, or reading it fails. Lumen never treats such a folder as empty and never suggests removing anything it could not check, so it is simply left alone. Sizes that include it are lower bounds: the real figure may be larger.",
     },
     reclaimable: {
-      title: "Reclaimable",
-      body: "Reclaimable is the space you would get back if items were removed for good; space other files still share (hard links, clones, snapshots) is not counted. Nothing is freed while items are only in quarantine. “At least” means part of the folder could not be read, so the real figure may be larger. Size is how much data the files hold; allocated is how much of the disk they occupy.",
+      title: "Space you can free",
+      body: "How much disk space you get back once the items are removed for good. Space that other files still share (such as copies or snapshots) is not counted. Moving items to Quarantine does not free space yet; removing them for good does.",
     },
     verdicts: {
-      title: "Verdicts",
-      body: "Lumen decides about every item with a fixed safety policy, not by guessing. Each item is Kept, Needs your review, or Proposed for quarantine, with its reasons listed below it. When Lumen is unsure, it keeps the item or asks you, and nothing is moved until you confirm a plan.",
-    },
-    keep: {
-      title: "Kept",
-      body: "Lumen will not touch this item. It may be protected by the system, in use, synced with a cloud service or not fully readable, or Lumen knows it is needed. Kept items are never moved.",
-    },
-    review: {
-      title: "Needs your review",
-      body: "Lumen cannot decide safely on its own, for example because it does not recognise the item or the item holds an application's own data. It is never moved automatically. Read the reasons and decide for yourself.",
-    },
-    proposed: {
-      title: "Proposed for quarantine",
-      body: "The policy found this item safe to set aside, for example a cache that its tool or application re-creates. Proposing moves nothing: the item only goes into a plan that you read and confirm. Even then it goes to quarantine, where it can be restored.",
-    },
-    plan: {
-      title: "Plan",
-      body: "A plan is a frozen list of the items proposed for quarantine in the latest scan, sealed with a hash so that exactly what you read is what runs. It is valid for 24 hours, and making it moves nothing. When you confirm it, each item is checked again first; anything that changed is skipped and stays where it is.",
+      title: "How Lumen decides",
+      body: "Lumen decides about every item with fixed safety rules, not by guessing. “Can be cleaned up”: items such as caches that their app or tool re-creates. “Needs your review”: items Lumen is not sure about; they are never moved automatically. “Kept”: items Lumen will not touch, such as system files, files in use or files synced with the cloud. When in doubt, Lumen keeps the item.",
     },
     quarantine: {
       title: "Quarantine",
-      body: "Quarantine moves items into a private Lumen folder instead of deleting them. Every quarantined item can be restored to its original place. Quarantined items still use disk space until you remove them for good.",
+      body: "Quarantine is a safe holding place. Cleaning up moves items there instead of deleting them, and every item can be put back where it was. Items in Quarantine still use disk space until you remove them for good.",
     },
     finalize: {
       title: "Remove for good",
-      body: "Removing for good deletes a quarantined item permanently and frees its space. It is the only step that cannot be undone. Lumen first checks that nothing is using the item, and removes nothing if it is in use or that cannot be checked. Only retained items can be removed for good.",
+      body: "Removing for good deletes an item from Quarantine permanently and frees its space. It is the only step that cannot be undone. Lumen first checks that nothing is using the item, and removes nothing if it is in use or that cannot be checked.",
     },
     restore: {
       title: "Restore",
-      body: "Restoring moves an item from quarantine back to its original place, under its original name. Lumen never overwrites anything: if something now has that name, or the original folder cannot be reached safely, the item stays in quarantine and Lumen tells you why.",
-    },
-    held: {
-      title: "Held items",
-      body: "Retained means the item was moved into quarantine and checked against its record; it waits there until you restore it or remove it for good. Held after a failed move means something went wrong during the move, so the item was kept safely in quarantine without that check. Such items can be restored, but not removed for good.",
+      body: "Restoring puts an item back in its original place, under its original name. Lumen never overwrites anything: if something else now has that name, or the original folder cannot be reached safely, the item stays in Quarantine and Lumen tells you why.",
     },
   },
   reasons: {

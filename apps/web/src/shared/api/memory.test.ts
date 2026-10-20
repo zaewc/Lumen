@@ -37,4 +37,13 @@ describe("memoryTransport", () => {
       "finalized",
     );
   });
+
+  it("paces the scan for people, reporting growing totals", async () => {
+    const transport = memoryTransport({ pace: 1 });
+    const entries: string[] = [];
+    await transport.scan({ roots: [] }, (p) => entries.push(zScanProgressView.parse(p).entries));
+    expect(entries).toEqual(["310", "940", "1580"]);
+    const verdicts = (await transport.assess()).map((c) => zCandidateView.parse(c).verdict);
+    expect(verdicts).toEqual(["quarantine", "review", "keep"]);
+  });
 });

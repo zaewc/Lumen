@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+/* The indeterminate progress bar: a short bar sliding across its track. */
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  /* Korean reads best when words are not broken across lines. */
+  :root:lang(ko) {
+    word-break: keep-all;
+  }
+}

@@ -59,7 +59,11 @@ describe("catalogs", () => {
     expect(countFormat("en")(1204)).toBe("1,204");
     expect(countFormat("ko")("18446744073709551615")).toBe("18,446,744,073,709,551,615");
     expect(countFormat("ko")("n/a")).toBe("n/a");
-    expect(ko.plan.execute(1204)).toBe("항목 1,204개 격리");
+    expect(ko.confirm.title(1204, "4.2 GB")).toBe(
+      "항목 1,204개(4.2 GB)를 격리함으로 옮기시겠습니까?",
+    );
+    expect(en.confirm.title(1, "4.2 GB")).toBe("Move 1 item (4.2 GB) to Quarantine?");
+    expect(en.done.title(1204, "9.2 GB")).toBe("Moved 1,204 items (9.2 GB) to Quarantine.");
   });
 
   it("show timestamps as a date and time in each language", () => {
@@ -128,14 +132,9 @@ describe("glossary", () => {
     "coverage",
     "reclaimable",
     "verdicts",
-    "keep",
-    "review",
-    "proposed",
-    "plan",
     "quarantine",
     "finalize",
     "restore",
-    "held",
   ] as const satisfies readonly GlossaryTerm[];
 
   it("explains every term in every language", () => {
@@ -150,11 +149,22 @@ describe("glossary", () => {
   });
 
   it("asks about each term naturally", () => {
-    expect(en.whatIs(en.glossary.plan.title)).toBe("What does “Plan” mean?");
-    expect(ko.whatIs(ko.glossary.plan.title)).toBe("‘정리 계획’이란?");
-    expect(ko.whatIs(ko.glossary.quarantine.title)).toBe("‘격리’란?");
-    expect(ko.whatIs(ko.glossary.coverage.title)).toBe("‘스캔 범위’란?");
+    expect(en.whatIs(en.glossary.quarantine.title)).toBe("What does “Quarantine” mean?");
+    expect(ko.whatIs(ko.glossary.quarantine.title)).toBe("‘격리함’이란?");
+    expect(ko.whatIs(ko.glossary.finalize.title)).toBe("‘영구 삭제’란?");
+    expect(ko.whatIs(ko.glossary.coverage.title)).toBe("‘읽지 못한 폴더’란?");
     expect(ko.whatIs(ko.glossary.restore.title)).toBe("‘복원’이란?");
     expect(ko.whatIs("Lumen")).toBe("‘Lumen’이란?");
+  });
+});
+
+describe("plain words", () => {
+  it("count items and days in each language", () => {
+    expect(en.held.days(0)).toBe("Moved here today");
+    expect(en.held.days(1)).toBe("In Quarantine for 1 day");
+    expect(en.held.days(30)).toBe("In Quarantine for 30 days");
+    expect(ko.held.days(30)).toBe("보관한 지 30일");
+    expect(en.quarantine.count(1)).toBe("1 item held");
+    expect(ko.quarantine.count(2)).toBe("보관 중인 항목 2개");
   });
 });
