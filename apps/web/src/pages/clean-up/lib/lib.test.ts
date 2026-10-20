@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { en, ko } from "@/shared/i18n";
+import { commandLine, shellWord } from "./command";
 import { outcomeText } from "./outcome";
 import { rootsOf } from "./roots";
 
@@ -29,6 +30,34 @@ describe("outcomeText", () => {
     );
     expect(outcomeText(ko, { kind: "failed", reason: "IdentityMismatch", left: "gone" })).toBe(
       "옮기지 못했습니다(IdentityMismatch). 항목이 사라졌습니다.",
+    );
+  });
+});
+
+describe("commandLine", () => {
+  it("joins plain words as they are", () => {
+    expect(
+      commandLine({
+        tool: "Xcode",
+        program: "xcrun",
+        args: ["simctl", "delete", "unavailable"],
+      }),
+    ).toBe("xcrun simctl delete unavailable");
+    expect(commandLine({ tool: "Go", program: "go", args: ["clean", "-modcache"] })).toBe(
+      "go clean -modcache",
+    );
+    expect(commandLine({ tool: "Homebrew", program: "brew", args: [] })).toBe("brew");
+  });
+
+  it("single-quotes words a shell would read otherwise", () => {
+    expect(shellWord("a b")).toBe("'a b'");
+    expect(shellWord("")).toBe("''");
+    expect(shellWord("$HOME")).toBe("'$HOME'");
+    expect(shellWord("*.log")).toBe("'*.log'");
+    expect(shellWord("a;rm")).toBe("'a;rm'");
+    expect(shellWord("it's")).toBe("'it'\\''s'");
+    expect(commandLine({ tool: "T", program: "my tool", args: ["--dir", "~/My Files"] })).toBe(
+      "'my tool' --dir '~/My Files'",
     );
   });
 });

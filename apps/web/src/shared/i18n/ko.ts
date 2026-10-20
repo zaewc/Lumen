@@ -71,6 +71,13 @@ export const ko = {
     outOfSpace:
       "디스크 공간이 거의 없어 검사를 멈췄습니다(Lumen은 항상 2 GB를 남겨 둡니다). 결과가 완전하지 않으니, 공간을 확보한 뒤 다시 검사하십시오.",
   },
+  toolCommand: {
+    title: (tool: string) => `${tool}에서 직접 정리할 수 있습니다`,
+    copy: "복사",
+    copied: "복사됨",
+    copyFailed: "복사하지 못했습니다. 명령을 선택해 직접 복사하십시오.",
+    note: "Lumen은 이 명령을 실행하지 않습니다. 무엇을 삭제하는지 먼저 확인하십시오.",
+  },
   coverage: {
     incomplete:
       "일부 폴더를 읽지 못해 그대로 두었습니다. 실제 크기는 표시된 것보다 클 수 있습니다.",

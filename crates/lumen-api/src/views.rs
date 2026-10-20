@@ -8,6 +8,7 @@
 //! match them exhaustively. An absent value is always sent, as `null`, so
 //! optional fields are required and nullable in the schema.
 
+use lumen_app::assess::{ToolGuidance, tool_action};
 use lumen_app::held::{HeldItem, Outcome};
 use lumen_app::quarantine::{ItemResult, QuarantineReport};
 use lumen_app::{Planned, RootSummary, ScanSummary};
@@ -163,6 +164,32 @@ pub struct CandidateView {
     pub reclaimable_bytes: String,
     /// Why: one reason per policy rule that fired, in the policy's order.
     pub reasons: Vec<ReasonView>,
+    /// The cleanup command of the developer tool that owns it, if the tool
+    /// has one: guidance for the user to run themselves. Lumen never runs it.
+    #[schema(required = true)]
+    pub tool_command: Option<ToolCommandView>,
+}
+
+/// A developer tool's own cleanup command, as a literal argument vector:
+/// shown to the user to copy and run themselves, never run by Lumen.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ToolCommandView {
+    /// The tool's display name, such as `Xcode`.
+    pub tool: String,
+    /// The program, such as `xcrun`.
+    pub program: String,
+    /// Its arguments, one per element, unquoted.
+    pub args: Vec<String>,
+}
+
+impl From<ToolGuidance> for ToolCommandView {
+    fn from(guidance: ToolGuidance) -> Self {
+        Self {
+            tool: guidance.tool,
+            program: guidance.program,
+            args: guidance.args,
+        }
+    }
 }
 
 /// One policy rule that fired, and its fixed sentence (ADR-0014).
@@ -193,6 +220,7 @@ impl From<&Assessed> for CandidateView {
             verdict: assessed.decision.verdict().into(),
             reclaimable_bytes: bytes(reclaim(assessed)),
             reasons,
+            tool_command: tool_action(assessed).map(ToolCommandView::from),
         }
     }
 }

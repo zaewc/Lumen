@@ -205,10 +205,85 @@ fn assess_reports_a_known_artifact_and_moves_nothing() -> Result<(), Box<dyn std
         Some(0),
         "explained"
     );
+    assert!(item["tool_command"].is_null(), "DerivedData has no command");
     assert_eq!(
         std::fs::read(home.join("Library/Developer/Xcode/DerivedData/App-abc/Build/out.o"))?,
         vec![7; 4096],
         "assessment moves nothing"
+    );
+    Ok(())
+}
+
+/// An artifact only its tool may clean is shown with the tool's command, as
+/// guidance; nothing runs it and nothing moves.
+#[cfg(target_os = "macos")]
+#[test]
+fn assess_shows_the_tools_own_command_and_runs_nothing() -> Result<(), Box<dyn std::error::Error>> {
+    let device = "home/Library/Developer/CoreSimulator/Devices/0A1B/data/x";
+    let fx = Fixture::build(&[Node::File {
+        path: device.into(),
+        contents: vec![7; 4096],
+    }])?;
+    let home = std::fs::canonicalize(fx.path("home")?)?;
+    let db = fx.path("index.db")?;
+    let run = |args: &[&std::ffi::OsStr]| {
+        Command::new(env!("CARGO_BIN_EXE_lumen"))
+            .args(args)
+            .env("HOME", &home)
+            .output()
+    };
+    let scan = run(&[
+        "scan".as_ref(),
+        home.as_os_str(),
+        "--db".as_ref(),
+        db.as_os_str(),
+    ])?;
+    assert!(
+        scan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&scan.stderr)
+    );
+    let json = run(&[
+        "assess".as_ref(),
+        "--db".as_ref(),
+        db.as_os_str(),
+        "--json".as_ref(),
+    ])?;
+    assert!(
+        json.status.success(),
+        "{}",
+        String::from_utf8_lossy(&json.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&json.stdout)?;
+    let item = report["candidates"]
+        .as_array()
+        .ok_or("no candidates")?
+        .iter()
+        .find(|c| {
+            c["path"]
+                .as_str()
+                .is_some_and(|p| p.ends_with("CoreSimulator/Devices"))
+        })
+        .ok_or("the simulator devices folder is a candidate")?;
+    assert_eq!(item["verdict"], "REVIEW", "{item}");
+    assert_eq!(item["tool_command"]["tool"], "Xcode");
+    assert_eq!(item["tool_command"]["program"], "xcrun");
+    assert_eq!(
+        item["tool_command"]["args"],
+        serde_json::json!(["simctl", "delete", "unavailable"])
+    );
+    let text = run(&["assess".as_ref(), "--db".as_ref(), db.as_os_str()])?;
+    let text = String::from_utf8_lossy(&text.stdout);
+    assert!(
+        text.contains(
+            "- To clean it up yourself: xcrun simctl delete unavailable (Lumen does not run it)"
+        ),
+        "{text}"
+    );
+    assert_eq!(
+        std::fs::read(fx.path(device)?)?,
+        vec![7; 4096],
+        "nothing ran and nothing moved"
     );
     Ok(())
 }

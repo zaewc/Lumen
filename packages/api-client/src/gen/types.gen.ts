@@ -20,6 +20,7 @@ export type CandidateView = {
    * What removing it would free now, in bytes.
    */
   reclaimable_bytes: string;
+  tool_command: ToolCommandView | null;
   /**
    * The policy's verdict.
    */
@@ -414,6 +415,25 @@ export type SkipView =
   | "reasons_changed"
   | "not_prepared"
   | "manifest";
+
+/**
+ * A developer tool's own cleanup command, as a literal argument vector:
+ * shown to the user to copy and run themselves, never run by Lumen.
+ */
+export type ToolCommandView = {
+  /**
+   * Its arguments, one per element, unquoted.
+   */
+  args: Array<string>;
+  /**
+   * The program, such as `xcrun`.
+   */
+  program: string;
+  /**
+   * The tool's display name, such as `Xcode`.
+   */
+  tool: string;
+};
 
 /**
  * The policy's verdict.

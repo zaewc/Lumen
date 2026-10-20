@@ -19,7 +19,8 @@
           "path",
           "verdict",
           "reclaimable_bytes",
-          "reasons"
+          "reasons",
+          "tool_command"
         ],
         "properties": {
           "path": {
@@ -36,6 +37,17 @@
           "reclaimable_bytes": {
             "type": "string",
             "description": "What removing it would free now, in bytes."
+          },
+          "tool_command": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ToolCommandView",
+                "description": "The cleanup command of the developer tool that owns it, if the tool\nhas one: guidance for the user to run themselves. Lumen never runs it."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "verdict": {
             "$ref": "#/components/schemas/VerdictView",
@@ -701,6 +713,32 @@
           "not_prepared",
           "manifest"
         ]
+      },
+      "ToolCommandView": {
+        "type": "object",
+        "description": "A developer tool's own cleanup command, as a literal argument vector:\nshown to the user to copy and run themselves, never run by Lumen.",
+        "required": [
+          "tool",
+          "program",
+          "args"
+        ],
+        "properties": {
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Its arguments, one per element, unquoted."
+          },
+          "program": {
+            "type": "string",
+            "description": "The program, such as `xcrun`."
+          },
+          "tool": {
+            "type": "string",
+            "description": "The tool's display name, such as `Xcode`."
+          }
+        }
       },
       "VerdictView": {
         "type": "string",

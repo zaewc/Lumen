@@ -26,6 +26,7 @@ use utoipa::OpenApi;
         views::VerdictView,
         views::CandidateView,
         views::ReasonView,
+        views::ToolCommandView,
         views::PlanView,
         views::ExecuteRequest,
         views::LocationView,
@@ -70,7 +71,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 22);
+        assert_eq!(schemas, 23);
     }
 
     #[test]
@@ -113,5 +114,11 @@ mod tests {
             .map(|r| r.iter().filter_map(serde_json::Value::as_str).collect())
             .unwrap_or_default();
         assert!(required.contains(&"original"), "{required:?}");
+        let candidate = &doc["components"]["schemas"]["CandidateView"];
+        let required: Vec<&str> = candidate["required"]
+            .as_array()
+            .map(|r| r.iter().filter_map(serde_json::Value::as_str).collect())
+            .unwrap_or_default();
+        assert!(required.contains(&"tool_command"), "{required:?}");
     }
 }

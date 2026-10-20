@@ -6,7 +6,7 @@ import { cleanUpStep } from "./step";
 import { summarize } from "./summary";
 
 function candidate(path: string, verdict: CandidateView["verdict"], bytes: string): CandidateView {
-  return { path, verdict, reclaimable_bytes: bytes, reasons: [] };
+  return { path, verdict, reclaimable_bytes: bytes, reasons: [], tool_command: null };
 }
 
 describe("summarize", () => {

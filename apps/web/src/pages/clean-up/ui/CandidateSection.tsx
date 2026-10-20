@@ -3,6 +3,7 @@ import { reasonText, useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import { Card, Disclosure } from "@/shared/ui";
 import type { VerdictGroup } from "../model/summary";
+import { ToolCommand } from "./ToolCommand";
 
 /** One candidate: its name, what it frees, why, and where it is. */
 function CandidateRow({ candidate }: { readonly candidate: CandidateView }) {
@@ -26,6 +27,7 @@ function CandidateRow({ candidate }: { readonly candidate: CandidateView }) {
       <p className="mt-1 font-mono text-xs break-all text-neutral-500 dark:text-neutral-400">
         {candidate.path}
       </p>
+      {candidate.tool_command !== null && <ToolCommand command={candidate.tool_command} />}
       {candidate.reasons.length > 1 && (
         <Disclosure
           className="mt-1"

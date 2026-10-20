@@ -23,6 +23,7 @@ pub(crate) fn to_text(planned: &Planned, db: &Path) -> String {
             item.path.display()
         ));
         lines.extend(assessed.reasons.iter().map(|r| format!("        - {r}")));
+        lines.extend(crate::assess::guidance_line(assessed, "        "));
     }
     lines.push(format!(
         "{} items, {}. Nothing has been moved.",

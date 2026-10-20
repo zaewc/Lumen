@@ -215,6 +215,16 @@ export const zQuarantineReportView = z.object({
 });
 
 /**
+ * A developer tool's own cleanup command, as a literal argument vector:
+ * shown to the user to copy and run themselves, never run by Lumen.
+ */
+export const zToolCommandView = z.object({
+  args: z.array(z.string()),
+  program: z.string(),
+  tool: z.string(),
+});
+
+/**
  * The policy's verdict.
  */
 export const zVerdictView = z.enum(["keep", "review", "quarantine"]);
@@ -226,6 +236,7 @@ export const zCandidateView = z.object({
   path: z.string(),
   reasons: z.array(zReasonView),
   reclaimable_bytes: z.string(),
+  tool_command: zToolCommandView.nullable(),
   verdict: zVerdictView,
 });
 

@@ -23,5 +23,6 @@ export type {
   ScanRequest,
   ScanView,
   SkipView,
+  ToolCommandView,
   VerdictView,
 } from "./types.gen";

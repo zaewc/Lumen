@@ -11,7 +11,7 @@
 use std::collections::{BTreeSet, HashSet};
 use std::path::Path;
 use std::pin::pin;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::task::{Context as TaskContext, Poll, Wake, Waker};
 use std::thread::{self, Thread};
 
@@ -22,8 +22,8 @@ use lumen_application::observe::below;
 use lumen_application::ports::{Clock, InUseProbe, InventoryReport, OwnershipProbe};
 use lumen_devkb::{Environment, KnowledgeBase, Markers};
 use lumen_domain::{
-    CleanupMechanism, Evidence, Platform, PlatformCapabilities, RawPath, Relationship, ScanId,
-    SourceName, SourceNameError, Subject,
+    CleanupMechanism, Evidence, Fact, Platform, PlatformCapabilities, RawPath, Relationship,
+    ScanId, SourceName, SourceNameError, Subject,
 };
 use lumen_policy::Context;
 use lumen_store_sqlite::{IndexStore, StoreError, open_index};
@@ -489,9 +489,68 @@ pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> 
     })
 }
 
+/// A developer tool's own cleanup command, shown to the user as guidance to
+/// run themselves. Lumen never runs it: it is a literal argument vector from
+/// the knowledge base, never a shell string, and nothing here executes it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToolGuidance {
+    /// The tool's display name, e.g. `Xcode`.
+    pub tool: String,
+    /// The program, e.g. `xcrun`.
+    pub program: String,
+    /// Its arguments, e.g. `["simctl", "delete", "unavailable"]`.
+    pub args: Vec<String>,
+}
+
+/// The built-in knowledge base, loaded once; `None` if it does not load.
+fn builtin_knowledge_base() -> Option<&'static KnowledgeBase> {
+    static KNOWLEDGE_BASE: OnceLock<Option<KnowledgeBase>> = OnceLock::new();
+    KNOWLEDGE_BASE
+        .get_or_init(|| KnowledgeBase::builtin().ok())
+        .as_ref()
+}
+
+/// The cleanup command of the tool whose knowledge-base entry `assessed`
+/// matched, if that entry has one: the first such entry in evidence order.
+/// `None` if no entry with a command matched, or the knowledge base does
+/// not load.
+pub fn tool_action(assessed: &Assessed) -> Option<ToolGuidance> {
+    let subject = Subject::File {
+        identity: assessed.candidate.identity().clone(),
+    };
+    tool_guidance(
+        builtin_knowledge_base()?,
+        &subject,
+        &assessed.input.evidence,
+    )
+}
+
+/// The first knowledge-base entry matched by `subject` itself in `evidence`
+/// that has an official cleanup command, as guidance.
+fn tool_guidance(
+    kb: &KnowledgeBase,
+    subject: &Subject,
+    evidence: &[Evidence],
+) -> Option<ToolGuidance> {
+    evidence
+        .iter()
+        .filter(|record| &record.subject == subject)
+        .filter_map(|record| match &record.fact {
+            Fact::KnowledgeBaseMatch { entry } => kb.get(entry.as_str()),
+            _ => None,
+        })
+        .find_map(|entry| {
+            entry.official_action.as_ref().map(|action| ToolGuidance {
+                tool: entry.tool.clone(),
+                program: action.program.clone(),
+                args: action.args.clone(),
+            })
+        })
+}
+
 /// What kind of item the evidence says `input`'s subject is, for Jev.
 fn category(input: &lumen_policy::PolicyInput) -> lumen_domain::Category {
-    use lumen_domain::{AppDataKind, Category, Fact};
+    use lumen_domain::{AppDataKind, Category};
     let about = || {
         input
             .evidence
@@ -683,6 +742,65 @@ mod tests {
             category(&input(&[Fact::CloudBacked(false)])),
             Category::Other
         );
+    }
+
+    fn matched(entry: &str) -> Fact {
+        Fact::KnowledgeBaseMatch {
+            entry: SourceName::new(entry).unwrap_or_else(|e| unreachable!("{e}")),
+        }
+    }
+
+    #[test]
+    fn a_matched_tool_command_becomes_guidance() -> Result<(), lumen_devkb::LoadError> {
+        let kb = KnowledgeBase::builtin()?;
+        let input = input(&[matched("xcode-simulator-devices")]);
+        assert_eq!(
+            tool_guidance(&kb, &input.subject, &input.evidence),
+            Some(ToolGuidance {
+                tool: "Xcode".to_owned(),
+                program: "xcrun".to_owned(),
+                args: vec![
+                    "simctl".to_owned(),
+                    "delete".to_owned(),
+                    "unavailable".to_owned()
+                ],
+            })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn the_first_matched_entry_with_a_command_wins() -> Result<(), lumen_devkb::LoadError> {
+        let kb = KnowledgeBase::builtin()?;
+        // Unknown entries and entries without a command are passed over.
+        let input = input(&[
+            Fact::CloudBacked(false),
+            matched("no-such-entry"),
+            matched("cargo-global-cache"),
+            matched("npm-cache"),
+            matched("xcode-simulator-devices"),
+        ]);
+        let guidance = tool_guidance(&kb, &input.subject, &input.evidence);
+        assert_eq!(guidance.map(|g| g.program), Some("npm".to_owned()));
+        Ok(())
+    }
+
+    #[test]
+    fn only_the_candidates_own_matches_count() -> Result<(), lumen_devkb::LoadError> {
+        let kb = KnowledgeBase::builtin()?;
+        let mut input = input(&[matched("npm-cache")]);
+        let other = Subject::File {
+            identity: FileIdentity {
+                volume: VolumeId::new("v").unwrap_or_else(|e| unreachable!("{e}")),
+                file: FileId::new(2),
+            },
+        };
+        for record in &mut input.evidence {
+            record.subject = other.clone();
+        }
+        assert_eq!(tool_guidance(&kb, &input.subject, &input.evidence), None);
+        assert_eq!(tool_guidance(&kb, &input.subject, &[]), None);
+        Ok(())
     }
 
     #[test]

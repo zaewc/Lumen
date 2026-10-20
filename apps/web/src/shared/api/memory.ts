@@ -47,20 +47,26 @@ const candidate: CandidateView = {
       text: "Quarantine proposed: the tool that made it can regenerate it.",
     },
   ],
+  tool_command: null,
 };
 
 /** Candidates the policy does not propose: one to review, one it keeps. */
 const others: readonly CandidateView[] = [
   {
-    path: "/Users/ana/Library/Application Support/Notes",
+    path: "/Users/ana/Library/Developer/CoreSimulator/Devices",
     verdict: "review",
     reclaimable_bytes: "310000000",
     reasons: [
       {
-        rule: "classify.app-state",
-        text: "Review: it holds an application's own data, settings or documents.",
+        rule: "classify.devkb-tool-action",
+        text: "Review: only the tool's own cleanup command should remove it, and that cannot be undone.",
       },
     ],
+    tool_command: {
+      tool: "Xcode",
+      program: "xcrun",
+      args: ["simctl", "delete", "unavailable"],
+    },
   },
   {
     path: "/Users/ana/Library/Mobile Documents/com~apple~CloudDocs",
@@ -73,6 +79,7 @@ const others: readonly CandidateView[] = [
       },
       { rule: "protect.in-use", text: "Kept: a running process is using it." },
     ],
+    tool_command: null,
   },
 ];
 

@@ -18,9 +18,8 @@ describe("memoryTransport", () => {
     const progress: unknown[] = [];
     zScanView.parse(await transport.scan({ roots: ["/Users/ana"] }, (p) => progress.push(p)));
     expect(progress.map((p) => zScanProgressView.parse(p).entries)).toEqual(["1580"]);
-    for (const candidate of await transport.assess()) {
-      zCandidateView.parse(candidate);
-    }
+    const candidates = (await transport.assess()).map((c) => zCandidateView.parse(c));
+    expect(candidates.find((c) => c.verdict === "review")?.tool_command?.program).toBe("xcrun");
     const plan = zPlanView.parse(await transport.plan());
     const report = await transport.execute({ plan: plan.plan, confirmation: plan.hash });
     expect(zQuarantineReportView.parse(report).moved_bytes).toBe("4200000000");

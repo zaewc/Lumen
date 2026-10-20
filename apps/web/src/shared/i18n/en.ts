@@ -63,6 +63,13 @@ export const en = {
     outOfSpace:
       "The scan stopped because the disk is almost full (Lumen always leaves 2 GB free), so these results are incomplete. Free some space and scan again.",
   },
+  toolCommand: {
+    title: (tool: string) => `${tool} can clean this up itself`,
+    copy: "Copy",
+    copied: "Copied",
+    copyFailed: "Could not copy. Select the command to copy it yourself.",
+    note: "Lumen does not run this command. Check what it removes first.",
+  },
   coverage: {
     incomplete:
       "Some folders could not be read, so Lumen left them alone. The real sizes may be larger than shown.",
