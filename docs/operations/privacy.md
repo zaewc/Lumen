@@ -32,6 +32,10 @@ named like a path, name or hash with `[redacted]`.
 | Event (`message`) | Operation | Fields |
 | --- | --- | --- |
 | `scan finished` | `scan` (with `roots`: how many) | `entries`, `directories`, `skipped`, `files`, `complete_roots`, `elapsed_ms`, `stopped_early`, `recorded` |
+| `earlier scans pruned` | `scan` | `scans` (earlier scans whose rows were removed), `abandoned` (scans left running for 6 hours, now failed) |
+| `earlier scans were not pruned` | `scan` | none |
+| `index database compacted` | `scan` | `freed_bytes` |
+| `index database not compacted` | `scan` | `reason`: `unmeasured`, `no_room`, `failed` |
 | `assessment finished` | `assess` | `candidates`, `keep`, `review`, `quarantine`, `jev_consulted`, `elapsed_ms` |
 | `plan stored` | `plan` | `items` |
 | `plan executed` | `quarantine` | `items`, `quarantined`, `skipped`, `failed`, `resolved`, `moved_bytes`, `warnings` |

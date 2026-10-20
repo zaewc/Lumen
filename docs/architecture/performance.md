@@ -142,6 +142,18 @@ scans again. Scan records, snapshots (history), plans and the evidence graph are
 kept. The freed pages are reused by the next scan; the file itself shrinks only on
 `VACUUM`.
 
+## Only the latest scan is kept (2026-10-20)
+
+An assessment reads only the latest completed scan, but every scan used to stay in
+`index.db`: the owner's desktop database had grown to 11.3 GB over ten scans (four
+completed, five abandoned while running, one cancelled). Now a completed scan
+removes the entries and listings of every earlier finished scan, and a scan left
+running for six hours is marked failed and removed too (nothing resumes scans; a
+younger one may belong to another process and is left alone). Scan records, root
+snapshots, plans and the evidence graph stay. When that frees 256 MB or more, the
+file is compacted with `VACUUM`, if the disk has room for the rewrite
+(`lumen_app::space`); otherwise the free pages are reused by later scans.
+
 ## How to measure a real tree
 
 ```sh

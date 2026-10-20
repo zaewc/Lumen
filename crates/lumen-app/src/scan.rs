@@ -299,6 +299,9 @@ fn guarded(
             scan_id,
             &snapshots(&roots_summary, finished),
         )?;
+        if let (ScanState::Completed, Some(path)) = (state, db) {
+            tidy(&mut store, path, scan_id, finished);
+        }
     }
 
     let result = ScanSummary {
@@ -313,6 +316,48 @@ fn guarded(
     };
     finished(&result, timer.elapsed());
     Ok(result)
+}
+
+/// A scan still `running` this long after it started was abandoned: nothing
+/// resumes scans, and a whole disk takes minutes.
+const ABANDONED_AFTER_SECS: i64 = 6 * 60 * 60;
+
+/// Free pages worth giving back to the file system with a `VACUUM`.
+const VACUUM_FROM: u64 = 256 * 1024 * 1024;
+
+/// After a completed scan, keeps only its rows in `index.db` (an assessment
+/// reads only the latest completed scan) and gives large freed space back to
+/// the file system when the disk has room for the rewrite. The scan is
+/// already recorded, so a failure here only leaves the file larger.
+fn tidy(store: &mut IndexStore, db: &Path, keep: ScanId, now: Timestamp) {
+    let cutoff = Timestamp::from_unix(now.unix_seconds().saturating_sub(ABANDONED_AFTER_SECS), 0)
+        .unwrap_or(now);
+    // Counts and outcomes only: error texts can carry paths (ADR-0022).
+    if let Ok(pruned) = store.prune(keep, cutoff) {
+        tracing::info!(
+            scans = pruned.scans,
+            abandoned = pruned.abandoned,
+            "earlier scans pruned"
+        );
+    } else {
+        tracing::warn!("earlier scans were not pruned");
+    }
+    let free = store.free_bytes().unwrap_or(0);
+    if free < VACUUM_FROM {
+        return;
+    }
+    // A VACUUM rewrites the live pages, so it needs about that much room.
+    let Ok(used) = store.used_bytes() else {
+        tracing::warn!(reason = "unmeasured", "index database not compacted");
+        return;
+    };
+    if space::ensure(db, used).is_err() {
+        tracing::warn!(reason = "no_room", "index database not compacted");
+    } else if store.vacuum().is_ok() {
+        tracing::info!(freed_bytes = free, "index database compacted");
+    } else {
+        tracing::warn!(reason = "failed", "index database not compacted");
+    }
 }
 
 /// Each root's sizes and coverage.
@@ -469,6 +514,50 @@ mod tests {
         )
         .unwrap_or_else(|e| unreachable!("{e}"));
         assert_eq!(summary.stopped, Some(StopReason::Cancelled));
+    }
+
+    #[test]
+    fn a_completed_scan_replaces_the_previous_scans_rows() {
+        let fx = fixture();
+        let db = fx.path("index.db").unwrap_or_else(|e| unreachable!("{e}"));
+        let run = || {
+            scan(
+                &[fx.root().to_path_buf()],
+                Some(&db),
+                &SystemClock,
+                &UuidV7Ids,
+                &CancelToken::new(),
+                &mut |_| {},
+            )
+            .unwrap_or_else(|e| unreachable!("{e}"))
+        };
+        let first = run();
+        let second = run();
+        let store = IndexStore::new(open_index(&db).unwrap_or_else(|e| unreachable!("{e}")));
+        let rows = |id| {
+            store
+                .entries(id)
+                .unwrap_or_else(|e| unreachable!("{e}"))
+                .len()
+        };
+        assert_eq!(rows(first.scan), 0, "the earlier scan's rows are gone");
+        assert_eq!(
+            rows(second.scan),
+            usize::try_from(second.entries).unwrap_or(0)
+        );
+        assert_eq!(
+            store
+                .scan_state(first.scan)
+                .unwrap_or_else(|e| unreachable!("{e}")),
+            Some(ScanState::Completed),
+            "its record stays"
+        );
+        assert_eq!(
+            store
+                .latest_completed_scan()
+                .unwrap_or_else(|e| unreachable!("{e}")),
+            Some(second.scan)
+        );
     }
 
     #[test]

@@ -28,7 +28,7 @@ use rusqlite::Connection;
 use rusqlite::config::DbConfig;
 use rusqlite_migration::{M, Migrations};
 
-pub use index::{IndexStore, RootSnapshot, StoredPlan};
+pub use index::{IndexStore, Pruned, RootSnapshot, StoredPlan};
 pub use ledger::{JournalEntry, LedgerJournal, LedgerStore};
 pub use writer::{IndexWriter, WriteStats, WriterConfig};
 

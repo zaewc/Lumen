@@ -55,11 +55,13 @@ pub struct IndexStore {
 mod dirs;
 mod graph;
 mod plans;
+mod prune;
 #[cfg(test)]
 mod size;
 
 use dirs::DirCache;
 pub use plans::StoredPlan;
+pub use prune::Pruned;
 
 /// An entry query for scan `?1`: its directory and name first, then the
 /// columns [`entry_from_row`] reads. `$filter` narrows it, `$tail` follows the
@@ -954,7 +956,7 @@ fn entry_from_row(row: &Row<'_>) -> Result<FilesystemEntry, StoreError> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use lumen_domain::{DenialReason, FailureKind};
     use lumen_testkit::Fixture;
     use proptest::prelude::*;
@@ -962,19 +964,19 @@ mod tests {
     use super::*;
     use crate::open_index;
 
-    fn store() -> Result<(Fixture, IndexStore), Box<dyn std::error::Error>> {
+    pub(crate) fn store() -> Result<(Fixture, IndexStore), Box<dyn std::error::Error>> {
         let fx = Fixture::build(&[])?;
         let conn = open_index(&fx.path("index.db")?)?;
         Ok((fx, IndexStore::new(conn)))
     }
 
-    fn scan_id(n: u8) -> ScanId {
+    pub(crate) fn scan_id(n: u8) -> ScanId {
         format!("0190f1c2-7a3b-7c4d-8e5f-6a7b8c9d0e{n:02x}")
             .parse()
             .unwrap_or_else(|_| unreachable!())
     }
 
-    fn entry(path: &[u8], file: u128) -> FilesystemEntry {
+    pub(crate) fn entry(path: &[u8], file: u128) -> FilesystemEntry {
         FilesystemEntry {
             path: RawPath::from_unix_bytes(path.to_vec()).unwrap_or_else(|_| unreachable!()),
             kind: EntryKind::File,
