@@ -332,8 +332,13 @@ Found by the owner trying the CLI and the desktop app (2026-10-19). Done:
 | 13.13 | `fix(macos): name privacy and integrity refusals` (#317) | `EPERM` → TCC or SIP by `SF_RESTRICTED` |
 | 13.14 | `perf(store): drop the unused entry identity index` (#318) | scan database −39% |
 | 13.15 | `ci: compile the generated Kotlin bindings` (#319) | pinned Kotlin and JNA |
-| 13.16 | `perf: stream the assessment` (#322, #323 and this) | paged reads, chunked knowledge-base matching, per-candidate subtrees: whole-disk `assess` 5.0 GB → 1.0 GB, 36 s → 25 s, identical output |
-| 13.17 | `perf(store): store each directory path once` (this) | `index.db` schema v6: a directory table plus names; a synthetic 200 k-entry scan 597 → 217 B per entry; existing scans must be rescanned after the upgrade |
+| 13.16 | `perf: stream the assessment` (#322–#324) | paged reads, chunked knowledge-base matching, per-candidate subtrees: whole-disk `assess` 5.0 GB → 1.0 GB, 36 s → 25 s, identical output |
+| 13.17 | `perf(store): store each directory path once` (#329) | `index.db` schema v6: a directory table plus names; whole disk 1,777 → 978 MB, scan 100 → 71 s, identical decisions; existing scans must be rescanned after the upgrade |
+| 13.18 | `feat(web): one guided clean-up flow` (#325) | two tabs (Clean up, Quarantine), scan → "you can free X" → Clean up → confirm dialog → done |
+| 13.19 | `feat(quarantine): show how much space the quarantine holds` (#326) | per-item size and total, from an append-only `quarantine_sizes` ledger table |
+| 13.20 | `feat(web): follow the system's dark mode` (#327) | |
+| 13.21 | `feat(desktop): give Lumen a real icon` (#328) | |
+| 13.22 | `feat(store): keep only the latest scan's rows` (#330) | earlier and abandoned scans pruned after a completed scan, `VACUUM` when 256 MB+ is free (the owner's database had grown to 11.3 GB) |
 
 Open:
 
