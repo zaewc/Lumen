@@ -70,27 +70,49 @@ pub(crate) fn set(service: Service) -> Result<String, Box<dyn Error>> {
     ))
 }
 
-/// The judge for a run that passed `--jev`, after telling the user what will
-/// be sent and where: Jeb when its key is stored, otherwise Jev through
+/// The judge for a run that consults it, after telling the user what will be
+/// sent and where: Jeb when its key is stored, otherwise Jev through
 /// `OpenRouter`. Without a stored key the run stops rather than silently
 /// deciding without the judgment the user asked for.
 pub(crate) fn judge() -> Result<lumen_jev::openrouter::JevJudge, Box<dyn Error>> {
+    let (service, key) = stored_key()?;
+    eprintln!("{}", disclosure_for(service));
+    Ok(match service {
+        Service::Jeb => lumen_jev::openrouter::JevJudge::jeb(key)?,
+        Service::OpenRouter => lumen_jev::openrouter::JevJudge::new(key)?,
+    })
+}
+
+/// What turning AI review on will send, and where, for the stored key.
+///
+/// # Errors
+///
+/// If no key is stored: AI review cannot be on without one.
+pub(crate) fn disclosure() -> Result<&'static str, Box<dyn Error>> {
+    Ok(disclosure_for(stored_key()?.0))
+}
+
+fn stored_key() -> Result<(Service, ApiKey), Box<dyn Error>> {
     let store = store()?;
-    if let Some(secret) = store.get(SecretName::JEB_API_KEY)? {
-        let key = ApiKey::new(secret.expose()).ok_or("the stored Jeb API key is not valid")?;
-        eprintln!(
-            "Jeb: for each item proposed for quarantine, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to the school's Jeb server (jeb.https.gsmsv.site) with your key. Its operator may keep requests. Jeb can only make a decision more cautious."
-        );
-        return Ok(lumen_jev::openrouter::JevJudge::jeb(key)?);
+    for service in [Service::Jeb, Service::OpenRouter] {
+        if let Some(secret) = store.get(secret(service))? {
+            let key = ApiKey::new(secret.expose())
+                .ok_or_else(|| format!("the stored {} API key is not valid", label(service)))?;
+            return Ok((service, key));
+        }
     }
-    let secret = store
-        .get(SecretName::OPENROUTER_API_KEY)?
-        .ok_or("--jev needs an API key: run `lumen jev key set` (Jeb) or `lumen jev key set --openrouter` first")?;
-    let key = ApiKey::new(secret.expose()).ok_or("the stored OpenRouter API key is not valid")?;
-    eprintln!(
-        "Jev: for each item proposed for quarantine, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to TypeSafe's Jev through OpenRouter with your key. Jev can only make a decision more cautious."
-    );
-    Ok(lumen_jev::openrouter::JevJudge::new(key)?)
+    Err("AI review needs an API key: run `lumen jev key set` (Jeb) or `lumen jev key set --openrouter` first".into())
+}
+
+const fn disclosure_for(service: Service) -> &'static str {
+    match service {
+        Service::Jeb => {
+            "Jeb: for each item proposed for quarantine, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to the school's Jeb server (jeb.https.gsmsv.site) with your key. Its operator may keep requests. Jeb can only make a decision more cautious."
+        }
+        Service::OpenRouter => {
+            "Jev: for each item proposed for quarantine, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to TypeSafe's Jev through OpenRouter with your key. Jev can only make a decision more cautious."
+        }
+    }
 }
 
 /// Records every Jev consultation of `assessed` in the ledger next to `db`.

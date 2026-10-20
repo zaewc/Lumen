@@ -52,7 +52,7 @@ mod quarantine;
 #[cfg(any(unix, windows))]
 mod report;
 
-const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)";
+const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -67,8 +67,27 @@ struct ScanArgs {
 struct AssessArgs {
     db: PathBuf,
     json: bool,
-    /// Consult Jev for this run (explicit consent, roadmap 10.17b).
-    jev: bool,
+    /// Whether to consult the judge for this run.
+    ai: AiChoice,
+}
+
+/// Whether a run consults the judge (ADR-0037).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AiChoice {
+    /// As the saved setting says (`lumen ai on|off`).
+    Setting,
+    /// `--jev`: this run, whatever the setting.
+    On,
+    /// `--no-ai`: not this run, whatever the setting.
+    Off,
+}
+
+/// What to do with the AI review setting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AiAction {
+    On,
+    Off,
+    Status,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -82,6 +101,7 @@ enum Command {
     Finalize(OpArgs),
     FinalizeExpired(PathBuf),
     JevKey(KeyAction, jev_service::Service),
+    Ai(AiAction, PathBuf),
     Help,
 }
 
@@ -149,34 +169,59 @@ fn parse_quarantine(args: &[String]) -> Result<Command, String> {
 }
 
 fn parse_plan(args: &[String]) -> Result<Command, String> {
-    let (db, jev) = match args {
-        [flag, path] if flag == "--db" => (path, false),
-        [flag, path, j] | [j, flag, path] if flag == "--db" && j == "--jev" => (path, true),
-        [flag] if flag == "-h" || flag == "--help" => return Ok(Command::Help),
-        _ => return Err("plan needs --db <FILE> [--jev]".into()),
-    };
-    Ok(Command::Plan(PlanArgs {
-        db: PathBuf::from(db),
-        jev,
-    }))
+    let mut iter = args.iter();
+    let mut db = None;
+    let mut ai = AiChoice::Setting;
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--jev" => ai = AiChoice::On,
+            "--no-ai" => ai = AiChoice::Off,
+            "--db" => {
+                let path = iter.next().ok_or("--db needs a file path")?;
+                if db.replace(PathBuf::from(path)).is_some() {
+                    return Err("--db given more than once".into());
+                }
+            }
+            "-h" | "--help" => return Ok(Command::Help),
+            other => return Err(format!("unknown argument: {other}")),
+        }
+    }
+    let db = db.ok_or("plan needs --db <FILE> [--jev | --no-ai]")?;
+    Ok(Command::Plan(PlanArgs { db, ai }))
 }
 
 /// Parsed `plan` arguments.
 #[derive(Debug, PartialEq, Eq)]
 struct PlanArgs {
     db: PathBuf,
-    jev: bool,
+    ai: AiChoice,
+}
+
+fn parse_ai(args: &[String]) -> Result<Command, String> {
+    let usage = "usage: lumen ai on|off|status --db <FILE>";
+    let (action, db) = match args {
+        [action, flag, db] | [flag, db, action] if flag == "--db" => (action, db),
+        _ => return Err(usage.into()),
+    };
+    let action = match action.as_str() {
+        "on" => AiAction::On,
+        "off" => AiAction::Off,
+        "status" => AiAction::Status,
+        _ => return Err(usage.into()),
+    };
+    Ok(Command::Ai(action, PathBuf::from(db)))
 }
 
 fn parse_assess(args: &[String]) -> Result<Command, String> {
     let mut iter = args.iter();
     let mut db = None;
     let mut json = false;
-    let mut jev = false;
+    let mut ai = AiChoice::Setting;
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--json" => json = true,
-            "--jev" => jev = true,
+            "--jev" => ai = AiChoice::On,
+            "--no-ai" => ai = AiChoice::Off,
             "--db" => {
                 let path = iter.next().ok_or("--db needs a file path")?;
                 if db.replace(PathBuf::from(path)).is_some() {
@@ -188,7 +233,7 @@ fn parse_assess(args: &[String]) -> Result<Command, String> {
         }
     }
     let db = db.ok_or("assess needs --db <FILE>")?;
-    Ok(Command::Assess(AssessArgs { db, json, jev }))
+    Ok(Command::Assess(AssessArgs { db, json, ai }))
 }
 
 fn parse(args: &[String]) -> Result<Command, String> {
@@ -197,6 +242,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
         Some("scan") => {}
         Some("assess") => return parse_assess(iter.as_slice()),
         Some("plan") => return parse_plan(iter.as_slice()),
+        Some("ai") => return parse_ai(iter.as_slice()),
         Some("quarantine") => return parse_quarantine(iter.as_slice()),
         Some("list") => {
             return match iter.as_slice() {
@@ -261,7 +307,7 @@ fn database(command: &Command) -> Option<&std::path::Path> {
         Command::Assess(args) => Some(&args.db),
         Command::Plan(args) => Some(&args.db),
         Command::Quarantine(args) => Some(&args.db),
-        Command::List(db) | Command::FinalizeExpired(db) => Some(db),
+        Command::List(db) | Command::FinalizeExpired(db) | Command::Ai(_, db) => Some(db),
         Command::Restore(args) | Command::Finalize(args) => Some(&args.db),
         Command::JevKey(..) | Command::Help => None,
     }
@@ -301,6 +347,7 @@ fn main() -> ExitCode {
         },
         Ok(Command::List(db)) => report(run_held(HeldAction::List, &db, None)),
         Ok(Command::JevKey(action, service)) => report(run_jev_key(action, service)),
+        Ok(Command::Ai(action, db)) => report(run_ai(action, &db)),
         Ok(Command::Restore(args)) => {
             report(run_held(HeldAction::Restore, &args.db, Some(&args.op)))
         }
@@ -391,15 +438,21 @@ fn run(_args: &ScanArgs) -> Result<(), Box<dyn Error>> {
     Err("scanning is not supported on this platform".into())
 }
 
-/// Runs `with` with Jev when `jev` was asked for, and records its traces.
+/// Runs `with` with the judge when this run asked for it, or when AI review is
+/// on next to `db` (ADR-0037), and records its traces.
 #[cfg(any(unix, windows))]
 fn with_judge<T>(
-    jev_wanted: bool,
+    ai: AiChoice,
     db: &std::path::Path,
     with: impl FnOnce(&dyn lumen_application::ports::JudgeModel) -> Result<T, Box<dyn Error>>,
     traces: impl Fn(&T) -> &[lumen_application::assess::Assessed],
 ) -> Result<T, Box<dyn Error>> {
-    if !jev_wanted {
+    let wanted = match ai {
+        AiChoice::On => true,
+        AiChoice::Off => false,
+        AiChoice::Setting => lumen_app::ai::load(db).enabled,
+    };
+    if !wanted {
         return with(&lumen_application::ports::NoopJudge);
     }
     let judge = jev::judge()?;
@@ -411,7 +464,7 @@ fn with_judge<T>(
 #[cfg(any(unix, windows))]
 fn run_assess(args: &AssessArgs) -> Result<(), Box<dyn Error>> {
     let assessed = with_judge(
-        args.jev,
+        args.ai,
         &args.db,
         |judge| Ok(lumen_app::assess(&args.db, &lumen_app::SystemClock, judge)?),
         Vec::as_slice,
@@ -435,7 +488,7 @@ fn run_assess(_args: &AssessArgs) -> Result<(), Box<dyn Error>> {
 #[cfg(any(unix, windows))]
 fn run_plan(args: &PlanArgs) -> Result<(), Box<dyn Error>> {
     let planned = with_judge(
-        args.jev,
+        args.ai,
         &args.db,
         |judge| {
             Ok(lumen_app::plan(
@@ -479,6 +532,42 @@ fn report(result: Result<(), Box<dyn Error>>) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// `lumen ai on|off|status`: the saved choice next to `db` (ADR-0037).
+#[cfg(any(unix, windows))]
+fn run_ai(action: AiAction, db: &std::path::Path) -> Result<(), Box<dyn Error>> {
+    use lumen_application::ports::Clock as _;
+    let now = lumen_app::SystemClock.now();
+    let text = match action {
+        AiAction::On => {
+            let disclosure = jev::disclosure()?;
+            lumen_app::ai::set(db, true, now)?;
+            format!(
+                "{disclosure}\nAI review is on for this database: assess and plan ask the judge without --jev. Turn it off with `lumen ai off --db {}`; skip it once with --no-ai.\n",
+                db.display()
+            )
+        }
+        AiAction::Off => {
+            lumen_app::ai::set(db, false, now)?;
+            "AI review is off: nothing is sent unless a run passes --jev.\n".into()
+        }
+        AiAction::Status => {
+            let review = lumen_app::ai::load(db);
+            match (review.enabled, review.consented_at) {
+                (true, Some(at)) => format!("AI review is on (since {at}).\n"),
+                (true, None) => "AI review is on.\n".into(),
+                (false, _) => "AI review is off.\n".into(),
+            }
+        }
+    };
+    print!("{text}");
+    Ok(())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn run_ai(_action: AiAction, _db: &std::path::Path) -> Result<(), Box<dyn Error>> {
+    Err("AI review is not available on this platform".into())
 }
 
 #[cfg(any(unix, windows))]
@@ -583,7 +672,7 @@ mod tests {
             Ok(Command::Assess(AssessArgs {
                 db: "x.db".into(),
                 json: true,
-                jev: false,
+                ai: AiChoice::Setting,
             }))
         );
         assert!(parse(&args(&["assess"])).is_err(), "needs --db");
@@ -591,7 +680,7 @@ mod tests {
             parse(&args(&["plan", "--db", "x.db"])),
             Ok(Command::Plan(PlanArgs {
                 db: "x.db".into(),
-                jev: false,
+                ai: AiChoice::Setting,
             }))
         );
         assert!(parse(&args(&["plan"])).is_err());
@@ -684,18 +773,38 @@ mod tests {
     }
 
     #[test]
-    fn jev_is_asked_for_per_run() {
+    fn ai_review_follows_the_setting_unless_a_run_overrides_it() {
         assert_eq!(
             parse(&args(&["plan", "--db", "x.db", "--jev"])),
             Ok(Command::Plan(PlanArgs {
                 db: "x.db".into(),
-                jev: true,
+                ai: AiChoice::On,
             }))
         );
         assert!(matches!(
             parse(&args(&["assess", "--jev", "--db", "x.db"])),
-            Ok(Command::Assess(AssessArgs { jev: true, .. }))
+            Ok(Command::Assess(AssessArgs {
+                ai: AiChoice::On,
+                ..
+            }))
         ));
+        assert!(matches!(
+            parse(&args(&["assess", "--db", "x.db", "--no-ai"])),
+            Ok(Command::Assess(AssessArgs {
+                ai: AiChoice::Off,
+                ..
+            }))
+        ));
+        assert_eq!(
+            parse(&args(&["ai", "on", "--db", "x.db"])),
+            Ok(Command::Ai(AiAction::On, "x.db".into()))
+        );
+        assert_eq!(
+            parse(&args(&["ai", "--db", "x.db", "status"])),
+            Ok(Command::Ai(AiAction::Status, "x.db".into()))
+        );
+        assert!(parse(&args(&["ai", "on"])).is_err(), "needs --db");
+        assert!(parse(&args(&["ai", "always", "--db", "x.db"])).is_err());
     }
 
     #[test]

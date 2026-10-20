@@ -19,6 +19,8 @@ lumen-jev.workspace = true
 lumen-policy.workspace = true
 lumen-scan.workspace = true
 lumen-store-sqlite.workspace = true
+# The AI review setting file (ADR-0037).
+serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 # Spans and summary events for local telemetry (ADR-0022, roadmap 12.4).

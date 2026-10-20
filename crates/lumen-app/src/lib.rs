@@ -5,6 +5,7 @@
 //! desktop host run exactly the same core. It returns structured results and
 //! typed errors; presenting them is the caller's job.
 
+pub mod ai;
 pub mod assess;
 #[cfg(any(unix, windows))]
 pub mod held;
