@@ -83,7 +83,8 @@ struct Progress {
 }
 
 impl Progress {
-    fn view(&mut self, event: &ScanEvent) -> Option<ScanProgressView> {
+    /// The view to send for `event` seen at `now`, if any.
+    fn view(&mut self, event: &ScanEvent, now: std::time::Instant) -> Option<ScanProgressView> {
         match event {
             ScanEvent::Unreadable { .. } => {
                 self.unreadable += 1;
@@ -94,7 +95,6 @@ impl Progress {
                 allocated,
                 current,
             } => {
-                let now = std::time::Instant::now();
                 if self
                     .last
                     .is_some_and(|last| now.duration_since(last) < PROGRESS_EVERY)
@@ -152,7 +152,7 @@ pub(crate) async fn scan(
             &mut |event| {
                 // Once the window is gone, stop sending; the scan still
                 // finishes and is recorded.
-                if let Some(view) = live.view(event)
+                if let Some(view) = live.view(event, std::time::Instant::now())
                     && listening
                 {
                     listening = progress.send(view).is_ok();
@@ -369,8 +369,10 @@ mod tests {
 
     #[test]
     fn progress_counts_unreadable_folders_and_is_throttled() {
+        let start = std::time::Instant::now();
+        let at = |ms| start + std::time::Duration::from_millis(ms);
         let mut live = Progress {
-            started: std::time::Instant::now(),
+            started: start,
             last: None,
             unreadable: 0,
         };
@@ -378,7 +380,7 @@ mod tests {
             path: path("/Users/ana/Desktop"),
             access: AccessState::Denied(DenialReason::Tcc),
         };
-        assert_eq!(live.view(&denied), None);
+        assert_eq!(live.view(&denied, at(0)), None);
         let totals = ScanEvent::Progress {
             totals: ScanProgress {
                 entries: 1_000,
@@ -390,7 +392,7 @@ mod tests {
             current: Some(path("/Users/ana/Library")),
         };
         let first = live
-            .view(&totals)
+            .view(&totals, at(10))
             .unwrap_or_else(|| unreachable!("the first totals are sent"));
         assert_eq!(
             (
@@ -401,6 +403,8 @@ mod tests {
             ("1000", "4096", "1")
         );
         assert_eq!(first.current.as_deref(), Some("/Users/ana/Library"));
-        assert_eq!(live.view(&totals), None, "at most every 250 ms");
+        assert_eq!(first.elapsed_ms, "10");
+        assert_eq!(live.view(&totals, at(259)), None, "at most every 250 ms");
+        assert!(live.view(&totals, at(260)).is_some(), "again after 250 ms");
     }
 }
