@@ -119,6 +119,13 @@ export const en = {
     found: (n: number) => `Lumen looked at ${items(n)}.`,
     nothing:
       "Nothing needs cleaning up right now. Lumen only suggests items it is sure are safe to set aside.",
+    filter: "Show",
+    filters: {
+      all: "All",
+      quarantine: "Proposed",
+      review: "Needs review",
+      keep: "Kept",
+    },
     groups: {
       developer: "Developer tools",
       app_cache: "App caches",
@@ -137,6 +144,7 @@ export const en = {
       keep: (n: number) => `${count(n)} kept`,
     },
     section: (n: number, size: string) => `${items(n)} · ${size}`,
+    emptyFilter: "Nothing here in this view.",
     partial: "The scan stopped early, so these results are incomplete.",
     outOfSpace:
       "The scan stopped because the disk is almost full (Lumen always leaves 2 GB free), so these results are incomplete. Free some space and scan again.",

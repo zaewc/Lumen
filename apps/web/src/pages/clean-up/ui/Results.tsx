@@ -5,8 +5,9 @@ import { isOn, useAiSettings } from "@/entities/ai-review";
 import type { CandidateSummary } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, userAgent } from "@/shared/lib";
-import { ChevronIcon, InfoTip, Notice } from "@/shared/ui";
+import { ChevronIcon, InfoTip, Notice, Segmented } from "@/shared/ui";
 import { coverageOf } from "../model/coverage";
+import { FILTERS, type Filter, filterCounts, shows } from "../model/filter";
 import { sectionsOf } from "../model/sections";
 import { CandidateList } from "./CandidateList";
 import { CandidateSheet } from "./CandidateSheet";
@@ -56,23 +57,28 @@ function CoverageNotice({ scan }: { readonly scan: ScanView }) {
 
 /**
  * What a scan found: how much can be freed, then every item in sections by
- * group. A row opens its details in a sheet.
+ * group, filtered by verdict. A row opens its details in a sheet.
  */
 export function Results({
   scan,
   candidates,
   summary,
+  filter,
+  onFilterChange,
   focus,
 }: {
   readonly scan: ScanView;
   readonly candidates: readonly CandidateView[];
   readonly summary: CandidateSummary;
+  readonly filter: Filter;
+  readonly onFilterChange: (filter: Filter) => void;
   readonly focus: boolean;
 }) {
   const { m } = useI18n();
   const [open, setOpen] = useState<CandidateView | null>(null);
   const proposed = summary.quarantine;
-  const sections = sectionsOf(candidates);
+  const counts = filterCounts(candidates);
+  const sections = sectionsOf(candidates.filter((candidate) => shows(filter, candidate)));
   return (
     <>
       <div>
@@ -101,6 +107,16 @@ export function Results({
       {candidates.length > 0 && (
         <>
           <div className="flex items-center gap-2 overflow-x-auto">
+            <Segmented
+              label={m.results.filter}
+              value={filter}
+              onChange={onFilterChange}
+              segments={FILTERS.map((value) => ({
+                value,
+                label: m.results.filters[value],
+                count: counts[value],
+              }))}
+            />
             <InfoTip term="verdicts" />
           </div>
           <CandidateList sections={sections} onOpen={setOpen} />

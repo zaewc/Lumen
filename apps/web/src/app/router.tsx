@@ -5,7 +5,7 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
-import { CleanUpPage } from "@/pages/clean-up";
+import { CleanUpPage, cleanUpSearch } from "@/pages/clean-up";
 import { OverviewPage } from "@/pages/overview";
 import { QuarantinePage } from "@/pages/quarantine";
 import { SettingsPage } from "@/pages/settings";
@@ -29,7 +29,12 @@ function Layout() {
 // Routes live in the app layer and only render pages (ADR-0009).
 const root = createRootRoute({ component: Layout });
 const overview = createRoute({ getParentRoute: () => root, path: "/", component: OverviewPage });
-const cleanUp = createRoute({ getParentRoute: () => root, path: "/clean", component: CleanUpPage });
+const cleanUp = createRoute({
+  getParentRoute: () => root,
+  path: "/clean",
+  validateSearch: cleanUpSearch,
+  component: CleanUpPage,
+});
 const quarantine = createRoute({
   getParentRoute: () => root,
   path: "/quarantine",

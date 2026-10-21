@@ -133,7 +133,7 @@ function Section({
   );
 }
 
-/** The candidates in sections by group. */
+/** The candidates in sections by group, or a note when the filter leaves none. */
 export function CandidateList({
   sections,
   onOpen,
@@ -141,6 +141,14 @@ export function CandidateList({
   readonly sections: readonly KindSection[];
   readonly onOpen: (candidate: CandidateView) => void;
 }) {
+  const { m } = useI18n();
+  if (sections.length === 0) {
+    return (
+      <p className="rounded-xl border border-dashed border-line-strong px-4 py-8 text-center text-[13px] text-ink-3">
+        {m.results.emptyFilter}
+      </p>
+    );
+  }
   return (
     <div className="space-y-6">
       {sections.map((section) => (

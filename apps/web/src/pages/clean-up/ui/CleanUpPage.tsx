@@ -1,7 +1,9 @@
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { summarize, useScanSession } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, Page } from "@/shared/ui";
+import type { Filter } from "../model/filter";
 import { cleanUpStep } from "../model/step";
 import { ActionBar } from "./ActionBar";
 import { DonePanel } from "./DonePanel";
@@ -19,6 +21,9 @@ import { StepHeading } from "./StepHeading";
 export function CleanUpPage() {
   const { m } = useI18n();
   const session = useScanSession();
+  const navigate = useNavigate();
+  const { show } = useSearch({ from: "/clean" });
+  const filter: Filter = show ?? "all";
   const [folders, setFolders] = useState("");
   // Focus follows the flow once the user has started it (here, or on Overview).
   const [acted, setActed] = useState(() => session.scanning);
@@ -77,6 +82,14 @@ export function CleanUpPage() {
             scan={session.scan}
             candidates={session.candidates}
             summary={summary}
+            filter={filter}
+            onFilterChange={(next) => {
+              void navigate({
+                to: "/clean",
+                search: next === "all" ? {} : { show: next },
+                replace: true,
+              });
+            }}
             focus={acted}
           />
         ) : null;

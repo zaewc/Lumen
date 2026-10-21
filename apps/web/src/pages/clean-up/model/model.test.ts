@@ -1,6 +1,7 @@
 import type { CandidateView, QuarantineReportView, RootView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
 import { coverageOf } from "./coverage";
+import { cleanUpSearch, filterCounts, shows } from "./filter";
 import { reportSummary } from "./report";
 import { presentVerdicts, sectionsOf } from "./sections";
 import { cleanUpStep } from "./step";
@@ -59,6 +60,28 @@ describe("sectionsOf", () => {
 
   it("names the verdicts present, in the policy's order", () => {
     expect(presentVerdicts({ quarantine: 0, review: 2, keep: 1 })).toEqual(["review", "keep"]);
+  });
+});
+
+describe("filters", () => {
+  const candidates = [
+    candidate("/a", "quarantine", "1"),
+    candidate("/b", "review", "1"),
+    candidate("/c", "review", "1"),
+  ];
+
+  it("count and pick candidates by verdict", () => {
+    expect(filterCounts(candidates)).toEqual({ all: 3, quarantine: 1, review: 2, keep: 0 });
+    expect(candidates.filter((c) => shows("review", c)).map((c) => c.path)).toEqual(["/b", "/c"]);
+    expect(candidates.filter((c) => shows("all", c))).toHaveLength(3);
+  });
+
+  it("read only known filters from the URL", () => {
+    expect(cleanUpSearch({ show: "review" })).toEqual({ show: "review" });
+    expect(cleanUpSearch({ show: "all" })).toEqual({});
+    expect(cleanUpSearch({ show: "everything" })).toEqual({});
+    expect(cleanUpSearch({ show: ["keep"] })).toEqual({});
+    expect(cleanUpSearch({})).toEqual({});
   });
 });
 

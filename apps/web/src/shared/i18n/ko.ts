@@ -128,6 +128,13 @@ export const ko = {
     found: (n: number) => `${items(n)}를 살펴보았습니다.`,
     nothing:
       "지금은 정리할 항목이 없습니다. Lumen은 치워 두어도 안전하다고 확신하는 항목만 정리를 제안합니다.",
+    filter: "표시",
+    filters: {
+      all: "전체",
+      quarantine: "정리 제안",
+      review: "검토 필요",
+      keep: "유지",
+    },
     groups: {
       developer: "개발 도구",
       app_cache: "앱 캐시",
@@ -146,6 +153,7 @@ export const ko = {
       keep: (n: number) => `유지 ${count(n)}`,
     },
     section: (n: number, size: string) => `${count(n)}개 · ${size}`,
+    emptyFilter: "이 보기에는 항목이 없습니다.",
     partial: "검사가 도중에 멈춰 결과가 완전하지 않습니다.",
     outOfSpace:
       "디스크 공간이 거의 없어 검사를 멈췄습니다(Lumen은 항상 2 GB를 남겨 둡니다). 결과가 완전하지 않으니, 공간을 확보한 뒤 다시 검사하십시오.",

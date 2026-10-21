@@ -186,7 +186,7 @@ export function SessionSummary() {
             detail={m.common.items(summary.quarantine.items.length)}
           >
             {(className, content) => (
-              <Link to="/clean" className={className}>
+              <Link to="/clean" search={{ show: "quarantine" }} className={className}>
                 {content}
               </Link>
             )}
@@ -202,7 +202,7 @@ export function SessionSummary() {
             detail={formatBytes(summary.review.bytes)}
           >
             {(className, content) => (
-              <Link to="/clean" className={className}>
+              <Link to="/clean" search={{ show: "review" }} className={className}>
                 {content}
               </Link>
             )}
