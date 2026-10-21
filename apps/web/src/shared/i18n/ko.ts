@@ -29,8 +29,8 @@ export const ko = {
   common: {
     loading: "불러오는 중…",
     cancel: "취소",
+    close: "닫기",
     details: "자세히",
-    why: "이유 보기",
     scanAgain: "다시 검사",
     items: (n: number) => items(n),
   },
@@ -122,16 +122,29 @@ export const ko = {
     failed: "찾은 항목을 판단하지 못했습니다. 아무것도 변경하지 않았습니다.",
   },
   results: {
-    canFree: "확보할 수 있는 공간",
-    proposedCount: (n: number) => `안전하게 정리할 수 있는 ${items(n)}`,
+    eyebrow: "검사 결과",
+    canFree: (size: string) => `${size}를 정리할 수 있습니다`,
+    nothingTitle: "정리할 항목이 없습니다",
+    found: (n: number) => `${items(n)}를 살펴보았습니다.`,
     nothing:
       "지금은 정리할 항목이 없습니다. Lumen은 치워 두어도 안전하다고 확신하는 항목만 정리를 제안합니다.",
-    found: "검사 결과",
-    proposed: "정리할 수 있는 항목",
-    review: "검토가 필요한 항목",
-    reviewHint: "Lumen이 확신할 수 없어 그대로 둡니다. 원하시면 직접 살펴보십시오.",
-    keep: "유지하는 항목",
-    keepHint: "Lumen이 건드리지 않습니다.",
+    groups: {
+      developer: "개발 도구",
+      app_cache: "앱 캐시",
+      app_data: "앱 데이터",
+      other: "기타",
+    },
+    otherTools: "기타 도구",
+    verdict: {
+      quarantine: "정리 제안",
+      review: "검토 필요",
+      keep: "유지",
+    },
+    verdictCount: {
+      quarantine: (n: number) => `정리 제안 ${count(n)}`,
+      review: (n: number) => `검토 ${count(n)}`,
+      keep: (n: number) => `유지 ${count(n)}`,
+    },
     section: (n: number, size: string) => `${count(n)}개 · ${size}`,
     partial: "검사가 도중에 멈춰 결과가 완전하지 않습니다.",
     outOfSpace:
@@ -145,6 +158,15 @@ export const ko = {
     nothing: "정리를 제안한 항목이 없습니다.",
     planFailed: "정리를 준비하지 못했습니다. 아무것도 옮기지 않았습니다.",
   },
+  detail: {
+    size: "확보 가능",
+    location: "위치",
+    decision: "판단",
+    reasons: "이유",
+    aiTitle: "AI 검토가 주의를 권고했습니다",
+    aiBody:
+      "그래서 정리를 제안하지 않고 직접 검토하도록 남겨 두었습니다. AI는 Lumen을 더 신중하게 만들 수만 있으며, 무엇을 옮길지는 정하지 않습니다.",
+  },
   toolCommand: {
     title: (tool: string) => `${tool}에서 직접 정리할 수 있습니다`,
     copy: "복사",
@@ -155,8 +177,8 @@ export const ko = {
   coverage: {
     incomplete:
       "일부 폴더를 읽지 못해 그대로 두었습니다. 실제 크기는 표시된 것보다 클 수 있습니다.",
-    fullDiskAccess:
-      "Mac에서는 대개 개인정보 보호 기능 때문입니다. 이 폴더도 검사하려면 시스템 설정 › 개인정보 보호 및 보안 › 전체 디스크 접근 권한에서 Lumen을 켠 뒤 다시 검사하십시오.",
+    fullDiskAccess: "이 폴더도 검사하려면 전체 디스크 접근 권한을 허용하십시오.",
+    howTo: "권한 허용 방법",
   },
   details: {
     title: "검사 세부 정보",
@@ -293,7 +315,7 @@ export const ko = {
     },
     verdicts: {
       title: "Lumen의 판단 방식",
-      body: "Lumen은 추측하지 않고 정해진 안전 규칙에 따라 모든 항목을 판단합니다. ‘정리할 수 있는 항목’은 앱이나 도구가 다시 만드는 캐시 같은 항목입니다. ‘검토가 필요한 항목’은 Lumen이 확신할 수 없는 항목으로, 자동으로 옮기지 않습니다. ‘유지하는 항목’은 시스템 파일, 사용 중인 파일, 클라우드와 동기화된 파일처럼 Lumen이 건드리지 않는 항목입니다. 확실하지 않으면 항목을 그대로 둡니다.",
+      body: "Lumen은 추측하지 않고 정해진 안전 규칙에 따라 모든 항목을 판단합니다. ‘정리 제안’은 앱이나 도구가 다시 만드는 캐시 같은 항목입니다. ‘검토 필요’는 Lumen이 확신할 수 없는 항목으로, 자동으로 옮기지 않습니다. ‘유지’는 시스템 파일, 사용 중인 파일, 클라우드와 동기화된 파일처럼 Lumen이 건드리지 않는 항목입니다. 확실하지 않으면 항목을 그대로 둡니다.",
     },
     quarantine: {
       title: "격리함",

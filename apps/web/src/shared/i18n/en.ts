@@ -20,8 +20,8 @@ export const en = {
   common: {
     loading: "Loading…",
     cancel: "Cancel",
+    close: "Close",
     details: "Details",
-    why: "Why?",
     scanAgain: "Scan again",
     items: (n: number) => items(n),
   },
@@ -113,17 +113,29 @@ export const en = {
     failed: "Lumen could not decide about what it found. Nothing was changed.",
   },
   results: {
-    canFree: "You can free up",
-    proposedCount: (n: number) => `${items(n)} can be cleaned up safely`,
+    eyebrow: "Scan results",
+    canFree: (size: string) => `${size} can be cleaned up`,
+    nothingTitle: "Nothing to clean up",
+    found: (n: number) => `Lumen looked at ${items(n)}.`,
     nothing:
       "Nothing needs cleaning up right now. Lumen only suggests items it is sure are safe to set aside.",
-    found: "What Lumen found",
-    proposed: "Can be cleaned up",
-    review: "Needs your review",
-    reviewHint:
-      "Lumen is not sure about these, so it leaves them alone. Look through them yourself if you like.",
-    keep: "Kept",
-    keepHint: "Lumen will not touch these.",
+    groups: {
+      developer: "Developer tools",
+      app_cache: "App caches",
+      app_data: "App data",
+      other: "Other",
+    },
+    otherTools: "Other tools",
+    verdict: {
+      quarantine: "Proposed",
+      review: "Review",
+      keep: "Keep",
+    },
+    verdictCount: {
+      quarantine: (n: number) => `${count(n)} proposed`,
+      review: (n: number) => `${count(n)} to review`,
+      keep: (n: number) => `${count(n)} kept`,
+    },
     section: (n: number, size: string) => `${items(n)} · ${size}`,
     partial: "The scan stopped early, so these results are incomplete.",
     outOfSpace:
@@ -137,6 +149,15 @@ export const en = {
     nothing: "Nothing is proposed for clean-up.",
     planFailed: "Lumen could not prepare the clean-up. Nothing was moved.",
   },
+  detail: {
+    size: "Can be freed",
+    location: "Location",
+    decision: "Decision",
+    reasons: "Why",
+    aiTitle: "AI review advised caution",
+    aiBody:
+      "So Lumen asks you to review this item instead of proposing it. The AI can only make Lumen more careful; it never chooses what is moved.",
+  },
   toolCommand: {
     title: (tool: string) => `${tool} can clean this up itself`,
     copy: "Copy",
@@ -147,8 +168,8 @@ export const en = {
   coverage: {
     incomplete:
       "Some folders could not be read, so Lumen left them alone. The real sizes may be larger than shown.",
-    fullDiskAccess:
-      "On a Mac this is usually privacy protection. To include those folders, turn on Lumen in System Settings › Privacy & Security › Full Disk Access, then scan again.",
+    fullDiskAccess: "To include them, allow Full Disk Access.",
+    howTo: "How to allow access",
   },
   details: {
     title: "Scan details",
@@ -289,7 +310,7 @@ export const en = {
     },
     verdicts: {
       title: "How Lumen decides",
-      body: "Lumen decides about every item with fixed safety rules, not by guessing. “Can be cleaned up”: items such as caches that their app or tool re-creates. “Needs your review”: items Lumen is not sure about; they are never moved automatically. “Kept”: items Lumen will not touch, such as system files, files in use or files synced with the cloud. When in doubt, Lumen keeps the item.",
+      body: "Lumen decides about every item with fixed safety rules, not by guessing. “Proposed”: items such as caches that their app or tool re-creates. “Needs review”: items Lumen is not sure about; they are never moved automatically. “Kept”: items Lumen will not touch, such as system files, files in use or files synced with the cloud. When in doubt, Lumen keeps the item.",
     },
     quarantine: {
       title: "Quarantine",

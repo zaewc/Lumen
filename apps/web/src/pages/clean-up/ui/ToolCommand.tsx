@@ -39,17 +39,15 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
   };
 
   return (
-    <div className="mt-2 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
-      <p className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
-        {m.toolCommand.title(command.tool)}
-      </p>
+    <section className="rounded-xl border border-line bg-surface px-4 py-3">
+      <h3 className="text-[13px] font-semibold text-ink">{m.toolCommand.title(command.tool)}</h3>
       <div className="mt-2 flex items-start gap-2">
-        <code className="min-w-0 flex-1 rounded-lg bg-white px-2 py-1.5 font-mono text-xs break-all text-neutral-900 select-all ring-1 ring-neutral-200 dark:bg-neutral-950 dark:text-neutral-100 dark:ring-neutral-700">
+        <code className="min-w-0 flex-1 rounded-lg bg-neutral-900 px-3 py-2 font-mono text-[12px] leading-relaxed break-all text-neutral-100 select-all dark:bg-black/50">
           {line}
         </code>
         <button
           type="button"
-          className={`${buttonClass("secondary", "sm")} shrink-0`}
+          className={`${buttonClass("secondary", "sm")} mt-1 shrink-0`}
           onClick={() => {
             void copyLine();
           }}
@@ -57,11 +55,11 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
           {copy === "copied" ? m.toolCommand.copied : m.toolCommand.copy}
         </button>
       </div>
-      <p aria-live="polite" className="text-xs text-amber-800 empty:hidden dark:text-amber-300">
+      <p aria-live="polite" className="text-[12px] text-amber-800 empty:hidden dark:text-amber-300">
         {copy === "failed" && <span className="mt-1 block">{m.toolCommand.copyFailed}</span>}
         {copy === "copied" && <span className="sr-only">{m.toolCommand.copied}</span>}
       </p>
-      <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">{m.toolCommand.note}</p>
-    </div>
+      <p className="mt-2 text-[12px] leading-snug text-ink-3">{m.toolCommand.note}</p>
+    </section>
   );
 }

@@ -1,8 +1,66 @@
-import type { QuarantineReportView, RootView } from "@lumen/api-client";
+import type { CandidateView, QuarantineReportView, RootView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
 import { coverageOf } from "./coverage";
 import { reportSummary } from "./report";
+import { presentVerdicts, sectionsOf } from "./sections";
 import { cleanUpStep } from "./step";
+
+function candidate(
+  path: string,
+  verdict: CandidateView["verdict"],
+  bytes: string,
+  group: CandidateView["group"] = { kind: "other", source: null },
+): CandidateView {
+  return { path, verdict, reclaimable_bytes: bytes, reasons: [], tool_command: null, group };
+}
+
+const xcode = { kind: "developer", source: "Xcode" } as const;
+const npm = { kind: "developer", source: "npm" } as const;
+const unknownTool = { kind: "developer", source: null } as const;
+const cache = { kind: "app_cache", source: "com.example.app" } as const;
+
+describe("sectionsOf", () => {
+  const candidates = [
+    candidate("/other", "keep", "0"),
+    candidate("/npm", "quarantine", "1800"),
+    candidate("/cache-b", "review", "20", cache),
+    candidate("/derived", "quarantine", "4200", xcode),
+    candidate("/sim", "review", "3100", xcode),
+    candidate("/tool", "review", "9000", unknownTool),
+    candidate("/cache-a", "quarantine", "18446744073709551615", cache),
+  ].map((c) => (c.path === "/npm" ? { ...c, group: npm } : c));
+
+  it("orders kinds, leaves out empty ones and totals each exactly", () => {
+    const sections = sectionsOf(candidates);
+    expect(sections.map((s) => s.kind)).toEqual(["developer", "app_cache", "other"]);
+    const [developer, appCache, other] = sections;
+    expect(developer?.count).toBe(4);
+    expect(developer?.bytes).toBe("18100");
+    expect(developer?.verdicts).toEqual({ quarantine: 2, review: 2, keep: 0 });
+    expect(appCache?.bytes).toBe("18446744073709551635");
+    expect(other?.verdicts).toEqual({ quarantine: 0, review: 0, keep: 1 });
+  });
+
+  it("splits developer tools by tool, largest first, the unknown tool last", () => {
+    const [developer, appCache] = sectionsOf(candidates);
+    expect(developer?.sources.map((s) => [s.source, s.bytes])).toEqual([
+      ["Xcode", "7300"],
+      ["npm", "1800"],
+      [null, "9000"],
+    ]);
+    expect(developer?.sources[0]?.items.map((c) => c.path)).toEqual(["/derived", "/sim"]);
+    expect(appCache?.sources.map((s) => s.source)).toEqual([null]);
+    expect(appCache?.sources[0]?.items.map((c) => c.path)).toEqual(["/cache-a", "/cache-b"]);
+  });
+
+  it("has no sections without candidates", () => {
+    expect(sectionsOf([])).toEqual([]);
+  });
+
+  it("names the verdicts present, in the policy's order", () => {
+    expect(presentVerdicts({ quarantine: 0, review: 2, keep: 1 })).toEqual(["review", "keep"]);
+  });
+});
 
 describe("cleanUpStep", () => {
   const idle = { scanning: false, scanned: false, assessment: "pending", done: false } as const;

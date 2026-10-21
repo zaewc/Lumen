@@ -1,33 +1,62 @@
 import type { CandidateView, ScanView } from "@lumen/api-client";
-import { useId } from "react";
+import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
 import type { CandidateSummary } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
-import { formatBytes } from "@/shared/lib";
-import { Card, InfoTip, Notice } from "@/shared/ui";
+import { formatBytes, userAgent } from "@/shared/lib";
+import { ChevronIcon, InfoTip, Notice } from "@/shared/ui";
 import { coverageOf } from "../model/coverage";
-import { CandidateSection } from "./CandidateSection";
+import { sectionsOf } from "../model/sections";
+import { CandidateList } from "./CandidateList";
+import { CandidateSheet } from "./CandidateSheet";
 import { ScanDetails } from "./ScanDetails";
 import { StepHeading } from "./StepHeading";
 
-/** One line: whether AI review took part. */
-function AiReviewStatus() {
+/** Whether AI review took part in this assessment, in one line. */
+function AiLine() {
   const { m } = useI18n();
   const settings = useAiSettings();
   if (!settings.isSuccess) {
     return null;
   }
   const service = isOn(settings.data);
+  return <>{service === null ? m.ai.statusOff : m.ai.statusOn(service)}</>;
+}
+
+/** Folders the scan could not read: a short warning and the way to allow access. */
+function CoverageNotice({ scan }: { readonly scan: ScanView }) {
+  const { m } = useI18n();
+  const coverage = coverageOf(scan.roots, userAgent());
+  if (!coverage.incomplete) {
+    return null;
+  }
   return (
-    <p className="text-sm text-neutral-500 dark:text-neutral-400">
-      {service === null ? m.ai.statusOff : m.ai.statusOn(service)}
-    </p>
+    <Notice tone="warning">
+      <div className="flex items-start gap-2">
+        <p className="flex-1">
+          {m.coverage.incomplete}
+          {coverage.macPrivacy && ` ${m.coverage.fullDiskAccess}`}
+        </p>
+        <InfoTip term="coverage" />
+      </div>
+      {coverage.macPrivacy && (
+        <Link
+          to="/settings"
+          hash="permissions"
+          className="inline-flex items-center gap-0.5 font-semibold text-amber-900 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent dark:text-amber-200"
+        >
+          {m.coverage.howTo}
+          <ChevronIcon className="size-3.5" />
+        </Link>
+      )}
+    </Notice>
   );
 }
 
 /**
- * What a scan found: first how much can be freed (the bar below the page
- * cleans it up), then the items by verdict, then the details.
+ * What a scan found: how much can be freed, then every item in sections by
+ * group. A row opens its details in a sheet.
  */
 export function Results({
   scan,
@@ -41,67 +70,44 @@ export function Results({
   readonly focus: boolean;
 }) {
   const { m } = useI18n();
-  const found = useId();
+  const [open, setOpen] = useState<CandidateView | null>(null);
   const proposed = summary.quarantine;
-  const coverage = coverageOf(
-    scan.roots,
-    typeof navigator === "undefined" ? "" : navigator.userAgent,
-  );
+  const sections = sectionsOf(candidates);
   return (
     <>
-      <Card className="sm:p-8">
-        <div className="flex items-start justify-between gap-3">
-          <StepHeading focus={focus}>
-            <span className="block text-sm font-medium text-neutral-500 dark:text-neutral-400">
-              {m.results.canFree}
-            </span>
-            <span className="mt-1 block text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">
-              {formatBytes(proposed.bytes)}
-            </span>
+      <div>
+        <p className="text-[12px] font-semibold text-ink-3">{m.results.eyebrow}</p>
+        <div className="mt-0.5 flex items-center gap-2">
+          <StepHeading
+            focus={focus}
+            className="text-[24px] leading-tight font-bold tracking-tight text-ink tabular-nums"
+          >
+            {proposed.items.length > 0
+              ? m.results.canFree(formatBytes(proposed.bytes))
+              : m.results.nothingTitle}
           </StepHeading>
           <InfoTip term="reclaimable" />
         </div>
-        {proposed.items.length > 0 && (
-          <p className="mt-2 text-neutral-600 dark:text-neutral-400">
-            {m.results.proposedCount(proposed.items.length)}
-          </p>
-        )}
-        <div className="mt-4">
-          <AiReviewStatus />
-        </div>
-      </Card>
+        <p className="mt-1 text-[13px] text-ink-2">
+          {m.results.found(candidates.length)} <AiLine />
+        </p>
+      </div>
       {scan.partial && (
         <Notice tone="warning">
           <p>{scan.out_of_space ? m.results.outOfSpace : m.results.partial}</p>
         </Notice>
       )}
-      {coverage.incomplete && (
-        <Notice tone="warning">
-          <div className="flex items-start gap-2">
-            <p className="flex-1">{m.coverage.incomplete}</p>
-            <InfoTip term="coverage" />
-          </div>
-          {coverage.macPrivacy && <p>{m.coverage.fullDiskAccess}</p>}
-        </Notice>
-      )}
+      <CoverageNotice scan={scan} />
       {candidates.length > 0 && (
-        <section aria-labelledby={found} className="space-y-3">
-          <div className="flex items-center gap-2 px-1">
-            <h2 id={found} className="text-lg font-semibold tracking-tight">
-              {m.results.found}
-            </h2>
+        <>
+          <div className="flex items-center gap-2 overflow-x-auto">
             <InfoTip term="verdicts" />
           </div>
-          <CandidateSection title={m.results.proposed} group={proposed} defaultOpen />
-          <CandidateSection
-            title={m.results.review}
-            hint={m.results.reviewHint}
-            group={summary.review}
-          />
-          <CandidateSection title={m.results.keep} hint={m.results.keepHint} group={summary.keep} />
-        </section>
+          <CandidateList sections={sections} onOpen={setOpen} />
+        </>
       )}
       <ScanDetails scan={scan} />
+      <CandidateSheet candidate={open} onClose={() => setOpen(null)} />
     </>
   );
 }
