@@ -4,31 +4,31 @@ export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "dang
 export type ButtonSize = "sm" | "md" | "lg";
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 rounded-lg font-medium whitespace-nowrap transition-colors select-none focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45";
 
 function variantClass(variant: ButtonVariant): string {
   switch (variant) {
     case "primary":
-      return "bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-indigo-600 disabled:hover:bg-indigo-600 dark:hover:bg-indigo-500 dark:focus-visible:outline-indigo-400 dark:disabled:hover:bg-indigo-600";
+      return "bg-accent text-white shadow-sm shadow-black/10 hover:bg-accent-hover focus-visible:outline-accent disabled:hover:bg-accent";
     case "secondary":
-      return "border border-neutral-300 bg-white text-neutral-800 shadow-sm hover:bg-neutral-50 focus-visible:outline-indigo-600 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 dark:focus-visible:outline-indigo-400";
+      return "border border-line-strong bg-raised text-ink shadow-sm shadow-black/5 hover:bg-fill focus-visible:outline-accent dark:shadow-none disabled:hover:bg-raised";
     case "quiet":
-      return "text-neutral-700 hover:bg-neutral-100 focus-visible:outline-indigo-600 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus-visible:outline-indigo-400";
+      return "text-accent-ink hover:bg-accent-soft focus-visible:outline-accent";
     case "danger":
-      return "bg-red-600 text-white shadow-sm hover:bg-red-700 focus-visible:outline-red-600 disabled:hover:bg-red-600 dark:focus-visible:outline-red-400";
+      return "bg-red-600 text-white shadow-sm shadow-black/10 hover:bg-red-700 focus-visible:outline-red-600 disabled:hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-600 dark:focus-visible:outline-red-400";
     case "dangerQuiet":
-      return "text-red-700 hover:bg-red-50 focus-visible:outline-red-600 dark:text-red-300 dark:hover:bg-red-950/60 dark:focus-visible:outline-red-400";
+      return "text-red-700 hover:bg-red-600/10 focus-visible:outline-red-600 dark:text-red-400 dark:focus-visible:outline-red-400";
   }
 }
 
 function sizeClass(size: ButtonSize): string {
   switch (size) {
     case "sm":
-      return "px-3 py-1.5 text-sm";
+      return "h-7 px-2.5 text-[13px]";
     case "md":
-      return "px-4 py-2 text-sm";
+      return "h-8 px-3.5 text-[13px]";
     case "lg":
-      return "px-6 py-3 text-base";
+      return "h-10 px-5 text-[14px]";
   }
 }
 

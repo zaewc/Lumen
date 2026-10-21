@@ -76,7 +76,7 @@ export function InfoTip({ term }: { readonly term: GlossaryTerm }) {
         aria-expanded={open}
         aria-controls={panel}
         onClick={() => setOpen(nextTip(open, "toggle").open)}
-        className="inline-flex size-5 items-center justify-center rounded-full border border-neutral-300 font-serif text-xs font-normal italic leading-none text-neutral-500 hover:border-neutral-400 hover:text-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 aria-expanded:border-indigo-600 aria-expanded:bg-indigo-600 aria-expanded:text-white dark:border-neutral-600 dark:text-neutral-400 dark:hover:border-neutral-400 dark:hover:text-neutral-200 dark:focus-visible:outline-indigo-400 dark:aria-expanded:border-indigo-500 dark:aria-expanded:bg-indigo-500 dark:aria-expanded:text-white"
+        className="inline-flex size-[18px] items-center justify-center rounded-full border border-line-strong font-serif text-[11px] font-normal italic leading-none text-ink-3 hover:border-ink-3 hover:text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent aria-expanded:border-accent aria-expanded:bg-accent aria-expanded:text-white"
       >
         i
       </button>
@@ -86,9 +86,9 @@ export function InfoTip({ term }: { readonly term: GlossaryTerm }) {
         role="note"
         hidden={!open}
         style={{ left: shift }}
-        className="absolute top-full z-20 mt-2 block w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-neutral-200 bg-white p-4 text-left text-sm leading-relaxed font-normal tracking-normal text-neutral-700 normal-case shadow-lg dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:shadow-black/40"
+        className="absolute top-full z-20 mt-2 block w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-line bg-raised p-3.5 text-left text-[13px] leading-relaxed font-normal tracking-normal text-ink-2 normal-case shadow-xl shadow-black/10 dark:shadow-black/40"
       >
-        <span className="block font-semibold text-neutral-900 dark:text-neutral-100">{title}</span>
+        <span className="block font-semibold text-ink">{title}</span>
         <span className="mt-1 block">{body}</span>
       </span>
     </span>

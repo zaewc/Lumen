@@ -1,5 +1,110 @@
 @import "tailwindcss";
 
+/*
+ * Lumen's colour tokens, in the manner of a macOS utility: a neutral window,
+ * a slightly darker sidebar, white grouped boxes, hairline separators, and
+ * one accent (the indigo of the app icon). Each token has a light and a dark
+ * value; components use them as `bg-surface`, `text-ink-2`, `border-line`…
+ * and keep Tailwind's palette only for the semantic tints (amber for
+ * warnings, red for what cannot be undone, green for success).
+ */
+@theme inline {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Apple SD Gothic Neo",
+    "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-window: var(--lm-window);
+  --color-sidebar: var(--lm-sidebar);
+  --color-surface: var(--lm-surface);
+  --color-raised: var(--lm-raised);
+  --color-fill: var(--lm-fill);
+  --color-fill-strong: var(--lm-fill-strong);
+  --color-line: var(--lm-line);
+  --color-line-strong: var(--lm-line-strong);
+  --color-ink: var(--lm-ink);
+  --color-ink-2: var(--lm-ink-2);
+  --color-ink-3: var(--lm-ink-3);
+  --color-accent: var(--lm-accent);
+  --color-accent-hover: var(--lm-accent-hover);
+  --color-accent-ink: var(--lm-accent-ink);
+  --color-accent-soft: var(--lm-accent-soft);
+  --color-meter-track: var(--lm-meter-track);
+}
+
+@layer base {
+  :root {
+    /*
+     * Follow the operating system's light or dark appearance (Tailwind's
+     * `dark:` variant uses the same media query), so native controls,
+     * scrollbars and the <dialog> backdrop match the page.
+     */
+    color-scheme: light dark;
+
+    --lm-window: #f6f6f8;
+    --lm-sidebar: #ebebef;
+    --lm-surface: #ffffff;
+    --lm-raised: #ffffff;
+    --lm-fill: rgb(0 0 0 / 0.04);
+    --lm-fill-strong: rgb(0 0 0 / 0.08);
+    --lm-line: rgb(0 0 0 / 0.08);
+    --lm-line-strong: rgb(0 0 0 / 0.16);
+    --lm-ink: #1d1d1f;
+    --lm-ink-2: #5f5f66;
+    --lm-ink-3: #85858c;
+    --lm-accent: #4f46e5;
+    --lm-accent-hover: #4338ca;
+    --lm-accent-ink: #4338ca;
+    --lm-accent-soft: rgb(79 70 229 / 0.1);
+    --lm-meter-track: rgb(0 0 0 / 0.07);
+
+    background-color: var(--lm-window);
+    color: var(--lm-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --lm-window: #1e1e21;
+      --lm-sidebar: #26262a;
+      --lm-surface: #2a2a2e;
+      --lm-raised: #323237;
+      --lm-fill: rgb(255 255 255 / 0.05);
+      --lm-fill-strong: rgb(255 255 255 / 0.1);
+      --lm-line: rgb(255 255 255 / 0.09);
+      --lm-line-strong: rgb(255 255 255 / 0.18);
+      --lm-ink: #f4f4f6;
+      --lm-ink-2: #ababb3;
+      --lm-ink-3: #8a8a93;
+      --lm-accent: #5b5bf7;
+      --lm-accent-hover: #6d6dff;
+      --lm-accent-ink: #a5a8ff;
+      --lm-accent-soft: rgb(109 109 255 / 0.18);
+      --lm-meter-track: rgb(255 255 255 / 0.1);
+    }
+  }
+
+  /* Korean reads best when words are not broken across lines. */
+  :root:lang(ko) {
+    word-break: keep-all;
+  }
+
+  /* Interface text is not selectable, as in a native app; fields, code and `select-text` opt back in. */
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input,
+  textarea,
+  code {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+}
+
 /* The indeterminate progress bar: a short bar sliding across its track. */
 @keyframes indeterminate {
   0% {
@@ -10,25 +115,26 @@
   }
 }
 
-@layer base {
-  /*
-   * Follow the operating system's light or dark appearance (Tailwind's
-   * `dark:` variant uses the same media query), so native controls,
-   * scrollbars and the <dialog> backdrop match the page.
-   */
-  :root {
-    color-scheme: light dark;
-    background-color: var(--color-neutral-50);
+/* A detail sheet sliding in from the side. */
+@keyframes sheet-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
   }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      background-color: var(--color-neutral-950);
-    }
+  to {
+    transform: none;
+    opacity: 1;
   }
+}
 
-  /* Korean reads best when words are not broken across lines. */
-  :root:lang(ko) {
-    word-break: keep-all;
+/* A dialog appearing. */
+@keyframes pop-in {
+  from {
+    transform: scale(0.97);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
   }
 }

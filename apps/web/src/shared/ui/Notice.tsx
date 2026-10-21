@@ -6,18 +6,18 @@ export type NoticeTone = "warning" | "success";
 function toneClass(tone: NoticeTone): string {
   switch (tone) {
     case "warning":
-      return "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100";
+      return "border-amber-500/25 bg-amber-500/10 text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100";
     case "success":
-      return "border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-100";
+      return "border-emerald-500/25 bg-emerald-500/10 text-emerald-950 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-100";
   }
 }
 
 function ToneIcon({ tone }: { readonly tone: NoticeTone }) {
   switch (tone) {
     case "warning":
-      return <WarningIcon className="mt-0.5 text-amber-600 dark:text-amber-400" />;
+      return <WarningIcon className="mt-px size-[18px] text-amber-600 dark:text-amber-400" />;
     case "success":
-      return <CheckIcon className="mt-0.5 text-emerald-600 dark:text-emerald-400" />;
+      return <CheckIcon className="mt-px size-[18px] text-emerald-600 dark:text-emerald-400" />;
   }
 }
 
@@ -30,9 +30,9 @@ export function Notice({
   readonly children: ReactNode;
 }) {
   return (
-    <div className={`flex gap-3 rounded-xl border p-4 text-sm ${toneClass(tone)}`}>
+    <div className={`flex gap-2.5 rounded-xl border px-3.5 py-3 text-[13px] ${toneClass(tone)}`}>
       <ToneIcon tone={tone} />
-      <div className="min-w-0 flex-1 space-y-1">{children}</div>
+      <div className="min-w-0 flex-1 space-y-1 leading-snug">{children}</div>
     </div>
   );
 }
@@ -52,7 +52,7 @@ export function ErrorNotice({
     <div role="alert">
       <Notice tone="warning">
         <p className="font-medium">{message}</p>
-        <p className="font-mono text-xs break-all text-amber-900/80 dark:text-amber-200/80">
+        <p className="font-mono text-[11px] break-all text-amber-900/80 select-text dark:text-amber-200/80">
           {String(error)}
         </p>
       </Notice>

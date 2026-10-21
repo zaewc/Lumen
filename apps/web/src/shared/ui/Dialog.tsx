@@ -1,6 +1,18 @@
 import { type ReactNode, type RefObject, useEffect, useRef } from "react";
 import { dialogChange } from "./modal";
 
+/** A dialog in the middle of the window, or a sheet along its right edge. */
+export type DialogVariant = "alert" | "sheet";
+
+function variantClass(variant: DialogVariant): string {
+  switch (variant) {
+    case "alert":
+      return "m-auto max-h-[calc(100dvh-2rem)] w-[min(30rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl bg-raised p-6 shadow-2xl ring-1 ring-line animate-[pop-in_160ms_ease-out] motion-reduce:animate-none backdrop:bg-black/25 dark:backdrop:bg-black/50";
+    case "sheet":
+      return "fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden bg-transparent p-0 backdrop:bg-black/15 dark:backdrop:bg-black/40";
+  }
+}
+
 /**
  * A modal dialog on the native `<dialog>` element: `showModal()` makes the
  * rest of the page inert, so focus stays inside it. On opening, focus goes
@@ -8,7 +20,8 @@ import { dialogChange } from "./modal";
  * whatever had it before). Escape closes it unless `dismissible` is false.
  *
  * `onClose` means "the dialog was dismissed": the owner must set `open` to
- * false. It is also called if the browser closes the dialog on its own.
+ * false. It is also called if the browser closes the dialog on its own. A
+ * sheet is also dismissed by a click on the dimmed window beside it.
  */
 export function Dialog({
   open,
@@ -18,6 +31,7 @@ export function Dialog({
   dismissible = true,
   initialFocus,
   returnFocus,
+  variant = "alert",
   children,
 }: {
   readonly open: boolean;
@@ -27,6 +41,7 @@ export function Dialog({
   readonly dismissible?: boolean;
   readonly initialFocus?: RefObject<HTMLElement | null>;
   readonly returnFocus?: RefObject<HTMLElement | null>;
+  readonly variant?: DialogVariant;
   readonly children: ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -80,9 +95,27 @@ export function Dialog({
         }
       }}
       onClose={closed}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(32rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl bg-white p-6 text-neutral-900 shadow-xl outline-none backdrop:bg-neutral-950/40 dark:border dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:backdrop:bg-neutral-950/70"
+      className={`text-ink outline-none ${variantClass(variant)}`}
     >
-      {children}
+      {variant === "sheet" ? (
+        <div className="flex h-full">
+          {/* The dimmed window beside the sheet: a click there closes it, as
+              Escape and the sheet's own close button do for the keyboard. */}
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-hidden="true"
+            disabled={!dismissible}
+            onClick={() => latest.current.onClose()}
+            className="hidden min-w-0 flex-1 cursor-default min-[720px]:block"
+          />
+          <div className="h-full w-full bg-raised shadow-2xl animate-[sheet-in_200ms_ease-out] motion-reduce:animate-none min-[720px]:w-[26rem] min-[720px]:border-l min-[720px]:border-line">
+            {children}
+          </div>
+        </div>
+      ) : (
+        children
+      )}
     </dialog>
   );
 }

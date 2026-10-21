@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** A rounded, lightly raised panel: the building block of every page. */
+/** A rounded box on the window background, with a hairline edge. */
 export function Card({
   children,
   className = "",
@@ -9,9 +9,7 @@ export function Card({
   readonly className?: string;
 }) {
   return (
-    <section
-      className={`rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none ${className}`}
-    >
+    <section className={`rounded-xl border border-line bg-surface p-5 ${className}`}>
       {children}
     </section>
   );
