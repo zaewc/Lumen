@@ -367,8 +367,8 @@ mod tests {
 
         // The written cassette carries no key or header, and replays.
         let text = serde_json::to_string_pretty(&recording.cassette)?;
-        for secret in [KEY, "Bearer", "Authorization"] {
-            assert!(!text.contains(secret), "{secret}");
+        for marker in [KEY, "Bearer", "Authorization"] {
+            assert!(!text.contains(marker));
         }
         let replay = ReplayJudge::new(Cassette::parse(&text)?);
         let report = run_dataset(&replay, &dataset);
