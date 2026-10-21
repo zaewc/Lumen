@@ -1,6 +1,7 @@
 import {
   zAiSettingsView,
   zCandidateView,
+  zDiskView,
   zFinalizeOutcomeView,
   zHeldItemView,
   zPlanView,
@@ -21,21 +22,34 @@ describe("memoryTransport", () => {
     expect(progress.map((p) => zScanProgressView.parse(p).entries)).toEqual(["1580"]);
     const candidates = (await transport.assess()).map((c) => zCandidateView.parse(c));
     expect(candidates.find((c) => c.verdict === "review")?.tool_command?.program).toBe("xcrun");
+    zDiskView.parse(await transport.disk());
     const plan = zPlanView.parse(await transport.plan());
-    const report = await transport.execute({ plan: plan.plan, confirmation: plan.hash });
-    expect(zQuarantineReportView.parse(report).moved_bytes).toBe("4200000000");
-    const [item] = (await transport.held()).map((view) => zHeldItemView.parse(view));
-    expect(item?.state).toBe("retained");
-    if (item === undefined) {
-      throw new Error("one held item expected");
+    expect(plan.items.every((item) => item.verdict === "quarantine")).toBe(true);
+    const report = zQuarantineReportView.parse(
+      await transport.execute({ plan: plan.plan, confirmation: plan.hash }),
+    );
+    expect(report.items.map((item) => item.result.kind)).toEqual([
+      "quarantined",
+      "quarantined",
+      "skipped",
+      "quarantined",
+    ]);
+    expect(report.moved_bytes).toBe("8100000000");
+    const held = (await transport.held()).map((view) => zHeldItemView.parse(view));
+    expect(held).toHaveLength(5);
+    const [first, second] = held;
+    if (first === undefined || second === undefined) {
+      throw new Error("held items expected");
     }
-    const operation = operationOf(item);
-    expect(zRestoreOutcomeView.parse(await transport.restore(operation)).outcome.kind).toBe(
-      "restored",
-    );
-    expect(zFinalizeOutcomeView.parse(await transport.finalize(operation)).outcome.kind).toBe(
-      "finalized",
-    );
+    expect(first.state).toBe("retained");
+    expect(
+      zRestoreOutcomeView.parse(await transport.restore(operationOf(first))).outcome.kind,
+    ).toBe("restored");
+    expect(
+      zFinalizeOutcomeView.parse(await transport.finalize(operationOf(second))).outcome.kind,
+    ).toBe("finalized");
+    expect(await transport.held()).toHaveLength(3);
+    expect((await transport.finalize(operationOf(second))).outcome.kind).toBe("not_found");
   });
 
   it("keeps AI review off until a key is stored and it is turned on", async () => {
@@ -61,7 +75,9 @@ describe("memoryTransport", () => {
     const entries: string[] = [];
     await transport.scan({ roots: [] }, (p) => entries.push(zScanProgressView.parse(p).entries));
     expect(entries).toEqual(["310", "940", "1580"]);
-    const verdicts = (await transport.assess()).map((c) => zCandidateView.parse(c).verdict);
-    expect(verdicts).toEqual(["quarantine", "review", "keep"]);
+    const verdicts = new Set(
+      (await transport.assess()).map((c) => zCandidateView.parse(c).verdict),
+    );
+    expect(verdicts).toEqual(new Set(["quarantine", "review", "keep"]));
   });
 });
