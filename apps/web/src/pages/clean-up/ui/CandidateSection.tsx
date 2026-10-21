@@ -1,8 +1,8 @@
 import type { CandidateView } from "@lumen/api-client";
+import type { VerdictGroup } from "@/entities/scan-session";
 import { reasonText, useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import { Card, Disclosure } from "@/shared/ui";
-import type { VerdictGroup } from "../model/summary";
 import { ToolCommand } from "./ToolCommand";
 
 /** One candidate: its name, what it frees, why, and where it is. */

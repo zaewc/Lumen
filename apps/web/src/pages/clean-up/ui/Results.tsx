@@ -1,10 +1,10 @@
 import type { CandidateView, QuarantineReportView, ScanView } from "@lumen/api-client";
 import { useId } from "react";
+import { summarize } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { buttonClass, Card, InfoTip, Notice } from "@/shared/ui";
 import { coverageOf } from "../model/coverage";
-import { summarize } from "../model/summary";
 import { AiReviewStatus } from "./AiReviewCard";
 import { CandidateSection } from "./CandidateSection";
 import { CleanUpAction } from "./CleanUpAction";

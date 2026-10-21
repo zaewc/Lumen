@@ -1,7 +1,6 @@
-import type { QuarantineReportView, ScanProgressView } from "@lumen/api-client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { QuarantineReportView } from "@lumen/api-client";
 import { type ReactNode, useState } from "react";
-import { useTransport } from "@/shared/api";
+import { useScanSession } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, Card } from "@/shared/ui";
 import { cleanUpStep } from "../model/step";
@@ -15,58 +14,34 @@ import { StepHeading } from "./StepHeading";
 /**
  * The guided clean-up: scan (read-only), let the policy decide, then move
  * what it proposes to quarantine after one explicit confirmation (ADR-0034).
- * Nothing is deleted here; everything moved can be restored.
+ * Nothing is deleted here; everything moved can be restored. The scan
+ * belongs to the session, so it goes on while another page is open.
  */
 export function CleanUpPage() {
   const { m } = useI18n();
-  const transport = useTransport();
-  const queries = useQueryClient();
+  const session = useScanSession();
   const [folders, setFolders] = useState("");
-  const [progress, setProgress] = useState<ScanProgressView | null>(null);
-  const [report, setReport] = useState<QuarantineReportView | null>(null);
   // Focus follows the flow only once the user has started it.
-  const [acted, setActed] = useState(false);
-  const scan = useMutation({
-    mutationFn: (roots: string[]) => {
-      setProgress(null);
-      return transport.scan({ roots }, setProgress);
-    },
-  });
-  const scanId = scan.data?.scan;
-  // Assessment starts by itself once a scan is complete; it moves nothing.
-  const assessment = useQuery({
-    queryKey: ["assessment", scanId],
-    queryFn: () => transport.assess(),
-    enabled: scanId !== undefined,
-    retry: false,
-    staleTime: Number.POSITIVE_INFINITY,
-    refetchOnWindowFocus: false,
-  });
+  const [acted, setActed] = useState(() => session.scanning);
 
   const start = (roots: string[]) => {
     setActed(true);
-    setReport(null);
-    scan.mutate(roots);
+    session.start(roots);
   };
   const startOver = () => {
     setActed(true);
-    setReport(null);
-    setProgress(null);
-    scan.reset();
+    session.startOver();
   };
   const done = (finished: QuarantineReportView) => {
     setActed(true);
-    setReport(finished);
-    scan.reset();
-    queries.removeQueries({ queryKey: ["assessment"] });
-    void queries.invalidateQueries({ queryKey: ["held"] });
+    session.finish(finished);
   };
 
   const step = cleanUpStep({
-    scanning: scan.isPending,
-    scanned: scan.data !== undefined,
-    assessment: assessment.status,
-    done: report !== null,
+    scanning: session.scanning,
+    scanned: session.scan !== null,
+    assessment: session.assessment,
+    done: session.report !== null,
   });
 
   const view = (): ReactNode => {
@@ -78,7 +53,7 @@ export function CleanUpPage() {
               folders={folders}
               onFoldersChange={setFolders}
               onScan={start}
-              error={scan.error}
+              error={session.scanError}
               focus={acted}
             />
             <AiReviewCard />
@@ -86,7 +61,9 @@ export function CleanUpPage() {
         );
       case "scanning":
       case "deciding":
-        return <ScanningCard progress={progress} deciding={step === "deciding"} focus={acted} />;
+        return (
+          <ScanningCard progress={session.progress} deciding={step === "deciding"} focus={acted} />
+        );
       case "decideFailed":
         return (
           <Card className="space-y-4">
@@ -94,7 +71,7 @@ export function CleanUpPage() {
               {m.scanning.failed}
             </StepHeading>
             <p className="font-mono text-xs break-all text-neutral-500 dark:text-neutral-400">
-              {String(assessment.error)}
+              {String(session.assessmentError)}
             </p>
             <button type="button" onClick={startOver} className={buttonClass("secondary")}>
               {m.common.scanAgain}
@@ -102,17 +79,19 @@ export function CleanUpPage() {
           </Card>
         );
       case "results":
-        return scan.data && assessment.data ? (
+        return session.scan !== null && session.candidates !== null ? (
           <Results
-            scan={scan.data}
-            candidates={assessment.data}
+            scan={session.scan}
+            candidates={session.candidates}
             onDone={done}
             onStartOver={startOver}
             focus={acted}
           />
         ) : null;
       case "done":
-        return report ? <DoneCard report={report} onStartOver={startOver} focus={acted} /> : null;
+        return session.report ? (
+          <DoneCard report={session.report} onStartOver={startOver} focus={acted} />
+        ) : null;
     }
   };
 

@@ -12,7 +12,8 @@ export interface VerdictGroup {
 /** An assessment, grouped by verdict. */
 export type CandidateSummary = { readonly [V in VerdictView]: VerdictGroup };
 
-function largestFirst(a: CandidateView, b: CandidateView): number {
+/** Orders candidates by what they free, largest first, then by path. */
+export function largestFirst(a: CandidateView, b: CandidateView): number {
   const difference = BigInt(b.reclaimable_bytes) - BigInt(a.reclaimable_bytes);
   return difference > 0n ? 1 : difference < 0n ? -1 : a.path.localeCompare(b.path);
 }
