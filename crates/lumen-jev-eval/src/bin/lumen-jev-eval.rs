@@ -39,7 +39,7 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use lumen_app::ai::Service;
-use lumen_application::ports::{JudgeModel as _, SecretStore};
+use lumen_application::ports::JudgeModel as _;
 use lumen_domain::{JevRequest, JudgeDescriptor};
 use lumen_jev::openrouter::{ApiKey, AskError, JevJudge};
 use lumen_jev_eval::{
@@ -218,18 +218,17 @@ impl LiveJudge for Jeb {
     }
 }
 
-/// The Jeb key from the operating system's secret store: the slot
-/// `lumen jev key set` writes. Errors never contain the key.
+/// The Jeb key from the operating system's secret store, looked up as the CLI
+/// does (`lumen_app::ai::stored_key`): the slot `lumen jev key set` writes.
+/// Errors never contain the key.
 fn jeb_key() -> Result<ApiKey, String> {
-    let store: Box<dyn SecretStore> = lumen_app::ai::os_store()
+    let store = lumen_app::ai::os_store()
         .ok_or("no secret store on this platform; recording needs the macOS keychain or the Windows Credential Manager")?;
-    let secret = store
-        .get(Service::Jeb.secret())
-        .map_err(|e| e.to_string())?
-        .ok_or("no Jeb API key is stored: run `lumen jev key set` (it reads the key from standard input) first")?;
-    ApiKey::new(secret.expose()).ok_or_else(|| {
-        "the stored Jeb API key is not valid: store it again with `lumen jev key set`".into()
-    })
+    match lumen_app::ai::stored_key(store.as_ref()) {
+        Ok(Some((Service::Jeb, key))) => Ok(key),
+        Ok(_) => Err("no Jeb API key is stored: run `lumen jev key set` (it reads the key from standard input) first".into()),
+        Err(_) => Err("the Jeb API key could not be read from the secret store (allow access if the keychain asks), or it is not valid: store it again with `lumen jev key set`".into()),
+    }
 }
 
 fn describe(outcome: &RecordOutcome) -> String {
