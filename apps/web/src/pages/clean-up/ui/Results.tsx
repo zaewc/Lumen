@@ -1,13 +1,12 @@
-import type { CandidateView, QuarantineReportView, ScanView } from "@lumen/api-client";
+import type { CandidateView, ScanView } from "@lumen/api-client";
 import { useId } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
-import { summarize } from "@/entities/scan-session";
+import type { CandidateSummary } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
-import { buttonClass, Card, InfoTip, Notice } from "@/shared/ui";
+import { Card, InfoTip, Notice } from "@/shared/ui";
 import { coverageOf } from "../model/coverage";
 import { CandidateSection } from "./CandidateSection";
-import { CleanUpAction } from "./CleanUpAction";
 import { ScanDetails } from "./ScanDetails";
 import { StepHeading } from "./StepHeading";
 
@@ -27,25 +26,22 @@ function AiReviewStatus() {
 }
 
 /**
- * What a scan found: first how much can be freed and the one button that
- * does it, then the items by verdict, then the details.
+ * What a scan found: first how much can be freed (the bar below the page
+ * cleans it up), then the items by verdict, then the details.
  */
 export function Results({
   scan,
   candidates,
-  onDone,
-  onStartOver,
+  summary,
   focus,
 }: {
   readonly scan: ScanView;
   readonly candidates: readonly CandidateView[];
-  readonly onDone: (report: QuarantineReportView) => void;
-  readonly onStartOver: () => void;
+  readonly summary: CandidateSummary;
   readonly focus: boolean;
 }) {
   const { m } = useI18n();
   const found = useId();
-  const summary = summarize(candidates);
   const proposed = summary.quarantine;
   const coverage = coverageOf(
     scan.roots,
@@ -70,9 +66,6 @@ export function Results({
             {m.results.proposedCount(proposed.items.length)}
           </p>
         )}
-        <div className="mt-6">
-          <CleanUpAction proposed={proposed.items.length} onDone={onDone} />
-        </div>
         <div className="mt-4">
           <AiReviewStatus />
         </div>
@@ -109,11 +102,6 @@ export function Results({
         </section>
       )}
       <ScanDetails scan={scan} />
-      <div className="flex justify-center">
-        <button type="button" onClick={onStartOver} className={buttonClass("quiet")}>
-          {m.common.scanAgain}
-        </button>
-      </div>
     </>
   );
 }

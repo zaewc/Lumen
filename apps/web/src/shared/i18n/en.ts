@@ -117,9 +117,6 @@ export const en = {
     proposedCount: (n: number) => `${items(n)} can be cleaned up safely`,
     nothing:
       "Nothing needs cleaning up right now. Lumen only suggests items it is sure are safe to set aside.",
-    cleanUp: "Clean up",
-    preparing: "Preparing…",
-    planFailed: "Lumen could not prepare the clean-up. Nothing was moved.",
     found: "What Lumen found",
     proposed: "Can be cleaned up",
     review: "Needs your review",
@@ -131,6 +128,14 @@ export const en = {
     partial: "The scan stopped early, so these results are incomplete.",
     outOfSpace:
       "The scan stopped because the disk is almost full (Lumen always leaves 2 GB free), so these results are incomplete. Free some space and scan again.",
+  },
+  action: {
+    cleanUp: "Clean up",
+    preparing: "Preparing…",
+    summary: (n: number, size: string) => `${items(n)} · ${size}`,
+    hint: "Moved to Quarantine, where they can be restored until you remove them for good.",
+    nothing: "Nothing is proposed for clean-up.",
+    planFailed: "Lumen could not prepare the clean-up. Nothing was moved.",
   },
   toolCommand: {
     title: (tool: string) => `${tool} can clean this up itself`,

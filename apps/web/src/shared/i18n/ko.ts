@@ -126,9 +126,6 @@ export const ko = {
     proposedCount: (n: number) => `안전하게 정리할 수 있는 ${items(n)}`,
     nothing:
       "지금은 정리할 항목이 없습니다. Lumen은 치워 두어도 안전하다고 확신하는 항목만 정리를 제안합니다.",
-    cleanUp: "정리하기",
-    preparing: "준비하는 중…",
-    planFailed: "정리를 준비하지 못했습니다. 아무것도 옮기지 않았습니다.",
     found: "검사 결과",
     proposed: "정리할 수 있는 항목",
     review: "검토가 필요한 항목",
@@ -139,6 +136,14 @@ export const ko = {
     partial: "검사가 도중에 멈춰 결과가 완전하지 않습니다.",
     outOfSpace:
       "디스크 공간이 거의 없어 검사를 멈췄습니다(Lumen은 항상 2 GB를 남겨 둡니다). 결과가 완전하지 않으니, 공간을 확보한 뒤 다시 검사하십시오.",
+  },
+  action: {
+    cleanUp: "정리하기",
+    preparing: "준비하는 중…",
+    summary: (n: number, size: string) => `${items(n)} · ${size}`,
+    hint: "격리함으로 옮기며, 영구 삭제하기 전까지 복원할 수 있습니다.",
+    nothing: "정리를 제안한 항목이 없습니다.",
+    planFailed: "정리를 준비하지 못했습니다. 아무것도 옮기지 않았습니다.",
   },
   toolCommand: {
     title: (tool: string) => `${tool}에서 직접 정리할 수 있습니다`,

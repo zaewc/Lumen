@@ -1,9 +1,9 @@
-import type { QuarantineReportView } from "@lumen/api-client";
 import { type ReactNode, useState } from "react";
-import { useScanSession } from "@/entities/scan-session";
+import { summarize, useScanSession } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, Page } from "@/shared/ui";
 import { cleanUpStep } from "../model/step";
+import { ActionBar } from "./ActionBar";
 import { DonePanel } from "./DonePanel";
 import { ProgressPanel } from "./ProgressPanel";
 import { Results } from "./Results";
@@ -31,10 +31,6 @@ export function CleanUpPage() {
     setActed(true);
     session.startOver();
   };
-  const done = (finished: QuarantineReportView) => {
-    setActed(true);
-    session.finish(finished);
-  };
 
   const step = cleanUpStep({
     scanning: session.scanning,
@@ -42,6 +38,7 @@ export function CleanUpPage() {
     assessment: session.assessment,
     done: session.report !== null,
   });
+  const summary = session.candidates === null ? null : summarize(session.candidates);
 
   const view = (): ReactNode => {
     switch (step) {
@@ -75,12 +72,11 @@ export function CleanUpPage() {
           </section>
         );
       case "results":
-        return session.scan !== null && session.candidates !== null ? (
+        return session.scan !== null && session.candidates !== null && summary !== null ? (
           <Results
             scan={session.scan}
             candidates={session.candidates}
-            onDone={done}
-            onStartOver={startOver}
+            summary={summary}
             focus={acted}
           />
         ) : null;
@@ -91,5 +87,34 @@ export function CleanUpPage() {
     }
   };
 
-  return <Page title={m.nav.cleanUp}>{view()}</Page>;
+  return (
+    <Page
+      title={m.nav.cleanUp}
+      {...(step === "results"
+        ? {
+            actions: (
+              <button type="button" onClick={startOver} className={buttonClass("secondary")}>
+                {m.common.scanAgain}
+              </button>
+            ),
+          }
+        : {})}
+      {...(step === "results" && summary !== null
+        ? {
+            footer: (
+              <ActionBar
+                proposed={summary.quarantine.items.length}
+                bytes={summary.quarantine.bytes}
+                onDone={(report) => {
+                  setActed(true);
+                  session.finish(report);
+                }}
+              />
+            ),
+          }
+        : {})}
+    >
+      {view()}
+    </Page>
+  );
 }
