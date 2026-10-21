@@ -4,7 +4,7 @@
 const UNITS = ["B", "kB", "MB", "GB", "TB", "PB", "EB"] as const;
 
 /** A decimal byte count as a bigint. Throws on a non-decimal string. */
-function parseBytes(decimal: string): bigint {
+export function parseBytes(decimal: string): bigint {
   if (!/^\d+$/.test(decimal)) {
     throw new Error(`not a byte count: ${decimal}`);
   }

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
 import { useHeld } from "@/entities/held";
 import { countFormat, useI18n } from "@/shared/i18n";
-import { ArchiveIcon, GearIcon, LogoMark, SparkleIcon } from "@/shared/ui";
+import { ArchiveIcon, GaugeIcon, GearIcon, LogoMark, SparkleIcon } from "@/shared/ui";
 
 // Below 720 px the sidebar is a rail of icons; the labels stay for screen readers.
 
@@ -17,7 +17,7 @@ function NavItem({
   label,
   badge,
 }: {
-  readonly to: "/" | "/quarantine" | "/settings";
+  readonly to: "/" | "/clean" | "/quarantine" | "/settings";
   readonly icon: ReactNode;
   readonly label: string;
   /** A count and what it means, for screen readers. */
@@ -74,7 +74,7 @@ function AiStatus() {
 }
 
 /**
- * The app's sidebar, as in a macOS utility: the app's name, its places
+ * The app's sidebar, as in a macOS utility: the app's name, its four places
  * and, at the foot, whether AI review is on. Below 720 px it narrows to a
  * rail of icons, so the window stays usable at its 420 px minimum.
  */
@@ -92,7 +92,8 @@ export function Sidebar() {
       </div>
       <nav aria-label={m.nav.label} className="flex-1 overflow-y-auto px-2 py-1 min-[720px]:px-3">
         <ul className="space-y-1 min-[720px]:space-y-0.5">
-          <NavItem to="/" icon={<SparkleIcon />} label={m.nav.cleanUp} />
+          <NavItem to="/" icon={<GaugeIcon />} label={m.nav.overview} />
+          <NavItem to="/clean" icon={<SparkleIcon />} label={m.nav.cleanUp} />
           <NavItem
             to="/quarantine"
             icon={<ArchiveIcon />}

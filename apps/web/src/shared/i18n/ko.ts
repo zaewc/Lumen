@@ -20,6 +20,7 @@ export const ko = {
   language: "언어",
   nav: {
     label: "주 메뉴",
+    overview: "개요",
     cleanUp: "정리",
     quarantine: "격리함",
     settings: "설정",
@@ -31,6 +32,38 @@ export const ko = {
     details: "자세히",
     why: "이유 보기",
     scanAgain: "다시 검사",
+    items: (n: number) => items(n),
+  },
+  overview: {
+    title: "개요",
+    disk: {
+      title: "시동 디스크",
+      meter: "디스크 사용량",
+      used: "사용 중",
+      available: "남은 공간",
+      total: "전체",
+      percentUsed: (percent: string) => `${percent}% 사용 중`,
+      low: "디스크가 거의 찼습니다",
+      lowHint:
+        "남은 공간이 10%도 되지 않습니다. 검사해서 안전하게 정리할 수 있는 항목을 확인하십시오.",
+      loadFailed: "디스크 사용량을 읽지 못했습니다.",
+    },
+    session: {
+      title: "최근 검사",
+      canFree: "정리 가능",
+      review: "검토 필요",
+      quarantine: "격리함",
+      atLeast: (size: string) => `최소 ${size}`,
+      scanning: "디스크를 검사하는 중…",
+      deciding: "정리해도 안전한 항목을 판단하는 중…",
+      showProgress: "진행 상황 보기",
+      cleaned: (n: number, size: string) => `${items(n)}(${size})를 격리함으로 옮겼습니다.`,
+    },
+    empty: {
+      title: "안전하게 확보할 수 있는 공간 찾기",
+      body: "Lumen이 디스크를 읽고 치워 두어도 안전한 항목을 판단하며, 옮기기 전에 반드시 확인을 받습니다. 모든 항목은 복원할 수 있습니다.",
+      scan: "디스크 검사",
+    },
   },
   start: {
     title: "안전하게 공간 확보하기",

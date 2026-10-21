@@ -57,7 +57,7 @@ export function QuarantinePage() {
           <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-ink-2">
             {m.quarantine.emptyHint}
           </p>
-          <Link to="/" className={`${buttonClass("secondary")} mt-6`}>
+          <Link to="/clean" className={`${buttonClass("secondary")} mt-6`}>
             {m.quarantine.goCleanUp}
           </Link>
         </section>

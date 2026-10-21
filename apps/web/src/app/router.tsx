@@ -6,6 +6,7 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import { CleanUpPage } from "@/pages/clean-up";
+import { OverviewPage } from "@/pages/overview";
 import { QuarantinePage } from "@/pages/quarantine";
 import { SettingsPage } from "@/pages/settings";
 import { Sidebar } from "@/widgets/sidebar";
@@ -27,7 +28,8 @@ function Layout() {
 
 // Routes live in the app layer and only render pages (ADR-0009).
 const root = createRootRoute({ component: Layout });
-const cleanUp = createRoute({ getParentRoute: () => root, path: "/", component: CleanUpPage });
+const overview = createRoute({ getParentRoute: () => root, path: "/", component: OverviewPage });
+const cleanUp = createRoute({ getParentRoute: () => root, path: "/clean", component: CleanUpPage });
 const quarantine = createRoute({
   getParentRoute: () => root,
   path: "/quarantine",
@@ -43,19 +45,19 @@ const formerScan = createRoute({
   getParentRoute: () => root,
   path: "/scan",
   beforeLoad: () => {
-    throw redirect({ to: "/" });
+    throw redirect({ to: "/clean" });
   },
 });
 const formerPlan = createRoute({
   getParentRoute: () => root,
   path: "/plan",
   beforeLoad: () => {
-    throw redirect({ to: "/" });
+    throw redirect({ to: "/clean" });
   },
 });
 
 export const router = createRouter({
-  routeTree: root.addChildren([cleanUp, quarantine, settings, formerScan, formerPlan]),
+  routeTree: root.addChildren([overview, cleanUp, quarantine, settings, formerScan, formerPlan]),
 });
 
 declare module "@tanstack/react-router" {
