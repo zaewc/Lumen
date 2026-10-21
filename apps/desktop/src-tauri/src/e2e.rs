@@ -54,6 +54,17 @@ fn ai_review(window: &WebviewWindow<MockRuntime>) {
         ok("ai_settings", json!({})),
         json!({ "enabled": false, "consented_at": null, "key": "none" })
     );
+    let disk = ok("disk", json!({}));
+    let bytes = |field: &str| {
+        disk[field]
+            .as_str()
+            .and_then(|b| b.parse::<u64>().ok())
+            .unwrap_or_default()
+    };
+    assert!(
+        bytes("total_bytes") > 0 && bytes("available_bytes") <= bytes("total_bytes"),
+        "{disk}"
+    );
     assert!(
         invoke(window, "set_ai_review", json!({ "enabled": true })).is_err(),
         "not without a key"

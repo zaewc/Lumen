@@ -64,5 +64,16 @@ pub fn process_is_elevated() -> std::io::Result<bool> {
 /// The OS error if the volume cannot be queried.
 #[cfg(windows)]
 pub fn available_space(path: &std::path::Path) -> std::io::Result<u64> {
-    sys::available_space(path)
+    sys::disk_space(path).map(|(available, _)| available)
+}
+
+/// Bytes this user may still write on the volume holding the directory
+/// `path`, after quotas, and the volume's total size.
+///
+/// # Errors
+///
+/// The OS error if the volume cannot be queried.
+#[cfg(windows)]
+pub fn disk_space(path: &std::path::Path) -> std::io::Result<(u64, u64)> {
+    sys::disk_space(path)
 }

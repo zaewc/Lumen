@@ -548,6 +548,89 @@ fn tool_guidance(
         })
 }
 
+/// How an item is grouped when results are presented.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GroupKind {
+    /// A developer tool's cache or build output (a knowledge-base match).
+    Developer,
+    /// An application's cache (its `Caches` folder, or a vendor declaration).
+    AppCache,
+    /// An application's other data: container, support files, preferences.
+    AppData,
+    /// Anything else.
+    Other,
+}
+
+/// The group an item is presented in, and what it belongs to when known.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Group {
+    /// The kind of group.
+    pub kind: GroupKind,
+    /// The developer tool (e.g. `Xcode`) or the owning application's
+    /// identifier (e.g. `com.docker.docker`), if the evidence names one. An
+    /// identifier is untrusted text from the filesystem: shown, never acted on.
+    pub source: Option<String>,
+}
+
+/// The group `assessed` is presented in.
+pub fn group(assessed: &Assessed) -> Group {
+    let subject = Subject::File {
+        identity: assessed.candidate.identity().clone(),
+    };
+    group_of(builtin_knowledge_base(), &subject, &assessed.input.evidence)
+}
+
+/// The group of `subject`, from the evidence about it alone: a knowledge-base
+/// match first (named after its tool), then an application data location
+/// (named after the owning application, when known).
+fn group_of(kb: Option<&KnowledgeBase>, subject: &Subject, evidence: &[Evidence]) -> Group {
+    use lumen_domain::AppDataKind;
+    let about = || {
+        evidence
+            .iter()
+            .filter(|record| &record.subject == subject)
+            .map(|record| &record.fact)
+    };
+    let tool = about().find_map(|fact| match fact {
+        Fact::KnowledgeBaseMatch { entry } => Some(
+            kb.and_then(|kb| kb.get(entry.as_str()))
+                .map_or_else(|| entry.as_str().to_owned(), |e| e.tool.clone()),
+        ),
+        _ => None,
+    });
+    if let Some(tool) = tool {
+        return Group {
+            kind: GroupKind::Developer,
+            source: Some(tool),
+        };
+    }
+    let owner = about().find_map(|fact| match fact {
+        Fact::OwningApplication(app) => Some(app.value.raw().to_owned()),
+        _ => None,
+    });
+    let cache = about().any(|fact| {
+        matches!(
+            fact,
+            Fact::VendorDeclaredCache { .. }
+                | Fact::AppDataLocation {
+                    kind: AppDataKind::Caches
+                }
+        )
+    });
+    let data = about().any(|fact| matches!(fact, Fact::AppDataLocation { .. }));
+    let kind = if cache {
+        GroupKind::AppCache
+    } else if data {
+        GroupKind::AppData
+    } else {
+        GroupKind::Other
+    };
+    Group {
+        kind,
+        source: owner,
+    }
+}
+
 /// What kind of item the evidence says `input`'s subject is, for Jev.
 fn category(input: &lumen_policy::PolicyInput) -> lumen_domain::Category {
     use lumen_domain::{AppDataKind, Category};
@@ -800,6 +883,47 @@ mod tests {
         }
         assert_eq!(tool_guidance(&kb, &input.subject, &input.evidence), None);
         assert_eq!(tool_guidance(&kb, &input.subject, &[]), None);
+        Ok(())
+    }
+
+    #[test]
+    fn items_are_grouped_by_tool_or_application() -> Result<(), lumen_devkb::LoadError> {
+        use lumen_domain::{AppId, AppIdScheme, UntrustedText};
+        let kb = KnowledgeBase::builtin()?;
+        let grouped = |facts: &[Fact]| {
+            let input = input(facts);
+            group_of(Some(&kb), &input.subject, &input.evidence)
+        };
+        assert_eq!(
+            grouped(&[matched("xcode-derived-data")]),
+            Group {
+                kind: GroupKind::Developer,
+                source: Some("Xcode".to_owned())
+            }
+        );
+        let owner = Fact::OwningApplication(AppId {
+            scheme: AppIdScheme::BundleId,
+            value: UntrustedText::new("com.example.app"),
+        });
+        let location = |kind| Fact::AppDataLocation { kind };
+        assert_eq!(
+            grouped(&[owner.clone(), location(AppDataKind::Caches)]),
+            Group {
+                kind: GroupKind::AppCache,
+                source: Some("com.example.app".to_owned())
+            }
+        );
+        assert_eq!(
+            grouped(&[owner, location(AppDataKind::Container)]).kind,
+            GroupKind::AppData
+        );
+        assert_eq!(
+            grouped(&[Fact::CloudBacked(false)]),
+            Group {
+                kind: GroupKind::Other,
+                source: None
+            }
+        );
         Ok(())
     }
 

@@ -13,6 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "ai_settings",
         "set_ai_review",
         "set_ai_key",
+        "disk",
     ];
     tauri_build::try_build(
         tauri_build::Attributes::new()

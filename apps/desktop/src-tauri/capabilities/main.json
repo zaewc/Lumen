@@ -13,6 +13,7 @@
     "allow-finalize",
     "allow-ai-settings",
     "allow-set-ai-review",
-    "allow-set-ai-key"
+    "allow-set-ai-key",
+    "allow-disk"
   ]
 }

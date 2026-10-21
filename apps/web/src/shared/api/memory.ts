@@ -55,6 +55,7 @@ const candidate: CandidateView = {
     },
   ],
   tool_command: null,
+  group: { kind: "developer", source: "Xcode" },
 };
 
 /** Candidates the policy does not propose: one to review, one it keeps. */
@@ -74,6 +75,7 @@ const others: readonly CandidateView[] = [
       program: "xcrun",
       args: ["simctl", "delete", "unavailable"],
     },
+    group: { kind: "developer", source: "Xcode" },
   },
   {
     path: "/Users/ana/Library/Mobile Documents/com~apple~CloudDocs",
@@ -87,6 +89,7 @@ const others: readonly CandidateView[] = [
       { rule: "protect.in-use", text: "Kept: a running process is using it." },
     ],
     tool_command: null,
+    group: { kind: "other", source: null },
   },
 ];
 
@@ -174,6 +177,7 @@ export function memoryTransport({ pace = 0 }: { readonly pace?: number } = {}): 
         outcome: { kind: "finalized" },
       }),
     aiSettings: () => Promise.resolve(ai),
+    disk: () => Promise.resolve({ total_bytes: "494384795648", available_bytes: "15032385536" }),
     setAiReview: (enabled) => {
       if (enabled && ai.key === "none") {
         return Promise.reject(new Error("AI review needs an API key: add your Jeb key first"));

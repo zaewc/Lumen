@@ -56,9 +56,14 @@
           "verdict",
           "reclaimable_bytes",
           "reasons",
-          "tool_command"
+          "tool_command",
+          "group"
         ],
         "properties": {
+          "group": {
+            "$ref": "#/components/schemas/GroupView",
+            "description": "The group it is presented in."
+          },
           "path": {
             "type": "string",
             "description": "Where it is."
@@ -88,6 +93,24 @@
           "verdict": {
             "$ref": "#/components/schemas/VerdictView",
             "description": "The policy's verdict."
+          }
+        }
+      },
+      "DiskView": {
+        "type": "object",
+        "description": "How full the disk holding the user's home folder is.",
+        "required": [
+          "total_bytes",
+          "available_bytes"
+        ],
+        "properties": {
+          "available_bytes": {
+            "type": "string",
+            "description": "The bytes the user may still write, in bytes."
+          },
+          "total_bytes": {
+            "type": "string",
+            "description": "The volume's size, in bytes."
           }
         }
       },
@@ -235,6 +258,37 @@
           }
         ],
         "description": "What a finalization did."
+      },
+      "GroupKindView": {
+        "type": "string",
+        "description": "The kind of group an item is presented in.",
+        "enum": [
+          "developer",
+          "app_cache",
+          "app_data",
+          "other"
+        ]
+      },
+      "GroupView": {
+        "type": "object",
+        "description": "The group an item is presented in, and what it belongs to when known.",
+        "required": [
+          "kind",
+          "source"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/GroupKindView",
+            "description": "The kind of group."
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The developer tool (e.g. `Xcode`) or the owning application's\nidentifier, as untrusted display text; `null` when unknown."
+          }
+        }
       },
       "HeldItemView": {
         "type": "object",

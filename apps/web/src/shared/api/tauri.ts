@@ -4,6 +4,7 @@
 import {
   zAiSettingsView,
   zCandidateView,
+  zDiskView,
   zFinalizeOutcomeView,
   zHeldItemView,
   zPlanView,
@@ -38,6 +39,7 @@ export function tauriTransport(): LumenTransport {
     finalize: async (operationId) =>
       zFinalizeOutcomeView.parse(await invoke("finalize", { operationId })),
     aiSettings: async () => zAiSettingsView.parse(await invoke("ai_settings")),
+    disk: async () => zDiskView.parse(await invoke("disk")),
     setAiReview: async (enabled) =>
       zAiSettingsView.parse(await invoke("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await invoke("set_ai_key", { key })),

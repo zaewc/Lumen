@@ -4,6 +4,7 @@
 import type {
   AiSettingsView,
   CandidateView,
+  DiskView,
   ExecuteRequest,
   FinalizeOutcomeView,
   HeldItemView,
@@ -47,6 +48,8 @@ export interface LumenTransport {
   finalize(operation: OperationId): Promise<FinalizeOutcomeView>;
   /** Whether AI review is on, and which key is stored (never the key). */
   aiSettings(): Promise<AiSettingsView>;
+  /** How full the disk holding the home folder is. */
+  disk(): Promise<DiskView>;
   /** Turns AI review on (the user's consent; needs a stored key) or off. */
   setAiReview(enabled: boolean): Promise<AiSettingsView>;
   /** Stores a Jeb API key in the system's secret store; it is never returned. */

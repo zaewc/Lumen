@@ -25,6 +25,9 @@ use utoipa::OpenApi;
         views::RootView,
         views::VerdictView,
         views::CandidateView,
+        views::GroupView,
+        views::GroupKindView,
+        views::DiskView,
         views::ReasonView,
         views::ToolCommandView,
         views::PlanView,
@@ -73,7 +76,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 25);
+        assert_eq!(schemas, 28);
     }
 
     #[test]

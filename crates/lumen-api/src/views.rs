@@ -168,6 +168,66 @@ pub struct CandidateView {
     /// has one: guidance for the user to run themselves. Lumen never runs it.
     #[schema(required = true)]
     pub tool_command: Option<ToolCommandView>,
+    /// The group it is presented in.
+    pub group: GroupView,
+}
+
+/// The kind of group an item is presented in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GroupKindView {
+    /// A developer tool's cache or build output.
+    Developer,
+    /// An application's cache.
+    AppCache,
+    /// An application's other data.
+    AppData,
+    /// Anything else.
+    Other,
+}
+
+/// The group an item is presented in, and what it belongs to when known.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct GroupView {
+    /// The kind of group.
+    pub kind: GroupKindView,
+    /// The developer tool (e.g. `Xcode`) or the owning application's
+    /// identifier, as untrusted display text; `null` when unknown.
+    #[schema(required = true)]
+    pub source: Option<String>,
+}
+
+impl From<lumen_app::assess::Group> for GroupView {
+    fn from(group: lumen_app::assess::Group) -> Self {
+        use lumen_app::assess::GroupKind;
+        Self {
+            kind: match group.kind {
+                GroupKind::Developer => GroupKindView::Developer,
+                GroupKind::AppCache => GroupKindView::AppCache,
+                GroupKind::AppData => GroupKindView::AppData,
+                GroupKind::Other => GroupKindView::Other,
+            },
+            source: group.source,
+        }
+    }
+}
+
+/// How full the disk holding the user's home folder is.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct DiskView {
+    /// The volume's size, in bytes.
+    pub total_bytes: String,
+    /// The bytes the user may still write, in bytes.
+    pub available_bytes: String,
+}
+
+impl From<lumen_app::space::Volume> for DiskView {
+    fn from(volume: lumen_app::space::Volume) -> Self {
+        Self {
+            total_bytes: volume.total.to_string(),
+            available_bytes: volume.available.to_string(),
+        }
+    }
 }
 
 /// A developer tool's own cleanup command, as a literal argument vector:
@@ -221,6 +281,7 @@ impl From<&Assessed> for CandidateView {
             reclaimable_bytes: bytes(reclaim(assessed)),
             reasons,
             tool_command: tool_action(assessed).map(ToolCommandView::from),
+            group: lumen_app::assess::group(assessed).into(),
         }
     }
 }

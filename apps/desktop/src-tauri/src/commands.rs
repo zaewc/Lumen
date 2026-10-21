@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use lumen_api::views::{
-    AiSettingsView, CandidateView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, PlanView,
-    QuarantineReportView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
+    AiSettingsView, CandidateView, DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView,
+    PlanView, QuarantineReportView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
 };
 use lumen_app::ai::Service;
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -226,6 +226,20 @@ fn ai_view(db: &Path, secrets: Option<&dyn SecretStore>) -> Result<AiSettingsVie
         None => None,
     };
     Ok(AiSettingsView::new(lumen_app::ai::load(db), key))
+}
+
+/// How full the disk holding the user's home folder is: a read of the
+/// volume's size and free space, nothing else.
+#[tauri::command]
+pub(crate) async fn disk() -> Result<DiskView, CommandError> {
+    blocking(move || {
+        let home =
+            std::env::home_dir().ok_or_else(|| CommandError::new("the home folder is unknown"))?;
+        lumen_app::space::volume(&home)
+            .map(DiskView::from)
+            .map_err(CommandError::new)
+    })
+    .await
 }
 
 /// Whether AI review is on, and which key it would use (never the key).

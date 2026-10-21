@@ -17,12 +17,33 @@ export const zAiSettingsView = z.object({
 });
 
 /**
+ * How full the disk holding the user's home folder is.
+ */
+export const zDiskView = z.object({
+  available_bytes: z.string(),
+  total_bytes: z.string(),
+});
+
+/**
  * A request to execute a plan: its ID and, as the confirmation, its full
  * hash.
  */
 export const zExecuteRequest = z.object({
   confirmation: z.string(),
   plan: z.string(),
+});
+
+/**
+ * The kind of group an item is presented in.
+ */
+export const zGroupKindView = z.enum(["developer", "app_cache", "app_data", "other"]);
+
+/**
+ * The group an item is presented in, and what it belongs to when known.
+ */
+export const zGroupView = z.object({
+  kind: zGroupKindView,
+  source: z.string().nullable(),
 });
 
 /**
@@ -247,6 +268,7 @@ export const zVerdictView = z.enum(["keep", "review", "quarantine"]);
  * One assessed candidate.
  */
 export const zCandidateView = z.object({
+  group: zGroupView,
   path: z.string(),
   reasons: z.array(zReasonView),
   reclaimable_bytes: z.string(),

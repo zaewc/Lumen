@@ -583,8 +583,8 @@ pub(crate) fn process_is_elevated() -> io::Result<bool> {
 }
 
 /// Bytes this user may still write on the volume holding the directory
-/// `path`, after quotas.
-pub(crate) fn available_space(path: &std::path::Path) -> io::Result<u64> {
+/// `path`, after quotas, and the volume's total size.
+pub(crate) fn disk_space(path: &std::path::Path) -> io::Result<(u64, u64)> {
     use std::os::windows::ffi::OsStrExt as _;
 
     use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
@@ -595,22 +595,23 @@ pub(crate) fn available_space(path: &std::path::Path) -> io::Result<u64> {
         .chain(std::iter::once(0))
         .collect();
     let mut available = 0_u64;
-    // SAFETY: invariant: the name is NUL-terminated and the one requested
-    // output is writable; the other two are null, which the API allows. Why
+    let mut total = 0_u64;
+    // SAFETY: invariant: the name is NUL-terminated and the two requested
+    // outputs are writable; the third is null, which the API allows. Why
     // unsafe: FFI call. Why it holds: `wide` ends with the NUL chained above
-    // and outlives the call; `available` is a local `u64`.
+    // and outlives the call; `available` and `total` are local `u64`s.
     let ok = unsafe {
         GetDiskFreeSpaceExW(
             wide.as_ptr(),
             &raw mut available,
-            std::ptr::null_mut(),
+            &raw mut total,
             std::ptr::null_mut(),
         )
     };
     if ok == 0 {
         return Err(io::Error::last_os_error());
     }
-    Ok(available)
+    Ok((available, total))
 }
 
 #[cfg(test)]

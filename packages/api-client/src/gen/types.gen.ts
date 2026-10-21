@@ -32,6 +32,10 @@ export type AiSettingsView = {
  */
 export type CandidateView = {
   /**
+   * The group it is presented in.
+   */
+  group: GroupView;
+  /**
    * Where it is.
    */
   path: string;
@@ -48,6 +52,20 @@ export type CandidateView = {
    * The policy's verdict.
    */
   verdict: VerdictView;
+};
+
+/**
+ * How full the disk holding the user's home folder is.
+ */
+export type DiskView = {
+  /**
+   * The bytes the user may still write, in bytes.
+   */
+  available_bytes: string;
+  /**
+   * The volume's size, in bytes.
+   */
+  total_bytes: string;
 };
 
 /**
@@ -109,6 +127,26 @@ export type FinalizeView =
   | {
       kind: "not_finalizable";
     };
+
+/**
+ * The kind of group an item is presented in.
+ */
+export type GroupKindView = "developer" | "app_cache" | "app_data" | "other";
+
+/**
+ * The group an item is presented in, and what it belongs to when known.
+ */
+export type GroupView = {
+  /**
+   * The kind of group.
+   */
+  kind: GroupKindView;
+  /**
+   * The developer tool (e.g. `Xcode`) or the owning application's
+   * identifier, as untrusted display text; `null` when unknown.
+   */
+  source: string | null;
+};
 
 /**
  * One item in quarantine.
