@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baseName } from "./path";
+import { baseName, parentPath } from "./path";
 
 describe("baseName", () => {
   it("takes the last component of a Unix path", () => {
@@ -20,5 +20,15 @@ describe("baseName", () => {
     expect(baseName("C:\\")).toBe("C:\\");
     expect(baseName("D:")).toBe("D:");
     expect(baseName("")).toBe("");
+  });
+});
+
+describe("parentPath", () => {
+  it("drops the last component of either kind of path", () => {
+    expect(parentPath("/Users/ana/Library/Caches/App")).toBe("/Users/ana/Library/Caches");
+    expect(parentPath("/Users/ana/node_modules/")).toBe("/Users/ana");
+    expect(parentPath("C:\\Users\\ana\\Temp")).toBe("C:\\Users\\ana");
+    expect(parentPath("/Applications")).toBe("/");
+    expect(parentPath("relative")).toBe("");
   });
 });

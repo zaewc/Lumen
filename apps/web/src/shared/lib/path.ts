@@ -15,3 +15,17 @@ export function baseName(path: string): string {
   }
   return parts.length === 1 && /^[A-Za-z]:$/.test(last) ? path : last;
 }
+
+/**
+ * Everything before the last component, for a row's subtitle:
+ * "/Users/ana/Library/Caches" for "/Users/ana/Library/Caches/App". A path
+ * without a parent gives "".
+ */
+export function parentPath(path: string): string {
+  const trimmed = path.replace(/[\\/]+$/, "");
+  const cut = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  if (cut < 0) {
+    return "";
+  }
+  return cut === 0 ? trimmed.slice(0, 1) : trimmed.slice(0, cut);
+}

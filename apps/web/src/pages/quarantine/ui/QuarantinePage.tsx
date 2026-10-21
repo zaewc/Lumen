@@ -3,7 +3,7 @@ import { useState } from "react";
 import { heldTotal, useHeld } from "@/entities/held";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
-import { buttonClass, Card, ErrorNotice, InfoTip, Notice } from "@/shared/ui";
+import { ArchiveIcon, buttonClass, ErrorNotice, InfoTip, Notice, Page } from "@/shared/ui";
 import { doneText, doneWell, type LastAction } from "../lib/outcome";
 import { HeldRow } from "./HeldRow";
 
@@ -15,25 +15,26 @@ export function QuarantinePage() {
   const [last, setLast] = useState<LastAction | null>(null);
   const items = held.data ?? [];
   const total = heldTotal(items);
+  const size = formatBytes(total.bytes);
   return (
-    <main className="mx-auto max-w-3xl space-y-4 px-4 py-8 sm:px-6 sm:py-12">
-      <div className="px-1">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            {m.quarantine.title}
-          </h1>
-          <InfoTip term="quarantine" />
-        </div>
-        {items.length > 0 && (
-          <p className="mt-1 text-neutral-600 dark:text-neutral-400">
-            {m.quarantine.count(items.length)} ·{" "}
-            {total.exact
-              ? m.quarantine.total(formatBytes(total.bytes))
-              : m.quarantine.totalAtLeast(formatBytes(total.bytes))}
-          </p>
-        )}
-      </div>
-      <div role="status">
+    <Page
+      title={m.quarantine.title}
+      {...(items.length > 0
+        ? {
+            subtitle: (
+              <span className="flex flex-wrap items-center gap-x-1.5">
+                <span className="tabular-nums">{m.quarantine.count(items.length)}</span>
+                <span aria-hidden="true">·</span>
+                <span className="tabular-nums">
+                  {total.exact ? m.quarantine.total(size) : m.quarantine.totalAtLeast(size)}
+                </span>
+                <InfoTip term="quarantine" />
+              </span>
+            ),
+          }
+        : {})}
+    >
+      <div role="status" className="empty:hidden">
         {last && (
           <Notice tone={doneWell(last.done) ? "success" : "warning"}>
             <p>
@@ -45,34 +46,35 @@ export function QuarantinePage() {
           </Notice>
         )}
       </div>
-      {held.isPending && (
-        <p className="px-1 text-neutral-500 dark:text-neutral-400">{m.common.loading}</p>
-      )}
+      {held.isPending && <p className="px-1 text-[13px] text-ink-3">{m.common.loading}</p>}
       {held.isError && <ErrorNotice message={m.quarantine.loadFailed} error={held.error} />}
       {held.isSuccess && items.length === 0 && (
-        <Card className="py-12 text-center sm:py-14">
-          <p className="text-lg font-semibold">{m.quarantine.empty}</p>
-          <p className="mx-auto mt-2 max-w-sm text-neutral-600 dark:text-neutral-400">
+        <section className="flex flex-col items-center rounded-xl border border-line bg-surface px-6 py-12 text-center">
+          <span className="flex size-14 items-center justify-center rounded-2xl bg-fill-strong text-ink-2">
+            <ArchiveIcon className="size-7" />
+          </span>
+          <h2 className="mt-5 text-[17px] font-semibold text-ink">{m.quarantine.empty}</h2>
+          <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-ink-2">
             {m.quarantine.emptyHint}
           </p>
           <Link to="/" className={`${buttonClass("secondary")} mt-6`}>
             {m.quarantine.goCleanUp}
           </Link>
-        </Card>
+        </section>
       )}
       {items.length > 0 && (
-        <Card className="py-2 sm:py-2">
-          <div className="flex items-start gap-2 border-b border-neutral-100 py-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-400">
+        <section>
+          <div className="flex items-start gap-2 px-1 pb-2.5 text-[13px] text-ink-2">
             <p className="flex-1">{m.quarantine.intro}</p>
             <InfoTip term="restore" />
           </div>
-          <ul className="divide-y divide-neutral-100 dark:divide-neutral-800">
+          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
             {items.map((item) => (
               <HeldRow key={item.operation} item={item} onDone={setLast} />
             ))}
           </ul>
-        </Card>
+        </section>
       )}
-    </main>
+    </Page>
   );
 }

@@ -161,8 +161,8 @@ export const en = {
   quarantine: {
     title: "Quarantine",
     count: (n: number) => `${items(n)} held`,
-    total: (size: string) => `${size} would be freed by removing them for good`,
-    totalAtLeast: (size: string) => `At least ${size} would be freed by removing them for good`,
+    total: (size: string) => `Remove them for good to free ${size}`,
+    totalAtLeast: (size: string) => `Remove them for good to free at least ${size}`,
     intro:
       "Items you clean up wait here. Restore puts an item back where it was; removing it for good frees its space.",
     loadFailed: "Quarantine could not be loaded.",
