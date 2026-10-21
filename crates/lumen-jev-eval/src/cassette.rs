@@ -1,9 +1,15 @@
 //! Cassettes (`jev.cassette/1`) and replaying them.
+//!
+//! A replay validates each recorded body on the path the recorded judge uses
+//! live: a Decisions-protocol judge (Jeb, or Jev through `OpenRouter`, named
+//! by its descriptor's provider) through [`decisions::judgment_for`] with that
+//! provider's pinned model, any other judge through [`validate`].
 
 use std::collections::BTreeMap;
 
 use lumen_application::ports::{JudgeError, JudgeFuture, JudgeModel};
-use lumen_domain::{JevRequest, JudgeDescriptor, PayloadHash};
+use lumen_domain::{JevRequest, JudgeDescriptor, Judgment, PayloadHash};
+use lumen_jev::decisions::{self, Provider};
 use lumen_jev::response::{RawResponse, StopReason, validate};
 use serde::{Deserialize, Serialize};
 
@@ -119,6 +125,48 @@ impl ReplayJudge {
     }
 }
 
+/// The Decisions provider `judge` names, or `None` for a judge answering
+/// `jev.judgment/1` text.
+fn decisions_provider(judge: &JudgeDescriptor) -> Option<Provider> {
+    [Provider::Jeb, Provider::OpenRouter]
+        .into_iter()
+        .find(|p| judge.provider.as_str() == p.source())
+}
+
+/// Validates `recorded` as the answer to `request` exactly as `judge` would
+/// live.
+pub(crate) fn validate_recorded(
+    judge: &JudgeDescriptor,
+    request: &JevRequest,
+    recorded: &Recorded,
+) -> Result<Judgment, JudgeError> {
+    let Some(provider) = decisions_provider(judge) else {
+        return validate(
+            request,
+            &judge.model,
+            &RawResponse {
+                stop_reason: recorded.stop_reason.into(),
+                model: &recorded.model,
+                body: &recorded.body,
+            },
+        );
+    };
+    // Decisions answers carry no stop reason: live, only a complete HTTP
+    // answer reaches the validator, and it is recorded as `end_turn`.
+    if recorded.stop_reason != RecordedStop::EndTurn {
+        return Err(JudgeError::NoAnswer(
+            "the recording is not a complete answer",
+        ));
+    }
+    let (judgment, model) = decisions::judgment_for(request, &recorded.body, provider)?;
+    if model != recorded.model {
+        return Err(JudgeError::NoAnswer(
+            "the recorded model differs from the answer's",
+        ));
+    }
+    Ok(judgment)
+}
+
 impl JudgeModel for ReplayJudge {
     fn descriptor(&self) -> Option<JudgeDescriptor> {
         Some(self.judge.clone())
@@ -126,15 +174,7 @@ impl JudgeModel for ReplayJudge {
 
     fn judge<'a>(&'a self, request: &'a JevRequest) -> JudgeFuture<'a> {
         let answer = match self.answers.get(&request.hash()) {
-            Some(recorded) => validate(
-                request,
-                &self.judge.model,
-                &RawResponse {
-                    stop_reason: recorded.stop_reason.into(),
-                    model: &recorded.model,
-                    body: &recorded.body,
-                },
-            ),
+            Some(recorded) => validate_recorded(&self.judge, request, recorded),
             None => Err(JudgeError::Unavailable("no recording for this request")),
         };
         Box::pin(std::future::ready(answer))
@@ -260,6 +300,78 @@ mod tests {
         assert!(matches!(
             replay(&judge, "c_9"),
             Err(JudgeError::Unavailable(_))
+        ));
+        Ok(())
+    }
+
+    /// A Decisions answer from `model`, as received (trailing newline kept).
+    fn decision(model: &str) -> String {
+        serde_json::json!({
+            "answers": {
+                "assessment": {"type": "choice", "choice": "likely_needed",
+                    "probabilities": {"likely_needed": 0.95, "uncertain": 0.05}},
+                "reason": {"type": "choice", "choice": "owner_app_present",
+                    "probabilities": {"owner_app_present": 1.0}},
+                "injection": {"type": "noul", "noul": 0.01},
+            },
+            "model": model,
+            "usage": {"input_tokens": 400, "output_tokens": 60},
+        })
+        .to_string()
+            + "\n"
+    }
+
+    #[test]
+    fn jeb_recordings_replay_through_the_decisions_validator() -> Result<(), CassetteError> {
+        let entry = |item: &str, stop, model: &str, body: String| Recorded {
+            case_id: format!("case-{item}"),
+            request_hash: request(item).hash(),
+            stop_reason: stop,
+            model: model.to_owned(),
+            body,
+        };
+        let text = serde_json::json!({
+            "schema": CASSETTE_SCHEMA,
+            "judge": {
+                "provider": "gsm.jeb",
+                "model": "jeb",
+                "model_version": null,
+                "prompt_version": "jev-decisions/1",
+            },
+            "entries": [
+                entry("c_1", RecordedStop::EndTurn, "jeb-20261007", decision("jeb-20261007")),
+                entry("c_2", RecordedStop::EndTurn, "typesafe/jev-1.13", decision("typesafe/jev-1.13")),
+                entry("c_3", RecordedStop::EndTurn, "jeb", body("c_3")),
+                entry("c_4", RecordedStop::Other, "jeb", decision("jeb")),
+                entry("c_5", RecordedStop::EndTurn, "jeb-20261007", decision("jeb")),
+            ],
+        })
+        .to_string();
+        let judge = ReplayJudge::new(Cassette::parse(&text)?);
+        let live =
+            decisions::judgment_for(&request("c_1"), &decision("jeb-20261007"), Provider::Jeb)
+                .map(|(judgment, _)| judgment);
+        assert_eq!(replay(&judge, "c_1"), live, "replay == live");
+        assert_eq!(
+            replay(&judge, "c_1").map(|j| j.assessment),
+            Ok(Assessment::LikelyNeeded)
+        );
+        assert!(
+            matches!(replay(&judge, "c_2"), Err(JudgeError::NoAnswer(_))),
+            "Jeb's pinned model only"
+        );
+        assert_eq!(
+            replay(&judge, "c_3"),
+            Err(JudgeError::Malformed),
+            "text answer"
+        );
+        assert!(matches!(
+            replay(&judge, "c_4"),
+            Err(JudgeError::NoAnswer(_))
+        ));
+        assert!(matches!(
+            replay(&judge, "c_5"),
+            Err(JudgeError::NoAnswer(_))
         ));
         Ok(())
     }
