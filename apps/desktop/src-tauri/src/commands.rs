@@ -242,6 +242,41 @@ pub(crate) async fn disk() -> Result<DiskView, CommandError> {
     .await
 }
 
+/// System Settings › Privacy & Security › Full Disk Access (verified on
+/// macOS 26). Apple does not document these addresses; if one stops working,
+/// System Settings opens on its main page instead.
+#[cfg(target_os = "macos")]
+const FULL_DISK_ACCESS: &str =
+    "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles";
+
+/// Opens the Full Disk Access pane of System Settings, so the user can allow
+/// Lumen there. A fixed address with no input from the window; Lumen grants
+/// itself nothing. Only on macOS.
+#[tauri::command]
+pub(crate) async fn open_full_disk_access() -> Result<(), CommandError> {
+    blocking(open_settings_pane).await
+}
+
+#[cfg(target_os = "macos")]
+fn open_settings_pane() -> Result<(), CommandError> {
+    let status = std::process::Command::new("/usr/bin/open")
+        .arg(FULL_DISK_ACCESS)
+        .status()
+        .map_err(CommandError::new)?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(CommandError::new(format!(
+            "System Settings could not be opened ({status})"
+        )))
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn open_settings_pane() -> Result<(), CommandError> {
+    Err(CommandError::new("Full Disk Access exists only on macOS"))
+}
+
 /// Whether AI review is on, and which key it would use (never the key).
 #[tauri::command]
 pub(crate) async fn ai_settings(core: State<'_, Core>) -> Result<AiSettingsView, CommandError> {

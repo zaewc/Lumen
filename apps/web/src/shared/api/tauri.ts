@@ -40,6 +40,9 @@ export function tauriTransport(): LumenTransport {
       zFinalizeOutcomeView.parse(await invoke("finalize", { operationId })),
     aiSettings: async () => zAiSettingsView.parse(await invoke("ai_settings")),
     disk: async () => zDiskView.parse(await invoke("disk")),
+    openFullDiskAccess: async () => {
+      await invoke("open_full_disk_access");
+    },
     setAiReview: async (enabled) =>
       zAiSettingsView.parse(await invoke("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await invoke("set_ai_key", { key })),

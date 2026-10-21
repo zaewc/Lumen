@@ -1,7 +1,10 @@
+import { useMutation } from "@tanstack/react-query";
+import { useTransport } from "@/shared/api";
 import { APP_VERSION } from "@/shared/config";
 import { LOCALE_NAMES, LOCALES, useI18n } from "@/shared/i18n";
 import { isMac, userAgent } from "@/shared/lib";
 import {
+  buttonClass,
   GlobeIcon,
   Group,
   GroupRow,
@@ -40,6 +43,33 @@ function LanguageGroup() {
   );
 }
 
+/** Opens System Settings at Full Disk Access, where the host can. */
+function OpenSettingsButton() {
+  const { m } = useI18n();
+  const open = useTransport().openFullDiskAccess;
+  const opening = useMutation({ mutationFn: async () => open?.() });
+  if (open === undefined) {
+    return null;
+  }
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        className={buttonClass("secondary", "sm")}
+        disabled={opening.isPending}
+        onClick={() => opening.mutate()}
+      >
+        {m.settings.permissions.open}
+      </button>
+      {opening.isError && (
+        <p role="alert" className="mt-2 text-[13px] text-amber-700 dark:text-amber-300">
+          {m.settings.permissions.openFailed}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** Why some folders may be unread, and (on a Mac) how to allow Full Disk Access. */
 function PermissionsGroup() {
   const { m } = useI18n();
@@ -73,6 +103,7 @@ function PermissionsGroup() {
                   <li>{p.step2}</li>
                   <li>{p.step3}</li>
                 </ol>
+                <OpenSettingsButton />
               </>
             ) : (
               p.accessIntro

@@ -48,6 +48,7 @@ pub fn app<R: Runtime>(builder: Builder<R>, secrets: Option<Arc<dyn SecretStore>
             commands::finalize,
             commands::ai_settings,
             commands::disk,
+            commands::open_full_disk_access,
             commands::set_ai_review,
             commands::set_ai_key,
         ])

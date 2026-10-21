@@ -288,6 +288,8 @@ export const en = {
       step1: "Open System Settings.",
       step2: "Go to Privacy & Security › Full Disk Access.",
       step3: "Turn on Lumen, then scan again.",
+      open: "Open System Settings",
+      openFailed: "System Settings could not be opened. Open it from the Apple menu instead.",
       access: "Folder access",
       accessIntro:
         "Your computer may refuse Lumen some folders. Lumen then reads everything it is allowed to.",
