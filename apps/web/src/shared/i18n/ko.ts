@@ -20,9 +20,10 @@ export const ko = {
   language: "언어",
   nav: {
     label: "주 메뉴",
-    cleanUp: "정리하기",
+    cleanUp: "정리",
     quarantine: "격리함",
     settings: "설정",
+    held: (n: number) => `격리함에 ${items(n)}`,
   },
   common: {
     loading: "불러오는 중…",
@@ -49,6 +50,10 @@ export const ko = {
     onIntro: (service: string) =>
       `켜짐(${service}). 항목의 정리를 제안하기 전에 그 정보(내용은 제외)를 보내 의견을 한 번 더 받습니다. AI는 Lumen을 더 신중하게 만들 수만 있습니다.`,
     checking: "AI 검토 설정을 확인하는 중…",
+    short: {
+      on: "AI 검토 켜짐",
+      off: "AI 검토 꺼짐",
+    },
     statusOn: (service: string) => `AI 검토: 켜짐(${service})`,
     statusOff: "AI 검토: 꺼짐",
     loadFailed: "AI 검토 설정을 불러오지 못했습니다.",

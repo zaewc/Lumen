@@ -1,19 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useTransport } from "@/shared/api";
+import { heldTotal, useHeld } from "@/entities/held";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import { buttonClass, Card, ErrorNotice, InfoTip, Notice } from "@/shared/ui";
 import { doneText, doneWell, type LastAction } from "../lib/outcome";
-import { heldTotal } from "../lib/total";
 import { HeldRow } from "./HeldRow";
 
 /** Like a trash can: what quarantine holds, to restore or remove for good. */
 export function QuarantinePage() {
   const { m } = useI18n();
-  const transport = useTransport();
-  const held = useQuery({ queryKey: ["held"], queryFn: () => transport.held() });
+  const held = useHeld();
   // Shown above the list, so it stays after a restored item leaves the list.
   const [last, setLast] = useState<LastAction | null>(null);
   const items = held.data ?? [];

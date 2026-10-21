@@ -8,13 +8,19 @@ import {
 import { CleanUpPage } from "@/pages/clean-up";
 import { QuarantinePage } from "@/pages/quarantine";
 import { SettingsPage } from "@/pages/settings";
-import { Header } from "@/widgets/header";
+import { Sidebar } from "@/widgets/sidebar";
 
+/**
+ * The window, as a macOS utility lays it out: the sidebar on the left, the
+ * page on the right, scrolling on its own.
+ */
 function Layout() {
   return (
-    <div className="min-h-dvh bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-      <Header />
-      <Outlet />
+    <div className="flex h-dvh overflow-hidden bg-window text-[14px] text-ink">
+      <Sidebar />
+      <div className="min-w-0 flex-1 overflow-y-auto">
+        <Outlet />
+      </div>
     </div>
   );
 }

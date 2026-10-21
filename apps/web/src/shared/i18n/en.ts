@@ -14,6 +14,7 @@ export const en = {
     cleanUp: "Clean up",
     quarantine: "Quarantine",
     settings: "Settings",
+    held: (n: number) => `${items(n)} in Quarantine`,
   },
   common: {
     loading: "Loading…",
@@ -40,6 +41,10 @@ export const en = {
     onIntro: (service: string) =>
       `On (${service}). Before an item is proposed for clean-up, its details (never its contents) are sent for a second opinion. It can only make Lumen more careful.`,
     checking: "Checking whether AI review is on…",
+    short: {
+      on: "AI review on",
+      off: "AI review off",
+    },
     statusOn: (service: string) => `AI review: on (${service})`,
     statusOff: "AI review: off",
     loadFailed: "The AI review setting could not be loaded.",
