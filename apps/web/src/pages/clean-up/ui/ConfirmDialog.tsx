@@ -2,7 +2,15 @@ import type { PlanView } from "@lumen/api-client";
 import { type RefObject, useId, useRef } from "react";
 import { formatDateTime, useI18n } from "@/shared/i18n";
 import { formatBytes, sumBytes } from "@/shared/lib";
-import { buttonClass, CheckIcon, Dialog, Disclosure, ErrorNotice } from "@/shared/ui";
+import {
+  ArchiveIcon,
+  buttonClass,
+  CheckIcon,
+  Dialog,
+  Disclosure,
+  ErrorNotice,
+  IconTile,
+} from "@/shared/ui";
 
 /**
  * Asks before moving a plan's items to quarantine. Pressing "Move to
@@ -42,34 +50,32 @@ export function ConfirmDialog({
       initialFocus={cancel}
       returnFocus={returnFocus}
     >
-      <h2 id={title} className="text-lg font-semibold tracking-tight">
+      <IconTile>
+        <ArchiveIcon />
+      </IconTile>
+      <h2 id={title} className="mt-4 text-[17px] leading-snug font-semibold text-ink">
         {empty ? m.confirm.nothingLeft : m.confirm.title(plan.items.length, size)}
       </h2>
       {!empty && (
-        <ul
-          id={description}
-          className="mt-4 space-y-3 text-sm text-neutral-700 dark:text-neutral-300"
-        >
-          <li className="flex gap-3">
-            <CheckIcon className="text-emerald-600 dark:text-emerald-400" />
+        <ul id={description} className="mt-3 space-y-2.5 text-[13px] leading-snug text-ink-2">
+          <li className="flex gap-2.5">
+            <CheckIcon className="size-[18px] text-emerald-600 dark:text-emerald-400" />
             <span>{m.confirm.checked}</span>
           </li>
-          <li className="flex gap-3">
-            <CheckIcon className="text-emerald-600 dark:text-emerald-400" />
+          <li className="flex gap-2.5">
+            <CheckIcon className="size-[18px] text-emerald-600 dark:text-emerald-400" />
             <span>{m.confirm.restorable}</span>
           </li>
         </ul>
       )}
       <Disclosure
         className="mt-4"
-        summary={
-          <span className="text-sm text-neutral-600 dark:text-neutral-400">{m.common.details}</span>
-        }
+        summary={<span className="text-[13px] text-ink-2">{m.common.details}</span>}
       >
-        <div className="space-y-1 text-xs text-neutral-600 dark:text-neutral-400">
+        <div className="space-y-1 text-[12px] text-ink-2">
           <p>{m.confirm.planMade(formatDateTime(locale, plan.created_at))}</p>
           <p>
-            {m.confirm.planHash}: <code className="break-all">{plan.hash}</code>
+            {m.confirm.planHash}: <code className="font-mono break-all">{plan.hash}</code>
           </p>
         </div>
       </Disclosure>
@@ -78,7 +84,7 @@ export function ConfirmDialog({
           <ErrorNotice message={m.confirm.failed} error={error} />
         </div>
       )}
-      <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <div className="mt-6 flex flex-col-reverse gap-2 min-[480px]:flex-row min-[480px]:justify-end">
         <button
           ref={cancel}
           type="button"

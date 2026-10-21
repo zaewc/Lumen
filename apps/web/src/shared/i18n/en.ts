@@ -56,7 +56,7 @@ export const en = {
     },
   },
   start: {
-    title: "Free up space safely",
+    title: "Scan for space to free",
     promise: "Nothing is deleted without your confirmation, and everything can be restored.",
     wholeDisk: "Scan the whole disk",
     wholeDiskHint:
@@ -100,13 +100,16 @@ export const en = {
   },
   scanning: {
     title: "Scanning…",
-    deciding: "Deciding what is safe to clean up…",
+    deciding: "Deciding…",
+    decidingHint: "Lumen is applying its safety rules to what it found.",
     readOnly: "Lumen is only reading; nothing is changed.",
     progress: "Scan progress",
+    stepScan: "Scan",
+    stepDecide: "Decide",
     items: "Items found",
     size: "Size on disk",
     unreadable: "Unreadable folders",
-    reading: (folder: string) => `Reading ${folder}`,
+    reading: "Reading",
     failed: "Lumen could not decide about what it found. Nothing was changed.",
   },
   results: {

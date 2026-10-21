@@ -21,8 +21,8 @@ export function StepHeading({
     }
   }, [focus]);
   return (
-    <h1 ref={heading} tabIndex={-1} className={`outline-none ${className}`}>
+    <h2 ref={heading} tabIndex={-1} className={`outline-none ${className}`}>
       {children}
-    </h1>
+    </h2>
   );
 }

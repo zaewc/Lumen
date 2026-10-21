@@ -66,7 +66,7 @@ export const ko = {
     },
   },
   start: {
-    title: "안전하게 공간 확보하기",
+    title: "확보할 공간 찾기",
     promise: "확인하기 전에는 아무것도 삭제하지 않으며, 모든 항목을 복원할 수 있습니다.",
     wholeDisk: "디스크 전체 검사",
     wholeDiskHint:
@@ -109,13 +109,16 @@ export const ko = {
   },
   scanning: {
     title: "검사하는 중…",
-    deciding: "정리해도 안전한 항목을 판단하는 중…",
+    deciding: "판정 중…",
+    decidingHint: "찾은 항목에 안전 규칙을 적용하고 있습니다.",
     readOnly: "읽기만 하며 아무것도 변경하지 않습니다.",
     progress: "검사 진행 상황",
+    stepScan: "검사",
+    stepDecide: "판정",
     items: "찾은 항목",
     size: "디스크 사용량",
     unreadable: "읽지 못한 폴더",
-    reading: (folder: string) => `읽는 중: ${folder}`,
+    reading: "읽는 중",
     failed: "찾은 항목을 판단하지 못했습니다. 아무것도 변경하지 않았습니다.",
   },
   results: {

@@ -2,12 +2,12 @@ import type { QuarantineReportView } from "@lumen/api-client";
 import { type ReactNode, useState } from "react";
 import { useScanSession } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
-import { buttonClass, Card } from "@/shared/ui";
+import { buttonClass, Page } from "@/shared/ui";
 import { cleanUpStep } from "../model/step";
-import { DoneCard } from "./DoneCard";
+import { DonePanel } from "./DonePanel";
+import { ProgressPanel } from "./ProgressPanel";
 import { Results } from "./Results";
-import { ScanningCard } from "./ScanningCard";
-import { StartCard } from "./StartCard";
+import { StartPanel } from "./StartPanel";
 import { StepHeading } from "./StepHeading";
 
 /**
@@ -20,7 +20,7 @@ export function CleanUpPage() {
   const { m } = useI18n();
   const session = useScanSession();
   const [folders, setFolders] = useState("");
-  // Focus follows the flow only once the user has started it.
+  // Focus follows the flow once the user has started it (here, or on Overview).
   const [acted, setActed] = useState(() => session.scanning);
 
   const start = (roots: string[]) => {
@@ -47,7 +47,7 @@ export function CleanUpPage() {
     switch (step) {
       case "start":
         return (
-          <StartCard
+          <StartPanel
             folders={folders}
             onFoldersChange={setFolders}
             onScan={start}
@@ -58,21 +58,21 @@ export function CleanUpPage() {
       case "scanning":
       case "deciding":
         return (
-          <ScanningCard progress={session.progress} deciding={step === "deciding"} focus={acted} />
+          <ProgressPanel progress={session.progress} deciding={step === "deciding"} focus={acted} />
         );
       case "decideFailed":
         return (
-          <Card className="space-y-4">
-            <StepHeading focus={acted} className="text-xl font-semibold tracking-tight">
+          <section className="space-y-4 rounded-xl border border-line bg-surface p-6">
+            <StepHeading focus={acted} className="text-[17px] font-semibold text-ink">
               {m.scanning.failed}
             </StepHeading>
-            <p className="font-mono text-xs break-all text-neutral-500 dark:text-neutral-400">
+            <p className="font-mono text-[11px] break-all text-ink-3 select-text">
               {String(session.assessmentError)}
             </p>
             <button type="button" onClick={startOver} className={buttonClass("secondary")}>
               {m.common.scanAgain}
             </button>
-          </Card>
+          </section>
         );
       case "results":
         return session.scan !== null && session.candidates !== null ? (
@@ -85,11 +85,11 @@ export function CleanUpPage() {
           />
         ) : null;
       case "done":
-        return session.report ? (
-          <DoneCard report={session.report} onStartOver={startOver} focus={acted} />
+        return session.report !== null ? (
+          <DonePanel report={session.report} onStartOver={startOver} focus={acted} />
         ) : null;
     }
   };
 
-  return <main className="mx-auto max-w-3xl space-y-4 px-4 py-8 sm:px-6 sm:py-12">{view()}</main>;
+  return <Page title={m.nav.cleanUp}>{view()}</Page>;
 }
