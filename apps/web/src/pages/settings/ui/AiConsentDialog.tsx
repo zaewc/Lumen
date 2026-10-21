@@ -1,11 +1,11 @@
 import type { AiSettingsView } from "@lumen/api-client";
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, type RefObject, useId, useRef, useState } from "react";
+import { canTurnOn, destination, needsKey } from "@/entities/ai-review";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { isApiKey } from "@/shared/lib";
-import { buttonClass, CheckIcon, Dialog, ErrorNotice } from "@/shared/ui";
-import { canTurnOn, destination, needsKey } from "../model/ai";
+import { buttonClass, CheckIcon, Dialog, ErrorNotice, IconTile, SparkleIcon } from "@/shared/ui";
 
 /**
  * Asks before turning AI review on (ADR-0037): what is sent, where, and that
@@ -77,26 +77,23 @@ export function AiConsentDialog({
       returnFocus={returnFocus}
     >
       <form onSubmit={submit}>
-        <h2 id={title} className="text-lg font-semibold tracking-tight">
+        <IconTile>
+          <SparkleIcon />
+        </IconTile>
+        <h2 id={title} className="mt-4 text-[17px] font-semibold text-ink">
           {m.ai.consent.title}
         </h2>
-        <ul
-          id={description}
-          className="mt-4 space-y-3 text-sm text-neutral-700 dark:text-neutral-300"
-        >
+        <ul id={description} className="mt-3 space-y-2.5 text-[13px] leading-snug text-ink-2">
           {points.map((point) => (
-            <li key={point} className="flex gap-3">
-              <CheckIcon className="text-indigo-600 dark:text-indigo-400" />
+            <li key={point} className="flex gap-2.5">
+              <CheckIcon className="size-[18px] text-accent-ink" />
               <span>{point}</span>
             </li>
           ))}
         </ul>
         {asking && (
-          <div className="mt-5 space-y-2">
-            <label
-              htmlFor={field}
-              className="block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-            >
+          <div className="mt-5 space-y-1.5">
+            <label htmlFor={field} className="block text-[13px] font-medium text-ink">
               {m.ai.consent.keyLabel}
             </label>
             <input
@@ -109,9 +106,9 @@ export function AiConsentDialog({
               aria-describedby={hint}
               aria-invalid={invalid}
               disabled={busy}
-              className="w-full rounded-xl border border-neutral-300 bg-white p-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-600 dark:border-neutral-600 dark:bg-neutral-950 dark:focus-visible:outline-indigo-400"
+              className="h-9 w-full rounded-lg border border-line-strong bg-window px-3 font-mono text-[13px] text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
             />
-            <p id={hint} className="text-xs text-neutral-500 dark:text-neutral-400">
+            <p id={hint} className="text-[12px] text-ink-3">
               {invalid ? m.ai.consent.keyInvalid : m.ai.consent.keyHint}
             </p>
           </div>
@@ -121,7 +118,7 @@ export function AiConsentDialog({
             <ErrorNotice message={m.ai.changeFailed} error={turnOn.error} />
           </div>
         )}
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="mt-6 flex flex-col-reverse gap-2 min-[480px]:flex-row min-[480px]:justify-end">
           <button
             ref={cancel}
             type="button"

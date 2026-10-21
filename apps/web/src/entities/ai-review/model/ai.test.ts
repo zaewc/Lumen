@@ -1,6 +1,6 @@
 import type { AiSettingsView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
-import { canTurnOn, destination, needsKey, serviceName } from "./ai";
+import { canTurnOn, destination, isOn, needsKey, serviceName } from "./ai";
 
 const off: AiSettingsView = { enabled: false, consented_at: null, key: "none" };
 
@@ -25,5 +25,12 @@ describe("AI review", () => {
     expect(destination(off)).toBe("jeb");
     expect(destination({ ...off, key: "jeb" })).toBe("jeb");
     expect(destination({ ...off, key: "openrouter" })).toBe("openrouter");
+  });
+
+  it("is on only when turned on with a stored key", () => {
+    expect(isOn(off)).toBeNull();
+    expect(isOn({ ...off, key: "jeb" })).toBeNull();
+    expect(isOn({ ...off, enabled: true, key: "jeb" })).toBe("Jeb");
+    expect(isOn({ ...off, enabled: true })).toBeNull();
   });
 });

@@ -1,15 +1,30 @@
 import type { CandidateView, QuarantineReportView, ScanView } from "@lumen/api-client";
 import { useId } from "react";
+import { isOn, useAiSettings } from "@/entities/ai-review";
 import { summarize } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { buttonClass, Card, InfoTip, Notice } from "@/shared/ui";
 import { coverageOf } from "../model/coverage";
-import { AiReviewStatus } from "./AiReviewCard";
 import { CandidateSection } from "./CandidateSection";
 import { CleanUpAction } from "./CleanUpAction";
 import { ScanDetails } from "./ScanDetails";
 import { StepHeading } from "./StepHeading";
+
+/** One line: whether AI review took part. */
+function AiReviewStatus() {
+  const { m } = useI18n();
+  const settings = useAiSettings();
+  if (!settings.isSuccess) {
+    return null;
+  }
+  const service = isOn(settings.data);
+  return (
+    <p className="text-sm text-neutral-500 dark:text-neutral-400">
+      {service === null ? m.ai.statusOff : m.ai.statusOn(service)}
+    </p>
+  );
+}
 
 /**
  * What a scan found: first how much can be freed and the one button that

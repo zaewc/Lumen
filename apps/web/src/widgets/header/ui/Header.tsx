@@ -1,34 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { LOCALE_NAMES, LOCALES, useI18n } from "@/shared/i18n";
-
-/** English / 한국어, each named in its own language, in a small select. */
-function LanguageSelect() {
-  const { locale, m, setLocale } = useI18n();
-  return (
-    <select
-      aria-label={m.language}
-      value={locale}
-      onChange={(event) => {
-        const next = LOCALES.find((option) => option === event.target.value);
-        if (next !== undefined) {
-          setLocale(next);
-        }
-      }}
-      className="ml-auto rounded-lg border border-neutral-300 bg-white py-1 pr-7 pl-2 text-sm text-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:focus-visible:outline-indigo-400"
-    >
-      {LOCALES.map((option) => (
-        <option key={option} value={option} lang={option}>
-          {LOCALE_NAMES[option]}
-        </option>
-      ))}
-    </select>
-  );
-}
+import { useI18n } from "@/shared/i18n";
 
 const TAB =
   "rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 aria-[current=page]:bg-indigo-50 aria-[current=page]:text-indigo-700 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100 dark:focus-visible:outline-indigo-400 dark:aria-[current=page]:bg-indigo-950 dark:aria-[current=page]:text-indigo-200";
 
-/** The app's name, its two places (Clean up, Quarantine), and the language. */
+/** The app's name and its places (Clean up, Quarantine, Settings). */
 export function Header() {
   const { m } = useI18n();
   return (
@@ -44,8 +20,10 @@ export function Header() {
           <Link to="/quarantine" className={TAB}>
             {m.nav.quarantine}
           </Link>
+          <Link to="/settings" className={TAB}>
+            {m.nav.settings}
+          </Link>
         </nav>
-        <LanguageSelect />
       </div>
     </header>
   );

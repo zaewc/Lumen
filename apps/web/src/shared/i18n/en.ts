@@ -13,6 +13,7 @@ export const en = {
     label: "Main",
     cleanUp: "Clean up",
     quarantine: "Quarantine",
+    settings: "Settings",
   },
   common: {
     loading: "Loading…",
@@ -35,14 +36,10 @@ export const en = {
   ai: {
     title: "AI review",
     offIntro:
-      "An AI model can double-check what Lumen proposes to clean up. It can only make Lumen more careful. It stays off until you turn it on.",
+      "An AI model double-checks what Lumen proposes to clean up. It can only make Lumen more careful. It stays off until you turn it on.",
+    onIntro: (service: string) =>
+      `On (${service}). Before an item is proposed for clean-up, its details (never its contents) are sent for a second opinion. It can only make Lumen more careful.`,
     checking: "Checking whether AI review is on…",
-    turnOn: "Turn on AI review",
-    on: (service: string) => `AI review is on (${service})`,
-    onIntro:
-      "Before an item is proposed for clean-up, its details (never its contents) are sent for a second opinion. It can only make Lumen more careful.",
-    turnOff: "Turn off",
-    turningOff: "Turning off…",
     statusOn: (service: string) => `AI review: on (${service})`,
     statusOff: "AI review: off",
     loadFailed: "The AI review setting could not be loaded.",
@@ -205,6 +202,31 @@ export const en = {
     maybeInUse:
       "It may be in use, or that cannot be checked; nothing was removed. Close the programs that use it and try again.",
     notFinalizable: "This item can only be restored, not removed for good.",
+  },
+  settings: {
+    title: "Settings",
+    permissions: {
+      title: "Permissions",
+      fda: "Full Disk Access",
+      fdaIntro:
+        "macOS protects some folders, such as Mail, Messages and other apps' data. Lumen reads them only if you allow it.",
+      steps: "To allow it:",
+      step1: "Open System Settings.",
+      step2: "Go to Privacy & Security › Full Disk Access.",
+      step3: "Turn on Lumen, then scan again.",
+      access: "Folder access",
+      accessIntro:
+        "Your computer may refuse Lumen some folders. Lumen then reads everything it is allowed to.",
+      unread:
+        "A folder Lumen cannot read is shown as unread, never as empty, and nothing in it is suggested for clean-up.",
+    },
+    about: {
+      title: "About",
+      version: "Version",
+      local: "On this device",
+      localBody:
+        "Scans, decisions and Quarantine stay on this computer. File contents are never sent anywhere; AI review, if you turn it on, sends only metadata.",
+    },
   },
   whatIs: (term: string) => `What does “${term}” mean?`,
   glossary: {

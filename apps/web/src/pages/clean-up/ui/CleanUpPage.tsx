@@ -4,7 +4,6 @@ import { useScanSession } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, Card } from "@/shared/ui";
 import { cleanUpStep } from "../model/step";
-import { AiReviewCard } from "./AiReviewCard";
 import { DoneCard } from "./DoneCard";
 import { Results } from "./Results";
 import { ScanningCard } from "./ScanningCard";
@@ -48,16 +47,13 @@ export function CleanUpPage() {
     switch (step) {
       case "start":
         return (
-          <>
-            <StartCard
-              folders={folders}
-              onFoldersChange={setFolders}
-              onScan={start}
-              error={session.scanError}
-              focus={acted}
-            />
-            <AiReviewCard />
-          </>
+          <StartCard
+            folders={folders}
+            onFoldersChange={setFolders}
+            onScan={start}
+            error={session.scanError}
+            focus={acted}
+          />
         );
       case "scanning":
       case "deciding":

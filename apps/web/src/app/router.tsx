@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { CleanUpPage } from "@/pages/clean-up";
 import { QuarantinePage } from "@/pages/quarantine";
+import { SettingsPage } from "@/pages/settings";
 import { Header } from "@/widgets/header";
 
 function Layout() {
@@ -26,6 +27,11 @@ const quarantine = createRoute({
   path: "/quarantine",
   component: QuarantinePage,
 });
+const settings = createRoute({
+  getParentRoute: () => root,
+  path: "/settings",
+  component: SettingsPage,
+});
 // The former Scan and Plan pages are now steps of Clean up.
 const formerScan = createRoute({
   getParentRoute: () => root,
@@ -43,7 +49,7 @@ const formerPlan = createRoute({
 });
 
 export const router = createRouter({
-  routeTree: root.addChildren([cleanUp, quarantine, formerScan, formerPlan]),
+  routeTree: root.addChildren([cleanUp, quarantine, settings, formerScan, formerPlan]),
 });
 
 declare module "@tanstack/react-router" {

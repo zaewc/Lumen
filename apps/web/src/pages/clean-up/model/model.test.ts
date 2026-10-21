@@ -1,6 +1,6 @@
 import type { QuarantineReportView, RootView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
-import { coverageOf, isMac } from "./coverage";
+import { coverageOf } from "./coverage";
 import { reportSummary } from "./report";
 import { cleanUpStep } from "./step";
 
@@ -49,12 +49,6 @@ describe("coverageOf", () => {
     expect(coverageOf([denied], windows)).toEqual({ incomplete: true, macPrivacy: false });
     const failed = { ...root, coverage_complete: false, failed: "2" };
     expect(coverageOf([failed], mac)).toEqual({ incomplete: true, macPrivacy: false });
-  });
-
-  it("knows a Mac from an iPad", () => {
-    expect(isMac(mac)).toBe(true);
-    expect(isMac("Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)")).toBe(false);
-    expect(isMac(windows)).toBe(false);
   });
 });
 

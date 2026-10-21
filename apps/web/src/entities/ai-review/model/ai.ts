@@ -39,3 +39,8 @@ export function destination(settings: AiSettingsView): AiDestination {
 export function canTurnOn(settings: AiSettingsView, keyText: string): boolean {
   return !needsKey(settings) || isApiKey(keyText);
 }
+
+/** The service AI review uses, when it is on (and a key is stored); else `null`. */
+export function isOn(settings: AiSettingsView): string | null {
+  return settings.enabled ? serviceName(settings.key) : null;
+}

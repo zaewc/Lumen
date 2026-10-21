@@ -1,4 +1,5 @@
 import type { RootView } from "@lumen/api-client";
+import { isMac } from "@/shared/lib";
 
 /** What the user should know about folders the scan could not read. */
 export interface Coverage {
@@ -10,11 +11,6 @@ export interface Coverage {
 
 function positive(decimal: string): boolean {
   return /^\d+$/.test(decimal) && BigInt(decimal) > 0n;
-}
-
-/** A desktop Mac, by its user agent (WKWebView and Safari say "Macintosh"). */
-export function isMac(userAgent: string): boolean {
-  return /Macintosh|Mac OS X/.test(userAgent) && !/iPhone|iPad|iPod/.test(userAgent);
 }
 
 /** Whether any root is incomplete and whether Full Disk Access may help. */

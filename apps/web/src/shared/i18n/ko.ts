@@ -22,6 +22,7 @@ export const ko = {
     label: "주 메뉴",
     cleanUp: "정리하기",
     quarantine: "격리함",
+    settings: "설정",
   },
   common: {
     loading: "불러오는 중…",
@@ -44,14 +45,10 @@ export const ko = {
   ai: {
     title: "AI 검토",
     offIntro:
-      "Lumen이 정리를 제안한 항목을 AI 모델이 한 번 더 확인할 수 있습니다. AI는 Lumen을 더 신중하게 만들 수만 있습니다. 직접 켜기 전까지는 꺼져 있습니다.",
+      "Lumen이 정리를 제안한 항목을 AI 모델이 한 번 더 확인합니다. AI는 Lumen을 더 신중하게 만들 수만 있습니다. 직접 켜기 전까지는 꺼져 있습니다.",
+    onIntro: (service: string) =>
+      `켜짐(${service}). 항목의 정리를 제안하기 전에 그 정보(내용은 제외)를 보내 의견을 한 번 더 받습니다. AI는 Lumen을 더 신중하게 만들 수만 있습니다.`,
     checking: "AI 검토 설정을 확인하는 중…",
-    turnOn: "AI 검토 켜기",
-    on: (service: string) => `AI 검토가 켜져 있습니다(${service})`,
-    onIntro:
-      "항목의 정리를 제안하기 전에 그 정보(내용은 제외)를 보내 의견을 한 번 더 받습니다. AI는 Lumen을 더 신중하게 만들 수만 있습니다.",
-    turnOff: "끄기",
-    turningOff: "끄는 중…",
     statusOn: (service: string) => `AI 검토: 켜짐(${service})`,
     statusOff: "AI 검토: 꺼짐",
     loadFailed: "AI 검토 설정을 불러오지 못했습니다.",
@@ -208,6 +205,31 @@ export const ko = {
     maybeInUse:
       "사용 중이거나 사용 여부를 확인할 수 없어 아무것도 삭제하지 않았습니다. 이 항목을 사용하는 프로그램을 닫고 다시 시도하십시오.",
     notFinalizable: "이 항목은 복원만 할 수 있으며 영구 삭제할 수는 없습니다.",
+  },
+  settings: {
+    title: "설정",
+    permissions: {
+      title: "권한",
+      fda: "전체 디스크 접근 권한",
+      fdaIntro:
+        "macOS는 메일, 메시지, 다른 앱의 데이터 같은 일부 폴더를 보호합니다. Lumen은 허용한 경우에만 이 폴더를 읽습니다.",
+      steps: "허용하는 방법:",
+      step1: "시스템 설정을 엽니다.",
+      step2: "개인정보 보호 및 보안 › 전체 디스크 접근 권한으로 이동합니다.",
+      step3: "Lumen을 켠 뒤 다시 검사합니다.",
+      access: "폴더 접근",
+      accessIntro:
+        "컴퓨터가 일부 폴더에 대한 접근을 거부할 수 있습니다. 그럴 때도 Lumen은 허용된 폴더를 모두 읽습니다.",
+      unread:
+        "읽지 못한 폴더는 비어 있는 것으로 보지 않고 ‘읽지 못함’으로 표시하며, 그 안의 항목은 정리를 제안하지 않습니다.",
+    },
+    about: {
+      title: "정보",
+      version: "버전",
+      local: "이 기기에서만",
+      localBody:
+        "검사, 판단, 격리함은 모두 이 컴퓨터에 있습니다. 파일 내용은 어디에도 보내지 않으며, AI 검토를 켜면 메타데이터만 보냅니다.",
+    },
   },
   whatIs: (term: string) => `‘${term}’${withIran(term)}?`,
   glossary: {
