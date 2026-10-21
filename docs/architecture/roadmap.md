@@ -339,16 +339,21 @@ Found by the owner trying the CLI and the desktop app (2026-10-19). Done:
 | 13.20 | `feat(web): follow the system's dark mode` (#327) | |
 | 13.21 | `feat(desktop): give Lumen a real icon` (#328) | |
 | 13.22 | `feat(store): keep only the latest scan's rows` (#330) | earlier and abandoned scans pruned after a completed scan, `VACUUM` when 256 MB+ is free (the owner's database had grown to 11.3 GB) |
+| 13.23 | `feat: show a tool's own cleanup command` (#332, #333) | ADR-0035: an entry may carry its tool's command (e.g. `docker system prune`), shown with "Lumen does not run it", never executed; allowed on `not_regenerable` entries |
+| 13.24 | `feat(jev): ask Jeb on the school AI Hub` (#334, #335) | ADR-0036: Jeb is the default judge; asked only about proposed quarantines (≈170 → 0–25 requests per assessment) |
+| 13.25 | `feat: keep AI review on once turned on` (#337–#340) | ADR-0037: one consent, kept in `ai-review.json`; `lumen ai on/off/status`; the app's switch and consent dialog; no keychain prompt to show the setting |
+| 13.26 | `feat(api): group candidates and report disk usage` (#341) | `CandidateView.group` (developer, app cache, app data, other; with the tool), `DiskView` |
+| 13.27 | `feat(web): the macOS-utility redesign` (#344–#355) | a sidebar (Overview, Clean up, Quarantine, Settings); a disk usage overview; results grouped by kind and tool, a detail sheet, a verdict filter and a sticky clean-up bar; AI review, language and permissions in Settings |
+| 13.28 | `feat(desktop): open the Full Disk Access settings from the app` (#356) | a fixed `x-apple.systempreferences` address through `/usr/bin/open`; no input from the window |
 
 Open:
 
 | # | Scope | Needs |
 | --- | --- | --- |
 | 13.a | Per-volume quarantine stores (`X:\$LumenQuarantine\<SID>\` on Windows, per-volume on macOS) so items on other drives can be quarantined; today they stay where they are (ADR-0015) | an executor review |
-| 13.b | Tool-action guidance for items that cannot be regenerated, such as Docker's disk image (`docker system prune`); the knowledge base forbids actions on `not_regenerable` entries by design | an ADR |
 | 13.d | Pin the release desktop job's egress and switch it to `block`; tighten the attest and release jobs after the first release | the first release's egress report |
 | 13.e | release-please for versioning (ADR-0026) | |
-| 13.f | Jev with the owner's key: record cassettes (12.1b) and gate CI on them (12.2) | an OpenRouter key (`sk-or-v1-…`); a TypeSafe console key needs a direct transport and a retention review |
+| 13.f | Record evaluation cassettes against Jeb (12.1b) and gate CI on them (12.2) | the owner's go-ahead to spend Jeb quota on the recording |
 | 13.g | Signing and notarization (12.8), the first tagged release, mobile device measurements (11.16d) | the owner |
 
 ## Later phases (outline)
