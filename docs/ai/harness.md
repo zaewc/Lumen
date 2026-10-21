@@ -18,7 +18,7 @@ fixture definition ─▶ build fixture tree (tempdir) ─▶ scan (real lumen-s
 | Mode | Purpose | Network |
 | --- | --- | --- |
 | `replay` | CI default: responses come from recorded cassettes keyed by `(case_id, request_hash, model, prompt_version)` | none |
-| `record` | Run live and write cassettes; cloud runs go through the provider batch API (50% cost) with `custom_id = case_id` | yes |
+| `record` | Ask the live judge (Jeb) about every case, one request at a time, and write a new cassette | yes |
 | `mock` | Adversarial or scripted judgments to test policy invariants independently of any model | none |
 | `compare` | Paired A/B of two configurations (prompt, model, policy version) on identical cases, with a McNemar test | replay or live |
 | `calibrate` | Fit calibration maps on the calibration split | replay |
@@ -28,8 +28,13 @@ fixture definition ─▶ build fixture tree (tempdir) ─▶ scan (real lumen-s
 - `jev.cassette/1` (`lumen_jev_eval::Cassette`): recorded raw answers for one judge
   configuration (provider, pinned model, prompt version), keyed by the exact request
   hash.
-- `ReplayJudge`: a `JudgeModel` answering from a cassette through the production
-  validator (`lumen_jev::response`); unrecorded requests are unavailable.
+- `ReplayJudge`: a `JudgeModel` answering from a cassette through the validator the
+  recorded judge uses live: `lumen_jev::decisions::judgment_for` with the provider's
+  pinned model for Jeb and Jev through OpenRouter (descriptor providers `gsm.jeb`,
+  `openrouter.typesafe`), `lumen_jev::response` for any other judge. Unrecorded
+  requests are unavailable.
+- `record` (`lumen_jev_eval::record`): the raw answers of a live judge, fetched with
+  `JevJudge::ask` (the transport `judge` itself uses, before validation).
 - Mock mode: `lumen_testkit::MockJudge`.
 - `jev.case/1` (`lumen_jev_eval::Case`) and `run`: grades each case (correct, acceptable,
   wrong, critical false positive, rejected, no answer) and reports the critical FPR
@@ -51,6 +56,38 @@ gate (critical-FPR upper bound and canaries). It needs about 800 critical cases 
 able to pass a 0.5% bound, so the seed dataset (17 golden cases) cannot pass it.
 `observed` (no observed critical false positive, clean canaries) is a regression check
 for small datasets and never a release gate.
+
+```text
+lumen-jev-eval record --dataset 2026.10.0 --out <FILE> [--ai ai]
+```
+
+`record` asks Jeb (ADR-0036) about every golden and adversarial case of the dataset,
+building exactly the requests `run` replays, and writes a new `jev.cassette/1` file:
+`run --dataset <VERSION> --cassette <FILE>` then replays it with no network.
+
+- **Key:** read only from the operating system's secret store, from the slot
+  `lumen jev key set` writes (macOS keychain or Windows Credential Manager). It is
+  never an argument or an environment variable, and never printed, logged or
+  written; the cassette holds no headers. Without a stored key, `record` exits with 2
+  and asks for `lumen jev key set`. The keychain may ask once before another program
+  reads the CLI's item.
+- **Disclosure:** before sending anything it prints the Jeb disclosure the CLI shows
+  (the operator may keep requests; metadata only) and how many requests it will send.
+  The cases are synthetic metadata from the dataset, never file contents.
+- **Jeb's limits:** one request at a time, 1 s apart, each about 8,000 tokens at most,
+  within the account's quota. A rate limit, server error, timeout or lost connection is
+  retried up to three times (after 5, 10 and 20 s); a case still unanswered is left
+  out of the cassette, never filled in. After the server rejects the key, nothing more
+  is sent.
+- **What is recorded:** the HTTP body exactly as received (what the validator reads),
+  the model the answer names, `end_turn` as the stop reason (the Decisions protocol
+  has none; only a complete answer is recorded), and the request hash `run` looks up.
+  Answers the validator refuses are recorded too, so the replay refuses them the same
+  way.
+- **Output:** one progress line per case on standard error (recorded, refused by the
+  validator, failed, or not sent) and a summary. The output must not exist yet; it is
+  never overwritten. Exit 0 when every case was recorded, 1 when some were not (the
+  rest are still written), and 2 for bad input.
 
 Planned:
 

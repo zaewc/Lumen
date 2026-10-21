@@ -2503,6 +2503,7 @@ name = "lumen-jev-eval"
 version = "0.0.0"
 dependencies = [
  "blake3",
+ "lumen-app",
  "lumen-application",
  "lumen-domain",
  "lumen-jev",

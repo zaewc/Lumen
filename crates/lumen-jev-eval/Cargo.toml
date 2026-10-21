@@ -10,6 +10,9 @@ license.workspace = true
 
 [dependencies]
 blake3.workspace = true
+# `record` only: the OS secret store, the Jeb key slot and its disclosure, as
+# the CLI and desktop app use them (ADR-0036).
+lumen-app.workspace = true
 lumen-application.workspace = true
 lumen-domain.workspace = true
 lumen-jev.workspace = true

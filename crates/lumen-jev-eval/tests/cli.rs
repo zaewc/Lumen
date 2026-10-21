@@ -117,3 +117,31 @@ fn bad_input_exits_with_status_2() {
         .unwrap_or_else(|e| unreachable!("{e}"));
     assert_eq!(usage.status.code(), Some(2));
 }
+
+/// `record` refuses bad input before it reads the key or sends anything.
+#[test]
+fn record_checks_its_input_before_the_key() {
+    let fx = Fixture::build(&[]).unwrap_or_else(|e| unreachable!("{e}"));
+    let existing = cassette(&fx, "existing.json", "likely_needed", "owner_app_present");
+    let before = std::fs::read(&existing).unwrap_or_else(|e| unreachable!("{e}"));
+    let record = |dataset: &str, out: &Path| {
+        Command::new(env!("CARGO_BIN_EXE_lumen-jev-eval"))
+            .args(["record", "--dataset", dataset, "--ai"])
+            .arg(ai())
+            .arg("--out")
+            .arg(out)
+            .output()
+            .unwrap_or_else(|e| unreachable!("{e}"))
+    };
+    let taken = record(VERSION, &existing);
+    assert_eq!(taken.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&taken.stderr).contains("already exists"));
+    assert_eq!(
+        std::fs::read(&existing).unwrap_or_else(|e| unreachable!("{e}")),
+        before,
+        "never overwritten"
+    );
+    let fresh = fx.path("new.json").unwrap_or_else(|e| unreachable!("{e}"));
+    assert_eq!(record("1999.01.0", &fresh).status.code(), Some(2));
+    assert!(!fresh.exists(), "nothing written for bad input");
+}

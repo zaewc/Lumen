@@ -2,8 +2,9 @@
 //! 12.1, docs/ai/harness.md).
 //!
 //! ```text
-//! lumen-jev-eval run --dataset <VERSION> --cassette <FILE> [--ai <DIR>]
-//!                    [--gate full|observed] [--json]
+//! lumen-jev-eval run    --dataset <VERSION> --cassette <FILE> [--ai <DIR>]
+//!                       [--gate full|observed] [--json]
+//! lumen-jev-eval record --dataset <VERSION> --out <FILE> [--ai <DIR>]
 //! ```
 //!
 //! `run` loads the dataset version from `ai/` (verified against its manifest),
@@ -19,19 +20,35 @@
 //! - `observed`: no critical false positive was observed in either set, and the
 //!   canaries pass. A regression check for datasets too small for `full`; it
 //!   is never a release gate.
+//!
+//! `record` asks Jeb (ADR-0036) about every golden and adversarial case of the
+//! dataset, one request at a time, and writes a new cassette that `run`
+//! replays. The key comes only from the operating system's secret store, where
+//! `lumen jev key set` puts it; it is never an argument, printed or written.
+//! The output must not exist yet: nothing is ever overwritten. It exits with 0
+//! when every case was recorded, 1 when some were not (the rest are still
+//! written), and 2 for usage or input errors.
 
 // A command-line tool reports to the terminal by design.
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
 use std::error::Error;
+use std::io::Write as _;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::time::Duration;
 
+use lumen_app::ai::Service;
+use lumen_application::ports::{JudgeModel as _, SecretStore};
+use lumen_domain::{JevRequest, JudgeDescriptor};
+use lumen_jev::openrouter::{ApiKey, AskError, JevJudge};
 use lumen_jev_eval::{
-    CRITICAL_FPR_TARGET, Cassette, DatasetReport, ReplayJudge, Report, load, run_dataset,
+    CRITICAL_FPR_TARGET, Cassette, DatasetReport, LiveJudge, Pacing, RecordOutcome, ReplayJudge,
+    Report, load, record, run_dataset,
 };
 
-const USAGE: &str = "usage: lumen-jev-eval run --dataset <VERSION> --cassette <FILE> [--ai <DIR>] [--gate full|observed] [--json]";
+const USAGE: &str = "usage: lumen-jev-eval run --dataset <VERSION> --cassette <FILE> [--ai <DIR>] [--gate full|observed] [--json]
+       lumen-jev-eval record --dataset <VERSION> --out <FILE> [--ai <DIR>]";
 
 /// Which gate decides the exit status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,14 +69,32 @@ struct RunArgs {
     json: bool,
 }
 
-fn parse(args: &[String]) -> Result<RunArgs, String> {
+/// Parsed `record` arguments.
+#[derive(Debug, PartialEq, Eq)]
+struct RecordArgs {
+    dataset: String,
+    out: PathBuf,
+    ai: PathBuf,
+}
+
+/// A parsed command line.
+#[derive(Debug, PartialEq, Eq)]
+enum Command {
+    Run(RunArgs),
+    Record(RecordArgs),
+}
+
+fn parse(args: &[String]) -> Result<Command, String> {
     let Some((command, rest)) = args.split_first() else {
         return Err("a command is needed".into());
     };
-    if command != "run" {
-        return Err(format!("unknown command `{command}`"));
-    }
-    let (mut dataset, mut cassette, mut ai, mut json) = (None, None, PathBuf::from("ai"), false);
+    let record = match command.as_str() {
+        "run" => false,
+        "record" => true,
+        _ => return Err(format!("unknown command `{command}`")),
+    };
+    let (mut dataset, mut cassette, mut out, mut ai, mut json) =
+        (None, None, None, PathBuf::from("ai"), false);
     let mut gate = Gate::Full;
     let mut iter = rest.iter();
     while let Some(arg) = iter.next() {
@@ -68,27 +103,37 @@ fn parse(args: &[String]) -> Result<RunArgs, String> {
                 .cloned()
                 .ok_or_else(|| format!("{arg} needs a value"))
         };
-        match arg.as_str() {
-            "--dataset" => dataset = Some(value()?),
-            "--cassette" => cassette = Some(PathBuf::from(value()?)),
-            "--ai" => ai = PathBuf::from(value()?),
-            "--gate" => {
+        match (arg.as_str(), record) {
+            ("--dataset", _) => dataset = Some(value()?),
+            ("--ai", _) => ai = PathBuf::from(value()?),
+            ("--cassette", false) => cassette = Some(PathBuf::from(value()?)),
+            ("--gate", false) => {
                 gate = match value()?.as_str() {
                     "full" => Gate::Full,
                     "observed" => Gate::Observed,
                     other => return Err(format!("unknown gate `{other}`")),
                 };
             }
-            "--json" => json = true,
-            other => return Err(format!("unexpected argument `{other}`")),
+            ("--json", false) => json = true,
+            ("--out", true) => out = Some(PathBuf::from(value()?)),
+            (other, _) => return Err(format!("unexpected argument `{other}`")),
         }
     }
-    Ok(RunArgs {
-        dataset: dataset.ok_or("--dataset is needed")?,
-        cassette: cassette.ok_or("--cassette is needed")?,
-        ai,
-        gate,
-        json,
+    let dataset = dataset.ok_or("--dataset is needed")?;
+    Ok(if record {
+        Command::Record(RecordArgs {
+            dataset,
+            out: out.ok_or("--out is needed")?,
+            ai,
+        })
+    } else {
+        Command::Run(RunArgs {
+            dataset,
+            cassette: cassette.ok_or("--cassette is needed")?,
+            ai,
+            gate,
+            json,
+        })
     })
 }
 
@@ -153,16 +198,101 @@ fn run(args: &RunArgs) -> Result<DatasetReport, Box<dyn Error>> {
     Ok(run_dataset(&ReplayJudge::new(cassette), &dataset))
 }
 
-fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    let parsed = match parse(&args) {
-        Ok(parsed) => parsed,
-        Err(message) => {
-            eprintln!("error: {message}\n{USAGE}");
-            return ExitCode::from(2);
-        }
-    };
-    match run(&parsed) {
+/// Jeb through the production transport, paced in real time.
+struct Jeb {
+    judge: JevJudge,
+    descriptor: JudgeDescriptor,
+}
+
+impl LiveJudge for Jeb {
+    fn descriptor(&self) -> JudgeDescriptor {
+        self.descriptor.clone()
+    }
+
+    fn ask(&self, request: &JevRequest) -> Result<String, AskError> {
+        self.judge.ask(request)
+    }
+
+    fn wait(&self, pause: Duration) {
+        std::thread::sleep(pause);
+    }
+}
+
+/// The Jeb key from the operating system's secret store: the slot
+/// `lumen jev key set` writes. Errors never contain the key.
+fn jeb_key() -> Result<ApiKey, String> {
+    let store: Box<dyn SecretStore> = lumen_app::ai::os_store()
+        .ok_or("no secret store on this platform; recording needs the macOS keychain or the Windows Credential Manager")?;
+    let secret = store
+        .get(Service::Jeb.secret())
+        .map_err(|e| e.to_string())?
+        .ok_or("no Jeb API key is stored: run `lumen jev key set` (it reads the key from standard input) first")?;
+    ApiKey::new(secret.expose()).ok_or_else(|| {
+        "the stored Jeb API key is not valid: store it again with `lumen jev key set`".into()
+    })
+}
+
+fn describe(outcome: &RecordOutcome) -> String {
+    match outcome {
+        RecordOutcome::Recorded => "recorded".into(),
+        RecordOutcome::Refused(e) => format!("refused by the validator, recorded ({e})"),
+        RecordOutcome::Failed(e) => format!("failed, not recorded ({e})"),
+        RecordOutcome::NotSent => "not sent (the key was rejected)".into(),
+    }
+}
+
+/// Records a Jeb cassette; `Err` is bad input (exit 2), `Ok(false)` an
+/// incomplete recording (exit 1).
+fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
+    let dataset = load(&args.ai, &args.dataset)?;
+    if args.out.try_exists()? {
+        return Err(format!(
+            "{} already exists; choose a new file (nothing is overwritten)",
+            args.out.display()
+        )
+        .into());
+    }
+    let judge = Service::Jeb.judge(jeb_key()?)?;
+    let descriptor = judge
+        .descriptor()
+        .ok_or("the Jeb judge has no descriptor")?;
+    // Reserve the output before spending quota; never replace a file.
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&args.out)
+        .map_err(|e| format!("cannot create {}: {e}", args.out.display()))?;
+    let cases = dataset.golden.len() + dataset.adversarial.len();
+    eprintln!("{}", Service::Jeb.disclosure());
+    eprintln!(
+        "Recording dataset {}: {cases} requests to Jeb ({}), one at a time. The cases are synthetic metadata from the dataset, never file contents.",
+        dataset.version,
+        lumen_jev::decisions::JEB_ENDPOINT,
+    );
+    let recording = record(
+        &Jeb { judge, descriptor },
+        &dataset,
+        Pacing::JEB,
+        &mut |case_id, outcome| eprintln!("{case_id}: {}", describe(outcome)),
+    );
+    let mut text = serde_json::to_string_pretty(&recording.cassette)?;
+    text.push('\n');
+    file.write_all(text.as_bytes())?;
+    file.sync_all()?;
+    let count =
+        |f: fn(&RecordOutcome) -> bool| recording.outcomes.iter().filter(|(_, o)| f(o)).count();
+    eprintln!(
+        "{} of {cases} cases recorded ({} refused by the validator), {} not recorded; wrote {}",
+        count(RecordOutcome::is_recorded),
+        count(|o| matches!(o, RecordOutcome::Refused(_))),
+        count(|o| !o.is_recorded()),
+        args.out.display(),
+    );
+    Ok(recording.complete())
+}
+
+fn report_run(parsed: &RunArgs) -> ExitCode {
+    match run(parsed) {
         Ok(report) => {
             if parsed.json {
                 match serde_json::to_string_pretty(&report) {
@@ -188,6 +318,25 @@ fn main() -> ExitCode {
     }
 }
 
+fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    match parse(&args) {
+        Ok(Command::Run(parsed)) => report_run(&parsed),
+        Ok(Command::Record(parsed)) => match record_jeb(&parsed) {
+            Ok(true) => ExitCode::SUCCESS,
+            Ok(false) => ExitCode::FAILURE,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::from(2)
+            }
+        },
+        Err(message) => {
+            eprintln!("error: {message}\n{USAGE}");
+            ExitCode::from(2)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,13 +356,13 @@ mod tests {
                 "c.json",
                 "--json"
             ])),
-            Ok(RunArgs {
+            Ok(Command::Run(RunArgs {
                 dataset: "2026.10.0".into(),
                 cassette: "c.json".into(),
                 ai: "ai".into(),
                 gate: Gate::Full,
                 json: true,
-            })
+            }))
         );
         assert!(matches!(
             parse(&args(&[
@@ -225,10 +374,10 @@ mod tests {
                 "--gate",
                 "observed"
             ])),
-            Ok(RunArgs {
+            Ok(Command::Run(RunArgs {
                 gate: Gate::Observed,
                 ..
-            })
+            }))
         ));
         assert!(
             parse(&args(&[
@@ -243,8 +392,53 @@ mod tests {
             .is_err()
         );
         assert!(parse(&args(&["run", "--dataset", "2026.10.0"])).is_err());
-        assert!(parse(&args(&["record"])).is_err());
+        assert!(parse(&args(&["run", "--dataset", "d", "--out", "o"])).is_err());
         assert!(parse(&args(&["run", "--cassette"])).is_err());
+        assert!(parse(&args(&["bogus"])).is_err());
         assert!(parse(&[]).is_err());
+    }
+
+    #[test]
+    fn parses_record_without_a_key_or_force() {
+        assert_eq!(
+            parse(&args(&[
+                "record",
+                "--dataset",
+                "2026.10.0",
+                "--out",
+                "jeb.json",
+                "--ai",
+                "data"
+            ])),
+            Ok(Command::Record(RecordArgs {
+                dataset: "2026.10.0".into(),
+                out: "jeb.json".into(),
+                ai: "data".into(),
+            }))
+        );
+        assert!(matches!(
+            parse(&args(&["record", "--dataset", "d", "--out", "o"])),
+            Ok(Command::Record(RecordArgs { ai, .. })) if ai == std::path::Path::new("ai")
+        ));
+        for bad in [
+            &["record"][..],
+            &["record", "--dataset", "d"],
+            &["record", "--out", "o"],
+            &["record", "--dataset", "d", "--out"],
+            &["record", "--dataset", "d", "--out", "o", "--cassette", "c"],
+            &["record", "--dataset", "d", "--out", "o", "--gate", "full"],
+            &["record", "--dataset", "d", "--out", "o", "--force"],
+            &[
+                "record",
+                "--dataset",
+                "d",
+                "--out",
+                "o",
+                "--key",
+                "sk-secret",
+            ],
+        ] {
+            assert!(parse(&args(bad)).is_err(), "{bad:?}");
+        }
     }
 }
