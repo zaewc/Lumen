@@ -5,7 +5,9 @@
 //! [`JevJudge`] posts the Decisions API body built by [`crate::decisions`] over
 //! HTTPS, verifying the server against the operating system's trust store, and
 //! maps the answer back through the same module. Every failure is a
-//! [`JudgeError`], so the decision proceeds without Jev.
+//! [`JudgeError`], so the decision proceeds without Jev. [`JevJudge::ask`]
+//! returns the answer exactly as received, before validation, for recording
+//! evaluation cassettes (docs/ai/harness.md).
 //!
 //! The request runs on its own thread: the HTTP client blocks, and Lumen's ports
 //! are runtime-agnostic futures. The API key is the user's own; it is never
@@ -58,6 +60,39 @@ pub enum SetupError {
     /// No TLS crypto provider could be installed.
     #[error("no TLS crypto provider is available")]
     Crypto,
+}
+
+/// Why no answer could be fetched. It never contains the key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{reason}")]
+pub struct AskError {
+    /// The HTTP status the server answered with, if it answered.
+    pub status: Option<u16>,
+    /// What went wrong, for people.
+    pub reason: &'static str,
+}
+
+impl AskError {
+    const fn new(status: Option<u16>, reason: &'static str) -> Self {
+        Self { status, reason }
+    }
+
+    /// Whether trying again later may help: no answer, a timeout, a rate
+    /// limit or a server error.
+    pub const fn is_transient(self) -> bool {
+        matches!(self.status, None | Some(408 | 429 | 500..=599))
+    }
+
+    /// Whether the server rejected the key: every further request would too.
+    pub const fn is_key_rejected(self) -> bool {
+        matches!(self.status, Some(401 | 403))
+    }
+}
+
+impl From<AskError> for JudgeError {
+    fn from(error: AskError) -> Self {
+        Self::Unavailable(error.reason)
+    }
 }
 
 /// `TypeSafe`'s Jev model through `OpenRouter`'s Decisions API.
@@ -150,8 +185,29 @@ impl JevJudge {
         })
     }
 
+    /// The service this judge asks.
+    pub const fn provider(&self) -> Provider {
+        self.provider
+    }
+
+    /// Sends the Decisions request for `request` once and returns the answer
+    /// body exactly as the server sent it, before any validation;
+    /// [`JudgeModel::judge`] validates it with
+    /// [`decisions::judgment_for`]. Blocks the calling thread for up to 30 s.
+    ///
+    /// # Errors
+    ///
+    /// An [`AskError`] if no answer arrived (unreachable, timed out, or an
+    /// HTTP error status).
+    pub fn ask(&self, request: &JevRequest) -> Result<String, AskError> {
+        let body = decisions::request_body_for(request, self.provider)
+            .map_err(|_| AskError::new(None, "the request could not be built"))?
+            .to_string();
+        self.post(&body)
+    }
+
     /// The answer body for `body`, or why there is none.
-    fn post(&self, body: &str) -> Result<String, JudgeError> {
+    fn post(&self, body: &str) -> Result<String, AskError> {
         let response = self
             .agent
             .post(&self.endpoint)
@@ -164,9 +220,10 @@ impl JevJudge {
                 .with_config()
                 .limit(MAX_RESPONSE_BYTES)
                 .read_to_string()
-                .map_err(|_| JudgeError::Unavailable("the answer could not be read")),
-            Err(ureq::Error::StatusCode(code)) => {
-                Err(JudgeError::Unavailable(match (self.provider, code) {
+                .map_err(|_| AskError::new(None, "the answer could not be read")),
+            Err(ureq::Error::StatusCode(code)) => Err(AskError::new(
+                Some(code),
+                match (self.provider, code) {
                     (Provider::OpenRouter, 401 | 403) => "OpenRouter rejected the API key",
                     (Provider::OpenRouter, 402) => "the OpenRouter account has no credits",
                     (Provider::OpenRouter, 404) => {
@@ -183,21 +240,21 @@ impl JevJudge {
                         "the Jeb server is busy or the request was too long"
                     }
                     (Provider::Jeb, _) => "the Jeb server returned an error",
-                }))
-            }
-            Err(ureq::Error::Timeout(_)) => Err(JudgeError::Unavailable("the request timed out")),
-            Err(_) => Err(JudgeError::Unavailable(match self.provider {
-                Provider::OpenRouter => "OpenRouter could not be reached",
-                Provider::Jeb => "the Jeb server could not be reached",
-            })),
+                },
+            )),
+            Err(ureq::Error::Timeout(_)) => Err(AskError::new(None, "the request timed out")),
+            Err(_) => Err(AskError::new(
+                None,
+                match self.provider {
+                    Provider::OpenRouter => "OpenRouter could not be reached",
+                    Provider::Jeb => "the Jeb server could not be reached",
+                },
+            )),
         }
     }
 
     fn judge_blocking(&self, request: &JevRequest) -> Result<Judgment, JudgeError> {
-        let body = decisions::request_body_for(request, self.provider)
-            .map_err(|_| JudgeError::Unavailable("the request could not be built"))?
-            .to_string();
-        let answer = self.post(&body)?;
+        let answer = self.ask(request)?;
         decisions::judgment_for(request, &answer, self.provider)
             .map(|(judgment, _snapshot)| judgment)
     }
@@ -453,6 +510,34 @@ mod tests {
         );
         let unreachable = block(judge_with("http://127.0.0.1:9/".to_owned()).judge(&request()));
         assert!(matches!(unreachable, Err(JudgeError::Unavailable(_))));
+    }
+
+    #[test]
+    fn ask_returns_the_answer_exactly_as_received() {
+        // Spacing and key order kept: a recording is what the validator saw.
+        let raw = format!(" {}\n", answer().replace(':', ": "));
+        let (endpoint, _received) = serve(200, raw.clone());
+        let judge = judge_with(endpoint);
+        assert_eq!(judge.provider(), Provider::OpenRouter);
+        assert_eq!(judge.ask(&request()), Ok(raw));
+        for (status, transient, key_rejected) in [
+            (401, false, true),
+            (400, false, false),
+            (429, true, false),
+            (503, true, false),
+        ] {
+            let (endpoint, _received) = serve(status, "{}".to_owned());
+            let error = judge_with(endpoint).ask(&request());
+            let Err(error) = error else {
+                unreachable!("{status}: {error:?}");
+            };
+            assert_eq!(error.status, Some(status));
+            assert_eq!(error.is_transient(), transient, "{status}");
+            assert_eq!(error.is_key_rejected(), key_rejected, "{status}");
+            assert!(!format!("{error} {error:?}").contains("sk-or-test-key"));
+        }
+        let unreachable = judge_with("http://127.0.0.1:9/".to_owned()).ask(&request());
+        assert!(unreachable.is_err_and(AskError::is_transient));
     }
 
     #[test]
