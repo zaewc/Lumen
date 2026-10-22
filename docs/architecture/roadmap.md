@@ -353,7 +353,7 @@ Open:
 | 13.a | Per-volume quarantine stores (`X:\$LumenQuarantine\<SID>\` on Windows, per-volume on macOS) so items on other drives can be quarantined; today they stay where they are (ADR-0015) | an executor review |
 | 13.d | Pin the release desktop job's egress and switch it to `block`; tighten the attest and release jobs after the first release | the first release's egress report |
 | 13.e | release-please for versioning (ADR-0026) | |
-| 13.f | Record evaluation cassettes against Jeb (12.1b) and gate CI on them (12.2). The tooling is done (`lumen-jev-eval record`, docs/ai/harness.md); the recording itself is pending | the owner's go-ahead to spend Jeb quota on the recording (25 requests for dataset 2026.10.0) |
+| 13.f | Gate CI on replaying the Jeb cassette (12.2). Recorded 2026-10-22: `ai/cassettes/jev-decisions/1/jeb-2026.10.0.json`, report in `ai/reports/jev-decisions/1/` | |
 | 13.g | Signing and notarization (12.8), the first tagged release, mobile device measurements (11.16d) | the owner |
 
 ## Later phases (outline)

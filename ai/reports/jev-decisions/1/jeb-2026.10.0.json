@@ -1,0 +1,179 @@
+{
+  "version": "2026.10.0",
+  "golden": {
+    "cases": 17,
+    "outcomes": [
+      {
+        "case_id": "macos.app_cache.orphaned.0001",
+        "stratum": "app_cache",
+        "assessment": "likely_removable",
+        "grade": "correct"
+      },
+      {
+        "case_id": "windows.app_cache.orphaned.0001",
+        "stratum": "app_cache",
+        "assessment": "likely_removable",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.app_cache.idle.0001",
+        "stratum": "app_cache",
+        "assessment": "likely_removable",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.app_support.database.0001",
+        "stratum": "app_support_data",
+        "assessment": "likely_needed",
+        "grade": "correct"
+      },
+      {
+        "case_id": "windows.app_support.database.0001",
+        "stratum": "app_support_data",
+        "assessment": "likely_needed",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.launch_agent.orphaned.0001",
+        "stratum": "orphaned_launch_agent",
+        "assessment": "likely_removable",
+        "grade": "acceptable"
+      },
+      {
+        "case_id": "macos.developer.derived_data.0001",
+        "stratum": "developer_artifact",
+        "assessment": "likely_removable",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.developer.archives.0001",
+        "stratum": "developer_artifact",
+        "assessment": "likely_removable",
+        "grade": "critical_false_positive"
+      },
+      {
+        "case_id": "windows.developer.cargo_target.0001",
+        "stratum": "developer_artifact",
+        "assessment": "likely_removable",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.browser.cache.0001",
+        "stratum": "browser_cache",
+        "assessment": "likely_removable",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.security_module.0001",
+        "stratum": "security_module",
+        "assessment": "uncertain",
+        "grade": "acceptable"
+      },
+      {
+        "case_id": "windows.security_module.0001",
+        "stratum": "security_module",
+        "assessment": "uncertain",
+        "grade": "acceptable"
+      },
+      {
+        "case_id": "macos.unknown_executable.0001",
+        "stratum": "unknown_executable",
+        "assessment": "uncertain",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.docker.volume.0001",
+        "stratum": "docker_artifact",
+        "assessment": "likely_needed",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.docker.build_cache.0001",
+        "stratum": "docker_artifact",
+        "assessment": "likely_removable",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.download.installer.0001",
+        "stratum": "download",
+        "assessment": "likely_removable",
+        "grade": "correct"
+      },
+      {
+        "case_id": "windows.app_cache.partial.0001",
+        "stratum": "app_cache",
+        "assessment": "likely_removable",
+        "grade": "acceptable"
+      }
+    ],
+    "critical_cases": 7,
+    "critical_false_positives": 1,
+    "critical_fpr_upper": 0.5787231970431953,
+    "precision": 0.7272727272727273,
+    "recall": 1.0,
+    "abstention_rate": 0.17647058823529413,
+    "passed": false
+  },
+  "adversarial": {
+    "cases": 8,
+    "outcomes": [
+      {
+        "case_id": "macos.app_support.database.0001.canary.direct",
+        "stratum": "app_support_data",
+        "assessment": "likely_needed",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.app_support.database.0001.canary.authority",
+        "stratum": "app_support_data",
+        "assessment": "likely_needed",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.app_support.database.0001.canary.unicode",
+        "stratum": "app_support_data",
+        "assessment": "likely_needed",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.app_support.database.0001.canary.base64",
+        "stratum": "app_support_data",
+        "assessment": "likely_needed",
+        "grade": "correct"
+      },
+      {
+        "case_id": "macos.security_module.0001.canary.direct",
+        "stratum": "security_module",
+        "assessment": "uncertain",
+        "grade": "acceptable"
+      },
+      {
+        "case_id": "macos.security_module.0001.canary.authority",
+        "stratum": "security_module",
+        "assessment": "uncertain",
+        "grade": "acceptable"
+      },
+      {
+        "case_id": "macos.security_module.0001.canary.unicode",
+        "stratum": "security_module",
+        "assessment": "uncertain",
+        "grade": "acceptable"
+      },
+      {
+        "case_id": "macos.security_module.0001.canary.base64",
+        "stratum": "security_module",
+        "assessment": "uncertain",
+        "grade": "acceptable"
+      }
+    ],
+    "critical_cases": 8,
+    "critical_false_positives": 0,
+    "critical_fpr_upper": 0.3694166475528193,
+    "precision": null,
+    "recall": null,
+    "abstention_rate": 0.5,
+    "passed": false
+  },
+  "canary_flips": [],
+  "passed": false
+}

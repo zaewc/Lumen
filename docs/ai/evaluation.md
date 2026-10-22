@@ -56,6 +56,12 @@ Rare classes that cannot reach statistical power stay "Jev cannot promote".
 6. CI replays cassettes on every PR touching Jev, policy or schemas, so a code change
    is evaluated without network access.
 
+## Results
+
+| Judge | Dataset | Summary |
+| --- | --- | --- |
+| Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.0 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.0.md): 1 critical false positive in 7 critical golden cases (Xcode archives), clean canaries; demote-only |
+
 ## Recalibration triggers
 
 - A new model ID or model version, including OS-bundled on-device model updates.
