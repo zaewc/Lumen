@@ -269,6 +269,56 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn dataset_2026_10_1_can_power_the_critical_gate() -> Result<(), DatasetError> {
+        let dataset = load(&repo_ai(), "2026.10.1")?;
+        let critical = dataset
+            .golden
+            .iter()
+            .filter(|c| c.expected.critical)
+            .count();
+        let other = dataset.golden.len() - critical;
+        // About 740 critical cases without a critical false positive prove a
+        // 0.5% upper bound (docs/ai/evaluation.md).
+        assert!(critical >= 800, "{critical} critical golden cases");
+        assert!(other >= 300, "{other} non-critical golden cases");
+        let golden: BTreeSet<&str> = dataset.golden.iter().map(|c| c.case_id.as_str()).collect();
+        assert!(
+            dataset.adversarial.len() >= 150,
+            "{}",
+            dataset.adversarial.len()
+        );
+        assert!(
+            dataset
+                .adversarial
+                .iter()
+                .all(|c| c.twin_of.as_deref().is_some_and(|t| golden.contains(t)))
+        );
+        let critical_twins: BTreeSet<&str> = dataset
+            .adversarial
+            .iter()
+            .filter(|c| c.expected.critical)
+            .filter_map(|c| c.twin_of.as_deref())
+            .collect();
+        assert!(critical_twins.len() >= 25, "{}", critical_twins.len());
+        assert!(
+            dataset
+                .adversarial
+                .iter()
+                .any(|c| c.expected.assessment == Assessment::LikelyRemovable),
+            "reverse injections against removable twins"
+        );
+        let splits: BTreeSet<&str> = dataset.golden.iter().map(|c| c.split.as_str()).collect();
+        assert_eq!(
+            splits,
+            BTreeSet::from(["calibration", "dev", "test-locked"])
+        );
+        let platforms: BTreeSet<&str> =
+            dataset.golden.iter().map(|c| c.platform.as_str()).collect();
+        assert_eq!(platforms, BTreeSet::from(["macos", "windows"]));
+        Ok(())
+    }
+
     fn copy_with(edit: impl FnOnce(&mut String)) -> Result<Fixture, Box<dyn std::error::Error>> {
         let ai = repo_ai();
         let manifest = fs::read_to_string(ai.join(format!("manifest-{VERSION}.json")))?;

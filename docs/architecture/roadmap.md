@@ -355,6 +355,7 @@ Open:
 | 13.d | Pin the release desktop job's egress and switch it to `block`; tighten the attest and release jobs after the first release | the first release's egress report |
 | 13.e | release-please for versioning (ADR-0026) | |
 | 13.g | Signing and notarization (12.8), the first tagged release, mobile device measurements (11.16d) | the owner |
+| 13.h | Dataset 2026.10.1 (1,103 critical cases) as the critical-FPR gate's data: a second review of its rule-derived labels, then a Jeb recording | the owner: a second labeler, and running the recording (1,779 requests, about an hour; quota approved 2026-10-22) |
 
 ## Later phases (outline)
 
