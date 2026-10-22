@@ -1,0 +1,66 @@
+name: jev-eval
+
+# Replays the recorded Jeb cassette through the production validator and the
+# grader, with no network, and requires the committed report to come out
+# byte for byte (docs/ai/harness.md: replay must yield identical metrics).
+# A change that alters how an answer is validated or graded must update the
+# report in the same pull request, where the diff is reviewed.
+on:
+  pull_request:
+    paths:
+      - "ai/**"
+      - "crates/lumen-application/**"
+      - "crates/lumen-domain/**"
+      - "crates/lumen-jev/**"
+      - "crates/lumen-jev-eval/**"
+      - "crates/lumen-policy/**"
+      - "Cargo.lock"
+      - ".github/workflows/jev-eval.yml"
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: jev-eval-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  replay:
+    name: jev replay
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned toolchain
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      # `run` exits 1 when the observed gate fails, which the recorded Jeb
+      # baseline does (one critical false positive; Jeb stays demote-only).
+      # Only 2, bad input, is an error here; the comparison is the gate.
+      - name: Replay the Jeb cassette for dataset 2026.10.0
+        run: |
+          set +e
+          cargo run --quiet --locked -p lumen-jev-eval -- run \
+            --dataset 2026.10.0 \
+            --cassette ai/cassettes/jev-decisions/1/jeb-2026.10.0.json \
+            --gate observed --json > "${RUNNER_TEMP}/jeb-2026.10.0.json"
+          status=$?
+          set -e
+          if [ "${status}" -gt 1 ]; then
+            echo "::error::lumen-jev-eval run failed (exit ${status})"
+            exit "${status}"
+          fi
+          diff -u ai/reports/jev-decisions/1/jeb-2026.10.0.json "${RUNNER_TEMP}/jeb-2026.10.0.json"

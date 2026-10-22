@@ -345,6 +345,7 @@ Found by the owner trying the CLI and the desktop app (2026-10-19). Done:
 | 13.26 | `feat(api): group candidates and report disk usage` (#341) | `CandidateView.group` (developer, app cache, app data, other; with the tool), `DiskView` |
 | 13.27 | `feat(web): the macOS-utility redesign` (#344–#355) | a sidebar (Overview, Clean up, Quarantine, Settings); a disk usage overview; results grouped by kind and tool, a detail sheet, a verdict filter and a sticky clean-up bar; AI review, language and permissions in Settings |
 | 13.28 | `feat(desktop): open the Full Disk Access settings from the app` (#356) | a fixed `x-apple.systempreferences` address through `/usr/bin/open`; no input from the window |
+| 13.29 | `feat(jev-eval): record Jeb and replay it in CI` (#358–#361) | `lumen-jev-eval record`; the 2026.10.0 cassette and report (1 critical false positive in 7, clean canaries, Jeb demote-only); the `jev-eval` workflow replays it on AI-path changes and requires the committed report byte for byte (12.1b, 12.2) |
 
 Open:
 
@@ -353,7 +354,6 @@ Open:
 | 13.a | Per-volume quarantine stores (`X:\$LumenQuarantine\<SID>\` on Windows, per-volume on macOS) so items on other drives can be quarantined; today they stay where they are (ADR-0015) | an executor review |
 | 13.d | Pin the release desktop job's egress and switch it to `block`; tighten the attest and release jobs after the first release | the first release's egress report |
 | 13.e | release-please for versioning (ADR-0026) | |
-| 13.f | Gate CI on replaying the Jeb cassette (12.2). Recorded 2026-10-22: `ai/cassettes/jev-decisions/1/jeb-2026.10.0.json`, report in `ai/reports/jev-decisions/1/` | |
 | 13.g | Signing and notarization (12.8), the first tagged release, mobile device measurements (11.16d) | the owner |
 
 ## Later phases (outline)
