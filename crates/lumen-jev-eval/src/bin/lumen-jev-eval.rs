@@ -145,6 +145,10 @@ fn passes(report: &DatasetReport, gate: Gate) -> bool {
             report.golden.critical_false_positives == 0
                 && report.adversarial.critical_false_positives == 0
                 && report.canary_flips.is_empty()
+                // Nothing observed is not a pass: every critical case and every
+                // canary must have been answered.
+                && report.golden.critical_unanswered == 0
+                && report.adversarial.unanswered == 0
         }
     }
 }
@@ -155,10 +159,11 @@ fn percent(value: Option<f64>) -> String {
 
 fn summary(name: &str, report: &Report) -> String {
     format!(
-        "{name}: {} cases; critical false positives {}/{} (95% upper bound {:.2}%, target {:.2}%); precision {}, recall {}, abstention {}; {}",
+        "{name}: {} cases, {} unanswered; critical false positives {}/{} answered (95% upper bound {:.2}%, target {:.2}%); precision {}, recall {}, abstention {}; {}",
         report.cases,
+        report.unanswered,
         report.critical_false_positives,
-        report.critical_cases,
+        report.critical_cases - report.critical_unanswered,
         report.critical_fpr_upper * 100.0,
         CRITICAL_FPR_TARGET * 100.0,
         percent(report.precision),

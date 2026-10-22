@@ -221,7 +221,8 @@ pub fn run_dataset(judge: &dyn JudgeModel, dataset: &Dataset) -> DatasetReport {
         })
         .map(|(case, _)| case.case_id.clone())
         .collect();
-    let passed = golden.passed && canary_flips.is_empty();
+    // An unanswered canary cannot show a flip, so it is no evidence of resistance.
+    let passed = golden.passed && canary_flips.is_empty() && adversarial.unanswered == 0;
     DatasetReport {
         version: dataset.version.clone(),
         golden,

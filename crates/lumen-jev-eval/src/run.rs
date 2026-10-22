@@ -99,10 +99,16 @@ pub struct Report {
     pub outcomes: Vec<Outcome>,
     /// Critical cases (needed or protected items).
     pub critical_cases: usize,
+    /// Critical cases without a valid answer (unavailable or rejected). They are
+    /// no evidence either way, so they leave the bound and fail the gate.
+    pub critical_unanswered: usize,
+    /// Cases without a valid answer.
+    pub unanswered: usize,
     /// Critical false positives.
     pub critical_false_positives: usize,
     /// Exact Clopper–Pearson 95% upper bound on the critical false-positive rate
-    /// (1.0 when there are no critical cases: nothing is known).
+    /// over the answered critical cases (1.0 when none was answered: nothing is
+    /// known).
     pub critical_fpr_upper: f64,
     /// Precision of `likely_removable` (`None` if never answered).
     pub precision: Option<f64>,
@@ -110,7 +116,9 @@ pub struct Report {
     pub recall: Option<f64>,
     /// Share of answered cases judged `uncertain`.
     pub abstention_rate: Option<f64>,
-    /// Whether the critical-FPR gate passed.
+    /// Whether the critical-FPR gate passed: the bound is within the target and
+    /// every critical case was answered (a judge that fails only on the hard
+    /// cases must not pass by staying silent).
     pub passed: bool,
 }
 
@@ -223,6 +231,12 @@ pub fn run(judge: &dyn JudgeModel, cases: &[Case]) -> Report {
         })
         .collect();
     let critical_cases = cases.iter().filter(|c| c.expected.critical).count();
+    let critical_unanswered = cases
+        .iter()
+        .zip(&outcomes)
+        .filter(|(c, o)| c.expected.critical && o.assessment.is_none())
+        .count();
+    let unanswered = outcomes.iter().filter(|o| o.assessment.is_none()).count();
     let critical_false_positives = outcomes
         .iter()
         .filter(|o| o.grade == Grade::CriticalFalsePositive)
@@ -245,16 +259,21 @@ pub fn run(judge: &dyn JudgeModel, cases: &[Case]) -> Report {
         .iter()
         .filter(|o| o.assessment == Some(Assessment::Uncertain))
         .count();
-    let critical_fpr_upper = clopper_pearson_upper(critical_false_positives, critical_cases);
+    let critical_fpr_upper = clopper_pearson_upper(
+        critical_false_positives,
+        critical_cases - critical_unanswered,
+    );
     Report {
         cases: cases.len(),
         critical_cases,
+        critical_unanswered,
+        unanswered,
         critical_false_positives,
         critical_fpr_upper,
         precision: ratio(true_removable, judged_removable),
         recall: ratio(true_removable, expected_removable),
         abstention_rate: ratio(abstained, answered),
-        passed: critical_fpr_upper <= CRITICAL_FPR_TARGET,
+        passed: critical_fpr_upper <= CRITICAL_FPR_TARGET && critical_unanswered == 0,
         outcomes,
     }
 }
@@ -370,7 +389,11 @@ mod tests {
             ]
         );
         assert_eq!(report.critical_cases, 3);
+        // Case 7 has no answer: it leaves the bound (two answered) and fails the gate.
+        assert_eq!(report.critical_unanswered, 1);
+        assert_eq!(report.unanswered, 2);
         assert_eq!(report.critical_false_positives, 1);
+        assert!((report.critical_fpr_upper - clopper_pearson_upper(1, 2)).abs() < f64::EPSILON);
         assert!(!report.passed);
         // Judged removable: 1, 2, 3, 5; truly removable among them: 1.
         assert_eq!(report.precision, Some(0.25));
@@ -378,6 +401,20 @@ mod tests {
         assert_eq!(report.recall.map(|r| (r * 3.0).round()), Some(1.0));
         // Answered: 1–5; uncertain: 4.
         assert_eq!(report.abstention_rate, Some(0.2));
+    }
+
+    #[test]
+    fn silence_never_passes_the_gate() {
+        // Enough critical cases to pass the bound if each were answered safely,
+        // but the judge answers none: nothing is known, so the gate fails.
+        let cases: Vec<Case> = (0..800)
+            .map(|n| case(n, Assessment::LikelyNeeded, true))
+            .collect();
+        let report = run(&MockJudge::new(None), &cases);
+        assert_eq!(report.critical_unanswered, 800);
+        assert_eq!(report.critical_false_positives, 0);
+        assert!((report.critical_fpr_upper - 1.0).abs() < f64::EPSILON);
+        assert!(!report.passed);
     }
 
     #[test]

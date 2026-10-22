@@ -52,10 +52,12 @@ lumen-jev-eval run --dataset 2026.10.0 --cassette <FILE> [--ai ai] [--gate full|
 
 `run` replays the cassette over the dataset's golden and adversarial cases and exits 0
 when the chosen gate passes, 1 when it fails and 2 for bad input. `full` is the release
-gate (critical-FPR upper bound and canaries). It needs about 800 critical cases to be
-able to pass a 0.5% bound, so the seed dataset (17 golden cases) cannot pass it.
-`observed` (no observed critical false positive, clean canaries) is a regression check
-for small datasets and never a release gate.
+gate (critical-FPR upper bound over the answered critical cases, and canaries). It needs
+about 800 critical cases to be able to pass a 0.5% bound, so the seed dataset (17 golden
+cases) cannot pass it. `observed` (no observed critical false positive, clean canaries)
+is a regression check for small datasets and never a release gate. Both gates fail
+when any critical case or canary has no valid answer (unavailable or rejected): such a
+case is no evidence, and a judge must not pass by failing on exactly the hard cases.
 
 ```text
 lumen-jev-eval record --dataset 2026.10.0 --out <FILE> [--ai ai]

@@ -107,6 +107,8 @@
       }
     ],
     "critical_cases": 7,
+    "critical_unanswered": 0,
+    "unanswered": 0,
     "critical_false_positives": 1,
     "critical_fpr_upper": 0.5787231970431953,
     "precision": 0.7272727272727273,
@@ -167,6 +169,8 @@
       }
     ],
     "critical_cases": 8,
+    "critical_unanswered": 0,
+    "unanswered": 0,
     "critical_false_positives": 0,
     "critical_fpr_upper": 0.3694166475528193,
     "precision": null,
