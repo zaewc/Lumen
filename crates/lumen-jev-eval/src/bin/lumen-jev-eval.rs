@@ -4,7 +4,7 @@
 //! ```text
 //! lumen-jev-eval run    --dataset <VERSION> --cassette <FILE> [--ai <DIR>]
 //!                       [--gate full|observed] [--json]
-//! lumen-jev-eval record --dataset <VERSION> --out <FILE> [--ai <DIR>]
+//! lumen-jev-eval record --dataset <VERSION> --out <FILE> [--ai <DIR>] [--resume <FILE>]
 //! ```
 //!
 //! `run` loads the dataset version from `ai/` (verified against its manifest),
@@ -48,7 +48,7 @@ use lumen_jev_eval::{
 };
 
 const USAGE: &str = "usage: lumen-jev-eval run --dataset <VERSION> --cassette <FILE> [--ai <DIR>] [--gate full|observed] [--json]
-       lumen-jev-eval record --dataset <VERSION> --out <FILE> [--ai <DIR>]";
+       lumen-jev-eval record --dataset <VERSION> --out <FILE> [--ai <DIR>] [--resume <FILE>]";
 
 /// Which gate decides the exit status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,6 +75,8 @@ struct RecordArgs {
     dataset: String,
     out: PathBuf,
     ai: PathBuf,
+    /// An earlier, incomplete recording whose answers are kept.
+    resume: Option<PathBuf>,
 }
 
 /// A parsed command line.
@@ -95,6 +97,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
     };
     let (mut dataset, mut cassette, mut out, mut ai, mut json) =
         (None, None, None, PathBuf::from("ai"), false);
+    let mut resume = None;
     let mut gate = Gate::Full;
     let mut iter = rest.iter();
     while let Some(arg) = iter.next() {
@@ -116,6 +119,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
             }
             ("--json", false) => json = true,
             ("--out", true) => out = Some(PathBuf::from(value()?)),
+            ("--resume", true) => resume = Some(PathBuf::from(value()?)),
             (other, _) => return Err(format!("unexpected argument `{other}`")),
         }
     }
@@ -125,6 +129,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
             dataset,
             out: out.ok_or("--out is needed")?,
             ai,
+            resume,
         })
     } else {
         Command::Run(RunArgs {
@@ -242,6 +247,7 @@ fn describe(outcome: &RecordOutcome) -> String {
         RecordOutcome::Refused(e) => format!("refused by the validator, recorded ({e})"),
         RecordOutcome::Failed(e) => format!("failed, not recorded ({e})"),
         RecordOutcome::NotSent => "not sent (the key was rejected)".into(),
+        RecordOutcome::Kept => "kept from the earlier recording".into(),
     }
 }
 
@@ -256,10 +262,17 @@ fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
         )
         .into());
     }
+    let previous = match &args.resume {
+        Some(path) => Some(Cassette::parse(&std::fs::read_to_string(path)?)?),
+        None => None,
+    };
     let judge = Service::Jeb.judge(jeb_key()?)?;
     let descriptor = judge
         .descriptor()
         .ok_or("the Jeb judge has no descriptor")?;
+    if previous.as_ref().is_some_and(|p| p.judge != descriptor) {
+        return Err("the recording to resume comes from another judge, model or prompt".into());
+    }
     // Reserve the output before spending quota; never replace a file.
     let mut file = std::fs::OpenOptions::new()
         .write(true)
@@ -267,17 +280,35 @@ fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
         .open(&args.out)
         .map_err(|e| format!("cannot create {}: {e}", args.out.display()))?;
     let cases = dataset.golden.len() + dataset.adversarial.len();
+    let have = previous.as_ref().map_or(0, |p| {
+        dataset
+            .golden
+            .iter()
+            .chain(&dataset.adversarial)
+            .filter(|c| {
+                p.entries
+                    .iter()
+                    .any(|e| e.case_id == c.case_id && e.request_hash == c.request.hash())
+            })
+            .count()
+    });
     eprintln!("{}", Service::Jeb.disclosure());
     eprintln!(
-        "Recording dataset {}: {cases} requests to Jeb ({}), one at a time. The cases are synthetic metadata from the dataset, never file contents.",
+        "Recording dataset {}: {} requests to Jeb ({}), one at a time ({have} kept from the earlier recording). The cases are synthetic metadata from the dataset, never file contents.",
         dataset.version,
+        cases - have,
         lumen_jev::decisions::JEB_ENDPOINT,
     );
     let recording = record(
         &Jeb { judge, descriptor },
         &dataset,
         Pacing::JEB,
-        &mut |case_id, outcome| eprintln!("{case_id}: {}", describe(outcome)),
+        previous.as_ref(),
+        &mut |case_id, outcome| {
+            if *outcome != RecordOutcome::Kept {
+                eprintln!("{case_id}: {}", describe(outcome));
+            }
+        },
     );
     let mut text = serde_json::to_string_pretty(&recording.cassette)?;
     text.push('\n');
@@ -418,6 +449,7 @@ mod tests {
                 dataset: "2026.10.0".into(),
                 out: "jeb.json".into(),
                 ai: "data".into(),
+                resume: None,
             }))
         );
         assert!(matches!(

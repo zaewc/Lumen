@@ -60,7 +60,7 @@ when any critical case or canary has no valid answer (unavailable or rejected): 
 case is no evidence, and a judge must not pass by failing on exactly the hard cases.
 
 ```text
-lumen-jev-eval record --dataset 2026.10.0 --out <FILE> [--ai ai]
+lumen-jev-eval record --dataset 2026.10.0 --out <FILE> [--ai ai] [--resume <FILE>]
 ```
 
 `record` asks Jeb (ADR-0036) about every golden and adversarial case of the dataset,
@@ -90,6 +90,10 @@ building exactly the requests `run` replays, and writes a new `jev.cassette/1` f
   validator, failed, or not sent) and a summary. The output must not exist yet; it is
   never overwritten. Exit 0 when every case was recorded, 1 when some were not (the
   rest are still written), and 2 for bad input.
+- **Resuming:** `--resume <FILE>` completes an earlier recording of the same dataset:
+  answers it holds for the same request are kept unchanged and only the missing cases
+  are sent, then everything is written, in dataset order, to the new `--out` file. The
+  earlier file must come from the same judge, model and prompt.
 
 Planned:
 

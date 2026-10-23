@@ -7,10 +7,12 @@
 //! out, never filled in. The recorder never sees the API key: the live judge
 //! holds it.
 
+use std::collections::BTreeMap;
+
 use std::time::Duration;
 
 use lumen_application::ports::JudgeError;
-use lumen_domain::{JevRequest, JudgeDescriptor};
+use lumen_domain::{JevRequest, JudgeDescriptor, PayloadHash};
 use lumen_jev::openrouter::AskError;
 
 use crate::cassette::{CASSETTE_SCHEMA, Cassette, Recorded, RecordedStop, validate_recorded};
@@ -66,12 +68,14 @@ pub enum RecordOutcome {
     Failed(AskError),
     /// Not sent, because the server had rejected the key.
     NotSent,
+    /// Taken unchanged from the recording being resumed; not sent again.
+    Kept,
 }
 
 impl RecordOutcome {
     /// Whether the case is in the cassette.
     pub const fn is_recorded(&self) -> bool {
-        matches!(self, Self::Recorded | Self::Refused(_))
+        matches!(self, Self::Recorded | Self::Refused(_) | Self::Kept)
     }
 }
 
@@ -120,29 +124,42 @@ fn ask_with_retries(
 
 /// Records `judge`'s answers to every golden and adversarial case of
 /// `dataset`, sequentially, reporting each case to `progress` as it is done.
-/// After the server rejects the key, the remaining cases are not sent.
+/// A case `previous` already holds for the same request is kept, not sent
+/// again, so an interrupted recording can be completed; the caller checks that
+/// `previous` came from the same judge. After the server rejects the key, the
+/// remaining cases are not sent.
 pub fn record(
     judge: &dyn LiveJudge,
     dataset: &Dataset,
     pacing: Pacing,
+    previous: Option<&Cassette>,
     progress: &mut dyn FnMut(&str, &RecordOutcome),
 ) -> Recording {
     let descriptor = judge.descriptor();
+    let kept: BTreeMap<(&str, PayloadHash), &Recorded> = previous
+        .map(|cassette| {
+            cassette
+                .entries
+                .iter()
+                .map(|e| ((e.case_id.as_str(), e.request_hash), e))
+                .collect()
+        })
+        .unwrap_or_default();
     let mut entries = Vec::new();
     let mut outcomes = Vec::new();
     let mut key_rejected = false;
-    for (i, case) in dataset
-        .golden
-        .iter()
-        .chain(&dataset.adversarial)
-        .enumerate()
-    {
-        let outcome = if key_rejected {
+    let mut sent = false;
+    for case in dataset.golden.iter().chain(&dataset.adversarial) {
+        let outcome = if let Some(entry) = kept.get(&(case.case_id.as_str(), case.request.hash())) {
+            entries.push((*entry).clone());
+            RecordOutcome::Kept
+        } else if key_rejected {
             RecordOutcome::NotSent
         } else {
-            if i > 0 {
+            if sent {
                 judge.wait(pacing.pause);
             }
+            sent = true;
             match ask_with_retries(judge, &case.request, pacing) {
                 Ok(body) => {
                     let recorded = Recorded {
@@ -305,6 +322,55 @@ mod tests {
     };
 
     #[test]
+    fn resuming_sends_only_the_missing_cases() {
+        let dataset = dataset();
+        let failed = item(&dataset, 2);
+        let first = record(
+            &fake(&dataset, &[(&failed, vec![Err(DOWN)])]),
+            &dataset,
+            Pacing::JEB,
+            None,
+            &mut |_, _| {},
+        );
+        assert!(!first.complete());
+        let judge = fake(&dataset, &[]);
+        let resumed = record(
+            &judge,
+            &dataset,
+            Pacing::JEB,
+            Some(&first.cassette),
+            &mut |_, _| {},
+        );
+        // Only the case that failed is asked again, with no pause before it.
+        assert_eq!(*judge.sent.borrow(), [failed]);
+        assert!(judge.waits.borrow().is_empty());
+        assert!(resumed.complete());
+        let kept = resumed
+            .outcomes
+            .iter()
+            .filter(|(_, o)| *o == RecordOutcome::Kept)
+            .count();
+        assert_eq!(kept, first.cassette.entries.len());
+        // Entries stay in dataset order, the kept ones unchanged.
+        let order: Vec<&str> = resumed
+            .cassette
+            .entries
+            .iter()
+            .map(|e| e.case_id.as_str())
+            .collect();
+        let expected: Vec<&str> = dataset
+            .golden
+            .iter()
+            .chain(&dataset.adversarial)
+            .map(|c| c.case_id.as_str())
+            .collect();
+        assert_eq!(order, expected);
+        for entry in &first.cassette.entries {
+            assert!(resumed.cassette.entries.contains(entry));
+        }
+    }
+
+    #[test]
     fn a_recording_replays_through_run_to_the_same_grades() -> Result<(), CassetteError> {
         let dataset = dataset();
         let (retried, refused, failed) = (item(&dataset, 0), item(&dataset, 1), item(&dataset, 2));
@@ -321,7 +387,7 @@ mod tests {
             ],
         );
         let mut lines = Vec::new();
-        let recording = record(&judge, &dataset, Pacing::JEB, &mut |id, outcome| {
+        let recording = record(&judge, &dataset, Pacing::JEB, None, &mut |id, outcome| {
             lines.push((id.to_owned(), outcome.clone()));
         });
         let cases = dataset.golden.len() + dataset.adversarial.len();
@@ -406,7 +472,7 @@ mod tests {
             reason: "rejected",
         };
         let judge = fake(&dataset, &[(&first, vec![Err(rejected)])]);
-        let recording = record(&judge, &dataset, Pacing::JEB, &mut |_, _| {});
+        let recording = record(&judge, &dataset, Pacing::JEB, None, &mut |_, _| {});
         assert_eq!(
             judge.sent.borrow().len(),
             1,
