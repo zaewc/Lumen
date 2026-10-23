@@ -60,6 +60,7 @@ Rare classes that cannot reach statistical power stay "Jev cannot promote".
 
 | Judge | Dataset | Summary |
 | --- | --- | --- |
+| Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.1 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.1.md): 77 critical false positives in 1,079 answered critical cases (upper bound 8.84% against 0.5%), 24 unanswered, 22 canary flips; release gate fails, demote-only |
 | Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.0 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.0.md): 1 critical false positive in 7 critical golden cases (Xcode archives), clean canaries; demote-only |
 
 ## Recalibration triggers

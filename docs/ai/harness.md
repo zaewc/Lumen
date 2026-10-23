@@ -121,9 +121,9 @@ determine a run.
 ## Integration with development
 
 - PRs touching `ai/`, `lumen-jev`, `lumen-jev-eval`, `lumen-policy`, `lumen-domain`,
-  `lumen-application` or `Cargo.lock` replay the recorded Jeb cassette
-  (`.github/workflows/jev-eval.yml`) and must reproduce the committed report
-  (`ai/reports/jev-decisions/1/jeb-2026.10.0.json`) byte for byte; a change that
+  `lumen-application` or `Cargo.lock` replay the recorded Jeb cassettes
+  (`.github/workflows/jev-eval.yml`, datasets 2026.10.0 and 2026.10.1) and must
+  reproduce the committed reports (`ai/reports/jev-decisions/1/`) byte for byte; a change that
   moves a grade updates the report in the same PR.
 - Cassette refreshes (`record`) are their own PRs and include the report diff.
 - Developers may use promptfoo through an `exec` provider that calls this CLI for

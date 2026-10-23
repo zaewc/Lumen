@@ -1,8 +1,8 @@
 name: jev-eval
 
-# Replays the recorded Jeb cassette through the production validator and the
+# Replays the recorded Jeb cassettes through the production validator and the
 # grader, with no network, and requires the committed report to come out
-# byte for byte (docs/ai/harness.md: replay must yield identical metrics).
+# byte for byte, per dataset (docs/ai/harness.md: replay must yield identical metrics).
 # A change that alters how an answer is validated or graded must update the
 # report in the same pull request, where the diff is reviewed.
 on:
@@ -47,20 +47,25 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      # `run` exits 1 when the observed gate fails, which the recorded Jeb
-      # baseline does (one critical false positive; Jeb stays demote-only).
-      # Only 2, bad input, is an error here; the comparison is the gate.
-      - name: Replay the Jeb cassette for dataset 2026.10.0
+      # `run` exits 1 when a gate fails, which both recorded Jeb baselines do
+      # (Jeb stays demote-only). Only 2, bad input, is an error here; the
+      # comparison with the committed report is the gate.
+      - name: Replay the recorded Jeb cassettes
         run: |
-          set +e
-          cargo run --quiet --locked -p lumen-jev-eval -- run \
-            --dataset 2026.10.0 \
-            --cassette ai/cassettes/jev-decisions/1/jeb-2026.10.0.json \
-            --gate observed --json > "${RUNNER_TEMP}/jeb-2026.10.0.json"
-          status=$?
-          set -e
-          if [ "${status}" -gt 1 ]; then
-            echo "::error::lumen-jev-eval run failed (exit ${status})"
-            exit "${status}"
-          fi
-          diff -u ai/reports/jev-decisions/1/jeb-2026.10.0.json "${RUNNER_TEMP}/jeb-2026.10.0.json"
+          for spec in 2026.10.0:observed 2026.10.1:full; do
+            dataset="${spec%%:*}"
+            gate="${spec##*:}"
+            report="ai/reports/jev-decisions/1/jeb-${dataset}.json"
+            set +e
+            cargo run --quiet --locked -p lumen-jev-eval -- run \
+              --dataset "${dataset}" \
+              --cassette "ai/cassettes/jev-decisions/1/jeb-${dataset}.json" \
+              --gate "${gate}" --json > "${RUNNER_TEMP}/jeb-${dataset}.json"
+            status=$?
+            set -e
+            if [ "${status}" -gt 1 ]; then
+              echo "::error::lumen-jev-eval run failed for ${dataset} (exit ${status})"
+              exit "${status}"
+            fi
+            diff -u "${report}" "${RUNNER_TEMP}/jeb-${dataset}.json"
+          done
