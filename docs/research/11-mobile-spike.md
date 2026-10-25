@@ -40,8 +40,11 @@ pnpm exec expo run:ios --configuration Release --device   # iOS (needs a signing
 
 ## Steps
 
-1. Open the app, tap **Open the review grid (spike)** and allow photo access.
-2. **Scroll test:** tap **Repeat to 50k**, then fling up and down continuously for 30 s.
+1. Open the app and allow photo access; the library opens in the grid. Tap **Stats**
+   (top right) to show the measurement panel: the probe, the analysis timings and the
+   core's version. Hiding the panel stops the probe.
+2. **Scroll test:** in the panel, turn on **Repeat to 50,000**, then fling up and down
+   continuously for 30 s.
    - On-screen probe: note JS frames/s, p50, p95 and dropped %.
    - Android: run `adb shell dumpsys gfxinfo dev.lumen.mobile reset` just before the
      30 s, and `adb shell dumpsys gfxinfo dev.lumen.mobile` right after; note "Janky
@@ -50,9 +53,10 @@ pnpm exec expo run:ios --configuration Release --device   # iOS (needs a signing
      note the hitch-time ratio.
 3. **JS per frame:** in React Native DevTools (Performance panel), record 10 s of
    scrolling; JS time per frame = total JS thread time ÷ frames.
-4. **Analysis test:** tap **Find similar (5000)** and note analyzed, groups, prints ms
-   and grouping ms. On iOS 26+, press Home right after starting: the Live Activity
-   should show progress and allow cancelling. Then try **Groups only** and scroll.
+4. **Analysis test:** tap **Find similar photos** (the newest 5,000) and note analyzed,
+   groups, prints ms and grouping ms from the panel. On iOS 26+, press Home right after
+   starting: the Live Activity should show progress and allow cancelling. When groups
+   are found the grid switches to **Similar**; scroll it.
 5. Note the phone's temperature and battery change, and anything that stuttered.
 
 ## Results
