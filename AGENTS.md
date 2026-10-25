@@ -29,6 +29,7 @@ never remove.**
 | Threats and controls | [`docs/security/threat-model.md`](docs/security/threat-model.md) |
 | Jev (AI) contract, safety, evaluation | [`docs/ai/`](docs/ai/architecture.md) |
 | UI and UX principles (desktop, mobile, website) | [`docs/design/ui-principles.md`](docs/design/ui-principles.md) |
+| UX writing: tone, Korean 해요체 rules, Lumen's words | [`docs/design/ux-writing.md`](docs/design/ux-writing.md) |
 
 Do not load the whole repository into context. Search, read the relevant ADR and the
 files you will touch, trace dependencies, inspect tests, then change.

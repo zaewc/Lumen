@@ -79,7 +79,8 @@ communicate state change, hierarchy, spatial relationship or feedback; subtle an
 
 Write like a product team, not a marketing page: short and direct ("Save changes", not
 "Submit"; "No projects yet", not an enthusiastic paragraph). Do not explain obvious UI.
-Keep terminology consistent across the product.
+Keep terminology consistent across the product. The full writing rules, including
+Korean tone and Lumen's glossary, are in [ux-writing.md](ux-writing.md).
 
 ## Process
 
