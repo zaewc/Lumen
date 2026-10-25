@@ -1,0 +1,64 @@
+---
+// How to open an unsigned build the first time, per platform (ADR-0038).
+import { messages } from "../i18n";
+import type { Locale } from "../i18n/types";
+import Command from "./Command.astro";
+import Rich from "./Rich.astro";
+
+interface Props {
+  locale: Locale;
+}
+
+const t = messages[Astro.props.locale];
+const { mac, fda, windows, linux } = t.install;
+---
+
+<section id="install" aria-labelledby="install-title">
+  <h2 id="install-title">{t.install.title}</h2>
+  <p>{t.install.intro}</p>
+
+  <details class="disclosure" id="install-mac" data-os="mac">
+    <summary>macOS</summary>
+    <div class="body">
+      <ol class="numbered">
+        {mac.steps.map((step) => <li><Rich text={step} /></li>)}
+      </ol>
+      <p class="aside"><Rich text={mac.aside} /></p>
+    </div>
+  </details>
+
+  <details class="disclosure" id="fda" data-os="mac">
+    <summary>{fda.summary}</summary>
+    <div class="body">
+      <p>{fda.intro}</p>
+      <ol class="numbered">
+        {fda.steps.map((step) => <li><Rich text={step} /></li>)}
+      </ol>
+      <p class="aside"><Rich text={fda.aside} /></p>
+    </div>
+  </details>
+
+  <details class="disclosure" id="install-windows" data-os="windows">
+    <summary>Windows</summary>
+    <div class="body">
+      <ol class="numbered">
+        {windows.steps.map((step) => <li><Rich text={step} /></li>)}
+      </ol>
+    </div>
+  </details>
+
+  <details class="disclosure" id="install-linux" data-os="linux">
+    <summary>Linux</summary>
+    <div class="body">
+      <p class="label">.deb</p>
+      <Command id="cmd-deb" copy={t.copy} text="sudo apt install ./Lumen_<version>_amd64.deb" />
+      <p class="label">AppImage</p>
+      <Command
+        id="cmd-appimage"
+        copy={t.copy}
+        text={"chmod +x Lumen_<version>_amd64.AppImage\n./Lumen_<version>_amd64.AppImage"}
+      />
+      <p class="aside"><Rich text={linux.aside} /></p>
+    </div>
+  </details>
+</section>

@@ -1,0 +1,32 @@
+---
+import type { Platform } from "../data/release";
+import { messages } from "../i18n";
+import type { Locale } from "../i18n/types";
+
+interface Props {
+  locale: Locale;
+  platform: Platform;
+  /** Where the buttons go until the release lookup finds the files. */
+  fallback: string;
+}
+
+const { locale, platform, fallback } = Astro.props;
+const t = messages[locale];
+---
+
+<li class="platform" data-os={platform.id}>
+  <div>
+    <h3>{platform.name} <span class="current" hidden>{t.download.thisComputer}</span></h3>
+    <p>{t.download.requirements[platform.id]}</p>
+  </div>
+  <div class="files-row">
+    {
+      platform.files.map((file) => (
+        <a class="btn" data-asset={file.suffix} href={fallback}>
+          {file.label ?? t.download.installer}
+          <span class="size" data-size />
+        </a>
+      ))
+    }
+  </div>
+</li>

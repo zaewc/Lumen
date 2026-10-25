@@ -1,0 +1,44 @@
+---
+import { SUMS_URL } from "../data/release";
+import { messages } from "../i18n";
+import type { Locale } from "../i18n/types";
+import Command from "./Command.astro";
+import Rich from "./Rich.astro";
+
+interface Props {
+  locale: Locale;
+}
+
+const t = messages[Astro.props.locale];
+---
+
+<details class="disclosure" id="verify">
+  <summary>{t.verify.summary}</summary>
+  <div class="body">
+    <p>
+      <Rich text={t.verify.introBefore} /><a data-sums href={SUMS_URL}><code>SHA256SUMS</code></a><Rich
+        text={t.verify.introAfter}
+      />
+    </p>
+    <p class="label">macOS</p>
+    <Command id="cmd-sum-mac" copy={t.copy} text="shasum -a 256 -c SHA256SUMS --ignore-missing" />
+    <p class="label">Linux</p>
+    <Command id="cmd-sum-linux" copy={t.copy} text="sha256sum -c SHA256SUMS --ignore-missing" />
+    <p class="label">
+      Windows (PowerShell)<span class="label-note">{t.verify.windowsNote}</span>
+    </p>
+    <Command
+      id="cmd-sum-win"
+      copy={t.copy}
+      text="Get-FileHash .\Lumen_<version>_x64-setup.exe -Algorithm SHA256"
+    />
+    <p class="label">
+      {t.verify.provenance}<span class="label-note"><Rich text={t.verify.provenanceNote} /></span>
+    </p>
+    <Command id="cmd-attest" copy={t.copy}
+      >gh attestation verify <span id="attest-file"
+        >Lumen_<span data-version>&lt;version&gt;</span>_universal.dmg</span
+      > --repo zaewc/Lumen</Command
+    >
+  </div>
+</details>

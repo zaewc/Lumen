@@ -1,0 +1,24 @@
+---
+// A run of text with inline code, UI names and links (see Inline in i18n/types.ts).
+import type { Rich } from "../i18n/types";
+
+interface Props {
+  text: Rich;
+}
+
+const { text } = Astro.props;
+---
+
+{
+  text.map((part) =>
+    typeof part === "string" ? (
+      part
+    ) : "code" in part ? (
+      <code>{part.code}</code>
+    ) : "ui" in part ? (
+      <span class="ui">{part.ui}</span>
+    ) : (
+      <a href={part.href}>{part.link}</a>
+    ),
+  )
+}
