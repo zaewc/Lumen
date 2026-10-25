@@ -6,16 +6,36 @@ export const ko: Messages = {
   lang: "ko",
   otherLanguage: "English",
   description:
-    "디스크에서 안전하게 비울 수 있는 공간을 찾아요. 정리한 항목은 영구 삭제하기 전까지 언제든 되돌릴 수 있어요. macOS, Windows, Linux용 베타예요.",
+    "공간을 이해하고, 안전하게 정리해요. Lumen은 기기의 저장 공간과 파일의 근거를 살펴보는 시험 배포 단계의 오픈 소스 소프트웨어예요.",
   ogDescription:
-    "디스크에서 안전하게 비울 수 있는 공간을 찾아요. 정리한 항목은 영구 삭제하기 전까지 언제든 되돌릴 수 있어요.",
+    "비우는 공간보다 파일의 안전이 먼저예요. 기기 안에서 근거를 살펴보는 시험 배포 단계의 오픈 소스 소프트웨어예요.",
   skip: "본문으로 건너뛰기",
-  nav: { label: "사이트", download: "다운로드", install: "처음 열기", faq: "질문" },
+  nav: { label: "사이트", docs: "문서", download: "다운로드", install: "처음 열기", faq: "질문" },
   hero: {
-    lead: "디스크에서 안전하게 비울 수 있는 공간을 찾아요. 정리한 항목은 영구 삭제하기 전까지 언제든 되돌릴 수 있어요.",
-    download: "다운로드",
+    headline: ["공간을 이해하고,", "안전하게 정리해요."],
+    maturity: "시험 배포 단계 · 서명되지 않은 소프트웨어",
+    lead: "무엇이 공간을 차지하는지, 무엇을 남겨야 하는지 살펴봐요.",
+    download: "릴리스 보기",
     otherPlatforms: "다른 플랫폼용 다운로드",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
+  },
+  trust: {
+    title: "비우는 공간보다 파일의 안전이 먼저예요.",
+    items: [
+      {
+        title: "추측 대신 근거를 살펴봐요.",
+        text: "어떤 파일인지, 무엇이 아직 그 파일을 쓰는지 확인해요.",
+      },
+      {
+        title: "자동으로 지우지 않아요.",
+        text: "확실하지 않으면 그대로 둬요. 격리한 항목은 영구 삭제하기 전까지 복원할 수 있어요.",
+      },
+      {
+        title: "기기 안에서, 정해진 안전 규칙으로 판단해요.",
+        text: "파일 내용은 기기 밖으로 보내지 않아요. 선택한 AI 검토는 메타데이터만 살펴보고, 정리를 허용할 수는 없어요.",
+      },
+    ],
+    more: "설계 살펴보기",
   },
   how: {
     title: "작동 방식",
@@ -55,13 +75,13 @@ export const ko: Messages = {
     ai: "처음에는 꺼져 있고, 설정에서 켤 수 있어요. 켜면 정리를 제안한 항목의 경로, 크기, 지난 기간, 판단 근거만 학교의 Jeb 서버로 보내요. 홈 폴더는 ~로 바꿔서 보내고, 파일 내용은 보내지 않아요. AI는 판단을 더 신중하게만 바꿀 수 있고, 무엇을 옮길지는 고르지 않아요. Jeb 서버 운영자가 요청을 보관할 수 있어요.",
   },
   download: {
-    title: "다운로드",
+    title: "모든 다운로드와 설치 방법",
     noScript: [
       "파일은 ",
-      { link: "GitHub 릴리스", href: `${REPO_URL}/releases/latest` },
+      { link: "GitHub 릴리스", href: `${REPO_URL}/releases` },
       "에서 받을 수 있어요.",
     ],
-    checking: "최신 버전을 확인하고 있어요…",
+    checking: "릴리스를 확인하고 있어요…",
     thisComputer: "너가 다운받아야 할거",
     installer: "설치 프로그램",
     requirements: {
@@ -265,15 +285,15 @@ export const ko: Messages = {
   copy: "복사",
   client: {
     dateLocale: "ko-KR",
-    download: "다운로드",
+    download: "PC용 다운로드 고르기",
     downloadFor: "{platform}용 다운로드",
-    viewOnGitHub: "GitHub에서 보기",
-    downloadFromGitHub: "GitHub에서 다운로드",
-    getFromGitHub: "GitHub에서 받기",
-    comingSoon: "첫 베타를 준비하고 있어요. 공개되면 여기서 받을 수 있어요.",
-    comingSoonShort: "첫 베타를 준비하고 있어요. ",
-    loadFailed: "최신 버전 정보를 불러오지 못했어요. GitHub에서 바로 받을 수 있어요.",
-    checkFailed: "최신 버전을 확인하지 못했어요. ",
+    viewOnGitHub: "GitHub에서 릴리스 보기",
+    downloadFromGitHub: "GitHub 릴리스 확인하기",
+    getFromGitHub: "GitHub 릴리스 확인하기",
+    comingSoon: "아직 공개한 릴리스가 없어요.",
+    comingSoonShort: "아직 공개한 릴리스가 없어요. ",
+    loadFailed: "릴리스를 확인하지 못했어요. GitHub에서 직접 확인해 주세요.",
+    checkFailed: "릴리스를 확인하지 못했어요. ",
     rateLimited: "GitHub 요청이 많아서 최신 버전을 확인하지 못했어요. ",
     releaseNotes: "릴리스 노트",
     githubReleases: "GitHub 릴리스",

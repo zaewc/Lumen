@@ -6,16 +6,36 @@ export const en: Messages = {
   lang: "en",
   otherLanguage: "한국어",
   description:
-    "Finds disk space you can safely free. You can restore anything you clean up until you remove it for good. Beta for macOS, Windows and Linux.",
+    "Storage intelligence for every device. Understand your storage before deciding what to remove. Lumen is pre-alpha software.",
   ogDescription:
-    "Finds disk space you can safely free. You can restore anything you clean up until you remove it for good.",
+    "Storage intelligence for every device. Safety over reclaimed space. Local-first, open source, pre-alpha.",
   skip: "Skip to content",
-  nav: { label: "Site", download: "Download", install: "First launch", faq: "FAQ" },
+  nav: { label: "Site", docs: "Docs", download: "Download", install: "First launch", faq: "FAQ" },
   hero: {
-    lead: "Finds disk space you can safely free. You can restore anything you clean up until you remove it for good.",
-    download: "Download",
+    headline: ["Storage intelligence", "for every device."],
+    maturity: "Pre-alpha · Unsigned software",
+    lead: "Understand what takes up space, and what still needs to stay.",
+    download: "View releases",
     otherPlatforms: "Download for other platforms",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
+  },
+  trust: {
+    title: "Safety over reclaimed space.",
+    items: [
+      {
+        title: "Evidence, not guesses.",
+        text: "Lumen checks what files are and what still depends on them.",
+      },
+      {
+        title: "Nothing is removed automatically.",
+        text: "Uncertain items stay put. Restore quarantined items until you remove them for good.",
+      },
+      {
+        title: "Local first. Policy decides.",
+        text: "File contents stay on your device. Optional AI reviews metadata; it cannot authorize cleanup.",
+      },
+    ],
+    more: "Read the architecture",
   },
   how: {
     title: "How it works",
@@ -55,13 +75,13 @@ export const en: Messages = {
     ai: "It's off until you turn it on in Settings. Then Lumen sends only the path, sizes, ages and evidence of each proposed item to the school's Jeb server, with your home folder shown as ~. It never sends file contents. AI can only make a decision more cautious; it can't choose what moves. The Jeb server's operator may keep the requests.",
   },
   download: {
-    title: "Download",
+    title: "All downloads and installation",
     noScript: [
       "Files come from the ",
-      { link: "latest GitHub release", href: `${REPO_URL}/releases/latest` },
+      { link: "GitHub releases", href: `${REPO_URL}/releases` },
       ".",
     ],
-    checking: "Checking the latest version…",
+    checking: "Checking releases…",
     thisComputer: "You need to download",
     installer: "Installer",
     requirements: {
@@ -263,15 +283,15 @@ export const en: Messages = {
   copy: "Copy",
   client: {
     dateLocale: "en-US",
-    download: "Download",
+    download: "Choose a desktop download",
     downloadFor: "Download for {platform}",
-    viewOnGitHub: "View on GitHub",
-    downloadFromGitHub: "Download from GitHub",
-    getFromGitHub: "Download from GitHub",
-    comingSoon: "The first beta is coming soon. You'll be able to download it here.",
-    comingSoonShort: "The first beta is coming soon. ",
-    loadFailed: "Couldn't load the latest version. You can still download it from GitHub.",
-    checkFailed: "Couldn't check the latest version. ",
+    viewOnGitHub: "View releases on GitHub",
+    downloadFromGitHub: "Check GitHub releases",
+    getFromGitHub: "Check GitHub releases",
+    comingSoon: "No public release yet.",
+    comingSoonShort: "No public release yet. ",
+    loadFailed: "Release information is unavailable. Check GitHub directly.",
+    checkFailed: "Release information is unavailable. ",
     rateLimited:
       "GitHub is getting too many requests, so this page couldn't check the latest version. ",
     releaseNotes: "Release notes",

@@ -30,15 +30,23 @@ export interface Messages {
   readonly skip: string;
   readonly nav: {
     readonly label: string;
+    readonly docs: string;
     readonly download: string;
     readonly install: string;
     readonly faq: string;
   };
   readonly hero: {
+    readonly headline: readonly [string, string];
+    readonly maturity: string;
     readonly lead: string;
     readonly download: string;
     readonly otherPlatforms: string;
     readonly requirements: string;
+  };
+  readonly trust: {
+    readonly title: string;
+    readonly items: readonly { readonly title: string; readonly text: string }[];
+    readonly more: string;
   };
   readonly how: {
     readonly title: string;
