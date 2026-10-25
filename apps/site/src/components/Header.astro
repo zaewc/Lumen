@@ -1,0 +1,27 @@
+---
+import { REPO_URL } from "../data/release";
+import { localePath, messages, otherLocale } from "../i18n";
+import type { Locale } from "../i18n/types";
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = messages[locale];
+const other = otherLocale(locale);
+const base = import.meta.env.BASE_URL;
+---
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src={`${base}icon.svg`} alt="" width="28" height="28" />Lumen</a>
+    <nav class="nav" aria-label={t.nav.label}>
+      <a href="#download">{t.nav.download}</a>
+      <a href="#install">{t.nav.install}</a>
+      <a href="#faq">{t.nav.faq}</a>
+      <a href={REPO_URL}>GitHub</a>
+    </nav>
+    <a class="lang-link" href={localePath(other, base)} hreflang={other} lang={other}>{t.otherLanguage}</a>
+  </div>
+</header>

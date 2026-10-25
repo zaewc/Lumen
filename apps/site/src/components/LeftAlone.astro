@@ -1,0 +1,17 @@
+---
+import { messages } from "../i18n";
+import type { Locale } from "../i18n/types";
+
+interface Props {
+  locale: Locale;
+}
+
+const t = messages[Astro.props.locale];
+---
+
+<section aria-labelledby="safety-title">
+  <h2 id="safety-title">{t.leftAlone.title}</h2>
+  <ul class="plain">
+    {t.leftAlone.items.map((item) => <li>{item}</li>)}
+  </ul>
+</section>

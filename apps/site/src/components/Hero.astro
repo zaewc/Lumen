@@ -1,0 +1,24 @@
+---
+import { messages } from "../i18n";
+import type { Locale } from "../i18n/types";
+
+interface Props {
+  locale: Locale;
+}
+
+const t = messages[Astro.props.locale];
+const base = import.meta.env.BASE_URL;
+---
+
+<section class="intro" id="top" aria-labelledby="title">
+  <img class="app-icon" src={`${base}icon.svg`} alt="" width="64" height="64" />
+  <h1 id="title">Lumen</h1>
+  <p class="lead">{t.hero.lead}</p>
+  <div class="primary">
+    <a class="btn btn-primary" id="primary-download" href="#download">
+      <span id="primary-label">{t.hero.download}</span>
+    </a>
+    <a class="text-link js-only" id="other-platforms" href="#download" hidden>{t.hero.otherPlatforms}</a>
+  </div>
+  <p class="meta" id="primary-meta">{t.hero.requirements}</p>
+</section>

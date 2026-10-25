@@ -1,0 +1,86 @@
+---
+// Every page's document: head and Content-Security-Policy, and for the
+// download pages the skip link, header and footer.
+import Footer from "../components/Footer.astro";
+import Header from "../components/Header.astro";
+import { localePath, messages } from "../i18n";
+import type { Locale } from "../i18n/types";
+import "../styles/site.css";
+
+interface Props {
+  locale: Locale;
+  /** The 404 page: no header, footer, script or search indexing. */
+  notFound?: boolean;
+}
+
+const { locale, notFound = false } = Astro.props;
+const t = messages[locale];
+const base = import.meta.env.BASE_URL;
+const absolute = (locale: Locale) => new URL(localePath(locale, base), Astro.site).href;
+
+// Nothing is inlined (astro.config.ts), so scripts and styles need only 'self'.
+// The download pages also talk to the GitHub API. The Vite dev server injects
+// inline styles and scripts, so the policy is only set on built pages.
+const csp = [
+  "default-src 'none'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self' data:",
+  ...(notFound ? [] : ["connect-src https://api.github.com"]),
+  "base-uri 'none'",
+  "form-action 'none'",
+].join("; ");
+---
+
+<!doctype html>
+<html lang={t.lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {import.meta.env.PROD && <meta http-equiv="Content-Security-Policy" content={csp} />}
+    <meta name="referrer" content="no-referrer" />
+    <title>Lumen</title>
+    {
+      notFound ? (
+        <meta name="robots" content="noindex" />
+      ) : (
+        <>
+          <meta name="description" content={t.description} />
+          <link rel="alternate" hreflang="ko" href={absolute("ko")} />
+          <link rel="alternate" hreflang="en" href={absolute("en")} />
+          <link rel="alternate" hreflang="x-default" href={absolute("ko")} />
+        </>
+      )
+    }
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f6f6f8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1c1f" media="(prefers-color-scheme: dark)" />
+    {
+      !notFound && (
+        <>
+          <meta property="og:type" content="website" />
+          <meta property="og:title" content="Lumen" />
+          <meta property="og:description" content={t.ogDescription} />
+        </>
+      )
+    }
+    <link rel="icon" href={`${base}icon.svg`} type="image/svg+xml" />
+    <link rel="icon" href={`${base}favicon.png`} type="image/png" sizes="32x32" />
+  </head>
+  <body data-strings={notFound ? undefined : JSON.stringify(t.client)}>
+    {
+      notFound ? (
+        <slot />
+      ) : (
+        <>
+          <a class="skip" href="#main">{t.skip}</a>
+          <Header locale={locale} />
+          <main id="main" class="wrap">
+            <slot />
+          </main>
+          <Footer locale={locale} />
+        </>
+      )
+    }
+  </body>
+</html>

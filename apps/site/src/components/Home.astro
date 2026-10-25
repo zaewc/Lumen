@@ -1,0 +1,22 @@
+---
+// The download page, in one language.
+import type { Locale } from "../i18n/types";
+import Base from "../layouts/Base.astro";
+import Hero from "./Hero.astro";
+import HowItWorks from "./HowItWorks.astro";
+import LeftAlone from "./LeftAlone.astro";
+import Privacy from "./Privacy.astro";
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+---
+
+<Base locale={locale}>
+  <Hero locale={locale} />
+  <HowItWorks locale={locale} />
+  <LeftAlone locale={locale} />
+  <Privacy locale={locale} />
+</Base>

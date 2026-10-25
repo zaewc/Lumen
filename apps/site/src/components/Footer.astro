@@ -1,0 +1,22 @@
+---
+import { REPO_URL } from "../data/release";
+import { messages } from "../i18n";
+import type { Locale } from "../i18n/types";
+
+interface Props {
+  locale: Locale;
+}
+
+const t = messages[Astro.props.locale];
+---
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>
+      Lumen <span id="footer-version"></span>· <a href={REPO_URL}>{t.footer.source}</a> ·{" "}
+      <a href={`${REPO_URL}/releases`}>{t.footer.releases}</a> ·{" "}
+      <a href={`${REPO_URL}/blob/main/LICENSE`}>Apache-2.0</a>
+    </p>
+    <p class="footer-note">{t.footer.note}</p>
+  </div>
+</footer>
