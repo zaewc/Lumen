@@ -14,6 +14,25 @@ the app. Re-check for a fixed braces or a steiger without it before expiry.\
 """
 
 [[IgnoredVulns]]
+id = "GHSA-mrhx-c7xc-m3w5"
+ignoreUntil = 2027-01-25T00:00:00Z
+reason = """
+zod <= 4.6.5 (alias CVE-2023-54404): memory exhaustion when an array schema \
+without a length limit validates a huge array. Lumen's own code (apps/web, \
+packages/api-client) uses zod 4.6.7, which is fixed. zod 3.25.76 remains only \
+through development tools: @expo/cli (the `expo` command; 58.1.15, the latest, \
+still requires ^3.25.76; never part of the app bundle) and steiger -> \
+zod-validation-error (dev-only FSD linter). Both validate the developer's own \
+config files, never untrusted input, and no 3.x release is fixed. Re-check \
+for an @expo/cli and steiger on zod 4 before expiry.\
+"""
+
+[[IgnoredVulns]]
+id = "CVE-2023-54404"
+ignoreUntil = 2027-01-25T00:00:00Z
+reason = "Alias of GHSA-mrhx-c7xc-m3w5 (zod array validation); see that entry."
+
+[[IgnoredVulns]]
 id = "RUSTSEC-2024-0429"
 ignoreUntil = 2027-01-18T00:00:00Z
 reason = """
