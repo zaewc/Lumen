@@ -33,9 +33,12 @@ export interface Messages {
     readonly download: string;
     readonly requirements: string;
   };
+  readonly product: { readonly pending: string };
   readonly trust: {
-    readonly title: string;
-    readonly items: readonly { readonly title: string; readonly text: string }[];
+    readonly items: readonly {
+      readonly headline: readonly [string, string];
+      readonly text: string;
+    }[];
     readonly more: string;
   };
   readonly download: {

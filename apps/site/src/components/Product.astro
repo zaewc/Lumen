@@ -1,0 +1,19 @@
+---
+import { messages } from "../i18n";
+import type { Locale } from "../i18n/types";
+
+interface Props {
+  locale: Locale;
+}
+
+const t = messages[Astro.props.locale];
+---
+
+<!-- Replace the reserved canvas with an unaltered, real desktop-app capture.
+     Needed: a light-mode macOS scan result with a candidate's evidence open,
+     no personal paths, native window chrome, and at least 2400px width.
+     Do not draw a mock application or populate it with invented scan results. -->
+<figure class="product-showcase">
+  <div class="product-placeholder" aria-hidden="true"></div>
+  <figcaption>{t.product.pending}</figcaption>
+</figure>

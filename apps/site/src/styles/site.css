@@ -341,51 +341,6 @@ h1 {
   text-align: left;
 }
 
-/* A short explanation of the safety model, without feature containers. */
-.principles {
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 40px var(--gutter) 56px;
-  border-top: 1px solid var(--line);
-}
-
-.principles h2 {
-  margin-bottom: 28px;
-  font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-}
-
-.principles dl {
-  margin: 0;
-}
-
-.principles dl > div {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 32px;
-  font-size: 0.94rem;
-}
-
-.principles dl > div + div {
-  margin-top: 24px;
-}
-
-.principles dt {
-  font-weight: 550;
-}
-
-.principles dd {
-  margin: 0;
-  max-width: 40em;
-  color: var(--ink-2);
-}
-
-.architecture-link {
-  margin-top: 28px;
-  font-size: 0.88rem;
-}
-
 h2 {
   margin-bottom: 14px;
   font-size: 1.25rem;
@@ -690,15 +645,6 @@ p + .disclosure {
   .maturity,
   .meta {
     font-size: 0.875rem;
-  }
-
-  .principles dl > div {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-
-  .principles h2 {
-    font-size: 1.25rem;
   }
 
   .platform {

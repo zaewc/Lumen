@@ -6,6 +6,8 @@ import { messages } from "../i18n";
 import type { Locale } from "../i18n/types";
 import Base from "../layouts/Base.astro";
 import Hero from "./Hero.astro";
+import Product from "./Product.astro";
+import "../styles/story.css";
 
 interface Props {
   locale: Locale;
@@ -17,13 +19,20 @@ const t = messages[locale];
 
 <Base locale={locale}>
   <Hero locale={locale} />
-  <section class="principles" aria-labelledby="safety-title">
-    <h2 id="safety-title">{t.trust.title}</h2>
-    <dl>
-      {t.trust.items.map((item) => <div><dt>{item.title}</dt><dd>{item.text}</dd></div>)}
-    </dl>
-    <p class="architecture-link"><a href={`${REPO_URL}/blob/main/docs/architecture/system.md`}>{t.trust.more}</a></p>
-  </section>
+  <Product locale={locale} />
+  <div class="story">
+    {t.trust.items.map((item, index) => (
+      <section class="chapter" aria-labelledby={`principle-${index}`}>
+        <div class="chapter-content">
+          <h2 id={`principle-${index}`}>{item.headline.map((line) => <span>{line}</span>)}</h2>
+          <p>{item.text}</p>
+          {index === t.trust.items.length - 1 && (
+            <a class="architecture-link" href={`${REPO_URL}/blob/main/docs/architecture/system.md`}>{t.trust.more}<span aria-hidden="true"> →</span></a>
+          )}
+        </div>
+      </section>
+    ))}
+  </div>
   <script>
     import "../scripts/site.ts";
   </script>

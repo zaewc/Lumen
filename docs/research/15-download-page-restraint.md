@@ -1,7 +1,7 @@
 # Download-page redesign
 
-Checked on 2026-10-25 for the owner's brief: a small download interface, restrained
-type and spacing, evidence-led safety, and no invented product visuals or claims.
+Checked on 2026-10-25 for the owner's revised brief: a product-scale download
+page, white surfaces, large type and no invented product visuals or claims.
 
 ## Product and release evidence
 
@@ -27,7 +27,7 @@ Keep the existing Astro build, locale URLs, external scripts/styles, strict CSP 
 validated GitHub release loader. No new dependencies, fonts, analytics or images.
 
 One primary download action, one native disclosure for the other desktop builds
-and installation/verification help, then concise safety statements and source/docs
+and installation/verification help, then separate editorial safety chapters and source/docs
 links. No feature cards or marketing navigation. Keep the pre-alpha and unsigned
 status visible even when release lookup fails or JavaScript is unavailable.
 
@@ -37,12 +37,12 @@ disclosures, hostile API data and the external-only CSP.
 
 ## Rendered review
 
-Chrome passed 18 cases: Korean/English, 320–1440px, light/dark, macOS/Windows/Linux,
-iPad detection, release/empty/loading/error states, unavailable assets, no JavaScript,
-keyboard focus, nested disclosure links, malformed fragments and 404. No horizontal
-overflow, inline styles/scripts or CSP violations. Inspected real rendered desktop
-and mobile screenshots, then removed redundant disclosure rules and shortened copy.
-Normal text contrast ranges from 5.25:1 to 9.10:1; download text exceeds 14:1.
+Chrome passed 20 cases: Korean/English, 320–1440px, both system theme preferences,
+macOS/Windows/Linux, iPad detection, release/empty/loading/error states, unavailable
+assets, no JavaScript, keyboard focus, nested disclosure links, malformed fragments
+and 404. All pages stay light, with no horizontal overflow, inline styles/scripts
+or CSP violations. Inspected actual rendered 1440px, 1024px and 390px screenshots.
+The desktop hero headline is 64–80px and its minimum height is 86vh minus navigation.
 
 ## Revised art direction
 
@@ -52,3 +52,16 @@ presence and separate editorial safety chapters. This website-specific direction
 supersedes the earlier small-type preference; the application UI is unchanged.
 The site always uses a white/light palette, including when the OS prefers dark.
 Maturity and unsigned-distribution information follows the primary action.
+
+## Real product capture
+
+The repository has application UI source but no usable screenshots. The showcase
+reserves a flat 16:10 canvas at 75vw, with an honest pending caption and no synthetic
+application window, scan data or charts. Replace it with a light-mode macOS
+scan-results capture with a candidate's evidence panel open, native window chrome,
+no personal paths, and at least 2400px width. The placeholder is deliberately
+isolated in `Product.astro` so the real image can replace it directly.
+
+With no public release, the enhanced main action links to the development page.
+Loading, error and no-JavaScript fallbacks still link to Releases; a valid published
+release selects the detected desktop's installer, or opens the download choices.

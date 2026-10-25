@@ -5,7 +5,7 @@
 // and points the download buttons at this visitor's files. API data only ever
 // reaches the page through textContent and validated hrefs.
 
-import { PLATFORMS, type Platform, type PlatformId, RELEASES_URL } from "../data/release";
+import { PLATFORMS, type Platform, type PlatformId, RELEASES_URL, REPO_URL } from "../data/release";
 import { type ClientStrings, parseClientStrings } from "../i18n/client";
 import {
   type Asset,
@@ -136,7 +136,7 @@ function renderPrimary(result: ReleaseResult, platform: Platform | null, t: Clie
 
   switch (result.state) {
     case "none":
-      button.href = RELEASES_URL;
+      button.href = REPO_URL;
       label.textContent = t.viewOnGitHub;
       meta.textContent = t.comingSoon;
       return;
