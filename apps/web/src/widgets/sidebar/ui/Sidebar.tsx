@@ -1,14 +1,33 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
 import { useHeld } from "@/entities/held";
 import { countFormat, useI18n } from "@/shared/i18n";
+import { shortcutProps, useShortcut } from "@/shared/lib";
 import { ArchiveIcon, GaugeIcon, GearIcon, LogoMark, SparkleIcon } from "@/shared/ui";
 
 // Below 720 px the sidebar is a rail of icons; the labels stay for screen readers.
 
 const ITEM =
   "relative flex h-10 items-center justify-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-ink transition-colors hover:bg-fill-strong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent aria-[current=page]:bg-accent aria-[current=page]:text-white motion-reduce:transition-none min-[720px]:h-8 min-[720px]:justify-start [&>svg]:text-accent-ink aria-[current=page]:[&>svg]:text-white";
+
+/** The app's places, in the sidebar's order; ⌘1–⌘4 (Ctrl+1–4) open them. */
+const PLACES = ["/", "/clean", "/quarantine", "/settings"] as const;
+
+type Place = (typeof PLACES)[number];
+
+/** The shortcut key of a place: its position in the sidebar. */
+function placeKey(place: Place): string {
+  return String(PLACES.indexOf(place) + 1);
+}
+
+/** Opens the place on its shortcut. */
+function usePlaceShortcut(place: Place): void {
+  const navigate = useNavigate();
+  useShortcut(placeKey(place), () => {
+    void navigate({ to: place });
+  });
+}
 
 /** One place in the app: an icon, its name, and an optional count. */
 function NavItem({
@@ -17,7 +36,7 @@ function NavItem({
   label,
   badge,
 }: {
-  readonly to: "/" | "/clean" | "/quarantine" | "/settings";
+  readonly to: Place;
   readonly icon: ReactNode;
   readonly label: string;
   /** A count and what it means, for screen readers. */
@@ -25,7 +44,12 @@ function NavItem({
 }) {
   return (
     <li>
-      <Link to={to} activeOptions={{ exact: to === "/" }} title={label} className={ITEM}>
+      <Link
+        to={to}
+        activeOptions={{ exact: to === "/" }}
+        {...shortcutProps(label, placeKey(to))}
+        className={ITEM}
+      >
         {icon}
         <span className="sr-only min-[720px]:not-sr-only min-[720px]:flex-1 min-[720px]:truncate">
           {label}
@@ -82,6 +106,10 @@ export function Sidebar() {
   const { locale, m } = useI18n();
   const held = useHeld();
   const count = held.data?.length ?? 0;
+  usePlaceShortcut("/");
+  usePlaceShortcut("/clean");
+  usePlaceShortcut("/quarantine");
+  usePlaceShortcut("/settings");
   return (
     <aside className="flex w-[60px] shrink-0 flex-col border-r border-line bg-sidebar min-[720px]:w-[220px]">
       <div className="flex h-14 shrink-0 items-center justify-center gap-2.5 px-4 min-[720px]:justify-start">
