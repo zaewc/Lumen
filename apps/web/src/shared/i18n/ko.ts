@@ -78,10 +78,10 @@ export const ko = {
   ai: {
     title: "AI 검토",
     offIntro:
-      "Lumen이 정리를 제안한 항목을 AI 모델이 한 번 더 확인합니다. AI는 Lumen을 더 신중하게 만들 수만 있습니다. 직접 켜기 전까지는 꺼져 있습니다.",
+      "Lumen이 정리를 제안한 항목을 AI 모델이 한 번 더 확인합니다. AI는 Lumen을 더 신중하게 만들 수만 있습니다.",
     onIntro: (service: string) =>
-      `켜짐(${service}). 항목의 정리를 제안하기 전에 그 정보(내용은 제외)를 보내 의견을 한 번 더 받습니다. AI는 Lumen을 더 신중하게 만들 수만 있습니다.`,
-    checking: "AI 검토 설정을 확인하는 중…",
+      `켜짐(${service}). 정리를 제안한 항목의 정보(내용 제외)를 보내 의견을 한 번 더 받습니다. AI는 Lumen을 더 신중하게 만들 수만 있습니다.`,
+    checking: "확인하는 중…",
     short: {
       on: "AI 검토 켜짐",
       off: "AI 검토 꺼짐",
@@ -226,11 +226,13 @@ export const ko = {
   },
   quarantine: {
     title: "격리함",
-    count: (n: number) => `보관 중인 ${items(n)}`,
-    total: (size: string) => `영구 삭제하면 ${size} 확보`,
-    totalAtLeast: (size: string) => `영구 삭제하면 최소 ${size} 확보`,
-    intro:
-      "정리한 항목은 이곳에 보관됩니다. 복원하면 원래 위치로 돌아가고, 영구 삭제하면 공간이 확보됩니다.",
+    atLeast: (size: string) => `최소 ${size}`,
+    columns: {
+      name: "이름",
+      location: "원래 위치",
+      size: "크기",
+      held: "보관 기간",
+    },
     loadFailed: "격리함을 불러오지 못했습니다.",
     empty: "격리함이 비어 있습니다",
     emptyHint: "정리한 항목은 이곳에 보관되므로, 마음이 바뀌면 복원할 수 있습니다.",
@@ -238,7 +240,8 @@ export const ko = {
   },
   held: {
     unknownPath: "(알 수 없는 위치)",
-    days: (days: number) => (days === 0 ? "오늘 옮김" : `보관한 지 ${count(days)}일`),
+    days: (days: number) => (days === 0 ? "오늘" : `${count(days)}일`),
+    restoreOnly: "복원만 가능",
     afterFailure:
       "옮기는 도중 문제가 생겨 이곳에 안전하게 보관했습니다. 복원할 수 있지만 영구 삭제할 수는 없습니다.",
     restore: "복원",
@@ -289,7 +292,7 @@ export const ko = {
       accessIntro:
         "컴퓨터가 일부 폴더에 대한 접근을 거부할 수 있습니다. 그럴 때도 Lumen은 허용된 폴더를 모두 읽습니다.",
       unread:
-        "읽지 못한 폴더는 비어 있는 것으로 보지 않고 ‘읽지 못함’으로 표시하며, 그 안의 항목은 정리를 제안하지 않습니다.",
+        "읽지 못한 폴더는 비어 있다고 보지 않고 ‘읽지 못함’으로 표시하며, 그 안의 항목은 제안하지 않습니다.",
     },
     about: {
       title: "정보",

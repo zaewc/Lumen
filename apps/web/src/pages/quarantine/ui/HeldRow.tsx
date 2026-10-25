@@ -4,8 +4,16 @@ import { useEffect, useId, useRef, useState } from "react";
 import { operationOf, QUERY_KEYS, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes, parentPath } from "@/shared/lib";
-import { buttonClass, ErrorNotice, FolderIcon, InfoTip, RestoreIcon } from "@/shared/ui";
+import { buttonClass, ErrorNotice } from "@/shared/ui";
 import { daysHeld, type LastAction } from "../lib/outcome";
+
+/**
+ * The list's columns. Wide: name, original location, size, time held and
+ * the actions on one line. Narrow (below 42rem): name and size, location
+ * and time held, then the actions.
+ */
+export const HELD_GRID =
+  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 @2xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_5.5rem_5.5rem_12.5rem]";
 
 /**
  * One held item: restore it, or (only if it is retained, and only after a
@@ -59,53 +67,43 @@ export function HeldRow({
 
   const busy = restore.isPending || finalize.isPending;
   const retained = item.state === "retained";
+  const location = item.original === null ? null : parentPath(item.original);
   return (
-    <li className="px-4 py-3.5">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5">
-        <span
-          aria-hidden="true"
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-fill-strong text-ink-2"
-        >
-          <FolderIcon className="size-[18px]" />
+    <li className="py-1.5">
+      <div className={`${HELD_GRID} items-center gap-y-1`}>
+        <span className="truncate text-ink">
+          {item.original === null ? m.held.unknownPath : baseName(item.original)}
         </span>
-        <div className="min-w-0 flex-1 basis-40">
-          <p className="truncate text-[14px] font-medium text-ink">
-            {item.original === null ? m.held.unknownPath : baseName(item.original)}
-          </p>
-          {item.original !== null && (
-            <p
-              className="mt-0.5 truncate font-mono text-[11px] text-ink-3 select-text"
-              title={item.original}
-            >
-              {parentPath(item.original)}
-            </p>
-          )}
-          <p className="mt-0.5 text-[12px] text-ink-2">
-            {item.reclaim_bytes !== null && (
-              <span className="font-medium tabular-nums text-ink">
-                {formatBytes(item.reclaim_bytes)}
-                {" · "}
-              </span>
-            )}
-            {retained ? m.held.days(daysHeld(item.since, new Date())) : m.held.afterFailure}
-          </p>
-        </div>
-        <div className="ml-auto flex shrink-0 gap-1.5">
+        <span className="col-start-2 row-start-1 text-right tabular-nums text-ink @2xl:col-start-3">
+          {item.reclaim_bytes === null ? "–" : formatBytes(item.reclaim_bytes)}
+        </span>
+        <span
+          title={location ?? undefined}
+          className="row-start-2 truncate text-[12px] text-ink-3 select-text @2xl:col-start-2 @2xl:row-start-1 @2xl:text-[13px]"
+        >
+          {location}
+        </span>
+        <span
+          title={retained ? undefined : m.held.afterFailure}
+          className={`col-start-2 row-start-2 text-right text-[12px] tabular-nums @2xl:col-start-4 @2xl:row-start-1 @2xl:text-left @2xl:text-[13px] ${retained ? "text-ink-2" : "text-amber-700 dark:text-amber-400"}`}
+        >
+          {retained ? m.held.days(daysHeld(item.since, new Date())) : m.held.restoreOnly}
+        </span>
+        <div className="col-span-2 flex justify-end gap-1 @2xl:col-span-1 @2xl:col-start-5 @2xl:row-start-1">
           <button
             type="button"
             onClick={() => restore.mutate()}
             disabled={busy}
             className={buttonClass("secondary", "sm")}
           >
-            <RestoreIcon className="size-4" />
             {m.held.restore}
           </button>
-          {retained && !confirming && (
+          {retained && (
             <button
               ref={ask}
               type="button"
               onClick={() => setConfirming(true)}
-              disabled={busy}
+              disabled={busy || confirming}
               className={buttonClass("dangerQuiet", "sm")}
             >
               {m.held.removeForGoodAsk}
@@ -114,26 +112,11 @@ export function HeldRow({
         </div>
       </div>
       {retained && confirming && (
-        <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/8 p-3.5 dark:border-red-400/25 dark:bg-red-400/10">
-          <div className="flex items-start gap-2">
-            <p
-              id={warning}
-              className="flex-1 text-[13px] font-medium text-red-900 dark:text-red-200"
-            >
-              {m.held.removeForGoodWarning}
-            </p>
-            <InfoTip term="finalize" />
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => finalize.mutate()}
-              disabled={busy}
-              aria-describedby={warning}
-              className={buttonClass("danger", "sm")}
-            >
-              {m.held.removeForGood}
-            </button>
+        <div className="mt-2 mb-1 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-500/8 px-3 py-2.5 dark:bg-red-400/10">
+          <p id={warning} className="min-w-0 flex-1 basis-64 text-red-900 dark:text-red-200">
+            {m.held.removeForGoodWarning}
+          </p>
+          <div className="flex gap-2">
             <button
               ref={cancel}
               type="button"
@@ -143,11 +126,20 @@ export function HeldRow({
             >
               {m.common.cancel}
             </button>
+            <button
+              type="button"
+              onClick={() => finalize.mutate()}
+              disabled={busy}
+              aria-describedby={warning}
+              className={buttonClass("danger", "sm")}
+            >
+              {m.held.removeForGood}
+            </button>
           </div>
         </div>
       )}
       {(restore.isError || finalize.isError) && (
-        <div className="mt-3">
+        <div className="mt-2">
           <ErrorNotice message={m.held.failed} error={restore.error ?? finalize.error} />
         </div>
       )}

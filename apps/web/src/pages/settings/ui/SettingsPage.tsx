@@ -3,26 +3,24 @@ import { useTransport } from "@/shared/api";
 import { APP_VERSION } from "@/shared/config";
 import { LOCALE_NAMES, LOCALES, useI18n } from "@/shared/i18n";
 import { isMac, userAgent } from "@/shared/lib";
-import { buttonClass, Group, GroupRow, InfoTip, Page, Segmented } from "@/shared/ui";
-import { AiReviewGroup } from "./AiReviewGroup";
+import { buttonClass, Group, GroupRow, Page, Segmented } from "@/shared/ui";
+import { AiReviewSetting } from "./AiReviewSetting";
 
 /** English / 한국어, each named in its own language. */
-function LanguageGroup() {
+function LanguageSetting() {
   const { locale, m, setLocale } = useI18n();
   return (
-    <Group>
-      <GroupRow
-        title={m.language}
-        trailing={
-          <Segmented
-            label={m.language}
-            value={locale}
-            onChange={setLocale}
-            segments={LOCALES.map((value) => ({ value, label: LOCALE_NAMES[value] }))}
-          />
-        }
-      />
-    </Group>
+    <GroupRow
+      title={m.language}
+      trailing={
+        <Segmented
+          label={m.language}
+          value={locale}
+          onChange={setLocale}
+          segments={LOCALES.map((value) => ({ value, label: LOCALE_NAMES[value] }))}
+        />
+      }
+    />
   );
 }
 
@@ -59,16 +57,8 @@ function PermissionsGroup() {
   const mac = isMac(userAgent());
   const p = m.settings.permissions;
   return (
-    <div id="permissions" className="scroll-mt-6">
-      <Group
-        title={p.title}
-        note={
-          <span className="flex items-start gap-1.5">
-            <span className="flex-1">{p.unread}</span>
-            <InfoTip term="coverage" />
-          </span>
-        }
-      >
+    <div id="permissions" className="scroll-mt-16">
+      <Group title={p.title} note={p.unread}>
         <GroupRow
           title={mac ? p.fda : p.access}
           description={
@@ -112,17 +102,17 @@ function AboutGroup() {
   );
 }
 
-/** Settings, grouped as in System Settings: AI review, language, permissions, about. */
+/** Settings, grouped as in System Settings: AI review and language, permissions, about. */
 export function SettingsPage() {
   const { m } = useI18n();
   return (
     <Page title={m.settings.title}>
-      <div className="space-y-7">
-        <AiReviewGroup />
-        <LanguageGroup />
-        <PermissionsGroup />
-        <AboutGroup />
-      </div>
+      <Group>
+        <AiReviewSetting />
+        <LanguageSetting />
+      </Group>
+      <PermissionsGroup />
+      <AboutGroup />
     </Page>
   );
 }

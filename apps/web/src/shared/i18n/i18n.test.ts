@@ -160,11 +160,11 @@ describe("glossary", () => {
 
 describe("plain words", () => {
   it("count items and days in each language", () => {
-    expect(en.held.days(0)).toBe("Moved here today");
-    expect(en.held.days(1)).toBe("In Quarantine for 1 day");
-    expect(en.held.days(30)).toBe("In Quarantine for 30 days");
-    expect(ko.held.days(30)).toBe("보관한 지 30일");
-    expect(en.quarantine.count(1)).toBe("1 item held");
-    expect(ko.quarantine.count(2)).toBe("보관 중인 항목 2개");
+    expect(en.held.days(0)).toBe("Today");
+    expect(en.held.days(1)).toBe("1 day");
+    expect(en.held.days(1204)).toBe("1,204 days");
+    expect(ko.held.days(30)).toBe("30일");
+    expect(en.common.items(1)).toBe("1 item");
+    expect(ko.common.items(2)).toBe("항목 2개");
   });
 });

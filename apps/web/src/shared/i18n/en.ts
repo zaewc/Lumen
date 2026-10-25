@@ -68,10 +68,10 @@ export const en = {
   ai: {
     title: "AI review",
     offIntro:
-      "An AI model double-checks what Lumen proposes to clean up. It can only make Lumen more careful. It stays off until you turn it on.",
+      "A second opinion from an AI model on what Lumen proposes to clean up. It can only make Lumen more careful.",
     onIntro: (service: string) =>
-      `On (${service}). Before an item is proposed for clean-up, its details (never its contents) are sent for a second opinion. It can only make Lumen more careful.`,
-    checking: "Checking whether AI review is on…",
+      `On, with ${service}. Each proposed item's details (never its contents) are sent for a second opinion. It can only make Lumen more careful.`,
+    checking: "Checking…",
     short: {
       on: "AI review on",
       off: "AI review off",
@@ -219,11 +219,13 @@ export const en = {
   },
   quarantine: {
     title: "Quarantine",
-    count: (n: number) => `${items(n)} held`,
-    total: (size: string) => `Remove them for good to free ${size}`,
-    totalAtLeast: (size: string) => `Remove them for good to free at least ${size}`,
-    intro:
-      "Items you clean up wait here. Restore puts an item back where it was; removing it for good frees its space.",
+    atLeast: (size: string) => `at least ${size}`,
+    columns: {
+      name: "Name",
+      location: "Original location",
+      size: "Size",
+      held: "Held",
+    },
     loadFailed: "Quarantine could not be loaded.",
     empty: "Quarantine is empty",
     emptyHint: "Items you clean up wait here, so you can restore them if you change your mind.",
@@ -232,9 +234,8 @@ export const en = {
   held: {
     unknownPath: "(unknown location)",
     days: (days: number) =>
-      days === 0
-        ? "Moved here today"
-        : `In Quarantine for ${count(days)} ${days === 1 ? "day" : "days"}`,
+      days === 0 ? "Today" : `${count(days)} ${days === 1 ? "day" : "days"}`,
+    restoreOnly: "Restore only",
     afterFailure:
       "Kept here safely after a move went wrong. It can be restored, but not removed for good.",
     restore: "Restore",
@@ -284,7 +285,7 @@ export const en = {
       accessIntro:
         "Your computer may refuse Lumen some folders. Lumen then reads everything it is allowed to.",
       unread:
-        "A folder Lumen cannot read is shown as unread, never as empty, and nothing in it is suggested for clean-up.",
+        "A folder Lumen cannot read is shown as unread, never as empty, and nothing in it is proposed.",
     },
     about: {
       title: "About",

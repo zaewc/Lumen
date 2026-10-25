@@ -2,7 +2,8 @@ import { type ReactNode, useId } from "react";
 
 /**
  * A group of settings or figures: a small title, then its rows divided by
- * hairlines (no box around them), and an optional note below. Rows are its
+ * hairlines (no box around them), and an optional note below. Without a
+ * title, the group starts with its first row. Rows are its
  * children, each a `GroupRow` or any block.
  */
 export function Group({
@@ -22,7 +23,11 @@ export function Group({
           {title}
         </h2>
       )}
-      <div className="divide-y divide-line border-y border-line">{children}</div>
+      <div
+        className={`divide-y divide-line border-b border-line ${title === undefined ? "" : "border-t"}`}
+      >
+        {children}
+      </div>
       {note !== undefined && <div className="pt-2 text-[12px] text-ink-3">{note}</div>}
     </section>
   );

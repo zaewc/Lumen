@@ -3,9 +3,9 @@ import { useState } from "react";
 import { heldTotal, useHeld } from "@/entities/held";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
-import { ArchiveIcon, buttonClass, ErrorNotice, InfoTip, Notice, Page } from "@/shared/ui";
+import { buttonClass, ErrorNotice, InfoTip, Notice, Page } from "@/shared/ui";
 import { doneText, doneWell, type LastAction } from "../lib/outcome";
-import { HeldRow } from "./HeldRow";
+import { HELD_GRID, HeldRow } from "./HeldRow";
 
 /** Like a trash can: what quarantine holds, to restore or remove for good. */
 export function QuarantinePage() {
@@ -19,61 +19,68 @@ export function QuarantinePage() {
   return (
     <Page
       title={m.quarantine.title}
-      {...(items.length > 0
-        ? {
-            accessory: (
-              <span className="flex flex-wrap items-center gap-x-1.5">
-                <span className="tabular-nums">{m.quarantine.count(items.length)}</span>
-                <span aria-hidden="true">·</span>
-                <span className="tabular-nums">
-                  {total.exact ? m.quarantine.total(size) : m.quarantine.totalAtLeast(size)}
-                </span>
-                <InfoTip term="quarantine" />
-              </span>
-            ),
-          }
-        : {})}
+      accessory={
+        <>
+          <InfoTip term="quarantine" />
+          {items.length > 0 && (
+            <span className="tabular-nums">
+              {m.common.items(items.length)} · {total.exact ? size : m.quarantine.atLeast(size)}
+            </span>
+          )}
+        </>
+      }
     >
       <div role="status" className="empty:hidden">
         {last && (
           <Notice tone={doneWell(last.done) ? "success" : "warning"}>
             <p>
               {last.original !== null && (
-                <span className="font-semibold">{baseName(last.original)}: </span>
+                <span className="font-medium">{baseName(last.original)}: </span>
               )}
               {doneText(m, last.done)}
             </p>
           </Notice>
         )}
       </div>
-      {held.isPending && <p className="px-1 text-[13px] text-ink-3">{m.common.loading}</p>}
-      {held.isError && <ErrorNotice message={m.quarantine.loadFailed} error={held.error} />}
+      {held.isPending && <p className="text-ink-3">{m.common.loading}</p>}
+      {held.isError && (
+        <ErrorNotice message={m.quarantine.loadFailed} error={held.error}>
+          <button
+            type="button"
+            onClick={() => void held.refetch()}
+            className={buttonClass("secondary", "sm")}
+          >
+            {m.common.tryAgain}
+          </button>
+        </ErrorNotice>
+      )}
       {held.isSuccess && items.length === 0 && (
-        <section className="flex flex-col items-center rounded-xl border border-line bg-surface px-6 py-12 text-center">
-          <span className="flex size-14 items-center justify-center rounded-2xl bg-fill-strong text-ink-2">
-            <ArchiveIcon className="size-7" />
-          </span>
-          <h2 className="mt-5 text-[17px] font-semibold text-ink">{m.quarantine.empty}</h2>
-          <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-ink-2">
-            {m.quarantine.emptyHint}
-          </p>
-          <Link to="/clean" className={`${buttonClass("secondary")} mt-6`}>
+        <section className="space-y-1">
+          <h2 className="font-semibold text-ink">{m.quarantine.empty}</h2>
+          <p className="text-ink-2">{m.quarantine.emptyHint}</p>
+          <Link to="/clean" className="inline-block pt-1 text-accent-ink hover:underline">
             {m.quarantine.goCleanUp}
           </Link>
         </section>
       )}
       {items.length > 0 && (
-        <section>
-          <div className="flex items-start gap-2 px-1 pb-2.5 text-[13px] text-ink-2">
-            <p className="flex-1">{m.quarantine.intro}</p>
-            <InfoTip term="restore" />
+        <div className="@container">
+          <div
+            aria-hidden="true"
+            className={`${HELD_GRID} hidden border-b border-line pb-1 text-[12px] font-medium text-ink-3 @2xl:grid`}
+          >
+            <span>{m.quarantine.columns.name}</span>
+            <span>{m.quarantine.columns.location}</span>
+            <span className="text-right">{m.quarantine.columns.size}</span>
+            <span>{m.quarantine.columns.held}</span>
+            <span />
           </div>
-          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+          <ul className="divide-y divide-line border-b border-line">
             {items.map((item) => (
               <HeldRow key={item.operation} item={item} onDone={setLast} />
             ))}
           </ul>
-        </section>
+        </div>
       )}
     </Page>
   );
