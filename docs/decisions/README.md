@@ -46,3 +46,4 @@ recommended option.
 | [0035](0035-show-tool-commands-never-run-them.md) | Show tools' own cleanup commands; never run them | Accepted |
 | [0036](0036-jeb-on-the-school-ai-hub.md) | Use Jeb on the school AI Hub as the default judge | Accepted |
 | [0037](0037-keep-ai-review-on-once-turned-on.md) | Keep AI review on once the user turns it on | Accepted |
+| [0038](0038-unsigned-beta-from-a-project-website.md) | Ship an unsigned beta from a project website | Accepted |
