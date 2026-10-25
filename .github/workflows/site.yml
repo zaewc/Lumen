@@ -1,17 +1,24 @@
 name: site
 
-# The download site (ADR-0038): apps/site is static and has no build step, so
-# it is uploaded as it is and deployed to GitHub Pages. Pages must be enabled
-# once with "GitHub Actions" as its source (docs/operations/release.md).
+# The download site (ADR-0038): apps/site is built with Astro into static
+# files and deployed to GitHub Pages. Pages must be enabled once with "GitHub
+# Actions" as its source (docs/operations/release.md).
 on:
   push:
     branches: [main]
     paths:
       - apps/site/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
       - .github/workflows/site.yml
   workflow_dispatch:
 
 permissions: {}
+
+env:
+  # Turborepo and Astro send anonymous usage data unless told not to (ADR-0022).
+  TURBO_TELEMETRY_DISABLED: "1"
+  ASTRO_TELEMETRY_DISABLED: "1"
 
 # One deployment at a time; a running deployment is never cancelled midway.
 concurrency:
@@ -23,7 +30,7 @@ jobs:
     name: upload
     runs-on: ubuntu-24.04
     permissions:
-      contents: read # check out apps/site
+      contents: read # check out the repository
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
@@ -31,9 +38,22 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          # A deployed site never restores a cache (ADR-0026).
+          package-manager-cache: false
+      # pnpm comes from `packageManager` through Corepack (ADR-0024). Only the
+      # site and what it depends on are installed.
+      - name: Install the site exactly as locked
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile --filter "@lumen/site..."
+      - name: Build
+        run: pnpm --filter @lumen/site build
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: apps/site
+          path: apps/site/dist
 
   deploy:
     name: deploy

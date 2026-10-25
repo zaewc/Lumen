@@ -63,11 +63,31 @@ workflow. It needs the GitHub CLI.
 [ADR-0038](../decisions/0038-unsigned-beta-from-a-project-website.md): the public
 download page, served by GitHub Pages at <https://zaewc.github.io/Lumen/>.
 
-- **What it is:** a static page in [`apps/site`](../../apps/site) with no build step and
-  no dependencies: `index.html` (Korean and English), `style.css`, `lang.js` (picks the
-  language before the page is drawn) and `main.js`. It loads nothing from other sites
-  and has no cookies or analytics; its Content-Security-Policy allows connections to
-  `api.github.com` only.
+- **What it is:** static pages built with [Astro](https://astro.build/) in
+  [`apps/site`](../../apps/site) (`@lumen/site`): Korean at `/Lumen/` and English at
+  `/Lumen/en/`, each with `<html lang>`, `hreflang` alternates and a plain link to the
+  other language (no automatic redirect, nothing stored), plus `404.html`. No UI
+  framework: Astro components per section in `src/components`, the copy in
+  `src/i18n/ko.ts` and `en.ts` (both typed as `Messages`, so the languages cannot
+  drift), and one TypeScript module for the release lookup (`src/scripts`). The pages
+  load nothing from other sites and have no cookies or analytics.
+- **Content-Security-Policy:** set by a `<meta>` in `src/layouts/Base.astro`:
+  `default-src 'none'`, scripts, styles and images from the site itself, and
+  connections to `api.github.com` only. Astro is configured to inline nothing
+  (`build.inlineStylesheets: "never"`, `vite.build.assetsInlineLimit: 0`), so the built
+  HTML has no inline `<script>` or `<style>` and needs no hashes; the strings the script
+  writes come from `<body data-strings>`. Astro's own `security.csp` is not used, as
+  there is nothing inline to hash. The policy is left out of `astro dev`, whose server
+  injects inline styles and scripts.
+- **Checks:** `pnpm run check` builds the site, tests the release metadata boundary,
+  and type-checks the TypeScript modules with TypeScript 7. Biome validates the full
+  HTML/Astro templates without disabling lint rules. `astro build` compiles the
+  templates; `.astro` files are not semantically type-checked by `tsc`, so reusable
+  logic stays in typed `.ts` modules. See the [migration review](../research/14-astro-download-site.md).
+  Astro telemetry is off; its unused optional image optimizer is not installed.
+- **Run it locally:** `pnpm --filter @lumen/site dev` (live reload, no CSP), or
+  `pnpm --filter @lumen/site build` then `pnpm --filter @lumen/site preview` to see the
+  built pages at <http://localhost:4321/Lumen/>.
 - **What it shows:** the release GitHub marks as **Latest**, read in the browser from
   `GET /repos/zaewc/Lumen/releases/latest`. The visitor's platform gets the primary
   button (`_universal.dmg`, `_x64-setup.exe`, `_amd64.deb`/`_amd64.AppImage` by name
@@ -77,11 +97,13 @@ download page, served by GitHub Pages at <https://zaewc.github.io/Lumen/>.
   saying that the first beta is coming. Without JavaScript, or when the API cannot be
   reached (it allows 60 unauthenticated requests per hour per IP address), every
   download link goes to the release page instead.
-- **How it is deployed:** [`site.yml`](../../.github/workflows/site.yml) uploads
-  `apps/site` as it is and deploys it with GitHub's Pages actions on every push to
-  `main` that changes `apps/site/**` or the workflow, or when run by hand. Only the
+- **How it is deployed:** [`site.yml`](../../.github/workflows/site.yml) installs the
+  site's dependencies exactly as locked, builds it, uploads `apps/site/dist` and deploys
+  it with GitHub's Pages actions on every push to `main` that changes `apps/site/**`,
+  the lockfile, `pnpm-workspace.yaml` or the workflow, or when run by hand. Only the
   deploy job can write to Pages.
 - **Once (done 2026-10-25):** in the repository's Settings › Pages, set **Source** to
   **GitHub Actions**. Until then the deploy job fails at `configure-pages`.
-- `404.html` uses absolute `/Lumen/` paths, because Pages serves it for any missing
-  path; a custom domain would need them changed.
+- Every page links its files under `/Lumen/` (`base` in `astro.config.ts`), so
+  `404.html` works for any missing path; a custom domain would change `site` and
+  `base` there.

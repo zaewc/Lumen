@@ -1,5 +1,6 @@
 /*
- * Lumen's download site (ADR-0038). The app's tokens (apps/web/src/app/styles.css):
+ * Lumen's download site (ADR-0038), one stylesheet for every page; Astro emits
+ * it as a file (CSP style-src 'self'). The app's tokens (apps/web/src/app/styles.css):
  * a neutral window, hairline separators and one accent, the indigo of the icon.
  * Hierarchy comes from type, spacing and alignment, not containers.
  */
@@ -55,21 +56,22 @@
   }
 }
 
-/* The page holds both languages; lang.js sets <html lang> and only that one shows. */
-:root[lang="ko"] [lang="en"],
-:root[lang="en"] [lang="ko"] {
-  display: none;
-}
-
 /* Korean reads best when words are not broken across lines. */
 :root:lang(ko) {
   word-break: keep-all;
 }
 
 /* Controls that need JavaScript stay hidden without it, and the reverse. */
-:root:not(.js) .js-only,
-:root.js .no-js {
-  display: none;
+@media (scripting: none) {
+  .js-only {
+    display: none;
+  }
+}
+
+@media (scripting: enabled) {
+  .no-js {
+    display: none;
+  }
 }
 
 *,
@@ -200,21 +202,17 @@ pre {
   color: var(--ink);
 }
 
-.lang-toggle {
-  appearance: none;
-  border: 0;
-  background: none;
+.lang-link {
   padding: 4px 0;
   color: var(--ink-2);
-  font: inherit;
   font-size: 0.92rem;
-  cursor: pointer;
+  text-decoration: none;
 }
 
-.lang-toggle:hover {
+.lang-link:hover {
   color: var(--ink);
   text-decoration: underline;
-  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
 }
 
 /* Only the download link and the language switch fit beside the name on a phone. */
