@@ -138,7 +138,7 @@ function renderPrimary(result: ReleaseResult, platform: Platform | null, t: Clie
     case "none":
       button.href = REPO_URL;
       label.textContent = t.viewOnGitHub;
-      meta.textContent = t.comingSoon;
+      meta.replaceChildren();
       return;
     case "error":
       button.href = RELEASES_URL;

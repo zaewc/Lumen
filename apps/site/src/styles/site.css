@@ -313,10 +313,8 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
-.maturity {
-  margin-top: 4px;
-  color: var(--ink-3);
-  font-size: 0.9375rem;
+.meta:empty {
+  display: none;
 }
 
 /* Secondary downloads stay next to the primary action, behind one disclosure. */
@@ -642,7 +640,6 @@ p + .disclosure {
     margin-top: 28px;
   }
 
-  .maturity,
   .meta {
     font-size: 0.875rem;
   }

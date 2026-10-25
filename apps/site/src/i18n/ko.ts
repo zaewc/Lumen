@@ -13,7 +13,6 @@ export const ko: Messages = {
   nav: { label: "사이트", docs: "문서" },
   hero: {
     headline: ["공간을 이해하고,", "안전하게 정리해요."],
-    maturity: "시험 배포 단계 · 서명되지 않은 소프트웨어",
     lead: "무엇이 공간을 차지하는지, 무엇을 남겨야 하는지 살펴봐요.",
     download: "릴리스 보기",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
@@ -170,7 +169,6 @@ export const ko: Messages = {
     viewOnGitHub: "GitHub에서 개발 과정 보기",
     downloadFromGitHub: "GitHub 릴리스 확인하기",
     getFromGitHub: "GitHub 릴리스 확인하기",
-    comingSoon: "첫 공개 릴리스를 준비하고 있어요.",
     comingSoonShort: "아직 공개한 릴리스가 없어요. ",
     loadFailed: "릴리스를 확인하지 못했어요. GitHub에서 직접 확인해 주세요.",
     checkFailed: "릴리스를 확인하지 못했어요. ",

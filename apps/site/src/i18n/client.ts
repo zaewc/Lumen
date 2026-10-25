@@ -11,7 +11,6 @@ export const CLIENT_KEYS = [
   "viewOnGitHub",
   "downloadFromGitHub",
   "getFromGitHub",
-  "comingSoon",
   "comingSoonShort",
   "loadFailed",
   "checkFailed",

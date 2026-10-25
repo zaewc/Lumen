@@ -28,8 +28,9 @@ validated GitHub release loader. No new dependencies, fonts, analytics or images
 
 One primary download action, one native disclosure for the other desktop builds
 and installation/verification help, then separate editorial safety chapters and source/docs
-links. No feature cards or marketing navigation. Keep the pre-alpha and unsigned
-status visible even when release lookup fails or JavaScript is unavailable.
+links. No feature cards or marketing navigation. The owner removed the two hero
+release/maturity notices; unsigned-app opening instructions remain in the
+installation disclosure, including without JavaScript.
 
 Validate actual rendered light layouts under both system themes and narrow/wide layouts, keyboard focus,
 platform detection, release/loading/missing/error states, no-JavaScript links,
@@ -51,7 +52,8 @@ product launch page: a 75–90vh desktop hero, 64–80px headline, larger produc
 presence and separate editorial safety chapters. This website-specific direction
 supersedes the earlier small-type preference; the application UI is unchanged.
 The site always uses a white/light palette, including when the OS prefers dark.
-Maturity and unsigned-distribution information follows the primary action.
+The hero omits release-preparation and maturity notices at the owner's request.
+Successful release metadata, loading/error feedback and installation help remain.
 
 ## Real product capture
 

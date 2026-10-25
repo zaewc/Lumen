@@ -13,7 +13,6 @@ export const en: Messages = {
   nav: { label: "Site", docs: "Docs" },
   hero: {
     headline: ["Storage intelligence", "for every device."],
-    maturity: "Pre-alpha · Unsigned software",
     lead: "Understand what takes up space, and what still needs to stay.",
     download: "View releases",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
@@ -167,7 +166,6 @@ export const en: Messages = {
     viewOnGitHub: "Follow development on GitHub",
     downloadFromGitHub: "Check GitHub releases",
     getFromGitHub: "Check GitHub releases",
-    comingSoon: "Preparing the first public release.",
     comingSoonShort: "No public release yet. ",
     loadFailed: "Release information is unavailable. Check GitHub directly.",
     checkFailed: "Release information is unavailable. ",

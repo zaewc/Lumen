@@ -28,7 +28,6 @@ export interface Messages {
   };
   readonly hero: {
     readonly headline: readonly [string, string];
-    readonly maturity: string;
     readonly lead: string;
     readonly download: string;
     readonly requirements: string;
