@@ -19,6 +19,7 @@ catalog:
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
   "@vitejs/plugin-react": 6.1.2
+  astro: 7.4.2
   expo: 58.0.11
   expo-image: 58.0.15
   expo-modules-core: 58.0.19
@@ -56,6 +57,11 @@ trustPolicy: no-downgrade
 trustPolicyIgnoreAfter: 525600
 strictDepBuilds: true
 allowBuilds: {}
+
+# Astro's optional image optimizer (native libvips binaries). The download site
+# serves its few images as they are from apps/site/public, so it is not installed.
+ignoredOptionalDependencies:
+  - sharp
 
 
 # Security fixes for transitive dependencies, each with its advisory.

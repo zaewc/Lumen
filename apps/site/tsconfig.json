@@ -1,0 +1,7 @@
+{
+  "extends": "@lumen/config/tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2024", "dom", "dom.iterable"]
+  },
+  "include": ["src/**/*.ts", "astro.config.ts"]
+}

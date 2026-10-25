@@ -12,6 +12,9 @@ dist/
 coverage/
 *.tsbuildinfo
 
+# Astro (apps/site): generated types and content cache; its build goes to dist/
+apps/site/.astro/
+
 # Tauri
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/

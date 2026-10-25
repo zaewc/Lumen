@@ -34,6 +34,7 @@ Layout:
 apps/web        Vite SPA (desktop webview + browser dashboard)
 apps/desktop    Tauri host (src-tauri) embedding the core
 apps/mobile     Expo app with local Expo Modules (Swift/Kotlin)
+apps/site       Astro download site on GitHub Pages (ADR-0038)
 crates/         Rust workspace members (ADR-0003)
 packages/ui     design tokens and primitives
 packages/api-client  generated from the OpenAPI spec (ADR-0011)
