@@ -1,0 +1,286 @@
+import { REPO_URL } from "../data/release";
+import type { Messages } from "./types";
+
+// Korean copy in 해요체: active, positive, no honorific ~시, Lumen's glossary.
+export const ko: Messages = {
+  lang: "ko",
+  otherLanguage: "English",
+  description:
+    "디스크에서 안전하게 비울 수 있는 공간을 찾아요. 정리한 항목은 영구 삭제하기 전까지 언제든 되돌릴 수 있어요. macOS, Windows, Linux용 베타예요.",
+  ogDescription:
+    "디스크에서 안전하게 비울 수 있는 공간을 찾아요. 정리한 항목은 영구 삭제하기 전까지 언제든 되돌릴 수 있어요.",
+  skip: "본문으로 건너뛰기",
+  nav: { label: "사이트", download: "다운로드", install: "처음 열기", faq: "질문" },
+  hero: {
+    lead: "디스크에서 안전하게 비울 수 있는 공간을 찾아요. 정리한 항목은 영구 삭제하기 전까지 언제든 되돌릴 수 있어요.",
+    download: "다운로드",
+    otherPlatforms: "다른 플랫폼용 다운로드",
+    requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
+  },
+  how: {
+    title: "작동 방식",
+    steps: [
+      {
+        title: "검사",
+        text: "읽기만 해요. 파일을 열거나 바꾸지 않고, 클라우드에만 있는 파일도 내려받지 않아요.",
+      },
+      {
+        title: "판단",
+        text: "정해진 안전 규칙으로 항목마다 유지, 검토 필요, 정리 제안 중 하나를 고르고 그 이유를 보여 줘요.",
+      },
+      {
+        title: "확인",
+        text: "정리를 제안한 항목을 보고 직접 확인해요. 확인하기 전에는 아무것도 옮기지 않아요.",
+      },
+      {
+        title: "격리",
+        text: "확인한 항목은 지우지 않고 격리함으로 옮겨요. 영구 삭제하기 전까지 언제든 복원할 수 있고, 영구 삭제는 요청할 때만 해요. 공간은 그때 비어요.",
+      },
+    ],
+  },
+  leftAlone: {
+    title: "확실하지 않으면 그대로 둬요",
+    items: [
+      "시스템 파일, 문서, 자격 증명과 키, 브라우저 프로필, 데이터베이스는 늘 그대로 둬요.",
+      "읽지 못한 폴더는 비어 있다고 보지 않고, 그 안의 항목도 그대로 둬요.",
+      "사용 중인 파일과 클라우드와 동기화하는 파일도 그대로 둬요.",
+      "옮기기 직전에 항목마다 다시 확인하고, 복원할 때 아무것도 덮어쓰지 않아요.",
+    ],
+  },
+  privacy: {
+    title: "개인정보",
+    local:
+      "검사 결과, 판단, 격리함, 기록은 이 컴퓨터에만 저장해요. 사용 통계나 오류 보고를 보내지 않고, 추적하지도 않아요.",
+    aiTitle: "AI 검토(선택).",
+    ai: "처음에는 꺼져 있고, 설정에서 켤 수 있어요. 켜면 정리를 제안한 항목의 경로, 크기, 지난 기간, 판단 근거만 학교의 Jeb 서버로 보내요. 홈 폴더는 ~로 바꿔서 보내고, 파일 내용은 보내지 않아요. AI는 판단을 더 신중하게만 바꿀 수 있고, 무엇을 옮길지는 고르지 않아요. Jeb 서버 운영자가 요청을 보관할 수 있어요.",
+  },
+  download: {
+    title: "다운로드",
+    noScript: [
+      "파일은 ",
+      { link: "GitHub 릴리스", href: `${REPO_URL}/releases/latest` },
+      "에서 받을 수 있어요.",
+    ],
+    checking: "최신 버전을 확인하고 있어요…",
+    thisComputer: "너가 다운받아야 할거",
+    installer: "설치 프로그램",
+    requirements: {
+      mac: "macOS 13 이상 · Apple silicon, Intel",
+      windows: "Windows 10 22H2 이상, Windows 11 · 64비트 · 관리자 권한 없이 설치",
+      linux: "x86_64 · Ubuntu 24.04 이상 또는 비슷한 배포판",
+    },
+  },
+  files: {
+    summary: "다른 파일: command line, 체크섬, SBOM",
+    intro: [
+      "command line ",
+      { code: "lumen" },
+      "은 ",
+      { code: "lumen-<target>.tar.gz" },
+      "(macOS Apple silicon, Linux)와 ",
+      { code: ".zip" },
+      "(Windows)으로 받을 수 있어요. ",
+      { code: ".cdx.json" },
+      "은 빌드에 들어간 구성 요소 목록(SBOM)이에요.",
+    ],
+  },
+  verify: {
+    summary: "내려받은 파일 확인하기",
+    introBefore: [],
+    introAfter: [
+      "를 내려받은 파일과 같은 폴더에 두고, 그 폴더에서 아래 명령을 실행해 주세요. 파일 이름 옆에 ",
+      { code: "OK" },
+      "가 나오면 돼요.",
+    ],
+    windowsNote:
+      " · 나온 값을 SHA256SUMS에서 같은 파일의 값과 비교해 주세요. 대소문자는 달라도 괜찮아요.",
+    provenance: "빌드 증명",
+    provenanceNote: [
+      " · 이 저장소의 릴리스 워크플로가 만든 파일인지 확인해요. ",
+      { link: "GitHub CLI", href: "https://cli.github.com/" },
+      "가 있어야 해요.",
+    ],
+  },
+  install: {
+    title: "처음 열기",
+    intro:
+      "Lumen은 아직 코드 서명을 하지 않아서 macOS와 Windows가 처음 실행을 막아요. 한 번만 허용하면 다음부터는 바로 열려요.",
+    mac: {
+      steps: [
+        [{ code: ".dmg" }, "를 열고 Lumen을 ", { ui: "응용 프로그램" }, " 폴더로 옮겨 주세요."],
+        ["Lumen을 열어 주세요. 열 수 없다는 창이 나오면 ", { ui: "완료" }, "를 눌러 주세요."],
+        [
+          { ui: "시스템 설정 › 개인정보 보호 및 보안" },
+          "에서 아래쪽 ",
+          { ui: "보안" },
+          " 부분의 ",
+          { ui: "“그래도 열기”" },
+          "를 누르고 암호나 Touch ID로 확인해 주세요.",
+        ],
+        ["Lumen을 다시 열고 ", { ui: "그래도 열기" }, "를 눌러 주세요. 다음부터는 바로 열려요."],
+      ],
+      aside: [
+        "macOS 13, 14에서는 Control-클릭 › ",
+        { ui: "열기" },
+        "로도 열 수 있어요. macOS 15부터는 위 방법으로 열어 주세요.",
+      ],
+    },
+    fda: {
+      summary: "macOS 전체 디스크 접근 권한",
+      intro:
+        "허용하면 메일, 메시지, 다른 앱의 데이터처럼 보호된 폴더도 검사할 수 있어요. 허용하지 않으면 이런 폴더는 ‘읽지 못함’으로 남고, 그 안의 항목은 그대로 둬요.",
+      steps: [
+        [
+          { ui: "시스템 설정 › 개인정보 보호 및 보안 › 전체 디스크 접근 권한" },
+          "을 열어 주세요. Lumen 설정의 버튼으로도 열 수 있어요.",
+        ],
+        [
+          "Lumen을 켜 주세요. 목록에 없으면 ",
+          { ui: "+" },
+          "를 눌러 응용 프로그램 폴더의 Lumen을 추가해 주세요.",
+        ],
+        ["Lumen을 종료했다가 다시 열고, 다시 검사해 주세요."],
+      ],
+      aside: [
+        "아직 서명이 없어서, 업데이트한 Lumen을 macOS가 다른 앱으로 볼 수 있어요. 업데이트한 뒤 폴더를 읽지 못하면 목록에서 Lumen을 ",
+        { ui: "−" },
+        "로 지우고 다시 추가해 주세요.",
+      ],
+    },
+    windows: {
+      steps: [
+        [
+          "브라우저가 다운로드를 경고하면 다운로드 목록의 메뉴에서 ",
+          { ui: "유지" },
+          "를 골라 주세요.",
+        ],
+        [
+          "설치 프로그램을 실행해 주세요. ",
+          { ui: "Windows의 PC 보호" },
+          " 창이 나오면 ",
+          { ui: "추가 정보" },
+          "를 누른 다음 ",
+          { ui: "실행" },
+          "을 눌러 주세요.",
+        ],
+        [
+          "시작 메뉴에서 Lumen을 일반 사용자 권한으로 열어 주세요. 관리자 권한으로 실행하면 파일을 옮기지 않아요.",
+        ],
+      ],
+    },
+    linux: {
+      aside: [
+        "AppImage가 열리지 않으면 FUSE 2가 필요할 수 있어요(Ubuntu 24.04: ",
+        { code: "sudo apt install libfuse2t64" },
+        "). Lumen은 일반 사용자로 실행해 주세요. root로 실행하면 파일을 옮기지 않아요.",
+      ],
+    },
+  },
+  faq: {
+    title: "뭔가 물어볼 것 같은 질문",
+    items: [
+      {
+        question: "왜 경고가 나와요?",
+        answer: [
+          "Lumen이 아직 Apple(Developer ID, 공증)과 Microsoft의 코드 서명을 받지 않아서 그래요. 운영 체제가 개발자를 확인할 수 없다는 뜻이고, 악성 코드를 찾았다는 뜻은 아니에요. 계정이 준비되면 서명을 추가할 거예요. 그때까지는 ",
+          { link: "체크섬과 빌드 증명", href: "#verify" },
+          "으로 파일을 확인할 수 있어요.",
+        ],
+      },
+      {
+        question: "써도 안전해요?",
+        answer: [
+          "베타라서 버그가 있을 수 있어요. 그래서 조심스럽게 동작해요. 확실하지 않으면 그대로 두고, 정리할 때도 확인한 항목을 격리함으로 옮기기만 해요. 영구 삭제하기 전까지 언제든 복원할 수 있어요. 소스 코드는 누구나 볼 수 있고, 릴리스는 GitHub Actions가 그 코드로 빌드해요. 중요한 데이터는 따로 백업해 두면 좋아요.",
+        ],
+      },
+      {
+        question: "AI 검토는 무엇을 보내요?",
+        answer: [
+          "켜기 전에는 아무것도 보내지 않아요. 켜면 정리를 제안한 항목마다 경로(홈 폴더는 ~), 크기, 지난 기간, 판단 근거만 학교의 Jeb 서버로 보내요. 학교 AI Hub에서 받은 키가 있어야 해요. AI의 답은 판단을 더 신중하게만 바꿀 수 있고, 답이 없거나 형식이 맞지 않으면 쓰지 않아요. 한 번 켜면 끌 때까지 켜져 있고, 설정에서 언제든 끌 수 있어요. Jeb 서버 운영자가 요청을 보관할 수 있어요.",
+        ],
+      },
+      {
+        question: "정리한 항목은 어떻게 되돌려요?",
+        answer: [
+          { ui: "격리함" },
+          "에서 항목을 고르고 ",
+          { ui: "복원" },
+          "을 눌러 주세요. 원래 자리에 원래 이름으로 돌아가요. 그 자리에 같은 이름의 항목이 새로 생겼다면 덮어쓰지 않고 격리함에 그대로 둬요.",
+        ],
+      },
+      {
+        question: "Lumen은 어떻게 지워요?",
+        answer: [
+          "먼저 격리함의 항목을 복원하거나 영구 삭제해 주세요. 앱을 지워도 격리함은 남아서 공간을 차지해요.",
+        ],
+        list: [
+          [
+            "macOS: 응용 프로그램 폴더의 Lumen을 휴지통으로 옮겨 주세요. 데이터는 ",
+            { code: "~/Library/Application Support/dev.lumen.desktop" },
+            ", 격리함은 ",
+            { code: "~/Library/Application Support/Lumen/Quarantine" },
+            "에 있어요.",
+          ],
+          [
+            "Windows: ",
+            { ui: "설정 › 앱 › 설치된 앱" },
+            "에서 제거해 주세요. 격리함은 ",
+            { code: "%LOCALAPPDATA%\\Lumen\\Quarantine" },
+            "에 있어요.",
+          ],
+          [
+            "Linux: ",
+            { code: "sudo apt remove lumen" },
+            "을 실행하거나 AppImage 파일을 지워 주세요. 격리함은 ",
+            { code: "~/.local/share/lumen/quarantine" },
+            "에 있어요.",
+          ],
+        ],
+      },
+      {
+        question: "업데이트는 어떻게 해요?",
+        answer: [
+          "아직 자동 업데이트는 없어요. 이 페이지에서 새 버전을 받아 같은 방법으로 설치해 주세요. 업데이트한 뒤에는 ",
+          { ui: "그래도 열기" },
+          "와 전체 디스크 접근 권한을 다시 허용해야 할 수도 있어요.",
+        ],
+      },
+      {
+        question: "베타에서 아직 안 되는 건 뭐예요?",
+        answer: [
+          "0.x 동안은 기능과 화면이 바뀔 수 있고, 서명과 자동 업데이트는 아직 없어요. 지금은 사용자 폴더가 있는 디스크의 항목만 격리할 수 있고, 다른 디스크의 항목은 그대로 둬요. 휴대폰 앱은 아직 없어요. 문제는 ",
+          { link: "GitHub 이슈", href: `${REPO_URL}/issues` },
+          "로, 보안 문제는 ",
+          { link: "보안 정책", href: `${REPO_URL}/blob/main/SECURITY.md` },
+          "에 따라 알려 주세요.",
+        ],
+      },
+    ],
+  },
+  footer: {
+    source: "소스 코드",
+    releases: "모든 릴리스",
+    note: "이 사이트는 쿠키와 분석 도구를 쓰지 않아요. 최신 버전 정보는 브라우저가 GitHub API에서 직접 가져와요.",
+  },
+  copy: "복사",
+  client: {
+    dateLocale: "ko-KR",
+    download: "다운로드",
+    downloadFor: "{platform}용 다운로드",
+    viewOnGitHub: "GitHub에서 보기",
+    downloadFromGitHub: "GitHub에서 다운로드",
+    getFromGitHub: "GitHub에서 받기",
+    comingSoon: "첫 베타를 준비하고 있어요. 공개되면 여기서 받을 수 있어요.",
+    comingSoonShort: "첫 베타를 준비하고 있어요. ",
+    loadFailed: "최신 버전 정보를 불러오지 못했어요. GitHub에서 바로 받을 수 있어요.",
+    checkFailed: "최신 버전을 확인하지 못했어요. ",
+    rateLimited: "GitHub 요청이 많아서 최신 버전을 확인하지 못했어요. ",
+    releaseNotes: "릴리스 노트",
+    githubReleases: "GitHub 릴리스",
+    allFiles: "GitHub 릴리스에서 파일 보기",
+    fileHeader: "파일",
+    sizeHeader: "크기",
+    copied: "복사했어요",
+  },
+  notFound: { title: "페이지를 찾을 수 없어요", home: "Lumen 다운로드 페이지로 가기" },
+};
