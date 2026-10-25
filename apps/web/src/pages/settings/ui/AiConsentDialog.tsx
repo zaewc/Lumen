@@ -5,7 +5,7 @@ import { canTurnOn, destination, needsKey } from "@/entities/ai-review";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { isApiKey } from "@/shared/lib";
-import { buttonClass, CheckIcon, Dialog, ErrorNotice, IconTile, SparkleIcon } from "@/shared/ui";
+import { buttonClass, CheckIcon, Dialog, ErrorNotice } from "@/shared/ui";
 
 /**
  * Asks before turning AI review on (ADR-0037): what is sent, where, and that
@@ -77,10 +77,7 @@ export function AiConsentDialog({
       returnFocus={returnFocus}
     >
       <form onSubmit={submit}>
-        <IconTile>
-          <SparkleIcon />
-        </IconTile>
-        <h2 id={title} className="mt-4 text-[17px] font-semibold text-ink">
+        <h2 id={title} className="text-[15px] font-semibold text-ink">
           {m.ai.consent.title}
         </h2>
         <ul id={description} className="mt-3 space-y-2.5 text-[13px] leading-snug text-ink-2">

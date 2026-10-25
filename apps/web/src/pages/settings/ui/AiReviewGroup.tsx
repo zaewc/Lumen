@@ -4,7 +4,7 @@ import { useId, useRef, useState } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
 import { QUERY_KEYS, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
-import { ErrorNotice, Group, GroupRow, IconTile, SparkleIcon, Switch } from "@/shared/ui";
+import { ErrorNotice, Group, GroupRow, Switch } from "@/shared/ui";
 import { AiConsentDialog } from "./AiConsentDialog";
 
 /**
@@ -32,11 +32,6 @@ export function AiReviewGroup() {
     <div id="ai-review" className="scroll-mt-6 space-y-2">
       <Group>
         <GroupRow
-          icon={
-            <IconTile>
-              <SparkleIcon />
-            </IconTile>
-          }
           title={m.ai.title}
           titleId={label}
           descriptionId={description}

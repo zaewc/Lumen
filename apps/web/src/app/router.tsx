@@ -17,7 +17,7 @@ import { Sidebar } from "@/widgets/sidebar";
  */
 function Layout() {
   return (
-    <div className="flex h-dvh overflow-hidden bg-window text-[14px] text-ink">
+    <div className="flex h-dvh overflow-hidden bg-window text-[13px] text-ink">
       <Sidebar />
       <div className="min-w-0 flex-1 overflow-y-auto">
         <Outlet />

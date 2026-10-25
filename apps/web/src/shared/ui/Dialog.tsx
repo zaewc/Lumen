@@ -7,7 +7,7 @@ export type DialogVariant = "alert" | "sheet";
 function variantClass(variant: DialogVariant): string {
   switch (variant) {
     case "alert":
-      return "m-auto max-h-[calc(100dvh-2rem)] w-[min(30rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl bg-raised p-6 shadow-2xl ring-1 ring-line animate-[pop-in_160ms_ease-out] motion-reduce:animate-none backdrop:bg-black/25 dark:backdrop:bg-black/50";
+      return "m-auto max-h-[calc(100dvh-2rem)] w-[min(30rem,calc(100vw-2rem))] overflow-y-auto rounded-xl bg-raised p-5 shadow-xl ring-1 ring-line animate-[pop-in_160ms_ease-out] motion-reduce:animate-none backdrop:bg-black/25 dark:backdrop:bg-black/50";
     case "sheet":
       return "fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden bg-transparent p-0 backdrop:bg-black/15 dark:backdrop:bg-black/40";
   }

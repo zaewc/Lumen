@@ -9,7 +9,6 @@ import {
   buttonClass,
   CheckIcon,
   ChevronIcon,
-  IconTile,
   SearchIcon,
   SparkleIcon,
   WarningIcon,
@@ -58,11 +57,7 @@ function QuarantineTile() {
   const size = formatBytes(total.bytes);
   return (
     <Tile
-      icon={
-        <IconTile tone="neutral">
-          <ArchiveIcon />
-        </IconTile>
-      }
+      icon={<ArchiveIcon />}
       label={m.overview.session.quarantine}
       value={held.isSuccess ? m.common.items(items.length) : "–"}
       detail={total.exact ? size : m.overview.session.atLeast(size)}
@@ -84,9 +79,6 @@ function Running() {
   return (
     <div className="rounded-xl border border-line bg-surface p-5" role="status">
       <div className="flex flex-wrap items-center gap-3">
-        <IconTile>
-          <SearchIcon />
-        </IconTile>
         <div className="min-w-0 flex-1">
           <p className="text-[14px] font-semibold text-ink">
             {session.scanning ? m.overview.session.scanning : m.overview.session.deciding}
@@ -176,11 +168,7 @@ export function SessionSummary() {
       {summary !== null && (
         <div className="grid gap-3 @lg:grid-cols-3">
           <Tile
-            icon={
-              <IconTile>
-                <SparkleIcon />
-              </IconTile>
-            }
+            icon={<SparkleIcon />}
             label={m.overview.session.canFree}
             value={formatBytes(summary.quarantine.bytes)}
             detail={m.common.items(summary.quarantine.items.length)}
@@ -192,11 +180,7 @@ export function SessionSummary() {
             )}
           </Tile>
           <Tile
-            icon={
-              <IconTile tone="amber">
-                <WarningIcon className="size-[18px]" />
-              </IconTile>
-            }
+            icon={<WarningIcon className="size-[18px]" />}
             label={m.overview.session.review}
             value={m.common.items(summary.review.items.length)}
             detail={formatBytes(summary.review.bytes)}

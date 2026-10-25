@@ -4,18 +4,18 @@ export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "dang
 export type ButtonSize = "sm" | "md" | "lg";
 
 const BASE =
-  "inline-flex items-center justify-center gap-1.5 rounded-lg font-medium whitespace-nowrap transition-colors select-none focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45";
+  "inline-flex items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap transition-colors select-none focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45";
 
 function variantClass(variant: ButtonVariant): string {
   switch (variant) {
     case "primary":
-      return "bg-accent text-white shadow-sm shadow-black/10 hover:bg-accent-hover focus-visible:outline-accent disabled:hover:bg-accent";
+      return "bg-accent text-white hover:bg-accent-hover focus-visible:outline-accent disabled:hover:bg-accent";
     case "secondary":
-      return "border border-line-strong bg-raised text-ink shadow-sm shadow-black/5 hover:bg-fill focus-visible:outline-accent dark:shadow-none disabled:hover:bg-raised";
+      return "border border-line-strong bg-raised text-ink hover:bg-fill focus-visible:outline-accent disabled:hover:bg-raised";
     case "quiet":
       return "text-accent-ink hover:bg-accent-soft focus-visible:outline-accent";
     case "danger":
-      return "bg-red-600 text-white shadow-sm shadow-black/10 hover:bg-red-700 focus-visible:outline-red-600 disabled:hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-600 dark:focus-visible:outline-red-400";
+      return "bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600 disabled:hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-600 dark:focus-visible:outline-red-400";
     case "dangerQuiet":
       return "text-red-700 hover:bg-red-600/10 focus-visible:outline-red-600 dark:text-red-400 dark:focus-visible:outline-red-400";
   }
@@ -24,11 +24,11 @@ function variantClass(variant: ButtonVariant): string {
 function sizeClass(size: ButtonSize): string {
   switch (size) {
     case "sm":
-      return "h-7 px-2.5 text-[13px]";
+      return "h-6 px-2 text-[12px]";
     case "md":
-      return "h-8 px-3.5 text-[13px]";
+      return "h-7 px-3 text-[13px]";
     case "lg":
-      return "h-10 px-5 text-[14px]";
+      return "h-8 px-4 text-[13px]";
   }
 }
 

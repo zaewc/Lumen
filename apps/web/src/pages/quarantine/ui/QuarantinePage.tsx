@@ -21,7 +21,7 @@ export function QuarantinePage() {
       title={m.quarantine.title}
       {...(items.length > 0
         ? {
-            subtitle: (
+            accessory: (
               <span className="flex flex-wrap items-center gap-x-1.5">
                 <span className="tabular-nums">{m.quarantine.count(items.length)}</span>
                 <span aria-hidden="true">·</span>

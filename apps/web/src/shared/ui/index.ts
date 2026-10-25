@@ -1,8 +1,7 @@
 export { type ButtonSize, type ButtonVariant, buttonClass } from "./button";
-export { Card } from "./Card";
 export { Dialog, type DialogVariant } from "./Dialog";
 export { Disclosure } from "./Disclosure";
-export { Group, GroupRow, IconTile } from "./Group";
+export { Group, GroupRow } from "./Group";
 export { InfoTip } from "./InfoTip";
 export {
   AppIcon,

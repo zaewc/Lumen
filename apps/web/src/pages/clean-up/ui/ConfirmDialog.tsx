@@ -2,15 +2,7 @@ import type { PlanView } from "@lumen/api-client";
 import { type RefObject, useId, useRef } from "react";
 import { formatDateTime, useI18n } from "@/shared/i18n";
 import { formatBytes, sumBytes } from "@/shared/lib";
-import {
-  ArchiveIcon,
-  buttonClass,
-  CheckIcon,
-  Dialog,
-  Disclosure,
-  ErrorNotice,
-  IconTile,
-} from "@/shared/ui";
+import { buttonClass, CheckIcon, Dialog, Disclosure, ErrorNotice } from "@/shared/ui";
 
 /**
  * Asks before moving a plan's items to quarantine. Pressing "Move to
@@ -50,10 +42,7 @@ export function ConfirmDialog({
       initialFocus={cancel}
       returnFocus={returnFocus}
     >
-      <IconTile>
-        <ArchiveIcon />
-      </IconTile>
-      <h2 id={title} className="mt-4 text-[17px] leading-snug font-semibold text-ink">
+      <h2 id={title} className="text-[15px] leading-snug font-semibold text-ink">
         {empty ? m.confirm.nothingLeft : m.confirm.title(plan.items.length, size)}
       </h2>
       {!empty && (

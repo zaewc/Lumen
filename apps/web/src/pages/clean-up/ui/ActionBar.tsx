@@ -42,7 +42,7 @@ export function ActionBar({
   });
   const nothing = proposed === 0;
   return (
-    <div className="sticky bottom-0 z-10 border-t border-line bg-window/80 backdrop-blur-xl backdrop-saturate-150">
+    <div className="sticky bottom-0 z-10 border-t border-line bg-window">
       <div className="mx-auto max-w-[880px] space-y-2 px-4 py-3 min-[720px]:px-10">
         {plan.isError && <ErrorNotice message={m.action.planFailed} error={plan.error} />}
         {execute.isError && !open && (

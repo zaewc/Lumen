@@ -3,19 +3,7 @@ import { useTransport } from "@/shared/api";
 import { APP_VERSION } from "@/shared/config";
 import { LOCALE_NAMES, LOCALES, useI18n } from "@/shared/i18n";
 import { isMac, userAgent } from "@/shared/lib";
-import {
-  buttonClass,
-  GlobeIcon,
-  Group,
-  GroupRow,
-  IconTile,
-  InfoIcon,
-  InfoTip,
-  LogoMark,
-  Page,
-  Segmented,
-  ShieldIcon,
-} from "@/shared/ui";
+import { buttonClass, Group, GroupRow, InfoTip, Page, Segmented } from "@/shared/ui";
 import { AiReviewGroup } from "./AiReviewGroup";
 
 /** English / 한국어, each named in its own language. */
@@ -24,11 +12,6 @@ function LanguageGroup() {
   return (
     <Group>
       <GroupRow
-        icon={
-          <IconTile tone="neutral">
-            <GlobeIcon />
-          </IconTile>
-        }
         title={m.language}
         trailing={
           <Segmented
@@ -87,11 +70,6 @@ function PermissionsGroup() {
         }
       >
         <GroupRow
-          icon={
-            <IconTile tone="green">
-              <ShieldIcon />
-            </IconTile>
-          }
           title={mac ? p.fda : p.access}
           description={
             mac ? (
@@ -122,7 +100,6 @@ function AboutGroup() {
   return (
     <Group title={a.title}>
       <GroupRow
-        icon={<LogoMark className="size-7" />}
         title="Lumen"
         trailing={
           <span className="text-[13px] tabular-nums text-ink-2">
@@ -130,15 +107,7 @@ function AboutGroup() {
           </span>
         }
       />
-      <GroupRow
-        icon={
-          <IconTile tone="neutral">
-            <InfoIcon />
-          </IconTile>
-        }
-        title={a.local}
-        description={a.localBody}
-      />
+      <GroupRow title={a.local} description={a.localBody} />
     </Group>
   );
 }

@@ -3,7 +3,7 @@ import { useId } from "react";
 import { QUERY_KEYS, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
-import { DriveIcon, ErrorNotice, IconTile, WarningIcon } from "@/shared/ui";
+import { ErrorNotice, WarningIcon } from "@/shared/ui";
 import { diskUsage, percentText } from "../model/disk";
 
 /** One figure under the bar: a swatch, what it is, and how much. */
@@ -51,9 +51,6 @@ export function DiskCard() {
       className="rounded-xl border border-line bg-surface p-5 min-[720px]:p-6"
     >
       <div className="flex items-center gap-3">
-        <IconTile tone="neutral">
-          <DriveIcon />
-        </IconTile>
         <h2 id={title} className="min-w-0 flex-1 text-[15px] font-semibold text-ink">
           {m.overview.disk.title}
         </h2>
