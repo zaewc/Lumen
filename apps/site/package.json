@@ -10,6 +10,9 @@
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
     "typecheck": "tsc -p ."
   },
+  "dependencies": {
+    "zod": "catalog:"
+  },
   "devDependencies": {
     "@lumen/config": "workspace:*",
     "astro": "catalog:",
