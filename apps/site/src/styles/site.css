@@ -671,6 +671,8 @@ p + .disclosure {
 }
 
 .copy {
+  min-width: 44px;
+  min-height: 44px;
   flex: none;
   appearance: none;
   border: 0;
@@ -681,6 +683,10 @@ p + .disclosure {
   font: inherit;
   font-size: 0.82rem;
   cursor: pointer;
+}
+
+.copy:focus-visible {
+  outline-offset: -3px;
 }
 
 .copy:hover {
