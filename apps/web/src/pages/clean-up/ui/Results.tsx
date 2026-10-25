@@ -93,6 +93,7 @@ export function Results({
             </div>
           )}
         </div>
+        {proposed.items.length === 0 && <p className="text-ink-2">{m.results.nothing}</p>}
         {scan.partial && (
           <Notice tone="warning">
             <p>{scan.out_of_space ? m.results.outOfSpace : m.results.partial}</p>

@@ -127,15 +127,7 @@ describe("locale storage", () => {
 });
 
 describe("glossary", () => {
-  const terms = [
-    "scan",
-    "coverage",
-    "reclaimable",
-    "verdicts",
-    "quarantine",
-    "finalize",
-    "restore",
-  ] as const satisfies readonly GlossaryTerm[];
+  const terms = ["verdicts", "quarantine"] as const satisfies readonly GlossaryTerm[];
 
   it("explains every term in every language", () => {
     expect(Object.keys(en.glossary).sort()).toEqual([...terms].sort());
@@ -151,9 +143,9 @@ describe("glossary", () => {
   it("asks about each term naturally", () => {
     expect(en.whatIs(en.glossary.quarantine.title)).toBe("What does “Quarantine” mean?");
     expect(ko.whatIs(ko.glossary.quarantine.title)).toBe("‘격리함’이란?");
-    expect(ko.whatIs(ko.glossary.finalize.title)).toBe("‘영구 삭제’란?");
-    expect(ko.whatIs(ko.glossary.coverage.title)).toBe("‘읽지 못한 폴더’란?");
-    expect(ko.whatIs(ko.glossary.restore.title)).toBe("‘복원’이란?");
+    expect(ko.whatIs("영구 삭제")).toBe("‘영구 삭제’란?");
+    expect(ko.whatIs("읽지 못한 폴더")).toBe("‘읽지 못한 폴더’란?");
+    expect(ko.whatIs("복원")).toBe("‘복원’이란?");
     expect(ko.whatIs("Lumen")).toBe("‘Lumen’이란?");
   });
 });

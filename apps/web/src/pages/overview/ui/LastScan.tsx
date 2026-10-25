@@ -66,7 +66,7 @@ function Running() {
     <div role="status" className="space-y-2">
       <p className="flex flex-wrap items-baseline gap-x-3">
         <span className="text-ink">
-          {session.scanning ? m.overview.session.scanning : m.overview.session.deciding}
+          {session.scanning ? m.common.scanning : m.scanning.deciding}
         </span>
         {session.progress !== null && (
           <span className="tabular-nums text-ink-2">

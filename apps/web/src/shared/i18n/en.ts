@@ -42,12 +42,10 @@ export const en = {
     },
     session: {
       title: "Last scan",
-      canFree: "Can be cleaned up",
+      canFree: "Proposed for clean-up",
       review: "Needs review",
       quarantine: "In Quarantine",
       atLeast: (size: string) => `at least ${size}`,
-      scanning: "Scanning…",
-      deciding: "Deciding…",
       found: (n: string) => `${n} found`,
       showProgress: "Show progress",
       cleaned: (n: number, size: string) => `${items(n)} (${size}) moved to Quarantine.`,
@@ -110,8 +108,7 @@ export const en = {
   results: {
     canFree: (size: string) => `${size} can be cleaned up`,
     nothingTitle: "Nothing to clean up",
-    nothing:
-      "Nothing needs cleaning up right now. Lumen only suggests items it is sure are safe to set aside.",
+    nothing: "Lumen proposes only what it is sure is safe to set aside.",
     filter: "Show",
     filters: {
       all: "All",
@@ -138,7 +135,7 @@ export const en = {
       size: "Size",
     },
     listHint: "Use the up and down arrow keys to move between items.",
-    emptyFilter: "Nothing here in this view.",
+    emptyFilter: "No items with this status.",
     partial: "The scan stopped early, so these results are incomplete.",
     outOfSpace:
       "The scan stopped because the disk is almost full (Lumen always leaves 2 GB free), so these results are incomplete. Free some space and scan again.",
@@ -243,7 +240,7 @@ export const en = {
     removeForGoodWarning:
       "This deletes it permanently and cannot be undone. Lumen first checks that nothing is using it.",
     removeForGood: "Remove for good",
-    failed: "That did not work.",
+    failed: "Lumen could not do that. Try again.",
   },
   restore: {
     restored: "Restored to its original place.",
@@ -297,18 +294,6 @@ export const en = {
   },
   whatIs: (term: string) => `What does “${term}” mean?`,
   glossary: {
-    scan: {
-      title: "Scan",
-      body: "Scanning reads your folders and measures what is inside them. It only reads: nothing is moved, changed or deleted. Lumen looks only at details such as names and sizes; it never opens your files and never downloads files that are stored only in the cloud.",
-    },
-    coverage: {
-      title: "Unreadable folders",
-      body: "Sometimes Lumen is not allowed to read a folder, or reading it fails. Lumen never treats such a folder as empty and never suggests removing anything it could not check, so it is simply left alone. Sizes that include it are lower bounds: the real figure may be larger.",
-    },
-    reclaimable: {
-      title: "Space you can free",
-      body: "How much disk space you get back once the items are removed for good. Space that other files still share (such as copies or snapshots) is not counted. Moving items to Quarantine does not free space yet; removing them for good does.",
-    },
     verdicts: {
       title: "How Lumen decides",
       body: "Lumen decides about every item with fixed safety rules, not by guessing. “Proposed”: items such as caches that their app or tool re-creates. “Needs review”: items Lumen is not sure about; they are never moved automatically. “Kept”: items Lumen will not touch, such as system files, files in use or files synced with the cloud. When in doubt, Lumen keeps the item.",
@@ -316,14 +301,6 @@ export const en = {
     quarantine: {
       title: "Quarantine",
       body: "Quarantine is a safe holding place. Cleaning up moves items there instead of deleting them, and every item can be put back where it was. Items in Quarantine still use disk space until you remove them for good.",
-    },
-    finalize: {
-      title: "Remove for good",
-      body: "Removing for good deletes an item from Quarantine permanently and frees its space. It is the only step that cannot be undone. Lumen first checks that nothing is using the item, and removes nothing if it is in use or that cannot be checked.",
-    },
-    restore: {
-      title: "Restore",
-      body: "Restoring puts an item back in its original place, under its original name. Lumen never overwrites anything: if something else now has that name, or the original folder cannot be reached safely, the item stays in Quarantine and Lumen tells you why.",
     },
   },
   reasons: {
