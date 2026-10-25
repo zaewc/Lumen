@@ -6,14 +6,8 @@
 // API data only ever reaches the page through textContent and validated hrefs.
 
 const REPO = "zaewc/Lumen";
-const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
 const RELEASES_URL = `https://github.com/${REPO}/releases`;
 const LATEST_URL = `${RELEASES_URL}/latest`;
-const DOWNLOAD_PREFIX = `${RELEASES_URL}/download/`;
-const LANG_KEY = "lumen-site-lang";
-const CACHE_KEY = "lumen-site-release";
-const CACHE_MS = 10 * 60 * 1000;
-const TIMEOUT_MS = 8000;
 
 /** Desktop files by platform; the first one is the primary download. */
 const PLATFORMS = {
@@ -41,34 +35,6 @@ function bi(ko, en) {
   return fragment;
 }
 
-function applyLabels() {
-  const lang = root.lang === "en" ? "en" : "ko";
-  for (const element of document.querySelectorAll("[data-label-ko]")) {
-    const label = element.getAttribute(`data-label-${lang}`);
-    if (label !== null) {
-      element.setAttribute("aria-label", label);
-    }
-  }
-}
-
-function setUpLanguageToggle() {
-  const toggle = document.getElementById("lang-toggle");
-  if (toggle === null) {
-    return;
-  }
-  toggle.addEventListener("click", () => {
-    const next = root.lang === "en" ? "ko" : "en";
-    root.lang = next;
-    applyLabels();
-    try {
-      window.localStorage.setItem(LANG_KEY, next);
-    } catch {
-      // The choice simply is not remembered.
-    }
-  });
-  applyLabels();
-}
-
 // --- Platform ----------------------------------------------------------------
 
 /** "mac", "windows", "linux", or null for anything else (phones, tablets, ChromeOS). */
@@ -88,130 +54,6 @@ function detectPlatform() {
     return "linux";
   }
   return null;
-}
-
-// --- Release data --------------------------------------------------------------
-
-/**
- * The parts of a GitHub release this page uses, or null if the JSON does not
- * have the expected shape. Assets with unexpected names or URLs are dropped.
- */
-function parseRelease(json) {
-  if (typeof json !== "object" || json === null) {
-    return null;
-  }
-  const { tag_name: tag, published_at: published, html_url: page, assets } = json;
-  if (
-    typeof tag !== "string" ||
-    !/^v?\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9A-Za-z.]{1,40})?$/.test(tag)
-  ) {
-    return null;
-  }
-  if (!Array.isArray(assets)) {
-    return null;
-  }
-  const date = typeof published === "string" ? new Date(published) : null;
-  return {
-    tag,
-    version: tag.replace(/^v/, ""),
-    date: date !== null && !Number.isNaN(date.getTime()) ? date : null,
-    page: typeof page === "string" && page.startsWith(`${RELEASES_URL}/tag/`) ? page : LATEST_URL,
-    assets: assets.map(parseAsset).filter((asset) => asset !== null),
-  };
-}
-
-function parseAsset(asset) {
-  if (typeof asset !== "object" || asset === null) {
-    return null;
-  }
-  const { name, size, browser_download_url: url } = asset;
-  if (typeof name !== "string" || !/^[A-Za-z0-9._+-]{1,120}$/.test(name)) {
-    return null;
-  }
-  if (typeof url !== "string" || !url.startsWith(DOWNLOAD_PREFIX)) {
-    return null;
-  }
-  let parsed;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return null;
-  }
-  if (parsed.protocol !== "https:" || parsed.host !== "github.com") {
-    return null;
-  }
-  return {
-    name,
-    url: parsed.href,
-    size: typeof size === "number" && Number.isFinite(size) && size >= 0 ? size : null,
-  };
-}
-
-function readCache() {
-  try {
-    const raw = window.sessionStorage.getItem(CACHE_KEY);
-    if (raw === null) {
-      return null;
-    }
-    const cached = JSON.parse(raw);
-    if (typeof cached?.at !== "number" || Date.now() - cached.at > CACHE_MS) {
-      return null;
-    }
-    if (cached.state === "none") {
-      return { state: "none" };
-    }
-    const release = cached.state === "ok" ? parseRelease(cached.json) : null;
-    return release === null ? null : { state: "ok", release };
-  } catch {
-    return null;
-  }
-}
-
-function writeCache(state, json) {
-  try {
-    window.sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), state, json }));
-  } catch {
-    // Not cached; the next visit asks again.
-  }
-}
-
-/** { state: "ok", release } | { state: "none" } | { state: "error", limited } */
-async function loadRelease() {
-  const cached = readCache();
-  if (cached !== null) {
-    return cached;
-  }
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const response = await fetch(API_URL, {
-      headers: { Accept: "application/vnd.github+json" },
-      credentials: "omit",
-      referrerPolicy: "no-referrer",
-      signal: controller.signal,
-    });
-    if (response.status === 404) {
-      writeCache("none", null);
-      return { state: "none" };
-    }
-    if (!response.ok) {
-      const limited =
-        response.status === 429 ||
-        (response.status === 403 && response.headers.get("x-ratelimit-remaining") === "0");
-      return { state: "error", limited };
-    }
-    const json = await response.json();
-    const release = parseRelease(json);
-    if (release === null) {
-      return { state: "error", limited: false };
-    }
-    writeCache("ok", json);
-    return { state: "ok", release };
-  } catch {
-    return { state: "error", limited: false };
-  } finally {
-    window.clearTimeout(timer);
-  }
 }
 
 // --- Rendering -----------------------------------------------------------------
@@ -490,39 +332,9 @@ function setUpDisclosure(platform) {
   openTarget(window.location.hash, platform);
 }
 
-function setUpCopyButtons() {
-  for (const button of document.querySelectorAll("button[data-copy]")) {
-    button.addEventListener("click", async () => {
-      const source = document.getElementById(button.getAttribute("data-copy") ?? "");
-      if (
-        source === null ||
-        navigator.clipboard === undefined ||
-        button.hasAttribute("data-copied")
-      ) {
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(source.textContent ?? "");
-      } catch {
-        return;
-      }
-      const idle = Array.from(button.childNodes);
-      button.setAttribute("data-copied", "");
-      button.replaceChildren(bi("복사됨", "Copied"));
-      window.setTimeout(() => {
-        button.removeAttribute("data-copied");
-        button.replaceChildren(...idle);
-      }, 1500);
-    });
-  }
-}
-
 // --- Start ---------------------------------------------------------------------
 
 const platform = detectPlatform();
-setUpLanguageToggle();
 setUpDisclosure(platform);
-setUpCopyButtons();
 renderPlatforms(null, platform);
 renderVersionTexts(null, platform);
-loadRelease().then((result) => render(result, platform));
