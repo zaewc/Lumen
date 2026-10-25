@@ -190,7 +190,7 @@ export function ReviewGrid() {
         case "group":
           return (
             <Text style={[type.footnote, styles.group, { color: c.ink2 }]}>
-              {number.format(item.size)} similar
+              {number.format(item.size)} similar photos
             </Text>
           );
       }
@@ -225,8 +225,8 @@ export function ReviewGrid() {
         <View style={styles.fill}>
           {header()}
           <Message
-            title="No access to photos"
-            body="Allow Lumen to read your photo library in Settings. Nothing is changed without your confirmation."
+            title="Photo access is off"
+            body="To see your photos here, allow Lumen to read your photo library in Settings. Lumen changes nothing without asking you first."
             action={<Button label="Open Settings" onPress={() => void Linking.openSettings()} />}
           />
         </View>
@@ -236,7 +236,7 @@ export function ReviewGrid() {
         <View style={styles.fill}>
           {header()}
           <Message
-            title="Photos could not be loaded"
+            title="Lumen could not load your photos"
             body={library.message}
             action={<Button label="Try again" onPress={load} />}
           />
@@ -250,7 +250,7 @@ export function ReviewGrid() {
     return (
       <View style={styles.fill}>
         {header()}
-        <Message title="No photos" body="Photos you take or save show up here." />
+        <Message title="No photos yet" body="Photos you take or save show up here." />
       </View>
     );
   }
@@ -296,7 +296,7 @@ export function ReviewGrid() {
         {similar.state === "failed" && (
           <>
             <Text style={[type.footnote, { color: c.ink2 }]}>
-              Finding similar photos failed: {similar.message}
+              Lumen could not find similar photos: {similar.message}
             </Text>
             <Button label="Try again" onPress={findSimilar} />
           </>
@@ -307,7 +307,7 @@ export function ReviewGrid() {
               <Text style={[type.footnote, styles.fill, { color: c.ink2 }]}>
                 {summary(similar.analysis)}
               </Text>
-              <TextButton label="Find again" onPress={findSimilar} />
+              <TextButton label="Search again" onPress={findSimilar} />
             </View>
             {similar.analysis.groups.length > 0 && (
               <Segmented options={SHOW} value={show} onChange={setShow} />
@@ -324,7 +324,7 @@ function summary(analysis: Analysis): string {
   const n = analysis.groups.length;
   const found =
     n === 0
-      ? "No similar photos"
+      ? "No similar photos found"
       : `${number.format(n)} ${n === 1 ? "group" : "groups"} of similar photos`;
   const stopped = analysis.cancelled ? " · stopped early" : "";
   return `${found} · ${number.format(analysis.analyzed)} checked${stopped}`;
