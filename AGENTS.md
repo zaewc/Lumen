@@ -28,6 +28,7 @@ never remove.**
 | Evidence behind decisions | [`docs/research/`](docs/research/) |
 | Threats and controls | [`docs/security/threat-model.md`](docs/security/threat-model.md) |
 | Jev (AI) contract, safety, evaluation | [`docs/ai/`](docs/ai/architecture.md) |
+| UI and UX principles (desktop, mobile, website) | [`docs/design/ui-principles.md`](docs/design/ui-principles.md) |
 
 Do not load the whole repository into context. Search, read the relevant ADR and the
 files you will touch, trace dependencies, inspect tests, then change.
