@@ -15,7 +15,7 @@ describe("rootsOf", () => {
 
 describe("outcomeText", () => {
   it("says where every item is", () => {
-    expect(outcomeText(en, { kind: "quarantined", operation: "op" })).toContain("restored");
+    expect(outcomeText(en, { kind: "quarantined", operation: "op" })).toContain("restore it");
     expect(outcomeText(en, { kind: "skipped", reason: "now_review" })).toContain("review");
     expect(
       outcomeText(en, { kind: "failed", reason: "IdentityMismatch", left: "source" }),

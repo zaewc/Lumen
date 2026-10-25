@@ -10,8 +10,8 @@ describe("held-item outcomes", () => {
     expect(restoreText(en, { kind: "restored", parent_replaced: true, verified: false })).toContain(
       "check it",
     );
-    expect(finalizeText(en, { kind: "maybe_in_use" })).toContain("nothing was removed");
-    expect(finalizeText(en, { kind: "failed", removed: "partly" })).toContain("try again");
+    expect(finalizeText(en, { kind: "maybe_in_use" })).toContain("Lumen removed nothing");
+    expect(finalizeText(en, { kind: "failed", removed: "partly" })).toContain("Try again");
   });
 
   it("speak Korean when given the Korean catalog", () => {
