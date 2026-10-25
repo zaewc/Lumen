@@ -6,7 +6,6 @@ export const REPO = "zaewc/Lumen";
 export const REPO_URL = `https://github.com/${REPO}`;
 export const RELEASES_URL = `${REPO_URL}/releases`;
 export const LATEST_URL = `${RELEASES_URL}/latest`;
-export const SUMS_URL = `${LATEST_URL}/download/SHA256SUMS`;
 export const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
 
 export type PlatformId = "mac" | "windows" | "linux";

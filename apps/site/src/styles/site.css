@@ -1,7 +1,7 @@
 /*
  * Lumen's download site (ADR-0038), one stylesheet for every page; Astro emits
- * it as a file (CSP style-src 'self'). The app's tokens (apps/web/src/app/styles.css):
- * a neutral window, hairline separators and one accent, the indigo of the icon.
+ * it as a file (CSP style-src 'self'). Platform type, neutral surfaces and
+ * hairline separators keep the download action and safety model in focus.
  * Hierarchy comes from type, spacing and alignment, not containers.
  */
 :root {
@@ -236,12 +236,6 @@ pre {
   padding: 72px 0 48px;
 }
 
-.app-icon {
-  width: 64px;
-  height: 64px;
-  margin: 0 0 16px -6px;
-}
-
 h1 {
   max-width: 720px;
   font-size: clamp(2rem, 4.5vw, 3.5rem);
@@ -315,10 +309,6 @@ h1 {
 
 .btn .size:empty {
   display: none;
-}
-
-.text-link {
-  font-size: 0.94rem;
 }
 
 .meta {
@@ -397,16 +387,6 @@ h1 {
   font-size: 0.88rem;
 }
 
-.beta {
-  margin-top: 20px;
-  color: var(--ink-2);
-  font-size: 0.92rem;
-}
-
-.beta a {
-  white-space: nowrap;
-}
-
 /* Sections: a hairline and a heading, nothing more. */
 
 main > section + section {
@@ -437,63 +417,6 @@ section > p + p {
 section > p strong {
   color: var(--ink);
   font-weight: 600;
-}
-
-.steps {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: step;
-}
-
-.steps li {
-  display: grid;
-  grid-template-columns: 2.2em 6.5em 1fr;
-  gap: 2px 8px;
-  padding: 8px 0;
-  counter-increment: step;
-}
-
-.steps li::before {
-  content: counter(step);
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
-
-.steps strong {
-  font-weight: 600;
-}
-
-.steps p {
-  color: var(--ink-2);
-}
-
-@media (max-width: 560px) {
-  .steps li {
-    grid-template-columns: 1.6em 1fr;
-  }
-
-  .steps p {
-    grid-column: 2;
-  }
-}
-
-.plain {
-  margin: 0;
-  padding-left: 1.2em;
-  color: var(--ink-2);
-}
-
-.plain li + li {
-  margin-top: 6px;
-}
-
-.plain li::marker {
-  color: var(--ink-3);
-}
-
-.plain.compact {
-  margin-top: 10px;
 }
 
 /* Download */
@@ -699,10 +622,6 @@ p + .disclosure {
   border-top: 1px solid var(--line);
   color: var(--ink-3);
   font-size: 0.8rem;
-}
-
-.footer-note {
-  margin-top: 6px;
 }
 
 .site-footer a {

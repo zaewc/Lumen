@@ -130,7 +130,6 @@ function renderPrimary(result: ReleaseResult, platform: Platform | null, t: Clie
   const button = document.querySelector<HTMLAnchorElement>("#primary-download");
   const label = document.getElementById("primary-label");
   const meta = document.getElementById("primary-meta");
-  const other = document.getElementById("other-platforms");
   if (button === null || label === null || meta === null) {
     return;
   }
@@ -168,9 +167,6 @@ function renderPrimary(result: ReleaseResult, platform: Platform | null, t: Clie
     line.append(SEPARATOR, formatSize(asset.size));
   }
   meta.replaceChildren(line);
-  if (other !== null) {
-    other.hidden = false;
-  }
 }
 
 function renderStatus(result: ReleaseResult, t: ClientStrings): void {

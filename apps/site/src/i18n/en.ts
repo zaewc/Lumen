@@ -10,13 +10,12 @@ export const en: Messages = {
   ogDescription:
     "Storage intelligence for every device. Safety over reclaimed space. Local-first, open source, pre-alpha.",
   skip: "Skip to content",
-  nav: { label: "Site", docs: "Docs", download: "Download", install: "First launch", faq: "FAQ" },
+  nav: { label: "Site", docs: "Docs" },
   hero: {
     headline: ["Storage intelligence", "for every device."],
     maturity: "Pre-alpha · Unsigned software",
     lead: "Understand what takes up space, and what still needs to stay.",
     download: "View releases",
-    otherPlatforms: "Download for other platforms",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   trust: {
@@ -36,43 +35,6 @@ export const en: Messages = {
       },
     ],
     more: "Read the architecture",
-  },
-  how: {
-    title: "How it works",
-    steps: [
-      {
-        title: "Scan",
-        text: "Read-only. Lumen never opens or changes files, and never downloads files kept only in the cloud.",
-      },
-      {
-        title: "Decide",
-        text: "A fixed safety policy marks each item Kept, Needs review or Proposed, and shows why.",
-      },
-      {
-        title: "Confirm",
-        text: "You look at the proposed items and confirm them. Nothing moves until you do.",
-      },
-      {
-        title: "Quarantine",
-        text: "Lumen moves confirmed items to Quarantine instead of deleting them. You can restore them until you remove them for good, which happens only when you ask. That's when you get the space back.",
-      },
-    ],
-  },
-  leftAlone: {
-    title: "When in doubt, Lumen leaves it alone",
-    items: [
-      "Lumen always leaves system files, documents, credentials and keys, browser profiles and databases alone.",
-      "If Lumen can't read a folder, it doesn't treat it as empty and leaves everything in it alone.",
-      "Lumen leaves files in use and files synced with a cloud service alone.",
-      "Lumen checks every item again just before moving it, and restoring never overwrites anything.",
-    ],
-  },
-  privacy: {
-    title: "Privacy",
-    local:
-      "Scan results, decisions, Quarantine and logs stay on this computer. Lumen sends no usage statistics or crash reports and doesn't track you.",
-    aiTitle: "AI review (optional).",
-    ai: "It's off until you turn it on in Settings. Then Lumen sends only the path, sizes, ages and evidence of each proposed item to the school's Jeb server, with your home folder shown as ~. It never sends file contents. AI can only make a decision more cautious; it can't choose what moves. The Jeb server's operator may keep the requests.",
   },
   download: {
     title: "All downloads and installation",
@@ -278,7 +240,6 @@ export const en: Messages = {
   footer: {
     source: "Source",
     releases: "All releases",
-    note: "This site uses no cookies or analytics. Your browser fetches the latest version from the GitHub API directly.",
   },
   copy: "Copy",
   client: {

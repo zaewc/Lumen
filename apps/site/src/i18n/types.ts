@@ -31,33 +31,18 @@ export interface Messages {
   readonly nav: {
     readonly label: string;
     readonly docs: string;
-    readonly download: string;
-    readonly install: string;
-    readonly faq: string;
   };
   readonly hero: {
     readonly headline: readonly [string, string];
     readonly maturity: string;
     readonly lead: string;
     readonly download: string;
-    readonly otherPlatforms: string;
     readonly requirements: string;
   };
   readonly trust: {
     readonly title: string;
     readonly items: readonly { readonly title: string; readonly text: string }[];
     readonly more: string;
-  };
-  readonly how: {
-    readonly title: string;
-    readonly steps: readonly { readonly title: string; readonly text: string }[];
-  };
-  readonly leftAlone: { readonly title: string; readonly items: readonly string[] };
-  readonly privacy: {
-    readonly title: string;
-    readonly local: string;
-    readonly aiTitle: string;
-    readonly ai: string;
   };
   readonly download: {
     readonly title: string;
@@ -94,7 +79,6 @@ export interface Messages {
   readonly footer: {
     readonly source: string;
     readonly releases: string;
-    readonly note: string;
   };
   readonly copy: string;
   readonly client: ClientStrings;
