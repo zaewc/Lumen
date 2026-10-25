@@ -355,7 +355,7 @@ Open:
 | 13.d | Pin the release desktop job's egress and switch it to `block`; tighten the attest and release jobs after the first release | the first release's egress report |
 | 13.e | release-please for versioning (ADR-0026) | |
 | 13.g | Signing and notarization (12.8), the first tagged release, mobile device measurements (11.16d) | the owner |
-| 13.h | Second review of dataset 2026.10.1's rule-derived labels; ask Jeb's operator why `license_data` and `unknown_executable` requests go unanswered. Recorded 2026-10-22/24: Jeb fails the release gate (report in `ai/reports/jev-decisions/1/`) | the owner (a second labeler; contact with Jeb's operator) |
+| 13.h | Second review of dataset 2026.10.1's rule-derived labels. Recorded in full 2026-10-25: Jeb fails the release gate (report in `ai/reports/jev-decisions/1/`) | the owner (a second labeler) |
 
 ## Later phases (outline)
 
