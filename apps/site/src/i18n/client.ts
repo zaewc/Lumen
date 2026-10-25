@@ -2,7 +2,7 @@
 // into <body data-strings> for the page's language; the script reads them back
 // with parseClientStrings, so no inline script is needed.
 
-import { z } from "zod";
+import { z } from "../lib/zod";
 
 export const CLIENT_KEYS = [
   "dateLocale",
