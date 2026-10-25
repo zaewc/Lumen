@@ -346,6 +346,7 @@ Found by the owner trying the CLI and the desktop app (2026-10-19). Done:
 | 13.27 | `feat(web): the macOS-utility redesign` (#344–#355) | a sidebar (Overview, Clean up, Quarantine, Settings); a disk usage overview; results grouped by kind and tool, a detail sheet, a verdict filter and a sticky clean-up bar; AI review, language and permissions in Settings |
 | 13.28 | `feat(desktop): open the Full Disk Access settings from the app` (#356) | a fixed `x-apple.systempreferences` address through `/usr/bin/open`; no input from the window |
 | 13.29 | `feat(jev-eval): record Jeb and replay it in CI` (#358–#361) | `lumen-jev-eval record`; the 2026.10.0 cassette and report (1 critical false positive in 7, clean canaries, Jeb demote-only); the `jev-eval` workflow replays it on AI-path changes and requires the committed report byte for byte (12.1b, 12.2) |
+| 13.30 | `feat(web): a calm, dense desktop interface` | the owner's UI principles: a slim toolbar holds each page's one primary action; no cards, icon tiles or pills; Overview as a plain disk bar and a short list; results and Quarantine in aligned columns with right-aligned sizes; ⌘1–⌘4 for the places, ⌘R to scan again, arrow keys through results; info tips only for Quarantine and verdicts |
 
 Open:
 
