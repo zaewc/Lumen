@@ -1,50 +1,55 @@
-/* A real product capture will replace the neutral reserved canvas. */
-.product-showcase {
-  display: grid;
-  place-items: center;
-  width: min(75vw, 1200px);
-  margin: 16px auto 128px;
-}
-
-.product-placeholder,
-.product-showcase figcaption {
-  grid-area: 1 / 1;
-}
-
-.product-placeholder {
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  background: #f5f5f7;
-}
-
-.product-showcase figcaption {
-  padding: 24px;
-  color: var(--ink-3);
-  font-size: 1rem;
-  text-align: center;
-}
-
 .chapter {
-  padding: 148px var(--gutter);
+  padding: 64px var(--gutter);
 }
 
 .chapter:first-child {
-  padding-top: 64px;
-  text-align: center;
+  padding-top: 16px;
 }
 
 .chapter:nth-child(2) {
   background: #f5f5f7;
 }
 
-.chapter-content {
-  max-width: 1040px;
+.chapter-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.9fr);
+  align-items: center;
+  max-width: 1200px;
   margin: 0 auto;
+}
+
+.chapter-content {
+  position: relative;
+  z-index: 1;
+  grid-area: 1 / 1;
+}
+
+.chapter-art {
+  grid-area: 1 / 2;
+  justify-self: center;
+  width: min(42vw, 500px);
+  max-width: none;
+  height: auto;
+  margin: -24px 0 0 -48px;
+  pointer-events: none;
+}
+
+.chapter:nth-child(2) .chapter-layout {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr);
+}
+
+.chapter:nth-child(2) .chapter-content {
+  grid-column: 2;
+}
+
+.chapter:nth-child(2) .chapter-art {
+  grid-column: 1;
+  margin: -24px -48px 0 0;
 }
 
 .chapter h2 {
   margin: 0;
-  font-size: clamp(3rem, 4.45vw, 4rem);
+  font-size: clamp(2.5rem, 3.9vw, 3.5rem);
   font-weight: 650;
   letter-spacing: -0.05em;
   line-height: 1.15;
@@ -55,21 +60,12 @@
 }
 
 .chapter p {
-  max-width: 650px;
-  margin-top: 28px;
+  max-width: 600px;
+  margin-top: 24px;
   color: var(--ink-2);
-  font-size: 1.25rem;
+  font-size: 1.1875rem;
   line-height: 1.6;
   text-wrap: balance;
-}
-
-.chapter:first-child p {
-  margin-inline: auto;
-}
-
-.chapter:last-child .chapter-content {
-  max-width: 800px;
-  margin-right: max(0px, calc((100% - 1040px) / 2));
 }
 
 .architecture-link {
@@ -77,22 +73,31 @@
   align-items: center;
   gap: 4px;
   min-height: 44px;
-  margin-top: 28px;
+  margin-top: 24px;
   font-size: 1.0625rem;
 }
 
 @media (max-width: 760px) {
-  .product-showcase {
-    width: calc(100% - 2 * var(--gutter));
-    margin: 0 auto 80px;
-  }
-
   .chapter {
-    padding: 88px var(--gutter);
+    padding: 40px var(--gutter) 56px;
   }
 
-  .chapter:first-child {
-    padding-top: 0;
+  .chapter-layout,
+  .chapter:nth-child(2) .chapter-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .chapter .chapter-content,
+  .chapter:nth-child(2) .chapter-content {
+    grid-area: 2 / 1;
+  }
+
+  .chapter .chapter-art,
+  .chapter:nth-child(2) .chapter-art {
+    grid-area: 1 / 1;
+    justify-self: end;
+    width: min(64vw, 280px);
+    margin: 0 -12px -32px 0;
   }
 
   .chapter h2 {
@@ -101,7 +106,7 @@
   }
 
   .chapter p {
-    margin-top: 24px;
+    margin-top: 20px;
     font-size: 1.125rem;
   }
 }

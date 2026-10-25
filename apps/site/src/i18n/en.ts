@@ -17,7 +17,6 @@ export const en: Messages = {
     download: "View releases",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
-  product: { pending: "A look inside Lumen is coming soon." },
   trust: {
     items: [
       {

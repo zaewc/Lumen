@@ -218,7 +218,7 @@ pre {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: calc(86svh - 72px);
+  min-height: calc(78svh - 72px);
   max-width: 1064px;
   margin: 0 auto;
   padding: 64px var(--gutter) 48px;
@@ -623,7 +623,7 @@ p + .disclosure {
 
   .intro {
     min-height: 0;
-    padding: 68px var(--gutter) 64px;
+    padding: 48px var(--gutter) 28px;
   }
 
   h1 {

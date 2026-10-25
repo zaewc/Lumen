@@ -17,7 +17,6 @@ export const ko: Messages = {
     download: "릴리스 보기",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
-  product: { pending: "실제 앱 화면을 준비하고 있어요." },
   trust: {
     items: [
       {

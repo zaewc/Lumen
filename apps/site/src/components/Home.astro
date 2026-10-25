@@ -6,7 +6,6 @@ import { messages } from "../i18n";
 import type { Locale } from "../i18n/types";
 import Base from "../layouts/Base.astro";
 import Hero from "./Hero.astro";
-import Product from "./Product.astro";
 import "../styles/story.css";
 
 interface Props {
@@ -15,20 +14,34 @@ interface Props {
 
 const { locale } = Astro.props;
 const t = messages[locale];
+const illustrations = ["protect", "evidence", "local"];
+const base = import.meta.env.BASE_URL;
 ---
 
 <Base locale={locale}>
   <Hero locale={locale} />
-  <Product locale={locale} />
+  <!-- Reserved for an authentic app capture; no empty canvas until one is available. -->
   <div class="story">
     {t.trust.items.map((item, index) => (
       <section class="chapter" aria-labelledby={`principle-${index}`}>
-        <div class="chapter-content">
-          <h2 id={`principle-${index}`}>{item.headline.map((line) => <span>{line}</span>)}</h2>
-          <p>{item.text}</p>
-          {index === t.trust.items.length - 1 && (
-            <a class="architecture-link" href={`${REPO_URL}/blob/main/docs/architecture/system.md`}>{t.trust.more}<span aria-hidden="true"> →</span></a>
-          )}
+        <div class="chapter-layout">
+          <div class="chapter-content">
+            <h2 id={`principle-${index}`}>{item.headline.map((line) => <span>{line}</span>)}</h2>
+            <p>{item.text}</p>
+            {index === t.trust.items.length - 1 && (
+              <a class="architecture-link" href={`${REPO_URL}/blob/main/docs/architecture/system.md`}>{t.trust.more}<span aria-hidden="true"> →</span></a>
+            )}
+          </div>
+          <img
+            class="chapter-art"
+            src={`${base}art/${illustrations[index] ?? "protect"}.webp`}
+            alt=""
+            aria-hidden="true"
+            width="1254"
+            height="1254"
+            loading="lazy"
+            decoding="async"
+          />
         </div>
       </section>
     ))}

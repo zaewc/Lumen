@@ -32,7 +32,6 @@ export interface Messages {
     readonly download: string;
     readonly requirements: string;
   };
-  readonly product: { readonly pending: string };
   readonly trust: {
     readonly items: readonly {
       readonly headline: readonly [string, string];

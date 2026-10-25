@@ -24,7 +24,9 @@ page, white surfaces, large type and no invented product visuals or claims.
 ## Composition
 
 Keep the existing Astro build, locale URLs, external scripts/styles, strict CSP and
-validated GitHub release loader. No new dependencies, fonts, analytics or images.
+validated GitHub release loader. No new dependencies, fonts or analytics. Three conceptual 3D illustrations follow
+the owner's later request; their exact prompts and paths are in
+[site-illustrations.md](../design/site-illustrations.md).
 
 One primary download action, one native disclosure for the other desktop builds
 and installation/verification help, then separate editorial safety chapters and source/docs
@@ -43,7 +45,8 @@ macOS/Windows/Linux, iPad detection, release/empty/loading/error states, unavail
 assets, no JavaScript, keyboard focus, nested disclosure links, malformed fragments
 and 404. All pages stay light, with no horizontal overflow, inline styles/scripts
 or CSP violations. Inspected actual rendered 1440px, 1024px and 390px screenshots.
-The desktop hero headline is 64–80px and its minimum height is 86vh minus navigation.
+The desktop hero headline is 64–80px; the later illustration pass reduces its
+minimum height to 78vh minus navigation.
 
 ## Revised art direction
 
@@ -55,14 +58,17 @@ The site always uses a white/light palette, including when the OS prefers dark.
 The hero omits release-preparation and maturity notices at the owner's request.
 Successful release metadata, loading/error feedback and installation help remain.
 
-## Real product capture
+## Illustrations and real product capture
 
-The repository has application UI source but no usable screenshots. The showcase
-reserves a flat 16:10 canvas at 75vw, with an honest pending caption and no synthetic
-application window, scan data or charts. Replace it with a light-mode macOS
-scan-results capture with a candidate's evidence panel open, native window chrome,
-no personal paths, and at least 2400px width. The placeholder is deliberately
-isolated in `Product.astro` so the real image can replace it directly.
+The owner subsequently requested large 3D objects beside or partly overlapping the
+headlines to explain each idea and reduce empty space. A shield protecting a file,
+a magnifier examining documents and a locked local drive accompany the three
+chapters, with alternating alignment, transparent edges and a shorter hero.
+The same objects sit above the text on narrow screens without obscuring letters.
+
+The repository has no usable app screenshot. Remove the large visible empty
+canvas; keep an insertion-point comment in `Home.astro` for a future authentic
+capture. No illustration is presented as application UI or real storage data.
 
 With no public release, the enhanced main action links to the development page.
 Loading, error and no-JavaScript fallbacks still link to Releases; a valid published
