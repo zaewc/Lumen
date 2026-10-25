@@ -1,0 +1,55 @@
+name: site
+
+# The download site (ADR-0038): apps/site is static and has no build step, so
+# it is uploaded as it is and deployed to GitHub Pages. Pages must be enabled
+# once with "GitHub Actions" as its source (docs/operations/release.md).
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/site/**
+      - .github/workflows/site.yml
+  workflow_dispatch:
+
+permissions: {}
+
+# One deployment at a time; a running deployment is never cancelled midway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: upload
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read # check out apps/site
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: apps/site
+
+  deploy:
+    name: deploy
+    needs: upload
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write # publish the uploaded artifact to GitHub Pages
+      id-token: write # prove to Pages that this workflow run made the artifact
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      # Fails early, with a clear message, if Pages is not enabled yet.
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

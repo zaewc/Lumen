@@ -11,6 +11,11 @@ Target platforms: macOS, Windows, Android, iOS, and a web dashboard.
 
 ## Status
 
+Unsigned beta builds for macOS, Windows and Linux are offered on the
+[download page](https://zaewc.github.io/Lumen/) once a release is published (source in
+[`apps/site`](apps/site),
+[ADR-0038](docs/decisions/0038-unsigned-beta-from-a-project-website.md)).
+
 Pre-alpha. Research (Phase 1), architecture (Phase 2), repository bootstrap
 (Phase 3: Rust workspace, CI, supply-chain and security checks, hooks), the domain
 model (Phase 4: [`lumen-domain`](docs/architecture/domain.md) with committed JSON

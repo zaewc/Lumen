@@ -57,3 +57,31 @@ gh attestation verify lumen-x86_64-unknown-linux-gnu.tar.gz --repo zaewc/Lumen
 
 The second command checks that the file was built by this repository's release
 workflow. It needs the GitHub CLI.
+
+## Download site
+
+[ADR-0038](../decisions/0038-unsigned-beta-from-a-project-website.md): the public
+download page, served by GitHub Pages at <https://zaewc.github.io/Lumen/>.
+
+- **What it is:** a static page in [`apps/site`](../../apps/site) with no build step and
+  no dependencies: `index.html` (Korean and English), `style.css`, `lang.js` (picks the
+  language before the page is drawn) and `main.js`. It loads nothing from other sites
+  and has no cookies or analytics; its Content-Security-Policy allows connections to
+  `api.github.com` only.
+- **What it shows:** the release GitHub marks as **Latest**, read in the browser from
+  `GET /repos/zaewc/Lumen/releases/latest`. The visitor's platform gets the primary
+  button (`_universal.dmg`, `_x64-setup.exe`, `_amd64.deb`/`_amd64.AppImage` by name
+  suffix); every file, `SHA256SUMS` and the `gh attestation verify` command are listed
+  below it, with the steps for opening an unsigned build. Draft releases and
+  pre-releases are not "Latest", so publish a beta as a normal release or the site keeps
+  saying that the first beta is coming. Without JavaScript, or when the API cannot be
+  reached (it allows 60 unauthenticated requests per hour per IP address), every
+  download link goes to the release page instead.
+- **How it is deployed:** [`site.yml`](../../.github/workflows/site.yml) uploads
+  `apps/site` as it is and deploys it with GitHub's Pages actions on every push to
+  `main` that changes `apps/site/**` or the workflow, or when run by hand. Only the
+  deploy job can write to Pages.
+- **Once (done 2026-10-25):** in the repository's Settings › Pages, set **Source** to
+  **GitHub Actions**. Until then the deploy job fails at `configure-pages`.
+- `404.html` uses absolute `/Lumen/` paths, because Pages serves it for any missing
+  path; a custom domain would need them changed.
