@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://api.github.com; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <title>Lumen</title>
+    <meta
+      name="description"
+      content="디스크에서 안전하게 비울 수 있는 공간을 찾습니다. 정리한 항목은 모두 되돌릴 수 있습니다. macOS, Windows, Linux용 베타."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f6f6f8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1c1f" media="(prefers-color-scheme: dark)" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Lumen" />
+    <meta
+      property="og:description"
+      content="디스크에서 안전하게 비울 수 있는 공간을 찾습니다. 정리한 항목은 모두 되돌릴 수 있습니다."
+    />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="favicon.png" type="image/png" sizes="32x32" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="lang.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main"
+      ><span lang="ko">본문으로 건너뛰기</span><span lang="en">Skip to content</span></a
+    >
+
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="#top"><img src="icon.svg" alt="" width="28" height="28" />Lumen</a>
+        <nav class="nav" data-label-ko="사이트" data-label-en="Site">
+          <a href="#download"><span lang="ko">다운로드</span><span lang="en">Download</span></a>
+          <a href="#install"><span lang="ko">처음 열기</span><span lang="en">First launch</span></a>
+          <a href="#faq"><span lang="ko">질문</span><span lang="en">FAQ</span></a>
+          <a href="https://github.com/zaewc/Lumen">GitHub</a>
+        </nav>
+        <button type="button" class="lang-toggle js-only" id="lang-toggle">
+          <span lang="ko">English</span><span lang="en">한국어</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="main" class="wrap">
+      <section class="intro" id="top" aria-labelledby="title">
+        <img class="app-icon" src="icon.svg" alt="" width="64" height="64" />
+        <h1 id="title">Lumen</h1>
+        <p class="lead">
+          <span lang="ko"
+            >디스크에서 안전하게 비울 수 있는 공간을 찾습니다. 정리한 항목은 모두 되돌릴 수
+            있습니다.</span
+          ><span lang="en"
+            >Finds disk space you can safely free. Everything you clean up can be put back.</span
+          >
+        </p>
+        <div class="primary">
+          <a class="btn btn-primary" id="primary-download" href="#download">
+            <span id="primary-label"><span lang="ko">다운로드</span><span lang="en">Download</span></span>
+          </a>
+          <a class="text-link js-only" id="other-platforms" href="#download" hidden
+            ><span lang="ko">다른 플랫폼</span><span lang="en">Other platforms</span></a
+          >
+        </div>
+        <p class="meta" id="primary-meta">macOS 13+ · Windows 10 22H2+ · Linux x86_64</p>
+        <p class="beta">
+          <span lang="ko"
+            >서명되지 않은 베타입니다. macOS와 Windows가 처음 실행을 막으면 한 번 허용하세요.</span
+          ><span lang="en"
+            >Unsigned beta: macOS and Windows block the first launch until you allow it
+            once.</span
+          >
+          <a href="#install"><span lang="ko">여는 방법</span><span lang="en">How to open it</span></a>
+        </p>
+      </section>
+
+      <section aria-labelledby="how-title">
+        <h2 id="how-title"><span lang="ko">작동 방식</span><span lang="en">How it works</span></h2>
+        <ol class="steps">
+          <li>
+            <strong><span lang="ko">검사</span><span lang="en">Scan</span></strong>
+            <p>
+              <span lang="ko"
+                >읽기만 합니다. 파일을 열거나 바꾸지 않고, 클라우드에만 있는 파일을 내려받지
+                않습니다.</span
+              ><span lang="en"
+                >Read-only. Lumen never opens or changes files, and never downloads files kept only
+                in the cloud.</span
+              >
+            </p>
+          </li>
+          <li>
+            <strong><span lang="ko">판단</span><span lang="en">Decide</span></strong>
+            <p>
+              <span lang="ko"
+                >정해진 안전 규칙이 항목마다 유지, 검토 필요, 정리 제안 중 하나로 판단하고 이유를
+                보여 줍니다.</span
+              ><span lang="en"
+                >A fixed safety policy marks each item Keep, Review or Proposed, and shows
+                why.</span
+              >
+            </p>
+          </li>
+          <li>
+            <strong><span lang="ko">확인</span><span lang="en">Confirm</span></strong>
+            <p>
+              <span lang="ko"
+                >정리 제안된 항목을 보고 직접 확인합니다. 확인하기 전에는 아무것도 옮기지
+                않습니다.</span
+              ><span lang="en"
+                >You review the proposed items and confirm. Nothing moves before you do.</span
+              >
+            </p>
+          </li>
+          <li>
+            <strong><span lang="ko">격리</span><span lang="en">Quarantine</span></strong>
+            <p>
+              <span lang="ko"
+                >확인한 항목은 지우지 않고 격리함으로 옮깁니다. 영구 삭제하기 전까지 복원할 수
+                있고, 영구 삭제는 요청할 때만 합니다. 공간은 그때 비워집니다.</span
+              ><span lang="en"
+                >Confirmed items move to Quarantine instead of being deleted. You can restore them
+                until you remove them for good, which happens only when you ask. That is when the
+                space is freed.</span
+              >
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="safety-title">
+        <h2 id="safety-title">
+          <span lang="ko">확실하지 않으면 그대로 둡니다</span
+          ><span lang="en">When in doubt, Lumen leaves it alone</span>
+        </h2>
+        <ul class="plain">
+          <li>
+            <span lang="ko"
+              >시스템 파일, 문서, 자격 증명과 키, 브라우저 프로필, 데이터베이스는 정리를 제안하지
+              않습니다.</span
+            ><span lang="en"
+              >System files, documents, credentials and keys, browser profiles and databases are
+              never proposed.</span
+            >
+          </li>
+          <li>
+            <span lang="ko"
+              >읽지 못한 폴더는 비어 있는 것으로 보지 않습니다. 그 안의 항목은 그대로 둡니다.</span
+            ><span lang="en"
+              >A folder Lumen cannot read is not treated as empty. Nothing in it is
+              proposed.</span
+            >
+          </li>
+          <li>
+            <span lang="ko"
+              >사용 중인 파일과 클라우드와 동기화된 파일은 건드리지 않습니다.</span
+            ><span lang="en">Files in use and files synced with a cloud service are left alone.</span>
+          </li>
+          <li>
+            <span lang="ko"
+              >옮기기 직전에 항목마다 다시 확인하고, 복원할 때 아무것도 덮어쓰지 않습니다.</span
+            ><span lang="en"
+              >Every item is checked again just before it moves, and restoring never overwrites
+              anything.</span
+            >
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="privacy-title">
+        <h2 id="privacy-title"><span lang="ko">개인정보</span><span lang="en">Privacy</span></h2>
+        <p>
+          <span lang="ko"
+            >검사 결과, 판단, 격리함, 기록은 이 컴퓨터에만 있습니다. 사용 통계, 오류 보고, 추적은
+            없습니다.</span
+          ><span lang="en"
+            >Scan results, decisions, Quarantine and logs stay on this computer. No usage
+            statistics, crash reports or tracking.</span
+          >
+        </p>
+        <p>
+          <strong><span lang="ko">AI 검토(선택).</span><span lang="en">AI review (optional).</span></strong>
+          <span lang="ko"
+            >기본으로 꺼져 있고, 설정에서 직접 켜야 합니다. 켜면 정리 제안된 항목의 메타데이터(경로,
+            크기, 경과 기간, 판단 근거. 홈 폴더는 ~로 표시)만 학교의 Jeb 서버로 보냅니다. 파일
+            내용은 보내지 않습니다. AI는 판단을 더 신중하게만 바꿀 수 있고, 무엇을 옮길지 고를 수
+            없습니다. 서버 운영자가 요청을 보관할 수 있습니다.</span
+          ><span lang="en"
+            >Off by default; you turn it on in Settings. Then only metadata about proposed items
+            (path, sizes, ages and evidence, with your home folder shown as ~) goes to the
+            school's Jeb server. File contents are never sent. AI can only make a decision more
+            cautious; it cannot choose what is moved. The server's operator may keep the
+            requests.</span
+          >
+        </p>
+      </section>
+
+      <section id="download" aria-labelledby="download-title">
+        <h2 id="download-title"><span lang="ko">다운로드</span><span lang="en">Download</span></h2>
+        <p class="status" id="release-status" aria-live="polite">
+          <span class="no-js"
+            ><span lang="ko">파일은 </span><span lang="en">Files come from the </span
+            ><a href="https://github.com/zaewc/Lumen/releases/latest"
+              ><span lang="ko">GitHub 릴리스</span><span lang="en">latest GitHub release</span></a
+            ><span lang="ko">에서 내려받습니다.</span><span lang="en">.</span></span
+          >
+          <span class="js-only"
+            ><span lang="ko">최신 버전을 확인하는 중…</span
+            ><span lang="en">Checking the latest version…</span></span
+          >
+        </p>
+
+        <ul class="platforms">
+          <li class="platform" data-os="mac">
+            <div>
+              <h3>macOS <span class="current" hidden><span lang="ko">이 컴퓨터</span><span lang="en">This computer</span></span></h3>
+              <p>
+                <span lang="ko">macOS 13 이상 · Apple silicon, Intel</span
+                ><span lang="en">macOS 13 or later · Apple silicon and Intel</span>
+              </p>
+            </div>
+            <div class="files-row">
+              <a class="btn" data-asset="_universal.dmg" href="https://github.com/zaewc/Lumen/releases/latest"
+                >.dmg<span class="size" data-size></span
+              ></a>
+            </div>
+          </li>
+          <li class="platform" data-os="windows">
+            <div>
+              <h3>Windows <span class="current" hidden><span lang="ko">이 컴퓨터</span><span lang="en">This computer</span></span></h3>
+              <p>
+                <span lang="ko">Windows 10 22H2 이상, Windows 11 · 64비트 · 관리자 권한 불필요</span
+                ><span lang="en">Windows 10 22H2 or later, Windows 11 · 64-bit · no admin rights</span>
+              </p>
+            </div>
+            <div class="files-row">
+              <a class="btn" data-asset="_x64-setup.exe" href="https://github.com/zaewc/Lumen/releases/latest"
+                ><span lang="ko">설치 프로그램</span><span lang="en">Installer</span
+                ><span class="size" data-size></span
+              ></a>
+            </div>
+          </li>
+          <li class="platform" data-os="linux">
+            <div>
+              <h3>Linux <span class="current" hidden><span lang="ko">이 컴퓨터</span><span lang="en">This computer</span></span></h3>
+              <p>
+                <span lang="ko">x86_64 · Ubuntu 24.04 이상 또는 비슷한 배포판</span
+                ><span lang="en">x86_64 · Ubuntu 24.04 or later, or similar</span>
+              </p>
+            </div>
+            <div class="files-row">
+              <a class="btn" data-asset="_amd64.deb" href="https://github.com/zaewc/Lumen/releases/latest"
+                >.deb<span class="size" data-size></span
+              ></a>
+              <a class="btn" data-asset="_amd64.AppImage" href="https://github.com/zaewc/Lumen/releases/latest"
+                >AppImage<span class="size" data-size></span
+              ></a>
+            </div>
+          </li>
+        </ul>
+
+        <details class="disclosure" id="files">
+          <summary>
+            <span lang="ko">다른 파일: 명령줄 도구, 체크섬, SBOM</span
+            ><span lang="en">Other files: command line, checksums, SBOMs</span>
+          </summary>
+          <div class="body">
+            <p>
+              <span lang="ko"
+                >명령줄 도구 <code>lumen</code>은 <code>lumen-&lt;target&gt;.tar.gz</code>(macOS
+                Apple silicon, Linux)와 <code>.zip</code>(Windows)으로 받습니다.
+                <code>.cdx.json</code>은 빌드에 들어간 구성 요소 목록(SBOM)입니다.</span
+              ><span lang="en"
+                >The <code>lumen</code> command line comes as
+                <code>lumen-&lt;target&gt;.tar.gz</code> (macOS on Apple silicon, Linux) and
+                <code>.zip</code> (Windows). The <code>.cdx.json</code> files list each build's
+                components (SBOMs).</span
+              >
+            </p>
+            <p class="no-js">
+              <a href="https://github.com/zaewc/Lumen/releases/latest"
+                ><span lang="ko">GitHub 릴리스에서 모든 파일 보기</span
+                ><span lang="en">See every file on GitHub</span></a
+              >
+            </p>
+            <div class="table-scroll js-only" id="file-list"></div>
+          </div>
+        </details>
+
+        <details class="disclosure" id="verify">
+          <summary>
+            <span lang="ko">내려받은 파일 확인하기</span><span lang="en">Verify a download</span>
+          </summary>
+          <div class="body">
+            <p>
+              <span lang="ko"
+                ><a data-sums href="https://github.com/zaewc/Lumen/releases/latest/download/SHA256SUMS"
+                  ><code>SHA256SUMS</code></a
+                >를 내려받은 파일과 같은 폴더에 두고 그 폴더에서 실행하세요. 파일 이름 옆에
+                <code>OK</code>가 나와야 합니다.</span
+              ><span lang="en"
+                >Put
+                <a data-sums href="https://github.com/zaewc/Lumen/releases/latest/download/SHA256SUMS"
+                  ><code>SHA256SUMS</code></a
+                >
+                next to your download and run this in that folder. Your file should show
+                <code>OK</code>.</span
+              >
+            </p>
+            <p class="label">macOS</p>
+            <div class="cmd">
+              <pre><code id="cmd-sum-mac">shasum -a 256 -c SHA256SUMS --ignore-missing</code></pre>
+              <button type="button" class="copy js-only" data-copy="cmd-sum-mac"><span lang="ko">복사</span><span lang="en">Copy</span></button>
+            </div>
+            <p class="label">Linux</p>
+            <div class="cmd">
+              <pre><code id="cmd-sum-linux">sha256sum -c SHA256SUMS --ignore-missing</code></pre>
+              <button type="button" class="copy js-only" data-copy="cmd-sum-linux"><span lang="ko">복사</span><span lang="en">Copy</span></button>
+            </div>
+            <p class="label">
+              Windows (PowerShell)<span class="label-note"
+                ><span lang="ko"> · 출력된 값을 SHA256SUMS의 같은 파일 줄과 비교하세요(대소문자 무시).</span
+                ><span lang="en"> · compare the result with that file's line in SHA256SUMS (ignore case).</span></span
+              >
+            </p>
+            <div class="cmd">
+              <pre><code id="cmd-sum-win">Get-FileHash .\Lumen_<span data-version>&lt;version&gt;</span>_x64-setup.exe -Algorithm SHA256</code></pre>
+              <button type="button" class="copy js-only" data-copy="cmd-sum-win"><span lang="ko">복사</span><span lang="en">Copy</span></button>
+            </div>
+            <p class="label">
+              <span lang="ko">빌드 증명</span><span lang="en">Build provenance</span
+              ><span class="label-note"
+                ><span lang="ko">
+                  · 이 저장소의 릴리스 워크플로가 빌드했는지 확인합니다.
+                  <a href="https://cli.github.com/">GitHub CLI</a>가 필요합니다.</span
+                ><span lang="en">
+                  · checks that this repository's release workflow built the file. Needs the
+                  <a href="https://cli.github.com/">GitHub CLI</a>.</span
+                ></span
+              >
+            </p>
+            <div class="cmd">
+              <pre><code id="cmd-attest">gh attestation verify <span id="attest-file">Lumen_<span data-version>&lt;version&gt;</span>_universal.dmg</span> --repo zaewc/Lumen</code></pre>
+              <button type="button" class="copy js-only" data-copy="cmd-attest"><span lang="ko">복사</span><span lang="en">Copy</span></button>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section id="install" aria-labelledby="install-title">
+        <h2 id="install-title">
+          <span lang="ko">처음 열기</span><span lang="en">Opening Lumen the first time</span>
+        </h2>
+        <p>
+          <span lang="ko"
+            >아직 코드 서명이 없어서 macOS와 Windows가 처음 실행을 막습니다. 한 번만 허용하면
+            됩니다.</span
+          ><span lang="en"
+            >Lumen is not code-signed yet, so macOS and Windows block its first launch. You only
+            need to allow it once.</span
+          >
+        </p>
+
+        <details class="disclosure" id="install-mac" data-os="mac">
+          <summary>macOS</summary>
+          <div class="body">
+            <ol class="numbered">
+              <li>
+                <span lang="ko"
+                  ><code>.dmg</code>를 열고 Lumen을 <span class="ui">응용 프로그램</span> 폴더로
+                  끌어 놓습니다.</span
+                ><span lang="en"
+                  >Open the <code>.dmg</code> and drag Lumen into
+                  <span class="ui">Applications</span>.</span
+                >
+              </li>
+              <li>
+                <span lang="ko"
+                  >Lumen을 엽니다. 열 수 없다는 창이 나오면 <span class="ui">완료</span>를
+                  누릅니다.</span
+                ><span lang="en"
+                  >Open Lumen. When macOS says it cannot be opened, click
+                  <span class="ui">Done</span>.</span
+                >
+              </li>
+              <li>
+                <span lang="ko"
+                  ><span class="ui">시스템 설정 › 개인정보 보호 및 보안</span>에서 아래
+                  <span class="ui">보안</span> 부분의 <span class="ui">“그래도 열기”</span>를 누르고
+                  암호나 Touch ID로 확인합니다.</span
+                ><span lang="en"
+                  >In <span class="ui">System Settings › Privacy &amp; Security</span>, scroll to
+                  <span class="ui">Security</span>, click <span class="ui">“Open Anyway”</span> and
+                  confirm with your password or Touch ID.</span
+                >
+              </li>
+              <li>
+                <span lang="ko"
+                  >Lumen을 다시 열고 <span class="ui">그래도 열기</span>를 누릅니다. 다음부터는 그냥
+                  열립니다.</span
+                ><span lang="en"
+                  >Open Lumen again and click <span class="ui">Open Anyway</span>. After that it
+                  opens normally.</span
+                >
+              </li>
+            </ol>
+            <p class="aside">
+              <span lang="ko"
+                >macOS 15부터는 Control-클릭으로 열기가 통하지 않습니다. macOS 13, 14에서는
+                Control-클릭 › <span class="ui">열기</span>도 됩니다.</span
+              ><span lang="en"
+                >From macOS 15, Control-click no longer bypasses the block. On macOS 13 and 14,
+                Control-click › <span class="ui">Open</span> also works.</span
+              >
+            </p>
+          </div>
+        </details>
+
+        <details class="disclosure" id="fda" data-os="mac">
+          <summary>
+            <span lang="ko">macOS 전체 디스크 접근 권한</span
+            ><span lang="en">macOS Full Disk Access</span>
+          </summary>
+          <div class="body">
+            <p>
+              <span lang="ko"
+                >허용하지 않으면 메일, 메시지, 다른 앱의 데이터 같은 보호된 폴더는 ‘읽지 못함’으로
+                남고 정리를 제안하지 않습니다.</span
+              ><span lang="en"
+                >Without it, protected folders such as Mail, Messages and other apps' data stay
+                unreadable and nothing in them is proposed.</span
+              >
+            </p>
+            <ol class="numbered">
+              <li>
+                <span lang="ko"
+                  ><span class="ui">시스템 설정 › 개인정보 보호 및 보안 › 전체 디스크 접근 권한</span
+                  >을 엽니다. Lumen 설정의 버튼으로도 열 수 있습니다.</span
+                ><span lang="en"
+                  >Open <span class="ui">System Settings › Privacy &amp; Security › Full Disk
+                  Access</span>, or use the button in Lumen's Settings.</span
+                >
+              </li>
+              <li>
+                <span lang="ko"
+                  >Lumen을 켭니다. 목록에 없으면 <span class="ui">+</span>로 응용 프로그램 폴더의
+                  Lumen을 추가합니다.</span
+                ><span lang="en"
+                  >Turn Lumen on. If it is not listed, add it from Applications with
+                  <span class="ui">+</span>.</span
+                >
+              </li>
+              <li>
+                <span lang="ko">Lumen을 종료했다가 다시 열고 다시 검사합니다.</span
+                ><span lang="en">Quit and reopen Lumen, then scan again.</span>
+              </li>
+            </ol>
+            <p class="aside">
+              <span lang="ko"
+                >서명이 없어서 업데이트한 Lumen을 macOS가 다른 앱으로 볼 수 있습니다. 업데이트 뒤
+                폴더를 읽지 못하면 목록에서 Lumen을 <span class="ui">−</span>로 지우고 다시
+                추가하세요.</span
+              ><span lang="en"
+                >Without a signature, macOS may see an updated Lumen as a different app. If folders
+                are unreadable after an update, remove Lumen from the list with
+                <span class="ui">−</span> and add it again.</span
+              >
+            </p>
+          </div>
+        </details>
+
+        <details class="disclosure" id="install-windows" data-os="windows">
+          <summary>Windows</summary>
+          <div class="body">
+            <ol class="numbered">
+              <li>
+                <span lang="ko"
+                  >브라우저가 다운로드를 경고하면 다운로드 목록의 메뉴에서
+                  <span class="ui">유지</span>를 고릅니다.</span
+                ><span lang="en"
+                  >If your browser warns about the download, choose <span class="ui">Keep</span> in
+                  the download's menu.</span
+                >
+              </li>
+              <li>
+                <span lang="ko"
+                  >설치 프로그램을 실행합니다. <span class="ui">Windows의 PC 보호</span> 창에서
+                  <span class="ui">추가 정보</span>를 누른 다음 <span class="ui">실행</span>을
+                  누릅니다.</span
+                ><span lang="en"
+                  >Run the installer. In <span class="ui">Windows protected your PC</span>, click
+                  <span class="ui">More info</span>, then <span class="ui">Run anyway</span>.</span
+                >
+              </li>
+              <li>
+                <span lang="ko"
+                  >시작 메뉴에서 Lumen을 엽니다. 관리자 권한으로 실행하면 Lumen은 파일을 옮기지
+                  않습니다.</span
+                ><span lang="en"
+                  >Open Lumen from the Start menu. Run as administrator, Lumen will not move
+                  files.</span
+                >
+              </li>
+            </ol>
+          </div>
+        </details>
+
+        <details class="disclosure" id="install-linux" data-os="linux">
+          <summary>Linux</summary>
+          <div class="body">
+            <p class="label">.deb</p>
+            <div class="cmd">
+              <pre><code id="cmd-deb">sudo apt install ./Lumen_<span data-version>&lt;version&gt;</span>_amd64.deb</code></pre>
+              <button type="button" class="copy js-only" data-copy="cmd-deb"><span lang="ko">복사</span><span lang="en">Copy</span></button>
+            </div>
+            <p class="label">AppImage</p>
+            <div class="cmd">
+              <pre><code id="cmd-appimage">chmod +x Lumen_<span data-version>&lt;version&gt;</span>_amd64.AppImage
+./Lumen_<span data-version>&lt;version&gt;</span>_amd64.AppImage</code></pre>
+              <button type="button" class="copy js-only" data-copy="cmd-appimage"><span lang="ko">복사</span><span lang="en">Copy</span></button>
+            </div>
+            <p class="aside">
+              <span lang="ko"
+                >AppImage가 실행되지 않으면 FUSE 2가 필요할 수 있습니다(Ubuntu 24.04:
+                <code>sudo apt install libfuse2t64</code>). root로 실행하면 Lumen은 파일을 옮기지
+                않습니다.</span
+              ><span lang="en"
+                >If the AppImage does not start, it may need FUSE 2 (Ubuntu 24.04:
+                <code>sudo apt install libfuse2t64</code>). Run as root, Lumen will not move
+                files.</span
+              >
+            </p>
+          </div>
+        </details>
+      </section>
+
+      <section id="faq" aria-labelledby="faq-title">
+        <h2 id="faq-title"><span lang="ko">자주 묻는 질문</span><span lang="en">FAQ</span></h2>
+
+        <details class="disclosure">
+          <summary>
+            <span lang="ko">왜 경고가 나오나요?</span><span lang="en">Why the warning?</span>
+          </summary>
+          <div class="body">
+            <p>
+              <span lang="ko"
+                >Lumen이 아직 Apple(Developer ID, 공증)과 Microsoft의 코드 서명을 받지 않았기
+                때문입니다. 운영 체제가 개발자를 확인할 수 없다는 뜻이지, 악성 코드를 찾았다는 뜻은
+                아닙니다. 서명은 계정이 준비되면 추가합니다. 그때까지는
+                <a href="#verify">체크섬과 빌드 증명</a>으로 파일을 확인할 수 있습니다.</span
+              ><span lang="en"
+                >Lumen is not code-signed by Apple (Developer ID, notarization) or Microsoft yet.
+                The warning means your system cannot identify the developer; it does not mean
+                malware was found. Signing comes once the accounts exist. Until then you can check
+                files with <a href="#verify">checksums and build provenance</a>.</span
+              >
+            </p>
+          </div>
+        </details>
+
+        <details class="disclosure">
+          <summary>
+            <span lang="ko">써도 안전한가요?</span><span lang="en">Is it safe?</span>
+          </summary>
+          <div class="body">
+            <p>
+              <span lang="ko"
+                >베타라서 버그가 있을 수 있습니다. 그래서 보수적으로 동작합니다. 확실하지 않으면
+                그대로 두고, 정리는 확인한 항목을 격리함으로 옮기는 것뿐이며, 영구 삭제 전까지 복원할
+                수 있습니다. 소스 코드는 공개되어 있고 릴리스는 GitHub Actions에서 그 코드로
+                빌드됩니다. 중요한 데이터는 따로 백업해 두세요.</span
+              ><span lang="en"
+                >It is a beta, so it may have bugs. That is why it is cautious: when unsure it
+                leaves things alone, cleaning up only moves confirmed items into Quarantine, and you
+                can restore them until you remove them for good. The source is public and releases
+                are built from it on GitHub Actions. Keep a backup of anything important.</span
+              >
+            </p>
+          </div>
+        </details>
+
+        <details class="disclosure">
+          <summary>
+            <span lang="ko">AI 검토는 무엇을 보내나요?</span
+            ><span lang="en">What does AI review send?</span>
+          </summary>
+          <div class="body">
+            <p>
+              <span lang="ko"
+                >켜기 전에는 아무것도 보내지 않습니다. 켜면 정리 제안된 항목마다 경로(홈 폴더는 ~),
+                크기, 경과 기간, 판단 근거만 학교의 Jeb 서버로 보냅니다. 학교 AI Hub에서 발급한 키가
+                필요합니다. AI의 답은 판단을 더 신중하게만 바꿀 수 있고, 답이 없거나 형식이 맞지
+                않으면 무시됩니다. 켜면 끌 때까지 유지되며, 설정에서 언제든 끌 수 있습니다.</span
+              ><span lang="en"
+                >Nothing until you turn it on. Then, for each proposed item, only the path (home
+                folder shown as ~), sizes, ages and evidence go to the school's Jeb server. It needs
+                a key from the school's AI Hub. Its answer can only make a decision more cautious,
+                and a missing or malformed answer is ignored. It stays on until you turn it off in
+                Settings.</span
+              >
+            </p>
+          </div>
+        </details>
+
+        <details class="disclosure">
+          <summary>
+            <span lang="ko">정리한 항목은 어떻게 되돌리나요?</span
+            ><span lang="en">How do I get something back?</span>
+          </summary>
+          <div class="body">
+            <p>
+              <span lang="ko"
+                ><span class="ui">격리함</span>에서 항목을 고르고 <span class="ui">복원</span>을
+                누르세요. 원래 자리에 원래 이름으로 돌아갑니다. 그 자리에 같은 이름의 항목이 생겼다면
+                덮어쓰지 않고 격리함에 남겨 둡니다.</span
+              ><span lang="en"
+                >In <span class="ui">Quarantine</span>, select the item and choose
+                <span class="ui">Restore</span>. It returns to its original place and name. If
+                something else now has that name, nothing is overwritten and the item stays in
+                Quarantine.</span
+              >
+            </p>
+          </div>
+        </details>
+
+        <details class="disclosure">
+          <summary>
+            <span lang="ko">어떻게 제거하나요?</span><span lang="en">How do I uninstall it?</span>
+          </summary>
+          <div class="body">
+            <p>
+              <span lang="ko"
+                >먼저 격리함의 항목을 복원하거나 영구 삭제하세요. 앱을 지워도 격리함은 남아 공간을
+                차지합니다.</span
+              ><span lang="en"
+                >First restore or permanently remove what is in Quarantine. Uninstalling leaves
+                Quarantine in place, still using space.</span
+              >
+            </p>
+            <ul class="plain compact">
+              <li>
+                <span lang="ko"
+                  >macOS: 응용 프로그램 폴더의 Lumen을 휴지통으로 옮깁니다. 데이터는
+                  <code>~/Library/Application Support/dev.lumen.desktop</code>, 격리함은
+                  <code>~/Library/Application Support/Lumen/Quarantine</code>에 있습니다.</span
+                ><span lang="en"
+                  >macOS: move Lumen from Applications to the Trash. Its data is in
+                  <code>~/Library/Application Support/dev.lumen.desktop</code>, Quarantine in
+                  <code>~/Library/Application Support/Lumen/Quarantine</code>.</span
+                >
+              </li>
+              <li>
+                <span lang="ko"
+                  >Windows: <span class="ui">설정 › 앱 › 설치된 앱</span>에서 제거합니다. 격리함은
+                  <code>%LOCALAPPDATA%\Lumen\Quarantine</code>에 있습니다.</span
+                ><span lang="en"
+                  >Windows: uninstall in <span class="ui">Settings › Apps › Installed apps</span>.
+                  Quarantine is in <code>%LOCALAPPDATA%\Lumen\Quarantine</code>.</span
+                >
+              </li>
+              <li>
+                <span lang="ko"
+                  >Linux: <code>sudo apt remove lumen</code> 또는 AppImage 파일 삭제. 격리함은
+                  <code>~/.local/share/lumen/quarantine</code>에 있습니다.</span
+                ><span lang="en"
+                  >Linux: <code>sudo apt remove lumen</code>, or delete the AppImage. Quarantine is
+                  in <code>~/.local/share/lumen/quarantine</code>.</span
+                >
+              </li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="disclosure">
+          <summary>
+            <span lang="ko">업데이트는 어떻게 하나요?</span><span lang="en">How do I update?</span>
+          </summary>
+          <div class="body">
+            <p>
+              <span lang="ko"
+                >자동 업데이트는 아직 없습니다. 새 버전을 이 페이지에서 내려받아 같은 방법으로
+                설치하세요. 업데이트 뒤 <span class="ui">그래도 열기</span>와 전체 디스크 접근
+                권한을 다시 해야 할 수 있습니다.</span
+              ><span lang="en"
+                >There are no automatic updates yet. Download the new version here and install it
+                the same way. You may need to choose <span class="ui">Open Anyway</span> and grant
+                Full Disk Access again afterwards.</span
+              >
+            </p>
+          </div>
+        </details>
+
+        <details class="disclosure">
+          <summary>
+            <span lang="ko">베타에서 아직 안 되는 것은?</span
+            ><span lang="en">What is missing in the beta?</span>
+          </summary>
+          <div class="body">
+            <p>
+              <span lang="ko"
+                >0.x 동안은 기능과 화면이 바뀔 수 있고, 서명과 자동 업데이트가 없습니다. 지금은 사용자
+                폴더가 있는 디스크의 항목만 격리할 수 있고, 다른 디스크의 항목은 그대로 둡니다.
+                휴대폰 앱은 아직 없습니다. 문제는
+                <a href="https://github.com/zaewc/Lumen/issues">GitHub 이슈</a>로, 보안 문제는
+                <a href="https://github.com/zaewc/Lumen/blob/main/SECURITY.md">보안 정책</a>에 따라
+                알려 주세요.</span
+              ><span lang="en"
+                >During 0.x, features and screens may change, and there is no signing or automatic
+                update. Only items on the disk with your user folder can be quarantined; items on
+                other disks stay where they are. There is no phone app yet. Report problems as
+                <a href="https://github.com/zaewc/Lumen/issues">GitHub issues</a>, and security
+                issues as described in the
+                <a href="https://github.com/zaewc/Lumen/blob/main/SECURITY.md">security policy</a
+                >.</span
+              >
+            </p>
+          </div>
+        </details>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <p>
+          Lumen <span id="footer-version"></span>·
+          <a href="https://github.com/zaewc/Lumen"><span lang="ko">소스 코드</span><span lang="en">Source</span></a>
+          ·
+          <a href="https://github.com/zaewc/Lumen/releases"><span lang="ko">모든 릴리스</span><span lang="en">All releases</span></a>
+          ·
+          <a href="https://github.com/zaewc/Lumen/blob/main/LICENSE">Apache-2.0</a>
+        </p>
+        <p class="footer-note">
+          <span lang="ko"
+            >이 사이트는 쿠키와 분석 도구를 쓰지 않습니다. 최신 버전 정보는 브라우저가 GitHub API에서
+            직접 가져오며, 언어 선택만 이 브라우저에 저장합니다.</span
+          ><span lang="en"
+            >This site uses no cookies or analytics. Your browser fetches the latest version from
+            the GitHub API directly; only your language choice is saved, in this browser.</span
+          >
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
