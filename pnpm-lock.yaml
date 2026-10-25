@@ -221,6 +221,9 @@ catalogs:
     react-native:
       specifier: 0.88.0
       version: 0.88.0
+    react-native-safe-area-context:
+      specifier: 5.10.1
+      version: 5.10.1
     steiger:
       specifier: 0.7.0
       version: 0.7.0
@@ -293,6 +296,9 @@ importers:
       react-native:
         specifier: 'catalog:'
         version: 0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1)
+      react-native-safe-area-context:
+        specifier: 'catalog:'
+        version: 5.10.1(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
     devDependencies:
       '@lumen/config':
         specifier: workspace:*
@@ -3019,6 +3025,12 @@ packages:
 
   react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
+
+  react-native-safe-area-context@5.10.1:
+    resolution: {integrity: sha512-ax0T3cAHQIhuAjDQpJ9C1Le96aRiM9PF+Kmgg7Y8+mD7QJMEIx04cG0eG3EGUTdvymgOkCrkakgZFwuOIuNQGw==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
 
   react-native@0.88.0:
     resolution: {integrity: sha512-v/wee0nYWcammMYBnSat/e3WY/5iaf9YQOMcBrfKT/wPApPPlHp94hgZovBtwhMuthR01yc/8cGn0FpFTE/C4A==}
@@ -6349,6 +6361,11 @@ snapshots:
       scheduler: 0.28.0
 
   react-is@18.3.1: {}
+
+  react-native-safe-area-context@5.10.1(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0):
+    dependencies:
+      react: 19.3.0
+      react-native: 0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1)
 
   react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1):
     dependencies:

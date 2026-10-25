@@ -26,6 +26,7 @@ catalog:
   react: 19.3.0
   react-dom: 19.3.0
   react-native: 0.88.0
+  react-native-safe-area-context: 5.10.1
   steiger: 0.7.0
   tailwindcss: 4.3.3
   turbo: 2.11.7

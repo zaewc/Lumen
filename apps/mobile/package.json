@@ -19,7 +19,8 @@
     "expo-modules-core": "catalog:",
     "expo-status-bar": "catalog:",
     "react": "catalog:",
-    "react-native": "catalog:"
+    "react-native": "catalog:",
+    "react-native-safe-area-context": "catalog:"
   },
   "devDependencies": {
     "@lumen/config": "workspace:*",

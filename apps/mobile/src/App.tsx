@@ -1,4 +1,5 @@
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ReviewGrid } from "./ReviewGrid";
 import { useColors } from "./theme";
 import { SafeArea } from "./ui";
@@ -11,9 +12,11 @@ import { SafeArea } from "./ui";
 export function App() {
   const c = useColors();
   return (
-    <SafeArea style={{ backgroundColor: c.background }}>
-      <ReviewGrid />
-      <StatusBar style="auto" />
-    </SafeArea>
+    <SafeAreaProvider>
+      <SafeArea style={{ backgroundColor: c.background }}>
+        <ReviewGrid />
+        <StatusBar style="auto" />
+      </SafeArea>
+    </SafeAreaProvider>
   );
 }

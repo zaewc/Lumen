@@ -1,34 +1,19 @@
 import type { ReactNode } from "react";
-import {
-  Platform,
-  Pressable,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-  type ViewStyle,
-} from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { type Colors, TOUCH, type, useColors } from "./theme";
 
 /**
- * Bottom inset on Android, where the app draws edge to edge: the three-button
- * navigation bar's 48 dp, which also clears the gesture bar. Exact insets would
- * need react-native-safe-area-context, which the app does not depend on yet.
- */
-const ANDROID_BOTTOM = 48;
-
-/**
- * The screen inside the system bars, notch and home indicator. iOS uses React
- * Native's own safe-area view (native insets, also on iPad); Android pads by
- * the status bar's height and `ANDROID_BOTTOM`.
+ * The screen inside the system bars, notch, home indicator and gesture bar,
+ * with each platform's real insets (react-native-safe-area-context; needs the
+ * `SafeAreaProvider` in `App`).
  */
 export function SafeArea({ children, style }: { children: ReactNode; style: ViewStyle }) {
-  if (Platform.OS === "ios") {
-    return <SafeAreaView style={[styles.fill, style]}>{children}</SafeAreaView>;
-  }
-  const insets = { paddingTop: StatusBar.currentHeight ?? 0, paddingBottom: ANDROID_BOTTOM };
-  return <View style={[styles.fill, insets, style]}>{children}</View>;
+  return (
+    <SafeAreaView edges={["top", "bottom", "left", "right"]} style={[styles.fill, style]}>
+      {children}
+    </SafeAreaView>
+  );
 }
 
 /** The screen's one primary action: full width, in thumb reach at the bottom. */
