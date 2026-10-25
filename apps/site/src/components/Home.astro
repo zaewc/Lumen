@@ -1,9 +1,13 @@
 ---
-// The download page, in one language.
+// The download page, in one language. The release lookup (src/scripts/site.ts)
+// is bundled by Astro into a file; it reads its strings from <body data-strings>.
 import type { Locale } from "../i18n/types";
 import Base from "../layouts/Base.astro";
+import Downloads from "./Downloads.astro";
+import Faq from "./Faq.astro";
 import Hero from "./Hero.astro";
 import HowItWorks from "./HowItWorks.astro";
+import InstallGuides from "./InstallGuides.astro";
 import LeftAlone from "./LeftAlone.astro";
 import Privacy from "./Privacy.astro";
 
@@ -19,4 +23,10 @@ const { locale } = Astro.props;
   <HowItWorks locale={locale} />
   <LeftAlone locale={locale} />
   <Privacy locale={locale} />
+  <Downloads locale={locale} />
+  <InstallGuides locale={locale} />
+  <Faq locale={locale} />
+  <script>
+    import "../scripts/site.ts";
+  </script>
 </Base>
