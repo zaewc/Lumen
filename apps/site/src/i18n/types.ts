@@ -15,12 +15,6 @@ export type Inline =
 
 export type Rich = readonly Inline[];
 
-export interface FaqItem {
-  readonly question: string;
-  readonly answer: Rich;
-  readonly list?: readonly Rich[];
-}
-
 export interface Messages {
   readonly lang: Locale;
   /** The language link's text, in the other language. */
@@ -90,7 +84,6 @@ export interface Messages {
     readonly windows: { readonly steps: readonly Rich[] };
     readonly linux: { readonly aside: Rich };
   };
-  readonly faq: { readonly title: string; readonly items: readonly FaqItem[] };
   readonly footer: {
     readonly source: string;
     readonly releases: string;
