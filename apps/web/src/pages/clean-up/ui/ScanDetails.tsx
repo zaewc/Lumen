@@ -8,7 +8,7 @@ function RootDetails({ root }: { readonly root: RootView }) {
   const { m } = useI18n();
   const reclaimable = formatBytes(root.reclaimable_bytes);
   return (
-    <li className="py-3 text-[13px] first:pt-1 last:pb-1">
+    <li className="py-2.5 first:pt-1 last:pb-1">
       <p className="font-mono text-[12px] break-all text-ink select-text">{root.root}</p>
       <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5">
         <dt className="text-ink-3">{m.details.files}</dt>
@@ -37,10 +37,8 @@ function RootDetails({ root }: { readonly root: RootView }) {
 export function ScanDetails({ scan }: { readonly scan: ScanView }) {
   const { m } = useI18n();
   return (
-    <div className="rounded-xl border border-line bg-surface px-4 py-2.5">
-      <Disclosure
-        summary={<span className="text-[13px] font-medium text-ink-2">{m.details.title}</span>}
-      >
+    <div>
+      <Disclosure summary={<span className="text-ink-2">{m.details.title}</span>}>
         <p className="text-[12px] text-ink-3">{m.details.entries(scan.entries)}</p>
         <ul className="mt-1 divide-y divide-line">
           {scan.roots.map((root) => (

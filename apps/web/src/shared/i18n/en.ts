@@ -76,8 +76,6 @@ export const en = {
       on: "AI review on",
       off: "AI review off",
     },
-    statusOn: (service: string) => `AI review: on (${service})`,
-    statusOff: "AI review: off",
     loadFailed: "The AI review setting could not be loaded.",
     changeFailed: "The AI review setting could not be changed.",
     consent: {
@@ -112,10 +110,8 @@ export const en = {
     failed: "Lumen could not decide about what it found. Nothing was changed.",
   },
   results: {
-    eyebrow: "Scan results",
     canFree: (size: string) => `${size} can be cleaned up`,
     nothingTitle: "Nothing to clean up",
-    found: (n: number) => `Lumen looked at ${items(n)}.`,
     nothing:
       "Nothing needs cleaning up right now. Lumen only suggests items it is sure are safe to set aside.",
     filter: "Show",
@@ -134,15 +130,16 @@ export const en = {
     otherTools: "Other tools",
     verdict: {
       quarantine: "Proposed",
-      review: "Review",
-      keep: "Keep",
+      review: "Needs review",
+      keep: "Kept",
     },
-    verdictCount: {
-      quarantine: (n: number) => `${count(n)} proposed`,
-      review: (n: number) => `${count(n)} to review`,
-      keep: (n: number) => `${count(n)} kept`,
+    columns: {
+      name: "Name",
+      location: "Location",
+      status: "Status",
+      size: "Size",
     },
-    section: (n: number, size: string) => `${items(n)} · ${size}`,
+    listHint: "Use the up and down arrow keys to move between items.",
     emptyFilter: "Nothing here in this view.",
     partial: "The scan stopped early, so these results are incomplete.",
     outOfSpace:
@@ -159,11 +156,10 @@ export const en = {
   detail: {
     size: "Can be freed",
     location: "Location",
-    decision: "Decision",
+    decision: "Status",
     reasons: "Why",
-    aiTitle: "AI review advised caution",
-    aiBody:
-      "So Lumen asks you to review this item instead of proposing it. The AI can only make Lumen more careful; it never chooses what is moved.",
+    aiTitle: "AI review advised caution.",
+    aiBody: "So Lumen asks you to review this item instead of proposing it.",
   },
   toolCommand: {
     title: (tool: string) => `${tool} can clean this up itself`,
@@ -173,10 +169,8 @@ export const en = {
     note: "Lumen does not run this command. Check what it removes first.",
   },
   coverage: {
-    incomplete:
-      "Some folders could not be read, so Lumen left them alone. The real sizes may be larger than shown.",
-    fullDiskAccess: "To include them, allow Full Disk Access.",
-    howTo: "How to allow access",
+    incomplete: "Some folders could not be read and were left alone; sizes may be larger.",
+    howTo: "Allow Full Disk Access…",
   },
   details: {
     title: "Scan details",

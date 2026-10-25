@@ -85,8 +85,6 @@ export const ko = {
       on: "AI 검토 켜짐",
       off: "AI 검토 꺼짐",
     },
-    statusOn: (service: string) => `AI 검토: 켜짐(${service})`,
-    statusOff: "AI 검토: 꺼짐",
     loadFailed: "AI 검토 설정을 불러오지 못했습니다.",
     changeFailed: "AI 검토 설정을 바꾸지 못했습니다.",
     consent: {
@@ -120,10 +118,8 @@ export const ko = {
     failed: "찾은 항목을 판단하지 못했습니다. 아무것도 변경하지 않았습니다.",
   },
   results: {
-    eyebrow: "검사 결과",
     canFree: (size: string) => `${size}를 정리할 수 있습니다`,
     nothingTitle: "정리할 항목이 없습니다",
-    found: (n: number) => `${items(n)}를 살펴보았습니다.`,
     nothing:
       "지금은 정리할 항목이 없습니다. Lumen은 치워 두어도 안전하다고 확신하는 항목만 정리를 제안합니다.",
     filter: "표시",
@@ -145,12 +141,13 @@ export const ko = {
       review: "검토 필요",
       keep: "유지",
     },
-    verdictCount: {
-      quarantine: (n: number) => `정리 제안 ${count(n)}`,
-      review: (n: number) => `검토 ${count(n)}`,
-      keep: (n: number) => `유지 ${count(n)}`,
+    columns: {
+      name: "이름",
+      location: "위치",
+      status: "상태",
+      size: "크기",
     },
-    section: (n: number, size: string) => `${count(n)}개 · ${size}`,
+    listHint: "위아래 화살표 키로 항목 사이를 이동할 수 있습니다.",
     emptyFilter: "이 보기에는 항목이 없습니다.",
     partial: "검사가 도중에 멈춰 결과가 완전하지 않습니다.",
     outOfSpace:
@@ -167,11 +164,10 @@ export const ko = {
   detail: {
     size: "확보 가능",
     location: "위치",
-    decision: "판단",
+    decision: "상태",
     reasons: "이유",
-    aiTitle: "AI 검토가 주의를 권고했습니다",
-    aiBody:
-      "그래서 정리를 제안하지 않고 직접 검토하도록 남겨 두었습니다. AI는 Lumen을 더 신중하게 만들 수만 있으며, 무엇을 옮길지는 정하지 않습니다.",
+    aiTitle: "AI 검토가 주의를 권고했습니다.",
+    aiBody: "그래서 정리를 제안하지 않고 직접 검토하도록 남겨 두었습니다.",
   },
   toolCommand: {
     title: (tool: string) => `${tool}에서 직접 정리할 수 있습니다`,
@@ -181,10 +177,8 @@ export const ko = {
     note: "Lumen은 이 명령을 실행하지 않습니다. 무엇을 삭제하는지 먼저 확인하십시오.",
   },
   coverage: {
-    incomplete:
-      "일부 폴더를 읽지 못해 그대로 두었습니다. 실제 크기는 표시된 것보다 클 수 있습니다.",
-    fullDiskAccess: "이 폴더도 검사하려면 전체 디스크 접근 권한을 허용하십시오.",
-    howTo: "권한 허용 방법",
+    incomplete: "일부 폴더를 읽지 못해 그대로 두었습니다. 실제 크기는 더 클 수 있습니다.",
+    howTo: "전체 디스크 접근 권한 허용…",
   },
   details: {
     title: "검사 세부 정보",

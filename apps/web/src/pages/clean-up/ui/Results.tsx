@@ -1,11 +1,10 @@
 import type { CandidateView, ScanView } from "@lumen/api-client";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { isOn, useAiSettings } from "@/entities/ai-review";
 import type { CandidateSummary } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, userAgent } from "@/shared/lib";
-import { ChevronIcon, InfoTip, Notice, Segmented } from "@/shared/ui";
+import { InfoTip, Notice, Segmented } from "@/shared/ui";
 import { coverageOf } from "../model/coverage";
 import { FILTERS, type Filter, filterCounts, shows } from "../model/filter";
 import { sectionsOf } from "../model/sections";
@@ -13,17 +12,6 @@ import { CandidateList } from "./CandidateList";
 import { CandidateSheet } from "./CandidateSheet";
 import { ScanDetails } from "./ScanDetails";
 import { StepHeading } from "./StepHeading";
-
-/** Whether AI review took part in this assessment, in one line. */
-function AiLine() {
-  const { m } = useI18n();
-  const settings = useAiSettings();
-  if (!settings.isSuccess) {
-    return null;
-  }
-  const service = isOn(settings.data);
-  return <>{service === null ? m.ai.statusOff : m.ai.statusOn(service)}</>;
-}
 
 /** Folders the scan could not read: a short warning and the way to allow access. */
 function CoverageNotice({ scan }: { readonly scan: ScanView }) {
@@ -34,23 +22,14 @@ function CoverageNotice({ scan }: { readonly scan: ScanView }) {
   }
   return (
     <Notice tone="warning">
-      <div className="flex items-start gap-2">
-        <p className="flex-1">
-          {m.coverage.incomplete}
-          {coverage.macPrivacy && ` ${m.coverage.fullDiskAccess}`}
-        </p>
-        <InfoTip term="coverage" />
-      </div>
-      {coverage.macPrivacy && (
-        <Link
-          to="/settings"
-          hash="permissions"
-          className="inline-flex items-center gap-0.5 font-semibold text-amber-900 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent dark:text-amber-200"
-        >
-          {m.coverage.howTo}
-          <ChevronIcon className="size-3.5" />
-        </Link>
-      )}
+      <p>
+        {m.coverage.incomplete}{" "}
+        {coverage.macPrivacy && (
+          <Link to="/settings" hash="permissions" className="text-accent-ink hover:underline">
+            {m.coverage.howTo}
+          </Link>
+        )}
+      </p>
     </Notice>
   );
 }
@@ -81,47 +60,37 @@ export function Results({
   const sections = sectionsOf(candidates.filter((candidate) => shows(filter, candidate)));
   return (
     <>
-      <div>
-        <p className="text-[12px] font-semibold text-ink-3">{m.results.eyebrow}</p>
-        <div className="mt-0.5 flex items-center gap-2">
-          <StepHeading
-            focus={focus}
-            className="text-[24px] leading-tight font-bold tracking-tight text-ink tabular-nums"
-          >
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <StepHeading focus={focus} className="text-[15px] font-semibold text-ink tabular-nums">
             {proposed.items.length > 0
               ? m.results.canFree(formatBytes(proposed.bytes))
               : m.results.nothingTitle}
           </StepHeading>
-          <InfoTip term="reclaimable" />
+          {candidates.length > 0 && (
+            <div className="flex max-w-full items-center gap-2 overflow-x-auto">
+              <Segmented
+                label={m.results.filter}
+                value={filter}
+                onChange={onFilterChange}
+                segments={FILTERS.map((value) => ({
+                  value,
+                  label: m.results.filters[value],
+                  count: counts[value],
+                }))}
+              />
+              <InfoTip term="verdicts" />
+            </div>
+          )}
         </div>
-        <p className="mt-1 text-[13px] text-ink-2">
-          {m.results.found(candidates.length)} <AiLine />
-        </p>
+        {scan.partial && (
+          <Notice tone="warning">
+            <p>{scan.out_of_space ? m.results.outOfSpace : m.results.partial}</p>
+          </Notice>
+        )}
+        <CoverageNotice scan={scan} />
       </div>
-      {scan.partial && (
-        <Notice tone="warning">
-          <p>{scan.out_of_space ? m.results.outOfSpace : m.results.partial}</p>
-        </Notice>
-      )}
-      <CoverageNotice scan={scan} />
-      {candidates.length > 0 && (
-        <>
-          <div className="flex items-center gap-2 overflow-x-auto">
-            <Segmented
-              label={m.results.filter}
-              value={filter}
-              onChange={onFilterChange}
-              segments={FILTERS.map((value) => ({
-                value,
-                label: m.results.filters[value],
-                count: counts[value],
-              }))}
-            />
-            <InfoTip term="verdicts" />
-          </div>
-          <CandidateList sections={sections} onOpen={setOpen} />
-        </>
-      )}
+      {candidates.length > 0 && <CandidateList sections={sections} onOpen={setOpen} />}
       <ScanDetails scan={scan} />
       <CandidateSheet candidate={open} onClose={() => setOpen(null)} />
     </>

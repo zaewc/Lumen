@@ -1,139 +1,103 @@
 import type { CandidateView } from "@lumen/api-client";
-import { type ReactNode, useId } from "react";
+import { type KeyboardEvent, type ReactNode, useId, useRef, useState } from "react";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes, parentPath } from "@/shared/lib";
-import { ChevronIcon } from "@/shared/ui";
-import {
-  type KindSection,
-  presentVerdicts,
-  type SourceGroup,
-  type VerdictCounts,
-} from "../model/sections";
-import { KindIcon, VerdictBadge } from "./badges";
+import { moveIndex } from "../lib/keys";
+import type { KindSection, SourceGroup } from "../model/sections";
+import { VerdictText } from "./Verdict";
 
-/** "2 proposed · 1 to review", for a section's header. */
-function VerdictSummary({ counts }: { readonly counts: VerdictCounts }) {
-  const { m } = useI18n();
-  return (
-    <>
-      {presentVerdicts(counts)
-        .map((verdict) => m.results.verdictCount[verdict](counts[verdict]))
-        .join(" · ")}
-    </>
-  );
-}
+/**
+ * The list's columns. Wide: name, location, status, size on one line.
+ * Narrow (below 36rem): name and size, then location and status under them.
+ */
+const GRID =
+  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 @xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_6rem_5.5rem]";
 
-/** One candidate: what it is, how large, the verdict; it opens the details. */
+/** One candidate; Enter, Space or a click opens its details. */
 function Row({
   candidate,
-  subtitle,
+  index,
+  active,
+  hint,
   onOpen,
+  onMove,
 }: {
   readonly candidate: CandidateView;
-  readonly subtitle: string;
+  readonly index: number;
+  /** The row the keyboard is on: the list's one tab stop. */
+  readonly active: boolean;
+  readonly hint: string;
   readonly onOpen: (candidate: CandidateView) => void;
+  readonly onMove: (event: KeyboardEvent, from: number) => void;
 }) {
+  const keep = candidate.verdict === "keep";
+  const location = parentPath(candidate.path);
   return (
     <li>
       <button
         type="button"
+        data-row={index}
+        tabIndex={active ? 0 : -1}
+        aria-describedby={active ? hint : undefined}
         onClick={() => onOpen(candidate)}
-        className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-fill focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none"
+        onKeyDown={(event) => onMove(event, index)}
+        className={`${GRID} w-full items-baseline gap-y-0.5 rounded-md px-2 py-1.5 text-left hover:bg-fill focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong`}
       >
-        <KindIcon kind={candidate.group.kind} />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] font-medium text-ink">
-            {baseName(candidate.path)}
-          </span>
-          <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
-            <VerdictBadge verdict={candidate.verdict} />
-            <span className="min-w-0 truncate text-[12px] text-ink-3">{subtitle}</span>
-          </span>
+        <span className={`truncate ${keep ? "text-ink-2" : "text-ink"}`}>
+          {baseName(candidate.path)}
         </span>
-        <span className="shrink-0 text-[13px] tabular-nums text-ink-2">
+        <span className="col-start-2 row-start-1 text-right tabular-nums text-ink @xl:col-start-4">
           {formatBytes(candidate.reclaimable_bytes)}
         </span>
-        <ChevronIcon className="text-ink-3" />
+        <span
+          title={location}
+          className="row-start-2 truncate text-[12px] text-ink-3 @xl:col-start-2 @xl:row-start-1 @xl:text-[13px]"
+        >
+          {location}
+        </span>
+        <span className="col-start-2 row-start-2 text-right text-[12px] @xl:col-start-3 @xl:row-start-1 @xl:text-left @xl:text-[13px]">
+          <VerdictText verdict={candidate.verdict} />
+        </span>
       </button>
     </li>
   );
 }
 
-function Rows({
-  group,
-  subtitle,
-  onOpen,
+/** A header inside the list: a section's or a tool's name, count and size. */
+function ListHeading({
+  level,
+  id,
+  name,
+  count,
+  bytes,
 }: {
-  readonly group: SourceGroup;
-  readonly subtitle: (candidate: CandidateView) => string;
-  readonly onOpen: (candidate: CandidateView) => void;
-}) {
-  return (
-    <ul className="divide-y divide-line">
-      {group.items.map((candidate) => (
-        <Row
-          key={candidate.path}
-          candidate={candidate}
-          subtitle={subtitle(candidate)}
-          onOpen={onOpen}
-        />
-      ))}
-    </ul>
-  );
-}
-
-/** One kind of group: its header with totals, then its items (by tool, for developer tools). */
-function Section({
-  section,
-  onOpen,
-}: {
-  readonly section: KindSection;
-  readonly onOpen: (candidate: CandidateView) => void;
+  readonly level: 3 | 4;
+  readonly id?: string;
+  readonly name: string;
+  readonly count: number;
+  readonly bytes: string;
 }) {
   const { m } = useI18n();
-  const heading = useId();
-  const byTool = section.kind === "developer";
-  // Under a tool's header the tool is known, so the row names its folder;
-  // elsewhere it names the app it belongs to, when known.
-  const subtitle = (candidate: CandidateView) =>
-    (byTool ? null : candidate.group.source) ?? parentPath(candidate.path);
-  let body: ReactNode;
-  if (byTool) {
-    body = section.sources.map((group) => (
-      <div key={group.source ?? ""} className="border-t border-line first:border-t-0">
-        <h4 className="flex items-baseline justify-between gap-3 bg-fill px-3.5 py-1.5 text-[12px] font-semibold text-ink-2">
-          <span className="truncate">{group.source ?? m.results.otherTools}</span>
-          <span className="shrink-0 font-normal tabular-nums text-ink-3">
-            {m.results.section(group.items.length, formatBytes(group.bytes))}
-          </span>
-        </h4>
-        <Rows group={group} subtitle={subtitle} onOpen={onOpen} />
-      </div>
-    ));
-  } else {
-    body = section.sources.map((group) => (
-      <Rows key={group.source ?? ""} group={group} subtitle={subtitle} onOpen={onOpen} />
-    ));
-  }
+  const Tag = level === 3 ? "h3" : "h4";
   return (
-    <section aria-labelledby={heading}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-1 pb-2">
-        <h3 id={heading} className="text-[14px] font-semibold text-ink">
-          {m.results.groups[section.kind]}
-          <span className="ml-2 text-[12px] font-normal tabular-nums text-ink-3">
-            {m.results.section(section.count, formatBytes(section.bytes))}
-          </span>
-        </h3>
-        <p className="text-[12px] tabular-nums text-ink-2">
-          <VerdictSummary counts={section.verdicts} />
-        </p>
-      </div>
-      <div className="overflow-hidden rounded-xl border border-line bg-surface">{body}</div>
-    </section>
+    <Tag
+      id={id}
+      className={`${GRID} items-baseline px-2 ${level === 3 ? "pt-5 pb-1.5 font-semibold text-ink" : "pt-2 pb-1 text-[12px] font-medium text-ink-2"}`}
+    >
+      <span className="truncate @xl:col-span-3">
+        {name}
+        <span className="ml-2 font-normal tabular-nums text-ink-3">{m.common.items(count)}</span>
+      </span>
+      <span className="text-right font-normal tabular-nums text-ink-2">{formatBytes(bytes)}</span>
+    </Tag>
   );
 }
 
-/** The candidates in sections by group, or a note when the filter leaves none. */
+/**
+ * The candidates in sections by kind (developer tools by tool), in aligned
+ * columns, or a note when the filter leaves none. It is one stop for Tab:
+ * ↑ and ↓ (and Page Up, Page Down, Home, End) move between rows.
+ */
 export function CandidateList({
   sections,
   onOpen,
@@ -142,18 +106,108 @@ export function CandidateList({
   readonly onOpen: (candidate: CandidateView) => void;
 }) {
   const { m } = useI18n();
+  const hint = useId();
+  const list = useRef<HTMLDivElement>(null);
+  const [selected, setSelected] = useState(0);
+  const count = sections.reduce((total, section) => total + section.count, 0);
+  // A filter may have shortened the list since.
+  const active = Math.min(selected, count - 1);
+
   if (sections.length === 0) {
-    return (
-      <p className="rounded-xl border border-dashed border-line-strong px-4 py-8 text-center text-[13px] text-ink-3">
-        {m.results.emptyFilter}
-      </p>
-    );
+    return <p className="py-6 text-center text-ink-3">{m.results.emptyFilter}</p>;
   }
+
+  const onMove = (event: KeyboardEvent, from: number) => {
+    const next = moveIndex(from, count, event.key);
+    if (next === null || event.altKey || event.metaKey || event.ctrlKey) {
+      return;
+    }
+    event.preventDefault();
+    setSelected(next);
+    list.current?.querySelector<HTMLElement>(`[data-row="${next}"]`)?.focus();
+  };
+
+  // Each row's place in reading order, across sections and tools.
+  const order = new Map(
+    sections
+      .flatMap((section) => section.sources.flatMap((group) => group.items))
+      .map((candidate, at) => [candidate.path, at]),
+  );
+  const rows = (group: SourceGroup) => (
+    <ul className="divide-y divide-line">
+      {group.items.map((candidate) => {
+        const at = order.get(candidate.path) ?? 0;
+        return (
+          <Row
+            key={candidate.path}
+            candidate={candidate}
+            index={at}
+            active={at === active}
+            hint={hint}
+            onOpen={(opened) => {
+              setSelected(at);
+              onOpen(opened);
+            }}
+            onMove={onMove}
+          />
+        );
+      })}
+    </ul>
+  );
+
   return (
-    <div className="space-y-6">
+    <div ref={list} className="@container">
+      <p id={hint} className="sr-only">
+        {m.results.listHint}
+      </p>
+      <div
+        aria-hidden="true"
+        className={`${GRID} hidden border-b border-line px-2 pb-1 text-[12px] font-medium text-ink-3 @xl:grid`}
+      >
+        <span>{m.results.columns.name}</span>
+        <span>{m.results.columns.location}</span>
+        <span>{m.results.columns.status}</span>
+        <span className="text-right">{m.results.columns.size}</span>
+      </div>
       {sections.map((section) => (
-        <Section key={section.kind} section={section} onOpen={onOpen} />
+        <Section key={section.kind} section={section} rows={rows} />
       ))}
     </div>
+  );
+}
+
+/** One kind of group: its heading with totals, then its rows (by tool, for developer tools). */
+function Section({
+  section,
+  rows,
+}: {
+  readonly section: KindSection;
+  readonly rows: (group: SourceGroup) => ReactNode;
+}) {
+  const { m } = useI18n();
+  const heading = useId();
+  return (
+    <section aria-labelledby={heading} className="border-b border-line">
+      <ListHeading
+        level={3}
+        id={heading}
+        name={m.results.groups[section.kind]}
+        count={section.count}
+        bytes={section.bytes}
+      />
+      {section.kind === "developer"
+        ? section.sources.map((group) => (
+            <div key={group.source ?? ""}>
+              <ListHeading
+                level={4}
+                name={group.source ?? m.results.otherTools}
+                count={group.items.length}
+                bytes={group.bytes}
+              />
+              {rows(group)}
+            </div>
+          ))
+        : section.sources.map((group) => <div key={group.source ?? ""}>{rows(group)}</div>)}
+    </section>
   );
 }

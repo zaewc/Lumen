@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { en, ko } from "@/shared/i18n";
 import { commandLine, shellWord } from "./command";
+import { moveIndex, PAGE_STEP } from "./keys";
 import { outcomeText } from "./outcome";
 import { rootsOf } from "./roots";
 
@@ -59,5 +60,32 @@ describe("commandLine", () => {
     expect(commandLine({ tool: "T", program: "my tool", args: ["--dir", "~/My Files"] })).toBe(
       "'my tool' --dir '~/My Files'",
     );
+  });
+});
+
+describe("moveIndex", () => {
+  it("moves by one with the arrow keys and stops at the edges", () => {
+    expect(moveIndex(0, 3, "ArrowDown")).toBe(1);
+    expect(moveIndex(2, 3, "ArrowDown")).toBe(2);
+    expect(moveIndex(1, 3, "ArrowUp")).toBe(0);
+    expect(moveIndex(0, 3, "ArrowUp")).toBe(0);
+  });
+
+  it("jumps a page or to either end", () => {
+    expect(moveIndex(0, 40, "PageDown")).toBe(PAGE_STEP);
+    expect(moveIndex(35, 40, "PageDown")).toBe(39);
+    expect(moveIndex(5, 40, "PageUp")).toBe(0);
+    expect(moveIndex(7, 40, "Home")).toBe(0);
+    expect(moveIndex(7, 40, "End")).toBe(39);
+  });
+
+  it("brings a stale selection back into a shorter list", () => {
+    expect(moveIndex(9, 3, "ArrowUp")).toBe(2);
+  });
+
+  it("leaves other keys and empty lists alone", () => {
+    expect(moveIndex(0, 3, "Enter")).toBeNull();
+    expect(moveIndex(0, 3, " ")).toBeNull();
+    expect(moveIndex(0, 0, "ArrowDown")).toBeNull();
   });
 });

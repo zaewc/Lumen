@@ -3,23 +3,23 @@ import { type ReactNode, useId, useRef } from "react";
 import { reasonText, useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import { CloseIcon, Dialog, SparkleIcon } from "@/shared/ui";
-import { KindIcon, VerdictBadge } from "./badges";
 import { ToolCommand } from "./ToolCommand";
+import { VerdictText } from "./Verdict";
 
-/** One labelled part of the details. */
+/** One labelled figure of the details, label and value side by side. */
 function Field({ label, children }: { readonly label: string; readonly children: ReactNode }) {
   return (
-    <div className="px-4 py-3">
-      <dt className="text-[12px] font-medium text-ink-3">{label}</dt>
-      <dd className="mt-1 text-[13px] text-ink">{children}</dd>
-    </div>
+    <>
+      <dt className="text-ink-2">{label}</dt>
+      <dd className="min-w-0 text-ink">{children}</dd>
+    </>
   );
 }
 
 /**
  * Everything about one candidate, in a sheet along the window's right edge
- * (the whole window when it is narrow): where it is, what it frees, the
- * verdict with every reason, and the tool's own command if it has one.
+ * (the whole window when it is narrow): what it frees, the verdict with
+ * every reason, where it is, and the tool's own command if it has one.
  * Escape, the close button or a click beside it closes it.
  */
 export function CandidateSheet({
@@ -43,10 +43,9 @@ export function CandidateSheet({
     >
       {candidate !== null && (
         <div className="flex h-full flex-col">
-          <header className="flex items-start gap-3 border-b border-line px-4 py-4">
-            <KindIcon kind={candidate.group.kind} />
+          <header className="flex items-start gap-3 border-b border-line px-4 py-3">
             <div className="min-w-0 flex-1">
-              <h2 id={title} className="text-[16px] font-semibold break-words text-ink">
+              <h2 id={title} className="text-[15px] font-semibold break-words text-ink">
                 {baseName(candidate.path)}
               </h2>
               <p className="mt-0.5 text-[12px] text-ink-2">
@@ -59,47 +58,41 @@ export function CandidateSheet({
               type="button"
               onClick={onClose}
               aria-label={m.common.close}
-              className="-mt-1 -mr-1 flex size-8 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-fill-strong hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
+              title={`${m.common.close} (Esc)`}
+              className="-mr-1 flex size-7 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-fill-strong hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
             >
-              <CloseIcon className="size-[18px]" />
+              <CloseIcon className="size-4" />
             </button>
           </header>
-          <div className="flex-1 space-y-4 overflow-y-auto bg-window px-4 py-4">
-            <dl className="divide-y divide-line rounded-xl border border-line bg-surface">
+          <div className="flex-1 divide-y divide-line overflow-y-auto px-4 [&>*]:py-4">
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
               <Field label={m.detail.size}>
-                <span className="text-[20px] font-semibold tabular-nums">
+                <span className="font-semibold tabular-nums">
                   {formatBytes(candidate.reclaimable_bytes)}
                 </span>
               </Field>
               <Field label={m.detail.decision}>
-                <VerdictBadge verdict={candidate.verdict} />
+                <VerdictText verdict={candidate.verdict} />
               </Field>
               <Field label={m.detail.location}>
-                <code className="block font-mono text-[12px] leading-relaxed break-all text-ink select-all">
+                <code className="block font-mono text-[12px] leading-relaxed break-all select-all">
                   {candidate.path}
                 </code>
               </Field>
             </dl>
-            {demoted && (
-              <div className="flex gap-3 rounded-xl border border-accent/25 bg-accent-soft px-4 py-3">
-                <SparkleIcon className="mt-0.5 size-[18px] text-accent-ink" />
-                <div className="text-[13px]">
-                  <p className="font-semibold text-ink">{m.detail.aiTitle}</p>
-                  <p className="mt-0.5 leading-snug text-ink-2">{m.detail.aiBody}</p>
-                </div>
-              </div>
-            )}
-            <section className="rounded-xl border border-line bg-surface px-4 py-3">
-              <h3 className="text-[12px] font-medium text-ink-3">{m.detail.reasons}</h3>
-              <ul className="mt-2 space-y-2 text-[13px] leading-snug text-ink">
+            <section>
+              <h3 className="text-[12px] font-semibold text-ink-2">{m.detail.reasons}</h3>
+              {demoted && (
+                <p className="mt-2 flex gap-2 leading-snug text-ink">
+                  <SparkleIcon className="mt-px size-4 text-accent-ink" />
+                  <span>
+                    <span className="font-medium">{m.detail.aiTitle}</span> {m.detail.aiBody}
+                  </span>
+                </p>
+              )}
+              <ul className="mt-2 list-disc space-y-1.5 pl-5 leading-snug text-ink marker:text-ink-3">
                 {candidate.reasons.map((reason) => (
-                  <li key={reason.rule} className="flex gap-2">
-                    <span
-                      aria-hidden="true"
-                      className="mt-[7px] size-1.5 shrink-0 rounded-full bg-ink-3"
-                    />
-                    <span>{reasonText(m, reason)}</span>
-                  </li>
+                  <li key={reason.rule}>{reasonText(m, reason)}</li>
                 ))}
               </ul>
             </section>

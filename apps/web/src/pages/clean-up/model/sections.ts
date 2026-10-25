@@ -1,9 +1,6 @@
-import type { CandidateView, GroupKindView, VerdictView } from "@lumen/api-client";
+import type { CandidateView, GroupKindView } from "@lumen/api-client";
 import { largestFirst } from "@/entities/scan-session";
 import { sumBytes } from "@/shared/lib";
-
-/** How many candidates have each verdict. */
-export type VerdictCounts = { readonly [V in VerdictView]: number };
 
 /** Candidates that belong to one tool (or, outside developer tools, to one kind). */
 export interface SourceGroup {
@@ -13,7 +10,6 @@ export interface SourceGroup {
   readonly items: readonly CandidateView[];
   /** What they would free together, as a decimal string. */
   readonly bytes: string;
-  readonly verdicts: VerdictCounts;
 }
 
 /** One section of the list: a kind of group, with its tools (if any) and totals. */
@@ -23,7 +19,6 @@ export interface KindSection {
   readonly sources: readonly SourceGroup[];
   readonly count: number;
   readonly bytes: string;
-  readonly verdicts: VerdictCounts;
 }
 
 /** The order of the sections: what people can act on most, first. */
@@ -34,21 +29,12 @@ export const KIND_ORDER = [
   "other",
 ] as const satisfies readonly GroupKindView[];
 
-function verdictCounts(items: readonly CandidateView[]): VerdictCounts {
-  const counts = { quarantine: 0, review: 0, keep: 0 };
-  for (const item of items) {
-    counts[item.verdict] += 1;
-  }
-  return counts;
-}
-
 function groupOf(source: string | null, items: readonly CandidateView[]): SourceGroup {
   const sorted = items.toSorted(largestFirst);
   return {
     source,
     items: sorted,
     bytes: sumBytes(sorted.map((c) => c.reclaimable_bytes)),
-    verdicts: verdictCounts(sorted),
   };
 }
 
@@ -68,7 +54,7 @@ function bySize(a: SourceGroup, b: SourceGroup): number {
 /**
  * The candidates as the list shows them: one section per kind of group (in
  * `KIND_ORDER`, empty kinds left out), developer tools split by tool, each
- * with its count, size and verdicts. Sizes are added exactly.
+ * with its count and size. Sizes are added exactly.
  */
 export function sectionsOf(candidates: readonly CandidateView[]): KindSection[] {
   return KIND_ORDER.flatMap((kind): KindSection[] => {
@@ -88,13 +74,7 @@ export function sectionsOf(candidates: readonly CandidateView[]): KindSection[] 
         sources,
         count: items.length,
         bytes: sumBytes(sources.map((s) => s.bytes)),
-        verdicts: verdictCounts(items),
       },
     ];
   });
-}
-
-/** The verdicts present in `counts`, in the policy's order, for a summary line. */
-export function presentVerdicts(counts: VerdictCounts): VerdictView[] {
-  return (["quarantine", "review", "keep"] as const).filter((verdict) => counts[verdict] > 0);
 }

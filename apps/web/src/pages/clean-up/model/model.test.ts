@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { coverageOf } from "./coverage";
 import { cleanUpSearch, filterCounts, shows } from "./filter";
 import { reportSummary } from "./report";
-import { presentVerdicts, sectionsOf } from "./sections";
+import { sectionsOf } from "./sections";
 import { cleanUpStep } from "./step";
 
 function candidate(
@@ -37,9 +37,8 @@ describe("sectionsOf", () => {
     const [developer, appCache, other] = sections;
     expect(developer?.count).toBe(4);
     expect(developer?.bytes).toBe("18100");
-    expect(developer?.verdicts).toEqual({ quarantine: 2, review: 2, keep: 0 });
     expect(appCache?.bytes).toBe("18446744073709551635");
-    expect(other?.verdicts).toEqual({ quarantine: 0, review: 0, keep: 1 });
+    expect(other?.count).toBe(1);
   });
 
   it("splits developer tools by tool, largest first, the unknown tool last", () => {
@@ -56,10 +55,6 @@ describe("sectionsOf", () => {
 
   it("has no sections without candidates", () => {
     expect(sectionsOf([])).toEqual([]);
-  });
-
-  it("names the verdicts present, in the policy's order", () => {
-    expect(presentVerdicts({ quarantine: 0, review: 2, keep: 1 })).toEqual(["review", "keep"]);
   });
 });
 
