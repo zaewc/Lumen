@@ -1,31 +1,29 @@
 ---
 // The download page, in one language. The release lookup (src/scripts/site.ts)
 // is bundled by Astro into a file; it reads its strings from <body data-strings>.
+import { REPO_URL } from "../data/release";
+import { messages } from "../i18n";
 import type { Locale } from "../i18n/types";
 import Base from "../layouts/Base.astro";
-import Downloads from "./Downloads.astro";
-import Faq from "./Faq.astro";
 import Hero from "./Hero.astro";
-import HowItWorks from "./HowItWorks.astro";
-import InstallGuides from "./InstallGuides.astro";
-import LeftAlone from "./LeftAlone.astro";
-import Privacy from "./Privacy.astro";
 
 interface Props {
   locale: Locale;
 }
 
 const { locale } = Astro.props;
+const t = messages[locale];
 ---
 
 <Base locale={locale}>
   <Hero locale={locale} />
-  <HowItWorks locale={locale} />
-  <LeftAlone locale={locale} />
-  <Privacy locale={locale} />
-  <Downloads locale={locale} />
-  <InstallGuides locale={locale} />
-  <Faq locale={locale} />
+  <section class="principles" aria-labelledby="safety-title">
+    <h2 id="safety-title">{t.trust.title}</h2>
+    <dl>
+      {t.trust.items.map((item) => <div><dt>{item.title}</dt><dd>{item.text}</dd></div>)}
+    </dl>
+    <p class="architecture-link"><a href={`${REPO_URL}/blob/main/docs/architecture/system.md`}>{t.trust.more}</a></p>
+  </section>
   <script>
     import "../scripts/site.ts";
   </script>

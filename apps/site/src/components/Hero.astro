@@ -1,25 +1,28 @@
 ---
+import { RELEASES_URL } from "../data/release";
 import { messages } from "../i18n";
 import type { Locale } from "../i18n/types";
+import Downloads from "./Downloads.astro";
 
 interface Props {
   locale: Locale;
 }
 
 const t = messages[Astro.props.locale];
-const base = import.meta.env.BASE_URL;
 ---
 
 <section class="intro" id="top" aria-labelledby="title">
-  <img class="app-icon" src={`${base}icon.svg`} alt="" width="64" height="64" />
-  <h1 id="title">{t.hero.headline.join(" ")}</h1>
+  <h1 id="title">{t.hero.headline.map((line) => <span>{line}</span>)}</h1>
   <p class="lead">{t.hero.lead}</p>
   <p class="maturity">{t.hero.maturity}</p>
   <div class="primary">
-    <a class="btn btn-primary" id="primary-download" href="#download">
+    <a class="btn btn-primary" id="primary-download" href={RELEASES_URL}>
       <span id="primary-label">{t.hero.download}</span>
     </a>
-    <a class="text-link js-only" id="other-platforms" href="#download" hidden>{t.hero.otherPlatforms}</a>
   </div>
-  <p class="meta" id="primary-meta">{t.hero.requirements}</p>
+  <p class="meta" id="primary-meta" aria-live="polite">
+    <span class="js-only">{t.download.checking}</span>
+    <span class="no-js">{t.hero.requirements}</span>
+  </p>
+  <Downloads locale={Astro.props.locale} />
 </section>

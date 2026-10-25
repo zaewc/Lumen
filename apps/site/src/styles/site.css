@@ -219,10 +219,14 @@ pre {
   text-decoration-thickness: 1px;
 }
 
-/* Only the download link and the language switch fit beside the name on a phone. */
+/* Keep source, documentation and language within reach on a narrow screen. */
 @media (max-width: 560px) {
-  .nav a:not([href="#download"]) {
-    display: none;
+  .site-header .wrap {
+    gap: 12px;
+  }
+
+  .nav {
+    gap: 16px;
   }
 }
 
@@ -244,6 +248,10 @@ h1 {
   font-weight: 600;
   letter-spacing: -0.045em;
   line-height: 1.08;
+}
+
+.intro h1 span {
+  display: block;
 }
 
 .lead {
@@ -325,6 +333,68 @@ h1 {
   margin-top: 22px;
   color: var(--ink-3);
   font-size: 0.82rem;
+}
+
+/* Secondary downloads stay next to the primary action, behind one disclosure. */
+.intro .download-choices {
+  max-width: 720px;
+  margin-top: 12px;
+  border: 0;
+}
+
+.intro .download-choices > summary {
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--ink-2);
+  font-size: 0.88rem;
+  font-weight: 450;
+}
+
+.download-body {
+  padding: 12px 0 0;
+}
+
+/* A short explanation of the safety model, without feature containers. */
+.principles {
+  padding: 40px 0 56px;
+  border-top: 1px solid var(--line);
+}
+
+.principles h2 {
+  margin-bottom: 28px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.principles dl {
+  margin: 0;
+}
+
+.principles dl > div {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 32px;
+  font-size: 0.94rem;
+}
+
+.principles dl > div + div {
+  margin-top: 24px;
+}
+
+.principles dt {
+  font-weight: 550;
+}
+
+.principles dd {
+  margin: 0;
+  max-width: 40em;
+  color: var(--ink-2);
+}
+
+.architecture-link {
+  margin-top: 28px;
+  font-size: 0.88rem;
 }
 
 .beta {
@@ -636,6 +706,9 @@ p + .disclosure {
 }
 
 .site-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: var(--ink-2);
 }
 
@@ -683,6 +756,19 @@ p + .disclosure {
 
   .intro {
     padding: 48px 0 36px;
+  }
+
+  .lead {
+    font-size: 1rem;
+  }
+
+  .principles dl > div {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .principles h2 {
+    font-size: 1.25rem;
   }
 
   .primary .btn-primary {

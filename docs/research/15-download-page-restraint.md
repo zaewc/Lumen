@@ -34,3 +34,12 @@ status visible even when release lookup fails or JavaScript is unavailable.
 Validate actual rendered light/dark and narrow/wide layouts, keyboard focus,
 platform detection, release/loading/missing/error states, no-JavaScript links,
 disclosures, hostile API data and the external-only CSP.
+
+## Rendered review
+
+Chrome passed 18 cases: Korean/English, 320–1440px, light/dark, macOS/Windows/Linux,
+iPad detection, release/empty/loading/error states, unavailable assets, no JavaScript,
+keyboard focus, nested disclosure links, malformed fragments and 404. No horizontal
+overflow, inline styles/scripts or CSP violations. Inspected real rendered desktop
+and mobile screenshots, then removed redundant disclosure rules and shortened copy.
+Normal text contrast ranges from 5.25:1 to 9.10:1; download text exceeds 14:1.

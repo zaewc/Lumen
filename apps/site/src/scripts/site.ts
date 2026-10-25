@@ -1,19 +1,14 @@
 // Lumen's download site (ADR-0038). Everything here is an enhancement: without
-// JavaScript every link still goes to the latest GitHub release.
+// JavaScript every link still goes to GitHub's releases page.
 //
 // With it, the page asks the GitHub API for the latest release (release.ts)
 // and points the download buttons at this visitor's files. API data only ever
 // reaches the page through textContent and validated hrefs.
 
-import {
-  LATEST_URL,
-  PLATFORMS,
-  type Platform,
-  type PlatformId,
-  RELEASES_URL,
-} from "../data/release";
+import { PLATFORMS, type Platform, type PlatformId, RELEASES_URL } from "../data/release";
 import { type ClientStrings, parseClientStrings } from "../i18n/client";
 import {
+  type Asset,
   findAsset,
   findExact,
   formatSize,
@@ -60,6 +55,16 @@ function link(href: string, text: string): HTMLAnchorElement {
 
 const SEPARATOR = " · ";
 
+function preferredAsset(release: Release, platform: Platform): Asset | null {
+  for (const file of platform.files) {
+    const asset = findAsset(release, file.suffix);
+    if (asset !== null) {
+      return asset;
+    }
+  }
+  return null;
+}
+
 /** Version and date. */
 function versionLine(release: Release, t: ClientStrings): DocumentFragment {
   const fragment = document.createDocumentFragment();
@@ -80,13 +85,11 @@ function renderPlatforms(release: Release | null, platform: Platform | null): vo
       current.hidden = row.getAttribute("data-os") !== platform?.id;
     }
   }
-  if (release === null) {
-    return;
-  }
   for (const button of document.querySelectorAll<HTMLAnchorElement>("a[data-asset]")) {
-    const asset = findAsset(release, button.getAttribute("data-asset") ?? "");
+    const asset =
+      release === null ? null : findAsset(release, button.getAttribute("data-asset") ?? "");
     if (asset === null) {
-      button.href = release.page;
+      button.href = release?.page ?? RELEASES_URL;
       continue;
     }
     button.href = asset.url;
@@ -139,7 +142,7 @@ function renderPrimary(result: ReleaseResult, platform: Platform | null, t: Clie
       meta.textContent = t.comingSoon;
       return;
     case "error":
-      button.href = LATEST_URL;
+      button.href = RELEASES_URL;
       label.textContent = t.downloadFromGitHub;
       meta.textContent = t.loadFailed;
       return;
@@ -150,7 +153,7 @@ function renderPrimary(result: ReleaseResult, platform: Platform | null, t: Clie
   }
 
   const { release } = result;
-  const asset = platform === null ? null : findAsset(release, platform.files[0].suffix);
+  const asset = platform === null ? null : preferredAsset(release, platform);
   const line = versionLine(release, t);
   if (platform === null || asset === null) {
     button.href = "#download";
@@ -186,7 +189,7 @@ function renderStatus(result: ReleaseResult, t: ClientStrings): void {
       replaceContent(
         status,
         result.limited ? t.rateLimited : t.checkFailed,
-        link(LATEST_URL, t.getFromGitHub),
+        link(RELEASES_URL, t.getFromGitHub),
       );
       return;
     default:
@@ -207,7 +210,7 @@ function renderVersionTexts(release: Release | null, platform: Platform | null):
   const attest = document.getElementById("attest-file");
   if (attest !== null && platform !== null) {
     const { suffix } = platform.files[0];
-    const asset = release === null ? null : findAsset(release, suffix);
+    const asset = release === null ? null : preferredAsset(release, platform);
     attest.textContent = asset?.name ?? `Lumen_${release?.version ?? "<version>"}${suffix}`;
   }
 }
@@ -225,9 +228,7 @@ function render(result: ReleaseResult, platform: Platform | null, t: ClientStrin
   }
   for (const anchor of document.querySelectorAll<HTMLAnchorElement>("a[data-sums]")) {
     anchor.href =
-      release === null
-        ? RELEASES_URL
-        : (findExact(release, "SHA256SUMS")?.url ?? `${LATEST_URL}/download/SHA256SUMS`);
+      release === null ? RELEASES_URL : (findExact(release, "SHA256SUMS")?.url ?? release.page);
   }
 }
 
@@ -251,9 +252,10 @@ function openTarget(hash: string, platform: Platform | null): void {
   if (target instanceof HTMLDetailsElement) {
     target.open = true;
   }
-  const inside = target.closest("details");
-  if (inside !== null) {
-    inside.open = true;
+  for (let parent = target.parentElement; parent !== null; parent = parent.parentElement) {
+    if (parent instanceof HTMLDetailsElement) {
+      parent.open = true;
+    }
   }
   if (target.id === "install" && platform !== null) {
     const guide = target.querySelector(`details[data-os="${platform.id}"]`);
@@ -271,6 +273,7 @@ function setUpDisclosure(platform: Platform | null): void {
     }
   });
   openTarget(window.location.hash, platform);
+  window.addEventListener("hashchange", () => openTarget(window.location.hash, platform));
 }
 
 function setUpCopyButtons(t: ClientStrings): void {

@@ -13,8 +13,9 @@ const t = messages[Astro.props.locale];
 const { mac, fda, windows, linux } = t.install;
 ---
 
-<section id="install" aria-labelledby="install-title">
-  <h2 id="install-title">{t.install.title}</h2>
+<details class="disclosure" id="install">
+  <summary>{t.install.title}</summary>
+  <div class="body">
   <p>{t.install.intro}</p>
 
   <details class="disclosure" id="install-mac" data-os="mac">
@@ -61,4 +62,5 @@ const { mac, fda, windows, linux } = t.install;
       <p class="aside"><Rich text={linux.aside} /></p>
     </div>
   </details>
-</section>
+  </div>
+</details>

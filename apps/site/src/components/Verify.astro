@@ -1,5 +1,5 @@
 ---
-import { SUMS_URL } from "../data/release";
+import { RELEASES_URL } from "../data/release";
 import { messages } from "../i18n";
 import type { Locale } from "../i18n/types";
 import Command from "./Command.astro";
@@ -16,7 +16,7 @@ const t = messages[Astro.props.locale];
   <summary>{t.verify.summary}</summary>
   <div class="body">
     <p>
-      <Rich text={t.verify.introBefore} /><a data-sums href={SUMS_URL}><code>SHA256SUMS</code></a><Rich
+      <Rich text={t.verify.introBefore} /><a data-sums href={RELEASES_URL}><code>SHA256SUMS</code></a><Rich
         text={t.verify.introAfter}
       />
     </p>

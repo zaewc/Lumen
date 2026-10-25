@@ -1,5 +1,5 @@
 ---
-import { LATEST_URL } from "../data/release";
+import { RELEASES_URL } from "../data/release";
 import { messages } from "../i18n";
 import type { Locale } from "../i18n/types";
 import Rich from "./Rich.astro";
@@ -15,7 +15,7 @@ const t = messages[Astro.props.locale];
   <summary>{t.files.summary}</summary>
   <div class="body">
     <p><Rich text={t.files.intro} /></p>
-    <p class="no-js"><a href={LATEST_URL}>{t.client.allFiles}</a></p>
+    <p class="no-js"><a href={RELEASES_URL}>{t.client.allFiles}</a></p>
     <div class="table-scroll js-only" id="file-list"></div>
   </div>
 </details>

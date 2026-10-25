@@ -1,9 +1,10 @@
 ---
 // The download section: the release status, a row per platform, and the
 // other files and verification steps below them.
-import { LATEST_URL, PLATFORMS } from "../data/release";
+import { PLATFORMS, RELEASES_URL } from "../data/release";
 import { messages } from "../i18n";
 import type { Locale } from "../i18n/types";
+import InstallGuides from "./InstallGuides.astro";
 import OtherFiles from "./OtherFiles.astro";
 import PlatformRow from "./PlatformRow.astro";
 import Rich from "./Rich.astro";
@@ -17,15 +18,18 @@ const { locale } = Astro.props;
 const t = messages[locale];
 ---
 
-<section id="download" aria-labelledby="download-title">
-  <h2 id="download-title">{t.download.title}</h2>
+<details class="download-choices disclosure" id="download">
+  <summary>{t.download.title}</summary>
+  <div class="download-body">
   <p class="status" id="release-status" aria-live="polite">
     <span class="no-js"><Rich text={t.download.noScript} /></span>
     <span class="js-only">{t.download.checking}</span>
   </p>
   <ul class="platforms">
-    {PLATFORMS.map((platform) => <PlatformRow locale={locale} platform={platform} fallback={LATEST_URL} />)}
+    {PLATFORMS.map((platform) => <PlatformRow locale={locale} platform={platform} fallback={RELEASES_URL} />)}
   </ul>
+  <InstallGuides locale={locale} />
   <OtherFiles locale={locale} />
   <Verify locale={locale} />
-</section>
+  </div>
+</details>

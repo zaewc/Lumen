@@ -88,13 +88,18 @@ download page, served by GitHub Pages at <https://zaewc.github.io/Lumen/>.
 - **Run it locally:** `pnpm --filter @lumen/site dev` (live reload, no CSP), or
   `pnpm --filter @lumen/site build` then `pnpm --filter @lumen/site preview` to see the
   built pages at <http://localhost:4321/Lumen/>.
+- **Page:** a single primary download, visible pre-alpha/unsigned status, one
+  disclosure for other desktop builds and installation/verification help, and
+  concise safety principles. Source and documentation links stay secondary. See
+  the [redesign evidence](../research/15-download-page-restraint.md).
 - **What it shows:** the release GitHub marks as **Latest**, read in the browser from
   `GET /repos/zaewc/Lumen/releases/latest`. The visitor's platform gets the primary
   button (`_universal.dmg`, `_x64-setup.exe`, `_amd64.deb`/`_amd64.AppImage` by name
-  suffix); every file, `SHA256SUMS` and the `gh attestation verify` command are listed
-  below it, with the steps for opening an unsigned build. Draft releases and
+  suffix, taking the first available format); other files, `SHA256SUMS` and the
+  `gh attestation verify` command are behind the download disclosure, with the
+  steps for opening an unsigned build. Draft releases and
   pre-releases are not "Latest", so publish a beta as a normal release or the site keeps
-  saying that the first beta is coming. Without JavaScript, or when the API cannot be
+  saying that no public release is available. Without JavaScript, or when the API cannot be
   reached (it allows 60 unauthenticated requests per hour per IP address), every
   download link goes to the release page instead.
 - **How it is deployed:** [`site.yml`](../../.github/workflows/site.yml) installs the
