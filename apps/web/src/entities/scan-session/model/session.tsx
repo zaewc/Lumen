@@ -33,6 +33,8 @@ export interface ScanSession {
   readonly report: QuarantineReportView | null;
   /** Scans these roots (none: the whole disk), read-only. */
   readonly start: (roots: string[]) => void;
+  /** Scans the same roots as the last scan again (the whole disk if none). */
+  readonly rescan: () => void;
   /** Puts the scan and its results aside, back to the start. */
   readonly startOver: () => void;
   /** Records a finished clean-up; its scan and assessment are spent. */
@@ -47,6 +49,7 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
   const queries = useQueryClient();
   const [progress, setProgress] = useState<ScanProgressView | null>(null);
   const [report, setReport] = useState<QuarantineReportView | null>(null);
+  const [lastRoots, setLastRoots] = useState<string[]>([]);
   const scan = useMutation({
     mutationFn: (roots: string[]) => {
       setProgress(null);
@@ -76,7 +79,12 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
       report,
       start: (roots) => {
         setReport(null);
+        setLastRoots(roots);
         mutate(roots);
+      },
+      rescan: () => {
+        setReport(null);
+        mutate(lastRoots);
       },
       startOver: () => {
         setReport(null);
@@ -100,6 +108,7 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
       assessment.data,
       assessment.error,
       report,
+      lastRoots,
       mutate,
       reset,
       queries,

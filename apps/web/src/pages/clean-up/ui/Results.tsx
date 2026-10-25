@@ -44,6 +44,7 @@ export function Results({
   summary,
   filter,
   onFilterChange,
+  onStartOver,
   focus,
 }: {
   readonly scan: ScanView;
@@ -51,6 +52,8 @@ export function Results({
   readonly summary: CandidateSummary;
   readonly filter: Filter;
   readonly onFilterChange: (filter: Filter) => void;
+  /** Back to the start, to scan other folders. */
+  readonly onStartOver: () => void;
   readonly focus: boolean;
 }) {
   const { m } = useI18n();
@@ -63,9 +66,16 @@ export function Results({
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <StepHeading focus={focus} className="text-[15px] font-semibold text-ink tabular-nums">
-            {proposed.items.length > 0
-              ? m.results.canFree(formatBytes(proposed.bytes))
-              : m.results.nothingTitle}
+            {proposed.items.length > 0 ? (
+              <>
+                {m.results.canFree(formatBytes(proposed.bytes))}
+                <span className="ml-2 text-[13px] font-normal text-ink-2">
+                  {m.common.items(proposed.items.length)}
+                </span>
+              </>
+            ) : (
+              m.results.nothingTitle
+            )}
           </StepHeading>
           {candidates.length > 0 && (
             <div className="flex max-w-full items-center gap-2 overflow-x-auto">
@@ -91,7 +101,7 @@ export function Results({
         <CoverageNotice scan={scan} />
       </div>
       {candidates.length > 0 && <CandidateList sections={sections} onOpen={setOpen} />}
-      <ScanDetails scan={scan} />
+      <ScanDetails scan={scan} onStartOver={onStartOver} />
       <CandidateSheet candidate={open} onClose={() => setOpen(null)} />
     </>
   );

@@ -32,13 +32,13 @@ export const ko = {
     close: "닫기",
     details: "자세히",
     tryAgain: "다시 시도",
+    scanDisk: "디스크 검사",
+    scanning: "검사하는 중…",
     scanAgain: "다시 검사",
     items: (n: number) => items(n),
   },
   overview: {
     title: "개요",
-    scan: "디스크 검사",
-    scanning: "검사하는 중…",
     disk: {
       title: "시동 디스크",
       meter: "디스크 사용량",
@@ -64,13 +64,14 @@ export const ko = {
     },
   },
   start: {
-    title: "확보할 공간 찾기",
-    promise: "확인하기 전에는 아무것도 삭제하지 않으며, 모든 항목을 복원할 수 있습니다.",
-    wholeDisk: "디스크 전체 검사",
+    title: "아직 검사하지 않았습니다",
+    promise:
+      "디스크 전체나 일부 폴더만 검사할 수 있습니다. 확인하기 전에는 아무것도 옮기지 않습니다.",
     wholeDiskHint:
-      "디스크를 읽기만 하며, 몇 분 정도 걸릴 수 있습니다. 일부 폴더는 컴퓨터가 접근을 허용할지 물어볼 수 있습니다.",
+      "검사는 읽기만 하며 몇 분 정도 걸립니다. 일부 폴더는 컴퓨터가 접근 허용 여부를 물어볼 수 있습니다.",
     chooseFolders: "폴더 선택…",
     foldersLabel: "검사할 폴더(한 줄에 하나씩)",
+    foldersEmpty: "폴더를 하나 이상 입력하십시오.",
     scanFolders: "이 폴더 검사",
     failed: "검사를 마치지 못했습니다. 아무것도 변경하지 않았습니다.",
   },
@@ -109,8 +110,6 @@ export const ko = {
     decidingHint: "찾은 항목에 안전 규칙을 적용하고 있습니다.",
     readOnly: "읽기만 하며 아무것도 변경하지 않습니다.",
     progress: "검사 진행 상황",
-    stepScan: "검사",
-    stepDecide: "판정",
     items: "찾은 항목",
     size: "디스크 사용량",
     unreadable: "읽지 못한 폴더",
@@ -154,10 +153,8 @@ export const ko = {
       "디스크 공간이 거의 없어 검사를 멈췄습니다(Lumen은 항상 2 GB를 남겨 둡니다). 결과가 완전하지 않으니, 공간을 확보한 뒤 다시 검사하십시오.",
   },
   action: {
-    cleanUp: "정리하기",
+    cleanUp: "정리하기…",
     preparing: "준비하는 중…",
-    summary: (n: number, size: string) => `${items(n)} · ${size}`,
-    hint: "격리함으로 옮기며, 영구 삭제하기 전까지 복원할 수 있습니다.",
     nothing: "정리를 제안한 항목이 없습니다.",
     planFailed: "정리를 준비하지 못했습니다. 아무것도 옮기지 않았습니다.",
   },
@@ -190,6 +187,7 @@ export const ko = {
     reclaimable: "확보 가능",
     atLeast: (size: string) => `최소 ${size}`,
     complete: "모두 읽었습니다.",
+    scanOther: "다른 폴더 검사…",
     incomplete: (denied: string, failed: string, notScanned: string) =>
       `일부를 읽지 못했습니다: 접근 거부 ${count(denied)}, 실패 ${count(failed)}, 검사 안 함 ${count(notScanned)}.`,
   },

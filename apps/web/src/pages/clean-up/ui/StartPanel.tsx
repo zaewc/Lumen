@@ -1,10 +1,13 @@
 import { type FormEvent, useId } from "react";
 import { useI18n } from "@/shared/i18n";
-import { buttonClass, Disclosure, ErrorNotice, InfoTip, SearchIcon } from "@/shared/ui";
+import { buttonClass, Disclosure, ErrorNotice } from "@/shared/ui";
 import { rootsOf } from "../lib/roots";
 import { StepHeading } from "./StepHeading";
 
-/** Before a scan: one big button, and folders for those who want them. */
+/**
+ * Before a scan: what to do (the toolbar's "Scan disk"), and folders for
+ * those who want to scan only some.
+ */
 export function StartPanel({
   folders,
   onFoldersChange,
@@ -14,13 +17,12 @@ export function StartPanel({
 }: {
   readonly folders: string;
   readonly onFoldersChange: (text: string) => void;
-  /** Scans these roots; none means the whole startup disk. */
+  /** Scans these roots. */
   readonly onScan: (roots: string[]) => void;
   readonly error: unknown;
   readonly focus: boolean;
 }) {
   const { m } = useI18n();
-  const hint = useId();
   const field = useId();
   const roots = rootsOf(folders);
   const submit = (event: FormEvent) => {
@@ -30,43 +32,18 @@ export function StartPanel({
     }
   };
   return (
-    <section className="rounded-xl border border-line bg-surface px-6 py-10 min-[720px]:px-10 min-[720px]:py-12">
-      <div className="flex flex-col items-center text-center">
-        <span className="flex size-14 items-center justify-center rounded-2xl bg-accent-soft text-accent-ink">
-          <SearchIcon className="size-7" />
-        </span>
-        <div className="mt-5 flex items-center gap-2">
-          <StepHeading focus={focus} className="text-[20px] font-bold tracking-tight text-ink">
-            {m.start.title}
-          </StepHeading>
-          <InfoTip term="scan" />
-        </div>
-        <p className="mt-2 max-w-md text-[13px] leading-relaxed text-ink-2">{m.start.promise}</p>
-        {error !== null && (
-          <div className="mt-5 w-full max-w-md text-left">
-            <ErrorNotice message={m.start.failed} error={error} />
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={() => onScan([])}
-          aria-describedby={hint}
-          className={`${buttonClass("primary", "lg")} mt-7`}
-        >
-          {m.start.wholeDisk}
-        </button>
-        <p id={hint} className="mt-3 max-w-md text-[12px] leading-relaxed text-ink-3">
-          {m.start.wholeDiskHint}
-        </p>
+    <section className="max-w-xl space-y-3">
+      <div className="space-y-1">
+        <StepHeading focus={focus} className="text-[15px] font-semibold text-ink">
+          {m.start.title}
+        </StepHeading>
+        <p className="text-ink-2">{m.start.promise}</p>
+        <p className="text-[12px] text-ink-3">{m.start.wholeDiskHint}</p>
       </div>
-      <Disclosure
-        className="mx-auto mt-8 max-w-md border-t border-line pt-4"
-        summary={
-          <span className="text-[13px] font-medium text-ink-2">{m.start.chooseFolders}</span>
-        }
-      >
-        <form onSubmit={submit} className="space-y-3">
-          <label htmlFor={field} className="block text-[13px] font-medium text-ink-2">
+      {error !== null && <ErrorNotice message={m.start.failed} error={error} />}
+      <Disclosure summary={<span className="text-ink-2">{m.start.chooseFolders}</span>}>
+        <form onSubmit={submit} className="space-y-2">
+          <label htmlFor={field} className="block text-[12px] text-ink-2">
             {m.start.foldersLabel}
           </label>
           <textarea
@@ -76,9 +53,14 @@ export function StartPanel({
             rows={3}
             spellCheck={false}
             placeholder="/Users/you/Library/Developer"
-            className="w-full rounded-lg border border-line-strong bg-window p-2.5 font-mono text-[12px] text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+            className="w-full rounded-md border border-line-strong bg-window p-2 font-mono text-[12px] text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
           />
-          <button type="submit" disabled={roots.length === 0} className={buttonClass("secondary")}>
+          <button
+            type="submit"
+            disabled={roots.length === 0}
+            title={roots.length === 0 ? m.start.foldersEmpty : undefined}
+            className={buttonClass("secondary")}
+          >
             {m.start.scanFolders}
           </button>
         </form>

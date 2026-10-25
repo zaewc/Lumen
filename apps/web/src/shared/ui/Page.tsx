@@ -7,21 +7,19 @@ const COLUMN = "mx-auto w-full max-w-[1040px] px-4 min-[720px]:px-6";
  * A page in the main area, as a macOS window lays one out: a slim toolbar
  * with its title (the page's only `h1`), anything beside it, and its actions
  * on the right; then the content. The toolbar stays at the top while the
- * main area scrolls; `footer` stays at its bottom edge.
+ * main area scrolls.
  */
 export function Page({
   title,
   accessory,
   actions,
   children,
-  footer,
 }: {
   readonly title: string;
   /** Beside the title: a glossary tip or a short figure. */
   readonly accessory?: ReactNode;
   readonly actions?: ReactNode;
   readonly children: ReactNode;
-  readonly footer?: ReactNode;
 }) {
   return (
     <main className="@container flex min-h-full flex-col">
@@ -39,7 +37,6 @@ export function Page({
         </div>
       </header>
       <div className={`${COLUMN} flex-1 space-y-6 pt-5 pb-10`}>{children}</div>
-      {footer}
     </main>
   );
 }

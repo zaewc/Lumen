@@ -2,10 +2,11 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { summarize, useScanSession } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
-import { buttonClass, Page } from "@/shared/ui";
+import { shortcutProps, useShortcut } from "@/shared/lib";
+import { buttonClass, Disclosure, Page } from "@/shared/ui";
 import type { Filter } from "../model/filter";
 import { cleanUpStep } from "../model/step";
-import { ActionBar } from "./ActionBar";
+import { useCleanUpAction } from "./CleanUpAction";
 import { DonePanel } from "./DonePanel";
 import { ProgressPanel } from "./ProgressPanel";
 import { Results } from "./Results";
@@ -16,7 +17,9 @@ import { StepHeading } from "./StepHeading";
  * The guided clean-up: scan (read-only), let the policy decide, then move
  * what it proposes to quarantine after one explicit confirmation (ADR-0034).
  * Nothing is deleted here; everything moved can be restored. The scan
- * belongs to the session, so it goes on while another page is open.
+ * belongs to the session, so it goes on while another page is open. The
+ * toolbar holds each step's action; ⌘R (Ctrl+R) scans again once there is
+ * something to scan again.
  */
 export function CleanUpPage() {
   const { m } = useI18n();
@@ -32,6 +35,10 @@ export function CleanUpPage() {
     setActed(true);
     session.start(roots);
   };
+  const rescan = () => {
+    setActed(true);
+    session.rescan();
+  };
   const startOver = () => {
     setActed(true);
     session.startOver();
@@ -44,6 +51,54 @@ export function CleanUpPage() {
     done: session.report !== null,
   });
   const summary = session.candidates === null ? null : summarize(session.candidates);
+  const cleanUp = useCleanUpAction({
+    proposed: summary?.quarantine.items.length ?? 0,
+    onDone: (report) => {
+      setActed(true);
+      session.finish(report);
+    },
+  });
+  const canRescan = step === "results" || step === "done" || step === "decideFailed";
+  useShortcut("r", rescan, canRescan);
+
+  const scanAgain = (
+    <button
+      type="button"
+      onClick={rescan}
+      {...shortcutProps(m.common.scanAgain, "r")}
+      className={buttonClass("secondary")}
+    >
+      {m.common.scanAgain}
+    </button>
+  );
+
+  const actions = (): ReactNode => {
+    switch (step) {
+      case "start":
+        return (
+          <button type="button" onClick={() => start([])} className={buttonClass("primary")}>
+            {m.common.scanDisk}
+          </button>
+        );
+      case "scanning":
+      case "deciding":
+        return (
+          <button type="button" disabled className={buttonClass("primary")}>
+            {m.common.scanning}
+          </button>
+        );
+      case "decideFailed":
+      case "done":
+        return scanAgain;
+      case "results":
+        return (
+          <>
+            {scanAgain}
+            {cleanUp.button}
+          </>
+        );
+    }
+  };
 
   const view = (): ReactNode => {
     switch (step) {
@@ -64,69 +119,51 @@ export function CleanUpPage() {
         );
       case "decideFailed":
         return (
-          <section className="space-y-4 rounded-xl border border-line bg-surface p-6">
-            <StepHeading focus={acted} className="text-[17px] font-semibold text-ink">
+          <section className="space-y-3">
+            <StepHeading focus={acted} className="text-[15px] font-semibold text-ink">
               {m.scanning.failed}
             </StepHeading>
-            <p className="font-mono text-[11px] break-all text-ink-3 select-text">
-              {String(session.assessmentError)}
-            </p>
-            <button type="button" onClick={startOver} className={buttonClass("secondary")}>
-              {m.common.scanAgain}
+            <button type="button" onClick={rescan} className={buttonClass("secondary")}>
+              {m.common.tryAgain}
             </button>
+            <Disclosure
+              summary={<span className="text-[12px] text-ink-3">{m.common.details}</span>}
+            >
+              <p className="font-mono text-[11px] break-all text-ink-3 select-text">
+                {String(session.assessmentError)}
+              </p>
+            </Disclosure>
           </section>
         );
       case "results":
         return session.scan !== null && session.candidates !== null && summary !== null ? (
-          <Results
-            scan={session.scan}
-            candidates={session.candidates}
-            summary={summary}
-            filter={filter}
-            onFilterChange={(next) => {
-              void navigate({
-                to: "/clean",
-                search: next === "all" ? {} : { show: next },
-                replace: true,
-              });
-            }}
-            focus={acted}
-          />
+          <>
+            {cleanUp.error}
+            <Results
+              scan={session.scan}
+              candidates={session.candidates}
+              summary={summary}
+              filter={filter}
+              onFilterChange={(next) => {
+                void navigate({
+                  to: "/clean",
+                  search: next === "all" ? {} : { show: next },
+                  replace: true,
+                });
+              }}
+              onStartOver={startOver}
+              focus={acted}
+            />
+            {cleanUp.dialog}
+          </>
         ) : null;
       case "done":
-        return session.report !== null ? (
-          <DonePanel report={session.report} onStartOver={startOver} focus={acted} />
-        ) : null;
+        return session.report !== null ? <DonePanel report={session.report} focus={acted} /> : null;
     }
   };
 
   return (
-    <Page
-      title={m.nav.cleanUp}
-      {...(step === "results"
-        ? {
-            actions: (
-              <button type="button" onClick={startOver} className={buttonClass("secondary")}>
-                {m.common.scanAgain}
-              </button>
-            ),
-          }
-        : {})}
-      {...(step === "results" && summary !== null
-        ? {
-            footer: (
-              <ActionBar
-                proposed={summary.quarantine.items.length}
-                bytes={summary.quarantine.bytes}
-                onDone={(report) => {
-                  setActed(true);
-                  session.finish(report);
-                }}
-              />
-            ),
-          }
-        : {})}
-    >
+    <Page title={m.nav.cleanUp} actions={actions()}>
       {view()}
     </Page>
   );

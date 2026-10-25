@@ -14,7 +14,7 @@ function ScanAction() {
   if (running) {
     return (
       <button type="button" disabled className={buttonClass("primary")}>
-        {m.overview.scanning}
+        {m.common.scanning}
       </button>
     );
   }
@@ -27,7 +27,7 @@ function ScanAction() {
       }}
       className={buttonClass("primary")}
     >
-      {m.overview.scan}
+      {m.common.scanDisk}
     </button>
   );
 }
