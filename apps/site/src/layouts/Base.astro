@@ -52,9 +52,8 @@ const csp = [
         </>
       )
     }
-    <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#151515" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
     {
       !notFound && (
         <>
@@ -75,7 +74,7 @@ const csp = [
         <>
           <a class="skip" href="#main">{t.skip}</a>
           <Header locale={locale} />
-          <main id="main" class="wrap">
+          <main id="main">
             <slot />
           </main>
           <Footer locale={locale} />

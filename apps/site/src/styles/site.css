@@ -5,9 +5,9 @@
  * Hierarchy comes from type, spacing and alignment, not containers.
  */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
-  --window: #fbfbfa;
+  --window: #ffffff;
   --surface: #ffffff;
   --fill: rgb(0 0 0 / 0.045);
   --fill-strong: rgb(0 0 0 / 0.08);
@@ -28,7 +28,7 @@
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
   --gutter: 32px;
-  --measure: 920px;
+  --measure: 1200px;
 
   background-color: var(--window);
   color: var(--ink);
@@ -36,25 +36,6 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-size-adjust: 100%;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --window: #151515;
-    --surface: #202020;
-    --fill: rgb(255 255 255 / 0.05);
-    --fill-strong: rgb(255 255 255 / 0.1);
-    --line: rgb(255 255 255 / 0.1);
-    --line-strong: rgb(255 255 255 / 0.2);
-    --ink: #f1f0ed;
-    --ink-2: #b8b7b3;
-    --ink-3: #a09f9a;
-    --accent: #f1f0ed;
-    --accent-hover: #ffffff;
-    --accent-ink: #d5d4cf;
-    --on-accent: #20201f;
-    --ok: #4ade80;
-  }
 }
 
 /* Korean reads best when words are not broken across lines. */
@@ -159,22 +140,22 @@ pre {
 
 .site-header {
   background: var(--window);
-  border-bottom: 1px solid var(--line);
 }
 
 .site-header .wrap {
   display: flex;
   align-items: center;
   gap: 16px;
-  min-height: 68px;
+  min-height: 72px;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-height: 44px;
   color: var(--ink);
+  font-size: 1.25rem;
   font-weight: 650;
   text-decoration: none;
 }
@@ -188,7 +169,7 @@ pre {
   display: flex;
   gap: 24px;
   margin-left: auto;
-  font-size: 0.84rem;
+  font-size: 0.9375rem;
 }
 
 .nav a {
@@ -209,7 +190,7 @@ pre {
   min-height: 44px;
   padding: 4px 0;
   color: var(--ink-2);
-  font-size: 0.84rem;
+  font-size: 0.9375rem;
   text-decoration: none;
 }
 
@@ -233,15 +214,29 @@ pre {
 /* Intro and the primary action */
 
 .intro {
-  padding: 72px 0 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(86svh - 72px);
+  max-width: 1064px;
+  margin: 0 auto;
+  padding: 64px var(--gutter) 48px;
+  text-align: center;
+}
+
+.product-name {
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 h1 {
-  max-width: 720px;
-  font-size: clamp(2rem, 4.5vw, 3.5rem);
-  font-weight: 600;
-  letter-spacing: -0.045em;
-  line-height: 1.08;
+  margin-top: 16px;
+  font-size: clamp(4rem, 5.6vw, 5rem);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+  line-height: 1.1;
 }
 
 .intro h1 span {
@@ -249,19 +244,18 @@ h1 {
 }
 
 .lead {
-  margin-top: 24px;
-  max-width: 540px;
+  margin-top: 28px;
+  max-width: 650px;
   color: var(--ink-2);
-  font-size: 1.125rem;
+  font-size: 1.375rem;
   line-height: 1.5;
+  text-wrap: balance;
 }
 
 .primary {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 20px;
-  margin-top: 28px;
+  justify-content: center;
+  margin-top: 32px;
 }
 
 .btn {
@@ -288,12 +282,12 @@ h1 {
 }
 
 .btn-primary {
-  min-height: 48px;
-  padding: 12px 22px;
+  min-height: 54px;
+  padding: 14px 26px;
   border-color: transparent;
   background: var(--accent);
   color: var(--on-accent);
-  font-size: 0.94rem;
+  font-size: 1.0625rem;
   font-weight: 550;
 }
 
@@ -315,38 +309,43 @@ h1 {
   min-height: 1.6em;
   margin-top: 10px;
   color: var(--ink-3);
-  font-size: 0.82rem;
+  font-size: 0.9375rem;
   font-variant-numeric: tabular-nums;
 }
 
 .maturity {
-  margin-top: 22px;
+  margin-top: 4px;
   color: var(--ink-3);
-  font-size: 0.82rem;
+  font-size: 0.9375rem;
 }
 
 /* Secondary downloads stay next to the primary action, behind one disclosure. */
 .intro .download-choices {
+  width: 100%;
   max-width: 720px;
   margin-top: 12px;
   border: 0;
 }
 
 .intro .download-choices > summary {
+  justify-content: center;
   min-height: 44px;
   padding: 10px 0;
   color: var(--ink-2);
-  font-size: 0.88rem;
+  font-size: 0.9375rem;
   font-weight: 450;
 }
 
 .download-body {
   padding: 12px 0 0;
+  text-align: left;
 }
 
 /* A short explanation of the safety model, without feature containers. */
 .principles {
-  padding: 40px 0 56px;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 40px var(--gutter) 56px;
   border-top: 1px solid var(--line);
 }
 
@@ -385,16 +384,6 @@ h1 {
 .architecture-link {
   margin-top: 28px;
   font-size: 0.88rem;
-}
-
-/* Sections: a hairline and a heading, nothing more. */
-
-main > section + section {
-  padding: 28px 0 32px;
-}
-
-main > section:last-child {
-  padding-bottom: 56px;
 }
 
 h2 {
@@ -680,11 +669,27 @@ p + .disclosure {
   }
 
   .intro {
-    padding: 48px 0 36px;
+    min-height: 0;
+    padding: 68px var(--gutter) 64px;
+  }
+
+  h1 {
+    font-size: clamp(1.875rem, 8.8vw, 3rem);
+    letter-spacing: -0.05em;
   }
 
   .lead {
-    font-size: 1rem;
+    margin-top: 24px;
+    font-size: 1.1875rem;
+  }
+
+  .primary {
+    margin-top: 28px;
+  }
+
+  .maturity,
+  .meta {
+    font-size: 0.875rem;
   }
 
   .principles dl > div {
@@ -694,10 +699,6 @@ p + .disclosure {
 
   .principles h2 {
     font-size: 1.25rem;
-  }
-
-  .primary .btn-primary {
-    width: 100%;
   }
 
   .platform {

@@ -31,7 +31,7 @@ and installation/verification help, then concise safety statements and source/do
 links. No feature cards or marketing navigation. Keep the pre-alpha and unsigned
 status visible even when release lookup fails or JavaScript is unavailable.
 
-Validate actual rendered light/dark and narrow/wide layouts, keyboard focus,
+Validate actual rendered light layouts under both system themes and narrow/wide layouts, keyboard focus,
 platform detection, release/loading/missing/error states, no-JavaScript links,
 disclosures, hostile API data and the external-only CSP.
 
@@ -43,3 +43,12 @@ keyboard focus, nested disclosure links, malformed fragments and 404. No horizon
 overflow, inline styles/scripts or CSP violations. Inspected real rendered desktop
 and mobile screenshots, then removed redundant disclosure rules and shortened copy.
 Normal text contrast ranges from 5.25:1 to 9.10:1; download text exceeds 14:1.
+
+## Revised art direction
+
+The owner's follow-up replaces the compact document composition with a wide
+product launch page: a 75–90vh desktop hero, 64–80px headline, larger product
+presence and separate editorial safety chapters. This website-specific direction
+supersedes the earlier small-type preference; the application UI is unchanged.
+The site always uses a white/light palette, including when the OS prefers dark.
+Maturity and unsigned-distribution information follows the primary action.
