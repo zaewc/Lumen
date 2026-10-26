@@ -67,3 +67,6 @@ Thumbs.db
 apps/mobile/modules/*/android/build/
 apps/mobile/modules/*/android/.cxx/
 apps/mobile/modules/*/ios/rust/
+
+# Error logs @hey-api/openapi-ts writes when a generation step fails.
+openapi-ts-error-*.log
