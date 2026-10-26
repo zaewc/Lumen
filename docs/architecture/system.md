@@ -248,10 +248,13 @@ confirmation. The policy is IO-free and versioned; decisions are reproducible fr
 `(policy_version, evidence_hash)`.
 
 `lumen-policy` implements the stages. A hard protection ends evaluation with `KEEP`.
-Eligibility rules cap the verdict. Classification takes the most cautious proposal, so
-only a classification rule can make an item a quarantine candidate. When no rule
-recognises an item, it is `REVIEW` (`default.review`) if it is at least 100 MB or its
-size is unknown, and `KEEP` (`default.keep-small`) if it is smaller. A validated Jev
+Eligibility rules cap the verdict: an item the platform cannot quarantine, or a link or
+special file, is at most `REVIEW`, and an item whose removal would free no space now
+(`eligible.frees-nothing`: empty, or shared with hard links, clones or snapshots) is
+`KEEP`. Classification takes the most cautious proposal, so only a classification rule
+can make an item a quarantine candidate. When no rule recognises an item, it is
+`REVIEW` (`default.review`) if it is at least 100 MB or its size is unknown, and `KEEP`
+(`default.keep-small`) if it is smaller. A validated Jev
 judgment can then only demote a quarantine proposal to `REVIEW` (`jev.demote`); it
 never touches `KEEP` or `REVIEW`.
 

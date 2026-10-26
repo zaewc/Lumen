@@ -328,8 +328,7 @@ export const en = {
       "protect.location-context": "Kept: Lumen could not check its list of protected locations.",
       "eligible.quarantine-unsupported":
         "Needs review: this device cannot move it to Quarantine reversibly.",
-      "eligible.frees-nothing":
-        "Needs review: removing it would free no space now (hard links, clones, snapshots or cloud-only data).",
+      "eligible.frees-nothing": "Kept: removing it would free no space.",
       "eligible.object-kind": "Needs review: it is a link or special file, not data.",
       "eligible.in-use-partial":
         "No app Lumen can see uses it. Lumen could not check system apps, so it checks again just before moving it.",

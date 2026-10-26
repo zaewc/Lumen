@@ -313,10 +313,15 @@ proptest! {
     }
 
     #[test]
-    fn app_state_and_small_unrecognised_items_are_kept(input in policy_input()) {
+    fn app_state_small_unrecognised_items_and_items_freeing_nothing_are_kept(
+        input in policy_input(),
+    ) {
         let decision = decide(&input)?;
         let fired = |id: &str| decision.fired_rules().iter().any(|r| r.rule.as_str() == id);
-        if fired("classify.app-state") || fired("default.keep-small") {
+        if fired("classify.app-state")
+            || fired("default.keep-small")
+            || fired("eligible.frees-nothing")
+        {
             prop_assert_eq!(decision.verdict(), Verdict::Keep);
         }
         if fired("default.keep-small") {
@@ -324,6 +329,9 @@ proptest! {
             prop_assert!(observed.is_some_and(|o| {
                 o.reclaim.allocated < REVIEW_MIN_BYTES && o.reclaim.reclaimable_now < REVIEW_MIN_BYTES
             }), "unknown or large sizes are never small");
+        }
+        if input.observed.as_ref().is_some_and(|o| o.reclaim.reclaimable_now == ByteCount::ZERO) {
+            prop_assert_eq!(decision.verdict(), Verdict::Keep, "frees nothing");
         }
     }
 

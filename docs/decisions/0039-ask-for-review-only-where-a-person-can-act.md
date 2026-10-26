@@ -99,6 +99,18 @@ Chosen option: **1**.
 
 The policy version moves to 0.11.0.
 
+### Amendment: items that would free nothing are kept (2026-10-26)
+
+An item whose removal would free no space now (`eligible.frees-nothing`: an empty
+folder, or space shared with hard links, clones or snapshots) was capped at `REVIEW`.
+After the per-app cache entries
+([research 16](../research/16-app-caches-in-app-data-folders.md)), six empty Chromium
+`Cache` folders on the owner's Mac showed as "Needs review": there is nothing for a
+person to decide, since removing them changes nothing. Under the principle above, the
+rule now caps at `KEEP`: "Kept: removing it would free no space." Like every change in
+this decision, it only moves verdicts from `REVIEW` to `KEEP`, and an item that frees
+nothing was never a quarantine candidate. The policy version moves to 0.12.0.
+
 ### Consequences
 
 - Good: on the owner's disk, "Needs review" drops from 165 items to the 3 that cannot be

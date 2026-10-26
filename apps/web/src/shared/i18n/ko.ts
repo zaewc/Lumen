@@ -336,8 +336,7 @@ export const ko = {
       "protect.location-data": "유지: 보호 위치 목록을 확인하지 못했어요.",
       "protect.location-context": "유지: 보호 위치 목록을 확인하지 못했어요.",
       "eligible.quarantine-unsupported": "검토 필요: 이 기기에서는 복원할 수 있게 옮길 수 없어요.",
-      "eligible.frees-nothing":
-        "검토 필요: 지금 지워도 공간이 생기지 않아요(하드 링크, 복제본, 스냅샷, 클라우드 전용 데이터).",
+      "eligible.frees-nothing": "유지: 지워도 공간이 생기지 않아요.",
       "eligible.object-kind": "검토 필요: 데이터가 아니라 링크나 특수 파일이에요.",
       "eligible.in-use-partial":
         "Lumen이 확인한 프로그램 중에는 쓰는 곳이 없어요. 시스템 프로그램은 확인하지 못해서 옮기기 직전에 다시 확인해요.",

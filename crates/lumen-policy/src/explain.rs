@@ -36,9 +36,7 @@ fn template(rule: &str) -> Option<String> {
         "eligible.quarantine-unsupported" => {
             "Review only: this device cannot quarantine it reversibly."
         }
-        "eligible.frees-nothing" => {
-            "Review only: removing it would free no space now (hard links, clones, snapshots or cloud-only data)."
-        }
+        "eligible.frees-nothing" => "Kept: removing it would free no space.",
         "eligible.object-kind" => "Review only: it is a link or special file, not data.",
         "eligible.in-use-partial" => {
             "No process Lumen can see uses it; system processes could not be checked, so Lumen checks again just before moving it."

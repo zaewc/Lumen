@@ -5,8 +5,9 @@
 //!
 //! 1. **Hard protection**: if any rule fires, the verdict is `Keep` and no later
 //!    stage runs. Nothing overrides a protection.
-//! 2. **Eligibility**: rules that fire cap the verdict (e.g. an item that frees
-//!    nothing is at most `Review`).
+//! 2. **Eligibility**: rules that fire cap the verdict (e.g. an item the
+//!    platform cannot quarantine is at most `Review`, and an item that frees
+//!    nothing is `Keep`, ADR-0039).
 //! 3. **Classification**: rules propose verdicts; the most cautious proposal
 //!    wins. If none fires, an item of at least [`REVIEW_MIN_BYTES`] (or of
 //!    unknown size) is `Review` (`default.review`) and a smaller one is `Keep`
@@ -46,7 +47,7 @@ pub use explain::explain;
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
-pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 11, 0);
+pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 12, 0);
 
 /// The smallest unrecognised item worth a person's review (ADR-0039): 100 MB,
 /// in decimal bytes as Lumen shows sizes. Below it, an item no rule

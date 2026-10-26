@@ -2,8 +2,9 @@
 //!
 //! Every protected stratum in docs/ai/datasets.md is decided with an
 //! adversarial judge that always answers "likely removable, high confidence".
-//! Protected items, an application's own state and unrecognised items too small
-//! to review (ADR-0039) must stay `Keep` and must never be sent to the judge;
+//! Protected items, an application's own state, unrecognised items too small
+//! to review and items whose removal would free nothing (ADR-0039) must stay
+//! `Keep` and must never be sent to the judge;
 //! unprotected items the policy leaves at `Review` must not be promoted, and are
 //! not even sent: a judgment could not change them.
 
@@ -144,6 +145,28 @@ fn large(mut input: PolicyInput) -> PolicyInput {
     input
 }
 
+/// `input`, large on disk but freeing nothing if removed (an empty folder, or
+/// space shared with hard links or clones).
+fn empty(mut input: PolicyInput) -> PolicyInput {
+    if let Some(observed) = input.observed.as_mut() {
+        observed.reclaim.allocated = lumen_policy::REVIEW_MIN_BYTES;
+        observed.reclaim.reclaimable_now = ByteCount::ZERO;
+    }
+    input
+}
+
+/// Facts of a free item in `kind` of an installed application's data.
+fn owned(kind: lumen_domain::AppDataKind) -> Vec<Fact> {
+    vec![
+        Fact::InUse(false),
+        Fact::OwningApplication(lumen_domain::AppId {
+            scheme: lumen_domain::AppIdScheme::BundleId,
+            value: UntrustedText::new("com.example.App"),
+        }),
+        Fact::AppDataLocation { kind },
+    ]
+}
+
 fn request() -> JevRequest {
     JevRequest {
         schema_version: JevRequest::current_schema().unwrap_or_else(|_| unreachable!()),
@@ -230,16 +253,14 @@ fn protected_strata_stay_kept_and_never_reach_the_judge() {
             "application state",
             large(input(
                 "/Users/ana/Library/Application Support/com.example.App",
-                vec![
-                    free(),
-                    Fact::OwningApplication(lumen_domain::AppId {
-                        scheme: lumen_domain::AppIdScheme::BundleId,
-                        value: UntrustedText::new("com.example.App"),
-                    }),
-                    Fact::AppDataLocation {
-                        kind: lumen_domain::AppDataKind::ApplicationSupport,
-                    },
-                ],
+                owned(lumen_domain::AppDataKind::ApplicationSupport),
+            )),
+        ),
+        (
+            "empty application cache",
+            empty(input(
+                "/Users/ana/Library/Caches/com.example.App",
+                owned(lumen_domain::AppDataKind::Caches),
             )),
         ),
         (

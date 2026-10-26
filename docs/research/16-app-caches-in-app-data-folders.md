@@ -140,7 +140,8 @@ assessment time over every stored entry):
 - Kept because the running app had them open: VS Code's `Cache` (273 MB) and its
   partition's `Cache` (161 MB), Discord's `Cache` (847 MB) and GPU caches.
 - Six empty `Cache` folders (Postman's, one of Claude's partitions) are `REVIEW`:
-  removing them frees nothing (`eligible.frees-nothing`).
+  removing them frees nothing (`eligible.frees-nothing`). Since policy 0.12.0 such
+  items are `KEEP` (ADR-0039's amendment).
 - The apps' own folders stay `KEEP` (ADR-0039), now sized without the caches (Claude
   13.8 → 13.0 GB, VS Code 7.7 → 4.9 GB). Docker Desktop's disk image (8.7 GB, in use)
   became its own `KEEP` item inside its container

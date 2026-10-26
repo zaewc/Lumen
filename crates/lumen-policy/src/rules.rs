@@ -297,10 +297,11 @@ fn quarantine_unsupported(input: &PolicyInput) -> Option<Finding> {
 }
 
 /// Removing it frees nothing now: hard links elsewhere, clones, snapshots,
-/// dataless or empty items are never proposed for space.
+/// dataless or empty items are never proposed for space. Nobody can act on
+/// an item that frees nothing, so it is kept rather than reviewed (ADR-0039).
 fn frees_nothing(input: &PolicyInput) -> Option<Finding> {
     let observed = input.observed.as_ref()?;
-    (observed.reclaim.reclaimable_now == ByteCount::ZERO).then(|| finding(Verdict::Review, &[]))
+    (observed.reclaim.reclaimable_now == ByteCount::ZERO).then(|| finding(Verdict::Keep, &[]))
 }
 
 /// Links, junctions, reparse points and special files are other objects'
@@ -453,7 +454,8 @@ mod tests {
     }
 
     #[test]
-    fn ineligible_items_are_at_most_review() -> Result<(), PolicyError> {
+    fn ineligible_items_are_at_most_review_and_items_freeing_nothing_are_kept()
+    -> Result<(), PolicyError> {
         let unsupported = decide_with(|i| i.context.mechanisms.clear())?;
         assert_eq!(unsupported.verdict(), Verdict::Review);
         assert!(fired(&unsupported).contains(&"eligible.quarantine-unsupported"));
@@ -465,6 +467,17 @@ mod tests {
             ["default.keep-small", "eligible.frees-nothing"]
         );
         assert_eq!(nothing.verdict(), Verdict::Keep, "too small to review");
+        let empty = decide_with(|i| {
+            let mut observed = crate::testing::observed(EntryKind::Directory, 0);
+            observed.reclaim.allocated = ByteCount::new(crate::testing::LARGE);
+            i.observed = Some(observed);
+        })?;
+        assert_eq!(fired(&empty), ["default.review", "eligible.frees-nothing"]);
+        assert_eq!(
+            empty.verdict(),
+            Verdict::Keep,
+            "large but freeing nothing: nobody can act on it"
+        );
         let link = decide_with(|i| {
             i.observed = Some(crate::testing::observed(
                 EntryKind::Symlink,
