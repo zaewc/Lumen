@@ -36,6 +36,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/claude-code-session-data.json"),
     ),
     (
+        "claude-desktop-chromium-caches.json",
+        include_str!("../entries/claude-desktop-chromium-caches.json"),
+    ),
+    (
         "cocoapods-download-cache.json",
         include_str!("../entries/cocoapods-download-cache.json"),
     ),

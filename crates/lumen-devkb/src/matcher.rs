@@ -640,6 +640,39 @@ mod tests {
         ("Library/Application Support/Code/Cache/Cache_Data", None),
         ("Library/Application Support/Code/CachedData/0123abcd", None),
         ("Library/Application Support/Code - Insiders/Cache", None),
+        (
+            "Library/Application Support/Claude/Cache",
+            Some("claude-desktop-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Claude/Code Cache",
+            Some("claude-desktop-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Claude/GPUCache",
+            Some("claude-desktop-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Claude/Partitions/cowork-file-preview/GPUCache",
+            Some("claude-desktop-chromium-caches"),
+        ),
+        ("Library/Application Support/Claude/Local Storage", None),
+        ("Library/Application Support/Claude/IndexedDB", None),
+        ("Library/Application Support/Claude/claude-code", None),
+        (
+            "Library/Application Support/Claude/claude-code-sessions",
+            None,
+        ),
+        (
+            "Library/Application Support/Claude/local-agent-mode-sessions",
+            None,
+        ),
+        ("Library/Application Support/Claude/fcache", None),
+        ("Library/Application Support/Claude/Partitions", None),
+        (
+            "Library/Application Support/Claude/vm_bundles/claudevm.bundle",
+            None,
+        ),
         ("Library/Application Support/SomeApp/Cache", None),
         ("Library/Application Support/Spotify/PersistentCache", None),
         ("Library/Application Support/Claude/vm_bundles", None),
