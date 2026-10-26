@@ -742,6 +742,16 @@ mod tests {
             None,
         ),
         ("Library/Application Support/Postman/storage", None),
+        (
+            "Library/Application Support/obsidian/Cache",
+            Some("obsidian-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Obsidian/GPUCache",
+            Some("obsidian-chromium-caches"),
+        ),
+        ("Library/Application Support/obsidian/IndexedDB", None),
+        ("Library/Application Support/obsidian/obsidian.json", None),
         ("Library/Application Support/SomeApp/Cache", None),
         ("Library/Application Support/Spotify/PersistentCache", None),
         ("Library/Application Support/Claude/vm_bundles", None),

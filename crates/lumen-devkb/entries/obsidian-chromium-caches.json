@@ -1,0 +1,170 @@
+{
+  "id": "obsidian-chromium-caches",
+  "tool": "Obsidian",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/obsidian/Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/obsidian/Code Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/obsidian/GPUCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/obsidian/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/obsidian/DawnWebGPUCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/obsidian/Partitions/*/Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/obsidian/Partitions/*/Code Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/obsidian/Partitions/*/GPUCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/obsidian/Partitions/*/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/obsidian/Partitions/*/DawnWebGPUCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Obsidian/Cache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Obsidian/Code Cache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Obsidian/GPUCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Obsidian/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Obsidian/DawnWebGPUCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Obsidian/Partitions/*/Cache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Obsidian/Partitions/*/Code Cache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Obsidian/Partitions/*/GPUCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Obsidian/Partitions/*/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Obsidian/Partitions/*/DawnWebGPUCache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/obsidian/Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/obsidian/Code Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/obsidian/GPUCache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/obsidian/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/obsidian/DawnWebGPUCache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/obsidian/Partitions/*/Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/obsidian/Partitions/*/Code Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/obsidian/Partitions/*/GPUCache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/obsidian/Partitions/*/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/obsidian/Partitions/*/DawnWebGPUCache"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "seconds", "network": true },
+  "sources": [
+    "https://obsidian.md/help/data-storage",
+    "https://www.electronjs.org/docs/latest/api/app",
+    "https://www.electronjs.org/docs/latest/api/session",
+    "https://github.com/electron/electron/blob/main/shell/browser/net/network_context_service.cc",
+    "https://github.com/electron/electron/blob/main/shell/browser/electron_browser_context.cc",
+    "https://github.com/chromium/chromium/blob/main/chrome/common/chrome_constants.h",
+    "https://www.chromium.org/developers/design-documents/network-stack/disk-cache/",
+    "https://github.com/chromium/chromium/blob/main/content/browser/storage_partition_impl.cc",
+    "https://github.com/chromium/chromium/blob/main/gpu/ipc/common/gpu_disk_cache_type.cc"
+  ],
+  "last_verified": "2026-10-26"
+}
