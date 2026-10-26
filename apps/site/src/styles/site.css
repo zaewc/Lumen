@@ -217,11 +217,14 @@ pre {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* Anchored at the top, not centred: opening "all downloads" below must not
+     move the headline. The top padding puts the closed intro where centring
+     in 78svh would (its closed height is about 560px). */
+  justify-content: flex-start;
   min-height: calc(78svh - 72px);
   max-width: 1064px;
   margin: 0 auto;
-  padding: 64px var(--gutter) 48px;
+  padding: max(64px, calc(39svh - 252px)) var(--gutter) 48px;
   text-align: center;
 }
 
