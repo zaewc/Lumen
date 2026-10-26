@@ -37,7 +37,8 @@ pub struct Planned {
 
 /// Plans every `QUARANTINE` candidate of the latest scan in `db` and stores
 /// the plan as proposed, with its decisions. `REVIEW` and `KEEP` candidates
-/// never enter a plan.
+/// never enter a plan, and review items are not described (ADR-0041): a note
+/// could not change a plan.
 ///
 /// # Errors
 ///
@@ -50,10 +51,11 @@ pub fn plan(
     ids: &dyn IdGenerator,
     judge: &dyn lumen_application::ports::JudgeModel,
 ) -> Result<Planned, PlanError> {
-    let chosen: Vec<Assessed> = crate::assess::assess(db, clock, judge)?
-        .into_iter()
-        .filter(|a| a.decision.verdict() == Verdict::Quarantine)
-        .collect();
+    let chosen: Vec<Assessed> =
+        crate::assess::assess(db, clock, judge, &lumen_application::ports::NoopJudge)?
+            .into_iter()
+            .filter(|a| a.decision.verdict() == Verdict::Quarantine)
+            .collect();
     if chosen.is_empty() {
         return Err(PlanError::NothingToPlan);
     }

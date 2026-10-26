@@ -714,7 +714,9 @@ fn jev_request(
 }
 
 /// Assesses the latest completed scan in `db`, consulting `judge` when it is
-/// configured (a `NoopJudge` never is).
+/// configured (a `NoopJudge` never is), then asking `describer` what kind of
+/// item each of up to 20 of the largest review items is (ADR-0041). A
+/// description is a note beside the decision and never changes it.
 ///
 /// # Errors
 ///
@@ -724,6 +726,7 @@ pub fn assess(
     db: &Path,
     clock: &dyn Clock,
     judge: &dyn lumen_application::ports::JudgeModel,
+    describer: &dyn lumen_application::ports::Describer,
 ) -> Result<Vec<Assessed>, AssessError> {
     let timer = std::time::Instant::now();
     let assessment = prepare(db, clock)?;
@@ -751,6 +754,13 @@ pub fn assess(
         }
         Ok(assessed)
     })??;
+    let mut assessed = assessed;
+    block_on(lumen_application::describe::describe(
+        describer,
+        clock,
+        &mut assessed,
+        &request,
+    ));
     let count = |verdict: lumen_domain::Verdict| {
         assessed
             .iter()
@@ -763,6 +773,7 @@ pub fn assess(
         review = count(lumen_domain::Verdict::Review),
         quarantine = count(lumen_domain::Verdict::Quarantine),
         jev_consulted = assessed.iter().filter(|a| a.trace.is_some()).count(),
+        jev_described = assessed.iter().filter(|a| a.note_trace.is_some()).count(),
         elapsed_ms = u64::try_from(timer.elapsed().as_millis()).unwrap_or(u64::MAX),
         "assessment finished"
     );

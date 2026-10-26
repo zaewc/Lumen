@@ -1,5 +1,6 @@
 //! Whether AI review is on (ADR-0037): the user's one-time, revocable consent to
-//! send metadata about proposed quarantines to the judge (Jeb or Jev).
+//! send metadata about proposed quarantines, and about up to 20 of the largest
+//! items left for review (ADR-0041), to the judge (Jeb or Jev).
 //!
 //! The choice lives next to the database in `ai-review.json`. It starts off; a
 //! missing file means off, and so does one that cannot be read, so AI review
@@ -51,10 +52,10 @@ impl Service {
     pub const fn disclosure(self) -> &'static str {
         match self {
             Self::Jeb => {
-                "Jeb: for each item proposed for quarantine, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to the school's Jeb server (jeb.https.gsmsv.site) with your key. Its operator may keep requests. Jeb can only make a decision more cautious."
+                "Jeb: for each item proposed for quarantine, and for up to 20 of the largest items left for review, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to the school's Jeb server (jeb.https.gsmsv.site) with your key. Its operator may keep requests. Jeb can only make a decision more cautious; for review items it only adds a note on what each likely is."
             }
             Self::OpenRouter => {
-                "Jev: for each item proposed for quarantine, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to TypeSafe's Jev through OpenRouter with your key. Jev can only make a decision more cautious."
+                "Jev: for each item proposed for quarantine, and for up to 20 of the largest items left for review, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to TypeSafe's Jev through OpenRouter with your key. Jev can only make a decision more cautious; for review items it only adds a note on what each likely is."
             }
         }
     }
@@ -189,7 +190,8 @@ pub fn active_judge(db: &Path, store: Option<&dyn SecretStore>) -> Option<JevJud
     }
 }
 
-/// Records every judge consultation in `assessed` in the ledger next to `db`.
+/// Records every judge consultation and description request in `assessed`
+/// in the ledger next to `db`.
 ///
 /// # Errors
 ///
@@ -198,7 +200,10 @@ pub fn record_traces(
     db: &Path,
     assessed: &[Assessed],
 ) -> Result<(), lumen_store_sqlite::StoreError> {
-    let traces: Vec<_> = assessed.iter().filter_map(|a| a.trace.as_ref()).collect();
+    let traces: Vec<_> = assessed
+        .iter()
+        .flat_map(|a| a.trace.iter().chain(&a.note_trace))
+        .collect();
     if traces.is_empty() {
         return Ok(());
     }

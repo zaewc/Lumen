@@ -36,7 +36,7 @@ named like a path, name or hash with `[redacted]`.
 | `earlier scans were not pruned` | `scan` | none |
 | `index database compacted` | `scan` | `freed_bytes` |
 | `index database not compacted` | `scan` | `reason`: `unmeasured`, `no_room`, `failed` |
-| `assessment finished` | `assess` | `candidates`, `keep`, `review`, `quarantine`, `jev_consulted`, `elapsed_ms` |
+| `assessment finished` | `assess` | `candidates`, `keep`, `review`, `quarantine`, `jev_consulted`, `jev_described` (review items AI review was asked to describe, ADR-0041), `elapsed_ms` |
 | `plan stored` | `plan` | `items` |
 | `plan executed` | `quarantine` | `items`, `quarantined`, `skipped`, `failed`, `resolved`, `moved_bytes`, `warnings` |
 | `restore finished` | `restore` | `outcome`: `restored`, `not_restored`, `not_restorable` |

@@ -3,8 +3,9 @@
 //! The policy decides first, without Jev. Jev is asked only when that decision
 //! is `Quarantine` and a judge is configured: a judgment can only demote a
 //! proposed quarantine to `Review` (ADR-0020), so asking about anything else
-//! could never change a decision. That keeps protected and review items'
-//! metadata out of prompts and saves the provider's quota. A judgment is then fed
+//! could never change a decision. That keeps protected items' metadata out of
+//! prompts and saves the provider's quota; review items may only be described,
+//! as a note for people ([`crate::describe`], ADR-0041). A judgment is then fed
 //! back into the policy, which can only become more cautious. Any judge error
 //! leaves the first decision in place: the decision never fails because of Jev.
 //!
@@ -27,7 +28,7 @@ pub struct Consulted {
 }
 
 /// Whole milliseconds from `start` to `end`, saturating.
-fn millis(start: Timestamp, end: Timestamp) -> u32 {
+pub(crate) fn millis(start: Timestamp, end: Timestamp) -> u32 {
     let nanos =
         |t: Timestamp| i128::from(t.unix_seconds()) * 1_000_000_000 + i128::from(t.subsec_nanos());
     let elapsed = (nanos(end) - nanos(start)).max(0) / 1_000_000;

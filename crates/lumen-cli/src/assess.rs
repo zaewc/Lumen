@@ -1,10 +1,12 @@
 //! `lumen assess`: the latest completed scan's candidates with their
 //! verdicts and reasons, as text or JSON (roadmap 10.13b). The assessment
-//! itself is `lumen_app::assess`.
+//! itself is `lumen_app::assess`. With AI review on, review items may carry
+//! an AI note on what they likely are (ADR-0041), shown labelled as AI.
 
 use lumen_app::assess::{ToolGuidance, tool_action};
 use lumen_application::assess::Assessed;
-use lumen_domain::{ByteCount, Verdict};
+use lumen_application::describe::{MAX_DESCRIBED, describable};
+use lumen_domain::{ByteCount, ItemKind, ItemNote, JudgmentConfidence, Verdict};
 use serde_json::{Value, json};
 
 use crate::report::human;
@@ -59,6 +61,39 @@ pub(crate) fn guidance_line(assessed: &Assessed, indent: &str) -> Option<String>
     })
 }
 
+/// The AI note as one line: only the closed kind and confidence, never model
+/// text.
+fn note_line(note: ItemNote, indent: &str) -> String {
+    let kind = match note.kind {
+        ItemKind::AppSettings => "an app's settings or data",
+        ItemKind::UserDocuments => "your documents",
+        ItemKind::Cache => "a cache",
+        ItemKind::Logs => "logs",
+        ItemKind::DownloadsOrInstallers => "downloads or installers",
+        ItemKind::DeveloperToolData => "a developer tool's data",
+        ItemKind::BackupOrArchive => "a backup or archive",
+        ItemKind::Unknown => return format!("{indent}- AI: could not tell what it is"),
+    };
+    let confidence = match note.confidence {
+        JudgmentConfidence::Low => "low",
+        JudgmentConfidence::Medium => "medium",
+        JudgmentConfidence::High => "high",
+    };
+    format!("{indent}- AI: likely {kind} ({confidence} confidence)")
+}
+
+/// How many review items AI review described, when it described any and
+/// left some out (the cap, or an unavailable judge).
+fn described_line(assessed: &[Assessed]) -> Option<String> {
+    let asked = assessed.iter().filter(|a| a.note_trace.is_some()).count();
+    let describable = assessed.iter().filter(|a| describable(a)).count();
+    (asked > 0 && describable > asked).then(|| {
+        format!(
+            "AI review described {asked} of {describable} items left for review (at most {MAX_DESCRIBED}, the largest first)"
+        )
+    })
+}
+
 /// The report as text.
 pub(crate) fn to_text(assessed: &[Assessed]) -> String {
     let mut lines = Vec::new();
@@ -75,7 +110,11 @@ pub(crate) fn to_text(assessed: &[Assessed]) -> String {
                 .map(|reason| format!("           - {reason}")),
         );
         lines.extend(guidance_line(item, "           "));
+        if item.decision.verdict() == Verdict::Review {
+            lines.extend(item.note.map(|note| note_line(note, "           ")));
+        }
     }
+    lines.extend(described_line(assessed));
     let proposed: u64 = assessed
         .iter()
         .filter(|a| a.decision.verdict() == Verdict::Quarantine)
@@ -103,6 +142,10 @@ pub(crate) fn to_json(assessed: &[Assessed]) -> Value {
                 "program": guidance.program,
                 "args": guidance.args,
             })),
+            "ai_note": item.note.filter(|_| item.decision.verdict() == Verdict::Review).map(|note| json!({
+                "kind": note.kind,
+                "confidence": note.confidence,
+            })),
         })).collect::<Vec<_>>(),
     })
 }
@@ -128,6 +171,30 @@ mod tests {
         assert_eq!(
             command_line(&guidance("npm", &["cache", "clean", "--force"])),
             "npm cache clean --force"
+        );
+    }
+
+    #[test]
+    fn notes_show_only_the_closed_kind_and_confidence() {
+        let note = |kind, confidence| ItemNote {
+            kind,
+            confidence,
+            injection_suspected: false,
+        };
+        assert_eq!(
+            note_line(note(ItemKind::Cache, JudgmentConfidence::Low), "  "),
+            "  - AI: likely a cache (low confidence)"
+        );
+        assert_eq!(
+            note_line(
+                note(ItemKind::DownloadsOrInstallers, JudgmentConfidence::High),
+                ""
+            ),
+            "- AI: likely downloads or installers (high confidence)"
+        );
+        assert_eq!(
+            note_line(note(ItemKind::Unknown, JudgmentConfidence::Medium), ""),
+            "- AI: could not tell what it is"
         );
     }
 

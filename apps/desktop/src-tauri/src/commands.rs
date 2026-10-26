@@ -192,7 +192,9 @@ pub(crate) async fn assess(core: State<'_, Core>) -> Result<Vec<CandidateView>, 
         let assessed = with_judge(
             &db,
             secrets.as_deref(),
-            |judge| lumen_app::assess(&db, &SystemClock, judge).map_err(CommandError::new),
+            |judge| {
+                lumen_app::assess(&db, &SystemClock, judge, &NoopJudge).map_err(CommandError::new)
+            },
             Vec::as_slice,
         )?;
         Ok(assessed.iter().map(CandidateView::from).collect())

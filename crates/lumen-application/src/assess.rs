@@ -26,8 +26,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use lumen_domain::{
-    AppDataKind, EntryKind, Evidence, EvidenceId, Fact, FilesystemEntry, JevRequest, JevTrace,
-    PolicyDecision, RawPath, SourceName, Subject, Timestamp,
+    AppDataKind, EntryKind, Evidence, EvidenceId, Fact, FilesystemEntry, ItemNote, JevRequest,
+    JevTrace, PolicyDecision, RawPath, SourceName, Subject, Timestamp,
 };
 use lumen_graph::{EvidenceBundle, Graph};
 use lumen_policy::{Context, KnowledgeClass, PolicyError, PolicyInput, evaluate, explain};
@@ -242,6 +242,12 @@ pub struct Assessed {
     pub trace: Option<JevTrace>,
     /// Why, in plain sentences.
     pub reasons: Vec<String>,
+    /// What AI review says a review item most likely is, when it was asked
+    /// and the answer may be shown (ADR-0041). Display only: nothing decides
+    /// from it.
+    pub note: Option<ItemNote>,
+    /// The description request, if one was made ([`crate::describe`]).
+    pub note_trace: Option<JevTrace>,
 }
 
 /// Probes `candidate`, assembles its input and decides it. Jev is consulted
@@ -274,6 +280,8 @@ pub async fn decide_candidate(
         decision: consulted.decision,
         trace: consulted.trace,
         input,
+        note: None,
+        note_trace: None,
     })
 }
 

@@ -29,11 +29,18 @@ Evidence graph ─▶ EvidenceBundle ─▶ Deterministic policy (stages 1–3)
                  PolicyDecision ─▶ explanation (Jev rationale shown separately, labelled)
 ```
 
-Jev is consulted only about items the policy proposes for quarantine: a judgment can
-only demote those to `REVIEW`, so asking about anything else could never change a
-decision. Items fixed by hard protections (stage 1, `KEEP` regardless) and items
-already at `REVIEW` never reach it, which keeps their metadata out of prompts and
-saves the provider's quota.
+Jev is consulted for a judgment only about items the policy proposes for quarantine: a
+judgment can only demote those to `REVIEW`, so asking about anything else could never
+change a decision. Items fixed by hard protections (stage 1, `KEEP`) never reach it.
+
+Items the policy itself leaves at `REVIEW` are not judged, but while AI review is on,
+up to 20 of the largest of them that no knowledge-base entry identifies are
+**described**
+([ADR-0041](../decisions/0041-ai-describes-what-review-items-are.md)): the same
+redacted request, with one closed question, "What kind of item is this most likely?"
+(`lumen_application::describe`). The answer is a note shown beside the item, labelled
+as AI ("AI: likely a cache (low confidence)"); it never reaches the policy, a plan or
+the executor, and it is traced like a judgment. `lumen plan` describes nothing.
 
 ## Components
 
@@ -41,6 +48,7 @@ saves the provider's quota.
 | --- | --- | --- |
 | `JudgeModel` port | `lumen-application` | `descriptor()` and `judge(&EvidenceBundle) -> Result<Judgment, JudgeError>` |
 | Consultation | `lumen-application::consult` | Ask only when the policy's first decision is `QUARANTINE` and a judge is configured; re-evaluate with the judgment; trace every consultation |
+| Description | `lumen-application::describe` | Ask up to 20 of the largest unrecognised `REVIEW` items what kind of item each is, one at a time; set the note beside the decision, never in it; stop at the first unavailable answer; trace every request |
 | Request builder | `lumen-jev` | Canonical, redacted, versioned request from a bundle; untrusted strings JSON-encoded in labelled fields |
 | Adapters | `lumen-jev` | Provider-specific transport only; no parsing logic of their own |
 | Response validator | `lumen-jev` | `stop_reason` handling, JSON Schema validation, enum and length checks, evidence-ID membership, pinned-model check |
@@ -54,7 +62,7 @@ saves the provider's quota.
 | --- | --- | --- | --- |
 | 0 | yes | no | `NoopJudge` |
 | 1 | opt-in | no | on-device (Apple Foundation Models; later ONNX Runtime / llama.cpp; Android ML Kit for foreground only) |
-| 2 | opt-in, per user, with disclosure; once turned on it stays on until turned off ([ADR-0037](../decisions/0037-keep-ai-review-on-once-turned-on.md)) | metadata only, redacted; zero-retention endpoints on OpenRouter, no retention guarantee on Jeb (disclosed on every run) | `JevJudge`: Jeb on the school AI Hub by default ([ADR-0036](../decisions/0036-jeb-on-the-school-ai-hub.md)), or TypeSafe's Jev via OpenRouter ([ADR-0031](../decisions/0031-jev-on-typesafe-via-openrouter.md)) |
+| 2 | opt-in, per user, with disclosure; once turned on it stays on until turned off ([ADR-0037](../decisions/0037-keep-ai-review-on-once-turned-on.md)) | metadata only, redacted, of proposed items and of up to 20 items left for review; zero-retention endpoints on OpenRouter, no retention guarantee on Jeb (disclosed on every run) | `JevJudge`: Jeb on the school AI Hub by default ([ADR-0036](../decisions/0036-jeb-on-the-school-ai-hub.md)), or TypeSafe's Jev via OpenRouter ([ADR-0031](../decisions/0031-jev-on-typesafe-via-openrouter.md)) |
 
 Apple Private Cloud Compute counts as tier 2.
 

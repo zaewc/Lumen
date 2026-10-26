@@ -438,13 +438,17 @@ fn run(_args: &ScanArgs) -> Result<(), Box<dyn Error>> {
     Err("scanning is not supported on this platform".into())
 }
 
-/// Runs `with` with the judge when this run asked for it, or when AI review is
-/// on next to `db` (ADR-0037), and records its traces.
+/// Runs `with` with the judge (and the same judge as the describer of review
+/// items, ADR-0041) when this run asked for it, or when AI review is on next
+/// to `db` (ADR-0037), and records its traces.
 #[cfg(any(unix, windows))]
 fn with_judge<T>(
     ai: AiChoice,
     db: &std::path::Path,
-    with: impl FnOnce(&dyn lumen_application::ports::JudgeModel) -> Result<T, Box<dyn Error>>,
+    with: impl FnOnce(
+        &dyn lumen_application::ports::JudgeModel,
+        &dyn lumen_application::ports::Describer,
+    ) -> Result<T, Box<dyn Error>>,
     traces: impl Fn(&T) -> &[lumen_application::assess::Assessed],
 ) -> Result<T, Box<dyn Error>> {
     let wanted = match ai {
@@ -453,10 +457,11 @@ fn with_judge<T>(
         AiChoice::Setting => lumen_app::ai::load(db).enabled,
     };
     if !wanted {
-        return with(&lumen_application::ports::NoopJudge);
+        let off = lumen_application::ports::NoopJudge;
+        return with(&off, &off);
     }
     let judge = jev::judge()?;
-    let result = with(&judge)?;
+    let result = with(&judge, &judge)?;
     jev::record_traces(db, traces(&result))?;
     Ok(result)
 }
@@ -466,7 +471,14 @@ fn run_assess(args: &AssessArgs) -> Result<(), Box<dyn Error>> {
     let assessed = with_judge(
         args.ai,
         &args.db,
-        |judge| Ok(lumen_app::assess(&args.db, &lumen_app::SystemClock, judge)?),
+        |judge, describer| {
+            Ok(lumen_app::assess(
+                &args.db,
+                &lumen_app::SystemClock,
+                judge,
+                describer,
+            )?)
+        },
         Vec::as_slice,
     )?;
     if args.json {
@@ -490,7 +502,7 @@ fn run_plan(args: &PlanArgs) -> Result<(), Box<dyn Error>> {
     let planned = with_judge(
         args.ai,
         &args.db,
-        |judge| {
+        |judge, _describer| {
             Ok(lumen_app::plan(
                 &args.db,
                 &lumen_app::SystemClock,
