@@ -71,6 +71,10 @@ const BUILTIN: &[(&str, &str)] = &[
         "jetbrains-system-directory.json",
         include_str!("../entries/jetbrains-system-directory.json"),
     ),
+    (
+        "notion-chromium-caches.json",
+        include_str!("../entries/notion-chromium-caches.json"),
+    ),
     ("npm-cache.json", include_str!("../entries/npm-cache.json")),
     (
         "pnpm-store.json",

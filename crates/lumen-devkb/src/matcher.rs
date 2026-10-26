@@ -695,6 +695,32 @@ mod tests {
         ),
         ("Library/Application Support/discord/download_cache", None),
         ("Library/Application Support/discord/modules", None),
+        (
+            "Library/Application Support/Notion/Cache",
+            Some("notion-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Notion/Partitions/notion/Cache",
+            Some("notion-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Notion/Partitions/notion/Code Cache",
+            Some("notion-chromium-caches"),
+        ),
+        ("Library/Application Support/Notion/Partitions/notion", None),
+        (
+            "Library/Application Support/Notion/Partitions/notion/Service Worker",
+            None,
+        ),
+        (
+            "Library/Application Support/Notion/Partitions/notion/IndexedDB",
+            None,
+        ),
+        (
+            "Library/Application Support/Notion/Partitions/notion/File System",
+            None,
+        ),
+        ("Library/Application Support/Notion/notion.db", None),
         ("Library/Application Support/SomeApp/Cache", None),
         ("Library/Application Support/Spotify/PersistentCache", None),
         ("Library/Application Support/Claude/vm_bundles", None),
