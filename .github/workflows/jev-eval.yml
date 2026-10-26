@@ -69,3 +69,17 @@ jobs:
             fi
             diff -u "${report}" "${RUNNER_TEMP}/jeb-${dataset}.json"
           done
+      - name: Replay the prompt v2 trial on the dev split
+        run: |
+          set +e
+          cargo run --quiet --locked -p lumen-jev-eval -- run \
+            --dataset 2026.10.1 --split dev --prompt v2 \
+            --cassette ai/cassettes/jev-decisions/2/jeb-2026.10.1-dev.json \
+            --json > "${RUNNER_TEMP}/jeb-2026.10.1-dev-v2.json"
+          status=$?
+          set -e
+          if [ "${status}" -gt 1 ]; then
+            echo "::error::lumen-jev-eval run failed for the v2 trial (exit ${status})"
+            exit "${status}"
+          fi
+          diff -u ai/reports/jev-decisions/2/jeb-2026.10.1-dev.json "${RUNNER_TEMP}/jeb-2026.10.1-dev-v2.json"

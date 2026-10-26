@@ -409,7 +409,7 @@ of [ADR-0037](../decisions/0037-keep-ai-review-on-once-turned-on.md) for a cloud
 | 14.1 | Record the goal (this section) | none |
 | 14.2 | Error analysis of the 2026.10.1 recording ([research 17](../research/17-jeb-error-analysis.md), `ai/tools/analyze_jeb_errors.py`): which answers are wrong, what evidence they ignore, and what candidate guards would cost | none |
 | 14.3 | Deterministic evidence guards ([ADR-0043](../decisions/0043-discard-removable-answers-the-evidence-does-not-support.md), `lumen_jev::guard`): removable answers the request's own evidence does not support become `uncertain`; golden critical FP 81 → 71, adversarial 23 → 6, canary flips 19 → 17, recall unchanged | none |
-| 14.4 | Prompt v2 (`jev-decisions/2`), iterated on the `dev` split only, then one full recording | about 360 requests per iteration, 1,779 for the full run |
+| 14.4 | Prompt v2 (`jev-decisions/2`), iterated on the `dev` split only, then one full recording. Dev trial recorded 2026-10-26 ([report](../../ai/reports/jev-decisions/2/jeb-2026.10.1-dev.md)): critical FP 17 → 2 of 228 (upper bound 11.67% → 3.13%), recall 96.2% → 80.0%, recall on proposals with positive evidence unchanged at 100%. Next: calibration and test-locked splits | about 1,400 requests for the remaining splits |
 | 14.5 | Self-consistency (several answers per item, the most cautious wins) and a calibration map fitted on the `calibration` split | k × 392 requests (calibration split and its canaries) |
 | 14.6 | Model comparison, including an on-device judge (Foundation Models, which spends no Jeb quota) | per compared cloud model, one full recording |
 | 14.7 | A larger dataset version with second-reviewed labels, sized for the per-class bound | none to build; one full recording per judge |
