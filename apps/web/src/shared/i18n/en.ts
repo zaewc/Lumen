@@ -1,3 +1,4 @@
+import type { ConfidenceView, ItemKindView } from "@lumen/api-client";
 import { countFormat } from "./format";
 import type { RuleId } from "./rules";
 
@@ -66,9 +67,9 @@ export const en = {
   ai: {
     title: "AI review",
     offIntro:
-      "An AI model takes a second look at what Lumen proposes to clean up. It can only make Lumen more careful.",
+      "An AI model takes a second look at what Lumen proposes to clean up, and says what items to review likely are. It can only make Lumen more careful.",
     onIntro: (service: string) =>
-      `On, with ${service}. Lumen sends each proposed item's details, never its contents, for a second opinion. It can only make Lumen more careful.`,
+      `On, with ${service}. Lumen sends the details of each proposed item and of up to 20 items to review, never their contents. It can only make Lumen more careful.`,
     checking: "Checking…",
     short: {
       on: "AI review on",
@@ -78,12 +79,12 @@ export const en = {
     changeFailed: "Lumen could not change the AI review setting.",
     consent: {
       title: "Turn on AI review?",
-      what: "For each proposed item, Lumen sends its path (with your home folder shown as ~), size, age and the evidence behind the decision. File contents are never sent.",
+      what: "For each proposed item, and for up to 20 of the largest items to review, Lumen sends its path (with your home folder shown as ~), size, age and the evidence behind the decision. File contents are never sent.",
       whereJeb:
         "Lumen sends it with your API key to your school's Jeb server (jeb.https.gsmsv.site). The server's operator may keep the requests.",
       whereOpenRouter: "Lumen sends it with your API key to TypeSafe's Jev through OpenRouter.",
       cautious:
-        "The AI can only make a decision more cautious. It never chooses what is moved or removed.",
+        "The AI can only make a decision more cautious. For items to review, it only adds a note on what each likely is. It never chooses what is moved or removed.",
       revocable:
         "AI review then runs with every scan. You can turn it off in Settings at any time.",
       keyLabel: "Jeb API key",
@@ -158,6 +159,26 @@ export const en = {
     reasons: "Why",
     aiTitle: "AI review advised caution.",
     aiBody: "So Lumen leaves it for you to review instead of proposing it.",
+    aiNoteHint: "A guess from AI review. It does not change Lumen's decision.",
+  },
+  aiNote: {
+    likely: (kind: string, confidence: string) => `AI: likely ${kind} (${confidence})`,
+    unknown: "AI: could not tell what this is",
+    kinds: {
+      app_settings: "an app's settings or data",
+      user_documents: "your documents",
+      cache: "a cache",
+      logs: "logs",
+      downloads_or_installers: "downloads or installers",
+      developer_tool_data: "a developer tool's data",
+      backup_or_archive: "a backup or archive",
+      unknown: "something it could not tell",
+    } satisfies { readonly [K in ItemKindView]: string },
+    confidence: {
+      low: "low confidence",
+      medium: "medium confidence",
+      high: "high confidence",
+    } satisfies { readonly [C in ConfidenceView]: string },
   },
   toolCommand: {
     title: (tool: string) => `${tool} can clean this up itself`,

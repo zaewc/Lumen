@@ -10,6 +10,21 @@ export type ClientOptions = {
 export type AiKeyView = "jeb" | "openrouter" | "none";
 
 /**
+ * An AI note on a review item: only a closed kind and a confidence, never
+ * model text.
+ */
+export type AiNoteView = {
+  /**
+   * How sure AI review was.
+   */
+  confidence: ConfidenceView;
+  /**
+   * What the item most likely is.
+   */
+  kind: ItemKindView;
+};
+
+/**
  * Whether AI review is on (ADR-0037), and which key it would use.
  */
 export type AiSettingsView = {
@@ -31,6 +46,7 @@ export type AiSettingsView = {
  * One assessed candidate.
  */
 export type CandidateView = {
+  ai_note: AiNoteView | null;
   /**
    * The group it is presented in.
    */
@@ -53,6 +69,11 @@ export type CandidateView = {
    */
   verdict: VerdictView;
 };
+
+/**
+ * How sure AI review was.
+ */
+export type ConfidenceView = "low" | "medium" | "high";
 
 /**
  * How full the disk holding the user's home folder is.
@@ -179,6 +200,19 @@ export type HeldItemView = {
  * Why an item is held.
  */
 export type HeldStateView = "retained" | "held_after_failure";
+
+/**
+ * What kind of item AI review says a review item most likely is.
+ */
+export type ItemKindView =
+  | "app_settings"
+  | "user_documents"
+  | "cache"
+  | "logs"
+  | "downloads_or_installers"
+  | "developer_tool_data"
+  | "backup_or_archive"
+  | "unknown";
 
 /**
  * One planned item and what became of it.

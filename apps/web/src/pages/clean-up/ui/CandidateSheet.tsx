@@ -1,7 +1,7 @@
 import type { CandidateView } from "@lumen/api-client";
 import { type ReactNode, useId, useRef } from "react";
 import { statusOf } from "@/entities/scan-session";
-import { reasonText, useI18n } from "@/shared/i18n";
+import { aiNoteText, reasonText, useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import { CloseIcon, Dialog, SparkleIcon } from "@/shared/ui";
 import { StatusText } from "./Status";
@@ -20,7 +20,8 @@ function Field({ label, children }: { readonly label: string; readonly children:
 /**
  * Everything about one candidate, in a sheet along the window's right edge
  * (the whole window when it is narrow): what it frees, the verdict with
- * every reason, where it is, and the tool's own command if it has one.
+ * every reason, AI review's note on what an item to review likely is, where
+ * it is, and the tool's own command if it has one.
  * Escape, the close button or a click beside it closes it.
  */
 export function CandidateSheet({
@@ -34,6 +35,8 @@ export function CandidateSheet({
   const title = useId();
   const close = useRef<HTMLButtonElement>(null);
   const demoted = candidate?.reasons.some((reason) => reason.rule === "jev.demote") ?? false;
+  // An AI note is only ever on an item to review (ADR-0041).
+  const note = candidate !== null && statusOf(candidate) === "review" ? candidate.ai_note : null;
   return (
     <Dialog
       open={candidate !== null}
@@ -96,6 +99,15 @@ export function CandidateSheet({
                   <li key={reason.rule}>{reasonText(m, reason)}</li>
                 ))}
               </ul>
+              {note !== null && (
+                <p className="mt-3 flex gap-2 leading-snug text-ink-2">
+                  <SparkleIcon className="mt-px size-4 shrink-0 text-ink-3" />
+                  <span>
+                    {aiNoteText(m, note)}
+                    <span className="block text-[12px] text-ink-3">{m.detail.aiNoteHint}</span>
+                  </span>
+                </p>
+              )}
             </section>
             {candidate.tool_command !== null && <ToolCommand command={candidate.tool_command} />}
           </div>

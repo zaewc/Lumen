@@ -1,7 +1,7 @@
 import type { CandidateView } from "@lumen/api-client";
 import { type KeyboardEvent, type ReactNode, useId, useRef, useState } from "react";
 import { statusOf } from "@/entities/scan-session";
-import { useI18n } from "@/shared/i18n";
+import { aiNoteText, useI18n } from "@/shared/i18n";
 import { baseName, formatBytes, parentPath } from "@/shared/lib";
 import { commandLine } from "../lib/command";
 import { moveIndex } from "../lib/keys";
@@ -18,7 +18,8 @@ const GRID =
 /**
  * One candidate; Enter, Space or a click opens its details. An item with its
  * own command shows the command under it, to read or select; copying it is
- * in the details.
+ * in the details. An item to review that AI review described shows the note
+ * under it, muted.
  */
 function Row({
   candidate,
@@ -40,6 +41,8 @@ function Row({
   const keep = status === "keep";
   const location = parentPath(candidate.path);
   const command = status === "command" ? candidate.tool_command : null;
+  const note = status === "review" ? candidate.ai_note : null;
+  const { m } = useI18n();
   return (
     <li>
       <button
@@ -71,6 +74,9 @@ function Row({
         <code className="mx-2 mb-2 block font-mono text-[12px] leading-relaxed break-all text-ink-2 select-all">
           {commandLine(command)}
         </code>
+      )}
+      {note !== null && (
+        <p className="mx-2 mb-1.5 truncate text-[12px] text-ink-3">{aiNoteText(m, note)}</p>
       )}
     </li>
   );

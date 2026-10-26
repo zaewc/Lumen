@@ -2,9 +2,11 @@
 
 export type {
   AiKeyView,
+  AiNoteView,
   AiSettingsView,
   CandidateView,
   ClientOptions,
+  ConfidenceView,
   DiskView,
   ExecuteRequest,
   FinalizeOutcomeView,
@@ -13,6 +15,7 @@ export type {
   GroupView,
   HeldItemView,
   HeldStateView,
+  ItemKindView,
   ItemReportView,
   ItemResultView,
   LocationView,

@@ -79,9 +79,9 @@ export const ko = {
   ai: {
     title: "AI 검토",
     offIntro:
-      "Lumen이 정리를 제안한 항목을 AI가 한 번 더 살펴봐요. AI는 Lumen을 더 신중하게 만들 수만 있어요.",
+      "Lumen이 정리를 제안한 항목을 AI가 한 번 더 살펴보고, 검토할 항목이 무엇인지 알려 줘요. AI는 Lumen을 더 신중하게 만들 수만 있어요.",
     onIntro: (service: string) =>
-      `켜져 있어요(${service}). 정리를 제안한 항목마다 파일 내용은 빼고 정보만 보내서 의견을 한 번 더 받아요. AI는 Lumen을 더 신중하게 만들 수만 있어요.`,
+      `켜져 있어요(${service}). 정리를 제안한 항목과 검토할 항목 최대 20개의 정보를 파일 내용은 빼고 보내요. AI는 Lumen을 더 신중하게 만들 수만 있어요.`,
     checking: "확인하는 중…",
     short: {
       on: "AI 검토 켜짐",
@@ -91,12 +91,12 @@ export const ko = {
     changeFailed: "AI 검토 설정을 바꾸지 못했어요.",
     consent: {
       title: "AI 검토를 켤까요?",
-      what: "정리를 제안한 항목마다 경로(홈 폴더는 ~로 표시), 크기, 경과 기간, 판단 근거를 보내요. 파일 내용은 보내지 않아요.",
+      what: "정리를 제안한 항목과 검토할 항목 중 큰 순서로 최대 20개의 경로(홈 폴더는 ~로 표시), 크기, 경과 기간, 판단 근거를 보내요. 파일 내용은 보내지 않아요.",
       whereJeb:
         "API 키와 함께 학교의 Jeb 서버(jeb.https.gsmsv.site)로 보내요. 서버 운영자가 요청을 보관할 수 있어요.",
       whereOpenRouter: "API 키와 함께 OpenRouter를 거쳐 TypeSafe의 Jev로 보내요.",
       cautious:
-        "AI는 판단을 더 신중하게 바꿀 수만 있어요. 무엇을 옮기거나 삭제할지는 AI가 정하지 않아요.",
+        "AI는 판단을 더 신중하게 바꿀 수만 있어요. 검토할 항목에는 무엇인지 메모만 붙여요. 무엇을 옮기거나 삭제할지는 AI가 정하지 않아요.",
       revocable: "켜 두면 검사할 때마다 AI 검토를 해요. 설정에서 언제든 끌 수 있어요.",
       keyLabel: "Jeb API 키",
       keyHint: "시스템의 보안 저장소에 보관하고, 다시 보여 주지 않아요.",
@@ -170,6 +170,26 @@ export const ko = {
     reasons: "이유",
     aiTitle: "AI 검토가 주의를 권했어요.",
     aiBody: "그래서 정리를 제안하지 않고, 직접 검토하도록 남겨 두었어요.",
+    aiNoteHint: "AI 검토의 추측이에요. Lumen의 판단은 바뀌지 않아요.",
+  },
+  aiNote: {
+    likely: (kind: string, confidence: string) => `AI: ${kind}로 보여요(${confidence})`,
+    unknown: "AI: 무엇인지 알아내지 못했어요",
+    kinds: {
+      app_settings: "앱 설정이나 데이터",
+      user_documents: "사용자 문서",
+      cache: "캐시",
+      logs: "로그",
+      downloads_or_installers: "다운로드한 파일이나 설치 파일",
+      developer_tool_data: "개발 도구 데이터",
+      backup_or_archive: "백업이나 압축 파일",
+      unknown: "알 수 없는 항목",
+    },
+    confidence: {
+      low: "확신 낮음",
+      medium: "확신 보통",
+      high: "확신 높음",
+    },
   },
   toolCommand: {
     title: (tool: string) => `${tool}에서 직접 정리할 수 있어요`,

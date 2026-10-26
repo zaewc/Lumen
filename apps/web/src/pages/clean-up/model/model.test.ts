@@ -12,7 +12,15 @@ function candidate(
   bytes: string,
   group: CandidateView["group"] = { kind: "other", source: null },
 ): CandidateView {
-  return { path, verdict, reclaimable_bytes: bytes, reasons: [], tool_command: null, group };
+  return {
+    path,
+    verdict,
+    reclaimable_bytes: bytes,
+    reasons: [],
+    tool_command: null,
+    group,
+    ai_note: null,
+  };
 }
 
 const xcode = { kind: "developer", source: "Xcode" } as const;

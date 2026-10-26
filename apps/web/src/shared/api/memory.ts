@@ -65,6 +65,7 @@ const candidates: readonly CandidateView[] = [
     reasons: [regenerable],
     tool_command: null,
     group: { kind: "developer", source: "Xcode" },
+    ai_note: null,
   },
   {
     path: `${HOME}/Library/Developer/CoreSimulator/Devices`,
@@ -82,6 +83,7 @@ const candidates: readonly CandidateView[] = [
       args: ["simctl", "delete", "unavailable"],
     },
     group: { kind: "developer", source: "Xcode" },
+    ai_note: null,
   },
   {
     path: `${HOME}/Library/pnpm/store`,
@@ -95,6 +97,7 @@ const candidates: readonly CandidateView[] = [
     ],
     tool_command: { tool: "pnpm", program: "pnpm", args: ["store", "prune"] },
     group: { kind: "developer", source: "pnpm" },
+    ai_note: null,
   },
   {
     path: `${HOME}/.gradle/caches`,
@@ -103,6 +106,7 @@ const candidates: readonly CandidateView[] = [
     reasons: [regenerable],
     tool_command: null,
     group: { kind: "developer", source: "Gradle" },
+    ai_note: null,
   },
   {
     path: `${HOME}/.npm/_cacache`,
@@ -111,6 +115,7 @@ const candidates: readonly CandidateView[] = [
     reasons: [regenerable],
     tool_command: null,
     group: { kind: "developer", source: "npm" },
+    ai_note: null,
   },
   {
     path: `${HOME}/Library/Caches/go-build`,
@@ -124,6 +129,7 @@ const candidates: readonly CandidateView[] = [
     ],
     tool_command: null,
     group: { kind: "developer", source: "Go" },
+    ai_note: null,
   },
   {
     path: `${HOME}/Library/Caches/com.spotify.client`,
@@ -137,6 +143,7 @@ const candidates: readonly CandidateView[] = [
     ],
     tool_command: null,
     group: { kind: "app_cache", source: "com.spotify.client" },
+    ai_note: null,
   },
   {
     path: `${HOME}/Library/Caches/Google/Chrome`,
@@ -151,6 +158,7 @@ const candidates: readonly CandidateView[] = [
     ],
     tool_command: null,
     group: { kind: "app_cache", source: "com.google.Chrome" },
+    ai_note: null,
   },
   {
     path: `${HOME}/Library/Application Support/Slack`,
@@ -164,6 +172,7 @@ const candidates: readonly CandidateView[] = [
     ],
     tool_command: null,
     group: { kind: "app_data", source: "com.tinyspeck.slackmacgap" },
+    ai_note: null,
   },
   {
     path: `${HOME}/Library/Application Support/OldEditor`,
@@ -177,6 +186,7 @@ const candidates: readonly CandidateView[] = [
     ],
     tool_command: null,
     group: { kind: "app_data", source: "com.example.OldEditor" },
+    ai_note: null,
   },
   {
     path: `${HOME}/Library/HTTPStorages/com.tinyspeck.slackmacgap`,
@@ -185,6 +195,7 @@ const candidates: readonly CandidateView[] = [
     reasons: [{ rule: "default.keep-small", text: "Kept: too small to be worth reviewing." }],
     tool_command: null,
     group: { kind: "other", source: null },
+    ai_note: null,
   },
   {
     path: `${HOME}/Downloads/Installers`,
@@ -193,6 +204,7 @@ const candidates: readonly CandidateView[] = [
     reasons: [{ rule: "default.review", text: "Review: Lumen does not recognise this item." }],
     tool_command: null,
     group: { kind: "other", source: null },
+    ai_note: null,
   },
   {
     path: `${HOME}/Library/Mobile Documents/com~apple~CloudDocs`,
@@ -207,10 +219,20 @@ const candidates: readonly CandidateView[] = [
     ],
     tool_command: null,
     group: { kind: "other", source: null },
+    ai_note: null,
   },
 ];
 
 const proposed = candidates.filter((c) => c.verdict === "quarantine");
+
+/**
+ * What AI review says the unrecognised review items most likely are, once it
+ * is on (ADR-0041): notes only, the verdicts stay the same.
+ */
+const notes: ReadonlyMap<string, NonNullable<CandidateView["ai_note"]>> = new Map([
+  [`${HOME}/Library/Application Support/OldEditor`, { kind: "app_settings", confidence: "medium" }],
+  [`${HOME}/Downloads/Installers`, { kind: "downloads_or_installers", confidence: "low" }],
+]);
 
 const planView: PlanView = {
   plan: "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a2",
@@ -291,7 +313,9 @@ export function memoryTransport({ pace = 0 }: { readonly pace?: number } = {}): 
     },
     assess: async () => {
       await wait(pace);
-      return candidates;
+      return ai.enabled
+        ? candidates.map((c) => ({ ...c, ai_note: notes.get(c.path) ?? null }))
+        : candidates;
     },
     plan: async () => {
       await wait(pace / 2);

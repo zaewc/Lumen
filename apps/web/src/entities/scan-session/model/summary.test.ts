@@ -10,6 +10,7 @@ function candidate(path: string, verdict: CandidateView["verdict"], bytes: strin
     reasons: [],
     tool_command: null,
     group: { kind: "other", source: null },
+    ai_note: null,
   };
 }
 

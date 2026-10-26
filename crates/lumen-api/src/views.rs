@@ -17,7 +17,9 @@ use lumen_application::confirm::Skip;
 use lumen_application::finalize::FinalizeOutcome;
 use lumen_application::ports::{NotRestored, Removal};
 use lumen_application::restore::RestoreOutcome;
-use lumen_domain::{ByteCount, ItemLocation, QuarantineState, Verdict};
+use lumen_domain::{
+    ByteCount, ItemKind, ItemLocation, ItemNote, JudgmentConfidence, QuarantineState, Verdict,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -170,6 +172,77 @@ pub struct CandidateView {
     pub tool_command: Option<ToolCommandView>,
     /// The group it is presented in.
     pub group: GroupView,
+    /// What AI review says a review item most likely is (ADR-0041): a note
+    /// for people, labelled as AI, that never changes the verdict. `null`
+    /// unless the item is under review and AI review described it.
+    #[schema(required = true)]
+    pub ai_note: Option<AiNoteView>,
+}
+
+/// What kind of item AI review says a review item most likely is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ItemKindView {
+    /// An app's settings or data.
+    AppSettings,
+    /// The user's documents.
+    UserDocuments,
+    /// A cache.
+    Cache,
+    /// Logs or diagnostic reports.
+    Logs,
+    /// Downloads or installers.
+    DownloadsOrInstallers,
+    /// A developer tool's data.
+    DeveloperToolData,
+    /// A backup or archive.
+    BackupOrArchive,
+    /// AI review could not tell.
+    Unknown,
+}
+
+/// How sure AI review was.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfidenceView {
+    /// Low.
+    Low,
+    /// Medium.
+    Medium,
+    /// High.
+    High,
+}
+
+/// An AI note on a review item: only a closed kind and a confidence, never
+/// model text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct AiNoteView {
+    /// What the item most likely is.
+    pub kind: ItemKindView,
+    /// How sure AI review was.
+    pub confidence: ConfidenceView,
+}
+
+impl From<ItemNote> for AiNoteView {
+    fn from(note: ItemNote) -> Self {
+        Self {
+            kind: match note.kind {
+                ItemKind::AppSettings => ItemKindView::AppSettings,
+                ItemKind::UserDocuments => ItemKindView::UserDocuments,
+                ItemKind::Cache => ItemKindView::Cache,
+                ItemKind::Logs => ItemKindView::Logs,
+                ItemKind::DownloadsOrInstallers => ItemKindView::DownloadsOrInstallers,
+                ItemKind::DeveloperToolData => ItemKindView::DeveloperToolData,
+                ItemKind::BackupOrArchive => ItemKindView::BackupOrArchive,
+                ItemKind::Unknown => ItemKindView::Unknown,
+            },
+            confidence: match note.confidence {
+                JudgmentConfidence::Low => ConfidenceView::Low,
+                JudgmentConfidence::Medium => ConfidenceView::Medium,
+                JudgmentConfidence::High => ConfidenceView::High,
+            },
+        }
+    }
 }
 
 /// The kind of group an item is presented in.
@@ -282,6 +355,10 @@ impl From<&Assessed> for CandidateView {
             reasons,
             tool_command: tool_action(assessed).map(ToolCommandView::from),
             group: lumen_app::assess::group(assessed).into(),
+            ai_note: assessed
+                .note
+                .filter(|note| note.shown() && assessed.decision.verdict() == Verdict::Review)
+                .map(AiNoteView::from),
         }
     }
 }

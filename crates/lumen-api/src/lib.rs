@@ -30,6 +30,9 @@ use utoipa::OpenApi;
         views::DiskView,
         views::ReasonView,
         views::ToolCommandView,
+        views::AiNoteView,
+        views::ItemKindView,
+        views::ConfidenceView,
         views::PlanView,
         views::ExecuteRequest,
         views::LocationView,
@@ -76,7 +79,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 28);
+        assert_eq!(schemas, 31);
     }
 
     #[test]
@@ -125,12 +128,27 @@ mod tests {
             .map(|r| r.iter().filter_map(serde_json::Value::as_str).collect())
             .unwrap_or_default();
         assert!(required.contains(&"tool_command"), "{required:?}");
+        assert!(required.contains(&"ai_note"), "{required:?}");
         let ai = &doc["components"]["schemas"]["AiSettingsView"];
         let required: Vec<&str> = ai["required"]
             .as_array()
             .map(|r| r.iter().filter_map(serde_json::Value::as_str).collect())
             .unwrap_or_default();
         assert!(required.contains(&"consented_at"), "{required:?}");
+    }
+
+    #[test]
+    fn ai_notes_carry_only_closed_values() {
+        let note = lumen_domain::ItemNote {
+            kind: lumen_domain::ItemKind::DownloadsOrInstallers,
+            confidence: lumen_domain::JudgmentConfidence::Low,
+            injection_suspected: false,
+        };
+        let json = serde_json::to_value(views::AiNoteView::from(note)).unwrap_or_default();
+        assert_eq!(
+            json,
+            serde_json::json!({"kind": "downloads_or_installers", "confidence": "low"})
+        );
     }
 
     #[test]

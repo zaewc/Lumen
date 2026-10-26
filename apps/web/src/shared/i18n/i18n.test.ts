@@ -4,7 +4,7 @@ import { en, type GlossaryTerm, type Messages } from "./en";
 import { countFormat, formatDateTime } from "./format";
 import { ko } from "./ko";
 import { detectLocale, LOCALES } from "./locale";
-import { MESSAGES, reasonText } from "./messages";
+import { aiNoteText, MESSAGES, reasonText } from "./messages";
 import { RULE_IDS } from "./rules";
 import { storedLocale, storeLocale } from "./storage";
 
@@ -20,6 +20,21 @@ function shape(value: unknown, path = ""): string[] {
 }
 
 describe("catalogs", () => {
+  it("say what AI review thinks an item is, labelled as AI", () => {
+    expect(aiNoteText(en, { kind: "cache", confidence: "low" })).toBe(
+      "AI: likely a cache (low confidence)",
+    );
+    expect(aiNoteText(ko, { kind: "cache", confidence: "low" })).toBe(
+      "AI: 캐시로 보여요(확신 낮음)",
+    );
+    expect(aiNoteText(en, { kind: "unknown", confidence: "high" })).toBe(
+      "AI: could not tell what this is",
+    );
+    for (const locale of LOCALES) {
+      expect(aiNoteText(MESSAGES[locale], { kind: "logs", confidence: "medium" })).toMatch(/^AI: /);
+    }
+  });
+
   it("have the same keys and parameters in every language", () => {
     for (const locale of LOCALES) {
       expect(shape(MESSAGES[locale])).toEqual(shape(en));

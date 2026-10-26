@@ -1,4 +1,4 @@
-import type { ReasonView } from "@lumen/api-client";
+import type { AiNoteView, ReasonView } from "@lumen/api-client";
 import { en, type Messages } from "./en";
 import { ko } from "./ko";
 import type { Locale } from "./locale";
@@ -17,4 +17,18 @@ export function reasonText(messages: Messages, reason: ReasonView): string {
   }
   const rule = RULE_IDS.find((id) => id === reason.rule);
   return rule === undefined ? reason.text : messages.reasons.rules[rule];
+}
+
+/**
+ * An AI note on a review item (ADR-0041), labelled as AI: only the closed
+ * kind and confidence from the API, never model text.
+ */
+export function aiNoteText(messages: Messages, note: AiNoteView): string {
+  if (note.kind === "unknown") {
+    return messages.aiNote.unknown;
+  }
+  return messages.aiNote.likely(
+    messages.aiNote.kinds[note.kind],
+    messages.aiNote.confidence[note.confidence],
+  );
 }

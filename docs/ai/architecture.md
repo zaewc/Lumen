@@ -71,7 +71,9 @@ desktop app's Settings page. The app's switch shows the same disclosure in a con
 dialog, takes a Jeb key there if none is stored (into the OS secret store, never
 returned to the UI), and records the choice next to the app's own `index.db`
 (`lumen_app::ai`). While on, the app's `assess` and `plan` commands consult the judge
-and record its traces in the ledger, like the CLI.
+and record its traces in the ledger, like the CLI, and `assess` describes review items:
+`CandidateView.ai_note` (`{ kind, confidence }` or `null`) is shown as a muted line
+under the row and in the item's details, labelled as AI.
 
 ## Failure handling
 

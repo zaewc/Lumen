@@ -21,7 +21,7 @@ use lumen_app::ai::Service;
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
 use lumen_application::CancelToken;
 use lumen_application::assess::Assessed;
-use lumen_application::ports::{Clock as _, JudgeModel, NoopJudge, SecretStore};
+use lumen_application::ports::{Clock as _, Describer, JudgeModel, NoopJudge, SecretStore};
 use lumen_domain::{ConfirmationSurface, OperationId, PlanId};
 use serde::Serialize;
 use tauri::State;
@@ -165,20 +165,20 @@ pub(crate) async fn scan(
     .await
 }
 
-/// Runs `work` with the judge while AI review is on and a key is stored, and
-/// records its consultations in the ledger; otherwise with no judge. A judge
-/// that cannot be set up or answer never fails the command: the policy
-/// decides alone.
+/// Runs `work` with the judge (also the describer of review items,
+/// ADR-0041) while AI review is on and a key is stored, and records its
+/// requests in the ledger; otherwise with neither. A judge that cannot be set
+/// up or answer never fails the command: the policy decides alone.
 fn with_judge<T>(
     db: &Path,
     secrets: Option<&dyn SecretStore>,
-    work: impl FnOnce(&dyn JudgeModel) -> Result<T, CommandError>,
+    work: impl FnOnce(&dyn JudgeModel, &dyn Describer) -> Result<T, CommandError>,
     assessed: impl Fn(&T) -> &[Assessed],
 ) -> Result<T, CommandError> {
     let Some(judge) = lumen_app::ai::active_judge(db, secrets) else {
-        return work(&NoopJudge);
+        return work(&NoopJudge, &NoopJudge);
     };
-    let result = work(&judge)?;
+    let result = work(&judge, &judge)?;
     lumen_app::ai::record_traces(db, assessed(&result)).map_err(CommandError::new)?;
     Ok(result)
 }
@@ -192,8 +192,8 @@ pub(crate) async fn assess(core: State<'_, Core>) -> Result<Vec<CandidateView>, 
         let assessed = with_judge(
             &db,
             secrets.as_deref(),
-            |judge| {
-                lumen_app::assess(&db, &SystemClock, judge, &NoopJudge).map_err(CommandError::new)
+            |judge, describer| {
+                lumen_app::assess(&db, &SystemClock, judge, describer).map_err(CommandError::new)
             },
             Vec::as_slice,
         )?;
@@ -211,7 +211,7 @@ pub(crate) async fn plan(core: State<'_, Core>) -> Result<PlanView, CommandError
         let planned = with_judge(
             &db,
             secrets.as_deref(),
-            |judge| {
+            |judge, _describer| {
                 lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge).map_err(CommandError::new)
             },
             |planned| planned.items.as_slice(),

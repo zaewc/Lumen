@@ -21,6 +21,24 @@
           "none"
         ]
       },
+      "AiNoteView": {
+        "type": "object",
+        "description": "An AI note on a review item: only a closed kind and a confidence, never\nmodel text.",
+        "required": [
+          "kind",
+          "confidence"
+        ],
+        "properties": {
+          "confidence": {
+            "$ref": "#/components/schemas/ConfidenceView",
+            "description": "How sure AI review was."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ItemKindView",
+            "description": "What the item most likely is."
+          }
+        }
+      },
       "AiSettingsView": {
         "type": "object",
         "description": "Whether AI review is on (ADR-0037), and which key it would use.",
@@ -57,9 +75,21 @@
           "reclaimable_bytes",
           "reasons",
           "tool_command",
-          "group"
+          "group",
+          "ai_note"
         ],
         "properties": {
+          "ai_note": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AiNoteView",
+                "description": "What AI review says a review item most likely is (ADR-0041): a note\nfor people, labelled as AI, that never changes the verdict. `null`\nunless the item is under review and AI review described it."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "group": {
             "$ref": "#/components/schemas/GroupView",
             "description": "The group it is presented in."
@@ -95,6 +125,15 @@
             "description": "The policy's verdict."
           }
         }
+      },
+      "ConfidenceView": {
+        "type": "string",
+        "description": "How sure AI review was.",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ]
       },
       "DiskView": {
         "type": "object",
@@ -336,6 +375,20 @@
         "enum": [
           "retained",
           "held_after_failure"
+        ]
+      },
+      "ItemKindView": {
+        "type": "string",
+        "description": "What kind of item AI review says a review item most likely is.",
+        "enum": [
+          "app_settings",
+          "user_documents",
+          "cache",
+          "logs",
+          "downloads_or_installers",
+          "developer_tool_data",
+          "backup_or_archive",
+          "unknown"
         ]
       },
       "ItemReportView": {

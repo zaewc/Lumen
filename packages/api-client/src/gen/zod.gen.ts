@@ -17,6 +17,11 @@ export const zAiSettingsView = z.object({
 });
 
 /**
+ * How sure AI review was.
+ */
+export const zConfidenceView = z.enum(["low", "medium", "high"]);
+
+/**
  * How full the disk holding the user's home folder is.
  */
 export const zDiskView = z.object({
@@ -60,6 +65,29 @@ export const zHeldItemView = z.object({
   reclaim_bytes: z.string().nullable(),
   since: z.iso.datetime(),
   state: zHeldStateView,
+});
+
+/**
+ * What kind of item AI review says a review item most likely is.
+ */
+export const zItemKindView = z.enum([
+  "app_settings",
+  "user_documents",
+  "cache",
+  "logs",
+  "downloads_or_installers",
+  "developer_tool_data",
+  "backup_or_archive",
+  "unknown",
+]);
+
+/**
+ * An AI note on a review item: only a closed kind and a confidence, never
+ * model text.
+ */
+export const zAiNoteView = z.object({
+  confidence: zConfidenceView,
+  kind: zItemKindView,
 });
 
 /**
@@ -268,6 +296,7 @@ export const zVerdictView = z.enum(["keep", "review", "quarantine"]);
  * One assessed candidate.
  */
 export const zCandidateView = z.object({
+  ai_note: zAiNoteView.nullable(),
   group: zGroupView,
   path: z.string(),
   reasons: z.array(zReasonView),

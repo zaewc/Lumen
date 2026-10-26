@@ -73,6 +73,19 @@ describe("memoryTransport", () => {
     expect(await transport.aiSettings()).toEqual(off);
   });
 
+  it("adds AI notes to review items only while AI review is on, never changing a verdict", async () => {
+    const transport = memoryTransport();
+    const off = (await transport.assess()).map((c) => zCandidateView.parse(c));
+    expect(off.every((c) => c.ai_note === null)).toBe(true);
+    await transport.setAiKey("jeb-key");
+    await transport.setAiReview(true);
+    const on = (await transport.assess()).map((c) => zCandidateView.parse(c));
+    expect(on.map((c) => c.verdict)).toEqual(off.map((c) => c.verdict));
+    const noted = on.filter((c) => c.ai_note !== null);
+    expect(noted.length).toBeGreaterThan(0);
+    expect(noted.every((c) => c.verdict === "review" && c.tool_command === null)).toBe(true);
+  });
+
   it("paces the scan for people, reporting growing totals", async () => {
     const transport = memoryTransport({ pace: 1 });
     const entries: string[] = [];
