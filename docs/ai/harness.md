@@ -112,6 +112,28 @@ requests).
   earlier file must come from the same judge, model and prompt (checked before
   anything is sent); with `--split`, give the same split again.
 
+Comparing prompts on one split (roadmap 14.4) uses
+`ai/tools/compare_cassettes.py`, which reads only committed or recorded files and
+sends nothing:
+
+```text
+lumen-jev-eval run --dataset 2026.10.1 --split dev --cassette A.json --json > run-a.json
+lumen-jev-eval run --dataset 2026.10.1 --split dev --cassette B.json --json > run-b.json
+python3 ai/tools/compare_cassettes.py --dataset 2026.10.1 --split dev \
+    --run-a run-a.json --run-b run-b.json A.json B.json
+```
+
+It reads each cassette's raw answers as the validator does and prints, for both, the
+critical false positives with exact 95% Clopper–Pearson intervals, precision, recall,
+abstention and canary flips, without the evidence guards (computed from the raw
+answers, as `analyze_jeb_errors.py` does) and with them (checked case by case against
+the `run` outputs, exiting with 1 on any difference), then the paired differences with
+an exact McNemar test, and the reason, probability and injection-probability
+distributions. With one cassette it prints that cassette alone: the `jev-decisions/1`
+baseline on `dev` is
+`compare_cassettes.py ai/cassettes/jev-decisions/1/jeb-2026.10.1.json` (golden: 15 / 228
+critical false positives with the guards, 17 without; recall 96.2%; no canary flip).
+
 Planned:
 
 ```text
