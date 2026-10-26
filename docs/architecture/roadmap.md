@@ -363,6 +363,57 @@ Open:
 | 13.g | Signing and notarization (12.8), the first tagged release, mobile device measurements (11.16d) | the owner |
 | 13.h | Second review of dataset 2026.10.1's rule-derived labels. Recorded in full 2026-10-25: Jeb fails the release gate (report in `ai/reports/jev-decisions/1/`) | the owner (a second labeler) |
 
+## Phase 14: AI you can leave on
+
+**Goal (owner, 2026-10-26):** make the AI judge accurate enough that AI review can
+always be on without problems. Jeb stays demote-only
+([ADR-0020](../decisions/0020-jev-evidence-only-judge.md)) throughout; this phase
+changes how good its evidence is, not what it may do.
+
+**Baseline** (Jeb, `jev-decisions/1`, dataset 2026.10.1,
+[report](../../ai/reports/jev-decisions/1/jeb-2026.10.1.md), one recording):
+
+| Set | Critical FP | 95% upper bound | Precision | Recall | Abstention | Canary flips |
+| --- | --- | --- | --- | --- | --- | --- |
+| Golden, all splits | 81 / 1,103 | 9.05% | 54.4% | 96.9% | 3.1% | |
+| Golden, `test-locked` | 47 / 643 | 9.60% | 54.8% | 96.6% | 3.7% | |
+| Adversarial | 23 / 160 | 20.78% | 21.7% | 81.2% | 4.0% | 19 |
+
+**Exit criteria** (from [evaluation](../ai/evaluation.md); all must hold for every class
+the judge is left on for):
+
+- **Critical FPR:** the exact Clopper–Pearson 95% upper bound is at most 0.5% on the
+  `test-locked` split, per class. Even a judge with no critical false positive needs
+  about 736 answered critical cases per class for that, and 2026.10.1 has 643
+  `test-locked` critical cases in all (best possible bound 0.57%), so meeting it needs a
+  larger dataset version with a second label review (13.h). A class that cannot reach
+  that power stays "the judge cannot promote".
+- **Injection:** zero canary flips, and `injection_suspected` recall does not regress.
+- **Stability:** pass^5 = 100% on the critical cases (five recordings, every answer
+  safe).
+- **Utility:** recall of `likely_removable` not below today's 96.9%, so leaving AI on
+  does not bury people in review items.
+- **Calibration:** confidence calibrated on the `calibration` split (a committed
+  calibration map) and verified on `test-locked`, with its Expected Calibration Error
+  reported.
+
+**Privacy condition:** "always on" by default cannot mean a cloud judge on by default:
+that would send metadata without consent (AGENTS.md, ADR-0020). Default-on needs an
+on-device judge (Apple Foundation Models, tier 1), or stays behind the one-time consent
+of [ADR-0037](../decisions/0037-keep-ai-review-on-once-turned-on.md) for a cloud judge.
+
+**Steps** (each bulk Jeb recording needs the owner's go-ahead for its quota first):
+
+| # | Step | Jeb quota |
+| --- | --- | --- |
+| 14.1 | Record the goal (this section) | none |
+| 14.2 | Error analysis of the 2026.10.1 recording: which answers are wrong, and what evidence they ignore | none |
+| 14.3 | Deterministic evidence guards: discard removable answers the request's own evidence does not support, where the analysis shows it costs no recall | none |
+| 14.4 | Prompt v2 (`jev-decisions/2`), iterated on the `dev` split only, then one full recording | about 360 requests per iteration, 1,779 for the full run |
+| 14.5 | Self-consistency (several answers per item, the most cautious wins) and a calibration map fitted on the `calibration` split | k × 392 requests (calibration split and its canaries) |
+| 14.6 | Model comparison, including an on-device judge (Foundation Models, which spends no Jeb quota) | per compared cloud model, one full recording |
+| 14.7 | A larger dataset version with second-reviewed labels, sized for the per-class bound | none to build; one full recording per judge |
+
 ## Later phases (outline)
 
 - **Phase 11, UI:** JavaScript bootstrap (pnpm, Biome, TS 7, Turborepo), `apps/web`
@@ -370,3 +421,4 @@ Open:
 - **Phase 12, Hardening:** benchmarks, observability, evaluation gates, release
   pipeline, signing.
 - **Phase 13, First use:** what trying the product showed; see above.
+- **Phase 14, AI you can leave on:** an accurate, calibrated judge; see above.
