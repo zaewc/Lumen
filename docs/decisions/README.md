@@ -49,3 +49,4 @@ recommended option.
 | [0038](0038-unsigned-beta-from-a-project-website.md) | Ship an unsigned beta from a project website | Accepted |
 | [0039](0039-ask-for-review-only-where-a-person-can-act.md) | Ask for review only where a person can act | Accepted |
 | [0040](0040-decide-known-artifacts-inside-app-state-on-their-own.md) | Decide known artifacts inside an app's state on their own | Accepted |
+| [0041](0041-ai-describes-what-review-items-are.md) | AI describes what review items are | Accepted |

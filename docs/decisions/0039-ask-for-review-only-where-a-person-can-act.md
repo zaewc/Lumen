@@ -6,6 +6,7 @@
   default), [ADR-0035](0035-show-tool-commands-never-run-them.md) (how tool commands
   are presented), [ADR-0037](0037-keep-ai-review-on-once-turned-on.md) (what AI review
   is asked about, as a later change)
+- Amended by: [ADR-0041](0041-ai-describes-what-review-items-are.md) (point 4 carried out)
 
 ## Context and problem statement
 

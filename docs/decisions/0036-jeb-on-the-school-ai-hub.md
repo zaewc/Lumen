@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-21
 - Amends: [ADR-0031](0031-jev-on-typesafe-via-openrouter.md) (provider and retention)
+- Amended by: [ADR-0041](0041-ai-describes-what-review-items-are.md) (what is sent, about which items)
 
 ## Context and problem statement
 
