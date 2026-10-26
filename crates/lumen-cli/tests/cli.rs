@@ -214,6 +214,92 @@ fn assess_reports_a_known_artifact_and_moves_nothing() -> Result<(), Box<dyn std
     Ok(())
 }
 
+/// An Electron app's Chromium cache is a candidate of its own; the app's
+/// other data beside it never is, and assessing moves nothing.
+#[cfg(target_os = "macos")]
+#[test]
+fn assess_names_an_apps_cache_and_never_its_data() -> Result<(), Box<dyn std::error::Error>> {
+    let support = "home/Library/Application Support/Code";
+    let cache = format!("{support}/Cache/Cache_Data/data_1");
+    let storage = format!("{support}/Local Storage/leveldb/000003.log");
+    let fx = Fixture::build(&[
+        Node::File {
+            path: cache.clone(),
+            contents: vec![7; 4096],
+        },
+        Node::File {
+            path: storage.clone(),
+            contents: vec![8; 4096],
+        },
+        Node::File {
+            path: format!("{support}/Partitions/vscode-browser/IndexedDB/x"),
+            contents: vec![9; 4096],
+        },
+    ])?;
+    let home = std::fs::canonicalize(fx.path("home")?)?;
+    let db = fx.path("index.db")?;
+    let run = |args: &[&std::ffi::OsStr]| {
+        Command::new(env!("CARGO_BIN_EXE_lumen"))
+            .args(args)
+            .env("HOME", &home)
+            .output()
+    };
+    let scan = run(&[
+        "scan".as_ref(),
+        home.as_os_str(),
+        "--db".as_ref(),
+        db.as_os_str(),
+    ])?;
+    assert!(
+        scan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&scan.stderr)
+    );
+    let out = run(&[
+        "assess".as_ref(),
+        "--db".as_ref(),
+        db.as_os_str(),
+        "--json".as_ref(),
+    ])?;
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&out.stdout)?;
+    let candidates = report["candidates"].as_array().ok_or("no candidates")?;
+    let paths: Vec<&str> = candidates
+        .iter()
+        .filter_map(|c| c["path"].as_str())
+        .collect();
+    let item = candidates
+        .iter()
+        .find(|c| {
+            c["path"]
+                .as_str()
+                .is_some_and(|p| p.ends_with("Application Support/Code/Cache"))
+        })
+        .ok_or_else(|| format!("the cache is a candidate: {paths:?}"))?;
+    assert!(
+        matches!(item["verdict"].as_str(), Some("QUARANTINE" | "REVIEW")),
+        "{item}"
+    );
+    assert!(
+        !paths
+            .iter()
+            .any(|p| p.contains("Local Storage") || p.contains("Partitions")),
+        "{paths:?}"
+    );
+    for (path, byte) in [(&cache, 7), (&storage, 8)] {
+        assert_eq!(
+            std::fs::read(fx.path(path)?)?,
+            vec![byte; 4096],
+            "moves nothing"
+        );
+    }
+    Ok(())
+}
+
 /// An artifact only its tool may clean is shown with the tool's command, as
 /// guidance; nothing runs it and nothing moves.
 #[cfg(target_os = "macos")]

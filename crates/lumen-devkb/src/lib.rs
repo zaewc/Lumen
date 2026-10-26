@@ -74,6 +74,18 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/visual-studio-component-model-cache.json"),
     ),
     (
+        "vscode-cached-data.json",
+        include_str!("../entries/vscode-cached-data.json"),
+    ),
+    (
+        "vscode-chromium-caches.json",
+        include_str!("../entries/vscode-chromium-caches.json"),
+    ),
+    (
+        "vscode-extension-vsix-cache.json",
+        include_str!("../entries/vscode-extension-vsix-cache.json"),
+    ),
+    (
         "xcode-derived-data.json",
         include_str!("../entries/xcode-derived-data.json"),
     ),

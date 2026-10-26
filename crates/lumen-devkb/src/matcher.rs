@@ -566,6 +566,153 @@ mod tests {
         assert_eq!(found, [1]);
     }
 
+    /// Paths below a macOS home and the built-in entry each one matches:
+    /// Chromium's caches in known Electron apps' data folders match, and the
+    /// rest of those folders (the user's and the sites' data) never does.
+    const APP_FOLDERS: &[(&str, Option<&str>)] = &[
+        (
+            "Library/Application Support/Code/Cache",
+            Some("vscode-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Code/Code Cache",
+            Some("vscode-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Code/GPUCache",
+            Some("vscode-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Code/DawnGraphiteCache",
+            Some("vscode-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Code/DawnWebGPUCache",
+            Some("vscode-chromium-caches"),
+        ),
+        (
+            "library/application support/code/cache",
+            Some("vscode-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Code/Partitions/vscode-browser/Cache",
+            Some("vscode-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Code/Partitions/vscode-browser/Code Cache",
+            Some("vscode-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Code/CachedData",
+            Some("vscode-cached-data"),
+        ),
+        (
+            "Library/Application Support/Code/CachedExtensionVSIXs",
+            Some("vscode-extension-vsix-cache"),
+        ),
+        ("Library/Application Support/Code", None),
+        ("Library/Application Support/Code/User", None),
+        ("Library/Application Support/Code/Local Storage", None),
+        ("Library/Application Support/Code/Session Storage", None),
+        ("Library/Application Support/Code/IndexedDB", None),
+        ("Library/Application Support/Code/Service Worker", None),
+        ("Library/Application Support/Code/Cookies", None),
+        ("Library/Application Support/Code/logs", None),
+        ("Library/Application Support/Code/Crashpad", None),
+        ("Library/Application Support/Code/Backups", None),
+        ("Library/Application Support/Code/Partitions", None),
+        (
+            "Library/Application Support/Code/Partitions/vscode-browser",
+            None,
+        ),
+        (
+            "Library/Application Support/Code/Partitions/vscode-browser/Local Storage",
+            None,
+        ),
+        (
+            "Library/Application Support/Code/Partitions/vscode-browser/Service Worker",
+            None,
+        ),
+        (
+            "Library/Application Support/Code/Partitions/a/b/Cache",
+            None,
+        ),
+        ("Library/Application Support/Code/Cache/Cache_Data", None),
+        ("Library/Application Support/Code/CachedData/0123abcd", None),
+        ("Library/Application Support/Code - Insiders/Cache", None),
+        ("Library/Application Support/SomeApp/Cache", None),
+        ("Library/Application Support/Spotify/PersistentCache", None),
+        ("Library/Application Support/Claude/vm_bundles", None),
+        ("Library/Caches/Code/Cache", None),
+        ("Documents/Code/Cache", None),
+    ];
+
+    #[test]
+    fn app_caches_match_and_app_data_never_does() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let mac = env(Platform::Macos);
+        for (tail, expected) in APP_FOLDERS {
+            let scanned = [dir(&format!("/Users/ana/{tail}"), 1)];
+            let found: Vec<String> = builtin
+                .matches(&mac, &scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect();
+            let expected: Vec<String> = expected.iter().map(|id| (*id).to_owned()).collect();
+            assert_eq!(found, expected, "{tail}");
+        }
+    }
+
+    /// Where the vendor documents the folder on Windows and Linux, the same
+    /// caches match there.
+    #[test]
+    fn app_caches_match_where_the_vendor_documents_the_folder() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mut win = env(Platform::Windows);
+        win.roaming_app_data = Some(windows(r"C:\Users\ana\AppData\Roaming"));
+        let roaming = |tail: &str| {
+            object(
+                windows(&format!(r"C:\Users\ana\AppData\Roaming\{tail}")),
+                EntryKind::Directory,
+                1,
+            )
+        };
+        assert_eq!(
+            ids(
+                &win,
+                &[
+                    roaming(r"Code\GPUCache"),
+                    roaming(r"Code\CachedExtensionVSIXs")
+                ]
+            ),
+            ["vscode-chromium-caches", "vscode-extension-vsix-cache"]
+        );
+        assert_eq!(ids(&win, &[roaming(r"Code\Local Storage")]).len(), 0);
+        let linux = env(Platform::Linux);
+        assert_eq!(
+            ids(&linux, &[dir("/Users/ana/.config/Code/Code Cache", 1)]),
+            ["vscode-chromium-caches"]
+        );
+        assert_eq!(
+            ids(&linux, &[dir("/Users/ana/.config/code/Cache", 1)]).len(),
+            0,
+            "Linux names are exact"
+        );
+    }
+
     #[test]
     fn projects_need_a_scanned_marker() {
         let found = matched(

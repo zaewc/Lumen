@@ -1,0 +1,171 @@
+{
+  "id": "vscode-chromium-caches",
+  "tool": "Visual Studio Code",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Code/Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Code/Code Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Code/GPUCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Code/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Code/DawnWebGPUCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Code/Partitions/*/Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Code/Partitions/*/Code Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Code/Partitions/*/GPUCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Code/Partitions/*/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Code/Partitions/*/DawnWebGPUCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Code/Cache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Code/Code Cache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Code/GPUCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Code/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Code/DawnWebGPUCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Code/Partitions/*/Cache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Code/Partitions/*/Code Cache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Code/Partitions/*/GPUCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Code/Partitions/*/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Code/Partitions/*/DawnWebGPUCache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/Code/Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/Code/Code Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/Code/GPUCache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/Code/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/Code/DawnWebGPUCache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/Code/Partitions/*/Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/Code/Partitions/*/Code Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/Code/Partitions/*/GPUCache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/Code/Partitions/*/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/Code/Partitions/*/DawnWebGPUCache"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "seconds", "network": true },
+  "sources": [
+    "https://code.visualstudio.com/docs/configure/settings#_settings-file-locations",
+    "https://github.com/microsoft/vscode/blob/main/src/mainImpl.ts",
+    "https://www.electronjs.org/docs/latest/api/app",
+    "https://www.electronjs.org/docs/latest/api/session",
+    "https://github.com/electron/electron/blob/main/shell/browser/net/network_context_service.cc",
+    "https://github.com/electron/electron/blob/main/shell/browser/electron_browser_context.cc",
+    "https://github.com/chromium/chromium/blob/main/chrome/common/chrome_constants.h",
+    "https://www.chromium.org/developers/design-documents/network-stack/disk-cache/",
+    "https://github.com/chromium/chromium/blob/main/content/browser/storage_partition_impl.cc",
+    "https://github.com/chromium/chromium/blob/main/gpu/ipc/common/gpu_disk_cache_type.cc"
+  ],
+  "last_verified": "2026-10-26"
+}

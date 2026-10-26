@@ -1,0 +1,30 @@
+{
+  "id": "vscode-extension-vsix-cache",
+  "tool": "Visual Studio Code",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Code/CachedExtensionVSIXs"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Code/CachedExtensionVSIXs"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/Code/CachedExtensionVSIXs"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://code.visualstudio.com/docs/configure/settings#_settings-file-locations",
+    "https://github.com/microsoft/vscode/blob/main/src/vs/platform/environment/common/environmentService.ts",
+    "https://github.com/microsoft/vscode/blob/main/src/vs/platform/extensionManagement/node/extensionDownloader.ts",
+    "https://github.com/microsoft/vscode/blob/main/src/vs/platform/extensionManagement/node/extensionManagementService.ts"
+  ],
+  "last_verified": "2026-10-26"
+}

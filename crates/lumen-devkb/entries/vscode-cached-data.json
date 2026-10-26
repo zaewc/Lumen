@@ -1,0 +1,29 @@
+{
+  "id": "vscode-cached-data",
+  "tool": "Visual Studio Code",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Code/CachedData"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Code/CachedData"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".config/Code/CachedData"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "seconds", "network": false },
+  "sources": [
+    "https://code.visualstudio.com/docs/configure/settings#_settings-file-locations",
+    "https://github.com/microsoft/vscode/blob/main/src/mainImpl.ts",
+    "https://github.com/microsoft/vscode/blob/main/src/vs/code/electron-utility/sharedProcess/contrib/codeCacheCleaner.ts"
+  ],
+  "last_verified": "2026-10-26"
+}
