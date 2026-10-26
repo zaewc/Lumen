@@ -42,6 +42,7 @@ export const en = {
     session: {
       title: "Last scan",
       canFree: "Proposed for clean-up",
+      command: "Clean up with its own command",
       review: "Needs review",
       quarantine: "In Quarantine",
       atLeast: (size: string) => `at least ${size}`,
@@ -112,18 +113,23 @@ export const en = {
     filters: {
       all: "All",
       quarantine: "Proposed",
+      command: "Clean up with its own command",
       review: "Needs review",
       keep: "Kept",
     },
     groups: {
+      command: "Clean up with its own command",
       developer: "Developer tools",
       app_cache: "App caches",
       app_data: "App data",
       other: "Other",
     },
     otherTools: "Other tools",
-    verdict: {
+    commandNote:
+      "Only their tool should remove these. Lumen does not run the commands; check what each one removes before you run it.",
+    status: {
       quarantine: "Proposed",
+      command: "Own command",
       review: "Needs review",
       keep: "Kept",
     },
@@ -295,7 +301,7 @@ export const en = {
   glossary: {
     verdicts: {
       title: "How Lumen decides",
-      body: "Lumen decides about each item with fixed safety rules, not by guessing. “Proposed”: items such as caches that their app or tool re-creates. “Needs review”: items Lumen is not sure about; they are never moved automatically. “Kept”: items Lumen will not touch, such as system files, files in use or files synced with the cloud. When in doubt, Lumen keeps the item.",
+      body: "Lumen decides about each item with fixed safety rules, not by guessing. “Proposed”: items such as caches that their app or tool re-creates. “Clean up with its own command”: items only their tool should remove; Lumen shows the tool's command for you to run. “Needs review”: large items Lumen is not sure about, or an uninstalled app's leftovers; they are never moved automatically. “Kept”: items Lumen will not touch, such as system files, files in use, apps' own data or small items it does not recognise. When in doubt, Lumen keeps the item.",
     },
     quarantine: {
       title: "Quarantine",

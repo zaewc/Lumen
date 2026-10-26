@@ -1,16 +1,33 @@
-import type { CandidateView, VerdictView } from "@lumen/api-client";
+import type { CandidateView } from "@lumen/api-client";
 import { sumBytes } from "@/shared/lib";
 
-/** The candidates with one verdict, largest first, and what they would free. */
-export interface VerdictGroup {
-  readonly verdict: VerdictView;
+/**
+ * How an item is presented (ADR-0039): the policy's verdict, except that an
+ * item to review that has its tool's own cleanup command is "command": the
+ * person's action is to run that command, which Lumen shows and never runs
+ * (ADR-0035).
+ */
+export const STATUSES = ["quarantine", "command", "review", "keep"] as const;
+
+export type Status = (typeof STATUSES)[number];
+
+/** The status `candidate` is presented with. */
+export function statusOf(candidate: CandidateView): Status {
+  return candidate.verdict === "review" && candidate.tool_command !== null
+    ? "command"
+    : candidate.verdict;
+}
+
+/** The candidates with one status, largest first, and what they would free. */
+export interface StatusGroup {
+  readonly status: Status;
   readonly items: readonly CandidateView[];
   /** The sum of their reclaimable bytes, as a decimal string. */
   readonly bytes: string;
 }
 
-/** An assessment, grouped by verdict. */
-export type CandidateSummary = { readonly [V in VerdictView]: VerdictGroup };
+/** An assessment, grouped by status. */
+export type CandidateSummary = { readonly [S in Status]: StatusGroup };
 
 /** Orders candidates by what they free, largest first, then by path. */
 export function largestFirst(a: CandidateView, b: CandidateView): number {
@@ -19,13 +36,19 @@ export function largestFirst(a: CandidateView, b: CandidateView): number {
 }
 
 /**
- * Groups candidates by verdict, with counts and exact byte totals. The
- * "quarantine" group is exactly what a plan would hold.
+ * Groups candidates by status, with counts and exact byte totals. The
+ * "quarantine" group is exactly what a plan would hold; "review" leaves out
+ * the items with their own command.
  */
 export function summarize(candidates: readonly CandidateView[]): CandidateSummary {
-  const group = (verdict: VerdictView): VerdictGroup => {
-    const items = candidates.filter((c) => c.verdict === verdict).toSorted(largestFirst);
-    return { verdict, items, bytes: sumBytes(items.map((c) => c.reclaimable_bytes)) };
+  const group = (status: Status): StatusGroup => {
+    const items = candidates.filter((c) => statusOf(c) === status).toSorted(largestFirst);
+    return { status, items, bytes: sumBytes(items.map((c) => c.reclaimable_bytes)) };
   };
-  return { quarantine: group("quarantine"), review: group("review"), keep: group("keep") };
+  return {
+    quarantine: group("quarantine"),
+    command: group("command"),
+    review: group("review"),
+    keep: group("keep"),
+  };
 }

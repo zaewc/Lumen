@@ -36,7 +36,8 @@ function CoverageNotice({ scan }: { readonly scan: ScanView }) {
 
 /**
  * What a scan found: how much can be freed, then every item in sections by
- * group, filtered by verdict. A row opens its details in a sheet.
+ * group, filtered by status (items with their own command apart from those
+ * to review). A row opens its details in a sheet.
  */
 export function Results({
   scan,

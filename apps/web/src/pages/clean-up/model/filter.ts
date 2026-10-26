@@ -1,25 +1,27 @@
-import type { CandidateView, VerdictView } from "@lumen/api-client";
+import type { CandidateView } from "@lumen/api-client";
+import { STATUSES, statusOf } from "@/entities/scan-session";
 
-/** Which candidates the list shows: all, or those with one verdict. */
-export const FILTERS = ["all", "quarantine", "review", "keep"] as const;
+/** Which candidates the list shows: all, or those with one status. */
+export const FILTERS = ["all", ...STATUSES] as const;
 
 export type Filter = (typeof FILTERS)[number];
 
 /** Whether `candidate` is shown under `filter`. */
 export function shows(filter: Filter, candidate: CandidateView): boolean {
-  return filter === "all" || candidate.verdict === filter;
+  return filter === "all" || statusOf(candidate) === filter;
 }
 
 /** How many candidates each filter shows. */
 export function filterCounts(candidates: readonly CandidateView[]): {
   readonly [F in Filter]: number;
 } {
-  const verdict = (v: VerdictView) => candidates.filter((c) => c.verdict === v).length;
+  const count = (filter: Filter) => candidates.filter((c) => shows(filter, c)).length;
   return {
-    all: candidates.length,
-    quarantine: verdict("quarantine"),
-    review: verdict("review"),
-    keep: verdict("keep"),
+    all: count("all"),
+    quarantine: count("quarantine"),
+    command: count("command"),
+    review: count("review"),
+    keep: count("keep"),
   };
 }
 

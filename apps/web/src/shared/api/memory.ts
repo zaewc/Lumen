@@ -53,7 +53,10 @@ const regenerable = {
   text: "Quarantine proposed: the tool that made it can regenerate it.",
 } as const;
 
-/** What a scan of the fixture finds: every group, every verdict. */
+/**
+ * What a scan of the fixture finds: every group, every verdict, and items to
+ * clean up with their tool's own command (ADR-0039).
+ */
 const candidates: readonly CandidateView[] = [
   {
     path: `${HOME}/Library/Developer/Xcode/DerivedData`,
@@ -79,6 +82,19 @@ const candidates: readonly CandidateView[] = [
       args: ["simctl", "delete", "unavailable"],
     },
     group: { kind: "developer", source: "Xcode" },
+  },
+  {
+    path: `${HOME}/Library/pnpm/store`,
+    verdict: "review",
+    reclaimable_bytes: "5200000000",
+    reasons: [
+      {
+        rule: "classify.devkb-tool-action",
+        text: "Review: only the tool's own cleanup command should remove it, and that cannot be undone.",
+      },
+    ],
+    tool_command: { tool: "pnpm", program: "pnpm", args: ["store", "prune"] },
+    group: { kind: "developer", source: "pnpm" },
   },
   {
     path: `${HOME}/.gradle/caches`,
@@ -138,12 +154,12 @@ const candidates: readonly CandidateView[] = [
   },
   {
     path: `${HOME}/Library/Application Support/Slack`,
-    verdict: "review",
+    verdict: "keep",
     reclaimable_bytes: "980000000",
     reasons: [
       {
         rule: "classify.app-state",
-        text: "Review: it holds an application's own data, settings or documents.",
+        text: "Kept: it holds an application's own data, settings or documents; Lumen leaves it alone.",
       },
     ],
     tool_command: null,
@@ -161,6 +177,14 @@ const candidates: readonly CandidateView[] = [
     ],
     tool_command: null,
     group: { kind: "app_data", source: "com.example.OldEditor" },
+  },
+  {
+    path: `${HOME}/Library/HTTPStorages/com.tinyspeck.slackmacgap`,
+    verdict: "keep",
+    reclaimable_bytes: "380928",
+    reasons: [{ rule: "default.keep-small", text: "Kept: too small to be worth reviewing." }],
+    tool_command: null,
+    group: { kind: "other", source: null },
   },
   {
     path: `${HOME}/Downloads/Installers`,

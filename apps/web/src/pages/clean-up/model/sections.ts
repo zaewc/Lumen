@@ -1,5 +1,5 @@
 import type { CandidateView, GroupKindView } from "@lumen/api-client";
-import { largestFirst } from "@/entities/scan-session";
+import { largestFirst, statusOf } from "@/entities/scan-session";
 import { sumBytes } from "@/shared/lib";
 
 /** Candidates that belong to one tool (or, outside developer tools, to one kind). */
@@ -12,22 +12,32 @@ export interface SourceGroup {
   readonly bytes: string;
 }
 
+/**
+ * What a section holds: the items to clean up with their tool's own command
+ * (ADR-0039), or the rest of one kind of group.
+ */
+export type SectionKind = "command" | GroupKindView;
+
 /** One section of the list: a kind of group, with its tools (if any) and totals. */
 export interface KindSection {
-  readonly kind: GroupKindView;
+  readonly kind: SectionKind;
   /** Per tool for developer tools, largest first; one group otherwise. */
   readonly sources: readonly SourceGroup[];
   readonly count: number;
   readonly bytes: string;
 }
 
-/** The order of the sections: what people can act on most, first. */
+/**
+ * The order of the sections: what people can act on most, first. Items with
+ * their own command come first, since only the person can free their space.
+ */
 export const KIND_ORDER = [
+  "command",
   "developer",
   "app_cache",
   "app_data",
   "other",
-] as const satisfies readonly GroupKindView[];
+] as const satisfies readonly SectionKind[];
 
 function groupOf(source: string | null, items: readonly CandidateView[]): SourceGroup {
   const sorted = items.toSorted(largestFirst);
@@ -51,14 +61,21 @@ function bySize(a: SourceGroup, b: SourceGroup): number {
       : (a.source ?? "").localeCompare(b.source ?? "");
 }
 
+/** Whether `candidate` belongs in the section of `kind`. */
+function inSection(kind: SectionKind, candidate: CandidateView): boolean {
+  const command = statusOf(candidate) === "command";
+  return kind === "command" ? command : !command && candidate.group.kind === kind;
+}
+
 /**
- * The candidates as the list shows them: one section per kind of group (in
+ * The candidates as the list shows them: one section per kind (in
  * `KIND_ORDER`, empty kinds left out), developer tools split by tool, each
- * with its count and size. Sizes are added exactly.
+ * with its count and size. Items with their own command are in their own
+ * section, not in their group's. Sizes are added exactly.
  */
 export function sectionsOf(candidates: readonly CandidateView[]): KindSection[] {
   return KIND_ORDER.flatMap((kind): KindSection[] => {
-    const items = candidates.filter((c) => c.group.kind === kind);
+    const items = candidates.filter((c) => inSection(kind, c));
     if (items.length === 0) {
       return [];
     }

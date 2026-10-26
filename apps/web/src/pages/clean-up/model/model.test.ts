@@ -19,6 +19,12 @@ const xcode = { kind: "developer", source: "Xcode" } as const;
 const npm = { kind: "developer", source: "npm" } as const;
 const unknownTool = { kind: "developer", source: null } as const;
 const cache = { kind: "app_cache", source: "com.example.app" } as const;
+const simctl = { tool: "Xcode", program: "xcrun", args: ["simctl", "delete", "unavailable"] };
+
+/** An item to review that has its tool's own command. */
+function withCommand(c: CandidateView): CandidateView {
+  return { ...c, tool_command: simctl };
+}
 
 describe("sectionsOf", () => {
   const candidates = [
@@ -58,21 +64,52 @@ describe("sectionsOf", () => {
   });
 });
 
+describe("sectionsOf with commands", () => {
+  it("puts items to review with their own command in their own section, first", () => {
+    const sections = sectionsOf([
+      candidate("/derived", "quarantine", "4200", xcode),
+      withCommand(candidate("/sim", "review", "3100", xcode)),
+      withCommand(candidate("/pnpm", "review", "15000", { kind: "developer", source: "pnpm" })),
+      candidate("/other", "review", "9", { kind: "other", source: null }),
+      withCommand(candidate("/kept", "keep", "7", xcode)),
+    ]);
+    expect(sections.map((s) => [s.kind, s.count, s.bytes])).toEqual([
+      ["command", 2, "18100"],
+      ["developer", 2, "4207"],
+      ["other", 1, "9"],
+    ]);
+    expect(sections[0]?.sources.map((g) => g.items.map((c) => c.path))).toEqual([
+      ["/pnpm", "/sim"],
+    ]);
+  });
+});
+
 describe("filters", () => {
   const candidates = [
     candidate("/a", "quarantine", "1"),
     candidate("/b", "review", "1"),
     candidate("/c", "review", "1"),
+    withCommand(candidate("/d", "review", "1")),
+    withCommand(candidate("/e", "keep", "1")),
   ];
 
-  it("count and pick candidates by verdict", () => {
-    expect(filterCounts(candidates)).toEqual({ all: 3, quarantine: 1, review: 2, keep: 0 });
+  it("count and pick candidates by status, apart from items with their own command", () => {
+    expect(filterCounts(candidates)).toEqual({
+      all: 5,
+      quarantine: 1,
+      command: 1,
+      review: 2,
+      keep: 1,
+    });
     expect(candidates.filter((c) => shows("review", c)).map((c) => c.path)).toEqual(["/b", "/c"]);
-    expect(candidates.filter((c) => shows("all", c))).toHaveLength(3);
+    expect(candidates.filter((c) => shows("command", c)).map((c) => c.path)).toEqual(["/d"]);
+    expect(candidates.filter((c) => shows("keep", c)).map((c) => c.path)).toEqual(["/e"]);
+    expect(candidates.filter((c) => shows("all", c))).toHaveLength(5);
   });
 
   it("read only known filters from the URL", () => {
     expect(cleanUpSearch({ show: "review" })).toEqual({ show: "review" });
+    expect(cleanUpSearch({ show: "command" })).toEqual({ show: "command" });
     expect(cleanUpSearch({ show: "all" })).toEqual({});
     expect(cleanUpSearch({ show: "everything" })).toEqual({});
     expect(cleanUpSearch({ show: ["keep"] })).toEqual({});

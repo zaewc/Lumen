@@ -1,10 +1,12 @@
 import type { CandidateView } from "@lumen/api-client";
 import { type KeyboardEvent, type ReactNode, useId, useRef, useState } from "react";
+import { statusOf } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes, parentPath } from "@/shared/lib";
+import { commandLine } from "../lib/command";
 import { moveIndex } from "../lib/keys";
 import type { KindSection, SourceGroup } from "../model/sections";
-import { VerdictText } from "./Verdict";
+import { StatusText } from "./Status";
 
 /**
  * The list's columns. Wide: name, location, status, size on one line.
@@ -13,7 +15,11 @@ import { VerdictText } from "./Verdict";
 const GRID =
   "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 @xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_6rem_5.5rem]";
 
-/** One candidate; Enter, Space or a click opens its details. */
+/**
+ * One candidate; Enter, Space or a click opens its details. An item with its
+ * own command shows the command under it, to read or select; copying it is
+ * in the details.
+ */
 function Row({
   candidate,
   index,
@@ -30,8 +36,10 @@ function Row({
   readonly onOpen: (candidate: CandidateView) => void;
   readonly onMove: (event: KeyboardEvent, from: number) => void;
 }) {
-  const keep = candidate.verdict === "keep";
+  const status = statusOf(candidate);
+  const keep = status === "keep";
   const location = parentPath(candidate.path);
+  const command = status === "command" ? candidate.tool_command : null;
   return (
     <li>
       <button
@@ -56,9 +64,14 @@ function Row({
           {location}
         </span>
         <span className="col-start-2 row-start-2 text-right text-[12px] @xl:col-start-3 @xl:row-start-1 @xl:text-left @xl:text-[13px]">
-          <VerdictText verdict={candidate.verdict} />
+          <StatusText status={status} />
         </span>
       </button>
+      {command !== null && (
+        <code className="mx-2 mb-2 block font-mono text-[12px] leading-relaxed break-all text-ink-2 select-all">
+          {commandLine(command)}
+        </code>
+      )}
     </li>
   );
 }
@@ -195,6 +208,9 @@ function Section({
         count={section.count}
         bytes={section.bytes}
       />
+      {section.kind === "command" && (
+        <p className="px-2 pb-1.5 text-[12px] leading-snug text-ink-3">{m.results.commandNote}</p>
+      )}
       {section.kind === "developer"
         ? section.sources.map((group) => (
             <div key={group.source ?? ""}>

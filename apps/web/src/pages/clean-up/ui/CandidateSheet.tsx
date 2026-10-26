@@ -1,10 +1,11 @@
 import type { CandidateView } from "@lumen/api-client";
 import { type ReactNode, useId, useRef } from "react";
+import { statusOf } from "@/entities/scan-session";
 import { reasonText, useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import { CloseIcon, Dialog, SparkleIcon } from "@/shared/ui";
+import { StatusText } from "./Status";
 import { ToolCommand } from "./ToolCommand";
-import { VerdictText } from "./Verdict";
 
 /** One labelled figure of the details, label and value side by side. */
 function Field({ label, children }: { readonly label: string; readonly children: ReactNode }) {
@@ -72,7 +73,7 @@ export function CandidateSheet({
                 </span>
               </Field>
               <Field label={m.detail.decision}>
-                <VerdictText verdict={candidate.verdict} />
+                <StatusText status={statusOf(candidate)} />
               </Field>
               <Field label={m.detail.location}>
                 <code className="block font-mono text-[12px] leading-relaxed break-all select-all">

@@ -4,4 +4,12 @@ export {
   ScanSessionProvider,
   useScanSession,
 } from "./model/session";
-export { type CandidateSummary, largestFirst, summarize, type VerdictGroup } from "./model/summary";
+export {
+  type CandidateSummary,
+  largestFirst,
+  STATUSES,
+  type Status,
+  type StatusGroup,
+  statusOf,
+  summarize,
+} from "./model/summary";

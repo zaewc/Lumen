@@ -74,6 +74,7 @@ Use these and only these, in both languages.
 | --- | --- | --- |
 | 검사 | Scan | Read-only look at the disk |
 | 정리 제안 | Proposed | The policy proposes quarantine |
+| 명령으로 정리 | Clean up with its own command (status: Own command) | Only the tool's own command should remove it; Lumen shows the command and never runs it |
 | 검토 필요 | Needs review | The user should look before anything moves |
 | 유지 | Kept | Lumen leaves it alone |
 | 정리하기 | Clean up | Move proposed items to Quarantine (after confirming) |

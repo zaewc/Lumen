@@ -85,9 +85,10 @@ function Running() {
 }
 
 /**
- * This session's last scan as a short list (what can be cleaned up, what
- * needs review, what Quarantine holds), each row a link to its details; or
- * what to do when there is none.
+ * This session's last scan as a short list (what can be cleaned up, what to
+ * clean up with a tool's own command when there is any, what needs review,
+ * what Quarantine holds), each row a link to its details; or what to do when
+ * there is none.
  */
 export function LastScan() {
   const { m } = useI18n();
@@ -136,6 +137,17 @@ export function LastScan() {
                   />
                 </Link>
               </li>
+              {summary.command.items.length > 0 && (
+                <li>
+                  <Link to="/clean" search={{ show: "command" }} className={ROW}>
+                    <RowContent
+                      label={s.command}
+                      count={m.common.items(summary.command.items.length)}
+                      size={formatBytes(summary.command.bytes)}
+                    />
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link to="/clean" search={{ show: "review" }} className={ROW}>
                   <RowContent

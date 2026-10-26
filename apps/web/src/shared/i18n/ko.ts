@@ -55,6 +55,7 @@ export const ko = {
     session: {
       title: "최근 검사",
       canFree: "정리 제안",
+      command: "명령으로 정리",
       review: "검토 필요",
       quarantine: "격리함",
       atLeast: (size: string) => `최소 ${size}`,
@@ -124,18 +125,23 @@ export const ko = {
     filters: {
       all: "전체",
       quarantine: "정리 제안",
+      command: "명령으로 정리",
       review: "검토 필요",
       keep: "유지",
     },
     groups: {
+      command: "명령으로 정리",
       developer: "개발 도구",
       app_cache: "앱 캐시",
       app_data: "앱 데이터",
       other: "기타",
     },
     otherTools: "기타 도구",
-    verdict: {
+    commandNote:
+      "도구의 명령으로만 정리할 수 있는 항목이에요. Lumen은 명령을 실행하지 않아요. 실행하기 전에 무엇을 지우는지 확인해 주세요.",
+    status: {
       quarantine: "정리 제안",
+      command: "명령으로 정리",
       review: "검토 필요",
       keep: "유지",
     },
@@ -305,7 +311,7 @@ export const ko = {
   glossary: {
     verdicts: {
       title: "Lumen이 판단하는 방법",
-      body: "Lumen은 추측하지 않고, 정해진 안전 규칙으로 항목마다 판단해요. ‘정리 제안’은 앱이나 도구가 다시 만드는 캐시 같은 항목이에요. ‘검토 필요’는 Lumen이 확신하지 못하는 항목이라 자동으로 옮기지 않아요. ‘유지’는 시스템 파일, 사용 중인 파일, 클라우드와 동기화된 파일처럼 Lumen이 건드리지 않는 항목이에요. 확실하지 않으면 그대로 둬요.",
+      body: "Lumen은 추측하지 않고, 정해진 안전 규칙으로 항목마다 판단해요. ‘정리 제안’은 앱이나 도구가 다시 만드는 캐시 같은 항목이에요. ‘명령으로 정리’는 도구로만 지워야 하는 항목이라, 직접 실행할 수 있게 도구의 명령을 보여 드려요. ‘검토 필요’는 Lumen이 확신하지 못하는 큰 항목이나 삭제한 앱이 남긴 항목이라 자동으로 옮기지 않아요. ‘유지’는 시스템 파일, 사용 중인 파일, 앱의 데이터, Lumen이 모르는 작은 항목처럼 Lumen이 건드리지 않는 항목이에요. 확실하지 않으면 그대로 둬요.",
     },
     quarantine: {
       title: "격리함",

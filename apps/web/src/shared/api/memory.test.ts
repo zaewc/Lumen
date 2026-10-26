@@ -22,6 +22,9 @@ describe("memoryTransport", () => {
     expect(progress.map((p) => zScanProgressView.parse(p).entries)).toEqual(["1580"]);
     const candidates = (await transport.assess()).map((c) => zCandidateView.parse(c));
     expect(candidates.find((c) => c.verdict === "review")?.tool_command?.program).toBe("xcrun");
+    expect(
+      candidates.filter((c) => c.verdict === "review" && c.tool_command === null).length,
+    ).toBeGreaterThan(0);
     zDiskView.parse(await transport.disk());
     const plan = zPlanView.parse(await transport.plan());
     expect(plan.items.every((item) => item.verdict === "quarantine")).toBe(true);
