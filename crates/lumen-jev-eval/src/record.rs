@@ -159,7 +159,7 @@ pub fn record(
     let mut outcomes = Vec::new();
     let mut key_rejected = false;
     let mut sent = false;
-    for case in dataset.golden.iter().chain(&dataset.adversarial) {
+    for case in dataset.cases() {
         let outcome = if let Some(entry) = kept.get(&(case.case_id.as_str(), case.request.hash())) {
             entries.push((*entry).clone());
             RecordOutcome::Kept

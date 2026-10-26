@@ -4,7 +4,10 @@
 //! with its BLAKE3 hash. Every file is verified before any case is used, so an
 //! edited or corrupted dataset is an error, not a silently different
 //! evaluation. Golden cases live in `golden/`; adversarial canaries in
-//! `adversarial/` each name the clean twin they mirror.
+//! `adversarial/` each name the clean twin they mirror, and belong to its
+//! split. [`Dataset::split`] keeps one split (`dev`, `calibration`,
+//! `test-locked`), canaries included, so a split can be recorded and replayed
+//! on its own.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -66,6 +69,42 @@ pub struct Dataset {
     pub golden: Vec<Case>,
     /// Injection canaries, each mirroring a golden twin.
     pub adversarial: Vec<Case>,
+    /// The split these cases were restricted to, if any.
+    pub split: Option<String>,
+}
+
+impl Dataset {
+    /// The golden and adversarial cases of split `name` only. A canary is in
+    /// its twin's split, so every canary kept still has its twin.
+    ///
+    /// # Errors
+    ///
+    /// [`DatasetError::Invalid`] if no golden case is in that split.
+    pub fn split(&self, name: &str) -> Result<Self, DatasetError> {
+        let keep = |cases: &[Case]| -> Vec<Case> {
+            cases.iter().filter(|c| c.split == name).cloned().collect()
+        };
+        let golden = keep(&self.golden);
+        if golden.is_empty() {
+            let splits: BTreeSet<&str> = self.golden.iter().map(|c| c.split.as_str()).collect();
+            return Err(invalid(format!(
+                "dataset {} has no split `{name}` (it has: {})",
+                self.version,
+                splits.into_iter().collect::<Vec<_>>().join(", ")
+            )));
+        }
+        Ok(Self {
+            version: self.version.clone(),
+            golden,
+            adversarial: keep(&self.adversarial),
+            split: Some(name.to_owned()),
+        })
+    }
+
+    /// Every case, golden first, in dataset order.
+    pub fn cases(&self) -> impl Iterator<Item = &Case> {
+        self.golden.iter().chain(&self.adversarial)
+    }
 }
 
 fn read(path: &Path) -> Result<Vec<u8>, DatasetError> {
@@ -132,6 +171,7 @@ pub fn load(root: &Path, version: &str) -> Result<Dataset, DatasetError> {
         version: version.to_owned(),
         golden,
         adversarial,
+        split: None,
     })
 }
 
@@ -156,7 +196,10 @@ fn check(version: &str, golden: &[Case], adversarial: &[Case]) -> Result<(), Dat
             .as_deref()
             .and_then(|id| by_id.get(id))
             .ok_or_else(|| invalid(format!("{} has no golden twin", canary.case_id)))?;
-        if canary.request.evidence != twin.request.evidence || canary.expected != twin.expected {
+        if canary.request.evidence != twin.request.evidence
+            || canary.expected != twin.expected
+            || canary.split != twin.split
+        {
             return Err(invalid(format!(
                 "{} differs from its twin beyond the injected text",
                 canary.case_id
@@ -181,6 +224,9 @@ const fn removability(assessment: Assessment) -> u8 {
 pub struct DatasetReport {
     /// The dataset version.
     pub version: String,
+    /// The split the run was restricted to, if any.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub split: Option<String>,
     /// Golden cases.
     pub golden: Report,
     /// Canaries, graded like golden cases.
@@ -225,6 +271,7 @@ pub fn run_dataset(judge: &dyn JudgeModel, dataset: &Dataset) -> DatasetReport {
     let passed = golden.passed && canary_flips.is_empty() && adversarial.unanswered == 0;
     DatasetReport {
         version: dataset.version.clone(),
+        split: dataset.split.clone(),
         golden,
         adversarial,
         canary_flips,
@@ -320,6 +367,63 @@ mod tests {
     }
 
     #[test]
+    fn a_split_keeps_its_golden_cases_and_their_canaries() -> Result<(), DatasetError> {
+        let dataset = load(&repo_ai(), "2026.10.1")?;
+        let mut total = (0, 0);
+        for name in ["dev", "calibration", "test-locked"] {
+            let split = dataset.split(name)?;
+            assert_eq!(split.split.as_deref(), Some(name));
+            assert_eq!(split.version, dataset.version);
+            assert!(!split.golden.is_empty() && !split.adversarial.is_empty());
+            assert!(split.cases().all(|c| c.split == name), "{name}");
+            let golden: BTreeSet<&str> = split.golden.iter().map(|c| c.case_id.as_str()).collect();
+            assert!(
+                split
+                    .adversarial
+                    .iter()
+                    .all(|c| c.twin_of.as_deref().is_some_and(|t| golden.contains(t))),
+                "every canary of {name} has its twin"
+            );
+            // Dataset order is kept.
+            let order: Vec<&str> = dataset
+                .cases()
+                .filter(|c| c.split == name)
+                .map(|c| c.case_id.as_str())
+                .collect();
+            assert_eq!(
+                split
+                    .cases()
+                    .map(|c| c.case_id.as_str())
+                    .collect::<Vec<_>>(),
+                order
+            );
+            total = (
+                total.0 + split.golden.len(),
+                total.1 + split.adversarial.len(),
+            );
+        }
+        assert_eq!(total, (dataset.golden.len(), dataset.adversarial.len()));
+        let dev = dataset.split("dev")?;
+        assert_eq!((dev.golden.len(), dev.adversarial.len()), (346, 15));
+        assert!(matches!(
+            dataset.split("train"),
+            Err(DatasetError::Invalid(_))
+        ));
+        assert!(matches!(
+            dataset.split("Dev"),
+            Err(DatasetError::Invalid(_))
+        ));
+        // The report names the split; a whole-dataset report does not.
+        let judge = MockJudge::new(None);
+        assert_eq!(run_dataset(&judge, &dev).split.as_deref(), Some("dev"));
+        let seed = load(&repo_ai(), VERSION)?;
+        let whole =
+            serde_json::to_value(run_dataset(&judge, &seed)).map_err(|e| invalid(e.to_string()))?;
+        assert_eq!(whole.get("split"), None, "committed reports stay unchanged");
+        Ok(())
+    }
+
+    #[test]
     fn the_v2_requests_stay_well_within_jebs_limit() -> Result<(), DatasetError> {
         use lumen_jev::decisions::{Prompt, Provider, request_body_for};
         // Jeb takes about 8,000 tokens per request. The largest v1 request of
@@ -327,9 +431,7 @@ mod tests {
         // that density is about 3,400 tokens.
         let dataset = load(&repo_ai(), "2026.10.1")?;
         let largest = dataset
-            .golden
-            .iter()
-            .chain(&dataset.adversarial)
+            .cases()
             .map(|c| {
                 request_body_for(&c.request, Provider::Jeb, Prompt::V2)
                     .map(|body| body.to_string().len())

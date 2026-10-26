@@ -2,14 +2,17 @@
 //! 12.1, docs/ai/harness.md).
 //!
 //! ```text
-//! lumen-jev-eval run    --dataset <VERSION> --cassette <FILE> [--ai <DIR>]
-//!                       [--gate full|observed] [--json]
-//! lumen-jev-eval record --dataset <VERSION> --out <FILE> [--ai <DIR>] [--resume <FILE>]
+//! lumen-jev-eval run    --dataset <VERSION> --cassette <FILE> [--split <NAME>]
+//!                       [--prompt v1|v2] [--ai <DIR>] [--gate full|observed] [--json]
+//! lumen-jev-eval record --dataset <VERSION> --out <FILE> [--split <NAME>]
+//!                       [--prompt v1|v2] [--ai <DIR>] [--resume <FILE>]
 //! ```
 //!
 //! `run` loads the dataset version from `ai/` (verified against its manifest),
 //! replays the cassette's recorded answers through the production validator
-//! and policy, and reports the gates. It exits with 0 when the chosen gate
+//! (with the prompt version the cassette records) and policy, and reports the
+//! gates. `--split` keeps one split's golden cases and their canaries;
+//! `--prompt` refuses a cassette recorded with another prompt. It exits with 0 when the chosen gate
 //! passes, 1 when it fails, and 2 for usage or input errors, so CI can gate on
 //! it.
 //!
@@ -22,8 +25,9 @@
 //!   is never a release gate.
 //!
 //! `record` asks Jeb (ADR-0036) about every golden and adversarial case of the
-//! dataset, one request at a time, and writes a new cassette that `run`
-//! replays. The key comes only from the operating system's secret store, where
+//! dataset (or of one `--split`), one request at a time, with the questions of
+//! `--prompt` (`v1`, the app's prompt, by default), and writes a new cassette
+//! that `run` replays. The key comes only from the operating system's secret store, where
 //! `lumen jev key set` puts it; it is never an argument, printed or written.
 //! The output must not exist yet: nothing is ever overwritten. It exits with 0
 //! when every case was recorded, 1 when some were not (the rest are still
@@ -41,14 +45,16 @@ use std::time::Duration;
 use lumen_app::ai::Service;
 use lumen_application::ports::JudgeModel as _;
 use lumen_domain::{JevRequest, JudgeDescriptor};
+use lumen_jev::decisions::Prompt;
 use lumen_jev::openrouter::{ApiKey, AskError, JevJudge};
 use lumen_jev_eval::{
-    CRITICAL_FPR_TARGET, Cassette, DatasetReport, LiveJudge, Pacing, RecordOutcome, ReplayJudge,
-    Report, load, record, run_dataset,
+    CRITICAL_FPR_TARGET, Cassette, CassetteError, Dataset, DatasetReport, LiveJudge, Pacing,
+    RecordOutcome, ReplayJudge, Report, load, record, run_dataset,
 };
 
-const USAGE: &str = "usage: lumen-jev-eval run --dataset <VERSION> --cassette <FILE> [--ai <DIR>] [--gate full|observed] [--json]
-       lumen-jev-eval record --dataset <VERSION> --out <FILE> [--ai <DIR>] [--resume <FILE>]";
+const USAGE: &str = "usage: lumen-jev-eval run --dataset <VERSION> --cassette <FILE> [--split <NAME>] [--prompt v1|v2] [--ai <DIR>] [--gate full|observed] [--json]
+       lumen-jev-eval record --dataset <VERSION> --out <FILE> [--split <NAME>] [--prompt v1|v2] [--ai <DIR>] [--resume <FILE>]
+splits: dev, calibration, test-locked (canaries go with their twin's split)";
 
 /// Which gate decides the exit status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +70,10 @@ enum Gate {
 struct RunArgs {
     dataset: String,
     cassette: PathBuf,
+    /// Only this split's cases.
+    split: Option<String>,
+    /// The prompt the cassette must have been recorded with.
+    prompt: Option<Prompt>,
     ai: PathBuf,
     gate: Gate,
     json: bool,
@@ -74,9 +84,22 @@ struct RunArgs {
 struct RecordArgs {
     dataset: String,
     out: PathBuf,
+    /// Only this split's cases.
+    split: Option<String>,
+    /// The prompt to ask (v1 unless given).
+    prompt: Prompt,
     ai: PathBuf,
     /// An earlier, incomplete recording whose answers are kept.
     resume: Option<PathBuf>,
+}
+
+/// `v1` or `v2`.
+fn prompt(value: &str) -> Result<Prompt, String> {
+    match value {
+        "v1" => Ok(Prompt::V1),
+        "v2" => Ok(Prompt::V2),
+        other => Err(format!("unknown prompt `{other}` (v1 or v2)")),
+    }
 }
 
 /// A parsed command line.
@@ -97,7 +120,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
     };
     let (mut dataset, mut cassette, mut out, mut ai, mut json) =
         (None, None, None, PathBuf::from("ai"), false);
-    let mut resume = None;
+    let (mut resume, mut split, mut chosen_prompt) = (None, None, None);
     let mut gate = Gate::Full;
     let mut iter = rest.iter();
     while let Some(arg) = iter.next() {
@@ -109,6 +132,8 @@ fn parse(args: &[String]) -> Result<Command, String> {
         match (arg.as_str(), record) {
             ("--dataset", _) => dataset = Some(value()?),
             ("--ai", _) => ai = PathBuf::from(value()?),
+            ("--split", _) => split = Some(value()?),
+            ("--prompt", _) => chosen_prompt = Some(prompt(&value()?)?),
             ("--cassette", false) => cassette = Some(PathBuf::from(value()?)),
             ("--gate", false) => {
                 gate = match value()?.as_str() {
@@ -128,6 +153,8 @@ fn parse(args: &[String]) -> Result<Command, String> {
         Command::Record(RecordArgs {
             dataset,
             out: out.ok_or("--out is needed")?,
+            split,
+            prompt: chosen_prompt.unwrap_or_default(),
             ai,
             resume,
         })
@@ -135,6 +162,8 @@ fn parse(args: &[String]) -> Result<Command, String> {
         Command::Run(RunArgs {
             dataset,
             cassette: cassette.ok_or("--cassette is needed")?,
+            split,
+            prompt: chosen_prompt,
             ai,
             gate,
             json,
@@ -180,7 +209,10 @@ fn summary(name: &str, report: &Report) -> String {
 
 fn text(report: &DatasetReport, gate: Gate) -> String {
     let mut lines = vec![
-        format!("dataset {}", report.version),
+        match &report.split {
+            Some(split) => format!("dataset {}, split {split}", report.version),
+            None => format!("dataset {}", report.version),
+        },
         summary("golden", &report.golden),
         summary("adversarial", &report.adversarial),
     ];
@@ -202,9 +234,25 @@ fn text(report: &DatasetReport, gate: Gate) -> String {
     lines.join("\n") + "\n"
 }
 
+/// The dataset version, restricted to `split` if one is given.
+fn dataset(
+    ai: &std::path::Path,
+    version: &str,
+    split: Option<&str>,
+) -> Result<Dataset, Box<dyn Error>> {
+    let dataset = load(ai, version)?;
+    Ok(match split {
+        Some(name) => dataset.split(name)?,
+        None => dataset,
+    })
+}
+
 fn run(args: &RunArgs) -> Result<DatasetReport, Box<dyn Error>> {
-    let dataset = load(&args.ai, &args.dataset)?;
+    let dataset = dataset(&args.ai, &args.dataset, args.split.as_deref())?;
     let cassette = Cassette::parse(&std::fs::read_to_string(&args.cassette)?)?;
+    if let Some(prompt) = args.prompt {
+        cassette.expect_prompt(prompt)?;
+    }
     Ok(run_dataset(&ReplayJudge::new(cassette), &dataset))
 }
 
@@ -254,7 +302,7 @@ fn describe(outcome: &RecordOutcome) -> String {
 /// Records a Jeb cassette; `Err` is bad input (exit 2), `Ok(false)` an
 /// incomplete recording (exit 1).
 fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
-    let dataset = load(&args.ai, &args.dataset)?;
+    let dataset = dataset(&args.ai, &args.dataset, args.split.as_deref())?;
     if args.out.try_exists()? {
         return Err(format!(
             "{} already exists; choose a new file (nothing is overwritten)",
@@ -266,12 +314,12 @@ fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
         Some(path) => Some(Cassette::parse(&std::fs::read_to_string(path)?)?),
         None => None,
     };
-    let judge = Service::Jeb.judge(jeb_key()?)?;
+    let judge = Service::Jeb.judge(jeb_key()?)?.with_prompt(args.prompt)?;
     let descriptor = judge
         .descriptor()
         .ok_or("the Jeb judge has no descriptor")?;
     if previous.as_ref().is_some_and(|p| p.judge != descriptor) {
-        return Err(lumen_jev_eval::CassetteError::OtherJudge.into());
+        return Err(CassetteError::OtherJudge.into());
     }
     // Reserve the output before spending quota; never replace a file.
     let mut file = std::fs::OpenOptions::new()
@@ -282,9 +330,7 @@ fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
     let cases = dataset.golden.len() + dataset.adversarial.len();
     let have = previous.as_ref().map_or(0, |p| {
         dataset
-            .golden
-            .iter()
-            .chain(&dataset.adversarial)
+            .cases()
             .filter(|c| {
                 p.entries
                     .iter()
@@ -294,10 +340,15 @@ fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
     });
     eprintln!("{}", Service::Jeb.disclosure());
     eprintln!(
-        "Recording dataset {}: {} requests to Jeb ({}), one at a time ({have} kept from the earlier recording). The cases are synthetic metadata from the dataset, never file contents.",
+        "Recording dataset {}{}: {} requests to Jeb ({}) with prompt {}, one at a time ({have} kept from the earlier recording). The cases are synthetic metadata from the dataset, never file contents.",
         dataset.version,
+        dataset
+            .split
+            .as_deref()
+            .map_or_else(String::new, |s| format!(", split {s}")),
         cases - have,
         lumen_jev::decisions::JEB_ENDPOINT,
+        args.prompt.version(),
     );
     let recording = record(
         &Jeb { judge, descriptor },
@@ -394,10 +445,41 @@ mod tests {
             Ok(Command::Run(RunArgs {
                 dataset: "2026.10.0".into(),
                 cassette: "c.json".into(),
+                split: None,
+                prompt: None,
                 ai: "ai".into(),
                 gate: Gate::Full,
                 json: true,
             }))
+        );
+        assert!(matches!(
+            parse(&args(&[
+                "run", "--dataset", "d", "--cassette", "c", "--split", "dev", "--prompt", "v2"
+            ])),
+            Ok(Command::Run(RunArgs { split: Some(s), prompt: Some(Prompt::V2), .. })) if s == "dev"
+        ));
+        assert!(
+            parse(&args(&[
+                "run",
+                "--dataset",
+                "d",
+                "--cassette",
+                "c",
+                "--prompt",
+                "v3"
+            ]))
+            .is_err()
+        );
+        assert!(
+            parse(&args(&[
+                "run",
+                "--dataset",
+                "d",
+                "--cassette",
+                "c",
+                "--split"
+            ]))
+            .is_err()
         );
         assert!(matches!(
             parse(&args(&[
@@ -448,13 +530,24 @@ mod tests {
             Ok(Command::Record(RecordArgs {
                 dataset: "2026.10.0".into(),
                 out: "jeb.json".into(),
+                split: None,
+                prompt: Prompt::V1,
                 ai: "data".into(),
                 resume: None,
             }))
         );
         assert!(matches!(
             parse(&args(&["record", "--dataset", "d", "--out", "o"])),
-            Ok(Command::Record(RecordArgs { ai, .. })) if ai == std::path::Path::new("ai")
+            Ok(Command::Record(RecordArgs { ai, prompt: Prompt::V1, split: None, .. }))
+                if ai == std::path::Path::new("ai")
+        ));
+        assert!(matches!(
+            parse(&args(&[
+                "record", "--dataset", "d", "--out", "o", "--split", "dev", "--prompt", "v2",
+                "--resume", "r.json"
+            ])),
+            Ok(Command::Record(RecordArgs { split: Some(s), prompt: Prompt::V2, resume: Some(_), .. }))
+                if s == "dev"
         ));
         for bad in [
             &["record"][..],
@@ -464,6 +557,8 @@ mod tests {
             &["record", "--dataset", "d", "--out", "o", "--cassette", "c"],
             &["record", "--dataset", "d", "--out", "o", "--gate", "full"],
             &["record", "--dataset", "d", "--out", "o", "--force"],
+            &["record", "--dataset", "d", "--out", "o", "--prompt", "V2"],
+            &["record", "--dataset", "d", "--out", "o", "--prompt"],
             &[
                 "record",
                 "--dataset",

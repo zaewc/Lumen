@@ -31,9 +31,10 @@ fixture definition ─▶ build fixture tree (tempdir) ─▶ scan (real lumen-s
 - `ReplayJudge`: a `JudgeModel` answering from a cassette through the validator the
   recorded judge uses live: `lumen_jev::decisions::judgment_for` with the provider's
   pinned model for Jeb and Jev through OpenRouter (descriptor providers `gsm.jeb`,
-  `openrouter.typesafe`), `lumen_jev::response` for any other judge, both followed by
-  the evidence guards (ADR-0043), exactly as live. Unrecorded requests are
-  unavailable.
+  `openrouter.typesafe`), with the prompt version the cassette records
+  (`jev-decisions/1` or `/2`; a Decisions cassette naming any other is refused),
+  `lumen_jev::response` for any other judge, both followed by the evidence guards
+  (ADR-0043), exactly as live. Unrecorded requests are unavailable.
 - `record` (`lumen_jev_eval::record`): the raw answers of a live judge, fetched with
   `JevJudge::ask` (the transport `judge` itself uses, before validation).
 - Mock mode: `lumen_testkit::MockJudge`.
@@ -48,7 +49,8 @@ fixture definition ─▶ build fixture tree (tempdir) ─▶ scan (real lumen-s
 Implemented (roadmap 12.1):
 
 ```text
-lumen-jev-eval run --dataset 2026.10.0 --cassette <FILE> [--ai ai] [--gate full|observed] [--json]
+lumen-jev-eval run --dataset 2026.10.0 --cassette <FILE> [--split <NAME>] [--prompt v1|v2]
+                   [--ai ai] [--gate full|observed] [--json]
 ```
 
 `run` replays the cassette over the dataset's golden and adversarial cases and exits 0
@@ -60,13 +62,26 @@ is a regression check for small datasets and never a release gate. Both gates fa
 when any critical case or canary has no valid answer (unavailable or rejected): such a
 case is no evidence, and a judge must not pass by failing on exactly the hard cases.
 
+- `--split <NAME>` keeps only that split's golden cases (`dev`, `calibration` or
+  `test-locked`) and the canaries of their twins (a canary is always in its twin's
+  split; loading a dataset checks it). The report then names the split (`"split"` in
+  the JSON; a whole-dataset report has no such field), and every metric and gate is
+  computed on those cases only. An unknown split is bad input.
+- `--prompt v1|v2` refuses (exit 2) a cassette recorded with another prompt, so a
+  comparison cannot mix them up. Without it, the cassette's own prompt is used.
+
 ```text
-lumen-jev-eval record --dataset 2026.10.0 --out <FILE> [--ai ai] [--resume <FILE>]
+lumen-jev-eval record --dataset 2026.10.0 --out <FILE> [--split <NAME>] [--prompt v1|v2]
+                      [--ai ai] [--resume <FILE>]
 ```
 
 `record` asks Jeb (ADR-0036) about every golden and adversarial case of the dataset,
-building exactly the requests `run` replays, and writes a new `jev.cassette/1` file:
-`run --dataset <VERSION> --cassette <FILE>` then replays it with no network.
+or of one `--split`, building exactly the requests `run` replays, and writes a new
+`jev.cassette/1` file: `run --dataset <VERSION> [--split <NAME>] --cassette <FILE>` then
+replays it with no network. `--prompt` chooses the questions (`v1`, the app's prompt,
+by default; `v2` for roadmap 14.4); the cassette's descriptor records it. Iterating on
+a prompt uses the `dev` split only (346 golden cases and 15 canaries of 2026.10.1, 361
+requests).
 
 - **Key:** read only from the operating system's secret store, from the slot
   `lumen jev key set` writes (macOS keychain or Windows Credential Manager). It is
@@ -94,7 +109,8 @@ building exactly the requests `run` replays, and writes a new `jev.cassette/1` f
 - **Resuming:** `--resume <FILE>` completes an earlier recording of the same dataset:
   answers it holds for the same request are kept unchanged and only the missing cases
   are sent, then everything is written, in dataset order, to the new `--out` file. The
-  earlier file must come from the same judge, model and prompt.
+  earlier file must come from the same judge, model and prompt (checked before
+  anything is sent); with `--split`, give the same split again.
 
 Planned:
 

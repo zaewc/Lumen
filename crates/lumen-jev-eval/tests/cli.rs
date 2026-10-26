@@ -145,3 +145,55 @@ fn record_checks_its_input_before_the_key() {
     assert_eq!(record("1999.01.0", &fresh).status.code(), Some(2));
     assert!(!fresh.exists(), "nothing written for bad input");
 }
+
+/// The committed Jeb recording replayed on one split, pinned to its prompt.
+#[test]
+fn a_split_is_replayed_on_its_own_with_the_recorded_prompt() {
+    let jeb = ai().join("cassettes/jev-decisions/1/jeb-2026.10.1.json");
+    let replay = |extra: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_lumen-jev-eval"))
+            .args(["run", "--dataset", "2026.10.1", "--json", "--ai"])
+            .arg(ai())
+            .arg("--cassette")
+            .arg(&jeb)
+            .args(extra)
+            .output()
+            .unwrap_or_else(|e| unreachable!("{e}"))
+    };
+    let dev = replay(&["--split", "dev", "--prompt", "v1"]);
+    assert_eq!(dev.status.code(), Some(1), "Jeb fails the gate");
+    let report: serde_json::Value =
+        serde_json::from_slice(&dev.stdout).unwrap_or_else(|e| unreachable!("{e}"));
+    assert_eq!(report["split"], "dev");
+    assert_eq!(report["golden"]["cases"], 346);
+    assert_eq!(report["adversarial"]["cases"], 15);
+    assert_eq!(report["golden"]["unanswered"], 0);
+    let other_prompt = replay(&["--split", "dev", "--prompt", "v2"]);
+    assert_eq!(other_prompt.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&other_prompt.stderr).contains("jev-decisions/1"));
+    let no_split = replay(&["--split", "train"]);
+    assert_eq!(no_split.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&no_split.stderr).contains("no split `train`"));
+
+    // `record` refuses an unknown split before the key, and writes nothing.
+    let fx = Fixture::build(&[]).unwrap_or_else(|e| unreachable!("{e}"));
+    let out = fx.path("dev.json").unwrap_or_else(|e| unreachable!("{e}"));
+    let record = Command::new(env!("CARGO_BIN_EXE_lumen-jev-eval"))
+        .args([
+            "record",
+            "--dataset",
+            "2026.10.1",
+            "--split",
+            "train",
+            "--prompt",
+            "v2",
+        ])
+        .arg("--ai")
+        .arg(ai())
+        .arg("--out")
+        .arg(&out)
+        .output()
+        .unwrap_or_else(|e| unreachable!("{e}"));
+    assert_eq!(record.status.code(), Some(2));
+    assert!(!out.exists());
+}
