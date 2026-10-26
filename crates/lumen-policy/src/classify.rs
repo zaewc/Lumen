@@ -315,6 +315,26 @@ mod tests {
         Ok(())
     }
 
+    /// A small regenerable cache, such as one decided on its own inside an
+    /// app's folder (ADR-0040), is still proposed: a classification rule
+    /// fired, so the small-item default never applies.
+    #[test]
+    fn a_small_regenerable_match_is_still_proposed() -> Result<(), PolicyError> {
+        let mut small = input(vec![
+            fact(file(1), Fact::InUse(false)),
+            fact(file(1), kb_match("x-cache")),
+        ]);
+        small.knowledge = [(entry("x-cache"), KnowledgeClass::Regenerable)].into();
+        small.observed = Some(crate::testing::observed(
+            lumen_domain::EntryKind::Directory,
+            1_000_000,
+        ));
+        let decision = evaluate(&small)?;
+        assert_eq!(decision.verdict(), Verdict::Quarantine);
+        assert_eq!(fired(&decision), ["classify.devkb-regenerable"]);
+        Ok(())
+    }
+
     #[test]
     fn protections_and_eligibility_still_apply() -> Result<(), PolicyError> {
         let regenerable = [("x-cache", KnowledgeClass::Regenerable)];

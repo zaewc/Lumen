@@ -15,7 +15,7 @@ use std::sync::{Arc, OnceLock};
 use std::task::{Context as TaskContext, Poll, Wake, Waker};
 use std::thread::{self, Thread};
 
-use lumen_application::assess::{Assessed, Probes, Sources, decide_candidate, select};
+use lumen_application::assess::{Assessed, Probes, Sources, decide_candidate, nested, select};
 use lumen_application::collect::{Inventory, summarize};
 use lumen_application::gather::gather;
 use lumen_application::observe::below;
@@ -261,6 +261,18 @@ pub struct Subtree {
     listings: Vec<(RawPath, lumen_application::ports::DirOutcome)>,
 }
 
+impl Subtree {
+    /// Leaves out the `nested` paths and everything below them.
+    fn carve(&mut self, nested: &[&RawPath]) {
+        if nested.is_empty() {
+            return;
+        }
+        let outside = |p: &RawPath| !nested.iter().any(|n| p == *n || below(p, n));
+        self.entries.retain(|entry| outside(&entry.path));
+        self.listings.retain(|(listed, _)| outside(listed));
+    }
+}
+
 /// Everything an assessment of the latest completed scan decides from; reused
 /// to re-decide planned items at confirmation (roadmap 10.14).
 #[derive(Debug)]
@@ -309,6 +321,23 @@ impl Assessment {
                 .filter(|(listed, _)| within(listed))
                 .collect(),
         })
+    }
+
+    /// The part of the scan at and below `path` without the `nested`
+    /// candidates and everything below them: those are decided on their own,
+    /// and the candidate at `path` is decided for the rest.
+    ///
+    /// # Errors
+    ///
+    /// [`AssessError::Store`] if `index.db` cannot be read.
+    pub fn subtree_without(
+        &self,
+        path: &RawPath,
+        nested: &[&RawPath],
+    ) -> Result<Subtree, AssessError> {
+        let mut subtree = self.subtree(path)?;
+        subtree.carve(nested);
+        Ok(subtree)
     }
 
     /// The sources the policy decides one candidate from: the assessment's
@@ -707,10 +736,12 @@ pub fn assess(
     };
     let assessed = with_probes(|probes| -> Result<Vec<Assessed>, AssessError> {
         let mut assessed = Vec::new();
-        for candidate in candidates {
+        for candidate in &candidates {
             // Only this candidate's part of the scan is read, and dropped
-            // after its decision.
-            let subtree = assessment.subtree(&candidate.path)?;
+            // after its decision; candidates inside it are decided on their
+            // own, so its decision covers the rest.
+            let inner = nested(candidate, &candidates);
+            let subtree = assessment.subtree_without(&candidate.path, &inner)?;
             let sources = assessment.sources(&subtree);
             if let Ok(decided) = block_on(decide_candidate(
                 candidate, &sources, probes, judge, clock, &request,
@@ -750,6 +781,87 @@ mod tests {
     use lumen_policy::{Observed, PolicyInput};
 
     use super::*;
+
+    fn scanned(path: &str, file: u128, bytes: u64) -> FilesystemEntry {
+        let size = SizeFacts {
+            identity: FileIdentity {
+                volume: VolumeId::new("v").unwrap_or_else(|e| unreachable!("{e}")),
+                file: FileId::new(file),
+            },
+            logical: ByteCount::new(bytes),
+            allocated: ByteCount::new(bytes),
+            private: None,
+            clone_id: None,
+            link_count: NonZeroU32::MIN,
+            flags: SizeFlags::default(),
+        };
+        FilesystemEntry {
+            path: RawPath::from_unix_bytes(path.as_bytes().to_vec())
+                .unwrap_or_else(|e| unreachable!("{e}")),
+            kind: if bytes == 0 {
+                EntryKind::Directory
+            } else {
+                EntryKind::File
+            },
+            size,
+            times: EntryTimes::default(),
+            protection: Protection::default(),
+            access: AccessState::Readable,
+        }
+    }
+
+    /// An app's support folder holding a cache that is decided on its own:
+    /// the folder's own decision observes only the rest of it, so the
+    /// cache's space is counted once.
+    #[test]
+    fn a_nested_candidate_is_carved_out_of_its_outer_one() {
+        let entries = vec![
+            scanned("/s", 1, 0),
+            scanned("/s/Cache", 2, 0),
+            scanned("/s/Cache/data", 3, 7000),
+            scanned("/s/Cache2", 4, 0),
+            scanned("/s/Cache2/x", 5, 1000),
+            scanned("/s/prefs", 6, 500),
+        ];
+        let listed = lumen_application::ports::DirOutcome {
+            access: AccessState::Readable,
+            complete: true,
+        };
+        let listings: Vec<_> = ["/s", "/s/Cache", "/s/Cache2"]
+            .iter()
+            .map(|p| {
+                (
+                    RawPath::from_unix_bytes(p.as_bytes().to_vec())
+                        .unwrap_or_else(|e| unreachable!("{e}")),
+                    listed,
+                )
+            })
+            .collect();
+        let mut subtree = Subtree { entries, listings };
+        let cache = subtree.entries[1].path.clone();
+        subtree.carve(&[&cache]);
+        let left: Vec<&[u8]> = subtree.entries.iter().map(|e| e.path.as_bytes()).collect();
+        assert_eq!(
+            left,
+            [b"/s".as_slice(), b"/s/Cache2", b"/s/Cache2/x", b"/s/prefs"],
+            "a sibling sharing the name's prefix stays"
+        );
+        assert_eq!(subtree.listings.len(), 2);
+        let observed = lumen_application::observe::observed(
+            &subtree.entries[0],
+            &subtree.entries,
+            &subtree.listings,
+        );
+        assert!(observed.complete);
+        assert_eq!(observed.reclaim.reclaimable_now, ByteCount::new(1500));
+        let unchanged = subtree.entries.len();
+        subtree.carve(&[]);
+        assert_eq!(
+            subtree.entries.len(),
+            unchanged,
+            "nothing nested, nothing carved"
+        );
+    }
 
     fn input(facts: &[Fact]) -> PolicyInput {
         let identity = FileIdentity {

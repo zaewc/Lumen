@@ -262,6 +262,12 @@ orphaned application data, whose owner every inventory says is gone, is reviewed
 (`classify.orphan`). Items with a tool's own cleanup command stay `REVIEW`, and the
 interface lists them on their own, with the command (ADR-0035).
 
+A known artifact inside an application's state is decided on its own
+([ADR-0040](../decisions/0040-decide-known-artifacts-inside-app-state-on-their-own.md)):
+a knowledge-base match nested in a candidate identified only as app state (such as an
+Electron app's `Cache` in its `Application Support` folder) is its own candidate, and
+the app's folder is kept for the rest of it, sized without the nested candidates.
+
 ## 9. Explainability
 
 Every `Recommendation` answers, from evidence (or states "unknown" with the reason):
