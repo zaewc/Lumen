@@ -90,6 +90,7 @@ pub async fn decide(
         calibrated_precision_bp: None,
         policy_effect: decision.jev_effect(),
         latency_ms,
+        note: None,
     };
     Ok(Consulted {
         decision,

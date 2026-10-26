@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "JevTrace",
-  "description": "Record of one judgment that a policy decision consumed (`jev.trace/1`).",
+  "description": "Record of one judgment that a policy decision consumed, or of one\ndescription of a review item (ADR-0041) (`jev.trace/1`).",
   "type": "object",
   "properties": {
     "calibrated_precision_bp": {
@@ -42,6 +42,17 @@
       "type": "integer",
       "format": "uint32",
       "minimum": 0
+    },
+    "note": {
+      "description": "The description, when one was asked for and accepted (ADR-0041).\nAbsent from judgment traces.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ItemNote"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "output_schema": {
       "description": "Response schema.",
@@ -119,6 +130,75 @@
     "EvidenceId": {
       "type": "string",
       "pattern": "^b3:[0-9a-f]{64}$"
+    },
+    "ItemKind": {
+      "description": "What kind of item an AI description says a review item most likely is\n(ADR-0041). A closed list: only these values are ever shown.",
+      "oneOf": [
+        {
+          "description": "An application's settings or state.",
+          "type": "string",
+          "const": "app_settings"
+        },
+        {
+          "description": "The user's own documents or media.",
+          "type": "string",
+          "const": "user_documents"
+        },
+        {
+          "description": "A cache.",
+          "type": "string",
+          "const": "cache"
+        },
+        {
+          "description": "Logs or diagnostic reports.",
+          "type": "string",
+          "const": "logs"
+        },
+        {
+          "description": "Downloads or installers.",
+          "type": "string",
+          "const": "downloads_or_installers"
+        },
+        {
+          "description": "A developer tool's data.",
+          "type": "string",
+          "const": "developer_tool_data"
+        },
+        {
+          "description": "A backup or an archive.",
+          "type": "string",
+          "const": "backup_or_archive"
+        },
+        {
+          "description": "The model could not tell.",
+          "type": "string",
+          "const": "unknown"
+        }
+      ]
+    },
+    "ItemNote": {
+      "description": "An AI description of an item left for review (`jev.item-note/1`,\nADR-0041): display only. It is never an input to the policy, a plan or\nthe executor.",
+      "type": "object",
+      "properties": {
+        "confidence": {
+          "description": "How sure the model was, from the chosen option's probability.",
+          "$ref": "#/$defs/JudgmentConfidence"
+        },
+        "injection_suspected": {
+          "description": "Whether the model saw text trying to influence it; such a note is\nrecorded but never shown.",
+          "type": "boolean"
+        },
+        "kind": {
+          "description": "What the item most likely is.",
+          "$ref": "#/$defs/ItemKind"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "confidence",
+        "injection_suspected"
+      ]
     },
     "ItemRef": {
       "type": "string",

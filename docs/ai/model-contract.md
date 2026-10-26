@@ -100,9 +100,28 @@ The same `Judgment::validate_for` checks then apply. Answers from other models, 
 missing or extra answers, unknown options, or probabilities outside [0, 1] are
 rejected.
 
+## Description: `jev.item-note/1`
+
+While AI review is on, items the policy left at `REVIEW` are also described
+([ADR-0041](../decisions/0041-ai-describes-what-review-items-are.md)). The request is
+the same `jev.request/1` state; the questions (prompt version `jev-describe/1`) are:
+
+- `kind` Choice: `app_settings`, `user_documents`, `cache`, `logs`,
+  `downloads_or_installers`, `developer_tool_data`, `backup_or_archive` or `unknown`;
+- `injection` Noul: the same question as for judgments.
+
+`lumen_jev::decisions::note_for` builds an `ItemNote` (`kind`, `confidence` from the
+chosen option's probability in the judgment buckets, `injection_suspected`) with the
+same checks as a judgment: pinned model, exactly these two answers, known options,
+probabilities in [0, 1], no other fields. A note is display only: it is never an input
+to the policy, a plan or the executor, and a note that suspects injection is recorded
+but not shown.
+
 ## Trace: `jev.trace/1`
 
-Stored in `ledger.db` for every judgment that a policy decision consumed:
+Stored in `ledger.db` for every judgment that a policy decision consumed, and for every
+description request (output schema `jev.item-note/1`, the accepted `note`, no
+judgment, policy effect `none`):
 
 | Field | Notes |
 | --- | --- |

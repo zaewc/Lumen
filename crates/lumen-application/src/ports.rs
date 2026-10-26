@@ -7,7 +7,7 @@ use std::ops::ControlFlow;
 use std::pin::Pin;
 
 use lumen_domain::{
-    AccessState, Application, FileIdentity, FilesystemEntry, ItemLocation, JevRequest,
+    AccessState, Application, FileIdentity, FilesystemEntry, ItemLocation, ItemNote, JevRequest,
     JudgeDescriptor, Judgment, JudgmentRejection, OperationId, Package, PlanId, Process,
     QuarantineEvent, QuarantineFailure, QuarantineState, RawPath, ScanId, Service, SnapshotId,
     SourceName, SourceStatus, Timestamp, UnixOwnership, VolumeId,
@@ -649,6 +649,32 @@ impl JudgeModel for NoopJudge {
     }
 }
 
+/// A description in flight.
+pub type NoteFuture<'a> = Pin<Box<dyn Future<Output = Result<ItemNote, JudgeError>> + Send + 'a>>;
+
+/// The optional AI describer (ADR-0041): says what kind of item a review item
+/// most likely is, as a note for people. A note is never an input to the
+/// policy, a plan or the executor. Adapters own transport and validation;
+/// callers treat any error as "no note".
+pub trait Describer: Send + Sync {
+    /// Which judge describes, with the description prompt's version, or
+    /// `None` when AI review is off.
+    fn descriptor(&self) -> Option<JudgeDescriptor>;
+
+    /// Describes one item.
+    fn describe<'a>(&'a self, request: &'a JevRequest) -> NoteFuture<'a>;
+}
+
+impl Describer for NoopJudge {
+    fn descriptor(&self) -> Option<JudgeDescriptor> {
+        None
+    }
+
+    fn describe<'a>(&'a self, _request: &'a JevRequest) -> NoteFuture<'a> {
+        Box::pin(std::future::ready(Err(JudgeError::Disabled)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -668,6 +694,7 @@ mod tests {
         assert_dyn_send_sync::<dyn InventorySource>();
         assert_dyn_send_sync::<dyn InUseProbe>();
         assert_dyn_send_sync::<dyn JudgeModel>();
+        assert_dyn_send_sync::<dyn Describer>();
         assert_dyn_send_sync::<dyn SecretStore>();
         assert_dyn_send_sync::<dyn QuarantineExecutor>();
         assert_dyn_send::<dyn QuarantineJournal>();

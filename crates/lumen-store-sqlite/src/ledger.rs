@@ -130,6 +130,7 @@ mod tests {
             calibrated_precision_bp: None,
             policy_effect: JevEffect::None,
             latency_ms: 25,
+            note: None,
         })
     }
 

@@ -82,8 +82,8 @@ pub use jev::{
     RequestEvidence, UntrustedField,
 };
 pub use judgment::{
-    Assessment, ItemRef, JevTrace, JudgeDescriptor, Judgment, JudgmentConfidence,
-    JudgmentRejection, ModelId, OpaqueIdError, ReasonCode, TraceValidation,
+    Assessment, ItemKind, ItemNote, ItemRef, JevTrace, JudgeDescriptor, Judgment,
+    JudgmentConfidence, JudgmentRejection, ModelId, OpaqueIdError, ReasonCode, TraceValidation,
 };
 pub use lifecycle::{
     Confirmation, ConfirmationSurface, PlanEvent, PlanState, PlanTransitionError, ScanEvent,

@@ -279,8 +279,23 @@ mod tests {
             calibrated_precision_bp: Some(9_950),
             policy_effect: JevEffect::DemotedToReview,
             latency_ms: 812,
+            note: None,
         };
         validate(&trace)?;
+        let described = JevTrace {
+            output_schema: "jev.item-note/1".parse()?,
+            validation: TraceValidation::Accepted,
+            judgment: None,
+            calibrated_precision_bp: None,
+            policy_effect: JevEffect::None,
+            note: Some(ItemNote {
+                kind: ItemKind::DownloadsOrInstallers,
+                confidence: JudgmentConfidence::Medium,
+                injection_suspected: false,
+            }),
+            ..trace
+        };
+        validate(&described)?;
         Ok(())
     }
 }

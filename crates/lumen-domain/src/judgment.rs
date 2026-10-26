@@ -185,6 +185,63 @@ pub enum ReasonCode {
     SuspiciousMetadata,
 }
 
+/// What kind of item an AI description says a review item most likely is
+/// (ADR-0041). A closed list: only these values are ever shown.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ItemKind {
+    /// An application's settings or state.
+    AppSettings,
+    /// The user's own documents or media.
+    UserDocuments,
+    /// A cache.
+    Cache,
+    /// Logs or diagnostic reports.
+    Logs,
+    /// Downloads or installers.
+    DownloadsOrInstallers,
+    /// A developer tool's data.
+    DeveloperToolData,
+    /// A backup or an archive.
+    BackupOrArchive,
+    /// The model could not tell.
+    Unknown,
+}
+
+/// An AI description of an item left for review (`jev.item-note/1`,
+/// ADR-0041): display only. It is never an input to the policy, a plan or
+/// the executor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ItemNote {
+    /// What the item most likely is.
+    pub kind: ItemKind,
+    /// How sure the model was, from the chosen option's probability.
+    pub confidence: JudgmentConfidence,
+    /// Whether the model saw text trying to influence it; such a note is
+    /// recorded but never shown.
+    pub injection_suspected: bool,
+}
+
+impl ItemNote {
+    /// Whether the note may be shown: only when no injection was suspected.
+    pub const fn shown(&self) -> bool {
+        !self.injection_suspected
+    }
+}
+
 /// A validated judgment (`jev.judgment/1`). Unknown fields are rejected, as the
 /// contract's `additionalProperties: false` requires.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
@@ -301,7 +358,8 @@ pub enum TraceValidation {
     Unavailable,
 }
 
-/// Record of one judgment that a policy decision consumed (`jev.trace/1`).
+/// Record of one judgment that a policy decision consumed, or of one
+/// description of a review item (ADR-0041) (`jev.trace/1`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct JevTrace {
     /// When the judgment was requested.
@@ -331,6 +389,10 @@ pub struct JevTrace {
     pub policy_effect: JevEffect,
     /// Round-trip latency in milliseconds.
     pub latency_ms: u32,
+    /// The description, when one was asked for and accepted (ADR-0041).
+    /// Absent from judgment traces.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<ItemNote>,
 }
 
 manual_schema!(ItemRef, "ItemRef", { "type": "string", "pattern": "^[!-~]{1,64}$" });

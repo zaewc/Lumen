@@ -7,24 +7,30 @@
 //! maps the answer back through the same module. Every failure is a
 //! [`JudgeError`], so the decision proceeds without Jev. [`JevJudge::ask`]
 //! returns the answer exactly as received, before validation, for recording
-//! evaluation cassettes (docs/ai/harness.md).
+//! evaluation cassettes (docs/ai/harness.md). The same judge also describes
+//! items left for review ([`Describer`], ADR-0041), with the description
+//! questions and their own prompt version.
 //!
 //! The request runs on its own thread: the HTTP client blocks, and Lumen's ports
 //! are runtime-agnostic futures. The API key is the user's own; it is never
 //! logged or included in errors.
 
 use std::fmt;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::task::{Poll, Waker};
 use std::thread;
 use std::time::Duration;
 
-use lumen_application::ports::{JudgeError, JudgeFuture, JudgeModel};
-use lumen_domain::{JevRequest, JudgeDescriptor, Judgment, ModelId, PromptVersion, SourceName};
+use lumen_application::ports::{Describer, JudgeError, JudgeFuture, JudgeModel, NoteFuture};
+use lumen_domain::{
+    ItemNote, JevRequest, JudgeDescriptor, Judgment, ModelId, PromptVersion, SourceName,
+};
 use ureq::Agent;
 use ureq::tls::{RootCerts, TlsConfig, TlsProvider};
 
-use crate::decisions::{self, PROMPT_VERSION, Provider};
+use crate::decisions::{self, DESCRIBE_PROMPT_VERSION, PROMPT_VERSION, Provider};
 
 /// Longest wait for one answer.
 const TIMEOUT: Duration = Duration::from_secs(30);
@@ -103,12 +109,11 @@ pub struct JevJudge {
     endpoint: String,
     agent: Agent,
     descriptor: JudgeDescriptor,
+    describer: JudgeDescriptor,
 }
 
-fn descriptor(provider: Provider) -> Result<JudgeDescriptor, SetupError> {
-    let (name, revision) = PROMPT_VERSION
-        .split_once('/')
-        .ok_or(SetupError::Descriptor)?;
+fn descriptor(provider: Provider, prompt: &str) -> Result<JudgeDescriptor, SetupError> {
+    let (name, revision) = prompt.split_once('/').ok_or(SetupError::Descriptor)?;
     Ok(JudgeDescriptor {
         provider: SourceName::new(provider.source()).map_err(|_| SetupError::Descriptor)?,
         model: ModelId::new(provider.model()).map_err(|_| SetupError::Descriptor)?,
@@ -181,7 +186,8 @@ impl JevJudge {
             provider,
             endpoint,
             agent,
-            descriptor: descriptor(provider)?,
+            descriptor: descriptor(provider, PROMPT_VERSION)?,
+            describer: descriptor(provider, DESCRIBE_PROMPT_VERSION)?,
         })
     }
 
@@ -258,20 +264,21 @@ impl JevJudge {
         decisions::judgment_for(request, &answer, self.provider)
             .map(|(judgment, _snapshot)| judgment)
     }
-}
 
-/// A value produced on another thread.
-struct Slot<T> {
-    value: Option<T>,
-    waker: Option<Waker>,
-}
-
-impl JudgeModel for JevJudge {
-    fn descriptor(&self) -> Option<JudgeDescriptor> {
-        Some(self.descriptor.clone())
+    fn describe_blocking(&self, request: &JevRequest) -> Result<ItemNote, JudgeError> {
+        let body = decisions::describe_body_for(request, self.provider)
+            .map_err(|_| AskError::new(None, "the request could not be built"))?
+            .to_string();
+        let answer = self.post(&body)?;
+        decisions::note_for(&answer, self.provider).map(|(note, _snapshot)| note)
     }
 
-    fn judge<'a>(&'a self, request: &'a JevRequest) -> JudgeFuture<'a> {
+    /// Runs `work` with a copy of this judge on its own thread, as a future.
+    fn on_thread<'a, T: Send + 'static>(
+        &self,
+        request: &JevRequest,
+        work: fn(&Self, &JevRequest) -> Result<T, JudgeError>,
+    ) -> Pin<Box<dyn Future<Output = Result<T, JudgeError>> + Send + 'a>> {
         let slot = Arc::new(Mutex::new(Slot {
             value: None,
             waker: None,
@@ -284,10 +291,11 @@ impl JudgeModel for JevJudge {
                 endpoint: self.endpoint.clone(),
                 agent: self.agent.clone(),
                 descriptor: self.descriptor.clone(),
+                describer: self.describer.clone(),
             };
             let request = request.clone();
             move || {
-                let answer = judge.judge_blocking(&request);
+                let answer = work(&judge, &request);
                 let mut slot = slot.lock().unwrap_or_else(PoisonError::into_inner);
                 slot.value = Some(answer);
                 if let Some(waker) = slot.waker.take() {
@@ -313,6 +321,32 @@ impl JudgeModel for JevJudge {
                 Poll::Pending
             }
         }))
+    }
+}
+
+/// A value produced on another thread.
+struct Slot<T> {
+    value: Option<T>,
+    waker: Option<Waker>,
+}
+
+impl JudgeModel for JevJudge {
+    fn descriptor(&self) -> Option<JudgeDescriptor> {
+        Some(self.descriptor.clone())
+    }
+
+    fn judge<'a>(&'a self, request: &'a JevRequest) -> JudgeFuture<'a> {
+        self.on_thread(request, Self::judge_blocking)
+    }
+}
+
+impl Describer for JevJudge {
+    fn descriptor(&self) -> Option<JudgeDescriptor> {
+        Some(self.describer.clone())
+    }
+
+    fn describe<'a>(&'a self, request: &'a JevRequest) -> NoteFuture<'a> {
+        self.on_thread(request, Self::describe_blocking)
     }
 }
 
@@ -543,8 +577,48 @@ mod tests {
     #[test]
     fn the_descriptor_pins_the_model_and_prompt() {
         let judge = judge_with("http://127.0.0.1:9/".to_owned());
-        let descriptor = judge.descriptor().unwrap_or_else(|| unreachable!());
+        let descriptor = JudgeModel::descriptor(&judge).unwrap_or_else(|| unreachable!());
         assert_eq!(descriptor.model.as_str(), MODEL);
         assert_eq!(descriptor.prompt_version.to_string(), "jev-decisions/1");
+        let describer = Describer::descriptor(&judge).unwrap_or_else(|| unreachable!());
+        assert_eq!(describer.model.as_str(), MODEL);
+        assert_eq!(describer.prompt_version.to_string(), "jev-describe/1");
+    }
+
+    #[test]
+    fn a_description_round_trips_over_http() {
+        let reply = json!({
+            "answers": {
+                "kind": {"type": "choice", "choice": "downloads_or_installers",
+                    "probabilities": {"downloads_or_installers": 0.91, "unknown": 0.09}},
+                "injection": {"type": "noul", "noul": 0.02},
+            },
+            "model": "typesafe/jev-1.13",
+            "usage": {"input_tokens": 400, "output_tokens": 0},
+        })
+        .to_string();
+        let (endpoint, received) = serve(200, reply);
+        let note = block(judge_with(endpoint).describe(&request()));
+        assert_eq!(
+            note.map(|n| (n.kind, n.confidence)),
+            Ok((
+                lumen_domain::ItemKind::DownloadsOrInstallers,
+                lumen_domain::JudgmentConfidence::High
+            ))
+        );
+        let seen = received
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        let body: serde_json::Value =
+            serde_json::from_str(&seen.body).unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(body["questions"]["kind"]["type"], "choice");
+        assert_eq!(body["provider"]["zdr"], true);
+        assert_eq!(body["state"]["item_ref"], "c_1");
+
+        let (endpoint, _received) = serve(429, "{}".to_owned());
+        assert_eq!(
+            block(judge_with(endpoint).describe(&request())),
+            Err(JudgeError::Unavailable("OpenRouter rate limit reached"))
+        );
     }
 }
