@@ -282,11 +282,21 @@ function operationId(n: number): string {
  * A transport that answers from fixed data, at once or (with `pace`, in
  * milliseconds) with pauses that let a person see each step. Quarantine is
  * kept in memory: cleaning up adds to it, restoring and removing take away.
+ * With `builtinKey`, it acts like a release build carrying Lumen's built-in
+ * Jeb key (ADR-0042).
  */
-export function memoryTransport({ pace = 0 }: { readonly pace?: number } = {}): LumenTransport {
-  // AI review, as the host keeps it: off and without a key at first. The key
-  // itself is not kept, only that one was given.
-  let ai: AiSettingsView = { enabled: false, consented_at: null, key: "none", key_source: null };
+export function memoryTransport({
+  pace = 0,
+  builtinKey = false,
+}: {
+  readonly pace?: number;
+  readonly builtinKey?: boolean;
+} = {}): LumenTransport {
+  // AI review, as the host keeps it: off at first, and without a key unless
+  // the build has one. The key itself is not kept, only that one was given.
+  let ai: AiSettingsView = builtinKey
+    ? { enabled: false, consented_at: null, key: "jeb", key_source: "builtin" }
+    : { enabled: false, consented_at: null, key: "none", key_source: null };
   let held: readonly HeldItemView[] = initiallyHeld;
   let moves = 0;
   const take = (operation: string): HeldItemView | undefined => {

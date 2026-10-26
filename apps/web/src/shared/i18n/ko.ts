@@ -80,8 +80,12 @@ export const ko = {
     title: "AI 검토",
     offIntro:
       "Lumen이 정리를 제안한 항목을 AI가 한 번 더 살펴보고, 검토할 항목이 무엇인지 알려 줘요. AI는 Lumen을 더 신중하게 만들 수만 있어요.",
-    onIntro: (service: string) =>
-      `켜져 있어요(${service}). 정리를 제안한 항목과 검토할 항목 최대 20개의 정보를 파일 내용은 빼고 보내요. AI는 Lumen을 더 신중하게 만들 수만 있어요.`,
+    onIntro: (key: string) =>
+      `켜져 있어요(${key}). 정리를 제안한 항목과 검토할 항목 최대 20개의 정보를 파일 내용은 빼고 보내요. AI는 Lumen을 더 신중하게 만들 수만 있어요.`,
+    keyInUse: {
+      builtin: (service: string) => `${service}, Lumen 기본 키`,
+      stored: (service: string) => `${service}, 내 키`,
+    },
     checking: "확인하는 중…",
     short: {
       on: "AI 검토 켜짐",
@@ -94,6 +98,8 @@ export const ko = {
       what: "정리를 제안한 항목과 검토할 항목 중 큰 순서로 최대 20개의 경로(홈 폴더는 ~로 표시), 크기, 경과 기간, 판단 근거를 보내요. 파일 내용은 보내지 않아요.",
       whereJeb:
         "API 키와 함께 학교의 Jeb 서버(jeb.https.gsmsv.site)로 보내요. 서버 운영자가 요청을 보관할 수 있어요.",
+      whereJebBuiltin:
+        "Lumen 기본 키를 써서 학교의 Jeb 서버(jeb.https.gsmsv.site)로 보내요. 서버 운영자가 요청을 보관할 수 있어요.",
       whereOpenRouter: "API 키와 함께 OpenRouter를 거쳐 TypeSafe의 Jev로 보내요.",
       cautious:
         "AI는 판단을 더 신중하게 바꿀 수만 있어요. 검토할 항목에는 무엇인지 메모만 붙여요. 무엇을 옮기거나 삭제할지는 AI가 정하지 않아요.",
@@ -101,6 +107,9 @@ export const ko = {
       keyLabel: "Jeb API 키",
       keyHint: "시스템의 보안 저장소에 보관하고, 다시 보여 주지 않아요.",
       keyInvalid: "키 전체를 붙여 넣어 주세요(공백 없이 1~256자).",
+      ownKey: "내 키 쓰기",
+      ownKeyHint:
+        "넣지 않아도 돼요. 넣으면 Lumen 기본 키 대신 이 키를 써요. 시스템의 보안 저장소에 보관하고, 다시 보여 주지 않아요.",
       confirm: "AI 검토 켜기",
       turningOn: "켜는 중…",
     },

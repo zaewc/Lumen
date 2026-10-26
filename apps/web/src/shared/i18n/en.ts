@@ -68,8 +68,12 @@ export const en = {
     title: "AI review",
     offIntro:
       "An AI model takes a second look at what Lumen proposes to clean up, and says what items to review likely are. It can only make Lumen more careful.",
-    onIntro: (service: string) =>
-      `On, with ${service}. Lumen sends the details of each proposed item and of up to 20 items to review, never their contents. It can only make Lumen more careful.`,
+    onIntro: (key: string) =>
+      `On, with ${key}. Lumen sends the details of each proposed item and of up to 20 items to review, never their contents. It can only make Lumen more careful.`,
+    keyInUse: {
+      builtin: (service: string) => `${service} (built-in key)`,
+      stored: (service: string) => `${service} (your key)`,
+    },
     checking: "Checking…",
     short: {
       on: "AI review on",
@@ -82,6 +86,8 @@ export const en = {
       what: "For each proposed item, and for up to 20 of the largest items to review, Lumen sends its path (with your home folder shown as ~), size, age and the evidence behind the decision. File contents are never sent.",
       whereJeb:
         "Lumen sends it with your API key to your school's Jeb server (jeb.https.gsmsv.site). The server's operator may keep the requests.",
+      whereJebBuiltin:
+        "Lumen sends it with its built-in key to a school's Jeb server (jeb.https.gsmsv.site). The server's operator may keep the requests.",
       whereOpenRouter: "Lumen sends it with your API key to TypeSafe's Jev through OpenRouter.",
       cautious:
         "The AI can only make a decision more cautious. For items to review, it only adds a note on what each likely is. It never chooses what is moved or removed.",
@@ -90,6 +96,9 @@ export const en = {
       keyLabel: "Jeb API key",
       keyHint: "Lumen keeps it in your system's secure storage and never shows it again.",
       keyInvalid: "Paste the whole key: 1–256 characters, no spaces.",
+      ownKey: "Use your own key",
+      ownKeyHint:
+        "Optional. Lumen uses it instead of the built-in key, keeps it in your system's secure storage and never shows it again.",
       confirm: "Turn on AI review",
       turningOn: "Turning on…",
     },

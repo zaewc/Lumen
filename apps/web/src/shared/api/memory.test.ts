@@ -87,6 +87,20 @@ describe("memoryTransport", () => {
     expect(noted.every((c) => c.verdict === "review" && c.tool_command === null)).toBe(true);
   });
 
+  it("turns AI review on with the built-in key, and lets a stored key replace it", async () => {
+    const transport = memoryTransport({ builtinKey: true });
+    expect(await transport.aiSettings()).toEqual({
+      enabled: false,
+      consented_at: null,
+      key: "jeb",
+      key_source: "builtin",
+    });
+    const on = zAiSettingsView.parse(await transport.setAiReview(true));
+    expect(on.enabled).toBe(true);
+    expect(on.key_source).toBe("builtin");
+    expect((await transport.setAiKey("jeb-key")).key_source).toBe("stored");
+  });
+
   it("paces the scan for people, reporting growing totals", async () => {
     const transport = memoryTransport({ pace: 1 });
     const entries: string[] = [];

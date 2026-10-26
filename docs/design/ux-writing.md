@@ -82,6 +82,8 @@ Use these and only these, in both languages.
 | 복원 | Restore | Put an item back where it was |
 | 영구 삭제 | Remove for good | Delete from Quarantine; cannot be undone |
 | AI 검토 | AI review | Optional, metadata-only second opinion (Jeb) |
+| Lumen 기본 키 | Built-in key | The Jeb key built into release builds; used only when the user stored none (ADR-0042) |
+| 내 키 | Your key | A key the user stored; it replaces the built-in key |
 | 전체 디스크 접근 권한 | Full Disk Access | macOS permission (official name) |
 
 ## No dark patterns

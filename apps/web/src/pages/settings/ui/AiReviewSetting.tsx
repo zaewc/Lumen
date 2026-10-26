@@ -27,7 +27,7 @@ export function AiReviewSetting() {
     onSuccess: saved,
   });
   const view = settings.data;
-  const service = view === undefined ? null : isOn(view);
+  const key = view === undefined ? null : isOn(view);
   return (
     <div id="ai-review" className="scroll-mt-16">
       <GroupRow
@@ -37,9 +37,9 @@ export function AiReviewSetting() {
         description={
           settings.isPending
             ? m.ai.checking
-            : service === null
+            : key === null
               ? m.ai.offIntro
-              : m.ai.onIntro(service)
+              : m.ai.onIntro(m.ai.keyInUse[key.source](key.service))
         }
         trailing={
           // Shown at once, so a slow answer (the system may be asking about
@@ -47,7 +47,7 @@ export function AiReviewSetting() {
           <div className="flex h-full items-center">
             <Switch
               ref={toggle}
-              checked={service !== null}
+              checked={key !== null}
               disabled={view === undefined || turnOff.isPending}
               labelledBy={label}
               describedBy={description}
