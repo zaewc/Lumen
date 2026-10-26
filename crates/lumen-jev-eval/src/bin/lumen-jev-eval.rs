@@ -271,7 +271,7 @@ fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
         .descriptor()
         .ok_or("the Jeb judge has no descriptor")?;
     if previous.as_ref().is_some_and(|p| p.judge != descriptor) {
-        return Err("the recording to resume comes from another judge, model or prompt".into());
+        return Err(lumen_jev_eval::CassetteError::OtherJudge.into());
     }
     // Reserve the output before spending quota; never replace a file.
     let mut file = std::fs::OpenOptions::new()
@@ -309,7 +309,7 @@ fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
                 eprintln!("{case_id}: {}", describe(outcome));
             }
         },
-    );
+    )?;
     let mut text = serde_json::to_string_pretty(&recording.cassette)?;
     text.push('\n');
     file.write_all(text.as_bytes())?;

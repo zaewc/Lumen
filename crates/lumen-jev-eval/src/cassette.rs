@@ -3,13 +3,16 @@
 //! A replay validates each recorded body on the path the recorded judge uses
 //! live: a Decisions-protocol judge (Jeb, or Jev through `OpenRouter`, named
 //! by its descriptor's provider) through [`decisions::judgment_for`] with that
-//! provider's pinned model, any other judge through [`validate`].
+//! provider's pinned model and the prompt version the descriptor records, any
+//! other judge through [`validate`]. A Decisions cassette names one of the
+//! known prompt versions ([`Prompt`]), or it is not a cassette this code can
+//! replay.
 
 use std::collections::BTreeMap;
 
 use lumen_application::ports::{JudgeError, JudgeFuture, JudgeModel};
 use lumen_domain::{JevRequest, JudgeDescriptor, Judgment, PayloadHash};
-use lumen_jev::decisions::{self, Provider};
+use lumen_jev::decisions::{self, Prompt, Provider};
 use lumen_jev::response::{RawResponse, StopReason, validate};
 use serde::{Deserialize, Serialize};
 
@@ -81,6 +84,20 @@ pub enum CassetteError {
     /// Two entries answer the same request.
     #[error("two recordings answer the same request")]
     Duplicate,
+    /// A recording to resume comes from another judge, model or prompt.
+    #[error("the recording to resume comes from another judge, model or prompt")]
+    OtherJudge,
+    /// A Decisions judge with a prompt version this code does not know.
+    #[error("unknown prompt version `{0}` for a Decisions judge")]
+    UnknownPrompt(String),
+    /// The cassette was recorded with another prompt than the one expected.
+    #[error("the cassette was recorded with prompt `{recorded}`, not `{expected}`")]
+    OtherPrompt {
+        /// The prompt version the cassette records.
+        recorded: String,
+        /// The prompt version expected.
+        expected: &'static str,
+    },
 }
 
 impl Cassette {
@@ -99,7 +116,35 @@ impl Cassette {
         if !cassette.entries.iter().all(|e| seen.insert(e.request_hash)) {
             return Err(CassetteError::Duplicate);
         }
+        if decisions_provider(&cassette.judge).is_some() && cassette.prompt().is_none() {
+            return Err(CassetteError::UnknownPrompt(
+                cassette.judge.prompt_version.to_string(),
+            ));
+        }
         Ok(cassette)
+    }
+
+    /// The Decisions prompt the answers were recorded with, or `None` for a
+    /// judge answering `jev.judgment/1` text.
+    pub fn prompt(&self) -> Option<Prompt> {
+        decisions_prompt(&self.judge)
+    }
+
+    /// Checks that the answers were recorded with `expected`.
+    ///
+    /// # Errors
+    ///
+    /// [`CassetteError::OtherPrompt`] if another prompt (or no Decisions
+    /// prompt) was recorded.
+    pub fn expect_prompt(&self, expected: Prompt) -> Result<(), CassetteError> {
+        if self.prompt() == Some(expected) {
+            Ok(())
+        } else {
+            Err(CassetteError::OtherPrompt {
+                recorded: self.judge.prompt_version.to_string(),
+                expected: expected.version(),
+            })
+        }
     }
 }
 
@@ -133,8 +178,15 @@ fn decisions_provider(judge: &JudgeDescriptor) -> Option<Provider> {
         .find(|p| judge.provider.as_str() == p.source())
 }
 
+/// The Decisions prompt `judge` names, if it is a Decisions judge with a
+/// known prompt version.
+fn decisions_prompt(judge: &JudgeDescriptor) -> Option<Prompt> {
+    decisions_provider(judge)?;
+    Prompt::from_version(&judge.prompt_version.to_string())
+}
+
 /// Validates `recorded` as the answer to `request` exactly as `judge` would
-/// live.
+/// live, with the prompt version `judge` names.
 pub(crate) fn validate_recorded(
     judge: &JudgeDescriptor,
     request: &JevRequest,
@@ -158,7 +210,10 @@ pub(crate) fn validate_recorded(
             "the recording is not a complete answer",
         ));
     }
-    let (judgment, model) = decisions::judgment_for(request, &recorded.body, provider)?;
+    let prompt = decisions_prompt(judge).ok_or(JudgeError::NoAnswer(
+        "the recording names an unknown prompt",
+    ))?;
+    let (judgment, model) = decisions::judgment_for(request, &recorded.body, provider, prompt)?;
     if model != recorded.model {
         return Err(JudgeError::NoAnswer(
             "the recorded model differs from the answer's",
@@ -348,9 +403,13 @@ mod tests {
         })
         .to_string();
         let judge = ReplayJudge::new(Cassette::parse(&text)?);
-        let live =
-            decisions::judgment_for(&request("c_1"), &decision("jeb-20261007"), Provider::Jeb)
-                .map(|(judgment, _)| judgment);
+        let live = decisions::judgment_for(
+            &request("c_1"),
+            &decision("jeb-20261007"),
+            Provider::Jeb,
+            Prompt::V1,
+        )
+        .map(|(judgment, _)| judgment);
         assert_eq!(replay(&judge, "c_1"), live, "replay == live");
         assert_eq!(
             replay(&judge, "c_1").map(|j| j.assessment),
@@ -397,5 +456,65 @@ mod tests {
             Cassette::parse(&extra),
             Err(CassetteError::Parse(_))
         ));
+    }
+
+    fn jeb_cassette(prompt: &str) -> String {
+        serde_json::json!({
+            "schema": CASSETTE_SCHEMA,
+            "judge": {
+                "provider": "gsm.jeb",
+                "model": "jeb",
+                "model_version": null,
+                "prompt_version": prompt,
+            },
+            "entries": [Recorded {
+                case_id: "case-c_1".to_owned(),
+                request_hash: request("c_1").hash(),
+                stop_reason: RecordedStop::EndTurn,
+                model: "jeb".to_owned(),
+                body: decision("jeb"),
+            }],
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn a_decisions_cassette_is_pinned_to_its_prompt() -> Result<(), CassetteError> {
+        for (prompt, other) in [(Prompt::V1, Prompt::V2), (Prompt::V2, Prompt::V1)] {
+            let cassette = Cassette::parse(&jeb_cassette(prompt.version()))?;
+            assert_eq!(cassette.prompt(), Some(prompt));
+            assert!(cassette.expect_prompt(prompt).is_ok());
+            assert!(
+                matches!(
+                    cassette.expect_prompt(other),
+                    Err(CassetteError::OtherPrompt { expected, .. }) if expected == other.version()
+                ),
+                "a {prompt:?} cassette cannot validate as {other:?}"
+            );
+            let judge = ReplayJudge::new(cassette);
+            // Traces name the prompt that answered.
+            assert_eq!(
+                judge.descriptor().map(|d| d.prompt_version.to_string()),
+                Some(prompt.version().to_owned())
+            );
+            let live =
+                decisions::judgment_for(&request("c_1"), &decision("jeb"), Provider::Jeb, prompt)
+                    .map(|(judgment, _)| judgment);
+            assert_eq!(replay(&judge, "c_1"), live, "replay == live, {prompt:?}");
+        }
+        for unknown in ["jev-decisions/3", "jev-judge/1"] {
+            assert!(
+                matches!(
+                    Cassette::parse(&jeb_cassette(unknown)),
+                    Err(CassetteError::UnknownPrompt(p)) if p == unknown
+                ),
+                "{unknown}"
+            );
+        }
+        // A judge answering `jev.judgment/1` text has no Decisions prompt.
+        let text = Cassette::parse(&cassette(&[]))?;
+        assert_eq!(text.prompt(), None);
+        assert!(text.expect_prompt(Prompt::V1).is_err());
+        Ok(())
     }
 }

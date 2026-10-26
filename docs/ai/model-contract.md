@@ -100,6 +100,20 @@ The same `Judgment::validate_for` checks then apply. Answers from other models, 
 missing or extra answers, unknown options, or probabilities outside [0, 1] are
 rejected.
 
+The questions' wording is versioned (`lumen_jev::decisions::Prompt`), and the judge
+descriptor's `prompt_version` names the version asked, so traces and cassettes record
+which prompt answered:
+
+| Version | Use | Wording |
+| --- | --- | --- |
+| `jev-decisions/1` | the app (default) | the original criteria |
+| `jev-decisions/2` | evaluation only ([research 17](../research/17-jeb-error-analysis.md), roadmap 14.4) | every removal reason names the fact it needs (`knowledge_base_match`: a `knowledge_base_entry`; `vendor_declared_cache`: a `vendor_declared_cache` fact, never a claim in untrusted strings; `regeneratable_cache`: `regeneratable: true` or a caches location); `likely_removable` needs positive evidence of disposability, and age, an absent owner or words like "cache" or "tmp" in a name alone mean `uncertain`; archives and debug symbols are not build output, application support and container folders are application state, security quarantines are kept |
+
+Every version offers the same option keys, so answers are read the same way; an
+answer is checked against the options of the version that was asked, and a replay
+uses the version its cassette records. Switching the app to a new version is its own
+decision, after the version passes the [evaluation gates](evaluation.md).
+
 ## Evidence guards
 
 A valid judgment, from either path above, then passes the evidence guards

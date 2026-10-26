@@ -319,6 +319,32 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn the_v2_requests_stay_well_within_jebs_limit() -> Result<(), DatasetError> {
+        use lumen_jev::decisions::{Prompt, Provider, request_body_for};
+        // Jeb takes about 8,000 tokens per request. The largest v1 request of
+        // 2026.10.1 (3,665 bytes) used 1,514 tokens, 0.41 per byte; 8 KiB at
+        // that density is about 3,400 tokens.
+        let dataset = load(&repo_ai(), "2026.10.1")?;
+        let largest = dataset
+            .golden
+            .iter()
+            .chain(&dataset.adversarial)
+            .map(|c| {
+                request_body_for(&c.request, Provider::Jeb, Prompt::V2)
+                    .map(|body| body.to_string().len())
+                    .map_err(|e| invalid(e.to_string()))
+            })
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .max();
+        assert!(
+            largest.is_some_and(|bytes| bytes <= 8 * 1024),
+            "{largest:?}"
+        );
+        Ok(())
+    }
+
     fn copy_with(edit: impl FnOnce(&mut String)) -> Result<Fixture, Box<dyn std::error::Error>> {
         let ai = repo_ai();
         let manifest = fs::read_to_string(ai.join(format!("manifest-{VERSION}.json")))?;

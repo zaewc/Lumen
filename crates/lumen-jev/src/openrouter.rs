@@ -30,7 +30,7 @@ use lumen_domain::{
 use ureq::Agent;
 use ureq::tls::{RootCerts, TlsConfig, TlsProvider};
 
-use crate::decisions::{self, DESCRIBE_PROMPT_VERSION, PROMPT_VERSION, Provider};
+use crate::decisions::{self, DESCRIBE_PROMPT_VERSION, Prompt, Provider};
 
 /// Longest wait for one answer.
 const TIMEOUT: Duration = Duration::from_secs(30);
@@ -106,6 +106,7 @@ impl From<AskError> for JudgeError {
 pub struct JevJudge {
     key: ApiKey,
     provider: Provider,
+    prompt: Prompt,
     endpoint: String,
     agent: Agent,
     descriptor: JudgeDescriptor,
@@ -184,16 +185,38 @@ impl JevJudge {
         Ok(Self {
             key,
             provider,
+            prompt: Prompt::V1,
             endpoint,
             agent,
-            descriptor: descriptor(provider, PROMPT_VERSION)?,
+            descriptor: descriptor(provider, Prompt::V1.version())?,
             describer: descriptor(provider, DESCRIBE_PROMPT_VERSION)?,
+        })
+    }
+
+    /// This judge asking the questions of `prompt` instead of
+    /// `jev-decisions/1`; its descriptor names `prompt`, so traces and
+    /// cassettes record which prompt answered. The app uses v1; other
+    /// versions are for evaluation (`lumen-jev-eval record --prompt`).
+    ///
+    /// # Errors
+    ///
+    /// A [`SetupError`] if the descriptor cannot be set up.
+    pub fn with_prompt(self, prompt: Prompt) -> Result<Self, SetupError> {
+        Ok(Self {
+            prompt,
+            descriptor: descriptor(self.provider, prompt.version())?,
+            ..self
         })
     }
 
     /// The service this judge asks.
     pub const fn provider(&self) -> Provider {
         self.provider
+    }
+
+    /// The prompt this judge asks.
+    pub const fn prompt(&self) -> Prompt {
+        self.prompt
     }
 
     /// Sends the Decisions request for `request` once and returns the answer
@@ -206,7 +229,7 @@ impl JevJudge {
     /// An [`AskError`] if no answer arrived (unreachable, timed out, or an
     /// HTTP error status).
     pub fn ask(&self, request: &JevRequest) -> Result<String, AskError> {
-        let body = decisions::request_body_for(request, self.provider)
+        let body = decisions::request_body_for(request, self.provider, self.prompt)
             .map_err(|_| AskError::new(None, "the request could not be built"))?
             .to_string();
         self.post(&body)
@@ -261,7 +284,7 @@ impl JevJudge {
 
     fn judge_blocking(&self, request: &JevRequest) -> Result<Judgment, JudgeError> {
         let answer = self.ask(request)?;
-        decisions::judgment_for(request, &answer, self.provider)
+        decisions::judgment_for(request, &answer, self.provider, self.prompt)
             .map(|(judgment, _snapshot)| judgment)
     }
 
@@ -288,6 +311,7 @@ impl JevJudge {
             let judge = Self {
                 key: self.key.clone(),
                 provider: self.provider,
+                prompt: self.prompt,
                 endpoint: self.endpoint.clone(),
                 agent: self.agent.clone(),
                 descriptor: self.descriptor.clone(),
@@ -583,6 +607,31 @@ mod tests {
         let describer = Describer::descriptor(&judge).unwrap_or_else(|| unreachable!());
         assert_eq!(describer.model.as_str(), MODEL);
         assert_eq!(describer.prompt_version.to_string(), "jev-describe/1");
+        assert_eq!(judge.prompt(), Prompt::V1);
+    }
+
+    #[test]
+    fn a_v2_judge_asks_and_names_prompt_v2() {
+        let (endpoint, received) = serve(200, answer());
+        let judge = judge_with(endpoint)
+            .with_prompt(Prompt::V2)
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(judge.prompt(), Prompt::V2);
+        let descriptor = JudgeModel::descriptor(&judge).unwrap_or_else(|| unreachable!());
+        assert_eq!(descriptor.prompt_version.to_string(), "jev-decisions/2");
+        assert_eq!(descriptor.model.as_str(), MODEL);
+        let describer = Describer::descriptor(&judge).unwrap_or_else(|| unreachable!());
+        assert_eq!(describer.prompt_version.to_string(), "jev-describe/1");
+        let judgment = block(judge.judge(&request()));
+        assert_eq!(judgment.map(|j| j.assessment), Ok(Assessment::LikelyNeeded));
+        let seen = received
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        let body: serde_json::Value =
+            serde_json::from_str(&seen.body).unwrap_or_else(|e| unreachable!("{e}"));
+        let expected = decisions::request_body_for(&request(), Provider::OpenRouter, Prompt::V2)
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(body, expected, "the v2 questions were sent");
     }
 
     #[test]
