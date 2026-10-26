@@ -98,7 +98,51 @@ pub fn context<R: Runtime>() -> tauri::Context<R> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use super::*;
+
+    /// The quoted words between `start` and the next `end` in `text`.
+    fn quoted(text: &str, start: &str, end: &str) -> BTreeSet<String> {
+        let from = text
+            .find(start)
+            .unwrap_or_else(|| unreachable!("`{start}` not found"));
+        let body = &text[from + start.len()..];
+        let body = &body[..body.find(end).unwrap_or(body.len())];
+        body.split('"')
+            .skip(1)
+            .step_by(2)
+            .map(str::to_owned)
+            .collect()
+    }
+
+    #[test]
+    fn every_command_is_registered_permitted_and_let_through() {
+        let built = quoted(include_str!("../build.rs"), "let commands = &[", "];");
+        let isolated = quoted(include_str!("../../isolation/index.js"), "new Set([", "]);");
+        let permitted: BTreeSet<String> = quoted(
+            include_str!("../capabilities/main.json"),
+            "\"permissions\": [",
+            "]",
+        )
+        .iter()
+        .filter_map(|p| p.strip_prefix("allow-"))
+        .map(|c| c.replace('-', "_"))
+        .collect();
+        let handled: BTreeSet<String> = include_str!("lib.rs")
+            .split("commands::")
+            .skip(1)
+            .filter_map(|rest| rest.split(',').next())
+            .map(|name| name.trim().to_owned())
+            .filter(|name| name.chars().all(|c| c.is_ascii_lowercase() || c == '_'))
+            .collect();
+        assert!(built.len() >= 12, "{built:?}");
+        // A command missing from the isolation frame's list is dropped there,
+        // and the window's call never answers (0.1.0 shipped that way).
+        assert_eq!(isolated, built, "apps/desktop/isolation/index.js");
+        assert_eq!(permitted, built, "capabilities/main.json");
+        assert_eq!(handled, built, "generate_handler! in lib.rs");
+    }
 
     fn url(text: &str) -> Url {
         Url::parse(text).unwrap_or_else(|e| unreachable!("{e}"))
