@@ -16,7 +16,10 @@
 //! - known options only, probabilities within [0, 1];
 //! - no unexpected fields.
 //!
-//! Anything else is rejected, and the decision proceeds without Jev.
+//! Anything else is rejected, and the decision proceeds without Jev. A valid
+//! answer then passes the evidence guards ([`crate::guard`], ADR-0043): a
+//! `likely_removable` answer the request's own evidence does not support, or
+//! with an injection probability of 0.1 or more, becomes `uncertain`.
 //!
 //! While AI review is on, items left for review are also described
 //! (ADR-0041): the same `state`, with a `kind` (Choice) question over a
@@ -34,6 +37,8 @@ use lumen_domain::{
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
+
+use crate::guard;
 
 /// The pinned model (ADR-0031).
 pub const MODEL: &str = "typesafe/jev-1.13";
@@ -106,6 +111,10 @@ const HIGH: f64 = 0.9;
 const MEDIUM: f64 = 0.7;
 /// Probability of "yes" at which injection counts as suspected.
 const INJECTION: f64 = 0.5;
+/// Probability of "yes" from which a removable answer is discarded
+/// (ADR-0043): no answer to a clean golden request of dataset 2026.10.1
+/// reached 0.06.
+const INJECTION_SIGNAL: f64 = 0.1;
 
 const ASSESSMENTS: [(Assessment, &str, &str); 3] = [
     (
@@ -472,12 +481,17 @@ fn confidence(p: f64) -> JudgmentConfidence {
     }
 }
 
-/// Whether the injection answer suspects injection.
-fn injection(answer: &NoulAnswer) -> Result<bool, JudgeError> {
+/// The injection answer's probability of "yes".
+fn injection_probability(answer: &NoulAnswer) -> Result<f64, JudgeError> {
     if answer.kind != "noul" {
         return Err(JudgeError::Malformed);
     }
-    Ok(probability(answer.noul)? >= INJECTION)
+    probability(answer.noul)
+}
+
+/// Whether the injection answer suspects injection.
+fn injection(answer: &NoulAnswer) -> Result<bool, JudgeError> {
+    Ok(injection_probability(answer)? >= INJECTION)
 }
 
 /// Maps a Decisions API answer `body` to a judgment for `request`.
@@ -494,7 +508,8 @@ pub fn judgment(request: &JevRequest, body: &str) -> Result<(Judgment, String), 
 }
 
 /// Maps an answer `body` from `provider` to a judgment for `request`, with the
-/// same checks as [`judgment`] and `provider`'s pinned model.
+/// same checks as [`judgment`] and `provider`'s pinned model. A valid answer
+/// then passes the evidence guards ([`guard::apply`]).
 ///
 /// # Errors
 ///
@@ -525,19 +540,20 @@ pub fn judgment_for(
         .find(|(_, k, _)| *k == reason)
         .map(|(r, _, _)| *r)
         .ok_or(JudgeError::Malformed)?;
-    let injection = injection(&answers.injection)?;
+    let injection = injection_probability(&answers.injection)?;
     let judgment = Judgment {
         item_ref: request.item_ref.clone(),
         assessment,
         confidence,
         reason_codes: BTreeSet::from([reason]),
         evidence_refs: request.evidence_ids(),
-        injection_suspected: injection,
+        injection_suspected: injection >= INJECTION,
         rationale: UntrustedText::new(""),
     };
     judgment
         .validate_for(&request.item_ref, &request.evidence_ids())
         .map_err(JudgeError::Rejected)?;
+    let judgment = guard::apply(request, judgment, injection >= INJECTION_SIGNAL);
     Ok((judgment, response.model))
 }
 
@@ -754,6 +770,36 @@ mod tests {
             &answer(|v| v["answers"]["injection"]["noul"] = json!(0.5)),
         );
         assert_eq!(injected.map(|(j, _)| j.injection_suspected), Ok(true));
+    }
+
+    #[test]
+    fn removable_answers_pass_the_evidence_guards() {
+        let removable = |reason: &str, noul: f64| {
+            answer(|v| {
+                v["answers"]["assessment"]["choice"] = json!("likely_removable");
+                v["answers"]["assessment"]["probabilities"] =
+                    json!({"likely_removable": 0.8, "likely_needed": 0.1, "uncertain": 0.1});
+                v["answers"]["reason"]["choice"] = json!(reason);
+                v["answers"]["reason"]["probabilities"] = json!({reason: 0.6});
+                v["answers"]["injection"]["noul"] = json!(noul);
+            })
+        };
+        let judged =
+            |body: String| judgment(&request(2), &body).map(|(j, _)| (j.assessment, j.confidence));
+        let removable_medium = Ok((Assessment::LikelyRemovable, JudgmentConfidence::Medium));
+        let discarded = Ok((Assessment::Uncertain, JudgmentConfidence::Low));
+        assert_eq!(judged(removable("stale_by_time", 0.05)), removable_medium);
+        // A weak injection signal, below "suspected", already discards removal.
+        assert_eq!(judged(removable("stale_by_time", 0.1)), discarded);
+        // The request holds no vendor declaration.
+        assert_eq!(judged(removable("vendor_declared_cache", 0.02)), discarded);
+        // The only reason given does not argue for removal.
+        assert_eq!(judged(removable("unsigned_executable", 0.02)), discarded);
+        // Other assessments are never touched.
+        assert_eq!(
+            judged(answer(|v| v["answers"]["injection"]["noul"] = json!(0.3))),
+            Ok((Assessment::LikelyNeeded, JudgmentConfidence::Medium))
+        );
     }
 
     #[test]

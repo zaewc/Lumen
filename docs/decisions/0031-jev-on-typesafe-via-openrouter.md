@@ -3,7 +3,9 @@
 - Status: Accepted
 - Date: 2026-10-14
 - Amends: [ADR-0020](0020-jev-evidence-only-judge.md) (adapters and tiers only)
-- Amended by: [ADR-0036](0036-jeb-on-the-school-ai-hub.md) (Jeb is the default provider)
+- Amended by: [ADR-0036](0036-jeb-on-the-school-ai-hub.md) (Jeb is the default provider),
+  [ADR-0043](0043-discard-removable-answers-the-evidence-does-not-support.md) (evidence
+  guards after the answer checks)
 
 ## Context and problem statement
 

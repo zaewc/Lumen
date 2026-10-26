@@ -20,7 +20,7 @@ Evidence graph ─▶ EvidenceBundle ─▶ Deterministic policy (stages 1–3)
                  JudgeModel adapter (Noop | Replay | Anthropic | FoundationModels | …)
                         │
                         ▼
-                 Response validator ─▶ Judgment (closed vocabulary) + JevTrace
+                 Response validator + evidence guards ─▶ Judgment (closed vocabulary) + JevTrace
                         │
                         ▼
                  Policy stage 4 (monotone: may only increase caution by default)
@@ -52,6 +52,7 @@ the executor, and it is traced like a judgment. `lumen plan` describes nothing.
 | Request builder | `lumen-jev` | Canonical, redacted, versioned request from a bundle; untrusted strings JSON-encoded in labelled fields |
 | Adapters | `lumen-jev` | Provider-specific transport only; no parsing logic of their own |
 | Response validator | `lumen-jev` | `stop_reason` handling, JSON Schema validation, enum and length checks, evidence-ID membership, pinned-model check |
+| Evidence guards | `lumen-jev::guard` | After validation, a `likely_removable` answer the request's own evidence does not support becomes `uncertain` ([ADR-0043](../decisions/0043-discard-removable-answers-the-evidence-does-not-support.md)) |
 | Calibration maps | `lumen-jev` | Map `(model, prompt version, confidence bucket)` → empirical precision bound |
 | Trace recorder | `lumen-jev` + `lumen-store-sqlite` | `JevTrace` rows in `ledger.db` |
 | Evaluation harness | `lumen-jev-eval` | Datasets, replay, graders, metrics, gates ([harness](harness.md)) |

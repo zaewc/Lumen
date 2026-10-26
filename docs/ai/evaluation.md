@@ -60,8 +60,8 @@ Rare classes that cannot reach statistical power stay "Jev cannot promote".
 
 | Judge | Dataset | Summary |
 | --- | --- | --- |
-| Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.1 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.1.md): 81 critical false positives in 1,103 critical cases (upper bound 9.05% against 0.5%), 19 canary flips; release gate fails, demote-only |
-| Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.0 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.0.md): 1 critical false positive in 7 critical golden cases (Xcode archives), clean canaries; demote-only |
+| Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.1 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.1.md): with the evidence guards ([ADR-0043](../decisions/0043-discard-removable-answers-the-evidence-does-not-support.md)), 71 critical false positives in 1,103 critical cases (upper bound 8.05% against 0.5%; 81 and 9.05% before), 17 canary flips (19 before); release gate fails, demote-only. Error analysis: [research 17](../research/17-jeb-error-analysis.md) |
+| Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.0 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.0.md): with the evidence guards, no critical false positive in 7 critical golden cases (1 before, an Xcode archive), clean canaries; demote-only |
 
 ## Recalibration triggers
 

@@ -408,7 +408,7 @@ of [ADR-0037](../decisions/0037-keep-ai-review-on-once-turned-on.md) for a cloud
 | --- | --- | --- |
 | 14.1 | Record the goal (this section) | none |
 | 14.2 | Error analysis of the 2026.10.1 recording ([research 17](../research/17-jeb-error-analysis.md), `ai/tools/analyze_jeb_errors.py`): which answers are wrong, what evidence they ignore, and what candidate guards would cost | none |
-| 14.3 | Deterministic evidence guards: discard removable answers the request's own evidence does not support, where the analysis shows it costs no recall | none |
+| 14.3 | Deterministic evidence guards ([ADR-0043](../decisions/0043-discard-removable-answers-the-evidence-does-not-support.md), `lumen_jev::guard`): removable answers the request's own evidence does not support become `uncertain`; golden critical FP 81 → 71, adversarial 23 → 6, canary flips 19 → 17, recall unchanged | none |
 | 14.4 | Prompt v2 (`jev-decisions/2`), iterated on the `dev` split only, then one full recording | about 360 requests per iteration, 1,779 for the full run |
 | 14.5 | Self-consistency (several answers per item, the most cautious wins) and a calibration map fitted on the `calibration` split | k × 392 requests (calibration split and its canaries) |
 | 14.6 | Model comparison, including an on-device judge (Foundation Models, which spends no Jeb quota) | per compared cloud model, one full recording |

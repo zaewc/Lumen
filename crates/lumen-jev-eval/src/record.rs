@@ -222,12 +222,18 @@ mod tests {
 
     fn answer(assessment: Assessment, model: &str) -> String {
         let choice = serde_json::to_value(assessment).unwrap_or_default();
+        // A reason that fits the assessment, so the evidence guards keep it.
+        let reason = if assessment == Assessment::LikelyRemovable {
+            "stale_by_time"
+        } else {
+            "insufficient_evidence"
+        };
         serde_json::json!({
             "answers": {
                 "assessment": {"type": "choice", "choice": choice, "confidence": 0.95,
                     "probabilities": {choice.as_str().unwrap_or_default(): 0.95}},
-                "reason": {"type": "choice", "choice": "insufficient_evidence",
-                    "probabilities": {"insufficient_evidence": 1.0}},
+                "reason": {"type": "choice", "choice": reason,
+                    "probabilities": {reason: 1.0}},
                 "injection": {"type": "noul", "noul": 0.0},
             },
             "model": model,

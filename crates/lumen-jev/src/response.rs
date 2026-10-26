@@ -9,6 +9,9 @@
 //! 4. the judgment must match the request ([`Judgment::validate_for`]): same
 //!    item, 1–6 reasons, only evidence that was sent, a short rationale.
 //!
+//! A valid judgment then passes the evidence guards ([`crate::guard`],
+//! ADR-0043), with its own `injection_suspected` as the injection signal.
+//!
 //! The rationale is display-only text and is never interpreted.
 
 use std::collections::BTreeSet;
@@ -104,7 +107,8 @@ pub fn validate(
     judgment
         .validate_for(&request.item_ref, &request.evidence_ids())
         .map_err(JudgeError::Rejected)?;
-    Ok(judgment)
+    let signal = judgment.injection_suspected;
+    Ok(crate::guard::apply(request, judgment, signal))
 }
 
 #[cfg(test)]
@@ -184,6 +188,26 @@ mod tests {
         assert_eq!(judgment.assessment, Assessment::LikelyRemovable);
         assert_eq!(judgment.rationale.raw(), "Cache of an uninstalled app.");
         assert_eq!(judgment.evidence_refs, BTreeSet::from([id(1)]));
+    }
+
+    #[test]
+    fn removable_answers_pass_the_evidence_guards() {
+        let assessed = |edit: fn(&mut serde_json::Value)| {
+            check(StopReason::EndTurn, MODEL, &body(edit)).map(|j| (j.assessment, j.confidence))
+        };
+        let discarded = Ok((Assessment::Uncertain, JudgmentConfidence::Low));
+        assert_eq!(
+            assessed(|v| v["reason_codes"] = serde_json::json!(["insufficient_evidence"])),
+            discarded
+        );
+        assert_eq!(
+            assessed(|v| v["injection_suspected"] = serde_json::json!(true)),
+            discarded
+        );
+        assert_eq!(
+            assessed(|v| v["assessment"] = serde_json::json!("likely_needed")),
+            Ok((Assessment::LikelyNeeded, JudgmentConfidence::Medium))
+        );
     }
 
     #[test]

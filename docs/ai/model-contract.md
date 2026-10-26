@@ -100,6 +100,25 @@ The same `Judgment::validate_for` checks then apply. Answers from other models, 
 missing or extra answers, unknown options, or probabilities outside [0, 1] are
 rejected.
 
+## Evidence guards
+
+A valid judgment, from either path above, then passes the evidence guards
+([ADR-0043](../decisions/0043-discard-removable-answers-the-evidence-does-not-support.md),
+`lumen_jev::guard`). A `likely_removable` answer becomes `uncertain` with `low`
+confidence when:
+
+- the request says `regeneratable: false`;
+- a cited reason contradicts the request (`owner_app_absent` with the owner installed,
+  `no_active_reference` with an active reference);
+- no cited reason argues for removal, or one argues against it;
+- `vendor_declared_cache` is cited but the request holds no vendor declaration;
+- the judge suspects injection, or a Decisions answer's injection probability is 0.1
+  or more.
+
+Reasons, evidence references and the injection flag are kept; other assessments are
+never changed. Guards are not rejections: a rejected answer leaves a proposed
+quarantine standing, while `uncertain` demotes it to review.
+
 ## Description: `jev.item-note/1`
 
 While AI review is on, items the policy left at `REVIEW` are also described

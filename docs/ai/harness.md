@@ -31,8 +31,9 @@ fixture definition ─▶ build fixture tree (tempdir) ─▶ scan (real lumen-s
 - `ReplayJudge`: a `JudgeModel` answering from a cassette through the validator the
   recorded judge uses live: `lumen_jev::decisions::judgment_for` with the provider's
   pinned model for Jeb and Jev through OpenRouter (descriptor providers `gsm.jeb`,
-  `openrouter.typesafe`), `lumen_jev::response` for any other judge. Unrecorded
-  requests are unavailable.
+  `openrouter.typesafe`), `lumen_jev::response` for any other judge, both followed by
+  the evidence guards (ADR-0043), exactly as live. Unrecorded requests are
+  unavailable.
 - `record` (`lumen_jev_eval::record`): the raw answers of a live judge, fetched with
   `JevJudge::ask` (the transport `judge` itself uses, before validation).
 - Mock mode: `lumen_testkit::MockJudge`.
@@ -126,6 +127,9 @@ determine a run.
   reproduce the committed reports (`ai/reports/jev-decisions/1/`) byte for byte; a change that
   moves a grade updates the report in the same PR.
 - Cassette refreshes (`record`) are their own PRs and include the report diff.
+- `ai/tools/analyze_jeb_errors.py` breaks a recording's errors down and measures
+  candidate guards from the committed cassette, with no network
+  ([research 17](../research/17-jeb-error-analysis.md)).
 - Developers may use promptfoo through an `exec` provider that calls this CLI for
   quick prompt A/B and red-team generation. promptfoo is never the source of truth
   for gates.

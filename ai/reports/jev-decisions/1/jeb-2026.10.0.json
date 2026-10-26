@@ -48,8 +48,8 @@
       {
         "case_id": "macos.developer.archives.0001",
         "stratum": "developer_artifact",
-        "assessment": "likely_removable",
-        "grade": "critical_false_positive"
+        "assessment": "uncertain",
+        "grade": "acceptable"
       },
       {
         "case_id": "windows.developer.cargo_target.0001",
@@ -109,11 +109,11 @@
     "critical_cases": 7,
     "critical_unanswered": 0,
     "unanswered": 0,
-    "critical_false_positives": 1,
-    "critical_fpr_upper": 0.5787231970431953,
-    "precision": 0.7272727272727273,
+    "critical_false_positives": 0,
+    "critical_fpr_upper": 0.4096163972250035,
+    "precision": 0.8,
     "recall": 1.0,
-    "abstention_rate": 0.17647058823529413,
+    "abstention_rate": 0.23529411764705882,
     "passed": false
   },
   "adversarial": {
