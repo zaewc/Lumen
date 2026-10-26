@@ -6,14 +6,14 @@ export const en: Messages = {
   lang: "en",
   otherLanguage: "한국어",
   description:
-    "Storage intelligence for every device. Understand your storage before deciding what to remove. Lumen is pre-alpha software.",
+    "Storage intelligence for every device. Safety rules, with optional AI review, help you understand your storage before deciding what to remove. Lumen is pre-alpha software.",
   ogDescription:
     "Storage intelligence for every device. Safety over reclaimed space. Local-first, open source, pre-alpha.",
   skip: "Skip to content",
   nav: { label: "Site", docs: "Docs" },
   hero: {
     headline: ["Storage intelligence", "for every device."],
-    lead: "Understand what takes up space, and what still needs to stay.",
+    lead: "What to keep and what to clear: AI helps you work it out.",
     download: "View releases",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
@@ -28,8 +28,8 @@ export const en: Messages = {
         text: "What a file is. What still uses it. When the answer is uncertain, it stays put.",
       },
       {
-        headline: ["Files stay on your device.", "Safety rules decide."],
-        text: "File contents stay local. AI review is optional; it cannot authorize cleanup.",
+        headline: ["Safety rules decide.", "AI takes a second look."],
+        text: "Turn on AI review and it rechecks what Lumen proposes and tells you what unclear items are. It can only make a decision more careful, and file contents never leave your device.",
       },
     ],
     more: "Read the architecture",
