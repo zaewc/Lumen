@@ -80,6 +80,10 @@ const BUILTIN: &[(&str, &str)] = &[
         "pnpm-store.json",
         include_str!("../entries/pnpm-store.json"),
     ),
+    (
+        "postman-chromium-caches.json",
+        include_str!("../entries/postman-chromium-caches.json"),
+    ),
     ("uv-cache.json", include_str!("../entries/uv-cache.json")),
     (
         "visual-studio-component-model-cache.json",

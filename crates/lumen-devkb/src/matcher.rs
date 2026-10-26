@@ -721,6 +721,27 @@ mod tests {
             None,
         ),
         ("Library/Application Support/Notion/notion.db", None),
+        (
+            "Library/Application Support/Postman/Cache",
+            Some("postman-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Postman/Partitions/postman_shell/GPUCache",
+            Some("postman-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Postman/Partitions/084f8b0c-6958-4d74-887d-0a53512a19e5/Cache",
+            Some("postman-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Postman/Partitions/084f8b0c-6958-4d74-887d-0a53512a19e5/Service Worker",
+            None,
+        ),
+        (
+            "Library/Application Support/Postman/Partitions/postman_user_cookies_undefined",
+            None,
+        ),
+        ("Library/Application Support/Postman/storage", None),
         ("Library/Application Support/SomeApp/Cache", None),
         ("Library/Application Support/Spotify/PersistentCache", None),
         ("Library/Application Support/Claude/vm_bundles", None),

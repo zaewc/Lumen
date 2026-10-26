@@ -1,0 +1,69 @@
+{
+  "id": "postman-chromium-caches",
+  "tool": "Postman",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Postman/Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Postman/Code Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Postman/GPUCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Postman/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Postman/DawnWebGPUCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Postman/Partitions/*/Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Postman/Partitions/*/Code Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Postman/Partitions/*/GPUCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Postman/Partitions/*/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Postman/Partitions/*/DawnWebGPUCache"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "seconds", "network": true },
+  "sources": [
+    "https://www.electronjs.org/docs/latest/api/app",
+    "https://www.electronjs.org/docs/latest/api/session",
+    "https://github.com/electron/electron/blob/main/shell/browser/net/network_context_service.cc",
+    "https://github.com/electron/electron/blob/main/shell/browser/electron_browser_context.cc",
+    "https://github.com/chromium/chromium/blob/main/chrome/common/chrome_constants.h",
+    "https://www.chromium.org/developers/design-documents/network-stack/disk-cache/",
+    "https://github.com/chromium/chromium/blob/main/content/browser/storage_partition_impl.cc",
+    "https://github.com/chromium/chromium/blob/main/gpu/ipc/common/gpu_disk_cache_type.cc"
+  ],
+  "last_verified": "2026-10-26"
+}
