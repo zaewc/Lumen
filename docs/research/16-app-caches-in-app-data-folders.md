@@ -123,3 +123,25 @@ Sources: [environmentService.ts](https://github.com/microsoft/vscode/blob/main/s
 - **Unknown folders:** Discord's `component_crx_cache`, `download_cache`, `module_data`;
   VS Code's `CachedProfilesData`, `CachedConfigurations`; Claude's `fcache`. No source
   says what they hold.
+
+## Measured
+
+`lumen assess --no-ai` on a copy of the owner's database (2026-10-26, the stored
+whole-disk scan, policy 0.11.0 of ADR-0039; no rescan was needed, since matching runs at
+assessment time over every stored entry):
+
+- Before the entries: none of these folders was a candidate; each app's whole folder
+  was one item that Lumen leaves alone.
+- After: 279 candidates, 55 `QUARANTINE` (4.40 GB), 15 `REVIEW`, 209 `KEEP`. Every
+  proposal is a `Cache`, `Code Cache`, `GPUCache`, `Dawn*Cache`, `CachedData` or
+  `CachedExtensionVSIXs` folder: Visual Studio Code 2.35 GB (of which
+  `CachedExtensionVSIXs` 2.05 GB), Claude 0.87 GB, Notion 0.84 GB, Postman 0.28 GB,
+  Discord 0.05 GB, Obsidian 0.02 GB.
+- Kept because the running app had them open: VS Code's `Cache` (273 MB) and its
+  partition's `Cache` (161 MB), Discord's `Cache` (847 MB) and GPU caches.
+- Six empty `Cache` folders (Postman's, one of Claude's partitions) are `REVIEW`:
+  removing them frees nothing (`eligible.frees-nothing`).
+- The apps' own folders stay `KEEP` (ADR-0039), now sized without the caches (Claude
+  13.8 → 13.0 GB, VS Code 7.7 → 4.9 GB). Docker Desktop's disk image (8.7 GB, in use)
+  became its own `KEEP` item inside its container
+  ([ADR-0040](../decisions/0040-decide-known-artifacts-inside-app-state-on-their-own.md)).
