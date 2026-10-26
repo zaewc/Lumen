@@ -5,7 +5,12 @@ export type ClientOptions = {
 };
 
 /**
- * Which judge key is stored; never the key itself.
+ * Where the judge's key comes from (ADR-0042); never the key itself.
+ */
+export type AiKeySourceView = "builtin" | "stored";
+
+/**
+ * Which service the judge's key is for; never the key itself.
  */
 export type AiKeyView = "jeb" | "openrouter" | "none";
 
@@ -37,9 +42,10 @@ export type AiSettingsView = {
    */
   enabled: boolean;
   /**
-   * Which key is stored.
+   * Which service the key it would use is for; `none` without a key.
    */
   key: AiKeyView;
+  key_source: AiKeySourceView | null;
 };
 
 /**

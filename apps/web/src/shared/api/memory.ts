@@ -286,7 +286,7 @@ function operationId(n: number): string {
 export function memoryTransport({ pace = 0 }: { readonly pace?: number } = {}): LumenTransport {
   // AI review, as the host keeps it: off and without a key at first. The key
   // itself is not kept, only that one was given.
-  let ai: AiSettingsView = { enabled: false, consented_at: null, key: "none" };
+  let ai: AiSettingsView = { enabled: false, consented_at: null, key: "none", key_source: null };
   let held: readonly HeldItemView[] = initiallyHeld;
   let moves = 0;
   const take = (operation: string): HeldItemView | undefined => {
@@ -397,7 +397,7 @@ export function memoryTransport({ pace = 0 }: { readonly pace?: number } = {}): 
           new Error("that is not an API key (1-256 visible ASCII characters); nothing was stored"),
         );
       }
-      ai = { ...ai, key: "jeb" };
+      ai = { ...ai, key: "jeb", key_source: "stored" };
       return Promise.resolve(ai);
     },
   };

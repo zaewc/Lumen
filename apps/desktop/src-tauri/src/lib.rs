@@ -33,10 +33,16 @@ fn allowed(url: &Url) -> bool {
 }
 
 /// The app on `builder`'s runtime: its commands, its core state and its one
-/// window, with judge keys in `secrets` (`None`: AI review is unavailable).
-/// The real app runs it on Wry with the OS secret store; the end-to-end test
-/// on the mock runtime with an in-memory one.
-pub fn app<R: Runtime>(builder: Builder<R>, secrets: Option<Arc<dyn SecretStore>>) -> Builder<R> {
+/// window, with judge keys in `secrets` (`None`: AI review can use only
+/// `builtin`) and Lumen's built-in Jeb key in `builtin` (ADR-0042; `None`
+/// outside release builds). The real app runs it on Wry with the OS secret
+/// store and [`lumen_app::ai::builtin_key`]; the end-to-end test on the mock
+/// runtime with an in-memory store and no built-in key.
+pub fn app<R: Runtime>(
+    builder: Builder<R>,
+    secrets: Option<Arc<dyn SecretStore>>,
+    builtin: Option<lumen_app::ai::ApiKey>,
+) -> Builder<R> {
     builder
         .invoke_handler(tauri::generate_handler![
             commands::scan,
@@ -68,6 +74,7 @@ pub fn app<R: Runtime>(builder: Builder<R>, secrets: Option<Arc<dyn SecretStore>
             app.manage(commands::Core {
                 db: data.join("index.db"),
                 secrets,
+                builtin,
             });
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")
@@ -87,7 +94,7 @@ pub fn app<R: Runtime>(builder: Builder<R>, secrets: Option<Arc<dyn SecretStore>
 /// A [`tauri::Error`] if the app cannot start.
 pub fn run() -> Result<(), tauri::Error> {
     let store = lumen_app::ai::os_store().map(Arc::from);
-    app(Builder::default(), store).run(context())
+    app(Builder::default(), store, lumen_app::ai::builtin_key()).run(context())
 }
 
 /// The app's configuration, assets and capabilities, embedded at build time.

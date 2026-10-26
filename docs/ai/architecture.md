@@ -68,12 +68,29 @@ Apple Private Cloud Compute counts as tier 2.
 
 Tier 2 is turned on with `lumen ai on` in the CLI, or with the AI review switch in the
 desktop app's Settings page. The app's switch shows the same disclosure in a consent
-dialog, takes a Jeb key there if none is stored (into the OS secret store, never
+dialog, takes a Jeb key there if none is available (into the OS secret store, never
 returned to the UI), and records the choice next to the app's own `index.db`
 (`lumen_app::ai`). While on, the app's `assess` and `plan` commands consult the judge
 and record its traces in the ledger, like the CLI, and `assess` describes review items:
 `CandidateView.ai_note` (`{ kind, confidence }` or `null`) is shown as a muted line
 under the row and in the item's details, labelled as AI.
+
+### Which key is used
+
+1. A key the user stored in the OS secret store: Jeb's, otherwise OpenRouter's
+   ([ADR-0036](../decisions/0036-jeb-on-the-school-ai-hub.md)).
+2. Otherwise, in release builds, **Lumen's built-in Jeb key**
+   ([ADR-0042](../decisions/0042-ship-a-built-in-jeb-key-in-release-builds.md)),
+   compiled in from `LUMEN_JEB_BUILTIN_KEY` by `lumen_app::ai::builtin_key()`. Other
+   builds have none.
+
+A built-in key only removes the need to type one: AI review still starts off and still
+needs the user's consent. With it, the consent dialog does not ask for a key but offers
+to store the user's own, and the disclosure says that Lumen's built-in key is used.
+Interfaces see only where the key comes from (`AiSettingsView.key_source`: `builtin`,
+`stored` or `null`); `lumen ai status` and `lumen jev key status` say "built-in key
+available". The key is never shown, logged, put in an error or traced. A stored key
+that cannot be read is an error, never a reason to switch to the built-in key.
 
 ## Failure handling
 

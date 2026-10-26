@@ -6,16 +6,19 @@
 //! missing file means off, and so does one that cannot be read, so AI review
 //! is never on without a choice on record.
 //!
-//! The judge's API key lives in the operating system's secret store
-//! (ADR-0036): Jeb's when one is stored, otherwise `OpenRouter`'s. The CLI and
-//! the desktop app both find it, and say where metadata goes, through here.
+//! The judge's API key is the one the user stored in the operating system's
+//! secret store (ADR-0036): Jeb's when one is stored, otherwise `OpenRouter`'s.
+//! Release builds also carry Lumen's built-in Jeb key (ADR-0042), used only
+//! when the user stored none. The CLI and the desktop app both find the key,
+//! and say where metadata goes, through here.
 
 use std::path::{Path, PathBuf};
 
 use lumen_application::assess::Assessed;
 use lumen_application::ports::{SecretError, SecretName, SecretStore};
 use lumen_domain::Timestamp;
-use lumen_jev::openrouter::{ApiKey, JevJudge, SetupError};
+pub use lumen_jev::openrouter::ApiKey;
+use lumen_jev::openrouter::{JevJudge, SetupError};
 use serde::{Deserialize, Serialize};
 
 /// Which service a judge key is for (ADR-0031, ADR-0036). Jeb is the default:
@@ -70,6 +73,86 @@ impl Service {
             Self::Jeb => JevJudge::jeb(key),
             Self::OpenRouter => JevJudge::new(key),
         }
+    }
+}
+
+/// Lumen's built-in Jeb key (ADR-0042): compiled in from the build-time
+/// variable `LUMEN_JEB_BUILTIN_KEY`, which only tag-triggered release builds
+/// set. `None` in every other build, so they behave as before.
+///
+/// This is the only place that variable is read. The key is plain text in
+/// the binary, so anyone with a release can read it; nothing here pretends
+/// otherwise. It is never shown, logged or put in an error.
+#[must_use]
+pub fn builtin_key() -> Option<ApiKey> {
+    builtin_key_from(option_env!("LUMEN_JEB_BUILTIN_KEY"))
+}
+
+/// The built-in key from the build-time value `raw`: none when it is unset,
+/// empty or not an API key. Tests call this with a stand-in instead of
+/// compiling one in.
+#[must_use]
+pub fn builtin_key_from(raw: Option<&str>) -> Option<ApiKey> {
+    raw.map(str::trim)
+        .filter(|key| !key.is_empty())
+        .and_then(ApiKey::new)
+}
+
+/// Where the judge's key comes from (ADR-0042).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeySource {
+    /// The user's own key, from the operating system's secret store.
+    Stored,
+    /// Lumen's built-in Jeb key, compiled into release builds.
+    Builtin,
+}
+
+/// The key a run uses, with its service and where it comes from. Its `Debug`
+/// output never shows the key.
+#[derive(Debug, Clone)]
+pub struct JudgeKey {
+    service: Service,
+    source: KeySource,
+    key: ApiKey,
+}
+
+impl JudgeKey {
+    /// The service the key is for.
+    #[must_use]
+    pub const fn service(&self) -> Service {
+        self.service
+    }
+
+    /// Where the key comes from.
+    #[must_use]
+    pub const fn source(&self) -> KeySource {
+        self.source
+    }
+
+    /// What AI review sends with this key, and where.
+    #[must_use]
+    pub const fn disclosure(&self) -> &'static str {
+        disclosure(self.service, self.source)
+    }
+
+    /// A judge using this key.
+    ///
+    /// # Errors
+    ///
+    /// A [`SetupError`] if TLS or the judge's descriptor cannot be set up.
+    pub fn judge(self) -> Result<JevJudge, SetupError> {
+        self.service.judge(self.key)
+    }
+}
+
+/// What AI review sends with a key for `service` from `source`, and where.
+#[must_use]
+pub const fn disclosure(service: Service, source: KeySource) -> &'static str {
+    match (service, source) {
+        (Service::Jeb, KeySource::Builtin) => {
+            "Jeb: for each item proposed for quarantine, and for up to 20 of the largest items left for review, its metadata (path with your home as ~, sizes, ages, evidence facts; never file contents) goes to the school's Jeb server (jeb.https.gsmsv.site) with Lumen's built-in key. Its operator may keep requests. Jeb can only make a decision more cautious; for review items it only adds a note on what each likely is."
+        }
+        (service, _) => service.disclosure(),
     }
 }
 
@@ -158,22 +241,75 @@ pub fn stored_key(store: &dyn SecretStore) -> Result<Option<(Service, ApiKey)>, 
     Ok(None)
 }
 
+/// Which key a run would use, and where it comes from, without reading the
+/// stored value: the user's stored key first, then the built-in one when
+/// `builtin` says this build has it (ADR-0042).
+///
+/// # Errors
+///
+/// A [`SecretError`] if the store cannot be read.
+pub fn key_source(
+    store: Option<&dyn SecretStore>,
+    builtin: bool,
+) -> Result<Option<(Service, KeySource)>, SecretError> {
+    if let Some(store) = store
+        && let Some(service) = stored_service(store)?
+    {
+        return Ok(Some((service, KeySource::Stored)));
+    }
+    Ok(builtin.then_some((Service::Jeb, KeySource::Builtin)))
+}
+
+/// The key a run uses: the user's stored key ([`stored_key`]) when there is
+/// one, otherwise `builtin`, Lumen's built-in Jeb key (ADR-0042). A stored key
+/// that cannot be read or is not valid is an error, never a reason to switch
+/// to the built-in key.
+///
+/// # Errors
+///
+/// A [`KeyError`] if the store cannot be read or the stored key is not valid.
+pub fn judge_key(
+    store: Option<&dyn SecretStore>,
+    builtin: Option<&ApiKey>,
+) -> Result<Option<JudgeKey>, KeyError> {
+    if let Some(store) = store
+        && let Some((service, key)) = stored_key(store)?
+    {
+        return Ok(Some(JudgeKey {
+            service,
+            source: KeySource::Stored,
+            key,
+        }));
+    }
+    Ok(builtin.map(|key| JudgeKey {
+        service: Service::Jeb,
+        source: KeySource::Builtin,
+        key: key.clone(),
+    }))
+}
+
 /// The judge for an assessment next to `db`: one only while AI review is on
-/// there and a valid key is stored. Anything else means no judge, so the
-/// policy decides alone; a reason is logged, never the key.
+/// there and a key is available: a valid stored one, or else `builtin`
+/// (ADR-0042). Anything else means no judge, so the policy decides alone; a
+/// reason is logged, never the key.
 #[must_use]
-pub fn active_judge(db: &Path, store: Option<&dyn SecretStore>) -> Option<JevJudge> {
+pub fn active_judge(
+    db: &Path,
+    store: Option<&dyn SecretStore>,
+    builtin: Option<&ApiKey>,
+) -> Option<JevJudge> {
     if !load(db).enabled {
         return None;
     }
-    let Some(store) = store else {
-        tracing::warn!(reason = "no_secret_store", "AI review skipped");
-        return None;
-    };
-    let (service, key) = match stored_key(store) {
+    let key = match judge_key(store, builtin) {
         Ok(Some(found)) => found,
         Ok(None) => {
-            tracing::warn!(reason = "no_key", "AI review skipped");
+            let reason = if store.is_none() {
+                "no_secret_store"
+            } else {
+                "no_key"
+            };
+            tracing::warn!(reason, "AI review skipped");
             return None;
         }
         Err(e) => {
@@ -181,7 +317,7 @@ pub fn active_judge(db: &Path, store: Option<&dyn SecretStore>) -> Option<JevJud
             return None;
         }
     };
-    match service.judge(key) {
+    match key.judge() {
         Ok(judge) => Some(judge),
         Err(e) => {
             tracing::warn!(reason = %e, "AI review skipped");
@@ -347,13 +483,203 @@ mod tests {
         store
             .set(SecretName::JEB_API_KEY, &Secret::new("jeb-key"))
             .unwrap_or_else(|e| unreachable!("{e}"));
-        assert!(active_judge(&db, Some(&store)).is_none(), "off");
+        let builtin = builtin_key_from(Some(BUILTIN));
+        assert!(
+            active_judge(&db, Some(&store), builtin.as_ref()).is_none(),
+            "off, even with a built-in key"
+        );
         let at = Timestamp::from_unix(1_800_000_000, 0).unwrap_or_else(|_| unreachable!());
         set(&db, true, at).unwrap_or_else(|e| unreachable!("{e}"));
-        assert!(active_judge(&db, None).is_none(), "no store");
+        assert!(active_judge(&db, None, None).is_none(), "no store");
         let empty = lumen_testkit::MemorySecretStore::default();
-        assert!(active_judge(&db, Some(&empty)).is_none(), "no key");
-        assert!(active_judge(&db, Some(&store)).is_some());
+        assert!(active_judge(&db, Some(&empty), None).is_none(), "no key");
+        assert!(active_judge(&db, Some(&store), None).is_some());
+        assert!(
+            active_judge(&db, Some(&empty), builtin.as_ref()).is_some(),
+            "the built-in key"
+        );
+        assert!(
+            active_judge(&db, None, builtin.as_ref()).is_some(),
+            "the built-in key without a secret store"
+        );
+    }
+
+    /// A stand-in for the built-in key; the real one is never in the
+    /// repository (ADR-0042).
+    const BUILTIN: &str = "builtin-stand-in-7f3a";
+
+    #[test]
+    fn the_built_in_key_is_absent_unless_compiled_in_and_valid() {
+        assert!(builtin_key_from(None).is_none(), "unset");
+        assert!(builtin_key_from(Some("")).is_none(), "empty secret");
+        assert!(builtin_key_from(Some("  \n")).is_none(), "blank");
+        assert!(builtin_key_from(Some("has space")).is_none(), "not a key");
+        assert_eq!(
+            builtin_key_from(Some(" builtin-stand-in-7f3a\n")),
+            ApiKey::new(BUILTIN)
+        );
+    }
+
+    #[test]
+    fn a_stored_key_wins_over_the_built_in_one() {
+        use lumen_application::ports::Secret;
+        let builtin = builtin_key_from(Some(BUILTIN));
+        let store = lumen_testkit::MemorySecretStore::default();
+        let source = |store: Option<&dyn SecretStore>, builtin: bool| {
+            key_source(store, builtin).unwrap_or_else(|e| unreachable!("{e}"))
+        };
+        let used = |store: Option<&dyn SecretStore>, builtin: Option<&ApiKey>| {
+            judge_key(store, builtin)
+                .unwrap_or_else(|e| unreachable!("{e}"))
+                .map(|key| (key.service(), key.source()))
+        };
+
+        // Nothing stored: the built-in key when this build has one.
+        assert_eq!(source(Some(&store), false), None);
+        assert_eq!(used(Some(&store), None), None);
+        assert_eq!(
+            source(Some(&store), true),
+            Some((Service::Jeb, KeySource::Builtin))
+        );
+        assert_eq!(
+            used(Some(&store), builtin.as_ref()),
+            Some((Service::Jeb, KeySource::Builtin))
+        );
+        assert_eq!(
+            used(None, builtin.as_ref()),
+            Some((Service::Jeb, KeySource::Builtin))
+        );
+
+        // A stored key wins, whichever service it is for.
+        store
+            .set(SecretName::OPENROUTER_API_KEY, &Secret::new("sk-or-1"))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            source(Some(&store), true),
+            Some((Service::OpenRouter, KeySource::Stored))
+        );
+        assert_eq!(
+            used(Some(&store), builtin.as_ref()),
+            Some((Service::OpenRouter, KeySource::Stored))
+        );
+        store
+            .set(SecretName::JEB_API_KEY, &Secret::new("jeb-key"))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            used(Some(&store), builtin.as_ref()),
+            Some((Service::Jeb, KeySource::Stored))
+        );
+
+        // A broken stored key is an error, not a switch to the built-in key.
+        store
+            .set(SecretName::JEB_API_KEY, &Secret::new("bad key"))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert!(matches!(
+            judge_key(Some(&store), builtin.as_ref()),
+            Err(KeyError::Invalid("Jeb"))
+        ));
+    }
+
+    #[test]
+    fn the_disclosure_names_whose_key_is_used() {
+        let builtin = builtin_key_from(Some(BUILTIN));
+        let key = judge_key(None, builtin.as_ref())
+            .unwrap_or_else(|e| unreachable!("{e}"))
+            .unwrap_or_else(|| unreachable!());
+        assert!(key.disclosure().contains("Lumen's built-in key"));
+        assert!(key.disclosure().contains("jeb.https.gsmsv.site"));
+        assert_eq!(
+            key.disclosure(),
+            disclosure(Service::Jeb, KeySource::Stored)
+                .replace("with your key", "with Lumen's built-in key"),
+            "the same disclosure, but for whose key"
+        );
+    }
+
+    /// Every field of every span and event, as text.
+    #[derive(Clone, Default)]
+    struct Captured(std::sync::Arc<std::sync::Mutex<String>>);
+
+    impl Captured {
+        fn text(&self) -> String {
+            self.0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone()
+        }
+    }
+
+    impl tracing::field::Visit for Captured {
+        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+            let mut text = self
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            std::fmt::Write::write_fmt(&mut *text, format_args!("{}={value:?}\n", field.name()))
+                .unwrap_or_else(|_| unreachable!("writing to a String cannot fail"));
+        }
+    }
+
+    impl tracing::Subscriber for Captured {
+        fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+            true
+        }
+        fn new_span(&self, span: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+            span.record(&mut self.clone());
+            tracing::span::Id::from_u64(1)
+        }
+        fn record(&self, _: &tracing::span::Id, values: &tracing::span::Record<'_>) {
+            values.record(&mut self.clone());
+        }
+        fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+        fn event(&self, event: &tracing::Event<'_>) {
+            event.record(&mut self.clone());
+        }
+        fn enter(&self, _: &tracing::span::Id) {}
+        fn exit(&self, _: &tracing::span::Id) {}
+    }
+
+    #[test]
+    fn the_built_in_key_is_never_shown_logged_or_traced() {
+        use lumen_application::ports::{JudgeModel as _, Secret};
+        let fx = Fixture::build(&[]).unwrap_or_else(|e| unreachable!("{e}"));
+        let db = fx.path("index.db").unwrap_or_else(|e| unreachable!("{e}"));
+        let at = Timestamp::from_unix(1_800_000_000, 0).unwrap_or_else(|_| unreachable!());
+        set(&db, true, at).unwrap_or_else(|e| unreachable!("{e}"));
+        let builtin = builtin_key_from(Some(BUILTIN));
+        let broken = lumen_testkit::MemorySecretStore::default();
+        broken
+            .set(SecretName::JEB_API_KEY, &Secret::new("bad key"))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+
+        let logs = Captured::default();
+        let (judge, refused) = tracing::subscriber::with_default(logs.clone(), || {
+            let judge = active_judge(&db, None, builtin.as_ref());
+            let refused = active_judge(&db, Some(&broken), builtin.as_ref());
+            (judge, refused)
+        });
+        assert!(refused.is_none());
+        assert!(logs.text().contains("AI review skipped"), "{}", logs.text());
+        let judge = judge.unwrap_or_else(|| unreachable!());
+
+        let key = judge_key(None, builtin.as_ref())
+            .unwrap_or_else(|e| unreachable!("{e}"))
+            .unwrap_or_else(|| unreachable!());
+        let error = judge_key(Some(&broken), builtin.as_ref())
+            .err()
+            .unwrap_or_else(|| unreachable!());
+        // Traces record the judge's descriptor, never its key.
+        let descriptor = judge.descriptor().unwrap_or_else(|| unreachable!());
+        for shown in [
+            logs.text(),
+            format!("{key:?}"),
+            format!("{judge:?}"),
+            format!("{error} {error:?}"),
+            format!("{descriptor:?}"),
+            serde_json::to_string(&descriptor).unwrap_or_default(),
+        ] {
+            assert!(!shown.contains(BUILTIN), "{shown}");
+        }
     }
 
     #[test]

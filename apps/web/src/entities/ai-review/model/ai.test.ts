@@ -2,7 +2,7 @@ import type { AiSettingsView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
 import { canTurnOn, destination, isOn, needsKey, serviceName } from "./ai";
 
-const off: AiSettingsView = { enabled: false, consented_at: null, key: "none" };
+const off: AiSettingsView = { enabled: false, consented_at: null, key: "none", key_source: null };
 
 describe("AI review", () => {
   it("names the service of the stored key, never a missing one", () => {

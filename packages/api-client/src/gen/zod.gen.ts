@@ -3,7 +3,12 @@
 import * as z from "zod";
 
 /**
- * Which judge key is stored; never the key itself.
+ * Where the judge's key comes from (ADR-0042); never the key itself.
+ */
+export const zAiKeySourceView = z.enum(["builtin", "stored"]);
+
+/**
+ * Which service the judge's key is for; never the key itself.
  */
 export const zAiKeyView = z.enum(["jeb", "openrouter", "none"]);
 
@@ -14,6 +19,7 @@ export const zAiSettingsView = z.object({
   consented_at: z.iso.datetime().nullable(),
   enabled: z.boolean(),
   key: zAiKeyView,
+  key_source: zAiKeySourceView.nullable(),
 });
 
 /**

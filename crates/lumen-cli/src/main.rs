@@ -566,11 +566,12 @@ fn run_ai(action: AiAction, db: &std::path::Path) -> Result<(), Box<dyn Error>> 
         }
         AiAction::Status => {
             let review = lumen_app::ai::load(db);
-            match (review.enabled, review.consented_at) {
+            let state = match (review.enabled, review.consented_at) {
                 (true, Some(at)) => format!("AI review is on (since {at}).\n"),
                 (true, None) => "AI review is on.\n".into(),
                 (false, _) => "AI review is off.\n".into(),
-            }
+            };
+            format!("{state}{}", jev::key_line()?)
         }
     };
     print!("{text}");

@@ -17,7 +17,7 @@ use lumen_api::views::{
     AiSettingsView, CandidateView, DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView,
     PlanView, QuarantineReportView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
 };
-use lumen_app::ai::Service;
+use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
 use lumen_application::CancelToken;
 use lumen_application::assess::Assessed;
@@ -34,8 +34,11 @@ pub(crate) struct Core {
     /// review setting sit next to it.
     pub(crate) db: PathBuf,
     /// The OS secret store (tests use an in-memory one); `None` where the
-    /// platform has none, which leaves AI review unavailable.
+    /// platform has none, which leaves only the built-in key.
     pub(crate) secrets: Option<Arc<dyn SecretStore>>,
+    /// Lumen's built-in Jeb key in release builds (ADR-0042), used only when
+    /// no key is stored. Never shown.
+    pub(crate) builtin: Option<ApiKey>,
 }
 
 impl std::fmt::Debug for Core {
@@ -43,6 +46,7 @@ impl std::fmt::Debug for Core {
         f.debug_struct("Core")
             .field("db", &self.db)
             .field("secrets", &self.secrets.is_some())
+            .field("builtin", &self.builtin.is_some())
             .finish()
     }
 }
@@ -166,16 +170,18 @@ pub(crate) async fn scan(
 }
 
 /// Runs `work` with the judge (also the describer of review items,
-/// ADR-0041) while AI review is on and a key is stored, and records its
-/// requests in the ledger; otherwise with neither. A judge that cannot be set
-/// up or answer never fails the command: the policy decides alone.
+/// ADR-0041) while AI review is on and a key is available (a stored one, else
+/// the built-in one, ADR-0042), and records its requests in the ledger;
+/// otherwise with neither. A judge that cannot be set up or answer never
+/// fails the command: the policy decides alone.
 fn with_judge<T>(
     db: &Path,
     secrets: Option<&dyn SecretStore>,
+    builtin: Option<&ApiKey>,
     work: impl FnOnce(&dyn JudgeModel, &dyn Describer) -> Result<T, CommandError>,
     assessed: impl Fn(&T) -> &[Assessed],
 ) -> Result<T, CommandError> {
-    let Some(judge) = lumen_app::ai::active_judge(db, secrets) else {
+    let Some(judge) = lumen_app::ai::active_judge(db, secrets, builtin) else {
         return work(&NoopJudge, &NoopJudge);
     };
     let result = work(&judge, &judge)?;
@@ -188,10 +194,12 @@ fn with_judge<T>(
 pub(crate) async fn assess(core: State<'_, Core>) -> Result<Vec<CandidateView>, CommandError> {
     let db = core.db.clone();
     let secrets = core.secrets.clone();
+    let builtin = core.builtin.clone();
     blocking(move || {
         let assessed = with_judge(
             &db,
             secrets.as_deref(),
+            builtin.as_ref(),
             |judge, describer| {
                 lumen_app::assess(&db, &SystemClock, judge, describer).map_err(CommandError::new)
             },
@@ -207,10 +215,12 @@ pub(crate) async fn assess(core: State<'_, Core>) -> Result<Vec<CandidateView>, 
 pub(crate) async fn plan(core: State<'_, Core>) -> Result<PlanView, CommandError> {
     let db = core.db.clone();
     let secrets = core.secrets.clone();
+    let builtin = core.builtin.clone();
     blocking(move || {
         let planned = with_judge(
             &db,
             secrets.as_deref(),
+            builtin.as_ref(),
             |judge, _describer| {
                 lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge).map_err(CommandError::new)
             },
@@ -221,12 +231,14 @@ pub(crate) async fn plan(core: State<'_, Core>) -> Result<PlanView, CommandError
     .await
 }
 
-/// The AI review setting next to `db` and which key is stored.
-fn ai_view(db: &Path, secrets: Option<&dyn SecretStore>) -> Result<AiSettingsView, CommandError> {
-    let key = match secrets {
-        Some(store) => lumen_app::ai::stored_service(store).map_err(CommandError::new)?,
-        None => None,
-    };
+/// The AI review setting next to `db`, and which key it would use and where
+/// that key comes from (never the key).
+fn ai_view(
+    db: &Path,
+    secrets: Option<&dyn SecretStore>,
+    builtin: bool,
+) -> Result<AiSettingsView, CommandError> {
+    let key = lumen_app::ai::key_source(secrets, builtin).map_err(CommandError::new)?;
     Ok(AiSettingsView::new(lumen_app::ai::load(db), key))
 }
 
@@ -284,11 +296,13 @@ fn open_settings_pane() -> Result<(), CommandError> {
 pub(crate) async fn ai_settings(core: State<'_, Core>) -> Result<AiSettingsView, CommandError> {
     let db = core.db.clone();
     let secrets = core.secrets.clone();
-    blocking(move || ai_view(&db, secrets.as_deref())).await
+    let builtin = core.builtin.is_some();
+    blocking(move || ai_view(&db, secrets.as_deref(), builtin)).await
 }
 
 /// Turns AI review on (the user's consent, recorded with its time) or off.
-/// Turning it on needs a stored key.
+/// Turning it on needs a key: a stored one, or the built-in one (ADR-0042).
+/// Having a key never turns it on by itself.
 #[tauri::command]
 pub(crate) async fn set_ai_review(
     core: State<'_, Core>,
@@ -296,12 +310,15 @@ pub(crate) async fn set_ai_review(
 ) -> Result<AiSettingsView, CommandError> {
     let db = core.db.clone();
     let secrets = core.secrets.clone();
+    let builtin = core.builtin.clone();
     blocking(move || {
         if enabled {
-            let store = secrets
-                .as_deref()
-                .ok_or_else(|| CommandError::new("AI review is not available on this platform"))?;
-            if lumen_app::ai::stored_key(store)
+            if secrets.is_none() && builtin.is_none() {
+                return Err(CommandError::new(
+                    "AI review is not available on this platform",
+                ));
+            }
+            if lumen_app::ai::judge_key(secrets.as_deref(), builtin.as_ref())
                 .map_err(CommandError::new)?
                 .is_none()
             {
@@ -311,7 +328,7 @@ pub(crate) async fn set_ai_review(
             }
         }
         lumen_app::ai::set(&db, enabled, SystemClock.now()).map_err(CommandError::new)?;
-        ai_view(&db, secrets.as_deref())
+        ai_view(&db, secrets.as_deref(), builtin.is_some())
     })
     .await
 }
@@ -325,12 +342,13 @@ pub(crate) async fn set_ai_key(
 ) -> Result<AiSettingsView, CommandError> {
     let db = core.db.clone();
     let secrets = core.secrets.clone();
+    let builtin = core.builtin.is_some();
     blocking(move || {
         let store = secrets
             .as_deref()
             .ok_or_else(|| CommandError::new("AI review is not available on this platform"))?;
         lumen_app::ai::store_key(store, Service::Jeb, &key).map_err(CommandError::new)?;
-        ai_view(&db, Some(store))
+        ai_view(&db, Some(store), builtin)
     })
     .await
 }

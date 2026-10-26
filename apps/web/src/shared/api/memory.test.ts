@@ -61,6 +61,7 @@ describe("memoryTransport", () => {
       enabled: false,
       consented_at: null,
       key: "none",
+      key_source: null,
     });
     await expect(transport.setAiReview(true)).rejects.toThrow();
     await expect(transport.setAiKey("not a key")).rejects.toThrow();

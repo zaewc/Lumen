@@ -48,7 +48,21 @@ named like a path, name or hash with `[redacted]`.
   content hashes.
 - Anything about what Jev said: Jev's own traces live in the ledger (ADR-0020), not in
   these logs, and are never sent anywhere except in the opt-in request itself.
+- API keys, including Lumen's built-in Jeb key: no log, error or trace contains one.
 - Usage analytics, crash reports or identifiers of you or your device.
+
+## AI review
+
+AI review is the one thing that sends data off your machine, and it is off until you
+turn it on (ADR-0037). When it is on, Lumen sends metadata about each item it proposes
+to quarantine, and about up to 20 of the largest items it leaves for review
+(ADR-0041): the path with your home folder shown as `~`, sizes, ages and the facts
+behind the decision; never file contents. It goes to the school's Jeb server
+(`jeb.https.gsmsv.site`), whose operator may keep requests (ADR-0036). It uses the key
+you stored, or, if you stored none, the key built into Lumen's release builds
+(ADR-0042). A key you stored for OpenRouter sends the same metadata to TypeSafe's Jev
+through OpenRouter instead (ADR-0031). The CLI and the consent dialog say which before
+you turn it on.
 
 ## Changes
 

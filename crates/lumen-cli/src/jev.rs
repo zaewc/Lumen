@@ -6,19 +6,27 @@
 //! other processes can see it), checked, and kept in the operating system's
 //! secret store: the macOS keychain or the Windows Credential Manager. It is
 //! never printed. Storing a key sends nothing anywhere; Jev is consulted only
-//! when a run asks for it explicitly (roadmap 10.17b).
+//! when a run asks for it explicitly (roadmap 10.17b) or AI review is on
+//! (ADR-0037).
+//!
+//! Release builds also carry Lumen's built-in Jeb key (ADR-0042), used only
+//! when no key is stored. Status says whether it is available, never what it
+//! is.
 
 use std::error::Error;
 
+use lumen_app::ai::{JudgeKey, KeySource};
 use lumen_application::ports::{Secret, SecretName, SecretStore};
 use lumen_jev::openrouter::ApiKey;
 
 use crate::jev_service::Service;
 
+/// Why keys cannot be stored or used where the platform has no secret store.
+const NO_STORE: &str = "no secret store on this platform yet; Jev is unavailable here";
+
 /// The platform's secret store (an error where there is none).
 fn store() -> Result<Box<dyn SecretStore>, Box<dyn Error>> {
-    lumen_app::ai::os_store()
-        .ok_or_else(|| "no secret store on this platform yet; Jev is unavailable here".into())
+    lumen_app::ai::os_store().ok_or_else(|| NO_STORE.into())
 }
 
 /// Reads one key from `input`: the first line, trimmed. A key must be 1–256
@@ -47,27 +55,52 @@ pub(crate) fn set(service: Service) -> Result<String, Box<dyn Error>> {
 
 /// The judge for a run that consults it, after telling the user what will be
 /// sent and where: Jeb when its key is stored, otherwise Jev through
-/// `OpenRouter`. Without a stored key the run stops rather than silently
-/// deciding without the judgment the user asked for.
+/// `OpenRouter`, otherwise Jeb with Lumen's built-in key (ADR-0042). Without
+/// any key the run stops rather than silently deciding without the judgment
+/// the user asked for.
 pub(crate) fn judge() -> Result<lumen_jev::openrouter::JevJudge, Box<dyn Error>> {
-    let (service, key) = stored_key()?;
-    eprintln!("{}", service.disclosure());
-    Ok(service.judge(key)?)
+    let key = judge_key()?;
+    eprintln!("{}", key.disclosure());
+    Ok(key.judge()?)
 }
 
-/// What turning AI review on will send, and where, for the stored key.
+/// What turning AI review on will send, and where, with the key it would
+/// use.
 ///
 /// # Errors
 ///
-/// If no key is stored: AI review cannot be on without one.
+/// If there is no key: AI review cannot be on without one.
 pub(crate) fn disclosure() -> Result<&'static str, Box<dyn Error>> {
-    Ok(stored_key()?.0.disclosure())
+    Ok(judge_key()?.disclosure())
 }
 
-fn stored_key() -> Result<(Service, ApiKey), Box<dyn Error>> {
-    lumen_app::ai::stored_key(store()?.as_ref())?.ok_or_else(|| {
+fn judge_key() -> Result<JudgeKey, Box<dyn Error>> {
+    let store = lumen_app::ai::os_store();
+    let builtin = lumen_app::ai::builtin_key();
+    if store.is_none() && builtin.is_none() {
+        return Err(NO_STORE.into());
+    }
+    lumen_app::ai::judge_key(store.as_deref(), builtin.as_ref())?.ok_or_else(|| {
         "AI review needs an API key: run `lumen jev key set` (Jeb) or `lumen jev key set --openrouter` first".into()
     })
+}
+
+/// Which key AI review would use, for `lumen ai status`; never the key.
+pub(crate) fn key_line() -> Result<String, Box<dyn Error>> {
+    let store = lumen_app::ai::os_store();
+    let builtin = lumen_app::ai::builtin_key().is_some();
+    Ok(
+        match lumen_app::ai::key_source(store.as_deref(), builtin)? {
+            Some((service, KeySource::Stored)) => format!(
+                "Key: your {} key, from the system's secret store.\n",
+                service.label()
+            ),
+            Some((_, KeySource::Builtin)) => {
+                "Key: built-in key available; AI review uses Lumen's built-in Jeb key unless you store your own.\n".into()
+            }
+            None => "Key: none. Store one with `lumen jev key set`.\n".into(),
+        },
+    )
 }
 
 /// Records every Jev consultation of `assessed` in the ledger next to `db`.
@@ -87,22 +120,46 @@ pub(crate) fn clear(service: Service) -> Result<String, Box<dyn Error>> {
     })
 }
 
-/// Which keys are stored (never the keys), and which one `--jev` uses.
+/// Which keys are stored and whether this build has a built-in key (never
+/// the keys), and which one `--jev` uses.
 pub(crate) fn status() -> Result<String, Box<dyn Error>> {
-    let store = store()?;
-    let jeb = store.contains(SecretName::JEB_API_KEY)?;
-    let openrouter = store.contains(SecretName::OPENROUTER_API_KEY)?;
-    let stored = |yes: bool| if yes { "stored" } else { "not stored" };
-    let used = match (jeb, openrouter) {
-        (true, _) => "--jev uses Jeb.",
-        (false, true) => "--jev uses Jev through OpenRouter.",
-        (false, false) => "--jev needs a key.",
+    let builtin = lumen_app::ai::builtin_key().is_some();
+    let stored = match lumen_app::ai::os_store() {
+        Some(store) => Some((
+            store.contains(SecretName::JEB_API_KEY)?,
+            store.contains(SecretName::OPENROUTER_API_KEY)?,
+        )),
+        None if builtin => None,
+        None => return Err(NO_STORE.into()),
     };
-    Ok(format!(
-        "Jeb API key: {}. OpenRouter API key: {}. {used}\n",
-        stored(jeb),
-        stored(openrouter)
-    ))
+    Ok(status_text(stored, builtin))
+}
+
+/// The status line for which keys are stored (`None`: no secret store) and
+/// whether a built-in key is available.
+fn status_text(stored: Option<(bool, bool)>, builtin: bool) -> String {
+    let word = |yes: bool| if yes { "stored" } else { "not stored" };
+    let (jeb, openrouter) = stored.unwrap_or_default();
+    let used = match (jeb, openrouter, builtin) {
+        (true, _, _) => "--jev uses your Jeb key.",
+        (false, true, _) => "--jev uses Jev through OpenRouter.",
+        (false, false, true) => "--jev uses Lumen's built-in Jeb key.",
+        (false, false, false) => "--jev needs a key.",
+    };
+    let keys = match stored {
+        Some(_) => format!(
+            "Jeb API key: {}. OpenRouter API key: {}.",
+            word(jeb),
+            word(openrouter)
+        ),
+        None => "No secret store on this platform yet, so no key can be stored.".to_owned(),
+    };
+    let builtin = if builtin {
+        "Built-in Jeb key: available."
+    } else {
+        "Built-in Jeb key: not in this build."
+    };
+    format!("{keys} {builtin} {used}\n")
 }
 
 #[cfg(test)]
@@ -117,5 +174,23 @@ mod tests {
             let mut input = bad;
             assert!(read_key(&mut input).is_err(), "{bad:?}");
         }
+    }
+
+    #[test]
+    fn status_says_which_key_is_used_never_the_key() {
+        assert_eq!(
+            status_text(Some((false, false)), false),
+            "Jeb API key: not stored. OpenRouter API key: not stored. Built-in Jeb key: not in this build. --jev needs a key.\n"
+        );
+        assert_eq!(
+            status_text(Some((false, false)), true),
+            "Jeb API key: not stored. OpenRouter API key: not stored. Built-in Jeb key: available. --jev uses Lumen's built-in Jeb key.\n"
+        );
+        assert!(status_text(Some((true, false)), true).ends_with("--jev uses your Jeb key.\n"));
+        assert!(
+            status_text(Some((false, true)), true)
+                .ends_with("--jev uses Jev through OpenRouter.\n")
+        );
+        assert!(status_text(None, true).starts_with("No secret store"));
     }
 }

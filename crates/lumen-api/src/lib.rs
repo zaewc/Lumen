@@ -49,6 +49,7 @@ use utoipa::OpenApi;
         views::FinalizeView,
         views::FinalizeOutcomeView,
         views::AiKeyView,
+        views::AiKeySourceView,
         views::AiSettingsView,
     ))
 )]
@@ -79,7 +80,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 31);
+        assert_eq!(schemas, 32);
     }
 
     #[test]
@@ -135,6 +136,7 @@ mod tests {
             .map(|r| r.iter().filter_map(serde_json::Value::as_str).collect())
             .unwrap_or_default();
         assert!(required.contains(&"consented_at"), "{required:?}");
+        assert!(required.contains(&"key_source"), "{required:?}");
     }
 
     #[test]
@@ -153,14 +155,37 @@ mod tests {
 
     #[test]
     fn ai_settings_name_the_key_never_show_it() {
+        use lumen_app::ai::{AiReview, KeySource, Service};
         let view = views::AiSettingsView::new(
-            lumen_app::ai::AiReview::default(),
-            Some(lumen_app::ai::Service::OpenRouter),
+            AiReview::default(),
+            Some((Service::OpenRouter, KeySource::Stored)),
         );
         let json = serde_json::to_value(view).unwrap_or_default();
         assert_eq!(
             json,
-            serde_json::json!({ "enabled": false, "consented_at": null, "key": "openrouter" })
+            serde_json::json!({
+                "enabled": false, "consented_at": null, "key": "openrouter", "key_source": "stored"
+            })
         );
+        let none = serde_json::to_value(views::AiSettingsView::new(AiReview::default(), None))
+            .unwrap_or_default();
+        assert_eq!(none["key"], "none");
+        assert_eq!(none["key_source"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn the_built_in_key_is_named_never_shown() {
+        use lumen_app::ai::{AiReview, KeySource, builtin_key_from, key_source};
+        let stand_in = "builtin-stand-in-7f3a";
+        assert!(builtin_key_from(Some(stand_in)).is_some());
+        let key = key_source(None, true).unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(key.map(|(_, source)| source), Some(KeySource::Builtin));
+        let view = views::AiSettingsView::new(AiReview::default(), key);
+        let json = serde_json::to_string(&view).unwrap_or_default();
+        assert_eq!(
+            json,
+            r#"{"enabled":false,"consented_at":null,"key":"jeb","key_source":"builtin"}"#
+        );
+        assert!(!format!("{json} {view:?}").contains(stand_in));
     }
 }

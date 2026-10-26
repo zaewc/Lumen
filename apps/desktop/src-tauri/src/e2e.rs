@@ -52,7 +52,7 @@ fn ai_review(window: &WebviewWindow<MockRuntime>) {
     };
     assert_eq!(
         ok("ai_settings", json!({})),
-        json!({ "enabled": false, "consented_at": null, "key": "none" })
+        json!({ "enabled": false, "consented_at": null, "key": "none", "key_source": null })
     );
     let disk = ok("disk", json!({}));
     let bytes = |field: &str| {
@@ -75,6 +75,7 @@ fn ai_review(window: &WebviewWindow<MockRuntime>) {
     assert!(!rejected.to_string().contains("not a key"), "{rejected}");
     let stored = ok("set_ai_key", json!({ "key": "jeb-e2e-fake-key" }));
     assert_eq!(stored["key"], "jeb", "{stored}");
+    assert_eq!(stored["key_source"], "stored", "{stored}");
     assert!(!stored.to_string().contains("jeb-e2e-fake-key"), "{stored}");
     let on = ok("set_ai_review", json!({ "enabled": true }));
     assert_eq!(on["enabled"], true, "{on}");
@@ -154,7 +155,7 @@ fn the_desktop_flow_runs_end_to_end() {
     if let Some(home) = std::env::var_os(CHILD) {
         // The app sets itself up (state, window) when its event loop is ready.
         let secrets = Arc::new(MemorySecretStore::default());
-        let app = crate::app(mock_builder(), Some(secrets))
+        let app = crate::app(mock_builder(), Some(secrets), None)
             .build(crate::context())
             .unwrap_or_else(|e| unreachable!("{e}"));
         let exit = app.run_return(move |handle, event| {

@@ -728,7 +728,7 @@ impl From<&Outcome<FinalizeOutcome>> for FinalizeOutcomeView {
     }
 }
 
-/// Which judge key is stored; never the key itself.
+/// Which service the judge's key is for; never the key itself.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub enum AiKeyView {
     /// A Jeb key: requests go to the school's AI Hub (ADR-0036).
@@ -752,6 +752,27 @@ impl From<Option<lumen_app::ai::Service>> for AiKeyView {
     }
 }
 
+/// Where the judge's key comes from (ADR-0042); never the key itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub enum AiKeySourceView {
+    /// Lumen's built-in Jeb key, in release builds, used because the user
+    /// stored none.
+    #[serde(rename = "builtin")]
+    Builtin,
+    /// The user's own key, from the system's secret store.
+    #[serde(rename = "stored")]
+    Stored,
+}
+
+impl From<lumen_app::ai::KeySource> for AiKeySourceView {
+    fn from(source: lumen_app::ai::KeySource) -> Self {
+        match source {
+            lumen_app::ai::KeySource::Builtin => Self::Builtin,
+            lumen_app::ai::KeySource::Stored => Self::Stored,
+        }
+    }
+}
+
 /// Whether AI review is on (ADR-0037), and which key it would use.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct AiSettingsView {
@@ -760,17 +781,25 @@ pub struct AiSettingsView {
     /// When the user last turned it on; `null` if never.
     #[schema(value_type = Option<String>, format = DateTime, required = true)]
     pub consented_at: Option<lumen_domain::Timestamp>,
-    /// Which key is stored.
+    /// Which service the key it would use is for; `none` without a key.
     pub key: AiKeyView,
+    /// Where that key comes from; `null` without a key.
+    #[schema(required = true)]
+    pub key_source: Option<AiKeySourceView>,
 }
 
 impl AiSettingsView {
-    /// The view of `review` with `key` stored.
-    pub fn new(review: lumen_app::ai::AiReview, key: Option<lumen_app::ai::Service>) -> Self {
+    /// The view of `review` with `key`: the service and source of the key it
+    /// would use, if any.
+    pub fn new(
+        review: lumen_app::ai::AiReview,
+        key: Option<(lumen_app::ai::Service, lumen_app::ai::KeySource)>,
+    ) -> Self {
         Self {
             enabled: review.enabled,
             consented_at: review.consented_at,
-            key: key.into(),
+            key: key.map(|(service, _)| service).into(),
+            key_source: key.map(|(_, source)| source.into()),
         }
     }
 }

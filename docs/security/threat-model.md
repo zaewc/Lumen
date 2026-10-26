@@ -121,6 +121,7 @@ Assumptions:
 | Information disclosure | Provider retains metadata | Opt-in, redaction, documented provider data policy; zero-data-retention status confirmed before launch |
 | Tampering | Response from an unexpected model or a refusal parsed as data | Pinned model ID check, `stop_reason` handling, schema validation, unknown evidence IDs rejected |
 | Spoofing | API key theft from local storage | Keys stored in the OS keychain or credential manager; never logged |
+| Information disclosure | Lumen's built-in Jeb key read out of a release binary and its quota spent elsewhere | **Accepted risk** ([ADR-0042](../decisions/0042-ship-a-built-in-jeb-key-in-release-builds.md)): not obfuscated, as that would not protect it; compiled in only on tag builds from the protected `release` environment, never in pull request runs; a stored user key wins; revocable, and a failed judge only means no judgment; rotation is a new release |
 
 ### TB6: Developer tool commands
 

@@ -12,9 +12,17 @@
   "paths": {},
   "components": {
     "schemas": {
+      "AiKeySourceView": {
+        "type": "string",
+        "description": "Where the judge's key comes from (ADR-0042); never the key itself.",
+        "enum": [
+          "builtin",
+          "stored"
+        ]
+      },
       "AiKeyView": {
         "type": "string",
-        "description": "Which judge key is stored; never the key itself.",
+        "description": "Which service the judge's key is for; never the key itself.",
         "enum": [
           "jeb",
           "openrouter",
@@ -45,7 +53,8 @@
         "required": [
           "enabled",
           "consented_at",
-          "key"
+          "key",
+          "key_source"
         ],
         "properties": {
           "consented_at": {
@@ -62,7 +71,18 @@
           },
           "key": {
             "$ref": "#/components/schemas/AiKeyView",
-            "description": "Which key is stored."
+            "description": "Which service the key it would use is for; `none` without a key."
+          },
+          "key_source": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AiKeySourceView",
+                "description": "Where that key comes from; `null` without a key."
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
