@@ -44,6 +44,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/cocoapods-download-cache.json"),
     ),
     (
+        "discord-chromium-caches.json",
+        include_str!("../entries/discord-chromium-caches.json"),
+    ),
+    (
         "docker-desktop-disk-image.json",
         include_str!("../entries/docker-desktop-disk-image.json"),
     ),

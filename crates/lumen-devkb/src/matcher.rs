@@ -673,6 +673,28 @@ mod tests {
             "Library/Application Support/Claude/vm_bundles/claudevm.bundle",
             None,
         ),
+        (
+            "Library/Application Support/discord/Cache",
+            Some("discord-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/discord/Code Cache",
+            Some("discord-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/discord/DawnWebGPUCache",
+            Some("discord-chromium-caches"),
+        ),
+        ("Library/Application Support/discord/Local Storage", None),
+        ("Library/Application Support/discord/IndexedDB", None),
+        ("Library/Application Support/discord/Service Worker", None),
+        ("Library/Application Support/discord/logs", None),
+        (
+            "Library/Application Support/discord/component_crx_cache",
+            None,
+        ),
+        ("Library/Application Support/discord/download_cache", None),
+        ("Library/Application Support/discord/modules", None),
         ("Library/Application Support/SomeApp/Cache", None),
         ("Library/Application Support/Spotify/PersistentCache", None),
         ("Library/Application Support/Claude/vm_bundles", None),
