@@ -15,6 +15,7 @@ fn template(rule: &str) -> Option<String> {
     }
     let text = match rule {
         "default.review" => "Review: Lumen does not recognise this item.",
+        "default.keep-small" => "Kept: too small to be worth reviewing.",
         "protect.os-protected" => "Kept: the operating system protects this item.",
         "protect.system-file" => "Kept: Windows marks this item as a system file.",
         "protect.cloud-backed" => {
@@ -58,7 +59,7 @@ fn template(rule: &str) -> Option<String> {
             "Quarantine proposed: it is an application's cache, which the application re-creates."
         }
         "classify.app-state" => {
-            "Review: it holds an application's own data, settings or documents."
+            "Kept: it holds an application's own data, settings or documents; Lumen leaves it alone."
         }
         "classify.orphan" => "Review: the application it belongs to appears to be uninstalled.",
         "jev.demote" => "Review: the optional AI review advised caution.",
@@ -92,6 +93,7 @@ mod tests {
     fn every_rule_has_a_template() {
         let ids = crate::rules::RULES.iter().map(|r| r.id).chain([
             "default.review",
+            "default.keep-small",
             "jev.demote",
             "protect.location-data",
             "protect.location-context",

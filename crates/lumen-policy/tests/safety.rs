@@ -13,7 +13,7 @@ use lumen_domain::{
     Protection, Provenance, RawPath, ReasonCode, ReclaimEstimate, SizeFacts, SizeFlags, SourceName,
     Subject, Timestamp, UntrustedText, Verdict, VolumeId,
 };
-use lumen_policy::{Context, KnowledgeClass, Observed, PolicyInput, evaluate};
+use lumen_policy::{Context, KnowledgeClass, Observed, PolicyInput, REVIEW_MIN_BYTES, evaluate};
 use proptest::prelude::*;
 
 fn subject() -> Subject {
@@ -95,11 +95,17 @@ fn kind() -> impl Strategy<Value = EntryKind> {
     ]
 }
 
+/// Sizes around the review threshold, tiny ones and huge ones.
+fn size() -> impl Strategy<Value = u64> {
+    let min = REVIEW_MIN_BYTES.get();
+    prop_oneof![0_u64..3, (min - 2)..=(min + 2), Just(u64::MAX)]
+}
+
 fn observed() -> impl Strategy<Value = Option<Observed>> {
     proptest::option::weighted(
         0.9,
-        (kind(), any::<bool>(), 0_u64..3, any::<bool>()).prop_map(
-            |(kind, complete, reclaimable, readable)| Observed {
+        (kind(), any::<bool>(), size(), size(), any::<bool>()).prop_map(
+            |(kind, complete, reclaimable, allocated, readable)| Observed {
                 entry: FilesystemEntry {
                     path: RawPath::from_unix_bytes(b"/home/t/x".to_vec())
                         .unwrap_or_else(|_| unreachable!()),
@@ -126,6 +132,7 @@ fn observed() -> impl Strategy<Value = Option<Observed>> {
                 },
                 complete,
                 reclaim: ReclaimEstimate {
+                    allocated: ByteCount::new(allocated),
                     reclaimable_now: ByteCount::new(reclaimable),
                     ..ReclaimEstimate::default()
                 },
@@ -290,6 +297,34 @@ proptest! {
         let without_jev = decide(&without)?.verdict();
         // `Keep` < `Review` < `Quarantine`: smaller is more cautious.
         prop_assert!(with_jev <= without_jev, "{:?} vs {:?}", with_jev, without_jev);
+    }
+
+    #[test]
+    fn a_smaller_item_is_never_decided_less_cautiously(input in policy_input(), shrink in 0_u32..64) {
+        let mut smaller = input.clone();
+        if let Some(observed) = smaller.observed.as_mut() {
+            let reclaim = &mut observed.reclaim;
+            reclaim.allocated = ByteCount::new(reclaim.allocated.get() >> shrink);
+            reclaim.reclaimable_now = ByteCount::new(reclaim.reclaimable_now.get() >> shrink);
+        }
+        let large = decide(&input)?.verdict();
+        let small = decide(&smaller)?.verdict();
+        prop_assert!(small <= large, "{:?} vs {:?}", small, large);
+    }
+
+    #[test]
+    fn app_state_and_small_unrecognised_items_are_kept(input in policy_input()) {
+        let decision = decide(&input)?;
+        let fired = |id: &str| decision.fired_rules().iter().any(|r| r.rule.as_str() == id);
+        if fired("classify.app-state") || fired("default.keep-small") {
+            prop_assert_eq!(decision.verdict(), Verdict::Keep);
+        }
+        if fired("default.keep-small") {
+            let observed = input.observed.as_ref();
+            prop_assert!(observed.is_some_and(|o| {
+                o.reclaim.allocated < REVIEW_MIN_BYTES && o.reclaim.reclaimable_now < REVIEW_MIN_BYTES
+            }), "unknown or large sizes are never small");
+        }
     }
 
     #[test]

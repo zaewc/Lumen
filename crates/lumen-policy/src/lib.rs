@@ -8,8 +8,10 @@
 //! 2. **Eligibility**: rules that fire cap the verdict (e.g. an item that frees
 //!    nothing is at most `Review`).
 //! 3. **Classification**: rules propose verdicts; the most cautious proposal
-//!    wins, and if none fires the verdict is `Review` (`default.review`). Only a
-//!    classification rule can make an item a quarantine candidate.
+//!    wins. If none fires, an item of at least [`REVIEW_MIN_BYTES`] (or of
+//!    unknown size) is `Review` (`default.review`) and a smaller one is `Keep`
+//!    (`default.keep-small`, ADR-0039). Only a classification rule can make an
+//!    item a quarantine candidate.
 //!
 //! 4. **Jev** (ADR-0020): an optional, validated judgment can only add caution.
 //!    A `Quarantine` verdict becomes `Review` when Jev thinks the item is needed,
@@ -33,7 +35,7 @@ mod rules;
 use std::collections::{BTreeMap, BTreeSet};
 
 use lumen_domain::{
-    Assessment, CleanupMechanism, DecisionError, Evidence, EvidenceHash, EvidenceId,
+    Assessment, ByteCount, CleanupMechanism, DecisionError, Evidence, EvidenceHash, EvidenceId,
     FilesystemEntry, FiredRule, JevEffect, Judgment, Platform, PolicyDecision, PolicyStage,
     PolicyVersion, RawPath, ReclaimEstimate, Risk, RiskFactor, RiskLevel, RuleId, SourceName,
     Subject, Verdict,
@@ -44,7 +46,12 @@ pub use explain::explain;
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
-pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 10, 0);
+pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 11, 0);
+
+/// The smallest unrecognised item worth a person's review (ADR-0039): 100 MB,
+/// in decimal bytes as Lumen shows sizes. Below it, an item no rule
+/// recognises is kept.
+pub const REVIEW_MIN_BYTES: ByteCount = ByteCount::new(100_000_000);
 
 /// The machine a decision is made on.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -136,8 +143,12 @@ pub(crate) struct Rule {
     pub(crate) check: fn(&PolicyInput) -> Option<Finding>,
 }
 
-/// Fired when no classification rule recognises the item.
+/// Fired when no classification rule recognises the item and it is not known
+/// to be small.
 const DEFAULT_REVIEW: &str = "default.review";
+/// Fired when no classification rule recognises the item and it is smaller
+/// than [`REVIEW_MIN_BYTES`].
+const DEFAULT_KEEP_SMALL: &str = "default.keep-small";
 /// Fired when Jev evidence demotes a quarantine proposal.
 const JEV_DEMOTE: &str = "jev.demote";
 
@@ -148,6 +159,25 @@ fn jev_cautions(judgment: &Judgment) -> bool {
             judgment.assessment,
             Assessment::LikelyNeeded | Assessment::Uncertain
         )
+}
+
+/// The default for an item no classification rule recognises (ADR-0039): kept
+/// when it is known to be smaller than [`REVIEW_MIN_BYTES`] by every measure
+/// the scan has (allocated size and space freed now), reviewed otherwise. An
+/// item without a scan observation has no known size, so it is reviewed.
+fn default_for(input: &PolicyInput) -> (&'static str, Verdict) {
+    let small = input.observed.as_ref().is_some_and(|observed| {
+        observed
+            .reclaim
+            .allocated
+            .max(observed.reclaim.reclaimable_now)
+            < REVIEW_MIN_BYTES
+    });
+    if small {
+        (DEFAULT_KEEP_SMALL, Verdict::Keep)
+    } else {
+        (DEFAULT_REVIEW, Verdict::Review)
+    }
 }
 
 /// The more cautious of two verdicts (`Keep` > `Review` > `Quarantine`).
@@ -216,19 +246,22 @@ pub(crate) fn evaluate_with(
             .into_iter()
             .fold(Verdict::Quarantine, cautious);
         let proposals = run(PolicyStage::Classification)?;
-        let proposal = proposals.into_iter().reduce(cautious);
-        if proposal.is_none() {
+        let proposal = if let Some(proposal) = proposals.into_iter().reduce(cautious) {
+            proposal
+        } else {
+            let (id, verdict) = default_for(input);
             trace.push(fired(
                 &Rule {
-                    id: DEFAULT_REVIEW,
+                    id,
                     stage: PolicyStage::Classification,
                     check: |_| None,
                 },
                 None,
                 BTreeSet::new(),
             )?);
-        }
-        cautious(proposal.unwrap_or(Verdict::Review), cap)
+            verdict
+        };
+        cautious(proposal, cap)
     } else {
         Verdict::Keep
     };
@@ -257,7 +290,8 @@ pub(crate) fn evaluate_with(
     )?)
 }
 
-/// Inputs for tests: an observed, fully read, unprotected file on Linux.
+/// Inputs for tests: an observed, fully read, unprotected file on Linux, large
+/// enough to be reviewed when nothing recognises it.
 #[cfg(test)]
 pub(crate) mod testing {
     use std::num::NonZeroU32;
@@ -268,6 +302,9 @@ pub(crate) mod testing {
     };
 
     use super::*;
+
+    /// A size well above [`REVIEW_MIN_BYTES`].
+    pub(crate) const LARGE: u64 = 1_000_000_000;
 
     pub(crate) fn file(n: u128) -> Subject {
         Subject::File {
@@ -303,6 +340,7 @@ pub(crate) mod testing {
             },
             complete: true,
             reclaim: ReclaimEstimate {
+                allocated: ByteCount::new(reclaimable),
                 reclaimable_now: ByteCount::new(reclaimable),
                 files: 1,
                 exact: true,
@@ -328,7 +366,7 @@ pub(crate) mod testing {
                 mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
                 complete_sources: BTreeSet::new(),
             },
-            observed: Some(observed(EntryKind::File, 4096)),
+            observed: Some(observed(EntryKind::File, LARGE)),
             knowledge: BTreeMap::new(),
             jev: None,
         }
@@ -446,6 +484,75 @@ mod tests {
         assert_eq!(decision.risk().level, RiskLevel::Low);
         assert_eq!(decision.policy_version(), POLICY_VERSION);
         assert_eq!(decision.evidence_hash(), EvidenceHash::from_bytes([7; 32]));
+        Ok(())
+    }
+
+    /// `input` with an observed file whose reclaim estimate is `allocated` and
+    /// `now`.
+    fn sized(allocated: u64, now: u64) -> PolicyInput {
+        let mut sized = input(Vec::new());
+        let mut observed = testing::observed(lumen_domain::EntryKind::File, now);
+        observed.reclaim.allocated = ByteCount::new(allocated);
+        sized.observed = Some(observed);
+        sized
+    }
+
+    #[test]
+    fn only_items_of_review_size_or_unknown_size_default_to_review() -> Result<(), PolicyError> {
+        let min = REVIEW_MIN_BYTES.get();
+        for (allocated, now, verdict, rule) in [
+            (min - 1, min - 1, Verdict::Keep, DEFAULT_KEEP_SMALL),
+            (0, 0, Verdict::Keep, DEFAULT_KEEP_SMALL),
+            (min, min, Verdict::Review, DEFAULT_REVIEW),
+            (min, 0, Verdict::Review, DEFAULT_REVIEW),
+            (0, min, Verdict::Review, DEFAULT_REVIEW),
+            (u64::MAX, u64::MAX, Verdict::Review, DEFAULT_REVIEW),
+        ] {
+            let decision = evaluate_with(&[], &sized(allocated, now))?;
+            assert_eq!(decision.verdict(), verdict, "{allocated} {now}");
+            assert_eq!(ids(&decision), [rule], "{allocated} {now}");
+        }
+        let unknown = evaluate_with(
+            &[],
+            &PolicyInput {
+                observed: None,
+                ..input(Vec::new())
+            },
+        )?;
+        assert_eq!(unknown.verdict(), Verdict::Review, "unknown is never small");
+        assert_eq!(ids(&unknown), [DEFAULT_REVIEW]);
+        Ok(())
+    }
+
+    #[test]
+    fn the_size_default_never_overrides_a_classification() -> Result<(), PolicyError> {
+        let small = sized(1, 1);
+        let rules = [rule(
+            "classify.always",
+            PolicyStage::Classification,
+            quarantine_always,
+        )];
+        let classified = evaluate_with(&rules, &small)?;
+        assert_eq!(classified.verdict(), Verdict::Quarantine);
+        assert_eq!(ids(&classified), ["classify.always"]);
+        let reviewed = [rule(
+            "classify.unsure",
+            PolicyStage::Classification,
+            review_always,
+        )];
+        assert_eq!(
+            evaluate_with(&reviewed, &small)?.verdict(),
+            Verdict::Review,
+            "a rule's review stands, however small the item"
+        );
+        let capped = evaluate_with(
+            &[rule("eligible.cap", PolicyStage::Eligibility, cap_review)],
+            &PolicyInput {
+                evidence: vec![evidence(Fact::InUse(true))],
+                ..small
+            },
+        )?;
+        assert_eq!(capped.verdict(), Verdict::Keep, "a cap never raises it");
         Ok(())
     }
 
@@ -601,6 +708,7 @@ mod tests {
             assert!(seen.insert(rule.id), "duplicate {}", rule.id);
         }
         assert!(RuleId::new(DEFAULT_REVIEW).is_ok());
+        assert!(RuleId::new(DEFAULT_KEEP_SMALL).is_ok());
     }
 
     proptest! {

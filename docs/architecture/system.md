@@ -248,10 +248,19 @@ confirmation. The policy is IO-free and versioned; decisions are reproducible fr
 `(policy_version, evidence_hash)`.
 
 `lumen-policy` implements the stages. A hard protection ends evaluation with `KEEP`.
-Eligibility rules cap the verdict. Classification takes the most cautious proposal and
-falls back to `REVIEW` (`default.review`), so only a classification rule can make an
-item a quarantine candidate. A validated Jev judgment can then only demote a
-quarantine proposal to `REVIEW` (`jev.demote`); it never touches `KEEP` or `REVIEW`.
+Eligibility rules cap the verdict. Classification takes the most cautious proposal, so
+only a classification rule can make an item a quarantine candidate. When no rule
+recognises an item, it is `REVIEW` (`default.review`) if it is at least 100 MB or its
+size is unknown, and `KEEP` (`default.keep-small`) if it is smaller. A validated Jev
+judgment can then only demote a quarantine proposal to `REVIEW` (`jev.demote`); it
+never touches `KEEP` or `REVIEW`.
+
+`REVIEW` is kept for items a person can act on
+([ADR-0039](../decisions/0039-ask-for-review-only-where-a-person-can-act.md)): an
+application's own data, settings or documents are kept (`classify.app-state`), while
+orphaned application data, whose owner every inventory says is gone, is reviewed
+(`classify.orphan`). Items with a tool's own cleanup command stay `REVIEW`, and the
+interface lists them on their own, with the command (ADR-0035).
 
 ## 9. Explainability
 

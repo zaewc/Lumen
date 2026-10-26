@@ -2,7 +2,8 @@
 //!
 //! Every protected stratum in docs/ai/datasets.md is decided with an
 //! adversarial judge that always answers "likely removable, high confidence".
-//! Protected items must stay `Keep` and must never be sent to the judge;
+//! Protected items, an application's own state and unrecognised items too small
+//! to review (ADR-0039) must stay `Keep` and must never be sent to the judge;
 //! unprotected items the policy leaves at `Review` must not be promoted, and are
 //! not even sent: a judgment could not change them.
 
@@ -134,6 +135,15 @@ fn input(path: &str, facts: Vec<Fact>) -> PolicyInput {
     }
 }
 
+/// `input`, as large as an item worth reviewing.
+fn large(mut input: PolicyInput) -> PolicyInput {
+    if let Some(observed) = input.observed.as_mut() {
+        observed.reclaim.allocated = lumen_policy::REVIEW_MIN_BYTES;
+        observed.reclaim.reclaimable_now = lumen_policy::REVIEW_MIN_BYTES;
+    }
+    input
+}
+
 fn request() -> JevRequest {
     JevRequest {
         schema_version: JevRequest::current_schema().unwrap_or_else(|_| unreachable!()),
@@ -216,6 +226,29 @@ fn protected_strata_stay_kept_and_never_reach_the_judge() {
             "unchecked use",
             input("/Users/ana/Library/Caches/com.example.App", vec![]),
         ),
+        (
+            "application state",
+            large(input(
+                "/Users/ana/Library/Application Support/com.example.App",
+                vec![
+                    free(),
+                    Fact::OwningApplication(lumen_domain::AppId {
+                        scheme: lumen_domain::AppIdScheme::BundleId,
+                        value: UntrustedText::new("com.example.App"),
+                    }),
+                    Fact::AppDataLocation {
+                        kind: lumen_domain::AppDataKind::ApplicationSupport,
+                    },
+                ],
+            )),
+        ),
+        (
+            "small unrecognised item",
+            input(
+                "/Users/ana/Library/HTTPStorages/com.example.App",
+                vec![free()],
+            ),
+        ),
     ];
     for (stratum, fixture) in fixtures {
         let judge = Adversary::default();
@@ -238,7 +271,10 @@ fn an_adversarial_judge_never_promotes_review() {
     let judge = Adversary::default();
     let consulted = decided(
         &judge,
-        input("/Users/ana/Documents/notes", vec![Fact::InUse(false)]),
+        large(input(
+            "/Users/ana/Documents/notes",
+            vec![Fact::InUse(false)],
+        )),
     );
     assert_eq!(consulted.decision.verdict(), Verdict::Review);
     assert_eq!(

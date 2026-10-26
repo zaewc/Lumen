@@ -460,13 +460,23 @@ mod tests {
         let nothing = decide_with(|i| {
             i.observed = Some(crate::testing::observed(EntryKind::File, 0));
         })?;
-        assert!(fired(&nothing).contains(&"eligible.frees-nothing"));
+        assert_eq!(
+            fired(&nothing),
+            ["default.keep-small", "eligible.frees-nothing"]
+        );
+        assert_eq!(nothing.verdict(), Verdict::Keep, "too small to review");
         let link = decide_with(|i| {
-            i.observed = Some(crate::testing::observed(EntryKind::Symlink, 10));
+            i.observed = Some(crate::testing::observed(
+                EntryKind::Symlink,
+                crate::testing::LARGE,
+            ));
         })?;
         assert!(fired(&link).contains(&"eligible.object-kind"));
         let directory = decide_with(|i| {
-            i.observed = Some(crate::testing::observed(EntryKind::Directory, 10));
+            i.observed = Some(crate::testing::observed(
+                EntryKind::Directory,
+                crate::testing::LARGE,
+            ));
         })?;
         assert_eq!(fired(&directory), ["default.review"], "eligible");
         Ok(())

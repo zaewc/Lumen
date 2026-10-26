@@ -9,10 +9,10 @@
 //! - a vendor's cache declaration;
 //! - an application's own data location, by its documented kind (an app's
 //!   `Caches` folder is re-creatable; containers, support files and
-//!   preferences are its state);
+//!   preferences are its state, which Lumen keeps, ADR-0039);
 //! - an owning application that is absent from inventories that were read
 //!   completely (Orphan Hunter): reviewed, never quarantined, because leftovers
-//!   can hold the user's own data.
+//!   can hold the user's own data, and the person can decide about them.
 
 use std::collections::BTreeSet;
 
@@ -166,8 +166,13 @@ pub(crate) fn app_cache(input: &PolicyInput) -> Option<Finding> {
 }
 
 /// An application's container, support files or preferences: its own state,
-/// which may include the user's documents and settings.
+/// which may include the user's documents and settings. Lumen never removes
+/// it, so it is kept rather than reviewed (ADR-0039). An orphan's leftovers
+/// are the orphan rule's: the person can act on them, so they stay reviewed.
 pub(crate) fn app_state(input: &PolicyInput) -> Option<Finding> {
+    if orphan(input).is_some() {
+        return None;
+    }
     let evidence = app_location(
         input,
         &[
@@ -177,7 +182,7 @@ pub(crate) fn app_state(input: &PolicyInput) -> Option<Finding> {
         ],
     );
     (!evidence.is_empty()).then(|| Finding {
-        verdict: Verdict::Review,
+        verdict: Verdict::Keep,
         evidence,
         risk: BTreeSet::from([RiskFactor::SensitiveData]),
         rule: None,
@@ -336,7 +341,7 @@ mod tests {
     }
 
     #[test]
-    fn an_apps_own_cache_is_a_candidate_and_its_state_is_reviewed() -> Result<(), PolicyError> {
+    fn an_apps_own_cache_is_a_candidate_and_its_state_is_kept() -> Result<(), PolicyError> {
         let cache = decide(&owned(AppDataKind::Caches), &[])?;
         assert_eq!(cache.verdict(), Verdict::Quarantine);
         assert_eq!(fired(&cache), ["classify.app-cache"]);
@@ -351,8 +356,9 @@ mod tests {
             AppDataKind::Preferences,
         ] {
             let state = decide(&owned(kind), &[])?;
-            assert_eq!(state.verdict(), Verdict::Review, "{kind:?}");
+            assert_eq!(state.verdict(), Verdict::Keep, "{kind:?}");
             assert_eq!(fired(&state), ["classify.app-state"]);
+            assert_eq!(state.risk().level, lumen_domain::RiskLevel::Critical);
         }
         for kind in [AppDataKind::SavedApplicationState, AppDataKind::WebData] {
             assert_eq!(
@@ -417,6 +423,75 @@ mod tests {
             let decision = run(absent(searched, present), complete)?;
             assert_eq!(fired(&decision), ["default.review"]);
         }
+        Ok(())
+    }
+
+    #[test]
+    fn orphaned_app_data_stays_reviewed_and_installed_app_data_is_kept() -> Result<(), PolicyError>
+    {
+        let app = lumen_domain::AppId {
+            scheme: lumen_domain::AppIdScheme::BundleId,
+            value: UntrustedText::new("com.example.gone"),
+        };
+        let inventory = entry("macos.applications");
+        let run = |present: bool, extra: &[(Fact, KnowledgeClass)]| {
+            let mut evidence = vec![
+                fact(file(1), Fact::InUse(false)),
+                fact(file(1), Fact::OwningApplication(app.clone())),
+                fact(
+                    file(1),
+                    Fact::AppDataLocation {
+                        kind: AppDataKind::ApplicationSupport,
+                    },
+                ),
+                Evidence {
+                    subject: Subject::Application { id: app.clone() },
+                    fact: Fact::ApplicationPresent {
+                        app: app.clone(),
+                        present,
+                    },
+                    basis: Basis::Absence {
+                        searched: BTreeSet::from([inventory.clone()]),
+                    },
+                    provenance: Provenance {
+                        source: inventory.clone(),
+                        observed_at: Timestamp::UNIX_EPOCH,
+                    },
+                },
+            ];
+            evidence.extend(extra.iter().map(|(f, _)| fact(file(1), f.clone())));
+            let mut i = input(evidence);
+            i.context.complete_sources = BTreeSet::from([inventory.clone()]);
+            i.knowledge = extra
+                .iter()
+                .filter_map(|(f, class)| match f {
+                    Fact::KnowledgeBaseMatch { entry } => Some((entry.clone(), *class)),
+                    _ => None,
+                })
+                .collect();
+            evaluate(&i)
+        };
+        let orphaned = run(false, &[])?;
+        assert_eq!(fired(&orphaned), ["classify.orphan"]);
+        assert_eq!(
+            orphaned.verdict(),
+            Verdict::Review,
+            "the person can act on it"
+        );
+        let installed = run(true, &[])?;
+        assert_eq!(fired(&installed), ["classify.app-state"]);
+        assert_eq!(installed.verdict(), Verdict::Keep);
+        let regenerable = [(kb_match("x-cache"), KnowledgeClass::Regenerable)];
+        assert_eq!(
+            run(false, &regenerable)?.verdict(),
+            Verdict::Review,
+            "an orphan is never a candidate"
+        );
+        assert_eq!(
+            run(true, &regenerable)?.verdict(),
+            Verdict::Keep,
+            "the most cautious proposal wins"
+        );
         Ok(())
     }
 
