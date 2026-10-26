@@ -5,6 +5,11 @@ name: release
 # draft release on a `v*` tag. Builds are unsigned until signing lands
 # (roadmap 12.8). Pull requests that change this workflow run the builds as a
 # dry run; nothing is attested or published from them.
+#
+# Tag runs compile Lumen's built-in Jeb key (ADR-0042) into the CLI and the
+# desktop app: the secret `JEB_API_KEY` of the `release` environment, given
+# only to the two compile steps. Pull request runs reference no environment
+# and pass an empty value, so they never receive it.
 on:
   push:
     tags: ["v*"]
@@ -36,6 +41,8 @@ jobs:
           - os: windows-2025
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
+    # Tag runs only: the environment that holds the built-in Jeb key.
+    environment: ${{ github.event_name == 'push' && 'release' || '' }}
     # Build scripts of dependencies run here, so this job can read the
     # repository and nothing else: no tokens to sign or publish with.
     permissions:
@@ -78,7 +85,15 @@ jobs:
       - name: Build
         env:
           TARGET: ${{ matrix.target }}
-        run: cargo build --release --locked -p lumen-cli --target "$TARGET"
+          # Read by `option_env!` in lumen-app (ADR-0042); empty unless a tag
+          # run. Masked in logs.
+          LUMEN_JEB_BUILTIN_KEY: ${{ github.event_name == 'push' && secrets.JEB_API_KEY || '' }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ -z "$LUMEN_JEB_BUILTIN_KEY" ]; then
+            echo "::error::the release environment has no JEB_API_KEY secret (ADR-0042)"
+            exit 1
+          fi
+          cargo build --release --locked -p lumen-cli --target "$TARGET"
       - name: Package
         env:
           TARGET: ${{ matrix.target }}
@@ -120,6 +135,8 @@ jobs:
             target: x86_64-unknown-linux-gnu
             bundles: deb,appimage
     runs-on: ${{ matrix.os }}
+    # Tag runs only: the environment that holds the built-in Jeb key.
+    environment: ${{ github.event_name == 'push' && 'release' || '' }}
     permissions:
       contents: read
     defaults:
@@ -171,7 +188,15 @@ jobs:
           TARGET: ${{ matrix.target }}
           BUNDLES: ${{ matrix.bundles }}
           TURBO_TELEMETRY_DISABLED: "1"
-        run: pnpm --filter @lumen/desktop tauri build --ci --target "$TARGET" --bundles "$BUNDLES"
+          # Read by `option_env!` in lumen-app (ADR-0042); empty unless a tag
+          # run. Masked in logs.
+          LUMEN_JEB_BUILTIN_KEY: ${{ github.event_name == 'push' && secrets.JEB_API_KEY || '' }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ -z "$LUMEN_JEB_BUILTIN_KEY" ]; then
+            echo "::error::the release environment has no JEB_API_KEY secret (ADR-0042)"
+            exit 1
+          fi
+          pnpm --filter @lumen/desktop tauri build --ci --target "$TARGET" --bundles "$BUNDLES"
       - name: Collect
         env:
           TARGET: ${{ matrix.target }}

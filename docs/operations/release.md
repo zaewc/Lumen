@@ -34,11 +34,13 @@ Security. Signing and notarization are roadmap 12.8.
    request.
 2. Once that is merged, tag the merge commit `v<version>` and push the tag. The build
    fails if the tag does not match either version.
-3. The workflow builds each target, writes the SBOMs and checksums, attests them and
-   creates a **draft** release with generated notes.
+3. The workflow builds each target with Lumen's built-in Jeb key (below), writes the
+   SBOMs and checksums, attests them and creates a **draft** release with generated
+   notes. A build fails if the `release` environment has no `JEB_API_KEY` secret.
 4. Review the draft (files, checksums, notes), then publish it.
 
-The build jobs can read the repository and nothing else; only the attest job can mint
+The build jobs can read the repository and nothing else (on tag runs, the two compile
+steps also get the built-in Jeb key); only the attest job can mint
 a signing token, and only the release job can write releases. Neither runs repository
 code. Release builds use no cache. On Linux, the CLI build and SBOM jobs may reach only the
 toolchain, crates.io, npm, GitHub and artifact storage; the desktop job audits its
@@ -46,7 +48,55 @@ network use while its package mirrors are pinned down. The macOS and Windows run
 cannot enforce that limit.
 
 A pull request that changes the workflow runs the builds as a dry run; nothing is
-attested or published.
+attested or published, and no secret is used.
+
+## Built-in Jeb key
+
+[ADR-0042](../decisions/0042-ship-a-built-in-jeb-key-in-release-builds.md): release
+builds carry one Jeb key, so people can turn AI review on without their own. **Anyone
+who downloads a release can read this key out of the binary and spend its quota**, and
+revoking it turns AI review off in every release that carries it. Use a key that is
+for nothing else.
+
+How it flows: the secret `JEB_API_KEY` lives in the repository's `release`
+environment. Only tag-triggered runs reference that environment, and only the two
+compile steps (`build` › Build, `desktop` › Bundle) receive it, as the variable
+`LUMEN_JEB_BUILTIN_KEY`, which `lumen_app::ai::builtin_key()` reads at compile time
+with `option_env!`. Pull request runs reference no environment and pass an empty value.
+Builds without the variable (local, CI checks, dry runs) have no built-in key and
+behave as before. The key is never in the repository.
+
+### Setting it up (once)
+
+1. Confirm with the Jeb operator (the school's AI Hub) that this key may be shipped in
+   public builds.
+2. Create the environment and let only release tags use it:
+
+   ```sh
+   gh api -X PUT repos/zaewc/Lumen/environments/release \
+     -F 'deployment_branch_policy[protected_branches]=false' \
+     -F 'deployment_branch_policy[custom_branch_policies]=true'
+   gh api -X POST repos/zaewc/Lumen/environments/release/deployment-branch-policies \
+     -f name='v*' -f type=tag
+   ```
+
+3. Set the secret. The command reads the value from standard input; paste it at the
+   prompt so it never lands in your shell history:
+
+   ```sh
+   gh secret set JEB_API_KEY --env release --repo zaewc/Lumen
+   ```
+
+   Set it **only** on the environment, never as a repository secret.
+4. After the next release, check a downloaded build: `lumen jev key status` says
+   "Built-in Jeb key: available." and never shows the key.
+
+### Rotating or revoking it
+
+Revoke the key on the AI Hub, set the new one with the same `gh secret set` command,
+and cut a new release: the key is compiled in, so rotation means a new release.
+Until people update, releases with the old key answer "unavailable" and the policy
+decides without AI review; anyone who stored their own key is unaffected.
 
 ## Verifying a download
 
