@@ -306,6 +306,7 @@ export const en = {
     location: (name: string) => `Kept: it is in a protected location (${name}).`,
     rules: {
       "default.review": "Needs review: Lumen does not recognise this item.",
+      "default.keep-small": "Kept: too small to be worth reviewing.",
       "protect.os-protected": "Kept: the operating system protects this item.",
       "protect.system-file": "Kept: Windows marks this item as a system file.",
       "protect.cloud-backed":
@@ -335,7 +336,8 @@ export const en = {
         "Needs review: Lumen could not load the tool information that matches it.",
       "classify.vendor-declared-cache": "Needs review: its maker says you can delete it.",
       "classify.app-cache": "Proposed: it is an app's cache, which the app makes again.",
-      "classify.app-state": "Needs review: it holds an app's own data, settings or documents.",
+      "classify.app-state":
+        "Kept: it holds an app's own data, settings or documents, so Lumen leaves it alone.",
       "classify.orphan": "Needs review: the app it belongs to seems to be uninstalled.",
       "jev.demote": "Needs review: AI review advised caution.",
     } satisfies { readonly [R in RuleId]: string },

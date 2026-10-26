@@ -5,6 +5,7 @@
  */
 export const RULE_IDS = [
   "default.review",
+  "default.keep-small",
   "protect.os-protected",
   "protect.system-file",
   "protect.cloud-backed",

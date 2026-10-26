@@ -316,6 +316,7 @@ export const ko = {
     location: (name: string) => `유지: 보호된 위치(${name})에 있어요.`,
     rules: {
       "default.review": "검토 필요: Lumen이 모르는 항목이에요.",
+      "default.keep-small": "유지: 크기가 작아서 검토하지 않아도 돼요.",
       "protect.os-protected": "유지: 운영 체제가 보호하는 항목이에요.",
       "protect.system-file": "유지: Windows가 시스템 파일로 표시한 항목이에요.",
       "protect.cloud-backed":
@@ -342,7 +343,7 @@ export const ko = {
       "classify.devkb-unknown": "검토 필요: 이 항목에 맞는 도구 정보를 불러오지 못했어요.",
       "classify.vendor-declared-cache": "검토 필요: 만든 회사가 지워도 된다고 밝힌 데이터예요.",
       "classify.app-cache": "정리 제안: 앱의 캐시라서 앱이 다시 만들어요.",
-      "classify.app-state": "검토 필요: 앱의 데이터, 설정, 문서가 들어 있어요.",
+      "classify.app-state": "유지: 앱의 데이터, 설정, 문서가 들어 있어서 Lumen이 건드리지 않아요.",
       "classify.orphan": "검토 필요: 이 항목을 쓰던 앱이 삭제된 것 같아요.",
       "jev.demote": "검토 필요: AI 검토가 주의를 권했어요.",
     },
