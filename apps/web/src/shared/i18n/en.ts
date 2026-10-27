@@ -362,6 +362,8 @@ export const en = {
       "eligible.object-kind": "Needs review: it is a link or special file, not data.",
       "eligible.in-use-partial":
         "No app Lumen can see uses it. Lumen could not check system apps, so it checks again just before moving it.",
+      "eligible.in-use-partial-single-user":
+        "No app Lumen can see uses it. You are this computer's only user, so what Lumen could not check is the system's. It checks again just before moving it.",
       "classify.devkb-regenerable": "Proposed: the tool that made it can make it again.",
       "classify.devkb-tool-action":
         "Needs review: only the tool's own clean-up command should remove it, and you cannot undo that.",

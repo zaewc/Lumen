@@ -20,6 +20,7 @@ export const RULE_IDS = [
   "eligible.frees-nothing",
   "eligible.object-kind",
   "eligible.in-use-partial",
+  "eligible.in-use-partial-single-user",
   "classify.devkb-regenerable",
   "classify.devkb-tool-action",
   "classify.devkb-not-regenerable",

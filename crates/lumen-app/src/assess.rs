@@ -504,6 +504,7 @@ pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> 
         local_app_data: env.local_app_data.clone(),
         mechanisms,
         complete_sources: inventory.complete_sources.clone(),
+        single_user: false,
     };
     Ok(Assessment {
         roots,
@@ -916,6 +917,7 @@ mod tests {
                 local_app_data: None,
                 mechanisms: BTreeSet::new(),
                 complete_sources: BTreeSet::new(),
+                single_user: false,
             },
             observed: Some(Observed {
                 entry: FilesystemEntry {

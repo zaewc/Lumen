@@ -187,6 +187,7 @@ prop_compose! {
         paths in path(),
         platform in prop_oneof![Just(Platform::Macos), Just(Platform::Linux)],
         quarantine in any::<bool>(),
+        single_user in any::<bool>(),
         jev in judgment(),
     ) -> PolicyInput {
         PolicyInput {
@@ -208,6 +209,7 @@ prop_compose! {
                     BTreeSet::new()
                 },
                 complete_sources: BTreeSet::new(),
+                single_user,
             },
             observed,
             knowledge: classes
@@ -223,17 +225,19 @@ fn decide(input: &PolicyInput) -> Result<PolicyDecision, TestCaseError> {
     evaluate(input).map_err(|e| TestCaseError::fail(format!("evaluate failed: {e}")))
 }
 
-/// ADR-0030: a partial in-use answer passes only for the user's own items
-/// below their home, when the reversible quarantine rename is available.
+/// ADR-0030 as amended by ADR-0046: a partial in-use answer passes only for
+/// the user's own items, when the reversible quarantine rename is available,
+/// below their home or on a single-user computer.
 fn adr_0030(input: &PolicyInput) -> bool {
     let facts: Vec<&Fact> = input.evidence.iter().map(|e| &e.fact).collect();
     facts.contains(&&Fact::OwnedByCurrentUser(true))
         && !facts.contains(&&Fact::OwnedByCurrentUser(false))
         && !input.paths.is_empty()
-        && input
-            .paths
-            .iter()
-            .all(|p| p.as_bytes().starts_with(b"/home/t/"))
+        && (input.context.single_user
+            || input
+                .paths
+                .iter()
+                .all(|p| p.as_bytes().starts_with(b"/home/t/")))
         && input
             .context
             .mechanisms
@@ -350,10 +354,13 @@ proptest! {
             prop_assert!(
                 decision.fired_rules().iter().all(|r| r.stage != PolicyStage::HardProtection
                     && (r.stage != PolicyStage::Eligibility
-                        || r.rule.as_str() == "eligible.in-use-partial")),
+                        || r.rule.as_str() == "eligible.in-use-partial"
+                        || r.rule.as_str() == "eligible.in-use-partial-single-user")),
                 "{:?}", rules
             );
-            if rules.contains(&"eligible.in-use-partial") {
+            if rules.contains(&"eligible.in-use-partial")
+                || rules.contains(&"eligible.in-use-partial-single-user")
+            {
                 prop_assert!(adr_0030(&input), "{:?}", rules);
             }
             prop_assert!(input.context.mechanisms.contains(&CleanupMechanism::QuarantineRename));
@@ -384,6 +391,7 @@ fn quarantine_is_reachable() -> Result<(), lumen_policy::PolicyError> {
             local_app_data: None,
             mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
             complete_sources: BTreeSet::new(),
+            single_user: false,
         },
         observed: Some(Observed {
             entry: FilesystemEntry {

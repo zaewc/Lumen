@@ -47,7 +47,7 @@ pub use explain::explain;
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
-pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 12, 0);
+pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 13, 0);
 
 /// The smallest unrecognised item worth a person's review (ADR-0039): 100 MB,
 /// in decimal bytes as Lumen shows sizes. Below it, an item no rule
@@ -70,6 +70,10 @@ pub struct Context {
     /// Inventory sources that were read completely in this analysis; only
     /// absence they report is trusted.
     pub complete_sources: BTreeSet<SourceName>,
+    /// The current user is the only user account with a profile on this
+    /// computer (ADR-0046), so the processes an unprivileged in-use probe
+    /// cannot see belong to the system and services. `false` when unknown.
+    pub single_user: bool,
 }
 
 /// What the scan saw of a filesystem subject.
@@ -366,6 +370,7 @@ pub(crate) mod testing {
                 local_app_data: None,
                 mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
                 complete_sources: BTreeSet::new(),
+                single_user: false,
             },
             observed: Some(observed(EntryKind::File, LARGE)),
             knowledge: BTreeMap::new(),

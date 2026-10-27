@@ -296,6 +296,7 @@ mod tests {
                 local_app_data: None,
                 mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
                 complete_sources: BTreeSet::new(),
+                single_user: false,
             },
             observed: Some(Observed {
                 entry: candidate.clone(),

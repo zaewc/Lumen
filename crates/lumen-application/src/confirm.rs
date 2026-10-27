@@ -30,8 +30,11 @@ use crate::assess::{Probes, Sources, decide_candidate};
 use crate::ports::{CandidateVerifier, Clock, IdGenerator, JudgeModel, QuarantineExecutor};
 use crate::quarantine::ConfirmedItem;
 
-/// The rule that accepts a partial in-use answer (ADR-0030).
-const PARTIAL_IN_USE: &str = "eligible.in-use-partial";
+/// The rules that accept a partial in-use answer (ADR-0030, ADR-0046).
+const PARTIAL_IN_USE: [&str; 2] = [
+    "eligible.in-use-partial",
+    "eligible.in-use-partial-single-user",
+];
 
 /// Why a planned item is not executed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -181,7 +184,7 @@ pub async fn confirm_item(
     let partial_in_use_accepted = decision
         .fired_rules()
         .iter()
-        .any(|fired| fired.rule.as_str() == PARTIAL_IN_USE);
+        .any(|fired| PARTIAL_IN_USE.contains(&fired.rule.as_str()));
     let Ok(schema_version) = QuarantineManifest::current_schema() else {
         return skip(Skip::Manifest);
     };
@@ -413,6 +416,7 @@ mod tests {
             local_app_data: None,
             mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
             complete_sources: BTreeSet::new(),
+            single_user: false,
         }
     }
 

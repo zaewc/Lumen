@@ -65,6 +65,11 @@ pub(crate) const RULES: &[Rule] = &[
         check: in_use_partial_allowed,
     },
     Rule {
+        id: "eligible.in-use-partial-single-user",
+        stage: PolicyStage::Eligibility,
+        check: in_use_partial_single_user,
+    },
+    Rule {
         id: "eligible.quarantine-unsupported",
         stage: PolicyStage::Eligibility,
         check: quarantine_unsupported,
@@ -198,56 +203,84 @@ fn partial_answer(input: &PolicyInput) -> BTreeSet<EvidenceId> {
     })
 }
 
-/// ADR-0030 conditions 1 and 2 for passing on a partial answer: every path is
-/// below the user's home, the user owns the item (and nothing says otherwise),
-/// and the only action is the reversible quarantine rename. Condition 3 (no
-/// other protection) is the evaluator's; condition 4 (re-probe before the
-/// rename) is the executor's. Returns the ownership evidence relied on.
-fn partial_allowed(input: &PolicyInput) -> BTreeSet<EvidenceId> {
-    let platform = input.context.platform;
-    let Some(home) = &input.context.home else {
-        return BTreeSet::new();
-    };
-    let home = crate::locations::components(home, platform);
-    let below_home = !input.paths.is_empty()
-        && input.paths.iter().all(|path| {
-            let names = crate::locations::components(path, platform);
-            names.len() > home.len() && names.starts_with(&home)
-        });
+/// Which ADR-0030 condition 1 lets a partial in-use answer pass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PartialBasis {
+    /// (a) The item lies below the user's home.
+    Home,
+    /// (b) ADR-0046: on a single-user computer, on a volume where the
+    /// quarantine rename is available (it has a Lumen store).
+    SingleUser,
+}
+
+/// ADR-0030 conditions 1 and 2 for passing on a partial answer, as amended by
+/// ADR-0046: the user owns the item (and nothing says otherwise), the only
+/// action is the reversible quarantine rename (which the platform offers for
+/// this item's volume only where Lumen has a store there), and either every
+/// path is below the user's home, or the computer is single-user. Condition 3
+/// (no other protection) is the evaluator's; condition 4 (re-probe before
+/// the rename) is the executor's. Returns the basis and the ownership
+/// evidence relied on.
+fn partial_allowed(input: &PolicyInput) -> Option<(PartialBasis, BTreeSet<EvidenceId>)> {
     let owned = about(input, |f| *f == Fact::OwnedByCurrentUser(true));
     let disowned = !about(input, |f| *f == Fact::OwnedByCurrentUser(false)).is_empty();
     let quarantine = input
         .context
         .mechanisms
         .contains(&CleanupMechanism::QuarantineRename);
-    if below_home && !disowned && quarantine {
-        owned
+    if owned.is_empty() || disowned || !quarantine || input.paths.is_empty() {
+        return None;
+    }
+    let platform = input.context.platform;
+    let below_home = input.context.home.as_ref().is_some_and(|home| {
+        let home = crate::locations::components(home, platform);
+        input.paths.iter().all(|path| {
+            let names = crate::locations::components(path, platform);
+            names.len() > home.len() && names.starts_with(&home)
+        })
+    });
+    if below_home {
+        Some((PartialBasis::Home, owned))
+    } else if input.context.single_user {
+        Some((PartialBasis::SingleUser, owned))
     } else {
-        BTreeSet::new()
+        None
     }
 }
 
 /// Only some processes could be checked, and ADR-0030's conditions do not
 /// hold: the item is kept.
 fn in_use_partial(input: &PolicyInput) -> Option<Finding> {
-    if !partial_allowed(input).is_empty() {
+    if partial_allowed(input).is_some() {
         return None;
     }
     keep_if(partial_answer(input), RiskFactor::IncompleteCoverage)
 }
 
-/// Only some processes could be checked, but ADR-0030's conditions hold: the
-/// item stays eligible, and the decision records that it relied on a partial
-/// answer (the executor must probe again before the rename).
-fn in_use_partial_allowed(input: &PolicyInput) -> Option<Finding> {
+/// The finding that records reliance on a partial answer allowed on `basis`
+/// (the executor must probe again before the rename).
+fn partial_relied_on(input: &PolicyInput, basis: PartialBasis) -> Option<Finding> {
     let partial = partial_answer(input);
-    let owned = partial_allowed(input);
-    (!partial.is_empty() && !owned.is_empty()).then(|| Finding {
+    let (allowed, owned) = partial_allowed(input)?;
+    (!partial.is_empty() && allowed == basis).then(|| Finding {
         verdict: Verdict::Quarantine,
         evidence: partial.union(&owned).copied().collect(),
         risk: BTreeSet::from([RiskFactor::IncompleteCoverage]),
         rule: None,
     })
+}
+
+/// Only some processes could be checked, but ADR-0030's conditions hold for
+/// an item below the user's home: the item stays eligible, and the decision
+/// records that it relied on a partial answer.
+fn in_use_partial_allowed(input: &PolicyInput) -> Option<Finding> {
+    partial_relied_on(input, PartialBasis::Home)
+}
+
+/// The same outside home, on a single-user computer (ADR-0046): recorded
+/// under its own rule, so the explanation says what it relied on.
+fn in_use_partial_single_user(input: &PolicyInput) -> Option<Finding> {
+    partial_relied_on(input, PartialBasis::SingleUser)
 }
 
 /// Nobody checked whether the item is in use: unknown is never "unused".
@@ -513,6 +546,15 @@ mod tests {
 
     /// A partially checked item at `path`, with `facts`.
     fn partial_at(path: &str, facts: &[Fact]) -> Result<PolicyDecision, PolicyError> {
+        partial_on(path, facts, |_| {})
+    }
+
+    /// The same, with `change` applied to the input's context.
+    fn partial_on(
+        path: &str,
+        facts: &[Fact],
+        change: impl FnOnce(&mut crate::Context),
+    ) -> Result<PolicyDecision, PolicyError> {
         let mut evidence = vec![fact(
             file(1),
             Fact::NotInUseByVisibleProcesses { unseen: None },
@@ -523,6 +565,7 @@ mod tests {
             lumen_domain::RawPath::from_unix_bytes(path.as_bytes().to_vec())
                 .unwrap_or_else(|_| unreachable!()),
         ];
+        change(&mut input.context);
         evaluate(&input)
     }
 
@@ -577,6 +620,58 @@ mod tests {
             let decision = partial_at(path, &facts)?;
             assert_eq!(decision.verdict(), Verdict::Keep, "{path} {facts:?}");
             assert_eq!(fired(&decision), ["protect.in-use-partial"]);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn outside_home_a_partial_answer_passes_only_on_a_single_user_computer()
+    -> Result<(), PolicyError> {
+        let owned = Fact::OwnedByCurrentUser(true);
+        let single = |c: &mut crate::Context| c.single_user = true;
+        let allowed = partial_on("/srv/data/app/cache", std::slice::from_ref(&owned), single)?;
+        assert_eq!(
+            fired(&allowed),
+            ["default.review", "eligible.in-use-partial-single-user"]
+        );
+        let relied = allowed
+            .fired_rules()
+            .iter()
+            .find(|r| r.rule.as_str() == "eligible.in-use-partial-single-user")
+            .map(|r| r.evidence.len());
+        assert_eq!(
+            relied,
+            Some(2),
+            "cites the partial answer and the ownership"
+        );
+        // Below home, the home rule applies whether or not the PC is shared.
+        let home = partial_on("/home/t/.cache/app", std::slice::from_ref(&owned), single)?;
+        assert_eq!(fired(&home), ["default.review", "eligible.in-use-partial"]);
+        // Shared PC, not owned, disowned, or no quarantine store there: kept.
+        let cases: Vec<(Vec<Fact>, bool, bool)> = vec![
+            (vec![owned.clone()], false, true),
+            (vec![], true, true),
+            (vec![Fact::OwnedByCurrentUser(false)], true, true),
+            (
+                vec![owned.clone(), Fact::OwnedByCurrentUser(false)],
+                true,
+                true,
+            ),
+            (vec![owned.clone()], true, false),
+        ];
+        for (facts, single_user, quarantine) in cases {
+            let decision = partial_on("/srv/data/app/cache", &facts, |c| {
+                c.single_user = single_user;
+                if !quarantine {
+                    c.mechanisms.clear();
+                }
+            })?;
+            assert_eq!(
+                decision.verdict(),
+                Verdict::Keep,
+                "{facts:?} single={single_user} quarantine={quarantine}"
+            );
+            assert!(fired(&decision).contains(&"protect.in-use-partial"));
         }
         Ok(())
     }

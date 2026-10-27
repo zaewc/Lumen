@@ -369,6 +369,8 @@ export const ko = {
       "eligible.object-kind": "검토 필요: 데이터가 아니라 링크나 특수 파일이에요.",
       "eligible.in-use-partial":
         "Lumen이 확인한 프로그램 중에는 쓰는 곳이 없어요. 시스템 프로그램은 확인하지 못해서 옮기기 직전에 다시 확인해요.",
+      "eligible.in-use-partial-single-user":
+        "Lumen이 확인한 프로그램 중에는 쓰는 곳이 없어요. 이 컴퓨터의 사용자는 나뿐이라 확인하지 못한 건 시스템 프로그램이에요. 옮기기 직전에 다시 확인해요.",
       "classify.devkb-regenerable": "정리 제안: 이 항목을 만든 도구가 다시 만들 수 있어요.",
       "classify.devkb-tool-action":
         "검토 필요: 도구의 정리 명령으로만 지워야 하고, 지우면 되돌릴 수 없어요.",

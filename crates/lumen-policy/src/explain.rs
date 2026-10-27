@@ -41,6 +41,9 @@ fn template(rule: &str) -> Option<String> {
         "eligible.in-use-partial" => {
             "No process Lumen can see uses it; system processes could not be checked, so Lumen checks again just before moving it."
         }
+        "eligible.in-use-partial-single-user" => {
+            "No process Lumen can see uses it. You are this computer's only user, so the processes that could not be checked are the system's; Lumen checks again just before moving it."
+        }
         "classify.devkb-regenerable" => {
             "Quarantine proposed: the tool that made it can regenerate it."
         }

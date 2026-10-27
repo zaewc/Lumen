@@ -356,6 +356,7 @@ mod tests {
             local_app_data: None,
             mechanisms: BTreeSet::new(),
             complete_sources: BTreeSet::new(),
+            single_user: false,
         }
     }
 
