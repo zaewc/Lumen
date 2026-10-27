@@ -5,7 +5,8 @@
 //! lumen-jev-eval run    --dataset <VERSION> --cassette <FILE> [--split <NAME>]
 //!                       [--prompt v1|v2] [--ai <DIR>] [--gate full|observed] [--json]
 //! lumen-jev-eval record --dataset <VERSION> --out <FILE> [--split <NAME>]
-//!                       [--prompt v1|v2] [--ai <DIR>] [--resume <FILE>]
+//!                       [--judge jeb|apple-fm] [--prompt v1|v2] [--helper <PATH>]
+//!                       [--ai <DIR>] [--resume <FILE>]
 //! ```
 //!
 //! `run` loads the dataset version from `ai/` (verified against its manifest),
@@ -29,6 +30,10 @@
 //! `--prompt` (`v1`, the app's prompt, by default), and writes a new cassette
 //! that `run` replays. The key comes only from the operating system's secret store, where
 //! `lumen jev key set` puts it; it is never an argument, printed or written.
+//! With `--judge apple-fm` it asks Apple's on-device model instead, through
+//! the `fm-judge` helper (`--helper`, an absolute path; by default
+//! `apps/fm-judge/.build/release/fm-judge` under the current directory),
+//! with its own prompt `fm-decisions/1` (ADR-0044): nothing leaves the Mac.
 //! The output must not exist yet: nothing is ever overwritten. It exits with 0
 //! when every case was recorded, 1 when some were not (the rest are still
 //! written), and 2 for usage or input errors.
@@ -40,7 +45,7 @@ use std::error::Error;
 use std::io::Write as _;
 use std::path::PathBuf;
 use std::process::ExitCode;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use lumen_app::ai::Service;
 use lumen_application::ports::JudgeModel as _;
@@ -48,12 +53,12 @@ use lumen_domain::{JevRequest, JudgeDescriptor};
 use lumen_jev::decisions::Prompt;
 use lumen_jev::openrouter::{ApiKey, JevJudge};
 use lumen_jev_eval::{
-    CRITICAL_FPR_TARGET, Cassette, CassetteError, Dataset, DatasetReport, LiveError, LiveJudge,
-    Pacing, RecordOutcome, ReplayJudge, Report, load, record, run_dataset,
+    ANSWER_TIMEOUT, CRITICAL_FPR_TARGET, Cassette, CassetteError, Dataset, DatasetReport, FmHelper,
+    LiveError, LiveJudge, Pacing, RecordOutcome, ReplayJudge, Report, load, record, run_dataset,
 };
 
 const USAGE: &str = "usage: lumen-jev-eval run --dataset <VERSION> --cassette <FILE> [--split <NAME>] [--prompt v1|v2] [--ai <DIR>] [--gate full|observed] [--json]
-       lumen-jev-eval record --dataset <VERSION> --out <FILE> [--split <NAME>] [--prompt v1|v2] [--ai <DIR>] [--resume <FILE>]
+       lumen-jev-eval record --dataset <VERSION> --out <FILE> [--split <NAME>] [--judge jeb|apple-fm] [--prompt v1|v2] [--helper <PATH>] [--ai <DIR>] [--resume <FILE>]
 splits: dev, calibration, test-locked (canaries go with their twin's split)";
 
 /// Which gate decides the exit status.
@@ -79,6 +84,18 @@ struct RunArgs {
     json: bool,
 }
 
+/// The live judge to record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum LiveKind {
+    /// Jeb (ADR-0036), with the Decisions prompt to ask (v1 unless given).
+    Jeb(Prompt),
+    /// Apple's on-device model through the `fm-judge` helper (ADR-0044).
+    AppleFm {
+        /// The helper, if given.
+        helper: Option<PathBuf>,
+    },
+}
+
 /// Parsed `record` arguments.
 #[derive(Debug, PartialEq, Eq)]
 struct RecordArgs {
@@ -86,8 +103,8 @@ struct RecordArgs {
     out: PathBuf,
     /// Only this split's cases.
     split: Option<String>,
-    /// The prompt to ask (v1 unless given).
-    prompt: Prompt,
+    /// Who is asked.
+    judge: LiveKind,
     ai: PathBuf,
     /// An earlier, incomplete recording whose answers are kept.
     resume: Option<PathBuf>,
@@ -121,6 +138,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
     let (mut dataset, mut cassette, mut out, mut ai, mut json) =
         (None, None, None, PathBuf::from("ai"), false);
     let (mut resume, mut split, mut chosen_prompt) = (None, None, None);
+    let (mut on_device, mut helper) = (false, None);
     let mut gate = Gate::Full;
     let mut iter = rest.iter();
     while let Some(arg) = iter.next() {
@@ -145,16 +163,32 @@ fn parse(args: &[String]) -> Result<Command, String> {
             ("--json", false) => json = true,
             ("--out", true) => out = Some(PathBuf::from(value()?)),
             ("--resume", true) => resume = Some(PathBuf::from(value()?)),
+            ("--judge", true) => {
+                on_device = match value()?.as_str() {
+                    "jeb" => false,
+                    "apple-fm" => true,
+                    other => return Err(format!("unknown judge `{other}` (jeb or apple-fm)")),
+                };
+            }
+            ("--helper", true) => helper = Some(PathBuf::from(value()?)),
             (other, _) => return Err(format!("unexpected argument `{other}`")),
         }
     }
     let dataset = dataset.ok_or("--dataset is needed")?;
     Ok(if record {
+        let judge = match (on_device, chosen_prompt, helper) {
+            (false, prompt, None) => LiveKind::Jeb(prompt.unwrap_or_default()),
+            (false, _, Some(_)) => return Err("--helper is for --judge apple-fm".into()),
+            (true, Some(_), _) => {
+                return Err("--prompt is for Jeb; the on-device judge asks fm-decisions/1".into());
+            }
+            (true, None, helper) => LiveKind::AppleFm { helper },
+        };
         Command::Record(RecordArgs {
             dataset,
             out: out.ok_or("--out is needed")?,
             split,
-            prompt: chosen_prompt.unwrap_or_default(),
+            judge,
             ai,
             resume,
         })
@@ -301,9 +335,85 @@ fn describe(outcome: &RecordOutcome) -> String {
     }
 }
 
-/// Records a Jeb cassette; `Err` is bad input (exit 2), `Ok(false)` an
-/// incomplete recording (exit 1).
-fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
+/// The on-device helper: `--helper` (absolute), or the release build under
+/// the current directory.
+fn helper_path(given: Option<&PathBuf>) -> Result<PathBuf, Box<dyn Error>> {
+    let path = match given {
+        Some(path) if path.is_absolute() => path.clone(),
+        Some(path) => {
+            return Err(
+                format!("--helper must be an absolute path, not {}", path.display()).into(),
+            );
+        }
+        None => std::env::current_dir()?.join("apps/fm-judge/.build/release/fm-judge"),
+    };
+    if !path.try_exists()? {
+        return Err(format!(
+            "no fm-judge helper at {}: build it with `just fm-judge` (macOS 26 and Xcode 26 or later)",
+            path.display()
+        )
+        .into());
+    }
+    Ok(path)
+}
+
+/// A live judge, how to pace it, and what to tell the operator before
+/// anything is sent: a disclosure, and where the requests go.
+struct Live {
+    judge: Box<dyn LiveJudge>,
+    descriptor: JudgeDescriptor,
+    pacing: Pacing,
+    disclosure: Option<String>,
+    destination: String,
+}
+
+fn live_judge(args: &RecordArgs) -> Result<Live, Box<dyn Error>> {
+    match &args.judge {
+        LiveKind::Jeb(prompt) => {
+            let judge = Service::Jeb.judge(jeb_key()?)?.with_prompt(*prompt)?;
+            let descriptor = judge
+                .descriptor()
+                .ok_or("the Jeb judge has no descriptor")?;
+            Ok(Live {
+                judge: Box::new(Jeb {
+                    judge,
+                    descriptor: descriptor.clone(),
+                }),
+                descriptor,
+                pacing: Pacing::JEB,
+                disclosure: Some(Service::Jeb.disclosure().to_string()),
+                destination: format!(
+                    "to Jeb ({}) with prompt {}",
+                    lumen_jev::decisions::JEB_ENDPOINT,
+                    prompt.version()
+                ),
+            })
+        }
+        LiveKind::AppleFm { helper } => {
+            let judge = FmHelper::start(&helper_path(helper.as_ref())?, ANSWER_TIMEOUT)?;
+            let descriptor = judge.descriptor();
+            let destination = format!(
+                "to Apple's on-device model ({}) with prompt {}; nothing leaves this Mac",
+                descriptor
+                    .model_version
+                    .as_ref()
+                    .map_or("unknown version", |v| v.raw()),
+                lumen_jev::foundation::PROMPT_VERSION,
+            );
+            Ok(Live {
+                judge: Box::new(judge),
+                descriptor,
+                pacing: Pacing::ON_DEVICE,
+                disclosure: None,
+                destination,
+            })
+        }
+    }
+}
+
+/// Records a cassette; `Err` is bad input or an unavailable judge (exit 2),
+/// `Ok(false)` an incomplete recording (exit 1).
+fn record_live(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
     let dataset = dataset(&args.ai, &args.dataset, args.split.as_deref())?;
     if args.out.try_exists()? {
         return Err(format!(
@@ -316,11 +426,11 @@ fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
         Some(path) => Some(Cassette::parse(&std::fs::read_to_string(path)?)?),
         None => None,
     };
-    let judge = Service::Jeb.judge(jeb_key()?)?.with_prompt(args.prompt)?;
-    let descriptor = judge
-        .descriptor()
-        .ok_or("the Jeb judge has no descriptor")?;
-    if previous.as_ref().is_some_and(|p| p.judge != descriptor) {
+    let live = live_judge(args)?;
+    if previous
+        .as_ref()
+        .is_some_and(|p| p.judge != live.descriptor)
+    {
         return Err(CassetteError::OtherJudge.into());
     }
     // Reserve the output before spending quota; never replace a file.
@@ -340,22 +450,24 @@ fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
             })
             .count()
     });
-    eprintln!("{}", Service::Jeb.disclosure());
+    if let Some(disclosure) = &live.disclosure {
+        eprintln!("{disclosure}");
+    }
     eprintln!(
-        "Recording dataset {}{}: {} requests to Jeb ({}) with prompt {}, one at a time ({have} kept from the earlier recording). The cases are synthetic metadata from the dataset, never file contents.",
+        "Recording dataset {}{}: {} requests {}, one at a time ({have} kept from the earlier recording). The cases are synthetic metadata from the dataset, never file contents.",
         dataset.version,
         dataset
             .split
             .as_deref()
             .map_or_else(String::new, |s| format!(", split {s}")),
         cases - have,
-        lumen_jev::decisions::JEB_ENDPOINT,
-        args.prompt.version(),
+        live.destination,
     );
+    let started = Instant::now();
     let recording = record(
-        &Jeb { judge, descriptor },
+        live.judge.as_ref(),
         &dataset,
-        Pacing::JEB,
+        live.pacing,
         previous.as_ref(),
         &mut |case_id, outcome| {
             if *outcome != RecordOutcome::Kept {
@@ -363,14 +475,16 @@ fn record_jeb(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
             }
         },
     )?;
+    let seconds = started.elapsed().as_secs_f64();
     let mut text = serde_json::to_string_pretty(&recording.cassette)?;
     text.push('\n');
     file.write_all(text.as_bytes())?;
     file.sync_all()?;
     let count =
         |f: fn(&RecordOutcome) -> bool| recording.outcomes.iter().filter(|(_, o)| f(o)).count();
+    let asked = count(|o| !matches!(o, RecordOutcome::Kept | RecordOutcome::NotSent));
     eprintln!(
-        "{} of {cases} cases recorded ({} refused by the validator), {} not recorded; wrote {}",
+        "{} of {cases} cases recorded ({} refused by the validator), {} not recorded; {asked} asked in {seconds:.0} s; wrote {}",
         count(RecordOutcome::is_recorded),
         count(|o| matches!(o, RecordOutcome::Refused(_))),
         count(|o| !o.is_recorded()),
@@ -410,7 +524,7 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match parse(&args) {
         Ok(Command::Run(parsed)) => report_run(&parsed),
-        Ok(Command::Record(parsed)) => match record_jeb(&parsed) {
+        Ok(Command::Record(parsed)) => match record_live(&parsed) {
             Ok(true) => ExitCode::SUCCESS,
             Ok(false) => ExitCode::FAILURE,
             Err(e) => {
@@ -533,14 +647,14 @@ mod tests {
                 dataset: "2026.10.0".into(),
                 out: "jeb.json".into(),
                 split: None,
-                prompt: Prompt::V1,
+                judge: LiveKind::Jeb(Prompt::V1),
                 ai: "data".into(),
                 resume: None,
             }))
         );
         assert!(matches!(
             parse(&args(&["record", "--dataset", "d", "--out", "o"])),
-            Ok(Command::Record(RecordArgs { ai, prompt: Prompt::V1, split: None, .. }))
+            Ok(Command::Record(RecordArgs { ai, judge: LiveKind::Jeb(Prompt::V1), split: None, .. }))
                 if ai == std::path::Path::new("ai")
         ));
         assert!(matches!(
@@ -548,7 +662,7 @@ mod tests {
                 "record", "--dataset", "d", "--out", "o", "--split", "dev", "--prompt", "v2",
                 "--resume", "r.json"
             ])),
-            Ok(Command::Record(RecordArgs { split: Some(s), prompt: Prompt::V2, resume: Some(_), .. }))
+            Ok(Command::Record(RecordArgs { split: Some(s), judge: LiveKind::Jeb(Prompt::V2), resume: Some(_), .. }))
                 if s == "dev"
         ));
         for bad in [
@@ -567,11 +681,85 @@ mod tests {
                 "d",
                 "--out",
                 "o",
+                "--judge",
+                "claude",
+            ],
+            &["record", "--dataset", "d", "--out", "o", "--helper", "/h"],
+            &[
+                "record",
+                "--dataset",
+                "d",
+                "--out",
+                "o",
+                "--judge",
+                "apple-fm",
+                "--prompt",
+                "v2",
+            ],
+            &[
+                "run",
+                "--dataset",
+                "d",
+                "--cassette",
+                "c",
+                "--judge",
+                "apple-fm",
+            ],
+            &[
+                "record",
+                "--dataset",
+                "d",
+                "--out",
+                "o",
                 "--key",
                 "sk-secret",
             ],
         ] {
             assert!(parse(&args(bad)).is_err(), "{bad:?}");
         }
+    }
+
+    #[test]
+    fn parses_the_on_device_judge() {
+        assert!(matches!(
+            parse(&args(&[
+                "record", "--dataset", "2026.11.0", "--split", "dev", "--out", "fm.json",
+                "--judge", "apple-fm", "--helper", "/abs/fm-judge"
+            ])),
+            Ok(Command::Record(RecordArgs { judge: LiveKind::AppleFm { helper: Some(h) }, .. }))
+                if h == std::path::Path::new("/abs/fm-judge")
+        ));
+        assert!(matches!(
+            parse(&args(&[
+                "record",
+                "--dataset",
+                "d",
+                "--out",
+                "o",
+                "--judge",
+                "apple-fm"
+            ])),
+            Ok(Command::Record(RecordArgs {
+                judge: LiveKind::AppleFm { helper: None },
+                ..
+            }))
+        ));
+        assert!(matches!(
+            parse(&args(&[
+                "record",
+                "--dataset",
+                "d",
+                "--out",
+                "o",
+                "--judge",
+                "jeb"
+            ])),
+            Ok(Command::Record(RecordArgs {
+                judge: LiveKind::Jeb(Prompt::V1),
+                ..
+            }))
+        ));
+        assert!(helper_path(Some(&PathBuf::from("relative/fm-judge"))).is_err());
+        assert!(helper_path(Some(&PathBuf::from("/nonexistent/fm-judge"))).is_err());
     }
 }

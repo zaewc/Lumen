@@ -36,7 +36,9 @@ fixture definition ─▶ build fixture tree (tempdir) ─▶ scan (real lumen-s
   `lumen_jev::response` for any other judge, both followed by the evidence guards
   (ADR-0043), exactly as live. Unrecorded requests are unavailable.
 - `record` (`lumen_jev_eval::record`): the raw answers of a live judge, fetched with
-  `JevJudge::ask` (the transport `judge` itself uses, before validation).
+  `JevJudge::ask` (the transport `judge` itself uses, before validation), or with
+  `FmHelper` from Apple's on-device model (provider `apple.fm`, validated by
+  `lumen_jev::foundation`, ADR-0044).
 - Mock mode: `lumen_testkit::MockJudge`.
 - `jev.case/1` (`lumen_jev_eval::Case`) and `run`: grades each case (correct, acceptable,
   wrong, critical false positive, rejected, no answer) and reports the critical FPR
@@ -72,7 +74,7 @@ case is no evidence, and a judge must not pass by failing on exactly the hard ca
 
 ```text
 lumen-jev-eval record --dataset 2026.10.0 --out <FILE> [--split <NAME>] [--prompt v1|v2]
-                      [--ai ai] [--resume <FILE>]
+                      [--judge jeb|apple-fm] [--helper <PATH>] [--ai ai] [--resume <FILE>]
 ```
 
 `record` asks Jeb (ADR-0036) about every golden and adversarial case of the dataset,
@@ -111,6 +113,43 @@ requests).
   are sent, then everything is written, in dataset order, to the new `--out` file. The
   earlier file must come from the same judge, model and prompt (checked before
   anything is sent); with `--split`, give the same split again.
+
+### Recording the on-device judge
+
+`record --judge apple-fm` asks Apple's on-device model instead of Jeb
+([ADR-0044](../decisions/0044-evaluate-an-on-device-judge-with-foundation-models.md)),
+through the `fm-judge` helper, with its own prompt (`fm-decisions/1`; `--prompt` is
+refused). Nothing leaves the Mac and no quota is spent. It needs macOS 26 with Apple
+Intelligence on and its model downloaded.
+
+```text
+just fm-judge                                   # swift build -c release
+apps/fm-judge/.build/release/fm-judge --check   # exit 0: available; 3: Apple Intelligence
+                                                # off; 4: model not ready; 5: Mac not eligible
+lumen-jev-eval record --dataset 2026.11.0 --split dev --judge apple-fm \
+    --out ai/cassettes/fm-decisions/1/apple-fm-2026.11.0-dev.json
+lumen-jev-eval run --dataset 2026.11.0 --split dev \
+    --cassette ai/cassettes/fm-decisions/1/apple-fm-2026.11.0-dev.json
+```
+
+- **Helper:** `--helper <PATH>` names it by absolute path; by default
+  `apps/fm-judge/.build/release/fm-judge` under the current directory. It is started
+  without a shell and kept running; it gets each request as one `jev.request/1` line,
+  exactly what Jeb gets as `state`.
+- **Before sending:** `fm-judge --check` must report the model available, with the
+  model and prompt Lumen expects; otherwise `record` exits 2 and says why ("Apple
+  Intelligence is not enabled", "the on-device model is not ready yet", "this Mac is
+  not eligible"). Its `model_version` (the OS version and build) goes into the
+  cassette's descriptor, and replay refuses answers from another version.
+- **Errors:** an `fm.error/1` line is never recorded. The model becoming unavailable
+  stops the recording (finish it later with `--resume`); a rate limit or a busy model
+  is retried twice, after 2 and 4 s; an item that does not fit the context, a
+  guardrail, a refusal or an unsupported language fails that case only. An answer
+  that takes over 60 s fails its case and restarts the helper.
+- **Pace:** one request at a time, with no pause; the summary says how long the
+  requests took. On the owner's Mac (macOS 26.6.2), the 558 `dev` requests of
+  2026.11.0 took 486 s, 0.87 s each (median 0.86 s, slowest 1.5 s). `fm-judge --render` (bytes) and `--measure` (tokens, macOS 26.4 and
+  the model) size every prompt of a dataset without recording.
 
 Comparing prompts on one split (roadmap 14.4) uses
 `ai/tools/compare_cassettes.py`, which reads only committed or recorded files and
@@ -171,9 +210,11 @@ determine a run.
 - Developers may use promptfoo through an `exec` provider that calls this CLI for
   quick prompt A/B and red-team generation. promptfoo is never the source of truth
   for gates.
-- On-device models (Foundation Models, ML Kit) are evaluated by device runners that
-  produce the same cassette format, keyed by the on-device model identifier and OS
-  build.
+- On-device models are evaluated by device runners that produce the same cassette
+  format, keyed by the on-device model identifier and OS build: Foundation Models
+  through `record --judge apple-fm` (above); ML Kit later. CI builds and tests the
+  `fm-judge` helper (`fm-judge.yml`) but cannot record: hosted runners are not eligible
+  for Apple Intelligence.
 
 ## Claude Code harness
 
