@@ -143,12 +143,29 @@ jobs:
       run:
         shell: bash
     steps:
-      # Audit, not block: the Ubuntu package mirrors this job needs are not
-      # pinned down yet. The build and SBOM jobs block.
+      # Blocked like the build and SBOM jobs (roadmap 13.d): the hosts the
+      # 0.2.0 run reached, from its log: the Ubuntu mirror and Microsoft's
+      # package repository, the toolchains and registries, the AppImage tools
+      # Tauri downloads from GitHub releases, and the artifact upload.
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         if: runner.os == 'Linux'
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            raw.githubusercontent.com:443
+            static.rust-lang.org:443
+            index.crates.io:443
+            static.crates.io:443
+            azure.archive.ubuntu.com:80
+            packages.microsoft.com:443
+            registry.npmjs.org:443
+            nodejs.org:443
+            results-receiver.actions.githubusercontent.com:443
+            *.blob.core.windows.net:443
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

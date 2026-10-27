@@ -358,7 +358,7 @@ Open:
 | # | Scope | Needs |
 | --- | --- | --- |
 | 13.a | Per-volume quarantine stores (`X:\$LumenQuarantine\<SID>\` on Windows, per-volume on macOS) so items on other drives can be quarantined; today they stay where they are (ADR-0015) | an executor review |
-| 13.d | Pin the release desktop job's egress and switch it to `block`; tighten the attest and release jobs after the first release | the first release's egress report |
+| 13.d | Tighten the attest and release jobs' egress to `block` (they run only on tags, so a pull request cannot test their allow-lists). The Linux desktop job blocks since 0.3.0's follow-up, with the hosts the 0.2.0 run reached | the egress report of a tag run |
 | 13.e | release-please for versioning (ADR-0026) | |
 | 13.g | Signing and notarization (12.8), the first tagged release, mobile device measurements (11.16d) | the owner |
 
