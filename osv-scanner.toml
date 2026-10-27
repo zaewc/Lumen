@@ -14,6 +14,19 @@ the app. Re-check for a fixed braces or a steiger without it before expiry.\
 """
 
 [[IgnoredVulns]]
+id = "GHSA-qwgh-2vcv-g2f7"
+ignoreUntil = 2027-01-27T00:00:00Z
+reason = """
+block-buffer < 0.12.1: a panic inside the caller's compression callback can \
+leave EagerBuffer/ReadBuffer's cursor out of range. block-buffer 0.10.4 comes \
+only through digest 0.10 -> sha2 0.10 -> tauri-codegen, which Tauri's build \
+script and proc macros use to hash bundled assets at compile time; it is not \
+in the shipped app's runtime. SHA-256 compression never panics, so the \
+corrupting path is not reachable, and the fix exists only in the 0.12 line \
+(digest 0.11). Re-check when Tauri moves to sha2 0.11 before expiry.\
+"""
+
+[[IgnoredVulns]]
 id = "GHSA-mrhx-c7xc-m3w5"
 ignoreUntil = 2027-01-25T00:00:00Z
 reason = """
