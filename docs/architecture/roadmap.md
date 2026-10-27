@@ -357,7 +357,7 @@ Open:
 
 | # | Scope | Needs |
 | --- | --- | --- |
-| 13.a | Per-volume quarantine stores (`X:\$LumenQuarantine\<SID>\` on Windows, per-volume on macOS) so items on other drives can be quarantined; today they stay where they are (ADR-0015) | an executor review |
+| 13.a | Per-volume quarantine stores (`X:\$LumenQuarantine\<SID>\` on Windows, per-volume on macOS) so items on other drives can be quarantined; today they stay where they are (ADR-0015). Reviewed 2026-10-27: stores alone would quarantine nothing, because the in-use probes answer `Partial` and ADR-0030 lets a partial answer pass only below the user's home, so items on other drives are kept. It needs an ADR amending ADR-0015 and ADR-0030 (which volumes qualify: local, fixed, non-removable, NTFS/ReFS with ACLs or APFS/HFS+ with ownership honoured; stores found by volume serial or UUID; an absent volume shown as disconnected), then volume classification, per-volume eligibility, store routing in the executor, several stores in `lumen-app`, and messages; Windows first. Not planned for 1.0 | the owner's decision on relaxing ADR-0030 outside home; an executor review |
 | 13.d | Tighten the attest and release jobs' egress to `block` (they run only on tags, so a pull request cannot test their allow-lists). The Linux desktop job blocks since 0.3.0's follow-up, with the hosts the 0.2.0 run reached | the egress report of a tag run |
 | 13.e | release-please for versioning (ADR-0026) | |
 | 13.g | Signing and notarization (12.8), the first tagged release, mobile device measurements (11.16d) | the owner |
