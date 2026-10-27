@@ -63,8 +63,9 @@ const csp = [
         </>
       )
     }
-    <link rel="icon" href={`${base}icon.svg`} type="image/svg+xml" />
     <link rel="icon" href={`${base}favicon.png`} type="image/png" sizes="32x32" />
+    <link rel="icon" href={`${base}icon.png`} type="image/png" sizes="128x128" />
+    <link rel="apple-touch-icon" href={`${base}apple-touch-icon.png`} />
   </head>
   <body data-strings={notFound ? undefined : JSON.stringify(t.client)}>
     {
