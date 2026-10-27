@@ -83,3 +83,17 @@ jobs:
             exit "${status}"
           fi
           diff -u ai/reports/jev-decisions/2/jeb-2026.10.1-dev.json "${RUNNER_TEMP}/jeb-2026.10.1-dev-v2.json"
+      - name: Replay the on-device judge on the dev split
+        run: |
+          set +e
+          cargo run --quiet --locked -p lumen-jev-eval -- run \
+            --dataset 2026.11.0 --split dev \
+            --cassette ai/cassettes/fm-decisions/1/apple-fm-2026.11.0-dev.json \
+            --json > "${RUNNER_TEMP}/apple-fm-2026.11.0-dev.json"
+          status=$?
+          set -e
+          if [ "${status}" -gt 1 ]; then
+            echo "::error::lumen-jev-eval run failed for the on-device judge (exit ${status})"
+            exit "${status}"
+          fi
+          diff -u ai/reports/fm-decisions/1/apple-fm-2026.11.0-dev.json "${RUNNER_TEMP}/apple-fm-2026.11.0-dev.json"
