@@ -1,6 +1,6 @@
 # ADR-0030: Accept partial in-use visibility for reversible quarantine of the user's own files
 
-- Status: Accepted
+- Status: Accepted; condition 1 amended by [ADR-0046](0046-quarantine-on-other-drives-of-a-single-user-pc.md) (also outside home, on a single-user PC)
 - Date: 2026-10-13
 
 ## Context and problem statement

@@ -1,6 +1,6 @@
 # ADR-0015: Quarantine by journaled same-volume rename into a Lumen-owned store
 
-- Status: Accepted
+- Status: Accepted; stores on other Windows volumes amended by [ADR-0046](0046-quarantine-on-other-drives-of-a-single-user-pc.md)
 - Date: 2026-10-06
 
 ## Context and problem statement
