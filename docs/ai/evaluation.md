@@ -60,6 +60,7 @@ Rare classes that cannot reach statistical power stay "Jev cannot promote".
 
 | Judge | Dataset | Summary |
 | --- | --- | --- |
+| Jeb (`gsm.jeb`, `jev-decisions/2`) | 2026.10.1 | [report](../../ai/reports/jev-decisions/2/jeb-2026.10.1.md): with the evidence guards, 14 critical false positives in 1,103 (upper bound 2.12%; v1 71, 8.05%), recall 83.3% (v1 96.9%), 20 canary flips (v1 17; 32 before the guards); release gate fails; evaluation only, production stays on v1 |
 | Jeb (`gsm.jeb`, `jev-decisions/2`) | 2026.10.1, dev split | [report](../../ai/reports/jev-decisions/2/jeb-2026.10.1-dev.md): 2 critical false positives in 228 (upper bound 3.13%; v1 on the same cases 17, 11.67%), recall 80.0% (v1 96.2%), 0 canary flips; evaluation only, production stays on v1 |
 | Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.1 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.1.md): with the evidence guards ([ADR-0043](../decisions/0043-discard-removable-answers-the-evidence-does-not-support.md)), 71 critical false positives in 1,103 critical cases (upper bound 8.05% against 0.5%; 81 and 9.05% before), 17 canary flips (19 before); release gate fails, demote-only. Error analysis: [research 17](../research/17-jeb-error-analysis.md) |
 | Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.0 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.0.md): with the evidence guards, no critical false positive in 7 critical golden cases (1 before, an Xcode archive), clean canaries; demote-only |
