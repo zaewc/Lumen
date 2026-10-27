@@ -439,6 +439,7 @@ mod tests {
             listings: &[],
             context: &context,
             knowledge: &knowledge,
+            store_volumes: None,
         };
         let probes = Probes {
             in_use: &Free,

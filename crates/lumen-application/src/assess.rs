@@ -26,8 +26,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use lumen_domain::{
-    AppDataKind, EntryKind, Evidence, EvidenceId, Fact, FilesystemEntry, ItemNote, JevRequest,
-    JevTrace, PolicyDecision, RawPath, SourceName, Subject, Timestamp,
+    AppDataKind, CleanupMechanism, EntryKind, Evidence, EvidenceId, Fact, FilesystemEntry,
+    ItemNote, JevRequest, JevTrace, PolicyDecision, RawPath, SourceName, Subject, Timestamp,
+    VolumeId,
 };
 use lumen_graph::{EvidenceBundle, Graph};
 use lumen_policy::{Context, KnowledgeClass, PolicyError, PolicyInput, evaluate, explain};
@@ -135,6 +136,11 @@ pub struct Sources<'a> {
     pub context: &'a Context,
     /// Knowledge-base classes by entry.
     pub knowledge: &'a BTreeMap<SourceName, KnowledgeClass>,
+    /// The volumes with a quarantine store (ADR-0046), or `None` when every
+    /// volume is offered to the executor (which refuses those it cannot
+    /// serve). A candidate on another volume gets no quarantine rename, so it
+    /// is left for review instead of failing when moved.
+    pub store_volumes: Option<&'a BTreeSet<VolumeId>>,
 }
 
 /// The policy input for `candidate`, with `fresh` evidence probed for it now.
@@ -171,12 +177,21 @@ pub fn assemble(
             records.entry(record.id()).or_insert(record);
         }
     }
+    let mut context = sources.context.clone();
+    if sources
+        .store_volumes
+        .is_some_and(|volumes| !volumes.contains(&candidate.identity().volume))
+    {
+        context
+            .mechanisms
+            .remove(&CleanupMechanism::QuarantineRename);
+    }
     PolicyInput {
         subject,
         evidence_hash: bundle.hash(),
         evidence: records.into_values().cloned().collect(),
         paths: vec![candidate.path.clone()],
-        context: sources.context.clone(),
+        context,
         observed: Some(observed(candidate, sources.scanned, sources.listings)),
         knowledge: sources.knowledge.clone(),
         jev: None,
@@ -448,6 +463,39 @@ mod tests {
     }
 
     #[test]
+    fn only_candidates_on_a_store_volume_keep_the_quarantine_rename() {
+        let (scanned, gathered, graph) = world();
+        let knowledge = BTreeMap::new();
+        let rename = BTreeSet::from([CleanupMechanism::QuarantineRename]);
+        let ctx = Context {
+            mechanisms: rename.clone(),
+            ..context()
+        };
+        let candidate = &scanned[0];
+        let mechanisms = |store_volumes: Option<&BTreeSet<VolumeId>>| {
+            let sources = Sources {
+                graph: &graph,
+                gathered: &gathered,
+                scanned: &scanned,
+                listings: &[],
+                context: &ctx,
+                knowledge: &knowledge,
+                store_volumes,
+            };
+            assemble(candidate, &[], &sources).context.mechanisms
+        };
+        assert_eq!(ctx.mechanisms, rename);
+        assert_eq!(mechanisms(None), rename, "every volume offered");
+        let here = BTreeSet::from([candidate.identity().volume.clone()]);
+        assert_eq!(mechanisms(Some(&here)), rename);
+        let elsewhere = BTreeSet::from([
+            VolumeId::new("vsn:00000000000000ff").unwrap_or_else(|_| unreachable!())
+        ]);
+        assert!(mechanisms(Some(&elsewhere)).is_empty(), "no store there");
+        assert!(mechanisms(Some(&BTreeSet::new())).is_empty());
+    }
+
+    #[test]
     fn candidates_are_probed_decided_and_explained_without_jev() {
         let (scanned, gathered, graph) = world();
         let knowledge = BTreeMap::new();
@@ -459,6 +507,7 @@ mod tests {
             listings: &[],
             context: &ctx,
             knowledge: &knowledge,
+            store_volumes: None,
         };
         let source = SourceName::new("test").unwrap_or_else(|_| unreachable!());
         for (answer, owned, in_use_fact) in [
@@ -600,6 +649,7 @@ mod tests {
             listings: &[],
             context: &ctx,
             knowledge: &knowledge,
+            store_volumes: None,
         };
         let idle = assemble(&scanned[0], &[fact(file(1), Fact::InUse(false))], &sources);
         let facts: Vec<&Fact> = idle.evidence.iter().map(|e| &e.fact).collect();

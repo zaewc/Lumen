@@ -350,6 +350,7 @@ impl Assessment {
             listings: &subtree.listings,
             context: &self.context,
             knowledge: &self.knowledge,
+            store_volumes: None,
         }
     }
 }
