@@ -26,6 +26,7 @@ pub mod services;
 pub mod startup;
 #[cfg(windows)]
 mod sys;
+pub mod volumes;
 #[cfg(windows)]
 mod watcher;
 pub mod winpath;

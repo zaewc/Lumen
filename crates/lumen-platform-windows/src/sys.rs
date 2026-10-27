@@ -502,6 +502,18 @@ pub(crate) fn owned_by_current_user(handle: &Handle) -> io::Result<bool> {
         ));
     }
     let descriptor = LocalMemory(descriptor);
+    let equal = with_user_sid(|user| {
+        // SAFETY: invariant: both SIDs are valid. Why unsafe: FFI call. Why it
+        // holds: `owner` points into `descriptor`, alive until after this
+        // closure, and `user` into the token buffer `with_user_sid` keeps.
+        Ok(unsafe { EqualSid(owner, user) } != 0)
+    })?;
+    drop(descriptor);
+    Ok(equal)
+}
+
+/// Runs `f` with the SID of this process's user, valid only during the call.
+fn with_user_sid<T>(f: impl FnOnce(PSID) -> io::Result<T>) -> io::Result<T> {
     let mut token: HANDLE = std::ptr::null_mut();
     // SAFETY: invariant: the out-pointer is writable. Why unsafe: FFI call.
     // Why it holds: `token` is a local; the process pseudo-handle needs no
@@ -541,12 +553,149 @@ pub(crate) fn owned_by_current_user(handle: &Handle) -> io::Result<bool> {
     // reading a struct through a cast pointer. Why it holds: the call above
     // succeeded with `TokenUser` and the buffer is aligned for it.
     let user = unsafe { buffer.as_ptr().cast::<TOKEN_USER>().read() };
-    // SAFETY: invariant: both SIDs are valid. Why unsafe: FFI call. Why it
-    // holds: `owner` points into `descriptor` and `user.User.Sid` into
-    // `buffer`, both alive here.
-    let equal = unsafe { EqualSid(owner, user.User.Sid) } != 0;
-    drop(descriptor);
-    Ok(equal)
+    // `user.User.Sid` points into `buffer`, which lives until `f` returns.
+    let result = f(user.User.Sid);
+    drop(buffer);
+    result
+}
+
+/// This process's user as a SID string (`S-1-5-21-…`).
+pub(crate) fn current_user_sid() -> io::Result<String> {
+    use windows_sys::Win32::Security::Authorization::ConvertSidToStringSidW;
+
+    with_user_sid(|sid| {
+        let mut text: *mut u16 = std::ptr::null_mut();
+        // SAFETY: invariant: `sid` is valid and `text` is writable. Why
+        // unsafe: FFI call with an out-pointer. Why it holds: `with_user_sid`
+        // keeps the SID alive, and `text` is a local.
+        if unsafe { ConvertSidToStringSidW(sid, &raw mut text) } == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let text = LocalMemory(text.cast());
+        // SAFETY: invariant: the API returned a NUL-terminated UTF-16 string.
+        // Why unsafe: reading through a raw pointer until NUL. Why it holds:
+        // the string is in `text`'s allocation, freed only when `text` drops
+        // after this read.
+        let units = unsafe {
+            let start = text.0.cast::<u16>();
+            let mut len = 0;
+            while *start.add(len) != 0 {
+                len += 1;
+            }
+            std::slice::from_raw_parts(start, len).to_vec()
+        };
+        drop(text);
+        Ok(String::from_utf16_lossy(&units))
+    })
+}
+
+/// The drive letters in use, as `GetLogicalDrives`'s bit mask (bit 0 is A:).
+pub(crate) fn logical_drives() -> u32 {
+    use windows_sys::Win32::Storage::FileSystem::GetLogicalDrives;
+
+    // SAFETY: invariant: none; the call takes no arguments. Why unsafe: FFI
+    // call. Why it holds: it only returns a mask (0 on failure).
+    unsafe { GetLogicalDrives() }
+}
+
+/// `GetDriveTypeW` for the drive root `root` (such as `D:\`).
+pub(crate) fn drive_type(root: &[u16]) -> u32 {
+    use windows_sys::Win32::Storage::FileSystem::GetDriveTypeW;
+
+    let Some(root) = nul_terminated(root) else {
+        return 0;
+    };
+    // SAFETY: invariant: `root` is NUL-terminated and outlives the call. Why
+    // unsafe: FFI call. Why it holds: it is a local `Vec` with a pushed NUL.
+    unsafe { GetDriveTypeW(root.as_ptr()) }
+}
+
+/// The filesystem name and flags of the volume the opened object lives on.
+pub(crate) fn volume_info(handle: &Handle) -> io::Result<(String, u32)> {
+    let mut name = [0_u16; 261];
+    let size = u32::try_from(name.len()).map_err(io::Error::other)?;
+    let mut flags = 0_u32;
+    // SAFETY: invariant: the kernel writes at most `size` UTF-16 units into
+    // `name` and the flags into `flags`; the other out-pointers are null,
+    // which the API allows. Why unsafe: FFI call writing through raw
+    // pointers. Why it holds: both are locals that outlive the call.
+    let ok = unsafe {
+        GetVolumeInformationByHandleW(
+            handle.0,
+            std::ptr::null_mut(),
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &raw mut flags,
+            name.as_mut_ptr(),
+            size,
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let end = name.iter().position(|u| *u == 0).unwrap_or(name.len());
+    Ok((String::from_utf16_lossy(&name[..end]), flags))
+}
+
+/// The raw `STORAGE_DEVICE_DESCRIPTOR` of the disk under drive `letter`, from
+/// `IOCTL_STORAGE_QUERY_PROPERTY` on `\\.\X:` opened with no access rights
+/// (allowed without privileges; nothing is read from or written to the disk).
+pub(crate) fn storage_device(letter: char) -> io::Result<Vec<u8>> {
+    use windows_sys::Win32::System::IO::DeviceIoControl;
+
+    /// `IOCTL_STORAGE_QUERY_PROPERTY`.
+    const QUERY_PROPERTY: u32 = 0x002D_1400;
+    let path: Vec<u16> = format!(r"\\.\{letter}:")
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    // SAFETY: invariant: `path` is NUL-terminated and outlives the call; no
+    // access rights are asked for. Why unsafe: FFI call. Why it holds: it is a
+    // local `Vec` ending in NUL, and the other arguments are plain values.
+    let device = unsafe {
+        CreateFileW(
+            path.as_ptr(),
+            0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            std::ptr::null(),
+            OPEN_EXISTING,
+            0,
+            std::ptr::null_mut(),
+        )
+    };
+    if device == INVALID_HANDLE_VALUE {
+        return Err(io::Error::last_os_error());
+    }
+    let device = Handle(device);
+    // STORAGE_PROPERTY_QUERY: StorageDeviceProperty (0), PropertyStandardQuery
+    // (0), no additional parameters; 12 bytes with padding.
+    let query = [0_u32; 3];
+    let mut out = [0_u64; 128];
+    let mut returned = 0_u32;
+    let out_len = u32::try_from(out.len() * 8).map_err(io::Error::other)?;
+    // SAFETY: invariant: the input is 12 readable bytes and the system writes
+    // at most `out_len` bytes into `out`. Why unsafe: FFI call writing through
+    // raw pointers. Why it holds: `query` and `out` are locals of those sizes,
+    // and the handle is open.
+    let ok = unsafe {
+        DeviceIoControl(
+            device.0,
+            QUERY_PROPERTY,
+            query.as_ptr().cast(),
+            12,
+            out.as_mut_ptr().cast(),
+            out_len,
+            &raw mut returned,
+            std::ptr::null_mut(),
+        )
+    };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let returned = usize::try_from(returned).map_err(io::Error::other)?;
+    let bytes: Vec<u8> = out.iter().flat_map(|w| w.to_le_bytes()).collect();
+    Ok(bytes.get(..returned).unwrap_or(&bytes).to_vec())
 }
 
 /// Whether this process runs with an elevated token (ADR-0005): the
