@@ -114,6 +114,11 @@ pub fn open_store(base: &[u16], names: &[&[u16]], volume: u64) -> Result<WinStor
     if base_facts.attributes & FILE_ATTRIBUTE_REPARSE_POINT != 0 || !base_facts.directory {
         return Err(WinStoreError::Unsafe);
     }
+    // A store is only ever created on the volume of the items it is for
+    // (ADR-0046): nothing is created below a base on another volume.
+    if base_facts.volume != volume {
+        return Err(WinStoreError::OtherVolume);
+    }
     for name in names {
         dir = match win_sys::open_at(&dir, name, Want::Store) {
             Ok(existing) => existing,
@@ -242,10 +247,14 @@ mod tests {
 
     #[test]
     fn another_volume_and_bad_names_are_refused() {
-        let (_fx, _root, base, volume) = setup();
+        let (_fx, root, base, volume) = setup();
         assert_eq!(
-            open_store(&base, &[&wide("Quarantine")], volume ^ 1).err(),
+            open_store(&base, &[&wide("Elsewhere")], volume ^ 1).err(),
             Some(WinStoreError::OtherVolume)
+        );
+        assert!(
+            !root.join("Elsewhere").exists(),
+            "nothing is created for another volume"
         );
         for name in [wide(""), wide(".."), wide("a\\b")] {
             assert_eq!(

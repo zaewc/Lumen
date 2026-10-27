@@ -87,12 +87,19 @@ impl Prepared {
     }
 }
 
-/// The executor for one store location (a base directory and the store's
-/// names below it, ADR-0015).
+/// One store location: a base directory and the store's names below it.
+#[derive(Debug, Clone)]
+struct Location {
+    base: Vec<u16>,
+    names: Vec<Vec<u16>>,
+}
+
+/// The executor for one or more store locations (ADR-0015), at most one per
+/// volume (ADR-0046): an item goes into, and is found in, the store on its
+/// own volume.
 #[derive(Debug, Clone)]
 pub struct Executor {
-    store_base: Vec<u16>,
-    store_names: Vec<Vec<u16>>,
+    stores: Vec<Location>,
 }
 
 /// `path` in verbatim form, if it is a local drive path.
@@ -108,22 +115,50 @@ fn verbatim(path: &[u16]) -> Option<Vec<u16>> {
     (drive && rooted).then(|| [prefix.as_slice(), path].concat())
 }
 
-impl Executor {
-    /// An executor quarantining into `names` (UTF-8) below `base`.
-    pub fn new(base: impl Into<PathBuf>, names: Vec<Vec<u8>>) -> Self {
+impl Location {
+    fn new(base: impl Into<PathBuf>, names: Vec<Vec<u8>>) -> Self {
         let base: Vec<u16> = base.into().as_os_str().encode_wide().collect();
         Self {
-            store_base: verbatim(&base).unwrap_or(base),
-            store_names: names
+            base: verbatim(&base).unwrap_or(base),
+            names: names
                 .into_iter()
                 .map(|n| String::from_utf8_lossy(&n).encode_utf16().collect())
                 .collect(),
         }
     }
+}
 
+impl Executor {
+    /// An executor quarantining into `names` (UTF-8) below `base`.
+    pub fn new(base: impl Into<PathBuf>, names: Vec<Vec<u8>>) -> Self {
+        Self {
+            stores: vec![Location::new(base, names)],
+        }
+    }
+
+    /// The same executor with one more store location, `names` (UTF-8) below
+    /// `base`, for items on that base's volume (ADR-0046).
+    #[must_use]
+    pub fn with_store(mut self, base: impl Into<PathBuf>, names: Vec<Vec<u8>>) -> Self {
+        self.stores.push(Location::new(base, names));
+        self
+    }
+
+    /// The store on `volume`: the first location whose base is on that
+    /// volume and opens safely. `open_store` creates nothing below a base on
+    /// another volume.
     fn store(&self, volume: u64) -> Option<WinStore> {
-        let names: Vec<&[u16]> = self.store_names.iter().map(Vec::as_slice).collect();
-        open_store(&self.store_base, &names, volume).ok()
+        self.store_at(volume).map(|(store, _)| store)
+    }
+
+    /// [`Self::store`] and the location it was opened at.
+    fn store_at(&self, volume: u64) -> Option<(WinStore, &Location)> {
+        self.stores.iter().find_map(|location| {
+            let names: Vec<&[u16]> = location.names.iter().map(Vec::as_slice).collect();
+            open_store(&location.base, &names, volume)
+                .ok()
+                .map(|store| (store, location))
+        })
     }
 }
 
@@ -294,7 +329,7 @@ impl QuarantineExecutor for Executor {
 
     fn held(&self, item: &PreparedItem, operation: OperationId) -> Option<(RawPath, FileIdentity)> {
         let plan = parse(item)?;
-        let store = self.store(plan.expected.identity.volume)?;
+        let (store, location) = self.store_at(plan.expected.identity.volume)?;
         let name = name_of(operation);
         let want = Want::Movable {
             directory: plan.expected.directory,
@@ -304,8 +339,8 @@ impl QuarantineExecutor for Executor {
             .ok()?;
         check_held(&facts, &plan.expected).ok()?;
         let separator = u16::from(b'\\');
-        let mut path = self.store_base.clone();
-        for component in self.store_names.iter().chain([&name]) {
+        let mut path = location.base.clone();
+        for component in location.names.iter().chain([&name]) {
             if path.last() != Some(&separator) {
                 path.push(separator);
             }
@@ -370,6 +405,26 @@ mod tests {
         assert_eq!(executor.finalize(&item, op(2)), Ok(()));
         assert_eq!(executor.locate(&item, op(2)), Located::Unknown);
         assert_eq!(executor.finalize(&item, op(2)), Err(Removal::Nothing));
+    }
+
+    #[test]
+    fn a_location_that_cannot_hold_the_store_is_passed_over() {
+        let (_fx, root, _executor, raw) = setup();
+        let executor = Executor::new(root.join("missing-base"), vec![b"Quarantine".to_vec()])
+            .with_store(root.clone(), vec![b"Quarantine".to_vec()]);
+        let item = executor
+            .prepare(&raw, &relative())
+            .unwrap_or_else(|e| unreachable!("{e:?}"));
+        assert_eq!(executor.quarantine(&item, op(4), b"{}"), Ok(()));
+        assert_eq!(executor.locate(&item, op(4)), Located::InStore);
+        assert!(root.join("Quarantine").is_dir());
+        assert!(!root.join("missing-base").exists(), "nothing created there");
+        assert_eq!(
+            executor.restore(&item, op(4)),
+            Ok(RestoredItem {
+                parent_replaced: false
+            })
+        );
     }
 
     #[test]
