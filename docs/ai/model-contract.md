@@ -114,9 +114,30 @@ answer is checked against the options of the version that was asked, and a repla
 uses the version its cassette records. Switching the app to a new version is its own
 decision, after the version passes the [evaluation gates](evaluation.md).
 
+## On-device answers: `fm.answer/1`
+
+Apple's on-device model is asked through the `fm-judge` helper (`apps/fm-judge`,
+[ADR-0044](../decisions/0044-evaluate-an-on-device-judge-with-foundation-models.md)),
+for evaluation only. The helper gets the same `jev.request/1` as a cloud judge and
+answers with guided generation, so only enumerated values come back, one line each:
+
+```json
+{"answers":{"assessment":"uncertain","injection_suspected":false,"reason":"insufficient_evidence"},
+ "elapsed_ms":812,"item_ref":"c_…","model":"apple.foundation-models",
+ "model_version":"macOS 26.6.2 (25G83)","prompt_version":"fm-decisions/1","schema":"fm.answer/1"}
+```
+
+`lumen_jev::foundation` builds the `Judgment` like a Decisions answer: one reason code,
+every sent evidence ID, an empty rationale, and `medium` confidence for every answer
+(the model reports no probabilities, so a wrong removable answer always counts as a
+critical false positive). Another model or prompt version, an unknown option, a
+missing or extra field, or a model version that is not 1–64 printable characters is
+rejected. An `fm.error/1` line (the model is not available, the item does not fit its
+context, a guardrail stopped it) is never an answer.
+
 ## Evidence guards
 
-A valid judgment, from either path above, then passes the evidence guards
+A valid judgment, from any path above, then passes the evidence guards
 ([ADR-0043](../decisions/0043-discard-removable-answers-the-evidence-does-not-support.md),
 `lumen_jev::guard`). A `likely_removable` answer becomes `uncertain` with `low`
 confidence when:
@@ -126,8 +147,8 @@ confidence when:
   `no_active_reference` with an active reference);
 - no cited reason argues for removal, or one argues against it;
 - `vendor_declared_cache` is cited but the request holds no vendor declaration;
-- the judge suspects injection, or a Decisions answer's injection probability is 0.1
-  or more.
+- the judge suspects injection (for the on-device judge, `injection_suspected`), or a
+  Decisions answer's injection probability is 0.1 or more.
 
 Reasons, evidence references and the injection flag are kept; other assessments are
 never changed. Guards are not rejections: a rejected answer leaves a proposed
