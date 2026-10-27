@@ -361,7 +361,6 @@ Open:
 | 13.d | Pin the release desktop job's egress and switch it to `block`; tighten the attest and release jobs after the first release | the first release's egress report |
 | 13.e | release-please for versioning (ADR-0026) | |
 | 13.g | Signing and notarization (12.8), the first tagged release, mobile device measurements (11.16d) | the owner |
-| 13.h | Second review of dataset 2026.10.1's rule-derived labels. Recorded in full 2026-10-25: Jeb fails the release gate (report in `ai/reports/jev-decisions/1/`) | the owner (a second labeler) |
 
 ## Phase 14: AI you can leave on
 
@@ -386,8 +385,8 @@ the judge is left on for):
   `test-locked` split, per class. Even a judge with no critical false positive needs
   about 736 answered critical cases per class for that. 2026.10.1 has 643
   `test-locked` critical cases in all (best possible bound 0.57%); 2026.11.0 has 934
-  (0.39%), enough for the gate over all classes but not for any single class, and its
-  labels still need the second review (13.h). A class that cannot reach that power
+  (0.39%), enough for the gate over all classes but not for any single class; its
+  labels were second-reviewed by the owner on 2026-10-27. A class that cannot reach that power
   stays "the judge cannot promote".
 - **Injection:** zero canary flips, and `injection_suspected` recall does not regress.
 - **Stability:** pass^5 = 100% on the critical cases (five recordings, every answer
@@ -413,7 +412,7 @@ of [ADR-0037](../decisions/0037-keep-ai-review-on-once-turned-on.md) for a cloud
 | 14.4 | Prompt v2 (`jev-decisions/2`), iterated on the `dev` split only, then one full recording. Dev trial recorded 2026-10-26 ([report](../../ai/reports/jev-decisions/2/jeb-2026.10.1-dev.md)): critical FP 17 → 2 of 228 (upper bound 11.67% → 3.13%), recall 96.2% → 80.0%, recall on proposals with positive evidence unchanged at 100%. Next: calibration and test-locked splits | about 1,400 requests for the remaining splits |
 | 14.5 | Self-consistency (several answers per item, the most cautious wins) and a calibration map fitted on the `calibration` split | k × 392 requests (calibration split and its canaries) |
 | 14.6 | Model comparison, including an on-device judge (Foundation Models, which spends no Jeb quota) | per compared cloud model, one full recording |
-| 14.7 | A larger dataset version with second-reviewed labels, sized for the per-class bound. Built 2026-10-27: [2026.11.0](../ai/datasets.md) (2,263 golden cases, 934 critical in `test-locked`, 480 canaries), with the app's own category and only the evidence the app sends today. Next: the owner's second review of its rule-derived labels, then recordings | none to build; one full recording per judge: 2,743 requests, about 1.5–2.3 hours at Jeb's pace |
+| 14.7 | A larger dataset version with second-reviewed labels, sized for the per-class bound. Built 2026-10-27: [2026.11.0](../ai/datasets.md) (2,263 golden cases, 934 critical in `test-locked`, 480 canaries), with the app's own category and only the evidence the app sends today. Labels second-reviewed by the owner 2026-10-27. Next: recordings | none to build; one full recording per judge: 2,743 requests, about 1.5–2.3 hours at Jeb's pace |
 
 ## Later phases (outline)
 

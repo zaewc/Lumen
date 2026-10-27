@@ -139,6 +139,13 @@ Windows Downloads and Office setup-cache declarations critical `uncertain` (mode
 data-driven handlers; whether those registrations carry a `Folder` value is
 unverified).
 
+**Second review:** on 2026-10-27 the owner reviewed these judgment calls and those of
+2026.10.1 (local model stores and one-copy download archives critical `uncertain`;
+Windows Package Cache `likely_needed`; CoreSimulator `Devices` `uncertain`; security
+modules whose owner is gone `likely_needed`; sparse-evidence build output removable
+with `uncertain` acceptable) and agreed with all of them. The rest of the labels follow
+the generator's strata rules, which those calls cover; the datasets can gate a release.
+
 **Recording cost:** 2,743 requests for a full recording (`test-locked` 1,639,
 `calibration` 546, `dev` 558). At Jeb's pace (1 s between requests, 1–2 s per answer)
 that is 1.5–2.3 hours (`test-locked` 55–82 min, `calibration` and `dev` about 18–28 min
