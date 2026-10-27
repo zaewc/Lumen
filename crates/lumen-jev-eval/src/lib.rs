@@ -10,17 +10,20 @@
 //! [`run_dataset`] adds the injection-canary gate. The `lumen-jev-eval run`
 //! command applies the gates to a dataset and a cassette (roadmap 12.1);
 //! [`record`] writes a cassette from a live judge (`lumen-jev-eval record`,
-//! roadmap 12.1b).
+//! roadmap 12.1b): Jeb, or Apple's on-device model through the `fm-judge`
+//! helper ([`FmHelper`], ADR-0044, evaluation only).
 
 #![forbid(unsafe_code)]
 
 mod cassette;
 mod dataset;
+mod fm;
 mod record;
 mod run;
 
 pub use cassette::{CASSETTE_SCHEMA, Cassette, CassetteError, Recorded, RecordedStop, ReplayJudge};
 pub use dataset::{Dataset, DatasetError, DatasetReport, load, run_dataset};
+pub use fm::{ANSWER_TIMEOUT, FmError, FmHelper, live_error};
 pub use record::{LiveError, LiveJudge, Pacing, RecordOutcome, Recording, record};
 pub use run::{
     CASE_SCHEMA, CRITICAL_FPR_TARGET, Case, Expected, Grade, Outcome, Report, block_on,
