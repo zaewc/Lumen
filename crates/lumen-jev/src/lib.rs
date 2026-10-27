@@ -9,10 +9,12 @@
 //! discard removable answers the request's evidence does not support. It
 //! also asks what kind of item a review item is, as a note for people
 //! (ADR-0041). The HTTPS transport is [`openrouter`]. [`foundation`] checks
-//! answers from Apple's on-device model, for evaluation only (ADR-0044).
+//! answers from Apple's on-device model, and [`chat`] answers from the AI Hub's
+//! chat model, both for evaluation only (ADR-0044, ADR-0045).
 
 #![forbid(unsafe_code)]
 
+pub mod chat;
 pub mod decisions;
 pub mod foundation;
 pub mod guard;

@@ -53,6 +53,7 @@ the executor, and it is traced like a judgment. `lumen plan` describes nothing.
 | Adapters | `lumen-jev` | Provider-specific transport only; no parsing logic of their own |
 | Response validator | `lumen-jev` | `stop_reason` handling, JSON Schema validation, enum and length checks, evidence-ID membership, pinned-model check |
 | On-device answers | `lumen-jev::foundation` | Checks the `fm-judge` helper's `fm.answer/1` lines (Apple's on-device model, evaluation only, [ADR-0044](../decisions/0044-evaluate-an-on-device-judge-with-foundation-models.md)) as strictly as Decisions answers |
+| Chat answers | `lumen-jev::chat` | Builds the `chat/completions` request for the AI Hub's chat model `flash-next` and accepts only an answer that is exactly one JSON object with the three closed Decisions answers (evaluation only, [ADR-0045](../decisions/0045-evaluate-the-ai-hub-chat-model-as-a-judge.md)) |
 | Evidence guards | `lumen-jev::guard` | After validation, a `likely_removable` answer the request's own evidence does not support becomes `uncertain` ([ADR-0043](../decisions/0043-discard-removable-answers-the-evidence-does-not-support.md)) |
 | Calibration maps | `lumen-jev` | Map `(model, prompt version, confidence bucket)` → empirical precision bound |
 | Trace recorder | `lumen-jev` + `lumen-store-sqlite` | `JevTrace` rows in `ledger.db` |
