@@ -51,7 +51,7 @@ within Jeb's limit of about 8,000 tokens per request (the largest v2 request of 
 | Provider | Settings |
 | --- | --- |
 | Claude (`claude-sonnet-5-5`, pinned) | Structured outputs via `output_config.format` with the `jev.judgment` schema; `effort: low` unless evaluations justify more; **no** `temperature`, `top_p`, forced `tool_choice` or prefill (rejected by current models); refusal fallbacks disabled; `cache_control` breakpoint after the frozen prefix |
-| Apple Foundation Models | `@Generable` struct mirroring `jev.judgment`; one item per `LanguageModelSession`; prompt under about 3K tokens; read `contextSize` at runtime; on-device `SystemLanguageModel` only for tier 1 |
+| Apple Foundation Models (`fm-decisions/1`, evaluation only, [ADR-0044](../decisions/0044-evaluate-an-on-device-judge-with-foundation-models.md)) | `@Generable` enums mirroring the Decisions questions (`injection_suspected`, `reason`, `assessment`, generated in that order); prompt v2's rules as the session's instructions and the request without schema version and IDs as compact JSON (`apps/fm-judge/Sources/FMJudgeCore/Prompt.swift`); one item per `LanguageModelSession`; greedy sampling, at most 128 answer tokens; within the 4,096-token context of macOS 26 (`contextSize`; `fm-judge --measure` counts tokens, `--render` bytes); on-device `SystemLanguageModel` only |
 | Local GGUF / ONNX (later) | Grammar- or schema-constrained decoding generated from the same JSON Schema |
 
 Provider-side schema enforcement is a convenience. Rust validation is the guarantee,

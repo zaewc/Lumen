@@ -52,6 +52,7 @@ the executor, and it is traced like a judgment. `lumen plan` describes nothing.
 | Request builder | `lumen-jev` | Canonical, redacted, versioned request from a bundle; untrusted strings JSON-encoded in labelled fields |
 | Adapters | `lumen-jev` | Provider-specific transport only; no parsing logic of their own |
 | Response validator | `lumen-jev` | `stop_reason` handling, JSON Schema validation, enum and length checks, evidence-ID membership, pinned-model check |
+| On-device answers | `lumen-jev::foundation` | Checks the `fm-judge` helper's `fm.answer/1` lines (Apple's on-device model, evaluation only, [ADR-0044](../decisions/0044-evaluate-an-on-device-judge-with-foundation-models.md)) as strictly as Decisions answers |
 | Evidence guards | `lumen-jev::guard` | After validation, a `likely_removable` answer the request's own evidence does not support becomes `uncertain` ([ADR-0043](../decisions/0043-discard-removable-answers-the-evidence-does-not-support.md)) |
 | Calibration maps | `lumen-jev` | Map `(model, prompt version, confidence bucket)` → empirical precision bound |
 | Trace recorder | `lumen-jev` + `lumen-store-sqlite` | `JevTrace` rows in `ledger.db` |
@@ -62,10 +63,17 @@ the executor, and it is traced like a judgment. `lumen plan` describes nothing.
 | Tier | Default | Data leaves device | Adapters |
 | --- | --- | --- | --- |
 | 0 | yes | no | `NoopJudge` |
-| 1 | opt-in | no | on-device (Apple Foundation Models; later ONNX Runtime / llama.cpp; Android ML Kit for foreground only) |
+| 1 | not offered yet: evaluation only | no | on-device: Apple Foundation Models through the `fm-judge` helper, recorded and replayed by `lumen-jev-eval` ([ADR-0044](../decisions/0044-evaluate-an-on-device-judge-with-foundation-models.md)); later ONNX Runtime / llama.cpp; Android ML Kit for foreground only |
 | 2 | opt-in, per user, with disclosure; once turned on it stays on until turned off ([ADR-0037](../decisions/0037-keep-ai-review-on-once-turned-on.md)) | metadata only, redacted, of proposed items and of up to 20 items left for review; zero-retention endpoints on OpenRouter, no retention guarantee on Jeb (disclosed on every run) | `JevJudge`: Jeb on the school AI Hub by default ([ADR-0036](../decisions/0036-jeb-on-the-school-ai-hub.md)), or TypeSafe's Jev via OpenRouter ([ADR-0031](../decisions/0031-jev-on-typesafe-via-openrouter.md)) |
 
 Apple Private Cloud Compute counts as tier 2.
+
+Tier 1 is measured before it is offered: the `fm-judge` helper (`apps/fm-judge`, Swift)
+asks the on-device model the Decisions questions with guided generation, so it can only
+answer with enumerated values, and `lumen-jev-eval record --judge apple-fm` records its
+answers for `run` to replay through `lumen_jev::foundation` and the evidence guards.
+Nothing in the app asks it. Whether the app uses it, and whether it may be on by
+default (the privacy condition of roadmap Phase 14), is decided after its results.
 
 Tier 2 is turned on with `lumen ai on` in the CLI, or with the AI review switch in the
 desktop app's Settings page. The app's switch shows the same disclosure in a consent

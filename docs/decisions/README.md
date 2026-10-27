@@ -52,3 +52,4 @@ recommended option.
 | [0041](0041-ai-describes-what-review-items-are.md) | AI describes what review items are | Accepted |
 | [0042](0042-ship-a-built-in-jeb-key-in-release-builds.md) | Ship a built-in Jeb key in release builds | Accepted |
 | [0043](0043-discard-removable-answers-the-evidence-does-not-support.md) | Discard removable answers the evidence does not support | Accepted |
+| [0044](0044-evaluate-an-on-device-judge-with-foundation-models.md) | Evaluate an on-device judge with Foundation Models | Accepted |
