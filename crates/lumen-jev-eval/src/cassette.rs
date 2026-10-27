@@ -8,15 +8,16 @@
 //! known prompt versions ([`Prompt`]), or it is not a cassette this code can
 //! replay. Answers of Apple's on-device model (provider `apple.fm`, ADR-0044)
 //! go through [`foundation::judgment_for`], and must come from the model
-//! version (OS build) the descriptor records.
+//! version (OS build) the descriptor records. Answers of the AI Hub's chat
+//! model (provider `gsm.chat`, ADR-0045) go through [`chat::judgment_for`].
 
 use std::collections::BTreeMap;
 
 use lumen_application::ports::{JudgeError, JudgeFuture, JudgeModel};
 use lumen_domain::{JevRequest, JudgeDescriptor, Judgment, PayloadHash, UntrustedText};
 use lumen_jev::decisions::{self, Prompt, Provider};
-use lumen_jev::foundation;
 use lumen_jev::response::{RawResponse, StopReason, validate};
+use lumen_jev::{chat, foundation};
 use serde::{Deserialize, Serialize};
 
 /// The cassette format this code reads and writes.
@@ -122,6 +123,7 @@ impl Cassette {
         let prompt = cassette.judge.prompt_version.to_string();
         if (decisions_provider(&cassette.judge).is_some() && cassette.prompt().is_none())
             || (is_on_device(&cassette.judge) && prompt != foundation::PROMPT_VERSION)
+            || (is_chat(&cassette.judge) && prompt != chat::PROMPT_VERSION)
         {
             return Err(CassetteError::UnknownPrompt(prompt));
         }
@@ -187,6 +189,11 @@ fn is_on_device(judge: &JudgeDescriptor) -> bool {
     judge.provider.as_str() == foundation::PROVIDER
 }
 
+/// Whether `judge` is the AI Hub's chat model (ADR-0045).
+fn is_chat(judge: &JudgeDescriptor) -> bool {
+    judge.provider.as_str() == chat::PROVIDER
+}
+
 /// The Decisions prompt `judge` names, if it is a Decisions judge with a
 /// known prompt version.
 fn decisions_prompt(judge: &JudgeDescriptor) -> Option<Prompt> {
@@ -203,6 +210,9 @@ pub(crate) fn validate_recorded(
 ) -> Result<Judgment, JudgeError> {
     if is_on_device(judge) {
         return validate_on_device(judge, request, recorded);
+    }
+    if is_chat(judge) {
+        return validate_chat(judge, request, recorded);
     }
     let Some(provider) = decisions_provider(judge) else {
         return validate(
@@ -256,6 +266,27 @@ fn validate_on_device(
     {
         return Err(JudgeError::NoAnswer(
             "the answer comes from another model version",
+        ));
+    }
+    Ok(judgment)
+}
+
+/// Validates a chat answer: complete, and from the pinned model, which the
+/// descriptor and the recording name too.
+fn validate_chat(
+    judge: &JudgeDescriptor,
+    request: &JevRequest,
+    recorded: &Recorded,
+) -> Result<Judgment, JudgeError> {
+    if recorded.stop_reason != RecordedStop::EndTurn {
+        return Err(JudgeError::NoAnswer(
+            "the recording is not a complete answer",
+        ));
+    }
+    let judgment = chat::judgment_for(request, &recorded.body)?;
+    if recorded.model != chat::MODEL || judge.model.as_str() != chat::MODEL {
+        return Err(JudgeError::NoAnswer(
+            "the recorded model differs from the answer's",
         ));
     }
     Ok(judgment)
@@ -644,6 +675,100 @@ mod tests {
         for other in ["fm-decisions/2", "jev-decisions/1"] {
             assert!(matches!(
                 Cassette::parse(&on_device_cassette(other, &[])),
+                Err(CassetteError::UnknownPrompt(p)) if p == other
+            ));
+        }
+        Ok(())
+    }
+
+    /// A chat completion from `model` saying `content`.
+    fn chat_answer(model: &str, content: &str) -> String {
+        serde_json::json!({
+            "model": model,
+            "choices": [{"index": 0, "finish_reason": "stop",
+                "message": {"role": "assistant", "content": content}}],
+            "usage": {"prompt_tokens": 900, "completion_tokens": 30, "total_tokens": 930},
+        })
+        .to_string()
+    }
+
+    fn chat_cassette(prompt: &str, entries: &[Recorded]) -> String {
+        serde_json::json!({
+            "schema": CASSETTE_SCHEMA,
+            "judge": {"provider": "gsm.chat", "model": "flash-next", "prompt_version": prompt},
+            "entries": entries,
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn chat_recordings_replay_through_their_validator() -> Result<(), CassetteError> {
+        const NEEDED: &str = r#"{"injection_suspected": false, "reason": "owner_app_present", "assessment": "likely_needed"}"#;
+        let entry = |item: &str, stop, model: &str, body: String| Recorded {
+            case_id: format!("case-{item}"),
+            request_hash: request(item).hash(),
+            stop_reason: stop,
+            model: model.to_owned(),
+            body,
+        };
+        let flash = "flash-next";
+        let text = chat_cassette(
+            "chat-decisions/1",
+            &[
+                entry(
+                    "c_1",
+                    RecordedStop::EndTurn,
+                    flash,
+                    chat_answer(flash, NEEDED),
+                ),
+                entry(
+                    "c_2",
+                    RecordedStop::Other,
+                    flash,
+                    chat_answer(flash, NEEDED),
+                ),
+                entry(
+                    "c_3",
+                    RecordedStop::EndTurn,
+                    "jeb",
+                    chat_answer(flash, NEEDED),
+                ),
+                entry(
+                    "c_4",
+                    RecordedStop::EndTurn,
+                    "gemma",
+                    chat_answer("gemma", NEEDED),
+                ),
+                entry(
+                    "c_5",
+                    RecordedStop::EndTurn,
+                    flash,
+                    chat_answer(flash, "It is needed."),
+                ),
+            ],
+        );
+        let judge = ReplayJudge::new(Cassette::parse(&text)?);
+        let live = chat::judgment_for(&request("c_1"), &chat_answer(flash, NEEDED));
+        assert_eq!(replay(&judge, "c_1"), live, "replay == live");
+        assert_eq!(
+            replay(&judge, "c_1").map(|j| j.assessment),
+            Ok(Assessment::LikelyNeeded)
+        );
+        for item in ["c_2", "c_3", "c_4"] {
+            assert!(
+                matches!(replay(&judge, item), Err(JudgeError::NoAnswer(_))),
+                "{item}"
+            );
+        }
+        assert_eq!(replay(&judge, "c_5"), Err(JudgeError::Malformed));
+        assert_eq!(
+            Cassette::parse(&text)?.prompt(),
+            None,
+            "not a Decisions prompt"
+        );
+        for other in ["chat-decisions/2", "fm-decisions/1", "jev-decisions/2"] {
+            assert!(matches!(
+                Cassette::parse(&chat_cassette(other, &[])),
                 Err(CassetteError::UnknownPrompt(p)) if p == other
             ));
         }
