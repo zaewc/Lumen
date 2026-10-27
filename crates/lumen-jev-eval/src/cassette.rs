@@ -6,13 +6,16 @@
 //! provider's pinned model and the prompt version the descriptor records, any
 //! other judge through [`validate`]. A Decisions cassette names one of the
 //! known prompt versions ([`Prompt`]), or it is not a cassette this code can
-//! replay.
+//! replay. Answers of Apple's on-device model (provider `apple.fm`, ADR-0044)
+//! go through [`foundation::judgment_for`], and must come from the model
+//! version (OS build) the descriptor records.
 
 use std::collections::BTreeMap;
 
 use lumen_application::ports::{JudgeError, JudgeFuture, JudgeModel};
-use lumen_domain::{JevRequest, JudgeDescriptor, Judgment, PayloadHash};
+use lumen_domain::{JevRequest, JudgeDescriptor, Judgment, PayloadHash, UntrustedText};
 use lumen_jev::decisions::{self, Prompt, Provider};
+use lumen_jev::foundation;
 use lumen_jev::response::{RawResponse, StopReason, validate};
 use serde::{Deserialize, Serialize};
 
@@ -116,10 +119,11 @@ impl Cassette {
         if !cassette.entries.iter().all(|e| seen.insert(e.request_hash)) {
             return Err(CassetteError::Duplicate);
         }
-        if decisions_provider(&cassette.judge).is_some() && cassette.prompt().is_none() {
-            return Err(CassetteError::UnknownPrompt(
-                cassette.judge.prompt_version.to_string(),
-            ));
+        let prompt = cassette.judge.prompt_version.to_string();
+        if (decisions_provider(&cassette.judge).is_some() && cassette.prompt().is_none())
+            || (is_on_device(&cassette.judge) && prompt != foundation::PROMPT_VERSION)
+        {
+            return Err(CassetteError::UnknownPrompt(prompt));
         }
         Ok(cassette)
     }
@@ -178,6 +182,11 @@ fn decisions_provider(judge: &JudgeDescriptor) -> Option<Provider> {
         .find(|p| judge.provider.as_str() == p.source())
 }
 
+/// Whether `judge` is Apple's on-device model (ADR-0044).
+fn is_on_device(judge: &JudgeDescriptor) -> bool {
+    judge.provider.as_str() == foundation::PROVIDER
+}
+
 /// The Decisions prompt `judge` names, if it is a Decisions judge with a
 /// known prompt version.
 fn decisions_prompt(judge: &JudgeDescriptor) -> Option<Prompt> {
@@ -192,6 +201,9 @@ pub(crate) fn validate_recorded(
     request: &JevRequest,
     recorded: &Recorded,
 ) -> Result<Judgment, JudgeError> {
+    if is_on_device(judge) {
+        return validate_on_device(judge, request, recorded);
+    }
     let Some(provider) = decisions_provider(judge) else {
         return validate(
             request,
@@ -217,6 +229,33 @@ pub(crate) fn validate_recorded(
     if model != recorded.model {
         return Err(JudgeError::NoAnswer(
             "the recorded model differs from the answer's",
+        ));
+    }
+    Ok(judgment)
+}
+
+/// Validates an on-device answer: complete, from the recorded model and the
+/// model version (OS build) the descriptor names.
+fn validate_on_device(
+    judge: &JudgeDescriptor,
+    request: &JevRequest,
+    recorded: &Recorded,
+) -> Result<Judgment, JudgeError> {
+    if recorded.stop_reason != RecordedStop::EndTurn {
+        return Err(JudgeError::NoAnswer(
+            "the recording is not a complete answer",
+        ));
+    }
+    let (judgment, answered) = foundation::judgment_for(request, &recorded.body)?;
+    if answered.model != recorded.model || judge.model.as_str() != answered.model {
+        return Err(JudgeError::NoAnswer(
+            "the recorded model differs from the answer's",
+        ));
+    }
+    if judge.model_version.as_ref().map(UntrustedText::raw) != Some(answered.model_version.as_str())
+    {
+        return Err(JudgeError::NoAnswer(
+            "the answer comes from another model version",
         ));
     }
     Ok(judgment)
@@ -515,6 +554,99 @@ mod tests {
         let text = Cassette::parse(&cassette(&[]))?;
         assert_eq!(text.prompt(), None);
         assert!(text.expect_prompt(Prompt::V1).is_err());
+        Ok(())
+    }
+
+    /// An on-device answer about `item` from `version`.
+    fn on_device(item: &str, version: &str) -> String {
+        serde_json::json!({
+            "schema": "fm.answer/1",
+            "item_ref": item,
+            "prompt_version": "fm-decisions/1",
+            "model": "apple.foundation-models",
+            "model_version": version,
+            "answers": {"assessment": "likely_needed", "reason": "owner_app_present",
+                "injection_suspected": false},
+            "elapsed_ms": 700,
+        })
+        .to_string()
+    }
+
+    fn on_device_cassette(prompt: &str, entries: &[Recorded]) -> String {
+        serde_json::json!({
+            "schema": CASSETTE_SCHEMA,
+            "judge": {
+                "provider": "apple.fm",
+                "model": "apple.foundation-models",
+                "model_version": {"text": "macOS 26.6.2 (25G83)", "truncated": false},
+                "prompt_version": prompt,
+            },
+            "entries": entries,
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn on_device_recordings_replay_through_their_validator() -> Result<(), CassetteError> {
+        const VERSION: &str = "macOS 26.6.2 (25G83)";
+        let entry = |item: &str, stop, model: &str, body: String| Recorded {
+            case_id: format!("case-{item}"),
+            request_hash: request(item).hash(),
+            stop_reason: stop,
+            model: model.to_owned(),
+            body,
+        };
+        let fm = "apple.foundation-models";
+        let text = on_device_cassette(
+            "fm-decisions/1",
+            &[
+                entry("c_1", RecordedStop::EndTurn, fm, on_device("c_1", VERSION)),
+                entry(
+                    "c_2",
+                    RecordedStop::EndTurn,
+                    fm,
+                    on_device("c_2", "macOS 26.7 (25H1)"),
+                ),
+                entry("c_3", RecordedStop::Other, fm, on_device("c_3", VERSION)),
+                entry(
+                    "c_4",
+                    RecordedStop::EndTurn,
+                    "jeb",
+                    on_device("c_4", VERSION),
+                ),
+                entry("c_5", RecordedStop::EndTurn, fm, decision("jeb")),
+            ],
+        );
+        let judge = ReplayJudge::new(Cassette::parse(&text)?);
+        let live = foundation::judgment_for(&request("c_1"), &on_device("c_1", VERSION))
+            .map(|(judgment, _)| judgment);
+        assert_eq!(replay(&judge, "c_1"), live, "replay == live");
+        assert_eq!(
+            replay(&judge, "c_1").map(|j| j.assessment),
+            Ok(Assessment::LikelyNeeded)
+        );
+        for item in ["c_2", "c_3", "c_4"] {
+            assert!(
+                matches!(replay(&judge, item), Err(JudgeError::NoAnswer(_))),
+                "{item}"
+            );
+        }
+        assert_eq!(replay(&judge, "c_5"), Err(JudgeError::Malformed));
+        assert_eq!(
+            judge.descriptor().map(|d| d.provider.to_string()),
+            Some("apple.fm".into())
+        );
+        assert_eq!(
+            Cassette::parse(&text)?.prompt(),
+            None,
+            "not a Decisions prompt"
+        );
+        for other in ["fm-decisions/2", "jev-decisions/1"] {
+            assert!(matches!(
+                Cassette::parse(&on_device_cassette(other, &[])),
+                Err(CassetteError::UnknownPrompt(p)) if p == other
+            ));
+        }
         Ok(())
     }
 }
