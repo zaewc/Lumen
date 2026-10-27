@@ -1,0 +1,38 @@
+name: fm-judge
+
+# Builds and tests the on-device judge helper (apps/fm-judge, ADR-0044) with
+# the runner's default Xcode. Its tests need no model: the runner is not
+# eligible for Apple Intelligence, so recordings are made on a Mac (docs/ai/harness.md).
+on:
+  pull_request:
+    paths:
+      - "apps/fm-judge/**"
+      - ".github/workflows/fm-judge.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/fm-judge/**"
+      - ".github/workflows/fm-judge.yml"
+
+permissions: {}
+
+concurrency:
+  group: fm-judge-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  swift:
+    name: fm-judge (swift build and test)
+    runs-on: macos-26
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Lint the helper
+        run: xcrun swift-format lint --strict -r apps/fm-judge/Package.swift apps/fm-judge/Sources apps/fm-judge/Tests
+      - name: Build the helper
+        run: swift build -c release --package-path apps/fm-judge
+      - name: Test the helper without the model
+        run: swift test --package-path apps/fm-judge

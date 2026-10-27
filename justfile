@@ -55,5 +55,16 @@ js-install:
 js-check: js-install
     pnpm run check
 
+# Build the on-device judge helper for `lumen-jev-eval record --judge apple-fm`
+# (ADR-0044). macOS 26 with Xcode 26 or later; not part of `check`, which also
+# runs on Linux and Windows. CI builds and tests it on macOS (fm-judge.yml).
+fm-judge:
+    swift build -c release --package-path apps/fm-judge
+
+# Lint and test the on-device judge helper; its tests need no model.
+fm-judge-test:
+    xcrun swift-format lint --strict -r apps/fm-judge/Package.swift apps/fm-judge/Sources apps/fm-judge/Tests
+    swift test --package-path apps/fm-judge
+
 # Everything CI checks; run before every commit.
 check: fmt-check lint test deny schema-check js-check
