@@ -238,7 +238,13 @@ export const en = {
   item: {
     quarantined: "Moved to Quarantine. You can restore it.",
     skipped: (why: string) => `Not moved: ${why}.`,
-    failed: (reason: string, where: string) => `The move failed (${reason}); ${where}.`,
+    failed: (reason: string, where: string) => `The move failed: ${reason}; ${where}.`,
+    failIdentityMismatch: "it changed after the scan",
+    failInUse: "a program is using it",
+    failVolumeUnsupported: "this drive cannot hold a quarantine",
+    failMoveFailed: "moving it went wrong",
+    failVerificationFailed: "after the move it did not match the plan",
+    failOther: "for a reason this version does not know",
     skipChanged: "it changed or can no longer be checked",
     skipOutsideRoots: "it is outside the scanned folders",
     skipNowKeep: "Lumen now keeps it",
@@ -291,7 +297,8 @@ export const en = {
   finalize: {
     finalized: "Removed for good.",
     foundAtSource: "It is already back at its original place. Lumen removed nothing.",
-    notFound: "It is not in Quarantine. Lumen removed nothing.",
+    notFound:
+      "Lumen could not find it in Quarantine. If it was held on another drive, connect that drive and try again. Lumen removed nothing.",
     failed: (what: string) => `Lumen could not remove it completely. ${what}.`,
     removedNothing: "Nothing was removed",
     removedPartly: "Part of it is gone. Try again to finish",

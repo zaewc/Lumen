@@ -111,6 +111,17 @@ export type ExecuteRequest = {
 };
 
 /**
+ * Why moving an item failed.
+ */
+export type FailureView =
+  | "identity_mismatch"
+  | "in_use"
+  | "volume_unsupported"
+  | "move_failed"
+  | "verification_failed"
+  | "other";
+
+/**
  * What a finalization did to one held item.
  */
 export type FinalizeOutcomeView = {
@@ -263,9 +274,9 @@ export type ItemResultView =
        */
       left: LocationView;
       /**
-       * Why, as the executor's code.
+       * Why.
        */
-      reason: string;
+      reason: FailureView;
     };
 
 /**

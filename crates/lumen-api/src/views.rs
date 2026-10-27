@@ -18,7 +18,8 @@ use lumen_application::finalize::FinalizeOutcome;
 use lumen_application::ports::{NotRestored, Removal};
 use lumen_application::restore::RestoreOutcome;
 use lumen_domain::{
-    ByteCount, ItemKind, ItemLocation, ItemNote, JudgmentConfidence, QuarantineState, Verdict,
+    ByteCount, ItemKind, ItemLocation, ItemNote, JudgmentConfidence, QuarantineFailure,
+    QuarantineState, Verdict,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -421,6 +422,38 @@ impl From<ItemLocation> for LocationView {
     }
 }
 
+/// Why moving an item failed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FailureView {
+    /// It changed or was swapped since it was planned.
+    IdentityMismatch,
+    /// A program was using it.
+    InUse,
+    /// Its drive cannot hold a quarantine store (another or removable drive,
+    /// a network share, or a filesystem without a safe rename; ADR-0046).
+    VolumeUnsupported,
+    /// The move itself failed.
+    MoveFailed,
+    /// After the move, it did not match the plan.
+    VerificationFailed,
+    /// A reason this version does not know.
+    Other,
+}
+
+impl From<QuarantineFailure> for FailureView {
+    fn from(failure: QuarantineFailure) -> Self {
+        match failure {
+            QuarantineFailure::IdentityMismatch => Self::IdentityMismatch,
+            QuarantineFailure::InUse => Self::InUse,
+            QuarantineFailure::VolumeUnsupported => Self::VolumeUnsupported,
+            QuarantineFailure::MoveFailed => Self::MoveFailed,
+            QuarantineFailure::VerificationFailed => Self::VerificationFailed,
+            _ => Self::Other,
+        }
+    }
+}
+
 /// Why a planned item was not moved.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -472,8 +505,8 @@ pub enum ItemResultView {
     },
     /// The move failed.
     Failed {
-        /// Why, as the executor's code.
-        reason: String,
+        /// Why.
+        reason: FailureView,
         /// Where the item is.
         left: LocationView,
     },
@@ -524,7 +557,7 @@ impl From<&QuarantineReport> for QuarantineReportView {
                             operation: operation.to_string(),
                         },
                         ItemResult::Failed { reason, left } => ItemResultView::Failed {
-                            reason: format!("{reason:?}"),
+                            reason: reason.into(),
                             left: left.into(),
                         },
                     },

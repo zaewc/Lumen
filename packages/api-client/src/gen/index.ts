@@ -10,6 +10,7 @@ export type {
   ConfidenceView,
   DiskView,
   ExecuteRequest,
+  FailureView,
   FinalizeOutcomeView,
   FinalizeView,
   GroupKindView,

@@ -1,4 +1,4 @@
-import type { ItemResultView, LocationView, SkipView } from "@lumen/api-client";
+import type { FailureView, ItemResultView, LocationView, SkipView } from "@lumen/api-client";
 import type { Messages } from "@/shared/i18n";
 
 function skipText(m: Messages, reason: SkipView): string {
@@ -20,6 +20,23 @@ function skipText(m: Messages, reason: SkipView): string {
   }
 }
 
+function failureText(m: Messages, reason: FailureView): string {
+  switch (reason) {
+    case "identity_mismatch":
+      return m.item.failIdentityMismatch;
+    case "in_use":
+      return m.item.failInUse;
+    case "volume_unsupported":
+      return m.item.failVolumeUnsupported;
+    case "move_failed":
+      return m.item.failMoveFailed;
+    case "verification_failed":
+      return m.item.failVerificationFailed;
+    case "other":
+      return m.item.failOther;
+  }
+}
+
 function locationText(m: Messages, left: LocationView): string {
   switch (left) {
     case "source":
@@ -31,7 +48,7 @@ function locationText(m: Messages, left: LocationView): string {
   }
 }
 
-/** One item's outcome, in words. The failure reason is the core's own code. */
+/** One item's outcome, in words. */
 export function outcomeText(m: Messages, result: ItemResultView): string {
   switch (result.kind) {
     case "quarantined":
@@ -39,6 +56,6 @@ export function outcomeText(m: Messages, result: ItemResultView): string {
     case "skipped":
       return m.item.skipped(skipText(m, result.reason));
     case "failed":
-      return m.item.failed(result.reason, locationText(m, result.left));
+      return m.item.failed(failureText(m, result.reason), locationText(m, result.left));
   }
 }

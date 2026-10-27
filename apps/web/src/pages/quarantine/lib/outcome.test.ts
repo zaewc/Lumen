@@ -43,7 +43,7 @@ describe("held-item outcomes", () => {
     expect(doneWell({ action: "finalize", outcome: { kind: "finalized" } })).toBe(true);
     expect(doneWell({ action: "finalize", outcome: { kind: "maybe_in_use" } })).toBe(false);
     expect(doneText(ko, { action: "finalize", outcome: { kind: "not_found" } })).toBe(
-      "격리함에 없어요. 아무것도 삭제하지 않았어요.",
+      "격리함에서 찾지 못했어요. 다른 드라이브에 보관했다면 그 드라이브를 연결한 뒤 다시 시도해 주세요. 아무것도 삭제하지 않았어요.",
     );
   });
 

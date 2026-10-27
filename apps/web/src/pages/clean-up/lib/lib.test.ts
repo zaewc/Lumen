@@ -17,20 +17,23 @@ describe("outcomeText", () => {
   it("says where every item is", () => {
     expect(outcomeText(en, { kind: "quarantined", operation: "op" })).toContain("restore it");
     expect(outcomeText(en, { kind: "skipped", reason: "now_review" })).toContain("review");
-    expect(
-      outcomeText(en, { kind: "failed", reason: "IdentityMismatch", left: "source" }),
-    ).toContain("untouched");
+    expect(outcomeText(en, { kind: "failed", reason: "identity_mismatch", left: "source" })).toBe(
+      "The move failed: it changed after the scan; it is untouched in its place.",
+    );
   });
 
-  it("says it in Korean, keeping the core's failure code", () => {
+  it("says it in Korean", () => {
     expect(outcomeText(ko, { kind: "quarantined", operation: "op" })).toBe(
       "격리함으로 옮겼어요. 복원할 수 있어요.",
     );
     expect(outcomeText(ko, { kind: "skipped", reason: "outside_roots" })).toBe(
       "검사한 폴더 밖에 있어서 옮기지 않았어요.",
     );
-    expect(outcomeText(ko, { kind: "failed", reason: "IdentityMismatch", left: "gone" })).toBe(
-      "옮기지 못했어요(IdentityMismatch). 항목이 사라졌어요.",
+    expect(outcomeText(ko, { kind: "failed", reason: "identity_mismatch", left: "gone" })).toBe(
+      "옮기지 못했어요. 검사한 뒤에 바뀌었어요. 항목이 사라졌어요.",
+    );
+    expect(outcomeText(ko, { kind: "failed", reason: "volume_unsupported", left: "source" })).toBe(
+      "옮기지 못했어요. 이 드라이브에는 격리함을 둘 수 없어요. 원래 위치에 그대로 있어요.",
     );
   });
 });

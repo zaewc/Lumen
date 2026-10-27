@@ -45,6 +45,18 @@ export const zExecuteRequest = z.object({
 });
 
 /**
+ * Why moving an item failed.
+ */
+export const zFailureView = z.enum([
+  "identity_mismatch",
+  "in_use",
+  "volume_unsupported",
+  "move_failed",
+  "verification_failed",
+  "other",
+]);
+
+/**
  * The kind of group an item is presented in.
  */
 export const zGroupKindView = z.enum(["developer", "app_cache", "app_data", "other"]);
@@ -259,7 +271,7 @@ export const zItemResultView = z.union([
   z.object({
     kind: z.enum(["failed"]),
     left: zLocationView,
-    reason: z.string(),
+    reason: zFailureView,
   }),
 ]);
 

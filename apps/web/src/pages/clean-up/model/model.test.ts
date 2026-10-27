@@ -186,7 +186,7 @@ describe("reportSummary", () => {
         {
           path: "/c",
           reclaimable_bytes: "5",
-          result: { kind: "failed", reason: "Io", left: "source" },
+          result: { kind: "failed", reason: "move_failed", left: "source" },
         },
       ],
     };

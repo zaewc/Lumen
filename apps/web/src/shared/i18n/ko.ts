@@ -247,7 +247,13 @@ export const ko = {
   item: {
     quarantined: "격리함으로 옮겼어요. 복원할 수 있어요.",
     skipped: (why: string) => `${why} 옮기지 않았어요.`,
-    failed: (reason: string, where: string) => `옮기지 못했어요(${reason}). ${where}.`,
+    failed: (reason: string, where: string) => `옮기지 못했어요. ${reason}. ${where}.`,
+    failIdentityMismatch: "검사한 뒤에 바뀌었어요",
+    failInUse: "프로그램이 쓰고 있어요",
+    failVolumeUnsupported: "이 드라이브에는 격리함을 둘 수 없어요",
+    failMoveFailed: "옮기는 중에 문제가 생겼어요",
+    failVerificationFailed: "옮긴 뒤 확인한 내용이 계획과 달랐어요",
+    failOther: "알 수 없는 이유예요",
     skipChanged: "검사한 뒤에 바뀌었거나 다시 확인할 수 없어서",
     skipOutsideRoots: "검사한 폴더 밖에 있어서",
     skipNowKeep: "이제는 유지할 항목이라서",
@@ -300,7 +306,8 @@ export const ko = {
   finalize: {
     finalized: "영구 삭제했어요.",
     foundAtSource: "이미 원래 위치로 돌아가 있어요. 아무것도 삭제하지 않았어요.",
-    notFound: "격리함에 없어요. 아무것도 삭제하지 않았어요.",
+    notFound:
+      "격리함에서 찾지 못했어요. 다른 드라이브에 보관했다면 그 드라이브를 연결한 뒤 다시 시도해 주세요. 아무것도 삭제하지 않았어요.",
     failed: (what: string) => `완전히 삭제하지 못했어요. ${what}.`,
     removedNothing: "아무것도 삭제하지 않았어요",
     removedPartly: "일부만 삭제했어요. 다시 시도하면 나머지를 삭제해요",

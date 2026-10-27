@@ -192,6 +192,18 @@
         },
         "additionalProperties": false
       },
+      "FailureView": {
+        "type": "string",
+        "description": "Why moving an item failed.",
+        "enum": [
+          "identity_mismatch",
+          "in_use",
+          "volume_unsupported",
+          "move_failed",
+          "verification_failed",
+          "other"
+        ]
+      },
       "FinalizeOutcomeView": {
         "type": "object",
         "description": "What a finalization did to one held item.",
@@ -496,8 +508,8 @@
                 "description": "Where the item is."
               },
               "reason": {
-                "type": "string",
-                "description": "Why, as the executor's code."
+                "$ref": "#/components/schemas/FailureView",
+                "description": "Why."
               }
             }
           }
