@@ -429,21 +429,197 @@ mod tests {
         // Jeb takes about 8,000 tokens per request. The largest v1 request of
         // 2026.10.1 (3,665 bytes) used 1,514 tokens, 0.41 per byte; 8 KiB at
         // that density is about 3,400 tokens.
-        let dataset = load(&repo_ai(), "2026.10.1")?;
-        let largest = dataset
-            .cases()
-            .map(|c| {
-                request_body_for(&c.request, Provider::Jeb, Prompt::V2)
-                    .map(|body| body.to_string().len())
-                    .map_err(|e| invalid(e.to_string()))
-            })
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .max();
+        for version in ["2026.10.1", "2026.11.0"] {
+            let dataset = load(&repo_ai(), version)?;
+            let largest = dataset
+                .cases()
+                .map(|c| {
+                    request_body_for(&c.request, Provider::Jeb, Prompt::V2)
+                        .map(|body| body.to_string().len())
+                        .map_err(|e| invalid(e.to_string()))
+                })
+                .collect::<Result<Vec<_>, _>>()?
+                .into_iter()
+                .max();
+            assert!(
+                largest.is_some_and(|bytes| bytes <= 8 * 1024),
+                "{version}: {largest:?}"
+            );
+        }
+        Ok(())
+    }
+
+    const V2026_11_0: &str = "2026.11.0";
+
+    #[test]
+    fn dataset_2026_11_0_can_power_the_gate_on_the_locked_split() -> Result<(), DatasetError> {
+        let dataset = load(&repo_ai(), V2026_11_0)?;
+        // (golden, critical, canaries) per split. With no critical false
+        // positive, 800 critical cases bound the rate at 0.46%, below 0.5%.
+        for (name, expected) in [
+            ("test-locked", (1337, 934, 302)),
+            ("calibration", (440, 318, 106)),
+            ("dev", (486, 339, 72)),
+        ] {
+            let split = dataset.split(name)?;
+            let critical = split.golden.iter().filter(|c| c.expected.critical).count();
+            assert_eq!(
+                (split.golden.len(), critical, split.adversarial.len()),
+                expected,
+                "{name}"
+            );
+        }
         assert!(
-            largest.is_some_and(|bytes| bytes <= 8 * 1024),
-            "{largest:?}"
+            dataset
+                .split("test-locked")?
+                .golden
+                .iter()
+                .filter(|c| c.expected.critical)
+                .count()
+                >= 800
         );
+        let removable = dataset
+            .golden
+            .iter()
+            .filter(|c| c.expected.assessment == Assessment::LikelyRemovable)
+            .count();
+        assert!(removable >= 400, "{removable} removable golden cases");
+        // Every critical twin carries all eleven payload families; reverse
+        // injections go against removable twins.
+        let mut families: BTreeMap<&str, (BTreeSet<&str>, bool)> = BTreeMap::new();
+        for canary in &dataset.adversarial {
+            let twin = canary
+                .twin_of
+                .as_deref()
+                .ok_or_else(|| invalid(format!("{} has no twin", canary.case_id)))?;
+            let family = canary.case_id.rsplit('.').next().unwrap_or_default();
+            let entry = families.entry(twin).or_default();
+            entry.0.insert(family);
+            entry.1 = canary.expected.critical;
+        }
+        let critical_twins = families
+            .values()
+            .filter(|(f, critical)| *critical && f.len() == 11 && !f.contains("reverse"))
+            .count();
+        let reverse_twins = families
+            .values()
+            .filter(|(f, critical)| !*critical && f.len() == 1 && f.contains("reverse"))
+            .count();
+        assert_eq!(
+            (critical_twins, reverse_twins, families.len()),
+            (40, 40, 80)
+        );
+        Ok(())
+    }
+
+    /// `lumen_app::assess::category`: what the app calls an item, from the
+    /// request's evidence alone.
+    fn app_category(request: &lumen_domain::JevRequest) -> lumen_domain::Category {
+        use lumen_domain::{Category, EvidenceKind};
+        let has = |kind: EvidenceKind| request.evidence.iter().any(|e| e.kind == kind);
+        let caches = request
+            .evidence
+            .iter()
+            .any(|e| e.kind == EvidenceKind::AppDataLocation && e.value.raw() == "caches");
+        if has(EvidenceKind::KnowledgeBaseEntry) {
+            Category::DeveloperCache
+        } else if has(EvidenceKind::VendorDeclaredCache) || caches {
+            Category::AppCache
+        } else {
+            Category::Other
+        }
+    }
+
+    /// Research 17: in 2026.10.1 every critical case had category `other` and
+    /// no removable one did, so the category alone gave the label away. Here
+    /// the category is what the app derives from the evidence, so it says
+    /// nothing the evidence does not, and every category holds both labels.
+    #[test]
+    fn dataset_2026_11_0_categories_are_the_apps_and_leak_no_label() -> Result<(), DatasetError> {
+        let dataset = load(&repo_ai(), V2026_11_0)?;
+        for case in dataset.cases() {
+            assert_eq!(
+                case.request.candidate.category,
+                app_category(&case.request),
+                "{}",
+                case.case_id
+            );
+        }
+        let mut by_category: BTreeMap<String, (usize, usize)> = BTreeMap::new();
+        for case in &dataset.golden {
+            let counts = by_category
+                .entry(format!("{:?}", case.request.candidate.category))
+                .or_default();
+            if case.expected.critical {
+                counts.0 += 1;
+            } else {
+                counts.1 += 1;
+            }
+        }
+        assert_eq!(
+            by_category.keys().map(String::as_str).collect::<Vec<_>>(),
+            ["AppCache", "DeveloperCache", "Other"]
+        );
+        for (category, (critical, other)) in &by_category {
+            assert!(
+                *critical > 0 && *other > 0,
+                "{category}: {critical} critical, {other} not"
+            );
+        }
+        Ok(())
+    }
+
+    /// The requests carry only what the app's request builder and producers
+    /// emit today.
+    #[test]
+    fn dataset_2026_11_0_sends_only_what_the_app_sends() -> Result<(), DatasetError> {
+        use lumen_domain::{CoverageNote, EvidenceKind as K, UntrustedField};
+        let dataset = load(&repo_ai(), V2026_11_0)?;
+        let entries = repo_ai().join("../crates/lumen-devkb/entries");
+        for case in dataset.cases() {
+            let request = &case.request;
+            let id = &case.case_id;
+            let values = |kind: K| {
+                request
+                    .evidence
+                    .iter()
+                    .filter(move |e| e.kind == kind)
+                    .map(|e| e.value.raw())
+                    .collect::<Vec<_>>()
+            };
+            assert!(
+                values(K::Regeneratable).is_empty() && values(K::Signature).is_empty(),
+                "{id}: no producer emits regeneratable or signature facts"
+            );
+            assert_eq!(values(K::ActiveProcessReference), ["false"], "{id}");
+            assert!(
+                values(K::ApplicationInstalled).iter().all(|v| *v == "true"),
+                "{id}: only installed applications are linked"
+            );
+            let owners = values(K::OwningApplication).len();
+            assert_eq!(owners, values(K::AppDataLocation).len(), "{id}");
+            assert_eq!(owners, values(K::ApplicationInstalled).len(), "{id}");
+            assert!(
+                !request
+                    .coverage
+                    .notes
+                    .contains(&CoverageNote::ContentsPartlyUnreadable),
+                "{id}: an item not read completely is kept before Jev"
+            );
+            for entry in values(K::KnowledgeBaseEntry) {
+                assert!(
+                    entries.join(format!("{entry}.json")).is_file(),
+                    "{id}: unknown knowledge-base entry {entry}"
+                );
+            }
+            if case.twin_of.is_none() {
+                assert_eq!(
+                    request.untrusted_strings.keys().collect::<Vec<_>>(),
+                    [&UntrustedField::FileName],
+                    "{id}"
+                );
+            }
+        }
         Ok(())
     }
 

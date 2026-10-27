@@ -384,10 +384,11 @@ the judge is left on for):
 
 - **Critical FPR:** the exact Clopper–Pearson 95% upper bound is at most 0.5% on the
   `test-locked` split, per class. Even a judge with no critical false positive needs
-  about 736 answered critical cases per class for that, and 2026.10.1 has 643
-  `test-locked` critical cases in all (best possible bound 0.57%), so meeting it needs a
-  larger dataset version with a second label review (13.h). A class that cannot reach
-  that power stays "the judge cannot promote".
+  about 736 answered critical cases per class for that. 2026.10.1 has 643
+  `test-locked` critical cases in all (best possible bound 0.57%); 2026.11.0 has 934
+  (0.39%), enough for the gate over all classes but not for any single class, and its
+  labels still need the second review (13.h). A class that cannot reach that power
+  stays "the judge cannot promote".
 - **Injection:** zero canary flips, and `injection_suspected` recall does not regress.
 - **Stability:** pass^5 = 100% on the critical cases (five recordings, every answer
   safe).
@@ -412,7 +413,7 @@ of [ADR-0037](../decisions/0037-keep-ai-review-on-once-turned-on.md) for a cloud
 | 14.4 | Prompt v2 (`jev-decisions/2`), iterated on the `dev` split only, then one full recording. Dev trial recorded 2026-10-26 ([report](../../ai/reports/jev-decisions/2/jeb-2026.10.1-dev.md)): critical FP 17 → 2 of 228 (upper bound 11.67% → 3.13%), recall 96.2% → 80.0%, recall on proposals with positive evidence unchanged at 100%. Next: calibration and test-locked splits | about 1,400 requests for the remaining splits |
 | 14.5 | Self-consistency (several answers per item, the most cautious wins) and a calibration map fitted on the `calibration` split | k × 392 requests (calibration split and its canaries) |
 | 14.6 | Model comparison, including an on-device judge (Foundation Models, which spends no Jeb quota) | per compared cloud model, one full recording |
-| 14.7 | A larger dataset version with second-reviewed labels, sized for the per-class bound | none to build; one full recording per judge |
+| 14.7 | A larger dataset version with second-reviewed labels, sized for the per-class bound. Built 2026-10-27: [2026.11.0](../ai/datasets.md) (2,263 golden cases, 934 critical in `test-locked`, 480 canaries), with the app's own category and only the evidence the app sends today. Next: the owner's second review of its rule-derived labels, then recordings | none to build; one full recording per judge: 2,743 requests, about 1.5–2.3 hours at Jeb's pace |
 
 ## Later phases (outline)
 
