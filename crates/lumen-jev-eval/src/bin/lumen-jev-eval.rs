@@ -46,10 +46,10 @@ use lumen_app::ai::Service;
 use lumen_application::ports::JudgeModel as _;
 use lumen_domain::{JevRequest, JudgeDescriptor};
 use lumen_jev::decisions::Prompt;
-use lumen_jev::openrouter::{ApiKey, AskError, JevJudge};
+use lumen_jev::openrouter::{ApiKey, JevJudge};
 use lumen_jev_eval::{
-    CRITICAL_FPR_TARGET, Cassette, CassetteError, Dataset, DatasetReport, LiveJudge, Pacing,
-    RecordOutcome, ReplayJudge, Report, load, record, run_dataset,
+    CRITICAL_FPR_TARGET, Cassette, CassetteError, Dataset, DatasetReport, LiveError, LiveJudge,
+    Pacing, RecordOutcome, ReplayJudge, Report, load, record, run_dataset,
 };
 
 const USAGE: &str = "usage: lumen-jev-eval run --dataset <VERSION> --cassette <FILE> [--split <NAME>] [--prompt v1|v2] [--ai <DIR>] [--gate full|observed] [--json]
@@ -267,8 +267,8 @@ impl LiveJudge for Jeb {
         self.descriptor.clone()
     }
 
-    fn ask(&self, request: &JevRequest) -> Result<String, AskError> {
-        self.judge.ask(request)
+    fn ask(&self, request: &JevRequest) -> Result<String, LiveError> {
+        Ok(self.judge.ask(request)?)
     }
 
     fn wait(&self, pause: Duration) {
@@ -294,7 +294,9 @@ fn describe(outcome: &RecordOutcome) -> String {
         RecordOutcome::Recorded => "recorded".into(),
         RecordOutcome::Refused(e) => format!("refused by the validator, recorded ({e})"),
         RecordOutcome::Failed(e) => format!("failed, not recorded ({e})"),
-        RecordOutcome::NotSent => "not sent (the key was rejected)".into(),
+        RecordOutcome::NotSent => {
+            "not sent (an earlier error showed no further request can succeed)".into()
+        }
         RecordOutcome::Kept => "kept from the earlier recording".into(),
     }
 }

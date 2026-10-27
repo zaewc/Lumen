@@ -21,7 +21,7 @@ mod run;
 
 pub use cassette::{CASSETTE_SCHEMA, Cassette, CassetteError, Recorded, RecordedStop, ReplayJudge};
 pub use dataset::{Dataset, DatasetError, DatasetReport, load, run_dataset};
-pub use record::{LiveJudge, Pacing, RecordOutcome, Recording, record};
+pub use record::{LiveError, LiveJudge, Pacing, RecordOutcome, Recording, record};
 pub use run::{
     CASE_SCHEMA, CRITICAL_FPR_TARGET, Case, Expected, Grade, Outcome, Report, block_on,
     clopper_pearson_upper, run,

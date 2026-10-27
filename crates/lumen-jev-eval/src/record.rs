@@ -5,7 +5,10 @@
 //! a replay looks up. Answers the validator refuses are kept too, so a replay
 //! refuses them the same way; a case with no answer after the retries is left
 //! out, never filled in. The recorder never sees the API key: the live judge
-//! holds it.
+//! holds it. A live judge says why it gave no answer ([`LiveError`]): a
+//! transient failure is retried, and after one that no further request can
+//! get past (a rejected key, a model that is not available) nothing more is
+//! sent.
 
 use std::collections::BTreeMap;
 
@@ -29,11 +32,51 @@ pub trait LiveJudge {
     ///
     /// # Errors
     ///
-    /// An [`AskError`] when no answer arrived.
-    fn ask(&self, request: &JevRequest) -> Result<String, AskError>;
+    /// A [`LiveError`] when no answer arrived.
+    fn ask(&self, request: &JevRequest) -> Result<String, LiveError>;
 
     /// Waits for `pause` (between requests and before a retry).
     fn wait(&self, pause: Duration);
+}
+
+/// Why a live judge gave no answer. It never contains a key or model text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum LiveError {
+    /// Trying again later may help: no answer, a timeout, a rate limit or a
+    /// busy server.
+    #[error("{0}")]
+    Transient(&'static str),
+    /// No further request can succeed: the key was rejected, or the model is
+    /// not available.
+    #[error("{0}")]
+    Stopped(&'static str),
+    /// This request failed; others may not.
+    #[error("{0}")]
+    Failed(&'static str),
+}
+
+impl LiveError {
+    /// Whether trying again later may help.
+    pub const fn is_transient(self) -> bool {
+        matches!(self, Self::Transient(_))
+    }
+
+    /// Whether no further request can succeed.
+    pub const fn is_stopped(self) -> bool {
+        matches!(self, Self::Stopped(_))
+    }
+}
+
+impl From<AskError> for LiveError {
+    fn from(error: AskError) -> Self {
+        if error.is_key_rejected() {
+            Self::Stopped(error.reason)
+        } else if error.is_transient() {
+            Self::Transient(error.reason)
+        } else {
+            Self::Failed(error.reason)
+        }
+    }
 }
 
 /// How requests are paced.
@@ -67,8 +110,9 @@ pub enum RecordOutcome {
     /// refuses it too.
     Refused(JudgeError),
     /// No answer after every try; not recorded.
-    Failed(AskError),
-    /// Not sent, because the server had rejected the key.
+    Failed(LiveError),
+    /// Not sent, because an earlier answer showed that no further request can
+    /// succeed (a rejected key, a model that is not available).
     NotSent,
     /// Taken unchanged from the recording being resumed; not sent again.
     Kept,
@@ -109,7 +153,7 @@ fn ask_with_retries(
     judge: &dyn LiveJudge,
     request: &JevRequest,
     pacing: Pacing,
-) -> Result<String, AskError> {
+) -> Result<String, LiveError> {
     let mut backoff = pacing.backoff;
     let mut tries = 1;
     loop {
@@ -127,8 +171,10 @@ fn ask_with_retries(
 /// Records `judge`'s answers to every golden and adversarial case of
 /// `dataset`, sequentially, reporting each case to `progress` as it is done.
 /// A case `previous` already holds for the same request is kept, not sent
-/// again, so an interrupted recording can be completed. After the server
-/// rejects the key, the remaining cases are not sent.
+/// again, so an interrupted recording can be completed. After an error that
+/// no further request can get past ([`LiveError::Stopped`]: the server
+/// rejects the key, the model is not available), the remaining cases are not
+/// sent.
 ///
 /// # Errors
 ///
@@ -157,13 +203,13 @@ pub fn record(
         .unwrap_or_default();
     let mut entries = Vec::new();
     let mut outcomes = Vec::new();
-    let mut key_rejected = false;
+    let mut stopped = false;
     let mut sent = false;
     for case in dataset.cases() {
         let outcome = if let Some(entry) = kept.get(&(case.case_id.as_str(), case.request.hash())) {
             entries.push((*entry).clone());
             RecordOutcome::Kept
-        } else if key_rejected {
+        } else if stopped {
             RecordOutcome::NotSent
         } else {
             if sent {
@@ -187,7 +233,7 @@ pub fn record(
                     outcome
                 }
                 Err(error) => {
-                    key_rejected = error.is_key_rejected();
+                    stopped = error.is_stopped();
                     RecordOutcome::Failed(error)
                 }
             }
@@ -266,13 +312,14 @@ mod tests {
             }
         }
 
-        fn ask(&self, request: &JevRequest) -> Result<String, AskError> {
+        fn ask(&self, request: &JevRequest) -> Result<String, LiveError> {
             // The judge, not the recorder, holds and checks the key.
             if self.key != KEY {
                 return Err(AskError {
                     status: Some(401),
                     reason: "rejected",
-                });
+                }
+                .into());
             }
             let item = request.item_ref.as_str().to_owned();
             let tries = self.sent.borrow().iter().filter(|i| **i == item).count();
@@ -282,7 +329,8 @@ mod tests {
                     .get(tries)
                     .or(script.last())
                     .cloned()
-                    .unwrap_or_else(|| unreachable!());
+                    .unwrap_or_else(|| unreachable!())
+                    .map_err(LiveError::from);
             }
             let expected = self.expected.get(&item).copied();
             Ok(answer(
@@ -524,7 +572,7 @@ mod tests {
         assert_eq!(recording.cassette.entries, []);
         assert_eq!(
             recording.outcomes.first().map(|(_, o)| o),
-            Some(&RecordOutcome::Failed(rejected))
+            Some(&RecordOutcome::Failed(LiveError::Stopped("rejected")))
         );
         assert!(
             recording
@@ -534,5 +582,22 @@ mod tests {
                 .all(|(_, o)| *o == RecordOutcome::NotSent)
         );
         Ok(())
+    }
+
+    #[test]
+    fn ask_errors_map_to_live_errors() {
+        let error = |status| {
+            LiveError::from(AskError {
+                status,
+                reason: "r",
+            })
+        };
+        for status in [401, 403] {
+            assert_eq!(error(Some(status)), LiveError::Stopped("r"));
+        }
+        for status in [None, Some(408), Some(429), Some(500), Some(503)] {
+            assert_eq!(error(status), LiveError::Transient("r"));
+        }
+        assert_eq!(error(Some(400)), LiveError::Failed("r"));
     }
 }
