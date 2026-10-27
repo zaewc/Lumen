@@ -57,6 +57,17 @@ pub fn process_is_elevated() -> std::io::Result<bool> {
     sys::process_is_elevated()
 }
 
+/// This process's user as a SID string (`S-1-5-21-…`), for naming its
+/// quarantine stores on other drives (ADR-0046).
+///
+/// # Errors
+///
+/// The OS error if the process token cannot be read.
+#[cfg(windows)]
+pub fn current_user_sid() -> std::io::Result<String> {
+    sys::current_user_sid()
+}
+
 /// Bytes this user may still write on the volume holding the directory
 /// `path`, after quotas.
 ///

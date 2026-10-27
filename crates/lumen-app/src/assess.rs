@@ -293,6 +293,9 @@ pub struct Assessment {
     pub knowledge: std::collections::BTreeMap<SourceName, lumen_policy::KnowledgeClass>,
     /// Whether every inventory source was read completely (for Jev's notes).
     pub inventories_complete: bool,
+    /// The volumes with a quarantine store, or `None` for every volume
+    /// ([`crate::Stores::volumes`], ADR-0046).
+    pub store_volumes: Option<BTreeSet<lumen_domain::VolumeId>>,
     store: IndexStore,
     scan: ScanId,
 }
@@ -350,7 +353,7 @@ impl Assessment {
             listings: &subtree.listings,
             context: &self.context,
             knowledge: &self.knowledge,
-            store_volumes: None,
+            store_volumes: self.store_volumes.as_ref(),
         }
     }
 }
@@ -494,6 +497,9 @@ pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> 
     store.record_evidence(&gathered.evidence)?;
     store.record_relationships(&gathered.relationships)?;
     let graph = store.load_graph()?;
+    // Without a store location nothing can be quarantined anyway; the
+    // decisions then fall back to every volume and a shared computer.
+    let stores = crate::store::stores().ok();
     let mechanisms: BTreeSet<CleanupMechanism> = PlatformCapabilities::ceiling(platform)
         .mechanisms()
         .filter(|m| *m == CleanupMechanism::QuarantineRename)
@@ -505,7 +511,7 @@ pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> 
         local_app_data: env.local_app_data.clone(),
         mechanisms,
         complete_sources: inventory.complete_sources.clone(),
-        single_user: false,
+        single_user: stores.as_ref().is_some_and(|s| s.single_user),
     };
     Ok(Assessment {
         roots,
@@ -515,6 +521,7 @@ pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> 
         context,
         knowledge: kb.knowledge(),
         inventories_complete,
+        store_volumes: stores.and_then(|s| s.volumes),
         store,
         scan,
     })
