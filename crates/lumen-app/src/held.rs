@@ -13,16 +13,18 @@
 use std::path::{Path, PathBuf};
 
 use lumen_application::finalize::{FinalizeOutcome, FinalizeReason, finalize_item};
-use lumen_application::ports::{Clock, JournalError, PreparedItem};
+use lumen_application::observe::below;
+use lumen_application::ports::{Clock, InUse, InUseProbe, JournalError, PreparedItem};
 use lumen_application::restore::{RestoreOutcome, restore_item};
 use lumen_domain::{
-    ByteCount, ItemLocation, OperationId, QuarantineEvent, QuarantineState, Timestamp,
+    ByteCount, FileIdentity, ItemLocation, OperationId, QuarantineEvent, QuarantineState, RawPath,
+    Timestamp,
 };
 use lumen_fs_exec::{Executor, original_path};
 use lumen_store_sqlite::{JournalEntry, LedgerJournal, LedgerStore, StoreError, open_ledger};
 
 use crate::assess::{AssessError, with_probes};
-use crate::store::{LocationError, PrivilegeError, refuse_privileged, store_location};
+use crate::store::{LocationError, PrivilegeError, refuse_privileged, stores};
 
 /// How long a retained item is kept before [`finalize_expired`] removes it
 /// (ADR-0015's default).
@@ -150,8 +152,43 @@ fn find(store: &LedgerStore, operation: OperationId) -> Result<HeldItem, HeldErr
 }
 
 fn executor() -> Result<Executor, HeldError> {
-    let (base, names) = store_location()?;
-    Ok(Executor::new(base, names))
+    stores()?
+        .executor()
+        .ok_or(HeldError::Location(LocationError::NoHome))
+}
+
+/// The in-use probe for held items (ADR-0030, ADR-0046): a partial answer
+/// counts only for an item held below the user's home or on a single-user
+/// computer; anywhere else it counts as unknown, which keeps the item.
+struct HeldProbe<'a> {
+    inner: &'a dyn InUseProbe,
+    home: Option<RawPath>,
+    single_user: bool,
+}
+
+impl<'a> HeldProbe<'a> {
+    fn new(inner: &'a dyn InUseProbe) -> Result<Self, HeldError> {
+        Ok(Self {
+            inner,
+            home: std::env::home_dir().and_then(|home| crate::raw_path(&home).ok()),
+            single_user: stores()?.single_user,
+        })
+    }
+}
+
+impl InUseProbe for HeldProbe<'_> {
+    fn probe(&self, path: &RawPath, expected: &FileIdentity) -> InUse {
+        match self.inner.probe(path, expected) {
+            InUse::Partial { .. }
+                if !self.single_user && !self.home.as_ref().is_some_and(|h| below(path, h)) =>
+            {
+                InUse::Unknown {
+                    reason: "held outside home on a shared computer",
+                }
+            }
+            answer => answer,
+        }
+    }
 }
 
 /// Moves the item of `operation` back to where it was, never over anything.
@@ -196,16 +233,16 @@ pub fn finalize(
     let held = find(&store, operation)?;
     let executor = executor()?;
     let mut journal = LedgerJournal::new(&mut store, clock);
-    let outcome = with_probes(|probes| {
-        finalize_item(
+    let outcome = with_probes(|probes| -> Result<_, HeldError> {
+        Ok(finalize_item(
             &executor,
             &mut journal,
             operation,
             held.state,
             &held.item,
             FinalizeReason::UserRequest,
-            probes.in_use,
-        )
+            &HeldProbe::new(probes.in_use)?,
+        )?)
     })??;
     tracing::info!(outcome = finalize_code(outcome), "finalize finished");
     Ok(Outcome {
@@ -269,6 +306,7 @@ pub fn finalize_expired(
     let executor = executor()?;
     let mut journal = LedgerJournal::new(&mut store, clock);
     with_probes(|probes| {
+        let probe = HeldProbe::new(probes.in_use)?;
         due.into_iter()
             .map(|held| {
                 let outcome = finalize_item(
@@ -278,7 +316,7 @@ pub fn finalize_expired(
                     held.state,
                     &held.item,
                     FinalizeReason::RetentionElapsed,
-                    probes.in_use,
+                    &probe,
                 )?;
                 Ok(Outcome {
                     operation: held.operation,
@@ -298,6 +336,49 @@ mod tests {
         format!("0190f0d2-6c1e-7a3b-8c4d-5e6f708192{n:02x}")
             .parse()
             .unwrap_or_else(|_| unreachable!())
+    }
+
+    /// Answers `Partial` for everything.
+    struct PartialProbe;
+
+    impl InUseProbe for PartialProbe {
+        fn probe(&self, _path: &RawPath, _expected: &FileIdentity) -> InUse {
+            InUse::Partial { unseen: None }
+        }
+    }
+
+    #[test]
+    fn a_partial_answer_counts_for_held_items_only_where_adr_0046_allows() {
+        let raw = |p: &str| {
+            RawPath::from_unix_bytes(p.as_bytes().to_vec()).unwrap_or_else(|_| unreachable!())
+        };
+        let identity = FileIdentity {
+            volume: lumen_domain::VolumeId::new("dev:1").unwrap_or_else(|_| unreachable!()),
+            file: lumen_domain::FileId::new(7),
+        };
+        let probe = |single_user: bool| HeldProbe {
+            inner: &PartialProbe,
+            home: Some(raw("/home/t")),
+            single_user,
+        };
+        let partial = |answer: InUse| matches!(answer, InUse::Partial { .. });
+        let home_store = raw("/home/t/.local/share/lumen/quarantine/x");
+        let other_drive = raw("/mnt/data/$LumenQuarantine.S-1/x");
+        assert!(partial(probe(false).probe(&home_store, &identity)));
+        assert!(partial(probe(true).probe(&home_store, &identity)));
+        assert!(partial(probe(true).probe(&other_drive, &identity)));
+        assert!(matches!(
+            probe(false).probe(&other_drive, &identity),
+            InUse::Unknown { .. }
+        ));
+        let no_home = HeldProbe {
+            home: None,
+            ..probe(false)
+        };
+        assert!(matches!(
+            no_home.probe(&home_store, &identity),
+            InUse::Unknown { .. }
+        ));
     }
 
     fn day(n: i64) -> Timestamp {

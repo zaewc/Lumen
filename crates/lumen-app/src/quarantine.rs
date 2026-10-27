@@ -19,13 +19,12 @@ use lumen_domain::{
     ByteCount, Confirmation, ConfirmationSurface, DeviceId, ItemLocation, OperationId, PlanEvent,
     PlanId, QuarantineFailure, RawPath, Timestamp,
 };
-use lumen_fs_exec::Executor;
 use lumen_store_sqlite::{
     IndexStore, LedgerJournal, LedgerStore, StoreError, StoredPlan, open_index, open_ledger,
 };
 
 use crate::assess::{AssessError, block_on, prepare, with_probes};
-use crate::store::{LocationError, PrivilegeError, refuse_privileged, store_location};
+use crate::store::{LocationError, PrivilegeError, refuse_privileged, stores};
 
 /// How long a plan may wait for its confirmation (ADR-0034).
 pub const MAX_PLAN_AGE_SECS: i64 = 24 * 60 * 60;
@@ -229,12 +228,15 @@ pub fn quarantine(
             StoreError::PlanTransition(_) => QuarantineError::AlreadyConfirmed(plan),
             other => other.into(),
         })?;
-    let (base, names) = store_location()?;
+    let quarantine_stores = stores()?;
     #[cfg(unix)]
-    let mut warnings = prepare_store(&base, &names)?;
+    let mut warnings = match quarantine_stores.locations.first() {
+        Some((base, names)) => prepare_store(base, names)?,
+        None => Vec::new(),
+    };
     #[cfg(not(unix))]
     let mut warnings = Vec::new();
-    let executor = Executor::new(base, names);
+    let executor = quarantine_stores.executor().ok_or(LocationError::NoHome)?;
     let mut ledger = LedgerStore::new(open_ledger(&db.with_file_name("ledger.db"))?);
     let mut journal = LedgerJournal::new(&mut ledger, clock);
     let resolved = reconcile(&executor, &mut journal)?.len();
