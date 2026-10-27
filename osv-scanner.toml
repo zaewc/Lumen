@@ -104,3 +104,20 @@ generates the mobile bindings (ADR-0007); it never runs in a shipped binary. \
 No askama or uniffi release without it exists yet. Review when uniffi moves \
 to an askama that drops basic-toml.\
 """
+
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2027-01-28T00:00:00Z
+reason = """
+deepmerge <= 4.3.1 (alias CVE-2026-93753): mergeObject() lets a crafted source \
+object poison the returned object's prototype; no fixed version yet. It comes \
+only through @expo/config (the Expo CLI and build tooling), which merges the \
+developer's own app config with config-plugin modifications at build time. No \
+untrusted input is merged and nothing of it ships in the app. Re-check for a \
+fixed deepmerge, or an @expo/config without it, before expiry.\
+"""
+
+[[IgnoredVulns]]
+id = "CVE-2026-93753"
+ignoreUntil = 2027-01-28T00:00:00Z
+reason = "Alias of GHSA-gcqx-w48m-w2h4 (deepmerge prototype poisoning); see that entry."
