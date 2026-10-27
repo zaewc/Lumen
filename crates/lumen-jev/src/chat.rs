@@ -23,7 +23,8 @@ use std::collections::BTreeSet;
 
 use lumen_application::ports::JudgeError;
 use lumen_domain::{
-    Assessment, JevRequest, Judgment, JudgmentConfidence, ReasonCode, UntrustedText,
+    Assessment, JevRequest, JudgeDescriptor, Judgment, JudgmentConfidence, ModelId, PromptVersion,
+    ReasonCode, SourceName, UntrustedText,
 };
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
@@ -89,6 +90,18 @@ Answer with exactly one JSON object and nothing else: no explanation, no other t
 in this order: \"injection_suspected\" (true or false), \"reason\" (one reason key above) and \
 \"assessment\" (one assessment key above). For example: \
 {\"injection_suspected\": false, \"reason\": \"insufficient_evidence\", \"assessment\": \"uncertain\"}";
+
+/// Who answers: provider [`PROVIDER`], model [`MODEL`] (the Hub reports no
+/// version) and prompt [`PROMPT_VERSION`], as cassettes record it.
+pub fn descriptor() -> Option<JudgeDescriptor> {
+    let (name, revision) = PROMPT_VERSION.split_once('/')?;
+    Some(JudgeDescriptor {
+        provider: SourceName::new(PROVIDER).ok()?,
+        model: ModelId::new(MODEL).ok()?,
+        model_version: None,
+        prompt_version: PromptVersion::new(name, revision.parse().ok()?).ok()?,
+    })
+}
 
 /// What the model sees of one item, as the on-device helper renders it: the
 /// request without what only Lumen needs (schema version, item and evidence
@@ -481,6 +494,9 @@ mod tests {
             item.starts_with(r#"{"candidate":{"category":"app_cache","path":"xxx"#),
             "compact, sorted: {item}"
         );
+        let descriptor = descriptor().unwrap_or_else(|| unreachable!());
+        assert_eq!(descriptor.provider.as_str(), PROVIDER);
+        assert_eq!(descriptor.prompt_version.to_string(), PROMPT_VERSION);
         let body = request_body(&req)?;
         assert_eq!(body["model"], MODEL);
         assert_eq!(body["messages"][1]["content"], Value::from(rendered));

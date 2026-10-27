@@ -74,7 +74,7 @@ case is no evidence, and a judge must not pass by failing on exactly the hard ca
 
 ```text
 lumen-jev-eval record --dataset 2026.10.0 --out <FILE> [--split <NAME>] [--prompt v1|v2]
-                      [--judge jeb|apple-fm] [--helper <PATH>] [--ai ai] [--resume <FILE>]
+                      [--judge jeb|apple-fm|hub-chat] [--helper <PATH>] [--ai ai] [--resume <FILE>]
 ```
 
 `record` asks Jeb (ADR-0036) about every golden and adversarial case of the dataset,
@@ -113,6 +113,25 @@ requests).
   are sent, then everything is written, in dataset order, to the new `--out` file. The
   earlier file must come from the same judge, model and prompt (checked before
   anything is sent); with `--split`, give the same split again.
+
+### Recording the AI Hub's chat model
+
+`record --judge hub-chat` asks the AI Hub's chat model `flash-next` beside Jeb
+([ADR-0045](../decisions/0045-evaluate-the-ai-hub-chat-model-as-a-judge.md)): the same
+server, key, disclosure and pacing as Jeb (one request at a time, 1 s apart, retries
+after 5, 10 and 20 s), at `/v1/chat/completions`, with its own prompt
+(`chat-decisions/1`; `--prompt` and `--helper` are refused). Each request spends the
+owner's Hub quota, so a recording needs the owner's go-ahead first.
+
+```text
+lumen-jev-eval record --dataset 2026.11.0 --split dev --judge hub-chat \
+    --out ai/cassettes/chat-decisions/1/flash-next-2026.11.0-dev.json
+lumen-jev-eval run --dataset 2026.11.0 --split dev \
+    --cassette ai/cassettes/chat-decisions/1/flash-next-2026.11.0-dev.json
+```
+
+The cassette keeps each response body as the server sent it; replay accepts only an
+answer whose whole content is the closed JSON object (`lumen_jev::chat`).
 
 ### Recording the on-device judge
 

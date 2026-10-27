@@ -5,7 +5,7 @@
 //! lumen-jev-eval run    --dataset <VERSION> --cassette <FILE> [--split <NAME>]
 //!                       [--prompt v1|v2] [--ai <DIR>] [--gate full|observed] [--json]
 //! lumen-jev-eval record --dataset <VERSION> --out <FILE> [--split <NAME>]
-//!                       [--judge jeb|apple-fm] [--prompt v1|v2] [--helper <PATH>]
+//!                       [--judge jeb|apple-fm|hub-chat] [--prompt v1|v2] [--helper <PATH>]
 //!                       [--ai <DIR>] [--resume <FILE>]
 //! ```
 //!
@@ -34,6 +34,9 @@
 //! the `fm-judge` helper (`--helper`, an absolute path; by default
 //! `apps/fm-judge/.build/release/fm-judge` under the current directory),
 //! with its own prompt `fm-decisions/1` (ADR-0044): nothing leaves the Mac.
+//! With `--judge hub-chat` it asks the AI Hub's chat model `flash-next`
+//! beside Jeb, with the same key and pacing and the prompt `chat-decisions/1`
+//! (ADR-0045).
 //! The output must not exist yet: nothing is ever overwritten. It exits with 0
 //! when every case was recorded, 1 when some were not (the rest are still
 //! written), and 2 for usage or input errors.
@@ -58,7 +61,7 @@ use lumen_jev_eval::{
 };
 
 const USAGE: &str = "usage: lumen-jev-eval run --dataset <VERSION> --cassette <FILE> [--split <NAME>] [--prompt v1|v2] [--ai <DIR>] [--gate full|observed] [--json]
-       lumen-jev-eval record --dataset <VERSION> --out <FILE> [--split <NAME>] [--judge jeb|apple-fm] [--prompt v1|v2] [--helper <PATH>] [--ai <DIR>] [--resume <FILE>]
+       lumen-jev-eval record --dataset <VERSION> --out <FILE> [--split <NAME>] [--judge jeb|apple-fm|hub-chat] [--prompt v1|v2] [--helper <PATH>] [--ai <DIR>] [--resume <FILE>]
 splits: dev, calibration, test-locked (canaries go with their twin's split)";
 
 /// Which gate decides the exit status.
@@ -94,6 +97,8 @@ enum LiveKind {
         /// The helper, if given.
         helper: Option<PathBuf>,
     },
+    /// The AI Hub's chat model beside Jeb (ADR-0045).
+    HubChat,
 }
 
 /// Parsed `record` arguments.
@@ -138,7 +143,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
     let (mut dataset, mut cassette, mut out, mut ai, mut json) =
         (None, None, None, PathBuf::from("ai"), false);
     let (mut resume, mut split, mut chosen_prompt) = (None, None, None);
-    let (mut on_device, mut helper) = (false, None);
+    let (mut judge_name, mut helper) = (String::from("jeb"), None);
     let mut gate = Gate::Full;
     let mut iter = rest.iter();
     while let Some(arg) = iter.next() {
@@ -163,26 +168,31 @@ fn parse(args: &[String]) -> Result<Command, String> {
             ("--json", false) => json = true,
             ("--out", true) => out = Some(PathBuf::from(value()?)),
             ("--resume", true) => resume = Some(PathBuf::from(value()?)),
-            ("--judge", true) => {
-                on_device = match value()?.as_str() {
-                    "jeb" => false,
-                    "apple-fm" => true,
-                    other => return Err(format!("unknown judge `{other}` (jeb or apple-fm)")),
-                };
-            }
+            ("--judge", true) => judge_name = value()?,
             ("--helper", true) => helper = Some(PathBuf::from(value()?)),
             (other, _) => return Err(format!("unexpected argument `{other}`")),
         }
     }
     let dataset = dataset.ok_or("--dataset is needed")?;
     Ok(if record {
-        let judge = match (on_device, chosen_prompt, helper) {
-            (false, prompt, None) => LiveKind::Jeb(prompt.unwrap_or_default()),
-            (false, _, Some(_)) => return Err("--helper is for --judge apple-fm".into()),
-            (true, Some(_), _) => {
+        let judge = match (judge_name.as_str(), chosen_prompt, helper) {
+            ("jeb", prompt, None) => LiveKind::Jeb(prompt.unwrap_or_default()),
+            ("jeb" | "hub-chat", _, Some(_)) => {
+                return Err("--helper is for --judge apple-fm".into());
+            }
+            ("apple-fm", Some(_), _) => {
                 return Err("--prompt is for Jeb; the on-device judge asks fm-decisions/1".into());
             }
-            (true, None, helper) => LiveKind::AppleFm { helper },
+            ("apple-fm", None, helper) => LiveKind::AppleFm { helper },
+            ("hub-chat", Some(_), None) => {
+                return Err("--prompt is for Jeb; the chat model asks chat-decisions/1".into());
+            }
+            ("hub-chat", None, None) => LiveKind::HubChat,
+            (other, _, _) => {
+                return Err(format!(
+                    "unknown judge `{other}` (jeb, apple-fm or hub-chat)"
+                ));
+            }
         };
         Command::Record(RecordArgs {
             dataset,
@@ -310,6 +320,26 @@ impl LiveJudge for Jeb {
     }
 }
 
+/// The AI Hub's chat model through Jeb's transport and key (ADR-0045).
+struct HubChat {
+    judge: JevJudge,
+    descriptor: JudgeDescriptor,
+}
+
+impl LiveJudge for HubChat {
+    fn descriptor(&self) -> JudgeDescriptor {
+        self.descriptor.clone()
+    }
+
+    fn ask(&self, request: &JevRequest) -> Result<String, LiveError> {
+        Ok(self.judge.ask_chat(request)?)
+    }
+
+    fn wait(&self, pause: Duration) {
+        std::thread::sleep(pause);
+    }
+}
+
 /// The Jeb key from the operating system's secret store, looked up as the CLI
 /// does (`lumen_app::ai::stored_key`): the slot `lumen jev key set` writes.
 /// Errors never contain the key.
@@ -386,6 +416,26 @@ fn live_judge(args: &RecordArgs) -> Result<Live, Box<dyn Error>> {
                     "to Jeb ({}) with prompt {}",
                     lumen_jev::decisions::JEB_ENDPOINT,
                     prompt.version()
+                ),
+            })
+        }
+        LiveKind::HubChat => {
+            let judge = Service::Jeb.judge(jeb_key()?)?;
+            let descriptor =
+                lumen_jev::chat::descriptor().ok_or("the chat judge has no descriptor")?;
+            Ok(Live {
+                judge: Box::new(HubChat {
+                    judge,
+                    descriptor: descriptor.clone(),
+                }),
+                descriptor,
+                pacing: Pacing::JEB,
+                disclosure: Some(Service::Jeb.disclosure().to_string()),
+                destination: format!(
+                    "to the AI Hub's chat model {} beside Jeb ({}) with prompt {}",
+                    lumen_jev::chat::MODEL,
+                    lumen_jev::decisions::JEB_ENDPOINT,
+                    lumen_jev::chat::PROMPT_VERSION
                 ),
             })
         }
@@ -759,6 +809,47 @@ mod tests {
                 ..
             }))
         ));
+        assert!(matches!(
+            parse(&args(&[
+                "record",
+                "--dataset",
+                "d",
+                "--out",
+                "o",
+                "--judge",
+                "hub-chat"
+            ])),
+            Ok(Command::Record(RecordArgs {
+                judge: LiveKind::HubChat,
+                ..
+            }))
+        ));
+        for bad in [
+            &[
+                "record",
+                "--dataset",
+                "d",
+                "--out",
+                "o",
+                "--judge",
+                "hub-chat",
+                "--prompt",
+                "v2",
+            ][..],
+            &[
+                "record",
+                "--dataset",
+                "d",
+                "--out",
+                "o",
+                "--judge",
+                "hub-chat",
+                "--helper",
+                "/h",
+            ],
+        ] {
+            assert!(parse(&args(bad)).is_err(), "{bad:?}");
+        }
         assert!(helper_path(Some(&PathBuf::from("relative/fm-judge"))).is_err());
         assert!(helper_path(Some(&PathBuf::from("/nonexistent/fm-judge"))).is_err());
     }

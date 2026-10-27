@@ -30,6 +30,7 @@ use lumen_domain::{
 use ureq::Agent;
 use ureq::tls::{RootCerts, TlsConfig, TlsProvider};
 
+use crate::chat;
 use crate::decisions::{self, DESCRIBE_PROMPT_VERSION, Prompt, Provider};
 
 /// Longest wait for one answer.
@@ -235,11 +236,43 @@ impl JevJudge {
         self.post(&body)
     }
 
+    /// Sends `request` once to the AI Hub's chat model with prompt
+    /// `chat-decisions/1` ([`chat::request_body`], ADR-0045) and returns the
+    /// answer body exactly as the server sent it; [`chat::judgment_for`]
+    /// validates it. For evaluation only (`lumen-jev-eval record --judge
+    /// hub-chat`): nothing in the app calls it. The Hub serves the chat model
+    /// next to Jeb, at `chat/completions` beside Jeb's `systemone`, with the
+    /// same key. Blocks the calling thread for up to 30 s.
+    ///
+    /// # Errors
+    ///
+    /// An [`AskError`] if this judge does not talk to the AI Hub, or no answer
+    /// arrived (unreachable, timed out, or an HTTP error status).
+    pub fn ask_chat(&self, request: &JevRequest) -> Result<String, AskError> {
+        let endpoint = match self.provider {
+            Provider::Jeb => self
+                .endpoint
+                .strip_suffix("/systemone")
+                .map(|base| format!("{base}/chat/completions")),
+            Provider::OpenRouter => None,
+        }
+        .ok_or_else(|| AskError::new(None, "only the AI Hub serves the chat model"))?;
+        let body = chat::request_body(request)
+            .map_err(|_| AskError::new(None, "the request could not be built"))?
+            .to_string();
+        self.post_to(&endpoint, &body)
+    }
+
     /// The answer body for `body`, or why there is none.
     fn post(&self, body: &str) -> Result<String, AskError> {
+        self.post_to(&self.endpoint, body)
+    }
+
+    /// The answer body for `body` sent to `endpoint`, or why there is none.
+    fn post_to(&self, endpoint: &str, body: &str) -> Result<String, AskError> {
         let response = self
             .agent
-            .post(&self.endpoint)
+            .post(endpoint)
             .header("Authorization", &format!("Bearer {}", self.key.0))
             .header("Content-Type", "application/json")
             .send(body);
@@ -596,6 +629,39 @@ mod tests {
         }
         let unreachable = judge_with("http://127.0.0.1:9/".to_owned()).ask(&request());
         assert!(unreachable.is_err_and(AskError::is_transient));
+    }
+
+    #[test]
+    fn ask_chat_posts_the_chat_request_beside_jeb() {
+        let raw = r#"{"model":"flash-next","choices":[]}"#.to_owned();
+        let (endpoint, received) = serve(200, raw.clone());
+        let base = endpoint.trim_end_matches("/api/alpha/decisions");
+        let key = ApiKey::new("hub-test-key").unwrap_or_else(|| unreachable!());
+        let judge = JevJudge::with_endpoint(key, Provider::Jeb, format!("{base}/v1/systemone"))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(judge.ask_chat(&request()), Ok(raw), "exactly as received");
+        let got = received
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(got.line, "POST /v1/chat/completions HTTP/1.1");
+        assert!(
+            got.headers
+                .iter()
+                .any(|h| h == "authorization: Bearer hub-test-key"
+                    || h == "Authorization: Bearer hub-test-key")
+        );
+        let sent: serde_json::Value =
+            serde_json::from_str(&got.body).unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            Some(sent),
+            chat::request_body(&request()).ok(),
+            "the chat request, nothing else"
+        );
+        let openrouter = judge_with("http://127.0.0.1:9/".to_owned()).ask_chat(&request());
+        assert!(
+            openrouter.is_err_and(|e| e.to_string().contains("only the AI Hub")),
+            "nothing is sent to OpenRouter"
+        );
     }
 
     #[test]
