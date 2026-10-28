@@ -309,7 +309,7 @@ export const zToolCommandView = z.object({
  * The app's version and whether a newer one is published (ADR-0048).
  */
 export const zUpdateView = z.object({
-  available: z.string().nullish(),
+  available: z.string().nullable(),
   current: z.string(),
   installable: z.boolean(),
 });

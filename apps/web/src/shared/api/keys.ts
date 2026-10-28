@@ -9,6 +9,8 @@ export const QUERY_KEYS = {
   aiSettings: ["ai-settings"],
   /** How full the disk is. */
   disk: ["disk"],
+  /** Whether a newer version is published. */
+  update: ["update"],
   /** The assessment of a scan (followed by the scan's ID). */
   assessment: ["assessment"],
 } as const;

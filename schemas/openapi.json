@@ -920,6 +920,7 @@
         "description": "The app's version and whether a newer one is published (ADR-0048).",
         "required": [
           "current",
+          "available",
           "installable"
         ],
         "properties": {

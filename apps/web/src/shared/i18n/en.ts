@@ -355,7 +355,23 @@ export const en = {
       version: "Version",
       local: "On this device",
       localBody:
-        "Scans, decisions and Quarantine stay on this computer. File contents are never sent anywhere. If you turn on AI review, it sends only details such as paths and sizes.",
+        "Scans, decisions and Quarantine stay on this computer. File contents are never sent anywhere. While AI review is on, it sends only details such as paths and sizes.",
+      update: {
+        title: "Updates",
+        checking: "Checking for a new version…",
+        upToDate: "Lumen is up to date.",
+        available: (version: string) => `Version ${version} is available.`,
+        packageOnly:
+          "This copy was installed from a package: get the new version from zaewc.github.io/Lumen.",
+        checkFailed: "Lumen could not check for a new version.",
+        check: "Check now",
+        install: "Update and restart",
+        installing: "Updating…",
+        installingNote:
+          "Lumen downloads the new version, checks its signature, installs it and restarts.",
+        installFailed: "The update did not install. This version is unchanged.",
+        sidebar: (version: string) => `Version ${version} available`,
+      },
     },
   },
   whatIs: (term: string) => `What does “${term}” mean?`,

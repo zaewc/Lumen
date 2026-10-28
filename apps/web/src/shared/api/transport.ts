@@ -14,6 +14,7 @@ import type {
   ScanProgressView,
   ScanRequest,
   ScanView,
+  UpdateView,
 } from "@lumen/api-client";
 
 /** An operation ID, as the core issued it; never built by the UI. */
@@ -59,4 +60,11 @@ export interface LumenTransport {
   setAiReview(enabled: boolean): Promise<AiSettingsView>;
   /** Stores a Jeb API key in the system's secret store; it is never returned. */
   setAiKey(key: string): Promise<AiSettingsView>;
+  /**
+   * The app's version and a newer published one, if any (ADR-0048); only
+   * where the host can update itself (the desktop app), absent elsewhere.
+   */
+  checkUpdate?(): Promise<UpdateView>;
+  /** Downloads, verifies and installs the newer version, then restarts. */
+  installUpdate?(): Promise<void>;
 }

@@ -12,6 +12,7 @@ import {
   zRestoreOutcomeView,
   zScanProgressView,
   zScanView,
+  zUpdateView,
 } from "@lumen/api-client";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type { LumenTransport } from "./transport";
@@ -42,6 +43,10 @@ export function tauriTransport(): LumenTransport {
     disk: async () => zDiskView.parse(await invoke("disk")),
     openFullDiskAccess: async () => {
       await invoke("open_full_disk_access");
+    },
+    checkUpdate: async () => zUpdateView.parse(await invoke("check_update")),
+    installUpdate: async () => {
+      await invoke("install_update");
     },
     setAiReview: async (enabled) =>
       zAiSettingsView.parse(await invoke("set_ai_review", { enabled })),

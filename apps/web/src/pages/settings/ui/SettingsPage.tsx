@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+import { useUpdate } from "@/entities/app-update";
 import { useTransport } from "@/shared/api";
 import { APP_VERSION } from "@/shared/config";
 import { LOCALE_NAMES, LOCALES, useI18n } from "@/shared/i18n";
@@ -83,7 +84,69 @@ function PermissionsGroup() {
   );
 }
 
-/** The app's name and version, and where its data stays. */
+/**
+ * Whether a newer version is published, and installing it when the user
+ * asks (ADR-0048). Only where the host can update itself.
+ */
+function UpdateRow() {
+  const { m } = useI18n();
+  const u = m.settings.about.update;
+  const transport = useTransport();
+  const update = useUpdate();
+  const install = useMutation({
+    mutationFn: () => transport.installUpdate?.() ?? Promise.resolve(),
+  });
+  if (transport.checkUpdate === undefined) {
+    return null;
+  }
+  const available = update.data?.available ?? null;
+  const installable = update.data?.installable ?? false;
+  let description: string;
+  if (install.isPending) {
+    description = u.installingNote;
+  } else if (install.isError) {
+    description = u.installFailed;
+  } else if (update.isFetching && update.data === undefined) {
+    description = u.checking;
+  } else if (update.isError) {
+    description = u.checkFailed;
+  } else if (available === null) {
+    description = u.upToDate;
+  } else {
+    description = installable
+      ? u.available(available)
+      : `${u.available(available)} ${u.packageOnly}`;
+  }
+  return (
+    <GroupRow
+      title={u.title}
+      description={<span aria-live="polite">{description}</span>}
+      trailing={
+        available !== null && installable ? (
+          <button
+            type="button"
+            onClick={() => install.mutate()}
+            disabled={install.isPending}
+            className={buttonClass("primary", "sm")}
+          >
+            {install.isPending ? u.installing : u.install}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void update.refetch()}
+            disabled={update.isFetching}
+            className={buttonClass("secondary", "sm")}
+          >
+            {u.check}
+          </button>
+        )
+      }
+    />
+  );
+}
+
+/** The app's name and version, whether a newer one is out, and where its data stays. */
 function AboutGroup() {
   const { m } = useI18n();
   const a = m.settings.about;
@@ -97,6 +160,7 @@ function AboutGroup() {
           </span>
         }
       />
+      <UpdateRow />
       <GroupRow title={a.local} description={a.localBody} />
     </Group>
   );

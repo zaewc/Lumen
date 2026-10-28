@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
+import { useUpdate } from "@/entities/app-update";
 import { useHeld } from "@/entities/held";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
@@ -65,6 +66,27 @@ function NavItem({
         )}
       </Link>
     </li>
+  );
+}
+
+/** A newer version, when one is out; it opens Settings, where it installs. */
+function UpdateStatus() {
+  const { m } = useI18n();
+  const update = useUpdate();
+  const version = update.data?.available ?? null;
+  if (version === null) {
+    return null;
+  }
+  const label = m.settings.about.update.sidebar(version);
+  return (
+    <Link
+      to="/settings"
+      title={label}
+      className="flex h-9 items-center justify-center gap-2 rounded-lg px-2.5 text-[12px] font-medium text-accent-ink hover:bg-fill-strong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent min-[720px]:justify-start"
+    >
+      <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-accent" />
+      <span className="sr-only min-[720px]:not-sr-only min-[720px]:truncate">{label}</span>
+    </Link>
   );
 }
 
@@ -134,6 +156,7 @@ export function Sidebar() {
         </ul>
       </nav>
       <div className="shrink-0 border-t border-line px-2 py-2 min-[720px]:px-3">
+        <UpdateStatus />
         <AiStatus />
       </div>
     </aside>

@@ -554,7 +554,7 @@ export type UpdateView = {
   /**
    * The newer version on offer, if any.
    */
-  available?: string | null;
+  available: string | null;
   /**
    * The running version, such as `0.4.0`.
    */

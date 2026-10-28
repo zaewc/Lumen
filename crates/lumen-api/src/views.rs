@@ -292,6 +292,7 @@ pub struct UpdateView {
     /// The running version, such as `0.4.0`.
     pub current: String,
     /// The newer version on offer, if any.
+    #[schema(required = true)]
     pub available: Option<String>,
     /// Whether the app can install it itself; `false` where it cannot
     /// replace its own files (a `.deb` install), which updates through the
