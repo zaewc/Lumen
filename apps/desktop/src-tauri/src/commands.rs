@@ -16,6 +16,7 @@ use std::sync::Arc;
 use lumen_api::views::{
     AiSettingsView, CandidateView, DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView,
     PlanView, QuarantineReportView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
+    ToolRunView,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -39,6 +40,11 @@ pub(crate) struct Core {
     /// Lumen's built-in Jeb key in release builds (ADR-0042), used only when
     /// no key is stored. Never shown.
     pub(crate) builtin: Option<ApiKey>,
+    /// The knowledge-base entries with a tool command that the latest
+    /// assessment matched: the only commands the page may run (ADR-0049).
+    pub(crate) tool_entries: std::sync::Mutex<std::collections::BTreeSet<String>>,
+    /// Held while a tool's command runs: one at a time.
+    pub(crate) tool_running: Arc<std::sync::Mutex<()>>,
 }
 
 impl std::fmt::Debug for Core {
@@ -47,6 +53,8 @@ impl std::fmt::Debug for Core {
             .field("db", &self.db)
             .field("secrets", &self.secrets.is_some())
             .field("builtin", &self.builtin.is_some())
+            .field("tool_entries", &self.tool_entries)
+            .field("tool_running", &self.tool_running.try_lock().is_err())
             .finish()
     }
 }
@@ -195,7 +203,7 @@ pub(crate) async fn assess(core: State<'_, Core>) -> Result<Vec<CandidateView>, 
     let db = core.db.clone();
     let secrets = core.secrets.clone();
     let builtin = core.builtin.clone();
-    blocking(move || {
+    let views = blocking(move || {
         let assessed = with_judge(
             &db,
             secrets.as_deref(),
@@ -205,7 +213,52 @@ pub(crate) async fn assess(core: State<'_, Core>) -> Result<Vec<CandidateView>, 
             },
             Vec::as_slice,
         )?;
-        Ok(assessed.iter().map(CandidateView::from).collect())
+        Ok(assessed.iter().map(CandidateView::from).collect::<Vec<_>>())
+    })
+    .await?;
+    let entries = views
+        .iter()
+        .filter_map(|view| view.tool_command.as_ref().map(|c| c.entry.clone()))
+        .collect();
+    *core
+        .tool_entries
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = entries;
+    Ok(views)
+}
+
+/// Runs the cleanup command of knowledge-base entry `entry` (ADR-0049), only
+/// if the latest assessment matched an item to it. The command comes from
+/// the knowledge base, never from the page; the page has confirmed it with
+/// the user. What it removes cannot be restored.
+#[tauri::command]
+pub(crate) async fn run_tool_command(
+    core: State<'_, Core>,
+    entry: String,
+) -> Result<ToolRunView, CommandError> {
+    let found = core
+        .tool_entries
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .contains(&entry);
+    if !found {
+        return Err(CommandError::new(
+            "that command is not offered for anything in the latest scan",
+        ));
+    }
+    let command = lumen_app::tools::builtin(&entry)
+        .ok_or_else(|| CommandError::new("that command is not in Lumen's knowledge base"))?;
+    let running = Arc::clone(&core.tool_running);
+    blocking(move || {
+        lumen_app::refuse_privileged().map_err(CommandError::new)?;
+        let Ok(_one) = running.try_lock() else {
+            return Err(CommandError::new("another command is still running"));
+        };
+        let home =
+            std::env::home_dir().ok_or_else(|| CommandError::new("the home folder is unknown"))?;
+        let run = lumen_app::tools::run(&command, &home, lumen_app::tools::TIME_LIMIT)
+            .map_err(CommandError::new)?;
+        Ok(ToolRunView::from(run))
     })
     .await
 }

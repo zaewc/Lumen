@@ -30,7 +30,13 @@ describe("summarize", () => {
   });
 
   it("counts items to review with their own command apart from review", () => {
-    const command = { tool: "pnpm", program: "pnpm", args: ["store", "prune"] };
+    const command = {
+      entry: "pnpm-store",
+      removes_data: false,
+      tool: "pnpm",
+      program: "pnpm",
+      args: ["store", "prune"],
+    };
     const items = [
       { ...candidate("/store", "review", "15000"), tool_command: command },
       candidate("/unknown", "review", "200"),

@@ -160,6 +160,7 @@ mod tests {
             tool: "Tool".to_owned(),
             program: program.to_owned(),
             args: args.iter().map(|&a| a.to_owned()).collect(),
+            removes_data: false,
         }
     }
 

@@ -530,7 +530,7 @@ export type SkipView =
 
 /**
  * A developer tool's own cleanup command, as a literal argument vector:
- * shown to the user to copy and run themselves, never run by Lumen.
+ * shown in full, with desktop execution by entry ID after confirmation.
  */
 export type ToolCommandView = {
   /**
@@ -538,13 +538,45 @@ export type ToolCommandView = {
    */
   args: Array<string>;
   /**
+   * The knowledge-base entry it comes from: the name to run it by
+   * (ADR-0049); the page never sends the command itself.
+   */
+  entry: string;
+  /**
    * The program, such as `xcrun`.
    */
   program: string;
   /**
+   * It removes data, not just caches (Docker), so the confirmation says
+   * what it removes.
+   */
+  removes_data: boolean;
+  /**
    * The tool's display name, such as `Xcode`.
    */
   tool: string;
+};
+
+/**
+ * How running a tool's command ended (ADR-0049).
+ */
+export type ToolRunView = {
+  /**
+   * Its exit code, if it exited on its own.
+   */
+  exit_code: number | null;
+  /**
+   * The end of what it printed.
+   */
+  output: string;
+  /**
+   * It exited with status 0.
+   */
+  success: boolean;
+  /**
+   * It ran past the time limit and was stopped.
+   */
+  timed_out: boolean;
 };
 
 /**

@@ -14,6 +14,7 @@ import type {
   ScanProgressView,
   ScanRequest,
   ScanView,
+  ToolRunView,
   UpdateView,
 } from "@lumen/api-client";
 
@@ -67,4 +68,10 @@ export interface LumenTransport {
   checkUpdate?(): Promise<UpdateView>;
   /** Downloads, verifies and installs the newer version, then restarts. */
   installUpdate?(): Promise<void>;
+  /**
+   * Runs the cleanup command of a knowledge-base entry the latest
+   * assessment found (ADR-0049); the host looks the command up itself.
+   * Only where the host can run it (the desktop app).
+   */
+  runToolCommand?(entry: string): Promise<ToolRunView>;
 }

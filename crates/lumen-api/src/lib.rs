@@ -29,6 +29,7 @@ use utoipa::OpenApi;
         views::GroupKindView,
         views::DiskView,
         views::UpdateView,
+        views::ToolRunView,
         views::ReasonView,
         views::ToolCommandView,
         views::AiNoteView,
@@ -82,7 +83,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 34);
+        assert_eq!(schemas, 35);
     }
 
     #[test]

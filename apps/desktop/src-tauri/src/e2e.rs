@@ -105,6 +105,15 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
         "nothing outside Lumen's own commands is reachable"
     );
     ai_review(&window);
+    assert!(
+        invoke(
+            &window,
+            "run_tool_command",
+            json!({ "entry": "docker-desktop-disk-image" })
+        )
+        .is_err(),
+        "no command runs for an item the latest assessment did not find (ADR-0049)"
+    );
     let item = home.join("Library/Developer/Xcode/DerivedData/App-abc");
     let cycle = || -> Option<String> {
         let scan = ok(

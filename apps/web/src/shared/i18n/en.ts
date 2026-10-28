@@ -138,7 +138,7 @@ export const en = {
     },
     otherTools: "Other tools",
     commandNote:
-      "Only their tool should remove these. Lumen does not run the commands; check what each one removes before you run it.",
+      "Only their tool should remove these. Open one to run its command; check what it removes first, as it cannot be undone.",
     status: {
       quarantine: "Proposed",
       command: "Own command",
@@ -197,6 +197,20 @@ export const en = {
     copied: "Copied",
     copyFailed: "Lumen could not copy it. Select the command and copy it yourself.",
     note: "Lumen does not run this command. Check what it removes before you run it.",
+    run: "Run command",
+    runConfirm: "Run",
+    runWarning:
+      "This command deletes files right away. They do not go through Quarantine, so Lumen cannot restore them. Check what it removes before you run it.",
+    removesData:
+      "It removes Docker's stopped containers, unused networks, dangling images and unused build cache.",
+    running: "Running… this can take a few minutes.",
+    succeeded: "The command finished. Scan again to see the space it freed.",
+    failed: (code: number | null) =>
+      code === null ? "The command failed." : `The command failed (exit code ${code}).`,
+    timedOut: "It was still running after 15 minutes, so Lumen stopped it.",
+    output: "Show output",
+    runFailed: "Lumen could not run the command.",
+    runNote: "Running it cannot be undone. Check what it removes before you run it.",
   },
   coverage: {
     incomplete: "Lumen could not read some folders and left them alone. Sizes may be larger.",

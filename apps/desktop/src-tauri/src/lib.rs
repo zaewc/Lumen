@@ -61,6 +61,7 @@ pub fn app<R: Runtime>(
             commands::open_full_disk_access,
             commands::set_ai_review,
             commands::set_ai_key,
+            commands::run_tool_command,
             update::check_update,
             update::install_update,
         ])
@@ -81,6 +82,8 @@ pub fn app<R: Runtime>(
                 db: data.join("index.db"),
                 secrets,
                 builtin,
+                tool_entries: std::sync::Mutex::default(),
+                tool_running: Arc::default(),
             });
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")

@@ -168,7 +168,7 @@ pub struct CandidateView {
     /// Why: one reason per policy rule that fired, in the policy's order.
     pub reasons: Vec<ReasonView>,
     /// The cleanup command of the developer tool that owns it, if the tool
-    /// has one: guidance for the user to run themselves. Lumen never runs it.
+    /// has one: displayed in full and run by entry ID after desktop confirmation.
     #[schema(required = true)]
     pub tool_command: Option<ToolCommandView>,
     /// The group it is presented in.
@@ -319,20 +319,53 @@ impl From<lumen_app::space::Volume> for DiskView {
 }
 
 /// A developer tool's own cleanup command, as a literal argument vector:
-/// shown to the user to copy and run themselves, never run by Lumen.
+/// shown in full, with desktop execution by entry ID after confirmation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ToolCommandView {
+    /// The knowledge-base entry it comes from: the name to run it by
+    /// (ADR-0049); the page never sends the command itself.
+    pub entry: String,
     /// The tool's display name, such as `Xcode`.
     pub tool: String,
     /// The program, such as `xcrun`.
     pub program: String,
     /// Its arguments, one per element, unquoted.
     pub args: Vec<String>,
+    /// It removes data, not just caches (Docker), so the confirmation says
+    /// what it removes.
+    pub removes_data: bool,
+}
+
+/// How running a tool's command ended (ADR-0049).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ToolRunView {
+    /// It exited with status 0.
+    pub success: bool,
+    /// Its exit code, if it exited on its own.
+    #[schema(required = true)]
+    pub exit_code: Option<i32>,
+    /// It ran past the time limit and was stopped.
+    pub timed_out: bool,
+    /// The end of what it printed.
+    pub output: String,
+}
+
+impl From<lumen_app::tools::ToolRun> for ToolRunView {
+    fn from(run: lumen_app::tools::ToolRun) -> Self {
+        Self {
+            success: run.success,
+            exit_code: run.exit_code,
+            timed_out: run.timed_out,
+            output: run.output,
+        }
+    }
 }
 
 impl From<ToolGuidance> for ToolCommandView {
     fn from(guidance: ToolGuidance) -> Self {
         Self {
+            entry: guidance.entry,
+            removes_data: guidance.removes_data,
             tool: guidance.tool,
             program: guidance.program,
             args: guidance.args,

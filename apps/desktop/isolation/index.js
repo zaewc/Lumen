@@ -19,6 +19,7 @@ const allowed = new Set([
   "open_full_disk_access",
   "check_update",
   "install_update",
+  "run_tool_command",
 ]);
 
 window.__TAURI_ISOLATION_HOOK__ = (payload) => {

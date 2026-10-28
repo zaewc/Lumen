@@ -78,6 +78,8 @@ const candidates: readonly CandidateView[] = [
       },
     ],
     tool_command: {
+      entry: "xcode-simulator-devices",
+      removes_data: false,
       tool: "Xcode",
       program: "xcrun",
       args: ["simctl", "delete", "unavailable"],
@@ -95,7 +97,13 @@ const candidates: readonly CandidateView[] = [
         text: "Review: only the tool's own cleanup command should remove it, and that cannot be undone.",
       },
     ],
-    tool_command: { tool: "pnpm", program: "pnpm", args: ["store", "prune"] },
+    tool_command: {
+      entry: "pnpm-store",
+      removes_data: false,
+      tool: "pnpm",
+      program: "pnpm",
+      args: ["store", "prune"],
+    },
     group: { kind: "developer", source: "pnpm" },
     ai_note: null,
   },
@@ -402,6 +410,10 @@ export function memoryTransport({
         consented_at: enabled ? new Date().toISOString() : ai.consented_at,
       };
       return Promise.resolve(ai);
+    },
+    runToolCommand: async () => {
+      await wait(pace * 2);
+      return { success: true, exit_code: 0, timed_out: false, output: "Removed 1,284 packages\n" };
     },
     setAiKey: (key) => {
       if (!isApiKey(key)) {

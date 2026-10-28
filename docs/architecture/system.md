@@ -351,10 +351,15 @@ Developer Mode is driven by the `lumen-devkb` knowledge base
 DerivedData and simulators, Docker, `node_modules`, pnpm, npm and Yarn caches, Cargo,
 Gradle, CocoaPods, Next.js build output, Android build outputs, IDE caches, AI tool
 caches and Homebrew. The tool's own cleanup command is preferred; self-managed caches
-are shown as informational. Lumen does not run tool commands: when a candidate matched
-an entry with one, `lumen assess`, `lumen plan` and the clean-up page show it
-(`CandidateView.tool_command`, quoted for a POSIX shell when copied) for the user to
-check and run themselves.
+are shown as informational. When a candidate matched an entry with a tool command,
+`lumen assess`, `lumen plan` and the clean-up page show it
+(`CandidateView.tool_command`, quoted for a POSIX shell when copied). In the desktop
+app the user can also run it, after a confirmation that it cannot be undone:
+`run_tool_command` names the entry, and the host runs that entry's command from the
+knowledge base without a shell (`lumen_app::tools`,
+[ADR-0049](../decisions/0049-run-tool-commands-on-request.md)).
+The resolved search path is also passed to the tool, so interpreters and child
+programs work when Lumen was opened from the Dock or Finder.
 
 Entries are JSON files in `crates/lumen-devkb/entries/`, one per artifact, embedded at
 build time and validated on load against `schemas/devkb-entry.schema.json` plus rules

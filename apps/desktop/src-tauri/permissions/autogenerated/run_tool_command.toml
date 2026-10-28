@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-run-tool-command"
+description = "Enables the run_tool_command command without any pre-configured scope."
+commands.allow = ["run_tool_command"]
+
+[[permission]]
+identifier = "deny-run-tool-command"
+description = "Denies the run_tool_command command without any pre-configured scope."
+commands.deny = ["run_tool_command"]

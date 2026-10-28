@@ -34,6 +34,7 @@ export type {
   ScanView,
   SkipView,
   ToolCommandView,
+  ToolRunView,
   UpdateView,
   VerdictView,
 } from "./types.gen";

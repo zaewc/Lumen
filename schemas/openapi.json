@@ -133,7 +133,7 @@
             "oneOf": [
               {
                 "$ref": "#/components/schemas/ToolCommandView",
-                "description": "The cleanup command of the developer tool that owns it, if the tool\nhas one: guidance for the user to run themselves. Lumen never runs it."
+                "description": "The cleanup command of the developer tool that owns it, if the tool\nhas one: displayed in full and run by entry ID after desktop confirmation."
               },
               {
                 "type": "null"
@@ -891,11 +891,13 @@
       },
       "ToolCommandView": {
         "type": "object",
-        "description": "A developer tool's own cleanup command, as a literal argument vector:\nshown to the user to copy and run themselves, never run by Lumen.",
+        "description": "A developer tool's own cleanup command, as a literal argument vector:\nshown in full, with desktop execution by entry ID after confirmation.",
         "required": [
+          "entry",
           "tool",
           "program",
-          "args"
+          "args",
+          "removes_data"
         ],
         "properties": {
           "args": {
@@ -905,13 +907,53 @@
             },
             "description": "Its arguments, one per element, unquoted."
           },
+          "entry": {
+            "type": "string",
+            "description": "The knowledge-base entry it comes from: the name to run it by\n(ADR-0049); the page never sends the command itself."
+          },
           "program": {
             "type": "string",
             "description": "The program, such as `xcrun`."
           },
+          "removes_data": {
+            "type": "boolean",
+            "description": "It removes data, not just caches (Docker), so the confirmation says\nwhat it removes."
+          },
           "tool": {
             "type": "string",
             "description": "The tool's display name, such as `Xcode`."
+          }
+        }
+      },
+      "ToolRunView": {
+        "type": "object",
+        "description": "How running a tool's command ended (ADR-0049).",
+        "required": [
+          "success",
+          "exit_code",
+          "timed_out",
+          "output"
+        ],
+        "properties": {
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Its exit code, if it exited on its own."
+          },
+          "output": {
+            "type": "string",
+            "description": "The end of what it printed."
+          },
+          "success": {
+            "type": "boolean",
+            "description": "It exited with status 0."
+          },
+          "timed_out": {
+            "type": "boolean",
+            "description": "It ran past the time limit and was stopped."
           }
         }
       },

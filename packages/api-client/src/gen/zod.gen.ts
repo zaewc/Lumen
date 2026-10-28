@@ -297,12 +297,28 @@ export const zQuarantineReportView = z.object({
 
 /**
  * A developer tool's own cleanup command, as a literal argument vector:
- * shown to the user to copy and run themselves, never run by Lumen.
+ * shown in full, with desktop execution by entry ID after confirmation.
  */
 export const zToolCommandView = z.object({
   args: z.array(z.string()),
+  entry: z.string(),
   program: z.string(),
+  removes_data: z.boolean(),
   tool: z.string(),
+});
+
+/**
+ * How running a tool's command ended (ADR-0049).
+ */
+export const zToolRunView = z.object({
+  exit_code: z
+    .int()
+    .min(-2147483648, { error: "Invalid value: Expected int32 to be >= -2147483648" })
+    .max(2147483647, { error: "Invalid value: Expected int32 to be <= 2147483647" })
+    .nullable(),
+  output: z.string(),
+  success: z.boolean(),
+  timed_out: z.boolean(),
 });
 
 /**

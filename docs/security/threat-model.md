@@ -127,8 +127,9 @@ Assumptions:
 
 | Threat | Example | Controls |
 | --- | --- | --- |
-| Elevation of privilege | `PATH` hijack runs a malicious `docker` binary | Resolve binaries from known install locations; verify signatures where possible; never run elevated |
-| Tampering | Tool output misparsed into a false success | Measure free space before and after; record exit status; tolerate locale and version differences |
+| Elevation of privilege | A tool command runs with administrator rights | The desktop host refuses privileged execution; programs are resolved to absolute executable paths from the user's search directories, as in their terminal (ADR-0049) |
+| Tampering | The page supplies an arbitrary command | The page names a knowledge-base entry matched by the latest assessment; the host looks up its reviewed program and literal arguments; no shell, one command at a time, explicit confirmation of irreversible removal |
+| Tampering | Tool output misparsed into a false success | Success comes from the exit status, never output parsing; output is bounded display text; a new scan measures the resulting space |
 
 ### TB7: Supply chain and CI
 

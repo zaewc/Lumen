@@ -27,7 +27,13 @@ const xcode = { kind: "developer", source: "Xcode" } as const;
 const npm = { kind: "developer", source: "npm" } as const;
 const unknownTool = { kind: "developer", source: null } as const;
 const cache = { kind: "app_cache", source: "com.example.app" } as const;
-const simctl = { tool: "Xcode", program: "xcrun", args: ["simctl", "delete", "unavailable"] };
+const simctl = {
+  entry: "e",
+  removes_data: false,
+  tool: "Xcode",
+  program: "xcrun",
+  args: ["simctl", "delete", "unavailable"],
+};
 
 /** An item to review that has its tool's own command. */
 function withCommand(c: CandidateView): CandidateView {

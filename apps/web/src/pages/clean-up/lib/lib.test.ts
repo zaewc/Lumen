@@ -42,15 +42,25 @@ describe("commandLine", () => {
   it("joins plain words as they are", () => {
     expect(
       commandLine({
+        entry: "e",
+        removes_data: false,
         tool: "Xcode",
         program: "xcrun",
         args: ["simctl", "delete", "unavailable"],
       }),
     ).toBe("xcrun simctl delete unavailable");
-    expect(commandLine({ tool: "Go", program: "go", args: ["clean", "-modcache"] })).toBe(
-      "go clean -modcache",
-    );
-    expect(commandLine({ tool: "Homebrew", program: "brew", args: [] })).toBe("brew");
+    expect(
+      commandLine({
+        entry: "e",
+        removes_data: false,
+        tool: "Go",
+        program: "go",
+        args: ["clean", "-modcache"],
+      }),
+    ).toBe("go clean -modcache");
+    expect(
+      commandLine({ entry: "e", removes_data: false, tool: "Homebrew", program: "brew", args: [] }),
+    ).toBe("brew");
   });
 
   it("single-quotes words a shell would read otherwise", () => {
@@ -60,9 +70,15 @@ describe("commandLine", () => {
     expect(shellWord("*.log")).toBe("'*.log'");
     expect(shellWord("a;rm")).toBe("'a;rm'");
     expect(shellWord("it's")).toBe("'it'\\''s'");
-    expect(commandLine({ tool: "T", program: "my tool", args: ["--dir", "~/My Files"] })).toBe(
-      "'my tool' --dir '~/My Files'",
-    );
+    expect(
+      commandLine({
+        entry: "e",
+        removes_data: false,
+        tool: "T",
+        program: "my tool",
+        args: ["--dir", "~/My Files"],
+      }),
+    ).toBe("'my tool' --dir '~/My Files'");
   });
 });
 

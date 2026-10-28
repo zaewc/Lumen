@@ -17,6 +17,7 @@
     "allow-disk",
     "allow-open-full-disk-access",
     "allow-check-update",
-    "allow-install-update"
+    "allow-install-update",
+    "allow-run-tool-command"
   ]
 }

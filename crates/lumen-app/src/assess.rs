@@ -540,10 +540,13 @@ pub struct ToolGuidance {
     pub program: String,
     /// Its arguments, e.g. `["simctl", "delete", "unavailable"]`.
     pub args: Vec<String>,
+    /// The item cannot be regenerated, so the command removes data, not
+    /// just caches (Docker's disk image).
+    pub removes_data: bool,
 }
 
 /// The built-in knowledge base, loaded once; `None` if it does not load.
-fn builtin_knowledge_base() -> Option<&'static KnowledgeBase> {
+pub(crate) fn builtin_knowledge_base() -> Option<&'static KnowledgeBase> {
     static KNOWLEDGE_BASE: OnceLock<Option<KnowledgeBase>> = OnceLock::new();
     KNOWLEDGE_BASE
         .get_or_init(|| KnowledgeBase::builtin().ok())
@@ -585,6 +588,7 @@ fn tool_guidance(
                 tool: entry.tool.clone(),
                 program: action.program.clone(),
                 args: action.args.clone(),
+                removes_data: entry.safety_class == lumen_devkb::SafetyClass::NotRegenerable,
             })
         })
 }
@@ -984,6 +988,7 @@ mod tests {
                     "delete".to_owned(),
                     "unavailable".to_owned()
                 ],
+                removes_data: false,
             })
         );
         Ok(())

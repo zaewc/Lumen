@@ -52,6 +52,11 @@ pub fn command(kb: &KnowledgeBase, entry: &str) -> Option<ToolCommand> {
     })
 }
 
+/// The command of entry `entry` in Lumen's built-in knowledge base.
+pub fn builtin(entry: &str) -> Option<ToolCommand> {
+    command(crate::assess::builtin_knowledge_base()?, entry)
+}
+
 /// How a command ended.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolRun {
@@ -73,6 +78,9 @@ pub enum ToolError {
     /// The tool is not installed where the user's terminal would find it.
     #[error("{0} is not installed, or Lumen cannot find it")]
     NotFound(String),
+    /// The resolved directories cannot form a process search path.
+    #[error("the tool's search path is invalid: {0}")]
+    SearchPath(#[from] std::env::JoinPathsError),
     /// The home folder is unknown.
     #[error("the home folder is unknown")]
     NoHome,
@@ -221,9 +229,29 @@ fn drain(mut from: impl std::io::Read + Send + 'static, tail: Tail) -> std::thre
 /// [`ToolError::NotFound`] if the program is not installed, or
 /// [`ToolError::Spawn`] if it cannot be started or watched.
 pub fn run(command: &ToolCommand, home: &Path, limit: Duration) -> Result<ToolRun, ToolError> {
-    let program = find_in(&command.program, &search_dirs(home))
+    run_with_dirs(command, home, limit, &search_dirs(home))
+}
+
+fn run_with_dirs(
+    command: &ToolCommand,
+    home: &Path,
+    limit: Duration,
+    dirs: &[PathBuf],
+) -> Result<ToolRun, ToolError> {
+    let program = find_in(&command.program, dirs)
         .ok_or_else(|| ToolError::NotFound(command.program.clone()))?;
-    run_program(&program, &command.args, home, limit)
+    let mut process = process(&program, &command.args, home);
+    // A script's interpreter and child tools need the same PATH that found it.
+    process.env("PATH", std::env::join_paths(dirs)?);
+    let run = run_command(process, &program, limit)?;
+    // The entry and the outcome only: never the output, which may name paths.
+    tracing::info!(
+        entry = %command.entry,
+        success = run.success,
+        timed_out = run.timed_out,
+        "tool command finished"
+    );
+    Ok(run)
 }
 
 /// Stops `child` and, on Unix, every process in its group.
@@ -250,10 +278,10 @@ pub fn run_program(
     dir: &Path,
     limit: Duration,
 ) -> Result<ToolRun, ToolError> {
-    let spawn_error = |source| ToolError::Spawn {
-        program: program.display().to_string(),
-        source,
-    };
+    run_command(process(program, args, dir), program, limit)
+}
+
+fn process(program: &Path, args: &[String], dir: &Path) -> Command {
     let mut command = Command::new(program);
     command
         .args(args)
@@ -264,6 +292,18 @@ pub fn run_program(
     // Its own process group, so stopping it stops what it started too.
     #[cfg(unix)]
     std::os::unix::process::CommandExt::process_group(&mut command, 0);
+    command
+}
+
+fn run_command(
+    mut command: Command,
+    program: &Path,
+    limit: Duration,
+) -> Result<ToolRun, ToolError> {
+    let spawn_error = |source| ToolError::Spawn {
+        program: program.display().to_string(),
+        source,
+    };
     let mut child = command.spawn().map_err(spawn_error)?;
     let tail: Tail = Arc::new(Mutex::new(VecDeque::new()));
     let readers: Vec<_> = [
@@ -373,6 +413,30 @@ mod tests {
         assert!(run.output.contains("args:a b|$HOME;rm"), "{}", run.output);
         assert!(run.output.contains("input closed"), "{}", run.output);
         assert!(run.output.contains("oops"), "{}", run.output);
+        Ok(())
+    }
+
+    #[test]
+    fn a_tool_and_its_children_use_the_resolved_search_path()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let fx = fixture();
+        script(&fx, "bin/helper", "printf 'helper available'");
+        script(&fx, "bin/tool", "helper");
+        let command = ToolCommand {
+            entry: "fixture".into(),
+            tool: "Fixture".into(),
+            program: "tool".into(),
+            args: Vec::new(),
+            removes_data: false,
+        };
+        let run = run_with_dirs(
+            &command,
+            fx.root(),
+            Duration::from_secs(10),
+            &[fx.path("bin")?],
+        )?;
+        assert!(run.success, "{}", run.output);
+        assert_eq!(run.output, "helper available");
         Ok(())
     }
 
