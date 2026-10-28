@@ -56,3 +56,4 @@ recommended option.
 | [0045](0045-evaluate-the-ai-hub-chat-model-as-a-judge.md) | Evaluate the AI Hub's chat model as a judge | Accepted |
 | [0046](0046-quarantine-on-other-drives-of-a-single-user-pc.md) | Quarantine on other drives of a single-user PC | Accepted |
 | [0047](0047-ai-review-on-by-default.md) | AI review on by default | Accepted |
+| [0048](0048-in-app-updates.md) | In-app updates with Tauri's updater | Accepted |
