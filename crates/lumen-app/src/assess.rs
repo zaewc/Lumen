@@ -527,11 +527,13 @@ pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> 
     })
 }
 
-/// A developer tool's own cleanup command, shown to the user as guidance to
-/// run themselves. Lumen never runs it: it is a literal argument vector from
-/// the knowledge base, never a shell string, and nothing here executes it.
+/// A developer tool's own cleanup command: a literal argument vector from the
+/// knowledge base, never a shell string. Shown with its item; run only when
+/// the user asks, through [`crate::tools`] (ADR-0049).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolGuidance {
+    /// The knowledge-base entry it comes from, which names it to run it.
+    pub entry: String,
     /// The tool's display name, e.g. `Xcode`.
     pub tool: String,
     /// The program, e.g. `xcrun`.
@@ -579,6 +581,7 @@ fn tool_guidance(
         })
         .find_map(|entry| {
             entry.official_action.as_ref().map(|action| ToolGuidance {
+                entry: entry.id.clone(),
                 tool: entry.tool.clone(),
                 program: action.program.clone(),
                 args: action.args.clone(),
@@ -973,6 +976,7 @@ mod tests {
         assert_eq!(
             tool_guidance(&kb, &input.subject, &input.evidence),
             Some(ToolGuidance {
+                entry: "xcode-simulator-devices".to_owned(),
                 tool: "Xcode".to_owned(),
                 program: "xcrun".to_owned(),
                 args: vec![

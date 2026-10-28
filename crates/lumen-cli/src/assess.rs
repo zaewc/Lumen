@@ -156,6 +156,7 @@ mod tests {
 
     fn guidance(program: &str, args: &[&str]) -> ToolGuidance {
         ToolGuidance {
+            entry: "pnpm-store".into(),
             tool: "Tool".to_owned(),
             program: program.to_owned(),
             args: args.iter().map(|&a| a.to_owned()).collect(),

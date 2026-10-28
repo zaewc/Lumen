@@ -18,6 +18,7 @@ pub mod space;
 #[cfg(any(unix, windows))]
 pub mod store;
 pub mod system;
+pub mod tools;
 
 pub use assess::{AssessError, Assessment, assess, block_on, prepare, with_probes};
 pub use plan::{PlanError, Planned, plan};

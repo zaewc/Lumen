@@ -27,11 +27,12 @@
   "regeneration": { "effort": "impossible", "network": false },
   "official_action": {
     "program": "docker",
-    "args": ["system", "prune"]
+    "args": ["system", "prune", "--force"]
   },
   "sources": [
     "https://docs.docker.com/desktop/settings-and-maintenance/backup-and-restore/",
-    "https://docs.docker.com/desktop/troubleshoot-and-support/faqs/macfaqs/"
+    "https://docs.docker.com/desktop/troubleshoot-and-support/faqs/macfaqs/",
+    "https://docs.docker.com/reference/cli/docker/system/prune/"
   ],
-  "last_verified": "2026-10-20"
+  "last_verified": "2026-10-28"
 }
