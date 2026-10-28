@@ -1,13 +1,11 @@
 import type { ReactNode } from "react";
 
 /** The width the page's toolbar and content share, so their edges line up. */
-const COLUMN = "mx-auto w-full max-w-[1040px] px-4 min-[720px]:px-6";
+const COLUMN = "mx-auto w-full max-w-[1248px] px-5 min-[720px]:px-10";
 
 /**
- * A page in the main area, as a macOS window lays one out: a slim toolbar
- * with its title (the page's only `h1`), anything beside it, and its actions
- * on the right; then the content. The toolbar stays at the top while the
- * main area scrolls.
+ * A readable page title and its actions, aligned with the content below.
+ * Actions stay available while the artifact list scrolls.
  */
 export function Page({
   title,
@@ -24,19 +22,23 @@ export function Page({
   return (
     <main className="@container flex min-h-full flex-col">
       <header className="sticky top-0 z-10 border-b border-line bg-window">
-        <div className={`${COLUMN} flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 py-2`}>
-          <h1 className="text-[15px] font-semibold text-ink">{title}</h1>
+        <div className={`${COLUMN} flex min-h-24 flex-wrap items-center gap-x-4 gap-y-3 py-5`}>
+          <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.045em] text-ink">
+            {title}
+          </h1>
           {accessory !== undefined && (
             <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink-2">
               {accessory}
             </div>
           )}
           {actions !== undefined && (
-            <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>
+            <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">
+              {actions}
+            </div>
           )}
         </div>
       </header>
-      <div className={`${COLUMN} flex-1 space-y-6 pt-5 pb-10`}>{children}</div>
+      <div className={`${COLUMN} flex-1 space-y-8 pt-7 pb-12`}>{children}</div>
     </main>
   );
 }

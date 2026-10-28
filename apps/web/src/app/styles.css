@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 /*
- * Lumen's colour tokens, in the manner of a macOS utility: the content on
- * the window's own background, a slightly darker sidebar, hairline
- * separators instead of boxes, and one accent (the indigo of the app icon).
+ * Lumen's storage workspace: cool paper, deep ink and a precise cobalt
+ * signature. Content, navigation, inputs and elevated inspectors have
+ * distinct surface roles in both appearances.
  * `raised` is for what floats above the window (dialogs, the sheet,
  * menus); `surface` for the rare inset area (code, fields). Each token has a
  * light and a dark value; components use them as `bg-window`, `text-ink-2`,
@@ -44,21 +44,21 @@
      */
     color-scheme: light dark;
 
-    --lm-window: #ffffff;
-    --lm-sidebar: #f2f2f5;
-    --lm-surface: #f5f5f7;
+    --lm-window: #fafbfd;
+    --lm-sidebar: #f2f5f9;
+    --lm-surface: #edf1f6;
     --lm-raised: #ffffff;
     --lm-fill: rgb(0 0 0 / 0.04);
     --lm-fill-strong: rgb(0 0 0 / 0.08);
-    --lm-line: rgb(0 0 0 / 0.08);
-    --lm-line-strong: rgb(0 0 0 / 0.16);
-    --lm-ink: #1d1d1f;
-    --lm-ink-2: #5f5f66;
-    --lm-ink-3: #85858c;
-    --lm-accent: #4f46e5;
-    --lm-accent-hover: #4338ca;
-    --lm-accent-ink: #4338ca;
-    --lm-accent-soft: rgb(79 70 229 / 0.1);
+    --lm-line: #e0e5ed;
+    --lm-line-strong: #bdc7d6;
+    --lm-ink: #182232;
+    --lm-ink-2: #4e5d71;
+    --lm-ink-3: #66758a;
+    --lm-accent: #435bd6;
+    --lm-accent-hover: #334ac1;
+    --lm-accent-ink: #344fbd;
+    --lm-accent-soft: rgb(67 91 214 / 0.08);
     --lm-meter-track: rgb(0 0 0 / 0.07);
 
     background-color: var(--lm-window);
@@ -70,21 +70,21 @@
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --lm-window: #1e1e21;
-      --lm-sidebar: #27272b;
-      --lm-surface: #26262a;
-      --lm-raised: #2c2c31;
+      --lm-window: #141b26;
+      --lm-sidebar: #101620;
+      --lm-surface: #1b2534;
+      --lm-raised: #202c3d;
       --lm-fill: rgb(255 255 255 / 0.05);
       --lm-fill-strong: rgb(255 255 255 / 0.1);
       --lm-line: rgb(255 255 255 / 0.09);
       --lm-line-strong: rgb(255 255 255 / 0.18);
-      --lm-ink: #f4f4f6;
-      --lm-ink-2: #ababb3;
-      --lm-ink-3: #8a8a93;
-      --lm-accent: #5b5bf7;
-      --lm-accent-hover: #6d6dff;
-      --lm-accent-ink: #a5a8ff;
-      --lm-accent-soft: rgb(109 109 255 / 0.18);
+      --lm-ink: #ecf1f8;
+      --lm-ink-2: #b0bfd1;
+      --lm-ink-3: #91a3ba;
+      --lm-accent: #6078eb;
+      --lm-accent-hover: #7389f4;
+      --lm-accent-ink: #a4b4ff;
+      --lm-accent-soft: rgb(96 120 235 / 0.14);
       --lm-meter-track: rgb(255 255 255 / 0.1);
     }
   }
@@ -124,6 +124,37 @@
     outline: 2px solid var(--lm-accent);
     outline-offset: 2px;
   }
+}
+
+.decision-mark {
+  display: inline-block;
+  flex: none;
+  width: 9px;
+  height: 9px;
+  color: var(--lm-ink-2);
+}
+
+.decision-mark[data-status="keep"] {
+  height: 3px;
+  background: currentColor;
+}
+
+.decision-mark[data-status="review"] {
+  border: 1.5px dashed currentColor;
+  border-radius: 50%;
+}
+
+.decision-mark[data-status="quarantine"] {
+  border: 2px solid var(--lm-accent);
+}
+
+.decision-mark[data-status="command"] {
+  width: 7px;
+  height: 7px;
+  margin-right: 2px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  transform: rotate(45deg);
 }
 
 /* The indeterminate progress bar: a short bar sliding across its track. */

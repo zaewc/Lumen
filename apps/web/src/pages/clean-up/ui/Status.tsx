@@ -1,4 +1,4 @@
-import type { Status } from "@/entities/scan-session";
+import { DecisionMark, type Status } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 
 /**
@@ -10,9 +10,9 @@ export function statusClass(status: Status): string {
     case "quarantine":
       return "text-ink-2";
     case "command":
-      return "font-medium text-accent-ink";
+      return "font-medium text-ink";
     case "review":
-      return "font-medium text-amber-700 dark:text-amber-400";
+      return "font-medium text-ink-2";
     case "keep":
       return "text-ink-3";
   }
@@ -21,5 +21,10 @@ export function statusClass(status: Status): string {
 /** An item's status, as a word in its colour. */
 export function StatusText({ status }: { readonly status: Status }) {
   const { m } = useI18n();
-  return <span className={statusClass(status)}>{m.results.status[status]}</span>;
+  return (
+    <span className={`inline-flex items-center gap-2 whitespace-nowrap ${statusClass(status)}`}>
+      <DecisionMark status={status} />
+      {m.results.status[status]}
+    </span>
+  );
 }

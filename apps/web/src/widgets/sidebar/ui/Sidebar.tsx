@@ -5,12 +5,10 @@ import { useUpdate } from "@/entities/app-update";
 import { useHeld } from "@/entities/held";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
-import { ArchiveIcon, GaugeIcon, GearIcon, LogoMark, SparkleIcon } from "@/shared/ui";
-
-// Below 720 px the sidebar is a rail of icons; the labels stay for screen readers.
+import { ArchiveIcon, DriveIcon, GearIcon, LogoMark, SearchIcon } from "@/shared/ui";
 
 const ITEM =
-  "relative flex h-10 items-center justify-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-ink transition-colors hover:bg-fill-strong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent aria-[current=page]:bg-accent aria-[current=page]:text-white motion-reduce:transition-none min-[720px]:h-8 min-[720px]:justify-start [&>svg]:text-accent-ink aria-[current=page]:[&>svg]:text-white";
+  "relative flex h-12 items-center justify-center gap-2 px-2 min-[960px]:px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-fill hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-[current=page]:text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-transparent aria-[current=page]:after:bg-accent motion-reduce:transition-none min-[960px]:h-[72px] [&>svg]:hidden min-[960px]:[&>svg]:block [&>svg]:size-[18px] [&>svg]:text-ink-3 aria-[current=page]:[&>svg]:text-accent-ink";
 
 /** The app's places, in the sidebar's order; ⌘1–⌘4 (Ctrl+1–4) open them. */
 const PLACES = ["/", "/clean", "/quarantine", "/settings"] as const;
@@ -44,7 +42,7 @@ function NavItem({
   readonly badge?: { readonly text: string; readonly label: string };
 }) {
   return (
-    <li>
+    <li className="min-w-0 flex-1 min-[960px]:flex-none">
       <Link
         to={to}
         activeOptions={{ exact: to === "/" }}
@@ -52,14 +50,12 @@ function NavItem({
         className={ITEM}
       >
         {icon}
-        <span className="sr-only min-[720px]:not-sr-only min-[720px]:flex-1 min-[720px]:truncate">
-          {label}
-        </span>
+        <span className="truncate">{label}</span>
         {badge !== undefined && (
           <span
             role="img"
             aria-label={badge.label}
-            className="absolute top-0.5 right-0.5 min-w-4 rounded-full bg-accent px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums ring-2 ring-sidebar [[aria-current=page]>&]:bg-white [[aria-current=page]>&]:text-accent min-[720px]:static min-[720px]:ring-0 min-[720px]:bg-fill-strong min-[720px]:px-1.5 min-[720px]:text-[11px] min-[720px]:leading-[18px] min-[720px]:font-medium min-[720px]:text-ink-2 min-[720px]:[[aria-current=page]>&]:bg-white/25 min-[720px]:[[aria-current=page]>&]:text-white"
+            className="hidden text-[11px] font-normal tabular-nums text-ink-3 min-[960px]:inline"
           >
             {badge.text}
           </span>
@@ -82,10 +78,10 @@ function UpdateStatus() {
     <Link
       to="/settings"
       title={label}
-      className="flex h-9 items-center justify-center gap-2 rounded-lg px-2.5 text-[12px] font-medium text-accent-ink hover:bg-fill-strong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent min-[720px]:justify-start"
+      className="flex h-8 items-center gap-2 rounded px-2 text-[12px] font-medium text-accent-ink hover:bg-fill focus-visible:outline-2 focus-visible:outline-accent"
     >
       <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-accent" />
-      <span className="sr-only min-[720px]:not-sr-only min-[720px]:truncate">{label}</span>
+      <span className="truncate">{label}</span>
     </Link>
   );
 }
@@ -105,24 +101,20 @@ function AiStatus() {
       hash="ai-review"
       activeOptions={{ includeHash: true }}
       title={label}
-      className="flex h-9 items-center justify-center gap-2 rounded-lg px-2.5 text-[12px] text-ink-2 hover:bg-fill-strong hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent min-[720px]:justify-start"
+      className="flex h-8 items-center gap-2 rounded px-2 text-[12px] text-ink-2 hover:bg-fill hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
     >
-      <span className="relative inline-flex">
-        <SparkleIcon className="size-[18px]" />
-        <span
-          aria-hidden="true"
-          className={`absolute -right-0.5 -bottom-0.5 size-2 rounded-full ring-2 ring-sidebar ${on ? "bg-emerald-500" : "bg-ink-3"}`}
-        />
-      </span>
-      <span className="sr-only min-[720px]:not-sr-only min-[720px]:truncate">{label}</span>
+      <span
+        aria-hidden="true"
+        className={`size-1.5 rounded-full ${on ? "bg-accent" : "bg-ink-3"}`}
+      />
+      <span className="truncate">{label}</span>
     </Link>
   );
 }
 
 /**
- * The app's sidebar, as in a macOS utility: the app's name, its four places
- * and, at the foot, whether AI review is on. Below 720 px it narrows to a
- * rail of icons, so the window stays usable at its 420 px minimum.
+ * The workspace navigation. On narrow windows the four labelled places
+ * form a second row; none of the destinations disappears into an icon.
  */
 export function Sidebar() {
   const { locale, m } = useI18n();
@@ -133,17 +125,18 @@ export function Sidebar() {
   usePlaceShortcut("/quarantine");
   usePlaceShortcut("/settings");
   return (
-    <aside className="flex w-[60px] shrink-0 flex-col border-r border-line bg-sidebar min-[720px]:w-[220px]">
-      <div className="flex h-14 shrink-0 items-center justify-center gap-2.5 px-4 min-[720px]:justify-start">
-        <LogoMark className="size-7" />
-        <span className="sr-only text-[15px] font-semibold tracking-tight text-ink min-[720px]:not-sr-only">
-          Lumen
-        </span>
+    <header className="flex shrink-0 flex-wrap items-center border-b border-line bg-sidebar px-3 min-[960px]:gap-4 min-[960px]:px-6">
+      <div className="flex h-14 shrink-0 items-center gap-2.5 px-2 min-[960px]:h-[72px] min-[960px]:pr-6">
+        <LogoMark className="size-8" />
+        <span className="text-[21px] font-semibold tracking-[-0.06em] text-ink">Lumen</span>
       </div>
-      <nav aria-label={m.nav.label} className="flex-1 overflow-y-auto px-2 py-1 min-[720px]:px-3">
-        <ul className="space-y-1 min-[720px]:space-y-0.5">
-          <NavItem to="/" icon={<GaugeIcon />} label={m.nav.overview} />
-          <NavItem to="/clean" icon={<SparkleIcon />} label={m.nav.cleanUp} />
+      <nav
+        aria-label={m.nav.label}
+        className="order-last w-full min-[960px]:order-none min-[960px]:w-auto"
+      >
+        <ul className="flex min-w-0">
+          <NavItem to="/" icon={<DriveIcon />} label={m.nav.overview} />
+          <NavItem to="/clean" icon={<SearchIcon />} label={m.nav.cleanUp} />
           <NavItem
             to="/quarantine"
             icon={<ArchiveIcon />}
@@ -155,10 +148,10 @@ export function Sidebar() {
           <NavItem to="/settings" icon={<GearIcon />} label={m.nav.settings} />
         </ul>
       </nav>
-      <div className="shrink-0 border-t border-line px-2 py-2 min-[720px]:px-3">
+      <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-x-2">
         <UpdateStatus />
         <AiStatus />
       </div>
-    </aside>
+    </header>
   );
 }

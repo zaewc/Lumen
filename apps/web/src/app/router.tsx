@@ -12,14 +12,14 @@ import { SettingsPage } from "@/pages/settings";
 import { Sidebar } from "@/widgets/sidebar";
 
 /**
- * The window, as a macOS utility lays it out: the sidebar on the left, the
- * page on the right, scrolling on its own.
+ * A workspace navigation above the independently scrolling page. Storage
+ * and evidence get the full window width.
  */
 function Layout() {
   return (
-    <div className="flex h-dvh overflow-hidden bg-window text-[13px] text-ink">
+    <div className="flex h-dvh flex-col overflow-hidden bg-window text-[14px] leading-relaxed text-ink">
       <Sidebar />
-      <div className="min-w-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
         <Outlet />
       </div>
     </div>

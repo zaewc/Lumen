@@ -4,7 +4,7 @@ export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "dang
 export type ButtonSize = "sm" | "md" | "lg";
 
 const BASE =
-  "inline-flex items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap transition-colors select-none focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45";
+  "inline-flex items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap transition-[background-color,color,transform] duration-150 select-none focus-visible:outline-2 focus-visible:outline-offset-2 enabled:active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transform-none motion-reduce:transition-none";
 
 function variantClass(variant: ButtonVariant): string {
   switch (variant) {
@@ -24,11 +24,11 @@ function variantClass(variant: ButtonVariant): string {
 function sizeClass(size: ButtonSize): string {
   switch (size) {
     case "sm":
-      return "h-6 px-2 text-[12px]";
+      return "h-8 px-3 text-[13px]";
     case "md":
-      return "h-7 px-3 text-[13px]";
+      return "h-9 px-3.5 text-[14px]";
     case "lg":
-      return "h-8 px-4 text-[13px]";
+      return "h-10 px-4 text-[14px]";
   }
 }
 

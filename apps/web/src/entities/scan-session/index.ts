@@ -13,3 +13,4 @@ export {
   statusOf,
   summarize,
 } from "./model/summary";
+export { DecisionMark } from "./ui/DecisionMark";

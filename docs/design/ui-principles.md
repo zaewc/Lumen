@@ -3,8 +3,10 @@
 The owner's design brief for every Lumen interface: the desktop app (`apps/web` in
 `apps/desktop`), the mobile app (`apps/mobile`) and the website (`apps/site`).
 
-The goal is not to make the interface "look designed". It should feel obvious, calm,
-fast and intentional. Usability, clarity and restraint come before decoration.
+The interface should feel precise, visual, calm and distinctive. Its identity comes
+from understanding storage, relationships and evidence, before deciding what to do.
+The desktop and browser direction is specified in [storage-identity.md](storage-identity.md)
+(owner, 2026-10-28), replacing the earlier operating-system utility appearance.
 
 ## Core principles
 
@@ -66,7 +68,8 @@ novelty.
 - **Web:** responsive behaviour, accessibility, keyboard navigation, semantic HTML,
   predictable browser behaviour, fast perceived performance.
 
-Prefer platform conventions over custom interaction patterns.
+Preserve platform accessibility, keyboard and window behavior. Visual composition
+serves Lumen's product identity rather than imitating operating-system applications.
 
 ## Interaction
 
@@ -87,8 +90,8 @@ Korean tone and Lumen's glossary, are in [ux-writing.md](ux-writing.md).
 Before a screen: identify the user's primary goal, the minimum information needed and
 the primary action; remove unnecessary controls and content; establish hierarchy; choose
 the simplest layout that supports it; only then style it. In an existing product,
-reuse its spacing, typography, colours, components and patterns; do not redesign
-unrelated parts.
+establish a coherent spacing, typography, colour and interaction system before
+redesigning individual components. Do not preserve weak visual choices for consistency.
 
 ## Final review
 
