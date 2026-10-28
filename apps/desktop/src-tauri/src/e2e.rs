@@ -44,15 +44,15 @@ fn invoke(window: &WebviewWindow<MockRuntime>, cmd: &str, body: Value) -> Result
     })
 }
 
-/// AI review: off with no key, a key stored (never shown), on with the time
-/// of consent, then off again.
+/// AI review: on by default but without a key (ADR-0047), a key stored
+/// (never shown), on with the time of consent, then off again.
 fn ai_review(window: &WebviewWindow<MockRuntime>) {
     let ok = |cmd: &str, body: Value| {
         invoke(window, cmd, body).unwrap_or_else(|e| unreachable!("{cmd}: {e}"))
     };
     assert_eq!(
         ok("ai_settings", json!({})),
-        json!({ "enabled": false, "consented_at": null, "key": "none", "key_source": null })
+        json!({ "enabled": true, "consented_at": null, "key": "none", "key_source": null })
     );
     let disk = ok("disk", json!({}));
     let bytes = |field: &str| {
