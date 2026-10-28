@@ -65,7 +65,7 @@ the executor, and it is traced like a judgment. `lumen plan` describes nothing.
 | --- | --- | --- | --- |
 | 0 | yes | no | `NoopJudge` |
 | 1 | not offered yet: evaluation only | no | on-device: Apple Foundation Models through the `fm-judge` helper, recorded and replayed by `lumen-jev-eval` ([ADR-0044](../decisions/0044-evaluate-an-on-device-judge-with-foundation-models.md)); later ONNX Runtime / llama.cpp; Android ML Kit for foreground only |
-| 2 | opt-in, per user, with disclosure; once turned on it stays on until turned off ([ADR-0037](../decisions/0037-keep-ai-review-on-once-turned-on.md)) | metadata only, redacted, of proposed items and of up to 20 items left for review; zero-retention endpoints on OpenRouter, no retention guarantee on Jeb (disclosed on every run) | `JevJudge`: Jeb on the school AI Hub by default ([ADR-0036](../decisions/0036-jeb-on-the-school-ai-hub.md)), or TypeSafe's Jev via OpenRouter ([ADR-0031](../decisions/0031-jev-on-typesafe-via-openrouter.md)) |
+| 2 | on by default, with the disclosure shown and an off switch that is kept ([ADR-0047](../decisions/0047-ai-review-on-by-default.md)) | metadata only, redacted, of proposed items and of up to 20 items left for review; zero-retention endpoints on OpenRouter, no retention guarantee on Jeb (disclosed on every run) | `JevJudge`: Jeb on the school AI Hub by default ([ADR-0036](../decisions/0036-jeb-on-the-school-ai-hub.md)), or TypeSafe's Jev via OpenRouter ([ADR-0031](../decisions/0031-jev-on-typesafe-via-openrouter.md)) |
 
 Apple Private Cloud Compute counts as tier 2.
 

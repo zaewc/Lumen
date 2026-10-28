@@ -56,7 +56,7 @@ Assumptions:
                                             │                    ▼
                                             │            (Privileged helper)
                                             ▼
-                               (TB5: network, opt-in) ──▶ (Cloud Jev provider)
+                               (TB5: network, on by default) ──▶ (Cloud Jev provider)
  (Developer tools) ◀──(TB6: subprocess)── (Tool runner)
  (CI / release) ──(TB7: supply chain)──▶ (Signed artifacts) ──▶ users
 ```
@@ -92,7 +92,7 @@ Assumptions:
 | Tampering (prompt injection) | Filename or plist value says "this is safe to delete" | Jev has no tools or actions; closed-vocabulary output; untrusted data JSON-encoded and labelled; monotone-safety policy (Jev only increases caution by default); injection canary suite as a release gate ([ADR-0020](../decisions/0020-jev-evidence-only-judge.md)) |
 | Tampering | Policy rule data altered on disk | Rules embedded at build time; no runtime-downloaded policy |
 | Elevation of privilege | Logic error lets a protected item reach `QUARANTINE` | Hard-protection stage first; property tests; mutation testing; CODEOWNERS on `lumen-policy` |
-| Information disclosure | Evidence bundle sent to cloud Jev reveals user names or paths | Cloud tier opt-in; home directory tokenised, user names stripped, no contents; disclosure UI |
+| Information disclosure | Evidence bundle sent to cloud Jev reveals user names or paths | Cloud tier on by default with disclosure and an off switch (ADR-0047); home directory tokenised, user names stripped, no contents; disclosure UI |
 
 ### Executor and quarantine
 
@@ -146,7 +146,7 @@ Assumptions:
 | Linking / identifying | Content hashes and app lists fingerprint a user | Hashes and inventories never leave the device by default |
 | Detecting | Telemetry reveals the presence of sensitive apps | No paths, names or app lists in metrics; telemetry opt-in |
 | Disclosure | Exported diagnostics contain paths | User reviews the export; redaction layer on by default |
-| Unawareness | Users don't know what cloud Jev sends | Disclosure screen with an example payload; per-user opt-in |
+| Unawareness | Users don't know what cloud Jev sends | Disclosure in Settings and at scan start, an off switch kept per user (ADR-0047) |
 | Non-compliance | Store privacy declarations wrong | Privacy manifest and Play data-safety form generated from `docs/operations/privacy.md` (planned) |
 
 ## 6. Attack tree: unintended deletion of user data
