@@ -78,8 +78,10 @@ pub fn app<R: Runtime>(
             });
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")
-                // Sized for the single-column layout; narrow windows still work.
-                .inner_size(900.0, 780.0)
+                // Wide enough for the sidebar and the clean-up list's columns
+                // and filters on one line; narrower windows still work, and
+                // the page never scrolls sideways.
+                .inner_size(1120.0, 800.0)
                 .min_inner_size(420.0, 560.0)
                 .on_navigation(allowed)
                 .build()?;
