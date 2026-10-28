@@ -13,6 +13,8 @@
 | `Lumen_<version>_universal.dmg` | the desktop app for macOS 13 or later, Apple silicon and Intel |
 | `Lumen_<version>_x64-setup.exe` | the desktop app's per-user Windows installer (no administrator rights needed) |
 | `Lumen_<version>_amd64.deb`, `Lumen_<version>_amd64.AppImage` | the desktop app for 64-bit Linux |
+| `Lumen_<version>_universal.app.tar.gz` | the macOS app archive for in-app updates (ADR-0048) |
+| `*.sig`, `latest.json` | updater signatures and the version, URLs and signatures offered to installed apps |
 | `lumen-<target>.cdx.json` | a CycloneDX 1.5 SBOM per target: every crate compiled into that binary, from `Cargo.lock` |
 | `lumen-desktop-<target>.cdx.json` | the same for the desktop app's Rust host |
 | `lumen-desktop-web.cdx.json` | the npm packages bundled into the desktop app's interface, from `pnpm-lock.yaml` |
@@ -22,8 +24,9 @@ Each archive holds the binary, `LICENSE` and `README.md`. Every file listed in
 `SHA256SUMS` carries a signed SLSA build-provenance attestation, which ties it to the
 workflow run, commit and tag that built it.
 
-Nothing is **signed** yet, so macOS Gatekeeper and Windows SmartScreen warn about
-these files. The macOS app is only ad-hoc signed, so Apple silicon will run it, but
+The installers are not **code-signed** yet, so macOS Gatekeeper and Windows SmartScreen
+warn about these files. Updater artifacts are signed separately (ADR-0048). The
+macOS app is only ad-hoc signed, so Apple silicon will run it, but
 Gatekeeper still blocks it until it is allowed in System Settings › Privacy &
 Security. Signing and notarization are roadmap 12.8.
 
@@ -36,8 +39,15 @@ Security. Signing and notarization are roadmap 12.8.
    fails if the tag does not match either version.
 3. The workflow builds each target with Lumen's built-in Jeb key (below), writes the
    SBOMs and checksums, attests them and creates a **draft** release with generated
-   notes. A build fails if the `release` environment has no `JEB_API_KEY` secret.
-4. Review the draft (files, checksums, notes), then publish it.
+   notes. Builds require `JEB_API_KEY` and `TAURI_SIGNING_PRIVATE_KEY` from the
+   `release` environment; `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` holds the key's password.
+4. Review the draft (files, checksums, notes and `latest.json`), then publish it.
+   Check that the manifest version matches the tag, every platform URL names an
+   attached file, and each signature matches its attached `.sig` file.
+
+0.5.0 is the first build with in-app updates. Testing installation through the
+updater requires a later published version; publishing 0.5.0 alone does not verify
+that installation path.
 
 The build jobs can read the repository and nothing else (on tag runs, the two compile
 steps also get the built-in Jeb key); only the attest job can mint
