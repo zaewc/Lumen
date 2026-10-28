@@ -60,7 +60,7 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
 
   return (
     <section>
-      <h3 className="text-[12px] font-semibold text-ink-2">{m.toolCommand.title(command.tool)}</h3>
+      <h3 className="text-[13px] font-semibold text-ink-2">{m.toolCommand.title(command.tool)}</h3>
       <div className="mt-2 flex items-start gap-2">
         <code className="min-w-0 flex-1 rounded-md bg-surface px-2.5 py-1.5 font-mono text-[12px] leading-relaxed break-all text-ink ring-1 ring-line select-all">
           {line}
@@ -79,7 +79,7 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
         {copy === "failed" && <span className="mt-1 block">{m.toolCommand.copyFailed}</span>}
         {copy === "copied" && <span className="sr-only">{m.toolCommand.copied}</span>}
       </p>
-      <p className="mt-2 text-[12px] leading-snug text-ink-3">
+      <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
         {runner ? m.toolCommand.runNote : m.toolCommand.note}
       </p>
       {runner && !confirming && !run.isPending && (
@@ -93,7 +93,7 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
       )}
       {confirming && (
         <div className="mt-2 space-y-2 rounded-md bg-red-500/8 px-3 py-2.5 dark:bg-red-400/10">
-          <div id={warning} className="space-y-1 text-[12px] text-red-900 dark:text-red-200">
+          <div id={warning} className="space-y-1 text-[13px] text-red-900 dark:text-red-200">
             <p>{m.toolCommand.runWarning}</p>
             {command.removes_data && <p className="font-medium">{m.toolCommand.removesData}</p>}
           </div>

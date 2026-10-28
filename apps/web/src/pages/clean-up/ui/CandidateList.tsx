@@ -25,6 +25,8 @@ function Row({
   candidate,
   index,
   active,
+  inspected,
+  largest,
   hint,
   onOpen,
   onMove,
@@ -33,6 +35,8 @@ function Row({
   readonly index: number;
   /** The row the keyboard is on: the list's one tab stop. */
   readonly active: boolean;
+  readonly inspected: boolean;
+  readonly largest: bigint;
   readonly hint: string;
   readonly onOpen: (candidate: CandidateView) => void;
   readonly onMove: (event: KeyboardEvent, from: number) => void;
@@ -43,22 +47,32 @@ function Row({
   const command = status === "command" ? candidate.tool_command : null;
   const note = status === "review" ? candidate.ai_note : null;
   const { m } = useI18n();
+  const footprint =
+    largest === 0n ? 0 : Number((BigInt(candidate.reclaimable_bytes) * 1000n) / largest) / 10;
   return (
     <li>
       <button
         type="button"
         data-row={index}
+        data-inspected={inspected}
+        aria-haspopup="dialog"
         tabIndex={active ? 0 : -1}
         aria-describedby={active ? hint : undefined}
         onClick={() => onOpen(candidate)}
         onKeyDown={(event) => onMove(event, index)}
-        className={`${GRID} w-full items-baseline gap-y-0.5 rounded-md px-2 py-1.5 text-left hover:bg-fill focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong`}
+        className={`${GRID} w-full items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill data-[inspected=true]:bg-accent-soft focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
       >
-        <span className={`truncate ${keep ? "text-ink-2" : "text-ink"}`}>
+        <span
+          title={candidate.path}
+          className={`truncate font-medium ${candidate.group.kind === "developer" ? "border-l border-line-strong pl-3" : ""} ${keep ? "text-ink-2" : "text-ink"}`}
+        >
           {baseName(candidate.path)}
         </span>
-        <span className="col-start-2 row-start-1 text-right tabular-nums text-ink @xl:col-start-4">
+        <span className="col-start-2 row-start-1 justify-self-end text-right tabular-nums text-ink @xl:col-start-4">
           {formatBytes(candidate.reclaimable_bytes)}
+          <span aria-hidden="true" className="mt-1 hidden h-0.5 w-14 bg-line @xl:block">
+            <span className="block h-full bg-ink-3" style={{ width: `${footprint}%` }} />
+          </span>
         </span>
         <span
           title={location}
@@ -101,7 +115,7 @@ function ListHeading({
   return (
     <Tag
       id={id}
-      className={`${GRID} items-baseline px-2 ${level === 3 ? "pt-5 pb-1.5 font-semibold text-ink" : "pt-2 pb-1 text-[12px] font-medium text-ink-2"}`}
+      className={`${GRID} items-baseline px-2 ${level === 3 ? "pt-6 pb-2 text-[15px] font-semibold text-ink" : "pt-3 pb-1 text-[12px] font-medium text-ink-2"}`}
     >
       <span className="truncate @xl:col-span-3">
         {name}
@@ -120,9 +134,11 @@ function ListHeading({
 export function CandidateList({
   sections,
   onOpen,
+  selectedPath,
 }: {
   readonly sections: readonly KindSection[];
   readonly onOpen: (candidate: CandidateView) => void;
+  readonly selectedPath: string | null;
 }) {
   const { m } = useI18n();
   const hint = useId();
@@ -147,10 +163,11 @@ export function CandidateList({
   };
 
   // Each row's place in reading order, across sections and tools.
-  const order = new Map(
-    sections
-      .flatMap((section) => section.sources.flatMap((group) => group.items))
-      .map((candidate, at) => [candidate.path, at]),
+  const ordered = sections.flatMap((section) => section.sources.flatMap((group) => group.items));
+  const order = new Map(ordered.map((candidate, at) => [candidate.path, at]));
+  const largest = ordered.reduce(
+    (size, item) => (BigInt(item.reclaimable_bytes) > size ? BigInt(item.reclaimable_bytes) : size),
+    0n,
   );
   const rows = (group: SourceGroup) => (
     <ul className="divide-y divide-line">
@@ -162,6 +179,8 @@ export function CandidateList({
             candidate={candidate}
             index={at}
             active={at === active}
+            inspected={candidate.path === selectedPath}
+            largest={largest}
             hint={hint}
             onOpen={(opened) => {
               setSelected(at);

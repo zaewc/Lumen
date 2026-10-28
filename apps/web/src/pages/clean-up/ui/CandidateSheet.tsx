@@ -7,13 +7,13 @@ import { CloseIcon, Dialog, SparkleIcon } from "@/shared/ui";
 import { StatusText } from "./Status";
 import { ToolCommand } from "./ToolCommand";
 
-/** One labelled figure of the details, label and value side by side. */
+/** One step in the item's actual origin, location and decision trail. */
 function Field({ label, children }: { readonly label: string; readonly children: ReactNode }) {
   return (
-    <>
-      <dt className="text-ink-2">{label}</dt>
-      <dd className="min-w-0 text-ink">{children}</dd>
-    </>
+    <div className="relative border-l border-line-strong pb-5 pl-5 last:border-transparent last:pb-0 before:absolute before:top-1 before:-left-1 before:size-2 before:rounded-full before:border before:border-line-strong before:bg-raised">
+      <dt className="text-[12px] text-ink-3">{label}</dt>
+      <dd className="mt-1 min-w-0 text-[14px] text-ink">{children}</dd>
+    </div>
   );
 }
 
@@ -47,15 +47,17 @@ export function CandidateSheet({
     >
       {candidate !== null && (
         <div className="flex h-full flex-col">
-          <header className="flex items-start gap-3 border-b border-line px-4 py-3">
+          <header className="flex items-start gap-4 border-b border-line px-6 py-5">
             <div className="min-w-0 flex-1">
-              <h2 id={title} className="text-[15px] font-semibold break-words text-ink">
+              <p className="mb-1 text-[12px] text-ink-2">
+                {m.results.groups[candidate.group.kind]}
+              </p>
+              <h2
+                id={title}
+                className="text-[22px] leading-snug font-semibold tracking-[-0.035em] break-words text-ink"
+              >
                 {baseName(candidate.path)}
               </h2>
-              <p className="mt-0.5 text-[12px] text-ink-2">
-                {m.results.groups[candidate.group.kind]}
-                {candidate.group.source !== null && ` · ${candidate.group.source}`}
-              </p>
             </div>
             <button
               ref={close}
@@ -63,42 +65,56 @@ export function CandidateSheet({
               onClick={onClose}
               aria-label={m.common.close}
               title={`${m.common.close} (Esc)`}
-              className="-mr-1 flex size-7 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-fill-strong hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
+              className="-mr-1 flex size-8 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-fill-strong hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
             >
               <CloseIcon className="size-4" />
             </button>
           </header>
-          <div className="flex-1 divide-y divide-line overflow-y-auto px-4 [&>*]:py-4">
-            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
-              <Field label={m.detail.size}>
-                <span className="font-semibold tabular-nums">
-                  {formatBytes(candidate.reclaimable_bytes)}
-                </span>
-              </Field>
-              <Field label={m.detail.decision}>
-                <StatusText status={statusOf(candidate)} />
+          <div className="flex-1 divide-y divide-line overflow-y-auto px-6 [&>*]:py-6">
+            <div>
+              <p className="text-[12px] text-ink-3">{m.detail.size}</p>
+              <p className="mt-1 text-[36px] leading-tight font-medium tracking-[-0.05em] text-ink tabular-nums">
+                {formatBytes(candidate.reclaimable_bytes)}
+              </p>
+            </div>
+            <dl aria-label={m.workspace.trail} className="pl-1">
+              <Field label={m.workspace.origin}>
+                {candidate.group.source ?? (
+                  <span className="text-ink-3">{m.workspace.unknownOrigin}</span>
+                )}
               </Field>
               <Field label={m.detail.location}>
                 <code className="block font-mono text-[12px] leading-relaxed break-all select-all">
                   {candidate.path}
                 </code>
               </Field>
+              <Field label={m.detail.decision}>
+                <StatusText status={statusOf(candidate)} />
+              </Field>
             </dl>
             <section>
-              <h3 className="text-[12px] font-semibold text-ink-2">{m.detail.reasons}</h3>
+              <h3 className="text-[14px] font-semibold text-ink">{m.detail.reasons}</h3>
               {demoted && (
                 <p className="mt-2 flex gap-2 leading-snug text-ink">
-                  <SparkleIcon className="mt-px size-4 text-accent-ink" />
+                  <SparkleIcon className="mt-px size-4 text-ink-3" />
                   <span>
                     <span className="font-medium">{m.detail.aiTitle}</span> {m.detail.aiBody}
                   </span>
                 </p>
               )}
-              <ul className="mt-2 list-disc space-y-1.5 pl-5 leading-snug text-ink marker:text-ink-3">
-                {candidate.reasons.map((reason) => (
-                  <li key={reason.rule}>{reasonText(m, reason)}</li>
+              <ol className="mt-2 divide-y divide-line text-[14px] leading-relaxed text-ink">
+                {candidate.reasons.map((reason, index) => (
+                  <li
+                    key={reason.rule}
+                    className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-3 py-3"
+                  >
+                    <span aria-hidden="true" className="pt-0.5 font-mono text-[11px] text-ink-3">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span>{reasonText(m, reason)}</span>
+                  </li>
                 ))}
-              </ul>
+              </ol>
               {note !== null && (
                 <p className="mt-3 flex gap-2 leading-snug text-ink-2">
                   <SparkleIcon className="mt-px size-4 shrink-0 text-ink-3" />

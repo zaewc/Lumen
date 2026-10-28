@@ -57,6 +57,9 @@ export const en = {
     available: "Available space",
     assessed: "Items in this scan · by size",
     assessment: (n: number) => `${items(n)} assessed`,
+    origin: "Origin",
+    unknownOrigin: "No origin information",
+    trail: "Origin and decision",
   },
   start: {
     title: "No scan yet",
@@ -169,10 +172,10 @@ export const en = {
     planFailed: "Lumen could not prepare the clean-up. Your files are unchanged.",
   },
   detail: {
-    size: "Space you can free",
+    size: "Size",
     location: "Location",
-    decision: "Status",
-    reasons: "Why",
+    decision: "Decision",
+    reasons: "Evidence",
     aiTitle: "AI review advised caution.",
     aiBody: "So Lumen leaves it for you to review instead of proposing it.",
     aiNoteHint: "A guess from AI review. It does not change Lumen's decision.",

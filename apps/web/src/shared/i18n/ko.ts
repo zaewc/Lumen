@@ -69,6 +69,9 @@ export const ko = {
     available: "사용할 수 있는 공간",
     assessed: "이번 검사에서 찾은 항목 · 크기 기준",
     assessment: (n: number) => `${items(n)}를 살펴봤어요`,
+    origin: "출처",
+    unknownOrigin: "출처 정보가 없어요",
+    trail: "출처와 판단",
   },
   start: {
     title: "아직 검사하지 않았어요",
@@ -180,10 +183,10 @@ export const ko = {
     planFailed: "정리를 준비하지 못했어요. 파일은 모두 그대로 있어요.",
   },
   detail: {
-    size: "확보할 수 있는 공간",
+    size: "크기",
     location: "위치",
-    decision: "상태",
-    reasons: "이유",
+    decision: "판단",
+    reasons: "판단 근거",
     aiTitle: "AI 검토가 주의를 권했어요.",
     aiBody: "그래서 정리를 제안하지 않고, 직접 검토하도록 남겨 두었어요.",
     aiNoteHint: "AI 검토의 추측이에요. Lumen의 판단은 바뀌지 않아요.",

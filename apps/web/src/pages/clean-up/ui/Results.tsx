@@ -108,7 +108,7 @@ export function Results({
             selected={filter === "all" ? null : filter}
             onSelect={onFilterChange}
           />
-          <CandidateList sections={sections} onOpen={setOpen} />
+          <CandidateList sections={sections} onOpen={setOpen} selectedPath={open?.path ?? null} />
         </>
       )}
       <ScanDetails scan={scan} onStartOver={onStartOver} />
