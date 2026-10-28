@@ -19,10 +19,6 @@ export const en: Messages = {
   },
   showcase: {
     main: "Lumen's Clean up page, proposing 9.9 GB across developer tools and app caches, and listing items that only their own tool should clean with the command to run.",
-    review: {
-      alt: "Items that need review, each with an AI note such as: likely an app's settings or data.",
-      caption: "AI notes say what each item to review likely is.",
-    },
     quarantine: {
       alt: "Quarantine, with one item selected to restore or remove for good.",
       caption: "Restore from Quarantine, or remove several items for good at once.",

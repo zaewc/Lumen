@@ -35,7 +35,6 @@ export interface Messages {
   /** Captures of the app (sample data), with what each shows. */
   readonly showcase: {
     readonly main: string;
-    readonly review: { readonly alt: string; readonly caption: string };
     readonly quarantine: { readonly alt: string; readonly caption: string };
   };
   /** What Lumen does, as short claims the app backs up. */

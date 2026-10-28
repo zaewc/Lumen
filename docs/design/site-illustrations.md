@@ -90,7 +90,7 @@ The home page and the README show the app itself (`apps/site/public/screens/` an
 `docs/assets/readme/`): the web app run in a browser on its in-memory transport, with
 its sample data (a fictional `/Users/ana`, never a real disk) and the built-in-key
 option on so AI notes appear, at the desktop window's default width (1120 px, 2x).
-The site uses light captures per language (`clean-up`, `review`, `quarantine`, as
-WebP, 1600 px wide); the README uses English captures in light and dark. Retake them
+The site uses light captures per language (`clean-up` and `quarantine`, as WebP,
+1600 px wide); the README also shows the review view in light and dark. Retake them
 when the screens change noticeably, so the pictures never show a UI the app no longer
 has.

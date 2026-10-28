@@ -1,6 +1,6 @@
 ---
 // What the app looks like and what it does: one capture under the hero, the
-// list of what Lumen does, and two closer captures.
+// list of what Lumen does, and a closer capture of Quarantine.
 import { messages } from "../i18n";
 import type { Locale } from "../i18n/types";
 import AppWindow from "./AppWindow.astro";
@@ -36,10 +36,6 @@ const screens = `${import.meta.env.BASE_URL}screens/`;
 )}
 {part === "closer" && (
   <section class="closer" aria-label={t.features.title}>
-    <figure>
-      <AppWindow src={`${screens}review-${locale}.webp`} alt={t.showcase.review.alt} width={1600} height={800} />
-      <figcaption>{t.showcase.review.caption}</figcaption>
-    </figure>
     <figure>
       <AppWindow src={`${screens}quarantine-${locale}.webp`} alt={t.showcase.quarantine.alt} width={1600} height={572} />
       <figcaption>{t.showcase.quarantine.caption}</figcaption>
