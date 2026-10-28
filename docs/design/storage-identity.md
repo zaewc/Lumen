@@ -39,3 +39,9 @@ No policy, transport, selection, confirmation or irreversible-action contract ch
 AI disclosure and its off switch remain visible. Quarantine does not free space
 until final removal. Both languages, both appearances, keyboard operation and
 narrow windows are reviewed in the rendered app, followed by a separate polish pass.
+
+Confirmed tool execution belongs to the application session. Closing its inspector
+or changing pages keeps the running state and latest output. The workspace shows
+ongoing execution even with the inspector closed; another command waits until it
+finishes. Copying and unconfirmed choices stay local to the inspector. Session
+state is in memory and does not imply that work survives quitting the application.

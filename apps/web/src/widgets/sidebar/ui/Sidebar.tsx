@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
 import { useUpdate } from "@/entities/app-update";
 import { useHeld } from "@/entities/held";
+import { useToolRun } from "@/entities/tool-run";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
 import { ArchiveIcon, DriveIcon, GearIcon, LogoMark, SearchIcon } from "@/shared/ui";
@@ -119,6 +120,7 @@ function AiStatus() {
 export function Sidebar() {
   const { locale, m } = useI18n();
   const held = useHeld();
+  const command = useToolRun();
   const count = held.data?.length ?? 0;
   usePlaceShortcut("/");
   usePlaceShortcut("/clean");
@@ -150,7 +152,13 @@ export function Sidebar() {
       </nav>
       <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-x-2">
         <UpdateStatus />
-        <AiStatus />
+        {command.status === "pending" ? (
+          <span role="status" className="max-w-52 truncate px-2 text-[12px] text-ink-2">
+            {m.toolCommand.running}
+          </span>
+        ) : (
+          <AiStatus />
+        )}
       </div>
     </header>
   );

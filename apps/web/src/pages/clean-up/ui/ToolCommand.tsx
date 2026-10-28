@@ -1,6 +1,6 @@
 import type { ToolCommandView, ToolRunView } from "@lumen/api-client";
-import { useMutation } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
+import { useToolRun } from "@/entities/tool-run";
 import { useTransport } from "@/shared/api";
 import { type Messages, useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice } from "@/shared/ui";
@@ -34,10 +34,14 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
   const [confirming, setConfirming] = useState(false);
   const line = commandLine(command);
   const runner = transport.runToolCommand;
-  const run = useMutation({
-    mutationFn: () => (runner ? runner(command.entry) : Promise.reject(new Error("not here"))),
-    onSettled: () => setConfirming(false),
-  });
+  const run = useToolRun();
+  const pending = run.status === "pending";
+  const current = run.variables === command.entry;
+  useEffect(() => {
+    if (run.status === "success" || run.status === "error") {
+      setConfirming(false);
+    }
+  }, [run.status]);
 
   useEffect(() => {
     if (copy !== "copied") {
@@ -82,7 +86,7 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
       <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
         {runner ? m.toolCommand.runNote : m.toolCommand.note}
       </p>
-      {runner && !confirming && !run.isPending && (
+      {runner && !confirming && !pending && (
         <button
           type="button"
           onClick={() => setConfirming(true)}
@@ -108,8 +112,8 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
             </button>
             <button
               type="button"
-              onClick={() => run.mutate()}
-              disabled={run.isPending}
+              onClick={() => void run.run(command.entry)}
+              disabled={pending}
               aria-describedby={warning}
               className={buttonClass("danger", "sm")}
             >
@@ -119,8 +123,8 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
         </div>
       )}
       <div aria-live="polite" className="empty:hidden">
-        {run.isPending && <p className="mt-2 text-[12px] text-ink-2">{m.toolCommand.running}</p>}
-        {run.isSuccess && (
+        {pending && <p className="mt-2 text-[12px] text-ink-2">{m.toolCommand.running}</p>}
+        {current && run.status === "success" && run.data !== null && (
           <div className="mt-2 space-y-1">
             <p
               className={`text-[12px] ${run.data.success ? "text-emerald-700 dark:text-emerald-400" : "text-amber-800 dark:text-amber-300"}`}
@@ -138,7 +142,7 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
           </div>
         )}
       </div>
-      {run.isError && (
+      {current && run.status === "error" && (
         <div className="mt-2">
           <ErrorNotice message={m.toolCommand.runFailed} error={run.error} />
         </div>
