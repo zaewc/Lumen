@@ -84,6 +84,8 @@ export interface Messages {
   readonly footer: {
     readonly source: string;
     readonly releases: string;
+    /** Before the maker's contacts. */
+    readonly contact: string;
   };
   readonly copy: string;
   readonly client: ClientStrings;

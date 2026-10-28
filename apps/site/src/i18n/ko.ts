@@ -190,8 +190,9 @@ export const ko: Messages = {
     },
   },
   footer: {
-    source: "소스 코드",
+    source: "GitHub 저장소",
     releases: "모든 릴리스",
+    contact: "연락처",
   },
   copy: "복사",
   client: {

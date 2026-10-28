@@ -186,8 +186,9 @@ export const en: Messages = {
     },
   },
   footer: {
-    source: "Source",
+    source: "GitHub repository",
     releases: "All releases",
+    contact: "Contact",
   },
   copy: "Copy",
   client: {

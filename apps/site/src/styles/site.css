@@ -656,3 +656,7 @@ p + .disclosure {
     padding-left: 0;
   }
 }
+
+.site-footer .contact {
+  margin-top: 4px;
+}
