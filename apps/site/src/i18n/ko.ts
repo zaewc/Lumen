@@ -12,7 +12,8 @@ export const ko: Messages = {
   skip: "본문으로 건너뛰기",
   nav: { label: "사이트", docs: "문서" },
   hero: {
-    headline: ["공간을 이해하고,", "안전하게 정리해요."],
+    // The product line stays in English in every language (owner, 2026-10-28).
+    headline: ["Storage intelligence", "for every device."],
     lead: "무엇을 남기고 무엇을 비울지, AI가 함께 살펴봐요.",
     download: "릴리스 보기",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",

@@ -13,7 +13,8 @@ const t = messages[Astro.props.locale];
 
 <section class="intro" id="top" aria-labelledby="title">
   <p class="product-name">Lumen</p>
-  <h1 id="title">{t.hero.headline.map((line) => <span>{line}</span>)}</h1>
+  <!-- The product line is English in every language, so screen readers read it as English. -->
+  <h1 id="title" lang="en">{t.hero.headline.map((line) => <span>{line}</span>)}</h1>
   <p class="lead">{t.hero.lead}</p>
   <div class="primary">
     <a class="btn btn-primary" id="primary-download" href={RELEASES_URL}>
