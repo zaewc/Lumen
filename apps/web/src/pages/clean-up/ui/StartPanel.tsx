@@ -1,4 +1,5 @@
 import { type FormEvent, useId } from "react";
+import { isOn, useAiSettings } from "@/entities/ai-review";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, Disclosure, ErrorNotice } from "@/shared/ui";
 import { rootsOf } from "../lib/roots";
@@ -24,6 +25,8 @@ export function StartPanel({
 }) {
   const { m } = useI18n();
   const field = useId();
+  const ai = useAiSettings();
+  const aiInUse = ai.isSuccess ? isOn(ai.data) : null;
   const roots = rootsOf(folders);
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -39,6 +42,9 @@ export function StartPanel({
         </StepHeading>
         <p className="text-ink-2">{m.start.promise}</p>
         <p className="text-[12px] text-ink-3">{m.start.wholeDiskHint}</p>
+        {aiInUse !== null && (
+          <p className="text-[12px] text-ink-3">{m.start.aiOn(aiInUse.service)}</p>
+        )}
       </div>
       {error !== null && <ErrorNotice message={m.start.failed} error={error} />}
       <Disclosure summary={<span className="text-ink-2">{m.start.chooseFolders}</span>}>

@@ -53,16 +53,16 @@ named like a path, name or hash with `[redacted]`.
 
 ## AI review
 
-AI review is the one thing that sends data off your machine, and it is off until you
-turn it on (ADR-0037). When it is on, Lumen sends metadata about each item it proposes
+AI review is the one thing that sends data off your machine. It is on by default, and
+you can turn it off in Settings or with `lumen ai off`; Lumen keeps that choice
+(ADR-0047). While it is on, Lumen sends metadata about each item it proposes
 to quarantine, and about up to 20 of the largest items it leaves for review
 (ADR-0041): the path with your home folder shown as `~`, sizes, ages and the facts
 behind the decision; never file contents. It goes to the school's Jeb server
 (`jeb.https.gsmsv.site`), whose operator may keep requests (ADR-0036). It uses the key
 you stored, or, if you stored none, the key built into Lumen's release builds
 (ADR-0042). A key you stored for OpenRouter sends the same metadata to TypeSafe's Jev
-through OpenRouter instead (ADR-0031). The CLI and the consent dialog say which before
-you turn it on.
+through OpenRouter instead (ADR-0031). Settings, the scan's start panel and the CLI say which.
 
 ## Changes
 

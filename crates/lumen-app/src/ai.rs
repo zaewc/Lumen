@@ -374,12 +374,21 @@ fn file(db: &Path) -> PathBuf {
     db.with_file_name("ai-review.json")
 }
 
-/// The choice recorded next to `db`: off unless the user turned it on.
+/// AI review when the user has not chosen (ADR-0047): on.
+pub const ON_BY_DEFAULT: AiReview = AiReview {
+    enabled: true,
+    consented_at: None,
+};
+
+/// The choice recorded next to `db` (ADR-0047): on when nothing is recorded,
+/// the recorded choice otherwise. A record that exists but cannot be read
+/// counts as off, so a damaged opt-out never turns into sending.
 pub fn load(db: &Path) -> AiReview {
-    std::fs::read(file(db))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-        .unwrap_or_default()
+    match std::fs::read(file(db)) {
+        Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => ON_BY_DEFAULT,
+        Err(_) => AiReview::default(),
+    }
 }
 
 /// Turns AI review on, recording when, or off (keeping the record of the
@@ -414,10 +423,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ai_review_is_off_until_turned_on_and_stays_until_turned_off() {
+    fn ai_review_is_on_until_turned_off_and_stays_off() {
         let fx = Fixture::build(&[]).unwrap_or_else(|e| unreachable!("{e}"));
         let db = fx.path("index.db").unwrap_or_else(|e| unreachable!("{e}"));
-        assert_eq!(load(&db), AiReview::default(), "off by default");
+        assert_eq!(load(&db), ON_BY_DEFAULT, "on by default (ADR-0047)");
         let at = Timestamp::from_unix(1_800_000_000, 0).unwrap_or_else(|_| unreachable!());
         let on = set(&db, true, at).unwrap_or_else(|e| unreachable!("{e}"));
         assert_eq!(load(&db), on);
@@ -428,6 +437,17 @@ mod tests {
             off.consented_at,
             Some(at),
             "the last consent stays on record"
+        );
+    }
+
+    #[test]
+    fn a_damaged_choice_counts_as_off() {
+        let fx = Fixture::build(&[]).unwrap_or_else(|e| unreachable!("{e}"));
+        let db = fx.path("index.db").unwrap_or_else(|e| unreachable!("{e}"));
+        std::fs::write(file(&db), b"{not json").unwrap_or_else(|e| unreachable!("{e}"));
+        assert!(
+            !load(&db).enabled,
+            "an opt-out that cannot be read stays off"
         );
     }
 
@@ -485,10 +505,15 @@ mod tests {
             .unwrap_or_else(|e| unreachable!("{e}"));
         let builtin = builtin_key_from(Some(BUILTIN));
         assert!(
-            active_judge(&db, Some(&store), builtin.as_ref()).is_none(),
-            "off, even with a built-in key"
+            active_judge(&db, Some(&store), builtin.as_ref()).is_some(),
+            "on by default (ADR-0047)"
         );
         let at = Timestamp::from_unix(1_800_000_000, 0).unwrap_or_else(|_| unreachable!());
+        set(&db, false, at).unwrap_or_else(|e| unreachable!("{e}"));
+        assert!(
+            active_judge(&db, Some(&store), builtin.as_ref()).is_none(),
+            "off once turned off, even with a built-in key"
+        );
         set(&db, true, at).unwrap_or_else(|e| unreachable!("{e}"));
         assert!(active_judge(&db, None, None).is_none(), "no store");
         let empty = lumen_testkit::MemorySecretStore::default();

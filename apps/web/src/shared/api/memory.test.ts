@@ -55,10 +55,10 @@ describe("memoryTransport", () => {
     expect((await transport.finalize(operationOf(second))).outcome.kind).toBe("not_found");
   });
 
-  it("keeps AI review off until a key is stored and it is turned on", async () => {
+  it("starts with AI review on, which needs a key before it can be turned on again", async () => {
     const transport = memoryTransport();
     expect(zAiSettingsView.parse(await transport.aiSettings())).toEqual({
-      enabled: false,
+      enabled: true,
       consented_at: null,
       key: "none",
       key_source: null,
@@ -76,9 +76,12 @@ describe("memoryTransport", () => {
 
   it("adds AI notes to review items only while AI review is on, never changing a verdict", async () => {
     const transport = memoryTransport();
+    const noKey = (await transport.assess()).map((c) => zCandidateView.parse(c));
+    expect(noKey.every((c) => c.ai_note === null)).toBe(true);
+    await transport.setAiKey("jeb-key");
+    await transport.setAiReview(false);
     const off = (await transport.assess()).map((c) => zCandidateView.parse(c));
     expect(off.every((c) => c.ai_note === null)).toBe(true);
-    await transport.setAiKey("jeb-key");
     await transport.setAiReview(true);
     const on = (await transport.assess()).map((c) => zCandidateView.parse(c));
     expect(on.map((c) => c.verdict)).toEqual(off.map((c) => c.verdict));
@@ -90,7 +93,7 @@ describe("memoryTransport", () => {
   it("turns AI review on with the built-in key, and lets a stored key replace it", async () => {
     const transport = memoryTransport({ builtinKey: true });
     expect(await transport.aiSettings()).toEqual({
-      enabled: false,
+      enabled: true,
       consented_at: null,
       key: "jeb",
       key_source: "builtin",

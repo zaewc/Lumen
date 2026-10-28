@@ -354,7 +354,7 @@ fn assess_shows_the_tools_own_command_and_runs_nothing() -> Result<(), Box<dyn s
     assert_eq!(item["verdict"], "REVIEW", "{item}");
     assert!(
         item["ai_note"].is_null(),
-        "AI review is off: nothing is described"
+        "AI review has no key here: nothing is described"
     );
     assert_eq!(item["tool_command"]["tool"], "Xcode");
     assert_eq!(item["tool_command"]["program"], "xcrun");

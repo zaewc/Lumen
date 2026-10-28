@@ -63,13 +63,15 @@ export const en = {
     foldersEmpty: "Enter at least one folder.",
     scanFolders: "Scan these folders",
     failed: "The scan could not finish. Your files are unchanged.",
+    aiOn: (service: string) =>
+      `AI review is on: Lumen sends the details of proposed items and of some items to review, never their contents, to the ${service} server. You can turn it off in Settings.`,
   },
   ai: {
     title: "AI review",
     offIntro:
       "An AI model takes a second look at what Lumen proposes to clean up, and says what items to review likely are. It can only make Lumen more careful.",
     onIntro: (key: string) =>
-      `On, with ${key}. Lumen sends the details of each proposed item and of up to 20 items to review, never their contents. It can only make Lumen more careful.`,
+      `On, with ${key}. Lumen sends the details of each proposed item and of up to 20 items to review, never their contents. It can only make Lumen more careful. You can turn it off at any time.`,
     keyInUse: {
       builtin: (service: string) => `${service} (built-in key)`,
       stored: (service: string) => `${service} (your key)`,

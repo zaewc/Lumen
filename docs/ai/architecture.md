@@ -76,9 +76,13 @@ answers for `run` to replay through `lumen_jev::foundation` and the evidence gua
 Nothing in the app asks it. Whether the app uses it, and whether it may be on by
 default (the privacy condition of roadmap Phase 14), is decided after its results.
 
-Tier 2 is turned on with `lumen ai on` in the CLI, or with the AI review switch in the
-desktop app's Settings page. The app's switch shows the same disclosure in a consent
-dialog, takes a Jeb key there if none is available (into the OS secret store, never
+Tier 2 is on by default ([ADR-0047](../decisions/0047-ai-review-on-by-default.md)):
+with no saved choice next to `index.db`, `lumen_app::ai::load` reports it on, and the
+CLI's `assess` and `plan` and the app consult the judge whenever a key is available
+(without one they go on without it and say so). It is turned off with `lumen ai off`
+or the AI review switch in the desktop app's Settings page, and the choice is kept;
+Settings and the scan's start panel say that it is on, what is sent and where. Turning
+it back on in the app shows the same disclosure in a dialog, takes a Jeb key there if none is available (into the OS secret store, never
 returned to the UI), and records the choice next to the app's own `index.db`
 (`lumen_app::ai`). While on, the app's `assess` and `plan` commands consult the judge
 and record its traces in the ledger, like the CLI, and `assess` describes review items:

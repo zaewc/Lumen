@@ -75,13 +75,15 @@ export const ko = {
     foldersEmpty: "폴더를 하나 이상 입력해 주세요.",
     scanFolders: "입력한 폴더 검사",
     failed: "검사를 끝내지 못했어요. 파일은 모두 그대로 있어요.",
+    aiOn: (service: string) =>
+      `AI 검토가 켜져 있어요. 정리를 제안한 항목과 검토할 항목 일부의 정보를 파일 내용은 빼고 ${service} 서버로 보내요. 설정에서 끌 수 있어요.`,
   },
   ai: {
     title: "AI 검토",
     offIntro:
       "Lumen이 정리를 제안한 항목을 AI가 한 번 더 살펴보고, 검토할 항목이 무엇인지 알려 줘요. AI는 Lumen을 더 신중하게 만들 수만 있어요.",
     onIntro: (key: string) =>
-      `켜져 있어요(${key}). 정리를 제안한 항목과 검토할 항목 최대 20개의 정보를 파일 내용은 빼고 보내요. AI는 Lumen을 더 신중하게 만들 수만 있어요.`,
+      `켜져 있어요(${key}). 정리를 제안한 항목과 검토할 항목 최대 20개의 정보를 파일 내용은 빼고 보내요. AI는 Lumen을 더 신중하게 만들 수만 있어요. 언제든 끌 수 있어요.`,
     keyInUse: {
       builtin: (service: string) => `${service}, Lumen 기본 키`,
       stored: (service: string) => `${service}, 내 키`,

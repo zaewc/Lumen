@@ -440,7 +440,9 @@ fn run(_args: &ScanArgs) -> Result<(), Box<dyn Error>> {
 
 /// Runs `with` with the judge (and the same judge as the describer of review
 /// items, ADR-0041) when this run asked for it, or when AI review is on next
-/// to `db` (ADR-0037), and records its traces.
+/// to `db` (on by default, ADR-0047), and records its traces. When it is on
+/// only by the setting and no judge can be built (no key), the run goes on
+/// without it and says why; `--jev` still fails then.
 #[cfg(any(unix, windows))]
 fn with_judge<T>(
     ai: AiChoice,
@@ -460,7 +462,17 @@ fn with_judge<T>(
         let off = lumen_application::ports::NoopJudge;
         return with(&off, &off);
     }
-    let judge = jev::judge()?;
+    let judge = match (ai, jev::judge()) {
+        (_, Ok(judge)) => judge,
+        (AiChoice::Setting, Err(error)) => {
+            eprintln!(
+                "AI review is on, but {error}. Assessing without it; turn it off with `lumen ai off`."
+            );
+            let off = lumen_application::ports::NoopJudge;
+            return with(&off, &off);
+        }
+        (_, Err(error)) => return Err(error),
+    };
     let result = with(&judge, &judge)?;
     jev::record_traces(db, traces(&result))?;
     Ok(result)
@@ -546,7 +558,8 @@ fn report(result: Result<(), Box<dyn Error>>) -> ExitCode {
     }
 }
 
-/// `lumen ai on|off|status`: the saved choice next to `db` (ADR-0037).
+/// `lumen ai on|off|status`: the saved choice next to `db` (ADR-0037); on
+/// when nothing is saved (ADR-0047).
 #[cfg(any(unix, windows))]
 fn run_ai(action: AiAction, db: &std::path::Path) -> Result<(), Box<dyn Error>> {
     use lumen_application::ports::Clock as _;
