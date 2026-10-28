@@ -127,7 +127,8 @@ jobs:
         include:
           - os: macos-26
             target: universal-apple-darwin
-            bundles: dmg
+            # `app` too: the in-app updater's archive is made from it.
+            bundles: app,dmg
           - os: windows-2025
             target: x86_64-pc-windows-msvc
             bundles: nsis
@@ -208,20 +209,39 @@ jobs:
           # Read by `option_env!` in lumen-app (ADR-0042); empty unless a tag
           # run. Masked in logs.
           LUMEN_JEB_BUILTIN_KEY: ${{ github.event_name == 'push' && secrets.JEB_API_KEY || '' }}
+          # Signs the in-app updater's artifacts (ADR-0048); tag runs only.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ github.event_name == 'push' && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ github.event_name == 'push' && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = push ] && [ -z "$LUMEN_JEB_BUILTIN_KEY" ]; then
-            echo "::error::the release environment has no JEB_API_KEY secret (ADR-0042)"
-            exit 1
+          updater=()
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            if [ -z "$LUMEN_JEB_BUILTIN_KEY" ]; then
+              echo "::error::the release environment has no JEB_API_KEY secret (ADR-0042)"
+              exit 1
+            fi
+            if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+              echo "::error::the release environment has no TAURI_SIGNING_PRIVATE_KEY secret (ADR-0048)"
+              exit 1
+            fi
+            updater=(--config '{"bundle":{"createUpdaterArtifacts":true}}')
           fi
-          pnpm --filter @lumen/desktop tauri build --ci --target "$TARGET" --bundles "$BUNDLES"
+          pnpm --filter @lumen/desktop tauri build --ci --target "$TARGET" --bundles "$BUNDLES" "${updater[@]}"
       - name: Collect
         env:
           TARGET: ${{ matrix.target }}
         run: |
           mkdir -p dist
           find "target/$TARGET/release/bundle" -maxdepth 2 -type f \
-            \( -name '*.dmg' -o -name '*-setup.exe' -o -name '*.deb' -o -name '*.AppImage' \) \
+            \( -name '*.dmg' -o -name '*-setup.exe' -o -name '*.deb' -o -name '*.AppImage' \
+               -o -name '*.app.tar.gz' -o -name '*.sig' \) \
             -exec cp {} dist/ \;
+          # The updater's macOS archive is named after the app only; give it
+          # the version, like the other files (its signature covers the bytes).
+          version=$(jq -r .version apps/desktop/src-tauri/tauri.conf.json)
+          if [ -f dist/Lumen.app.tar.gz ]; then
+            mv dist/Lumen.app.tar.gz "dist/Lumen_${version}_universal.app.tar.gz"
+            mv dist/Lumen.app.tar.gz.sig "dist/Lumen_${version}_universal.app.tar.gz.sig"
+          fi
           ls -l dist
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -310,6 +330,39 @@ jobs:
           pattern: dist-*
           path: dist
           merge-multiple: true
+      # The in-app updater's manifest (ADR-0048): each platform's file and its
+      # signature, served from the release once it is published. Written
+      # before the checksums so it is attested with the rest.
+      - name: Update manifest
+        working-directory: dist
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
+          mac="Lumen_${version}_universal.app.tar.gz"
+          win="Lumen_${version}_x64-setup.exe"
+          linux="Lumen_${version}_amd64.AppImage"
+          for file in "$mac" "$win" "$linux"; do
+            if [ ! -s "$file" ] || [ ! -s "$file.sig" ]; then
+              echo "::error::missing $file or its signature for the updater"
+              exit 1
+            fi
+          done
+          jq -n \
+            --arg version "$version" \
+            --arg notes "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" \
+            --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg mac "$base/$mac" --rawfile mac_sig "$mac.sig" \
+            --arg win "$base/$win" --rawfile win_sig "$win.sig" \
+            --arg linux "$base/$linux" --rawfile linux_sig "$linux.sig" \
+            '{version: $version, notes: $notes, pub_date: $date, platforms: {
+              "darwin-aarch64": {url: $mac, signature: ($mac_sig | rtrimstr("\n"))},
+              "darwin-x86_64": {url: $mac, signature: ($mac_sig | rtrimstr("\n"))},
+              "windows-x86_64": {url: $win, signature: ($win_sig | rtrimstr("\n"))},
+              "linux-x86_64": {url: $linux, signature: ($linux_sig | rtrimstr("\n"))}
+            }}' > latest.json
+          cat latest.json
       - name: Checksums
         working-directory: dist
         run: sha256sum -- * > SHA256SUMS && cat SHA256SUMS
@@ -319,7 +372,9 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: checksums
-          path: dist/SHA256SUMS
+          path: |
+            dist/SHA256SUMS
+            dist/latest.json
           if-no-files-found: error
           retention-days: 7
 
