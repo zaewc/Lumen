@@ -40,6 +40,10 @@ export const en: Messages = {
         text: "Who made an item, whether it can be rebuilt, whether anything still uses it: the evidence decides between keep, review and clean up.",
       },
       {
+        title: "AI takes a second look",
+        text: "AI review is on by default, and you can turn it off in Settings. It rechecks what Lumen proposes and notes what each item to review likely is. It can only make a decision more careful, and file contents never leave your device.",
+      },
+      {
         title: "Never deletes on its own",
         text: "Cleaned-up items move to a quarantine on the same drive. Restore them any time; they are removed for good only when you say so.",
       },
@@ -58,10 +62,6 @@ export const en: Messages = {
       {
         headline: ["Look at the evidence.", "Leave out the guesswork."],
         text: "What a file is. What still uses it. When the answer is uncertain, it stays put.",
-      },
-      {
-        headline: ["Safety rules decide.", "AI takes a second look."],
-        text: "AI review is on by default, and you can turn it off in Settings. It rechecks what Lumen proposes and tells you what unclear items are. It can only make a decision more careful, and file contents never leave your device.",
       },
     ],
     more: "Read the architecture",
