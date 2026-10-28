@@ -1,7 +1,7 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useId } from "react";
 import { heldTotal, useHeld } from "@/entities/held";
-import { summarize, useScanSession } from "@/entities/scan-session";
+import { DecisionMap, summarize, useScanSession } from "@/entities/scan-session";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { ChevronIcon, Notice } from "@/shared/ui";
@@ -91,6 +91,7 @@ function Running() {
  * there is none.
  */
 export function LastScan() {
+  const navigate = useNavigate();
   const { m } = useI18n();
   const session = useScanSession();
   const held = useHeld();
@@ -124,42 +125,17 @@ export function LastScan() {
       {!running && summary === null && report === null && session.scanError === null && (
         <p className="text-ink-2">{s.none}</p>
       )}
+      {summary !== null && !running && (
+        <DecisionMap
+          summary={summary}
+          selected={null}
+          onSelect={(status) => {
+            void navigate({ to: "/clean", search: { show: status } });
+          }}
+        />
+      )}
       {(summary !== null || anyHeld) && (
         <ul className="divide-y divide-line border-y border-line">
-          {summary !== null && (
-            <>
-              <li>
-                <Link to="/clean" search={{ show: "quarantine" }} className={ROW}>
-                  <RowContent
-                    label={s.canFree}
-                    count={m.common.items(summary.quarantine.items.length)}
-                    size={formatBytes(summary.quarantine.bytes)}
-                  />
-                </Link>
-              </li>
-              {summary.command.items.length > 0 && (
-                <li>
-                  <Link to="/clean" search={{ show: "command" }} className={ROW}>
-                    <RowContent
-                      label={s.command}
-                      count={m.common.items(summary.command.items.length)}
-                      size={formatBytes(summary.command.bytes)}
-                    />
-                  </Link>
-                </li>
-              )}
-              <li>
-                <Link to="/clean" search={{ show: "review" }} className={ROW}>
-                  <RowContent
-                    label={s.review}
-                    count={m.common.items(summary.review.items.length)}
-                    size={formatBytes(summary.review.bytes)}
-                    attention={summary.review.items.length > 0}
-                  />
-                </Link>
-              </li>
-            </>
-          )}
           <QuarantineRow />
         </ul>
       )}

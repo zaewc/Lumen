@@ -157,6 +157,38 @@
   transform: rotate(45deg);
 }
 
+.decision-track {
+  display: flex;
+  gap: 3px;
+  height: 20px;
+  overflow: hidden;
+  background: var(--lm-fill);
+}
+
+.decision-segment[data-status="keep"] {
+  background: var(--lm-ink-3);
+}
+
+.decision-segment[data-status="review"] {
+  background: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 3px,
+    var(--lm-ink-3) 3px,
+    var(--lm-ink-3) 4px
+  );
+}
+
+.decision-segment[data-status="command"] {
+  border-block: 2px dotted var(--lm-ink-2);
+  background: var(--lm-fill-strong);
+}
+
+.decision-segment[data-status="quarantine"] {
+  border: 2px solid var(--lm-accent);
+  background: var(--lm-accent-soft);
+}
+
 /* The indeterminate progress bar: a short bar sliding across its track. */
 @keyframes indeterminate {
   0% {

@@ -1,12 +1,12 @@
 import type { CandidateView, ScanView } from "@lumen/api-client";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import type { CandidateSummary } from "@/entities/scan-session";
+import { type CandidateSummary, DecisionMap } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, userAgent } from "@/shared/lib";
-import { InfoTip, Notice, Segmented } from "@/shared/ui";
+import { buttonClass, InfoTip, Notice } from "@/shared/ui";
 import { coverageOf } from "../model/coverage";
-import { FILTERS, type Filter, filterCounts, shows } from "../model/filter";
+import { type Filter, shows } from "../model/filter";
 import { sectionsOf } from "../model/sections";
 import { CandidateList } from "./CandidateList";
 import { CandidateSheet } from "./CandidateSheet";
@@ -60,36 +60,35 @@ export function Results({
   const { m } = useI18n();
   const [open, setOpen] = useState<CandidateView | null>(null);
   const proposed = summary.quarantine;
-  const counts = filterCounts(candidates);
   const sections = sectionsOf(candidates.filter((candidate) => shows(filter, candidate)));
   return (
     <>
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <StepHeading focus={focus} className="text-[15px] font-semibold text-ink tabular-nums">
-            {proposed.items.length > 0 ? (
-              <>
-                {m.results.canFree(formatBytes(proposed.bytes))}
-                <span className="ml-2 text-[13px] font-normal text-ink-2">
-                  {m.common.items(proposed.items.length)}
-                </span>
-              </>
-            ) : (
-              m.results.nothingTitle
-            )}
-          </StepHeading>
+          <div>
+            <StepHeading
+              focus={focus}
+              className="text-[24px] font-medium tracking-[-0.04em] text-ink tabular-nums"
+            >
+              {m.workspace.assessment(candidates.length)}
+            </StepHeading>
+            <p className="mt-1 text-[13px] text-ink-2">
+              {proposed.items.length > 0
+                ? m.results.canFree(formatBytes(proposed.bytes))
+                : m.results.nothingTitle}
+              {proposed.items.length > 0 && ` · ${m.common.items(proposed.items.length)}`}
+            </p>
+          </div>
           {candidates.length > 0 && (
             <div className="flex max-w-full flex-wrap items-center gap-2">
-              <Segmented
-                label={m.results.filter}
-                value={filter}
-                onChange={onFilterChange}
-                segments={FILTERS.map((value) => ({
-                  value,
-                  label: m.results.filters[value],
-                  count: counts[value],
-                }))}
-              />
+              <button
+                type="button"
+                onClick={() => onFilterChange("all")}
+                aria-pressed={filter === "all"}
+                className={buttonClass(filter === "all" ? "secondary" : "quiet", "sm")}
+              >
+                {m.results.filters.all}
+              </button>
               <InfoTip term="verdicts" />
             </div>
           )}
@@ -102,7 +101,16 @@ export function Results({
         )}
         <CoverageNotice scan={scan} />
       </div>
-      {candidates.length > 0 && <CandidateList sections={sections} onOpen={setOpen} />}
+      {candidates.length > 0 && (
+        <>
+          <DecisionMap
+            summary={summary}
+            selected={filter === "all" ? null : filter}
+            onSelect={onFilterChange}
+          />
+          <CandidateList sections={sections} onOpen={setOpen} />
+        </>
+      )}
       <ScanDetails scan={scan} onStartOver={onStartOver} />
       <CandidateSheet candidate={open} onClose={() => setOpen(null)} />
     </>

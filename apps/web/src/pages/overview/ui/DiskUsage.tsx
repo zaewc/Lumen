@@ -6,7 +6,62 @@ import { formatBytes } from "@/shared/lib";
 import { buttonClass, ErrorNotice, Notice } from "@/shared/ui";
 import { diskUsage, percentText } from "../model/disk";
 
-/** How full the startup disk is: one plain bar and its figures. */
+/** A measured capacity field: every division has the same physical-space scale. */
+function CapacityField({ used }: { readonly used: number | null }) {
+  const clip = useId();
+  const divisions = Array.from({ length: 64 }, (_, index) => index);
+  const boundary = ((used ?? 0) * 768) / 1000;
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 768 144"
+      className="h-36 w-full"
+      preserveAspectRatio="none"
+    >
+      <defs>
+        <clipPath id={clip}>
+          <rect width={boundary} height={144} />
+        </clipPath>
+      </defs>
+      {divisions.map((index) => (
+        <rect
+          key={index}
+          x={index * 12}
+          y={12}
+          width={9}
+          height={112}
+          fill="var(--lm-meter-track)"
+        />
+      ))}
+      {used !== null && (
+        <>
+          <g clipPath={`url(#${clip})`}>
+            {divisions.map((index) => (
+              <rect
+                key={index}
+                x={index * 12}
+                y={12}
+                width={9}
+                height={112}
+                fill="var(--lm-ink)"
+                opacity={0.64}
+              />
+            ))}
+          </g>
+          <path d={`M${boundary} 4V132`} stroke="var(--lm-accent)" strokeWidth={2} />
+          <path
+            d={`m${boundary - 4} 0 4 4 4-4`}
+            fill="none"
+            stroke="var(--lm-accent)"
+            strokeWidth={2}
+          />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/** Physical disk usage; kept separate from the sizes of assessed candidates. */
 export function DiskUsage() {
   const { m } = useI18n();
   const transport = useTransport();
@@ -22,7 +77,11 @@ export function DiskUsage() {
   const d = m.overview.disk;
   const none = "–";
   return (
-    <section aria-labelledby={title} className="space-y-2">
+    <section
+      aria-labelledby={title}
+      aria-busy={disk.isPending}
+      className="space-y-5 border-b border-line pb-8"
+    >
       <div className="flex items-baseline justify-between gap-3">
         <h2 id={title} className="text-[13px] font-semibold text-ink">
           {d.title}
@@ -44,28 +103,32 @@ export function DiskUsage() {
       ) : (
         <>
           {/* The native meter carries the value for assistive technology; the bar draws it. */}
-          <meter
-            className="sr-only"
-            aria-label={d.meter}
-            min={0}
-            max={1000}
-            value={usage?.usedPermille ?? 0}
-            high={900}
-            optimum={0}
-          >
-            {percent === null ? m.common.loading : d.percentUsed(percent)}
-          </meter>
-          <div aria-hidden="true" className="h-2 overflow-hidden rounded-full bg-meter-track">
-            <div
-              className={`h-full rounded-full ${low ? "bg-amber-500" : "bg-accent"}`}
-              style={{ width: `${usage === null ? 0 : usage.usedPermille / 10}%` }}
-            />
+          {usage !== null && (
+            <meter
+              className="sr-only"
+              aria-label={d.meter}
+              min={0}
+              max={1000}
+              value={usage.usedPermille}
+              high={900}
+              optimum={0}
+            >
+              {percent === null ? m.common.loading : d.percentUsed(percent)}
+            </meter>
+          )}
+          <div className="grid items-center gap-6 min-[800px]:grid-cols-[0.8fr_1.2fr] min-[800px]:gap-16">
+            <div>
+              <p className="text-[13px] text-ink-2">{m.workspace.available}</p>
+              <p className="mt-1 text-[clamp(2.5rem,5vw,3.5rem)] leading-tight font-medium tracking-[-0.06em] text-ink tabular-nums">
+                {usage === null ? none : formatBytes(usage.available)}
+              </p>
+              <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-2 tabular-nums">
+                <span>{d.used(usage === null ? none : formatBytes(usage.used))}</span>
+                <span>{d.total(usage === null ? none : formatBytes(usage.total))}</span>
+              </p>
+            </div>
+            <CapacityField used={usage?.usedPermille ?? null} />
           </div>
-          <p className="flex flex-wrap gap-x-4 gap-y-0.5 text-[13px] tabular-nums text-ink-2">
-            <span>{d.used(usage === null ? none : formatBytes(usage.used))}</span>
-            <span>{d.available(usage === null ? none : formatBytes(usage.available))}</span>
-            <span>{d.total(usage === null ? none : formatBytes(usage.total))}</span>
-          </p>
           {low && (
             <Notice tone="warning">
               <p>{d.low}</p>

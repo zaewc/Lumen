@@ -12,8 +12,8 @@ export const en = {
   language: "Language",
   nav: {
     label: "Main",
-    overview: "Overview",
-    cleanUp: "Clean up",
+    overview: "Storage",
+    cleanUp: "Explore",
     quarantine: "Quarantine",
     settings: "Settings",
     held: (n: number) => `${items(n)} in Quarantine`,
@@ -29,7 +29,7 @@ export const en = {
     items: (n: number) => items(n),
   },
   overview: {
-    title: "Overview",
+    title: "Storage",
     disk: {
       title: "Startup disk",
       meter: "Disk usage",
@@ -50,8 +50,13 @@ export const en = {
       found: (n: string) => `${n} found`,
       showProgress: "Show progress",
       cleaned: (n: number, size: string) => `${items(n)} (${size}) moved to Quarantine.`,
-      none: "No scan yet. Scan your disk to see what you can clean up.",
+      none: "No scan yet. Scan your disk to explore its contents and the evidence behind each decision.",
     },
+  },
+  workspace: {
+    available: "Available space",
+    assessed: "Items in this scan · by size",
+    assessment: (n: number) => `${items(n)} assessed`,
   },
   start: {
     title: "No scan yet",

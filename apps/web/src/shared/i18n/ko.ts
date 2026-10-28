@@ -24,8 +24,8 @@ export const ko = {
   language: "언어",
   nav: {
     label: "주 메뉴",
-    overview: "개요",
-    cleanUp: "정리",
+    overview: "저장 공간",
+    cleanUp: "탐색",
     quarantine: "격리함",
     settings: "설정",
     held: (n: number) => `격리함에 ${items(n)}`,
@@ -41,7 +41,7 @@ export const ko = {
     items: (n: number) => items(n),
   },
   overview: {
-    title: "개요",
+    title: "저장 공간",
     disk: {
       title: "시동 디스크",
       meter: "디스크 사용량",
@@ -62,8 +62,13 @@ export const ko = {
       found: (n: string) => `${n}개 찾았어요`,
       showProgress: "진행 상황 보기",
       cleaned: (n: number, size: string) => `${items(n)}(${size})를 격리함으로 옮겼어요.`,
-      none: "아직 검사하지 않았어요. 디스크를 검사하면 정리할 수 있는 항목을 보여 드려요.",
+      none: "아직 검사하지 않았어요. 디스크를 검사하면 어떤 항목이 있는지와 판단 근거를 보여 줘요.",
     },
+  },
+  workspace: {
+    available: "사용할 수 있는 공간",
+    assessed: "이번 검사에서 찾은 항목 · 크기 기준",
+    assessment: (n: number) => `${items(n)}를 살펴봤어요`,
   },
   start: {
     title: "아직 검사하지 않았어요",
