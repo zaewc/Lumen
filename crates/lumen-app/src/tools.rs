@@ -10,7 +10,6 @@
 //! confirmed that with the user.
 
 use std::collections::VecDeque;
-use std::io::Read as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -131,6 +130,7 @@ fn search_dirs(home: &Path) -> Vec<PathBuf> {
 /// script and no input; `None` if it does not answer within 5 s.
 #[cfg(unix)]
 fn login_shell_path() -> Option<std::ffi::OsString> {
+    use std::io::Read as _;
     use std::os::unix::ffi::OsStringExt as _;
 
     let shell = std::env::var_os("SHELL")
