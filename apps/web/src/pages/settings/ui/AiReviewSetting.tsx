@@ -1,7 +1,7 @@
 import type { AiSettingsView } from "@lumen/api-client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useRef, useState } from "react";
-import { isOn, useAiSettings } from "@/entities/ai-review";
+import { AI_WRITE_KEY, isOn, useAiSettings, useAiWriteState } from "@/entities/ai-review";
 import { QUERY_KEYS, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { ErrorNotice, GroupRow, Switch } from "@/shared/ui";
@@ -22,7 +22,10 @@ export function AiReviewSetting() {
   const toggle = useRef<HTMLButtonElement>(null);
   const [asking, setAsking] = useState(false);
   const saved = (updated: AiSettingsView) => queries.setQueryData(QUERY_KEYS.aiSettings, updated);
+  const write = useAiWriteState();
+  const writing = write?.status === "pending";
   const turnOff = useMutation({
+    mutationKey: AI_WRITE_KEY,
     mutationFn: () => transport.setAiReview(false),
     onSuccess: saved,
   });
@@ -48,7 +51,7 @@ export function AiReviewSetting() {
             <Switch
               ref={toggle}
               checked={key !== null}
-              disabled={view === undefined || turnOff.isPending}
+              disabled={view === undefined || writing}
               labelledBy={label}
               describedBy={description}
               onChange={(next) => {
@@ -68,9 +71,9 @@ export function AiReviewSetting() {
           <ErrorNotice message={m.ai.loadFailed} error={settings.error} />
         </div>
       )}
-      {turnOff.isError && (
+      {write?.status === "error" && (
         <div className="pb-2.5">
-          <ErrorNotice message={m.ai.changeFailed} error={turnOff.error} />
+          <ErrorNotice message={m.ai.changeFailed} error={write.error} />
         </div>
       )}
       {view !== undefined && (

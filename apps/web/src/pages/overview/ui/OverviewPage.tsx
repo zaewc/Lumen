@@ -11,10 +11,10 @@ function ScanAction() {
   const session = useScanSession();
   const navigate = useNavigate();
   const running = session.scanning || (session.scan !== null && session.assessment === "pending");
-  if (running) {
+  if (running || session.cleaning) {
     return (
       <button type="button" disabled className={buttonClass("primary")}>
-        {m.common.scanning}
+        {session.cleaning ? m.confirm.moving : m.common.scanning}
       </button>
     );
   }

@@ -1,12 +1,13 @@
 import type {
   CandidateView,
+  PlanView,
   QuarantineReportView,
   ScanProgressView,
   ScanView,
 } from "@lumen/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
-import { QUERY_KEYS, useTransport } from "@/shared/api";
+import { QUERY_KEYS, useSessionOperation, useTransport } from "@/shared/api";
 
 /** Where the assessment of the latest scan is. */
 export type AssessmentStatus = "pending" | "error" | "success";
@@ -37,8 +38,11 @@ export interface ScanSession {
   readonly rescan: () => void;
   /** Puts the scan and its results aside, back to the start. */
   readonly startOver: () => void;
-  /** Records a finished clean-up; its scan and assessment are spent. */
-  readonly finish: (report: QuarantineReportView) => void;
+  /** Confirmed clean-up continues even when its page is no longer open. */
+  readonly cleaning: boolean;
+  readonly cleanUpError: unknown;
+  readonly execute: (plan: PlanView) => void;
+  readonly resetCleanUp: () => void;
 }
 
 const ScanSessionContext = createContext<ScanSession | null>(null);
@@ -67,6 +71,22 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
   });
 
   const { mutate, reset } = scan;
+  const execution = useSessionOperation(
+    ["session-operation", "clean-up"],
+    async (confirmed: PlanView) => {
+      const finished = await transport.execute({
+        plan: confirmed.plan,
+        confirmation: confirmed.hash,
+      });
+      setReport(finished);
+      reset();
+      queries.removeQueries({ queryKey: QUERY_KEYS.assessment });
+      await queries.invalidateQueries({ queryKey: QUERY_KEYS.held });
+      await queries.invalidateQueries({ queryKey: QUERY_KEYS.disk });
+      return finished;
+    },
+  );
+  const cleaning = execution.status === "pending";
   const value = useMemo<ScanSession>(
     () => ({
       scanning: scan.isPending,
@@ -77,26 +97,37 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
       candidates: assessment.data ?? null,
       assessmentError: assessment.error,
       report,
+      cleaning,
+      cleanUpError: execution.error,
+      execute: (confirmed) => {
+        void execution.run(confirmed);
+      },
+      resetCleanUp: execution.reset,
       start: (roots) => {
+        if (cleaning || scan.isPending) {
+          return;
+        }
+        execution.reset();
         setReport(null);
         setLastRoots(roots);
         mutate(roots);
       },
       rescan: () => {
+        if (cleaning || scan.isPending) {
+          return;
+        }
+        execution.reset();
         setReport(null);
         mutate(lastRoots);
       },
       startOver: () => {
+        if (cleaning || scan.isPending) {
+          return;
+        }
+        execution.reset();
         setReport(null);
         setProgress(null);
         reset();
-      },
-      finish: (finished) => {
-        setReport(finished);
-        reset();
-        queries.removeQueries({ queryKey: QUERY_KEYS.assessment });
-        void queries.invalidateQueries({ queryKey: QUERY_KEYS.held });
-        void queries.invalidateQueries({ queryKey: QUERY_KEYS.disk });
       },
     }),
     [
@@ -112,6 +143,10 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
       mutate,
       reset,
       queries,
+      cleaning,
+      execution.error,
+      execution.run,
+      execution.reset,
     ],
   );
   return <ScanSessionContext value={value}>{children}</ScanSessionContext>;

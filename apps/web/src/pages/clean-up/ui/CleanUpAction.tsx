@@ -1,6 +1,6 @@
-import type { PlanView, QuarantineReportView } from "@lumen/api-client";
 import { useMutation } from "@tanstack/react-query";
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useScanSession } from "@/entities/scan-session";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice } from "@/shared/ui";
@@ -24,31 +24,29 @@ export interface CleanUpAction {
  */
 export function useCleanUpAction({
   proposed,
-  onDone,
+  onConfirm,
 }: {
   /** How many items the assessment proposes. */
   readonly proposed: number;
-  readonly onDone: (report: QuarantineReportView) => void;
+  readonly onConfirm: () => void;
 }): CleanUpAction {
   const { m } = useI18n();
   const transport = useTransport();
+  const session = useScanSession();
   const button = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const plan = useMutation({
     mutationFn: () => transport.plan(),
     onSuccess: () => setOpen(true),
   });
-  const execute = useMutation({
-    mutationFn: (confirmed: PlanView) =>
-      transport.execute({ plan: confirmed.plan, confirmation: confirmed.hash }),
-    onSuccess: (report) => {
+  useEffect(() => {
+    if (session.report !== null) {
       setOpen(false);
-      onDone(report);
-    },
-  });
+    }
+  }, [session.report]);
   const nothing = proposed === 0;
   const prepare = () => {
-    execute.reset();
+    session.resetCleanUp();
     plan.mutate();
   };
   const retry = (
@@ -62,19 +60,23 @@ export function useCleanUpAction({
         ref={button}
         type="button"
         onClick={prepare}
-        disabled={nothing || plan.isPending || execute.isPending}
+        disabled={nothing || plan.isPending || session.cleaning}
         title={nothing ? m.action.nothing : undefined}
         className={buttonClass("primary")}
       >
-        {plan.isPending ? m.action.preparing : m.action.cleanUp}
+        {session.cleaning
+          ? m.confirm.moving
+          : plan.isPending
+            ? m.action.preparing
+            : m.action.cleanUp}
       </button>
     ),
     error: plan.isError ? (
       <ErrorNotice message={m.action.planFailed} error={plan.error}>
         {retry}
       </ErrorNotice>
-    ) : execute.isError && !open ? (
-      <ErrorNotice message={m.confirm.failed} error={execute.error}>
+    ) : session.cleanUpError !== null && !open ? (
+      <ErrorNotice message={m.confirm.failed} error={session.cleanUpError}>
         {retry}
       </ErrorNotice>
     ) : null,
@@ -82,11 +84,12 @@ export function useCleanUpAction({
       <ConfirmDialog
         open={open}
         plan={plan.data}
-        busy={execute.isPending}
-        error={execute.isError ? execute.error : null}
+        busy={session.cleaning}
+        error={session.cleanUpError}
         onConfirm={() => {
           if (plan.data) {
-            execute.mutate(plan.data);
+            onConfirm();
+            session.execute(plan.data);
           }
         }}
         onClose={() => setOpen(false)}

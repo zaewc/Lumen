@@ -50,3 +50,9 @@ Quarantine actions follow the same session lifetime. A confirmed batch retains i
 original item selection and progress while other pages are open. Returning shows
 ongoing work or the last outcome; the list waits before offering another action.
 After a partial failure, held items and disk figures refresh to reflect what happened.
+
+Confirmed clean-up and update installation also continue across navigation. A new
+scan waits for a clean-up to finish so it cannot replace that operation's evidence
+or report. Unconfirmed plans are local to their view and never run automatically.
+AI setting writes share their pending/error status across views, without copying
+typed API keys into the session-operation cache.

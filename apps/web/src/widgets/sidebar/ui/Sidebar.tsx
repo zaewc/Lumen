@@ -1,8 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
-import { useUpdate } from "@/entities/app-update";
+import { useInstallUpdate, useUpdate } from "@/entities/app-update";
 import { useHeld } from "@/entities/held";
+import { useScanSession } from "@/entities/scan-session";
 import { useToolRun } from "@/entities/tool-run";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
@@ -121,6 +122,20 @@ export function Sidebar() {
   const { locale, m } = useI18n();
   const held = useHeld();
   const command = useToolRun();
+  const install = useInstallUpdate();
+  const session = useScanSession();
+  const activity =
+    install.status === "pending"
+      ? m.settings.about.update.installing
+      : session.cleaning
+        ? m.confirm.moving
+        : command.status === "pending"
+          ? m.toolCommand.running
+          : session.scanning
+            ? m.common.scanning
+            : session.scan !== null && session.assessment === "pending"
+              ? m.scanning.deciding
+              : null;
   const count = held.data?.length ?? 0;
   usePlaceShortcut("/");
   usePlaceShortcut("/clean");
@@ -152,9 +167,9 @@ export function Sidebar() {
       </nav>
       <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-x-2">
         <UpdateStatus />
-        {command.status === "pending" ? (
+        {activity !== null ? (
           <span role="status" className="max-w-52 truncate px-2 text-[12px] text-ink-2">
-            {m.toolCommand.running}
+            {activity}
           </span>
         ) : (
           <AiStatus />

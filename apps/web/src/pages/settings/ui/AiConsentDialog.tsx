@@ -2,11 +2,13 @@ import type { AiSettingsView } from "@lumen/api-client";
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, type RefObject, useId, useRef, useState } from "react";
 import {
+  AI_WRITE_KEY,
   canTurnOn,
   destination,
   needsKey,
   offersOwnKey,
   sourceOnConsent,
+  useAiWriteState,
 } from "@/entities/ai-review";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
@@ -41,7 +43,9 @@ export function AiConsentDialog({
   const dismiss = useRef<HTMLButtonElement>(null);
   const [key, setKey] = useState("");
   const asking = needsKey(settings);
+  const writing = useAiWriteState()?.status === "pending";
   const turnOn = useMutation({
+    mutationKey: AI_WRITE_KEY,
     mutationFn: async () => {
       if (key.trim() !== "") {
         await transport.setAiKey(key.trim());
@@ -60,11 +64,11 @@ export function AiConsentDialog({
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (canTurnOn(settings, key)) {
+    if (!writing && canTurnOn(settings, key)) {
       turnOn.mutate();
     }
   };
-  const busy = turnOn.isPending;
+  const busy = writing;
   const field = (hintText: string) => (
     <KeyField value={key} onChange={setKey} disabled={busy} hint={hintText} />
   );

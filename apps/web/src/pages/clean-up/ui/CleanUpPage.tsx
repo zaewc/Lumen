@@ -53,18 +53,16 @@ export function CleanUpPage() {
   const summary = session.candidates === null ? null : summarize(session.candidates);
   const cleanUp = useCleanUpAction({
     proposed: summary?.quarantine.items.length ?? 0,
-    onDone: (report) => {
-      setActed(true);
-      session.finish(report);
-    },
+    onConfirm: () => setActed(true),
   });
   const canRescan = step === "results" || step === "done" || step === "decideFailed";
-  useShortcut("r", rescan, canRescan);
+  useShortcut("r", rescan, canRescan && !session.cleaning);
 
   const scanAgain = (
     <button
       type="button"
       onClick={rescan}
+      disabled={session.cleaning}
       {...shortcutProps(m.common.scanAgain, "r")}
       className={buttonClass("secondary")}
     >

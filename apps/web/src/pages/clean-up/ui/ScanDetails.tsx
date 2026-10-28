@@ -1,4 +1,5 @@
 import type { RootView, ScanView } from "@lumen/api-client";
+import { useScanSession } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { buttonClass, Disclosure } from "@/shared/ui";
@@ -42,6 +43,7 @@ export function ScanDetails({
   readonly onStartOver: () => void;
 }) {
   const { m } = useI18n();
+  const session = useScanSession();
   return (
     <div>
       <Disclosure summary={<span className="text-ink-2">{m.details.title}</span>}>
@@ -54,6 +56,7 @@ export function ScanDetails({
         <button
           type="button"
           onClick={onStartOver}
+          disabled={session.cleaning}
           className={`${buttonClass("quiet", "sm")} -ml-2`}
         >
           {m.details.scanOther}

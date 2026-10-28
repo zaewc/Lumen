@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { useUpdate } from "@/entities/app-update";
+import { useInstallUpdate, useUpdate } from "@/entities/app-update";
 import { useTransport } from "@/shared/api";
 import { APP_VERSION } from "@/shared/config";
 import { LOCALE_NAMES, LOCALES, useI18n } from "@/shared/i18n";
@@ -93,18 +93,16 @@ function UpdateRow() {
   const u = m.settings.about.update;
   const transport = useTransport();
   const update = useUpdate();
-  const install = useMutation({
-    mutationFn: () => transport.installUpdate?.() ?? Promise.resolve(),
-  });
+  const install = useInstallUpdate();
   if (transport.checkUpdate === undefined) {
     return null;
   }
   const available = update.data?.available ?? null;
   const installable = update.data?.installable ?? false;
   let description: string;
-  if (install.isPending) {
+  if (install.status === "pending") {
     description = u.installingNote;
-  } else if (install.isError) {
+  } else if (install.status === "error") {
     description = u.installFailed;
   } else if (update.isFetching && update.data === undefined) {
     description = u.checking;
@@ -125,11 +123,11 @@ function UpdateRow() {
         available !== null && installable ? (
           <button
             type="button"
-            onClick={() => install.mutate()}
-            disabled={install.isPending}
+            onClick={() => void install.run(undefined)}
+            disabled={install.status === "pending"}
             className={buttonClass("primary", "sm")}
           >
-            {install.isPending ? u.installing : u.install}
+            {install.status === "pending" ? u.installing : u.install}
           </button>
         ) : (
           <button

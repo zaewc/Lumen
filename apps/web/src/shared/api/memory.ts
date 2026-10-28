@@ -402,7 +402,8 @@ export function memoryTransport({
     },
     aiSettings: () => Promise.resolve(ai),
     disk: () => Promise.resolve({ total_bytes: "494384795648", available_bytes: "15032385536" }),
-    setAiReview: (enabled) => {
+    setAiReview: async (enabled) => {
+      await wait(pace);
       if (enabled && ai.key === "none") {
         return Promise.reject(new Error("AI review needs an API key: add your Jeb key first"));
       }
@@ -417,7 +418,8 @@ export function memoryTransport({
       await wait(pace * 2);
       return { success: true, exit_code: 0, timed_out: false, output: "Removed 1,284 packages\n" };
     },
-    setAiKey: (key) => {
+    setAiKey: async (key) => {
+      await wait(pace);
       if (!isApiKey(key)) {
         return Promise.reject(
           new Error("that is not an API key (1-256 visible ASCII characters); nothing was stored"),
