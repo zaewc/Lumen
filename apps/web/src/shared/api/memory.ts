@@ -379,7 +379,8 @@ export function memoryTransport({
       };
     },
     held: () => Promise.resolve(held),
-    restore: (operation) => {
+    restore: async (operation) => {
+      await wait(pace);
       const item = take(operation);
       return Promise.resolve({
         operation,
@@ -390,7 +391,8 @@ export function memoryTransport({
             : { kind: "restored", parent_replaced: false, verified: true },
       });
     },
-    finalize: (operation) => {
+    finalize: async (operation) => {
+      await wait(pace);
       const item = take(operation);
       return Promise.resolve({
         operation,

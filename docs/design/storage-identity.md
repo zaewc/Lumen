@@ -45,3 +45,8 @@ or changing pages keeps the running state and latest output. The workspace shows
 ongoing execution even with the inspector closed; another command waits until it
 finishes. Copying and unconfirmed choices stay local to the inspector. Session
 state is in memory and does not imply that work survives quitting the application.
+
+Quarantine actions follow the same session lifetime. A confirmed batch retains its
+original item selection and progress while other pages are open. Returning shows
+ongoing work or the last outcome; the list waits before offering another action.
+After a partial failure, held items and disk figures refresh to reflect what happened.

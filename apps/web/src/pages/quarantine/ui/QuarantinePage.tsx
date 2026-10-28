@@ -1,16 +1,12 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useId, useRef, useState } from "react";
 import { heldTotal, useHeld } from "@/entities/held";
-import { operationOf, QUERY_KEYS, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import { buttonClass, ErrorNotice, InfoTip, Notice, Page } from "@/shared/ui";
-import { type Done, doneText, doneWell, type LastAction } from "../lib/outcome";
+import { doneText, doneWell } from "../lib/outcome";
 import {
   actionable,
-  type BulkResult,
-  bulkResult,
   bulkText,
   chosen,
   type Selection,
@@ -18,10 +14,8 @@ import {
   stillHeld,
   toggled,
 } from "../lib/selection";
+import { useHeldAction } from "../model/action";
 import { HELD_GRID, HeldRow } from "./HeldRow";
-
-/** What the notice above the list reports: one item's action, or several. */
-type Reported = { readonly one: LastAction } | { readonly many: BulkResult };
 
 /**
  * Like a trash can: what quarantine holds, to restore or remove for good,
@@ -29,15 +23,10 @@ type Reported = { readonly one: LastAction } | { readonly many: BulkResult };
  */
 export function QuarantinePage() {
   const { m } = useI18n();
-  const transport = useTransport();
-  const queries = useQueryClient();
   const held = useHeld();
   const warning = useId();
-  // Shown above the list, so it stays after a restored item leaves the list.
-  const [reported, setReported] = useState<Reported | null>(null);
   const [picked, setPicked] = useState<Selection>(new Set());
   const [confirming, setConfirming] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const items = held.data ?? [];
   // Items that left the list (restored, removed) leave the selection too.
   const selected = stillHeld(items, picked);
@@ -56,45 +45,31 @@ export function QuarantinePage() {
     }
   }, [state]);
 
-  const bulk = useMutation({
-    mutationFn: async (action: Done["action"]) => {
-      const { act } = actionable(action, selectedItems);
-      const done: Done[] = [];
-      for (const [index, item] of act.entries()) {
-        setProgress({ done: index, total: act.length });
-        if (action === "restore") {
-          const restored = await transport.restore(operationOf(item));
-          done.push({ action, outcome: restored.outcome });
-        } else {
-          const finalized = await transport.finalize(operationOf(item));
-          done.push({ action, outcome: finalized.outcome });
-        }
-      }
-      return bulkResult(action, done);
-    },
-    onSuccess: (result) => {
-      setReported({ many: result });
-      setPicked(new Set());
-    },
-    onSettled: async () => {
-      setProgress(null);
+  const bulk = useHeldAction();
+  const working = bulk.status === "pending";
+  const progress = bulk.progress;
+  const reported = bulk.data;
+  useEffect(() => {
+    if (bulk.status === "success" || bulk.status === "error") {
       setConfirming(false);
-      await queries.invalidateQueries({ queryKey: QUERY_KEYS.held });
-      await queries.invalidateQueries({ queryKey: QUERY_KEYS.disk });
-    },
-  });
-  const working = bulk.isPending;
+    }
+    if (bulk.status === "success") {
+      setPicked(new Set());
+    }
+  }, [bulk.status]);
 
   const actions =
-    selectedItems.length > 0 ? (
+    working && progress ? (
+      <span role="status" className="text-[13px] tabular-nums text-ink-2">
+        {m.quarantine.selection.working(progress.done, progress.total)}
+      </span>
+    ) : selectedItems.length > 0 ? (
       <>
         <span className="text-[12px] tabular-nums text-ink-2">
-          {progress
-            ? m.quarantine.selection.working(progress.done, progress.total)
-            : m.quarantine.selection.count(
-                selectedItems.length,
-                selectedTotal.exact ? selectedSize : m.quarantine.atLeast(selectedSize),
-              )}
+          {m.quarantine.selection.count(
+            selectedItems.length,
+            selectedTotal.exact ? selectedSize : m.quarantine.atLeast(selectedSize),
+          )}
         </span>
         <button
           type="button"
@@ -106,7 +81,7 @@ export function QuarantinePage() {
         </button>
         <button
           type="button"
-          onClick={() => bulk.mutate("restore")}
+          onClick={() => void bulk.run({ action: "restore", items: selectedItems, mode: "many" })}
           disabled={working}
           className={buttonClass("secondary", "sm")}
         >
@@ -176,7 +151,9 @@ export function QuarantinePage() {
             </button>
             <button
               type="button"
-              onClick={() => bulk.mutate("finalize")}
+              onClick={() =>
+                void bulk.run({ action: "finalize", items: selectedItems, mode: "many" })
+              }
               disabled={working}
               aria-describedby={warning}
               className={buttonClass("danger", "sm")}
@@ -186,7 +163,7 @@ export function QuarantinePage() {
           </div>
         </div>
       )}
-      {bulk.isError && <ErrorNotice message={m.held.failed} error={bulk.error} />}
+      {bulk.status === "error" && <ErrorNotice message={m.held.failed} error={bulk.error} />}
       {held.isPending && <p className="text-ink-3">{m.common.loading}</p>}
       {held.isError && (
         <ErrorNotice message={m.quarantine.loadFailed} error={held.error}>
@@ -240,7 +217,9 @@ export function QuarantinePage() {
               <HeldRow
                 key={item.operation}
                 item={item}
-                onDone={(one) => setReported({ one })}
+                onAction={(action) => {
+                  void bulk.run({ action, items: [item], mode: "one" });
+                }}
                 selected={selected.has(item.operation)}
                 onToggle={() => setPicked(toggled(selected, item.operation))}
                 locked={working}

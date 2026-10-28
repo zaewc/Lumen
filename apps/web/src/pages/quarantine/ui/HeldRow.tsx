@@ -1,11 +1,9 @@
 import type { HeldItemView } from "@lumen/api-client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState } from "react";
-import { operationOf, QUERY_KEYS, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes, parentPath } from "@/shared/lib";
-import { buttonClass, ErrorNotice } from "@/shared/ui";
-import { daysHeld, type LastAction } from "../lib/outcome";
+import { buttonClass } from "@/shared/ui";
+import { type Done, daysHeld } from "../lib/outcome";
 
 /**
  * The list's columns. Wide: name, original location, size, time held and
@@ -21,46 +19,25 @@ export const HELD_GRID =
  */
 export function HeldRow({
   item,
-  onDone,
+  onAction,
   selected,
   onToggle,
   locked,
 }: {
   readonly item: HeldItemView;
-  readonly onDone: (last: LastAction) => void;
+  readonly onAction: (action: Done["action"]) => void;
   /** Whether the item is selected for an action on several items. */
   readonly selected: boolean;
   readonly onToggle: () => void;
-  /** An action on several items is running: the row's own buttons wait. */
+  /** A Quarantine action is running: every row waits for its result. */
   readonly locked: boolean;
 }) {
   const { m } = useI18n();
-  const transport = useTransport();
-  const queries = useQueryClient();
   const warning = useId();
   const [confirming, setConfirming] = useState(false);
   const ask = useRef<HTMLButtonElement>(null);
   const dismiss = useRef<HTMLButtonElement>(null);
   const asked = useRef(false);
-  const refresh = async () => {
-    await queries.invalidateQueries({ queryKey: QUERY_KEYS.held });
-    await queries.invalidateQueries({ queryKey: QUERY_KEYS.disk });
-  };
-  const restore = useMutation({
-    mutationFn: () => transport.restore(operationOf(item)),
-    onSuccess: (restored) => {
-      onDone({ original: item.original, done: { action: "restore", outcome: restored.outcome } });
-      void refresh();
-    },
-  });
-  const finalize = useMutation({
-    mutationFn: () => transport.finalize(operationOf(item)),
-    onSuccess: (finalized) => {
-      setConfirming(false);
-      onDone({ original: item.original, done: { action: "finalize", outcome: finalized.outcome } });
-      void refresh();
-    },
-  });
 
   // Focus moves into the confirmation when it opens, and back when it closes.
   useEffect(() => {
@@ -73,7 +50,7 @@ export function HeldRow({
     }
   }, [confirming]);
 
-  const busy = locked || restore.isPending || finalize.isPending;
+  const busy = locked;
   const retained = item.state === "retained";
   const location = item.original === null ? null : parentPath(item.original);
   const name = item.original === null ? m.held.unknownPath : baseName(item.original);
@@ -108,7 +85,7 @@ export function HeldRow({
           <div className="col-span-2 flex justify-end gap-1 @2xl:col-span-1 @2xl:col-start-5 @2xl:row-start-1">
             <button
               type="button"
-              onClick={() => restore.mutate()}
+              onClick={() => onAction("restore")}
               disabled={busy}
               className={buttonClass("secondary", "sm")}
             >
@@ -144,7 +121,10 @@ export function HeldRow({
               </button>
               <button
                 type="button"
-                onClick={() => finalize.mutate()}
+                onClick={() => {
+                  setConfirming(false);
+                  onAction("finalize");
+                }}
                 disabled={busy}
                 aria-describedby={warning}
                 className={buttonClass("danger", "sm")}
@@ -152,11 +132,6 @@ export function HeldRow({
                 {m.held.removeForGood}
               </button>
             </div>
-          </div>
-        )}
-        {(restore.isError || finalize.isError) && (
-          <div className="mt-2">
-            <ErrorNotice message={m.held.failed} error={restore.error ?? finalize.error} />
           </div>
         )}
       </div>
