@@ -6,7 +6,7 @@ export const en: Messages = {
   lang: "en",
   otherLanguage: "한국어",
   description:
-    "Storage intelligence for every device. Safety rules, with optional AI review, help you understand your storage before deciding what to remove. Lumen is pre-alpha software.",
+    "Storage intelligence for every device. Safety rules, with AI review (on by default; you can turn it off), help you understand your storage before deciding what to remove. Lumen is pre-alpha software.",
   ogDescription:
     "Storage intelligence for every device. Safety over reclaimed space. Local-first, open source, pre-alpha.",
   skip: "Skip to content",
@@ -29,7 +29,7 @@ export const en: Messages = {
       },
       {
         headline: ["Safety rules decide.", "AI takes a second look."],
-        text: "Turn on AI review and it rechecks what Lumen proposes and tells you what unclear items are. It can only make a decision more careful, and file contents never leave your device.",
+        text: "AI review is on by default, and you can turn it off in Settings. It rechecks what Lumen proposes and tells you what unclear items are. It can only make a decision more careful, and file contents never leave your device.",
       },
     ],
     more: "Read the architecture",
