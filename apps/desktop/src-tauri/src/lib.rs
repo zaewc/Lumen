@@ -12,6 +12,7 @@
 mod commands;
 #[cfg(all(test, target_os = "macos"))]
 mod e2e;
+mod update;
 
 use std::sync::Arc;
 
@@ -44,6 +45,9 @@ pub fn app<R: Runtime>(
     builtin: Option<lumen_app::ai::ApiKey>,
 ) -> Builder<R> {
     builder
+        // In-app updates (ADR-0048); reached only through Lumen's own
+        // `check_update` and `install_update`, never from the page.
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::scan,
             commands::assess,
@@ -57,6 +61,8 @@ pub fn app<R: Runtime>(
             commands::open_full_disk_access,
             commands::set_ai_review,
             commands::set_ai_key,
+            update::check_update,
+            update::install_update,
         ])
         .setup(move |app| {
             let data = app.path().app_local_data_dir()?;
@@ -140,6 +146,7 @@ mod tests {
         .collect();
         let handled: BTreeSet<String> = include_str!("lib.rs")
             .split("commands::")
+            .flat_map(|part| part.split("update::"))
             .skip(1)
             .filter_map(|rest| rest.split(',').next())
             .map(|name| name.trim().to_owned())

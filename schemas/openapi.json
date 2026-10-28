@@ -915,6 +915,31 @@
           }
         }
       },
+      "UpdateView": {
+        "type": "object",
+        "description": "The app's version and whether a newer one is published (ADR-0048).",
+        "required": [
+          "current",
+          "installable"
+        ],
+        "properties": {
+          "available": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The newer version on offer, if any."
+          },
+          "current": {
+            "type": "string",
+            "description": "The running version, such as `0.4.0`."
+          },
+          "installable": {
+            "type": "boolean",
+            "description": "Whether the app can install it itself; `false` where it cannot\nreplace its own files (a `.deb` install), which updates through the\ndownload page instead."
+          }
+        }
+      },
       "VerdictView": {
         "type": "string",
         "description": "The policy's verdict.",

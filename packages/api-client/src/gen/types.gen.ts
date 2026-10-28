@@ -548,6 +548,26 @@ export type ToolCommandView = {
 };
 
 /**
+ * The app's version and whether a newer one is published (ADR-0048).
+ */
+export type UpdateView = {
+  /**
+   * The newer version on offer, if any.
+   */
+  available?: string | null;
+  /**
+   * The running version, such as `0.4.0`.
+   */
+  current: string;
+  /**
+   * Whether the app can install it itself; `false` where it cannot
+   * replace its own files (a `.deb` install), which updates through the
+   * download page instead.
+   */
+  installable: boolean;
+};
+
+/**
  * The policy's verdict.
  */
 export type VerdictView = "keep" | "review" | "quarantine";

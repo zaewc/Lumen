@@ -60,7 +60,7 @@ pub(crate) struct CommandError {
 }
 
 impl CommandError {
-    fn new(error: impl std::fmt::Display) -> Self {
+    pub(crate) fn new(error: impl std::fmt::Display) -> Self {
         Self {
             message: error.to_string(),
         }

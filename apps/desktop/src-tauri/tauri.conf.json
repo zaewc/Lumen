@@ -46,5 +46,13 @@
         "installMode": "currentUser"
       }
     }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMxODQyRTA3QzcyNkFFM0MKUldROHJpYkhCeTZFTVQ1N2JvNG5JM25zdDJUQmo0M01ZZ3I0OGVqS1J0emFBclAycEhnOWRVVmwK",
+      "endpoints": ["https://github.com/zaewc/Lumen/releases/latest/download/latest.json"],
+      "requireSignedVersion": true,
+      "windows": { "installMode": "passive" }
+    }
   }
 }

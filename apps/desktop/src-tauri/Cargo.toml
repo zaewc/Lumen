@@ -23,15 +23,24 @@ lumen-application.workspace = true
 lumen-domain.workspace = true
 lumen-telemetry.workspace = true
 serde.workspace = true
+# `generate_context!` embeds the plugins' configuration as JSON values.
+serde_json.workspace = true
 # The desktop shell (ADR-0004), exact; `isolation` for the IPC isolation pattern.
 tauri = { version = "=2.12.3", features = ["isolation"] }
 thiserror.workspace = true
+# In-app updates (ADR-0048): checks GitHub Releases for latest.json and
+# installs only an update signed with Lumen's key. Exact, like tauri. Without
+# the `zip` feature: it only unpacks the old (v1) update archives, which Lumen
+# never makes, and its zip crate has open advisories.
+tauri-plugin-updater = { version = "=2.14.0", default-features = false, features = [
+  "rustls-tls",
+  "system-proxy",
+] }
 
 [dev-dependencies]
 # Scan totals, to build progress events in tests.
 lumen-scan.workspace = true
 lumen-testkit.workspace = true
-serde_json.workspace = true
 # The mock runtime, to drive the real invoke handler and capabilities in tests.
 tauri = { version = "=2.12.3", features = ["isolation", "test"] }
 

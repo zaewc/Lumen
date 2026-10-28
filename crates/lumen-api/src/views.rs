@@ -286,6 +286,19 @@ impl From<lumen_app::assess::Group> for GroupView {
     }
 }
 
+/// The app's version and whether a newer one is published (ADR-0048).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct UpdateView {
+    /// The running version, such as `0.4.0`.
+    pub current: String,
+    /// The newer version on offer, if any.
+    pub available: Option<String>,
+    /// Whether the app can install it itself; `false` where it cannot
+    /// replace its own files (a `.deb` install), which updates through the
+    /// download page instead.
+    pub installable: bool,
+}
+
 /// How full the disk holding the user's home folder is.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct DiskView {

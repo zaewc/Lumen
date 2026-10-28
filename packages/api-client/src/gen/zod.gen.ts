@@ -306,6 +306,15 @@ export const zToolCommandView = z.object({
 });
 
 /**
+ * The app's version and whether a newer one is published (ADR-0048).
+ */
+export const zUpdateView = z.object({
+  available: z.string().nullish(),
+  current: z.string(),
+  installable: z.boolean(),
+});
+
+/**
  * The policy's verdict.
  */
 export const zVerdictView = z.enum(["keep", "review", "quarantine"]);
