@@ -47,10 +47,6 @@ export const en: Messages = {
         title: "Shows a tool's own command",
         text: "For the pnpm store, Xcode simulators and the like, Lumen leaves the files alone and shows the command that cleans them.",
       },
-      {
-        title: "Updates itself",
-        text: "New versions install from inside the app after Lumen checks their signature. No more downloading again.",
-      },
     ],
   },
   trust: {
