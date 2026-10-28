@@ -20,10 +20,6 @@ export const ko: Messages = {
   },
   showcase: {
     main: "Lumen의 정리 화면. 개발 도구와 앱 캐시에서 9.9 GB를 정리할 수 있다고 제안하고, 도구가 직접 정리해야 하는 항목은 명령과 함께 보여 줘요.",
-    quarantine: {
-      alt: "격리함. 항목 하나를 선택해서 복원하거나 영구 삭제할 수 있어요.",
-      caption: "격리함에서 복원하거나, 여러 항목을 한 번에 영구 삭제해요.",
-    },
   },
   features: {
     title: "Lumen이 하는 일",

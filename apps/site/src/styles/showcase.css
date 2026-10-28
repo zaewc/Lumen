@@ -80,40 +80,13 @@
   line-height: 1.6;
 }
 
-.closer {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 40px;
-  align-items: start;
-  max-width: calc(1064px + 2 * var(--gutter));
-  margin: 0 auto;
-  padding: 64px var(--gutter) 80px;
-}
-
-.closer figure {
-  margin: 0;
-}
-
-.closer figcaption {
-  margin-top: 14px;
-  color: var(--ink-2);
-  font-size: 1rem;
-  line-height: 1.5;
-}
-
 @media (max-width: 760px) {
-  .features dl,
-  .closer {
+  .features dl {
     grid-template-columns: 1fr;
   }
 
   .features {
     padding: 32px var(--gutter) 48px;
-  }
-
-  .closer {
-    gap: 32px;
-    padding: 40px var(--gutter) 56px;
   }
 
   .app-window-bar {
