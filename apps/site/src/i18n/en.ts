@@ -40,12 +40,8 @@ export const en: Messages = {
         text: "AI review is on by default, and you can turn it off in Settings. It rechecks what Lumen proposes and notes what each item to review likely is. It can only make a decision more careful, and file contents never leave your device.",
       },
       {
-        title: "Never deletes on its own",
-        text: "Cleaned-up items move to a quarantine on the same drive. Restore them any time; they are removed for good only when you say so.",
-      },
-      {
-        title: "Shows a tool's own command",
-        text: "For the pnpm store, Xcode simulators and the like, Lumen leaves the files alone and shows the command that cleans them.",
+        title: "Cleans up after you confirm",
+        text: "Files go to Quarantine so you can restore them. For the pnpm store or Xcode simulators, review and run the tool's own cleanup command. Tool commands remove data directly and cannot be undone.",
       },
     ],
   },
