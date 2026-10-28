@@ -43,7 +43,7 @@ export const ko: Messages = {
       "에서 받을 수 있어요.",
     ],
     checking: "릴리스를 확인하고 있어요…",
-    thisComputer: "너가 다운받아야 할거",
+    thisComputer: "<-- 너가 다운받아야 할거",
     installer: "설치 프로그램",
     requirements: {
       mac: "macOS 13 이상 · Apple silicon, Intel",

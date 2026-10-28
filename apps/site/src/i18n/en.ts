@@ -42,7 +42,7 @@ export const en: Messages = {
       ".",
     ],
     checking: "Checking releases…",
-    thisComputer: "You need to download",
+    thisComputer: "<-- You need to download",
     installer: "Installer",
     requirements: {
       mac: "macOS 13 or later · Apple silicon and Intel",
