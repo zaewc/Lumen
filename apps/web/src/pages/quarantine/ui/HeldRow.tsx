@@ -55,7 +55,10 @@ export function HeldRow({
   const location = item.original === null ? null : parentPath(item.original);
   const name = item.original === null ? m.held.unknownPath : baseName(item.original);
   return (
-    <li className="flex gap-3 py-1.5">
+    <li
+      data-selected={selected}
+      className="flex gap-3 rounded px-2 py-3 transition-colors data-[selected=true]:bg-accent-soft motion-reduce:transition-none"
+    >
       <input
         type="checkbox"
         checked={selected}

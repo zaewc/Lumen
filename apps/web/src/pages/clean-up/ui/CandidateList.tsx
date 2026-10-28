@@ -194,7 +194,7 @@ export function CandidateList({
   );
 
   return (
-    <div ref={list} className="@container">
+    <div ref={list} className="@container relative">
       <p id={hint} className="sr-only">
         {m.results.listHint}
       </p>

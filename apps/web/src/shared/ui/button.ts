@@ -15,7 +15,7 @@ function variantClass(variant: ButtonVariant): string {
     case "quiet":
       return "text-accent-ink hover:bg-accent-soft focus-visible:outline-accent";
     case "danger":
-      return "bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600 disabled:hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-600 dark:focus-visible:outline-red-400";
+      return "bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600 disabled:hover:bg-red-600 dark:focus-visible:outline-red-400";
     case "dangerQuiet":
       return "text-red-700 hover:bg-red-600/10 focus-visible:outline-red-600 dark:text-red-400 dark:focus-visible:outline-red-400";
   }

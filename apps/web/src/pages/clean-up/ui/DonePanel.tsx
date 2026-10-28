@@ -1,10 +1,12 @@
 import type { QuarantineReportView } from "@lumen/api-client";
 import { Link } from "@tanstack/react-router";
+import { DecisionMark } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
-import { buttonClass, CheckIcon, Notice } from "@/shared/ui";
+import { buttonClass, Notice } from "@/shared/ui";
 import { outcomeText } from "../lib/outcome";
 import { reportSummary } from "../model/report";
+import { FlowStage } from "./FlowStage";
 import { StepHeading } from "./StepHeading";
 
 /** What the clean-up did, where the items are now, and what was not moved and why. */
@@ -19,11 +21,15 @@ export function DonePanel({
   const { moved, notMoved } = reportSummary(report);
   return (
     <>
-      <section className="space-y-3">
+      <section className="space-y-6">
+        <FlowStage phase="done" />
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            {moved > 0 && <CheckIcon className="size-4 text-emerald-600 dark:text-emerald-400" />}
-            <StepHeading focus={focus} className="text-[15px] font-semibold text-ink">
+            {moved > 0 && <DecisionMark status="quarantine" />}
+            <StepHeading
+              focus={focus}
+              className="text-[24px] font-medium tracking-[-0.035em] text-ink"
+            >
               {moved > 0 ? m.done.title(moved, formatBytes(report.moved_bytes)) : m.done.noneMoved}
             </StepHeading>
           </div>
@@ -43,7 +49,7 @@ export function DonePanel({
           <h3 className="pb-1 font-semibold text-ink">{m.done.notMoved(notMoved.length)}</h3>
           <ul className="divide-y divide-line border-y border-line">
             {notMoved.map((item) => (
-              <li key={item.path} className="py-2">
+              <li key={item.path} className="py-3">
                 <p className="font-medium break-words text-ink">{baseName(item.path)}</p>
                 <p className="text-ink-2">{outcomeText(m, item.result)}</p>
                 <p className="font-mono text-[11px] break-all text-ink-3 select-text">

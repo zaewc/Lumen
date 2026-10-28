@@ -3,6 +3,7 @@ import { isOn, useAiSettings } from "@/entities/ai-review";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, Disclosure, ErrorNotice } from "@/shared/ui";
 import { rootsOf } from "../lib/roots";
+import { FlowStage } from "./FlowStage";
 import { StepHeading } from "./StepHeading";
 
 /**
@@ -35,21 +36,25 @@ export function StartPanel({
     }
   };
   return (
-    <section className="max-w-xl space-y-3">
-      <div className="space-y-1">
-        <StepHeading focus={focus} className="text-[15px] font-semibold text-ink">
+    <section className="max-w-2xl space-y-7">
+      <FlowStage phase="ready" />
+      <div className="space-y-3">
+        <StepHeading
+          focus={focus}
+          className="text-[24px] leading-snug font-medium tracking-[-0.035em] text-ink"
+        >
           {m.start.title}
         </StepHeading>
         <p className="text-ink-2">{m.start.promise}</p>
-        <p className="text-[12px] text-ink-3">{m.start.wholeDiskHint}</p>
+        <p className="text-[13px] leading-relaxed text-ink-3">{m.start.wholeDiskHint}</p>
         {aiInUse !== null && (
-          <p className="text-[12px] text-ink-3">{m.start.aiOn(aiInUse.service)}</p>
+          <p className="text-[13px] leading-relaxed text-ink-3">{m.start.aiOn(aiInUse.service)}</p>
         )}
       </div>
       {error !== null && <ErrorNotice message={m.start.failed} error={error} />}
       <Disclosure summary={<span className="text-ink-2">{m.start.chooseFolders}</span>}>
         <form onSubmit={submit} className="space-y-2">
-          <label htmlFor={field} className="block text-[12px] text-ink-2">
+          <label htmlFor={field} className="block text-[13px] text-ink-2">
             {m.start.foldersLabel}
           </label>
           <textarea

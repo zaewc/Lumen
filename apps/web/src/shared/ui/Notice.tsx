@@ -26,7 +26,7 @@ export function Notice({
   readonly children: ReactNode;
 }) {
   return (
-    <div className="flex gap-2 text-[13px] leading-snug text-ink">
+    <div className="flex gap-2 text-[13px] leading-relaxed text-ink">
       <ToneIcon tone={tone} />
       <div className="min-w-0 flex-1 space-y-1">{children}</div>
     </div>

@@ -56,3 +56,12 @@ scan waits for a clean-up to finish so it cannot replace that operation's eviden
 or report. Unconfirmed plans are local to their view and never run automatically.
 AI setting writes share their pending/error status across views, without copying
 typed API keys into the session-operation cache.
+
+The scan, evidence and decision stages appear in the start, progress, confirmation
+and completion views. They describe actual workflow states and never imply a scan
+percentage. Settings and held-item rows use the same readable type and spacing.
+In short windows, confirmation titles/actions stay visible while their explanation
+scrolls. The long AI disclosure starts focus on its heading and keeps a structured
+list, following the [WAI dialog focus guidance](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/).
+Dark primary buttons retain at least 4.5:1 white-text contrast, including hover;
+irreversible actions use the same readable red fill in both appearances.

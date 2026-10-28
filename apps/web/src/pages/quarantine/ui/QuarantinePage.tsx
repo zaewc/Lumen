@@ -177,10 +177,15 @@ export function QuarantinePage() {
         </ErrorNotice>
       )}
       {held.isSuccess && items.length === 0 && (
-        <section className="space-y-1">
-          <h2 className="font-semibold text-ink">{m.quarantine.empty}</h2>
-          <p className="text-ink-2">{m.quarantine.emptyHint}</p>
-          <Link to="/clean" className="inline-block pt-1 text-accent-ink hover:underline">
+        <section className="max-w-xl space-y-3 py-4">
+          <h2 className="text-[22px] font-medium tracking-[-0.035em] text-ink">
+            {m.quarantine.empty}
+          </h2>
+          <p className="text-[14px] leading-relaxed text-ink-2">{m.quarantine.emptyHint}</p>
+          <Link
+            to="/clean"
+            className="inline-block pt-1 text-[14px] text-accent-ink hover:underline"
+          >
             {m.quarantine.goCleanUp}
           </Link>
         </section>

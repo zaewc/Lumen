@@ -72,9 +72,14 @@ export const ko = {
     origin: "출처",
     unknownOrigin: "출처 정보가 없어요",
     trail: "출처와 판단",
+    workflow: "검사부터 판단까지",
+    scanStage: "검사",
+    evidenceStage: "근거 확인",
+    decisionStage: "판단",
+    activeCommand: "명령 실행 중",
   },
   start: {
-    title: "아직 검사하지 않았어요",
+    title: "저장 공간을 살펴봐요",
     promise: "디스크 전체나 원하는 폴더만 검사할 수 있어요. 무엇이든 옮기기 전에 먼저 물어볼게요.",
     wholeDiskHint:
       "검사는 읽기만 하고, 몇 분 걸려요. 일부 폴더는 컴퓨터가 접근을 허용할지 물어볼 수 있어요.",
@@ -301,7 +306,7 @@ export const ko = {
     loadFailed: "격리함을 불러오지 못했어요.",
     empty: "격리함이 비어 있어요",
     emptyHint: "정리한 항목은 여기서 기다려요. 마음이 바뀌면 복원할 수 있어요.",
-    goCleanUp: "정리하러 가기",
+    goCleanUp: "저장 공간 살펴보기",
     selection: {
       all: "전체 선택",
       item: (name: string) => `${name} 선택`,

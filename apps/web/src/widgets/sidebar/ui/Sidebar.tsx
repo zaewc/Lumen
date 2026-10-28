@@ -130,7 +130,7 @@ export function Sidebar() {
       : session.cleaning
         ? m.confirm.moving
         : command.status === "pending"
-          ? m.toolCommand.running
+          ? m.workspace.activeCommand
           : session.scanning
             ? m.common.scanning
             : session.scan !== null && session.assessment === "pending"

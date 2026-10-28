@@ -19,7 +19,7 @@ export function Group({
   return (
     <section aria-labelledby={title === undefined ? undefined : heading}>
       {title !== undefined && (
-        <h2 id={heading} className="pb-1 text-[13px] font-semibold text-ink">
+        <h2 id={heading} className="pb-3 text-[15px] font-semibold text-ink">
           {title}
         </h2>
       )}
@@ -28,7 +28,9 @@ export function Group({
       >
         {children}
       </div>
-      {note !== undefined && <div className="pt-2 text-[12px] text-ink-3">{note}</div>}
+      {note !== undefined && (
+        <div className="max-w-[72ch] pt-3 text-[13px] leading-relaxed text-ink-3">{note}</div>
+      )}
     </section>
   );
 }
@@ -48,13 +50,16 @@ export function GroupRow({
   readonly descriptionId?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
+    <div className="flex flex-wrap items-center gap-x-8 gap-y-3 py-4">
       <div className="min-w-0 flex-1 basis-56">
-        <p id={titleId} className="text-[13px] font-medium text-ink">
+        <p id={titleId} className="text-[14px] font-medium text-ink">
           {title}
         </p>
         {description !== undefined && (
-          <div id={descriptionId} className="mt-0.5 text-[12px] leading-snug text-ink-2">
+          <div
+            id={descriptionId}
+            className="mt-1 max-w-[72ch] text-[13px] leading-relaxed text-ink-2"
+          >
             {description}
           </div>
         )}

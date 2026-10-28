@@ -13,7 +13,7 @@ import {
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { isApiKey } from "@/shared/lib";
-import { buttonClass, CheckIcon, Dialog, Disclosure, ErrorNotice } from "@/shared/ui";
+import { buttonClass, Dialog, Disclosure, ErrorNotice } from "@/shared/ui";
 
 /**
  * Asks before turning AI review on (ADR-0037): what is sent, where, and that
@@ -39,8 +39,7 @@ export function AiConsentDialog({
   const { m } = useI18n();
   const transport = useTransport();
   const title = useId();
-  const description = useId();
-  const dismiss = useRef<HTMLButtonElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
   const [key, setKey] = useState("");
   const asking = needsKey(settings);
   const writing = useAiWriteState()?.status === "pending";
@@ -87,40 +86,50 @@ export function AiConsentDialog({
       open={open}
       onClose={close}
       labelledBy={title}
-      describedBy={description}
       dismissible={!busy}
-      initialFocus={dismiss}
+      initialFocus={heading}
       returnFocus={returnFocus}
     >
-      <form onSubmit={submit}>
-        <h2 id={title} className="text-[15px] font-semibold text-ink">
+      <form onSubmit={submit} className="flex max-h-[calc(100dvh-5rem)] flex-col">
+        <h2
+          ref={heading}
+          id={title}
+          tabIndex={-1}
+          className="shrink-0 text-[22px] font-semibold tracking-[-0.03em] text-ink outline-none"
+        >
           {m.ai.consent.title}
         </h2>
-        <ul id={description} className="mt-3 space-y-2.5 text-[13px] leading-snug text-ink-2">
-          {points.map((point) => (
-            <li key={point} className="flex gap-2.5">
-              <CheckIcon className="size-[18px] text-accent-ink" />
-              <span>{point}</span>
-            </li>
-          ))}
-        </ul>
-        {asking && <div className="mt-5">{field(m.ai.consent.keyHint)}</div>}
-        {offersOwnKey(settings) && (
-          <Disclosure
-            className="mt-5"
-            summary={<span className="text-[13px] text-ink-2">{m.ai.consent.ownKey}</span>}
-          >
-            {field(m.ai.consent.ownKeyHint)}
-          </Disclosure>
-        )}
-        {turnOn.isError && (
-          <div className="mt-4">
-            <ErrorNotice message={m.ai.changeFailed} error={turnOn.error} />
-          </div>
-        )}
-        <div className="mt-6 flex flex-col-reverse gap-2 min-[480px]:flex-row min-[480px]:justify-end">
+        <div className="-mx-1 mt-4 min-h-0 overflow-x-hidden overflow-y-auto px-1">
+          <ol className="divide-y divide-line text-[14px] leading-relaxed text-ink-2">
+            {points.map((point, index) => (
+              <li
+                key={point}
+                className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3 py-3 first:pt-0"
+              >
+                <span aria-hidden="true" className="pt-0.5 font-mono text-[11px] text-ink-3">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span>{point}</span>
+              </li>
+            ))}
+          </ol>
+          {asking && <div className="mt-5">{field(m.ai.consent.keyHint)}</div>}
+          {offersOwnKey(settings) && (
+            <Disclosure
+              className="mx-2 mt-5"
+              summary={<span className="text-[13px] text-ink-2">{m.ai.consent.ownKey}</span>}
+            >
+              {field(m.ai.consent.ownKeyHint)}
+            </Disclosure>
+          )}
+          {turnOn.isError && (
+            <div className="mt-4">
+              <ErrorNotice message={m.ai.changeFailed} error={turnOn.error} />
+            </div>
+          )}
+        </div>
+        <div className="mt-6 flex shrink-0 flex-col-reverse gap-2 min-[480px]:flex-row min-[480px]:justify-end">
           <button
-            ref={dismiss}
             type="button"
             onClick={close}
             disabled={busy}

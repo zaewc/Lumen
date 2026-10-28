@@ -60,9 +60,14 @@ export const en = {
     origin: "Origin",
     unknownOrigin: "No origin information",
     trail: "Origin and decision",
+    workflow: "From scan to decision",
+    scanStage: "Scan",
+    evidenceStage: "Evidence",
+    decisionStage: "Decide",
+    activeCommand: "Command running",
   },
   start: {
-    title: "No scan yet",
+    title: "See what's on your disk",
     promise: "Scan the whole disk, or only some folders. Lumen asks before it moves anything.",
     wholeDiskHint:
       "A scan only reads, and takes a few minutes. Your computer may ask you to allow access to some folders.",
@@ -292,7 +297,7 @@ export const en = {
     loadFailed: "Lumen could not load Quarantine.",
     empty: "Quarantine is empty",
     emptyHint: "Items you clean up wait here, so you can restore them if you change your mind.",
-    goCleanUp: "Go to Clean up",
+    goCleanUp: "Explore storage",
     selection: {
       all: "Select all",
       item: (name: string) => `Select ${name}`,

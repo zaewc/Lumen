@@ -29,9 +29,9 @@ export function Switch({
       aria-describedby={describedBy}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="group relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full bg-black/15 p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50 aria-checked:bg-accent motion-reduce:transition-none dark:bg-white/20 dark:aria-checked:bg-accent"
+      className="group relative inline-flex h-[26px] w-[44px] shrink-0 items-center rounded-full bg-black/15 p-[3px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50 aria-checked:bg-accent motion-reduce:transition-none dark:bg-white/20 dark:aria-checked:bg-accent"
     >
-      <span className="size-[18px] rounded-full bg-white shadow-sm shadow-black/30 transition-transform group-aria-checked:translate-x-4 motion-reduce:transition-none" />
+      <span className="size-[20px] rounded-full bg-white shadow-sm shadow-black/30 transition-transform group-aria-checked:translate-x-[18px] motion-reduce:transition-none" />
     </button>
   );
 }
