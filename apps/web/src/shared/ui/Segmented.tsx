@@ -11,7 +11,9 @@ export interface Segment<T extends string> {
 /**
  * A segmented control, as macOS draws one: radio buttons underneath, so the
  * arrow keys move between choices and screen readers announce a group.
- * Counts are left out when the page is narrow (below 28rem).
+ * Counts are left out when the page is narrow (below 28rem), and segments
+ * that still do not fit wrap onto another line: the page never scrolls
+ * sideways.
  */
 export function Segmented<T extends string>({
   label,
@@ -31,7 +33,7 @@ export function Segmented<T extends string>({
   const name = useId();
   return (
     <fieldset
-      className={`${stretch ? "flex w-full" : "inline-flex max-w-full"} min-w-0 rounded-lg bg-fill-strong p-0.5`}
+      className={`${stretch ? "flex w-full" : "inline-flex max-w-full flex-wrap"} min-w-0 rounded-lg bg-fill-strong p-0.5`}
     >
       <legend className="sr-only">{label}</legend>
       {segments.map((segment) => (

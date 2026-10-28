@@ -94,6 +94,18 @@
     word-break: keep-all;
   }
 
+  /*
+   * The window never bounces as a whole: only the page scrolls, inside its
+   * own area. Without this, scrolling past the end of the page carries on to
+   * the document, and macOS's elastic scrolling shows the web view's white
+   * backdrop below the window's own background.
+   */
+  html,
+  body {
+    overscroll-behavior: none;
+    background-color: var(--lm-window);
+  }
+
   /* Interface text is not selectable, as in a native app; fields, code and `select-text` opt back in. */
   body {
     user-select: none;

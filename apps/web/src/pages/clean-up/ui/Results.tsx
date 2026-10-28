@@ -79,7 +79,7 @@ export function Results({
             )}
           </StepHeading>
           {candidates.length > 0 && (
-            <div className="flex max-w-full items-center gap-2 overflow-x-auto">
+            <div className="flex max-w-full flex-wrap items-center gap-2">
               <Segmented
                 label={m.results.filter}
                 value={filter}

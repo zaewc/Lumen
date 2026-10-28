@@ -19,7 +19,7 @@ function Layout() {
   return (
     <div className="flex h-dvh overflow-hidden bg-window text-[13px] text-ink">
       <Sidebar />
-      <div className="min-w-0 flex-1 overflow-y-auto">
+      <div className="min-w-0 flex-1 overflow-y-auto overscroll-contain">
         <Outlet />
       </div>
     </div>
