@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Tauri injects an inline hiding rule that production's style-src blocks.
+ * Keep its IPC frame alive but out of layout through this external sheet.
+ * Otherwise its default 300 × 150 box adds document scroll and a white pane.
+ */
+#__tauri_isolation__ {
+  display: none;
+}
+
 /*
  * Lumen's storage workspace: cool paper, deep ink and a precise cobalt
  * signature. Content, navigation, inputs and elevated inspectors have
