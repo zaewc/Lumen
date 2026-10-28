@@ -1,0 +1,128 @@
+/*
+ * The app captures and what Lumen does. The captures sit in a plain window
+ * frame (a hairline, a title bar, one soft shadow); the list is type and
+ * alignment only, no cards or icons (docs/design/ui-principles.md).
+ */
+.app-window {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 28px 56px -32px rgb(0 0 0 / 0.35);
+}
+
+.app-window-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: #f2f2f5;
+}
+
+.app-window-bar span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff5f57;
+}
+
+.app-window-bar span:nth-child(2) {
+  background: #febc2e;
+}
+
+.app-window-bar span:nth-child(3) {
+  background: #28c840;
+}
+
+.app-window img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.capture {
+  max-width: calc(1064px + 2 * var(--gutter));
+  margin: 8px auto 0;
+  padding: 0 var(--gutter) 40px;
+}
+
+.features {
+  max-width: calc(1064px + 2 * var(--gutter));
+  margin: 0 auto;
+  padding: 48px var(--gutter) 64px;
+}
+
+.features h2 {
+  margin: 0 0 32px;
+  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+}
+
+.features dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px 56px;
+  margin: 0;
+}
+
+.features dt {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.features dd {
+  margin: 8px 0 0;
+  color: var(--ink-2);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+.closer {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+  max-width: calc(1064px + 2 * var(--gutter));
+  margin: 0 auto;
+  padding: 64px var(--gutter) 80px;
+}
+
+.closer figure {
+  margin: 0;
+}
+
+.closer figcaption {
+  margin-top: 14px;
+  color: var(--ink-2);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .features dl,
+  .closer {
+    grid-template-columns: 1fr;
+  }
+
+  .features {
+    padding: 32px var(--gutter) 48px;
+  }
+
+  .closer {
+    gap: 32px;
+    padding: 40px var(--gutter) 56px;
+  }
+
+  .app-window-bar {
+    height: 20px;
+    gap: 6px;
+  }
+
+  .app-window-bar span {
+    width: 8px;
+    height: 8px;
+  }
+}

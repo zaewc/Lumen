@@ -17,6 +17,42 @@ export const en: Messages = {
     download: "View releases",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
+  showcase: {
+    main: "Lumen's Clean up page, proposing 9.9 GB across developer tools and app caches, and listing items that only their own tool should clean with the command to run.",
+    review: {
+      alt: "Items that need review, each with an AI note such as: likely an app's settings or data.",
+      caption: "AI notes say what each item to review likely is.",
+    },
+    quarantine: {
+      alt: "Quarantine, with one item selected to restore or remove for good.",
+      caption: "Restore from Quarantine, or remove several items for good at once.",
+    },
+  },
+  features: {
+    title: "What Lumen does",
+    items: [
+      {
+        title: "Finds what takes up space",
+        text: "From Xcode's build data and Gradle caches to app caches and old installers. Scanning never opens a file.",
+      },
+      {
+        title: "Explains every decision",
+        text: "Who made an item, whether it can be rebuilt, whether anything still uses it: the evidence decides between keep, review and clean up.",
+      },
+      {
+        title: "Never deletes on its own",
+        text: "Cleaned-up items move to a quarantine on the same drive. Restore them any time; they are removed for good only when you say so.",
+      },
+      {
+        title: "Shows a tool's own command",
+        text: "For the pnpm store, Xcode simulators and the like, Lumen leaves the files alone and shows the command that cleans them.",
+      },
+      {
+        title: "Updates itself",
+        text: "New versions install from inside the app after Lumen checks their signature. No more downloading again.",
+      },
+    ],
+  },
   trust: {
     items: [
       {

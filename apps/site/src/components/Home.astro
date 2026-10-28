@@ -6,6 +6,7 @@ import { messages } from "../i18n";
 import type { Locale } from "../i18n/types";
 import Base from "../layouts/Base.astro";
 import Hero from "./Hero.astro";
+import Showcase from "./Showcase.astro";
 import "../styles/story.css";
 
 interface Props {
@@ -20,7 +21,8 @@ const base = import.meta.env.BASE_URL;
 
 <Base locale={locale}>
   <Hero locale={locale} />
-  <!-- Reserved for an authentic app capture; no empty canvas until one is available. -->
+  <Showcase locale={locale} part="capture" />
+  <Showcase locale={locale} part="features" />
   <div class="story">
     {t.trust.items.map((item, index) => (
       <section class="chapter" aria-labelledby={`principle-${index}`}>
@@ -46,6 +48,7 @@ const base = import.meta.env.BASE_URL;
       </section>
     ))}
   </div>
+  <Showcase locale={locale} part="closer" />
   <script>
     import "../scripts/site.ts";
   </script>

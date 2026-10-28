@@ -1,0 +1,26 @@
+---
+// A capture of the app in a plain macOS window frame. The captures are the
+// web app on its built-in sample data (a fictional /Users/ana), the same UI
+// the desktop app shows; see docs/design/site-illustrations.md.
+interface Props {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+  eager?: boolean;
+}
+
+const { src, alt, width, height, eager = false } = Astro.props;
+---
+
+<div class="app-window">
+  <div class="app-window-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+  <img
+    src={src}
+    alt={alt}
+    width={width}
+    height={height}
+    loading={eager ? "eager" : "lazy"}
+    decoding="async"
+  />
+</div>
