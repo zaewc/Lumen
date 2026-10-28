@@ -1,6 +1,6 @@
 # ADR-0035: Show tools' own cleanup commands; never run them
 
-- Status: Accepted
+- Status: Superseded by [ADR-0049](0049-run-tool-commands-on-request.md) (commands run when the user asks)
 - Date: 2026-10-20
 - Amends: [ADR-0021](0021-developer-artifact-knowledge-base.md) (tool actions)
 

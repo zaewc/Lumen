@@ -43,7 +43,7 @@ recommended option.
 | [0032](0032-test-only-fault-points.md) | Inject executor faults through test-only fault points | Accepted |
 | [0033](0033-windows-executor-mechanics.md) | Build the Windows executor on relative NT opens, confined unsafe code | Accepted |
 | [0034](0034-command-line-plan-confirmation.md) | Confirm cleanup plans from the command line by plan hash | Accepted |
-| [0035](0035-show-tool-commands-never-run-them.md) | Show tools' own cleanup commands; never run them | Accepted |
+| [0035](0035-show-tool-commands-never-run-them.md) | Show tools' own cleanup commands; never run them | Superseded by [0049](0049-run-tool-commands-on-request.md) |
 | [0036](0036-jeb-on-the-school-ai-hub.md) | Use Jeb on the school AI Hub as the default judge | Accepted |
 | [0037](0037-keep-ai-review-on-once-turned-on.md) | Keep AI review on once the user turns it on | Accepted |
 | [0038](0038-unsigned-beta-from-a-project-website.md) | Ship an unsigned beta from a project website | Accepted |
@@ -57,3 +57,4 @@ recommended option.
 | [0046](0046-quarantine-on-other-drives-of-a-single-user-pc.md) | Quarantine on other drives of a single-user PC | Accepted |
 | [0047](0047-ai-review-on-by-default.md) | AI review on by default | Accepted |
 | [0048](0048-in-app-updates.md) | In-app updates with Tauri's updater | Accepted |
+| [0049](0049-run-tool-commands-on-request.md) | Run a tool's own cleanup command when the user asks | Accepted |
