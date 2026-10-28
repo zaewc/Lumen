@@ -278,6 +278,27 @@ export const ko = {
     empty: "격리함이 비어 있어요",
     emptyHint: "정리한 항목은 여기서 기다려요. 마음이 바뀌면 복원할 수 있어요.",
     goCleanUp: "정리하러 가기",
+    selection: {
+      all: "전체 선택",
+      item: (name: string) => `${name} 선택`,
+      count: (n: number, size: string) => `${items(n)} 선택 · ${size}`,
+      clear: "선택 해제",
+      restore: "복원",
+      removeAsk: "영구 삭제…",
+      removeWarning: (n: number) =>
+        `선택한 ${items(n)}를 영구 삭제하면 되돌릴 수 없어요. 삭제하기 전에 항목마다 사용 중인지 먼저 확인해요.`,
+      removeSkips: (n: number) => `복원만 가능한 ${items(n)}는 삭제하지 않아요.`,
+      remove: "영구 삭제",
+      working: (done: number, total: number) => `처리하는 중… ${count(done)}/${count(total)}`,
+      restored: (well: number, total: number) =>
+        well === total
+          ? `${items(total)}를 복원했어요.`
+          : `${items(total)} 중 ${count(well)}개를 복원했어요. 나머지는 격리함에 그대로 있어요.`,
+      removed: (well: number, total: number) =>
+        well === total
+          ? `${items(total)}를 영구 삭제했어요.`
+          : `${items(total)} 중 ${count(well)}개를 영구 삭제했어요. 나머지는 삭제하지 않았어요.`,
+    },
   },
   held: {
     unknownPath: "(알 수 없는 위치)",

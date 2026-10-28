@@ -22,9 +22,17 @@ export const HELD_GRID =
 export function HeldRow({
   item,
   onDone,
+  selected,
+  onToggle,
+  locked,
 }: {
   readonly item: HeldItemView;
   readonly onDone: (last: LastAction) => void;
+  /** Whether the item is selected for an action on several items. */
+  readonly selected: boolean;
+  readonly onToggle: () => void;
+  /** An action on several items is running: the row's own buttons wait. */
+  readonly locked: boolean;
 }) {
   const { m } = useI18n();
   const transport = useTransport();
@@ -65,84 +73,93 @@ export function HeldRow({
     }
   }, [confirming]);
 
-  const busy = restore.isPending || finalize.isPending;
+  const busy = locked || restore.isPending || finalize.isPending;
   const retained = item.state === "retained";
   const location = item.original === null ? null : parentPath(item.original);
+  const name = item.original === null ? m.held.unknownPath : baseName(item.original);
   return (
-    <li className="py-1.5">
-      <div className={`${HELD_GRID} items-center gap-y-1`}>
-        <span className="truncate text-ink">
-          {item.original === null ? m.held.unknownPath : baseName(item.original)}
-        </span>
-        <span className="col-start-2 row-start-1 text-right tabular-nums text-ink @2xl:col-start-3">
-          {item.reclaim_bytes === null ? "–" : formatBytes(item.reclaim_bytes)}
-        </span>
-        <span
-          title={location ?? undefined}
-          className="row-start-2 truncate text-[12px] text-ink-3 select-text @2xl:col-start-2 @2xl:row-start-1 @2xl:text-[13px]"
-        >
-          {location}
-        </span>
-        <span
-          title={retained ? undefined : m.held.afterFailure}
-          className={`col-start-2 row-start-2 text-right text-[12px] tabular-nums @2xl:col-start-4 @2xl:row-start-1 @2xl:text-left @2xl:text-[13px] ${retained ? "text-ink-2" : "text-amber-700 dark:text-amber-400"}`}
-        >
-          {retained ? m.held.days(daysHeld(item.since, new Date())) : m.held.restoreOnly}
-        </span>
-        <div className="col-span-2 flex justify-end gap-1 @2xl:col-span-1 @2xl:col-start-5 @2xl:row-start-1">
-          <button
-            type="button"
-            onClick={() => restore.mutate()}
-            disabled={busy}
-            className={buttonClass("secondary", "sm")}
+    <li className="flex gap-3 py-1.5">
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={onToggle}
+        disabled={locked}
+        aria-label={m.quarantine.selection.item(name)}
+        className="mt-[3px] size-4 shrink-0 accent-accent"
+      />
+      <div className="min-w-0 flex-1">
+        <div className={`${HELD_GRID} items-center gap-y-1`}>
+          <span className="truncate text-ink">{name}</span>
+          <span className="col-start-2 row-start-1 text-right tabular-nums text-ink @2xl:col-start-3">
+            {item.reclaim_bytes === null ? "–" : formatBytes(item.reclaim_bytes)}
+          </span>
+          <span
+            title={location ?? undefined}
+            className="row-start-2 truncate text-[12px] text-ink-3 select-text @2xl:col-start-2 @2xl:row-start-1 @2xl:text-[13px]"
           >
-            {m.held.restore}
-          </button>
-          {retained && (
+            {location}
+          </span>
+          <span
+            title={retained ? undefined : m.held.afterFailure}
+            className={`col-start-2 row-start-2 text-right text-[12px] tabular-nums @2xl:col-start-4 @2xl:row-start-1 @2xl:text-left @2xl:text-[13px] ${retained ? "text-ink-2" : "text-amber-700 dark:text-amber-400"}`}
+          >
+            {retained ? m.held.days(daysHeld(item.since, new Date())) : m.held.restoreOnly}
+          </span>
+          <div className="col-span-2 flex justify-end gap-1 @2xl:col-span-1 @2xl:col-start-5 @2xl:row-start-1">
             <button
-              ref={ask}
               type="button"
-              onClick={() => setConfirming(true)}
-              disabled={busy || confirming}
-              className={buttonClass("dangerQuiet", "sm")}
-            >
-              {m.held.removeForGoodAsk}
-            </button>
-          )}
-        </div>
-      </div>
-      {retained && confirming && (
-        <div className="mt-2 mb-1 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-500/8 px-3 py-2.5 dark:bg-red-400/10">
-          <p id={warning} className="min-w-0 flex-1 basis-64 text-red-900 dark:text-red-200">
-            {m.held.removeForGoodWarning}
-          </p>
-          <div className="flex gap-2">
-            <button
-              ref={dismiss}
-              type="button"
-              onClick={() => setConfirming(false)}
+              onClick={() => restore.mutate()}
               disabled={busy}
               className={buttonClass("secondary", "sm")}
             >
-              {m.common.close}
+              {m.held.restore}
             </button>
-            <button
-              type="button"
-              onClick={() => finalize.mutate()}
-              disabled={busy}
-              aria-describedby={warning}
-              className={buttonClass("danger", "sm")}
-            >
-              {m.held.removeForGood}
-            </button>
+            {retained && (
+              <button
+                ref={ask}
+                type="button"
+                onClick={() => setConfirming(true)}
+                disabled={busy || confirming}
+                className={buttonClass("dangerQuiet", "sm")}
+              >
+                {m.held.removeForGoodAsk}
+              </button>
+            )}
           </div>
         </div>
-      )}
-      {(restore.isError || finalize.isError) && (
-        <div className="mt-2">
-          <ErrorNotice message={m.held.failed} error={restore.error ?? finalize.error} />
-        </div>
-      )}
+        {retained && confirming && (
+          <div className="mt-2 mb-1 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-500/8 px-3 py-2.5 dark:bg-red-400/10">
+            <p id={warning} className="min-w-0 flex-1 basis-64 text-red-900 dark:text-red-200">
+              {m.held.removeForGoodWarning}
+            </p>
+            <div className="flex gap-2">
+              <button
+                ref={dismiss}
+                type="button"
+                onClick={() => setConfirming(false)}
+                disabled={busy}
+                className={buttonClass("secondary", "sm")}
+              >
+                {m.common.close}
+              </button>
+              <button
+                type="button"
+                onClick={() => finalize.mutate()}
+                disabled={busy}
+                aria-describedby={warning}
+                className={buttonClass("danger", "sm")}
+              >
+                {m.held.removeForGood}
+              </button>
+            </div>
+          </div>
+        )}
+        {(restore.isError || finalize.isError) && (
+          <div className="mt-2">
+            <ErrorNotice message={m.held.failed} error={restore.error ?? finalize.error} />
+          </div>
+        )}
+      </div>
     </li>
   );
 }

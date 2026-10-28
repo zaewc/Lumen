@@ -269,6 +269,28 @@ export const en = {
     empty: "Quarantine is empty",
     emptyHint: "Items you clean up wait here, so you can restore them if you change your mind.",
     goCleanUp: "Go to Clean up",
+    selection: {
+      all: "Select all",
+      item: (name: string) => `Select ${name}`,
+      count: (n: number, size: string) => `${items(n)} selected · ${size}`,
+      clear: "Clear selection",
+      restore: "Restore",
+      removeAsk: "Remove for good…",
+      removeWarning: (n: number) =>
+        `This deletes ${items(n)} permanently, and you cannot undo it. Lumen first checks that nothing is using each one.`,
+      removeSkips: (n: number) =>
+        `${items(n)} that can only be restored ${n === 1 ? "stays" : "stay"} in Quarantine.`,
+      remove: "Remove for good",
+      working: (done: number, total: number) => `Working… ${count(done)} of ${count(total)}`,
+      restored: (well: number, total: number) =>
+        well === total
+          ? `Restored ${items(total)}.`
+          : `Restored ${count(well)} of ${items(total)}. The rest are still in Quarantine.`,
+      removed: (well: number, total: number) =>
+        well === total
+          ? `Removed ${items(total)} for good.`
+          : `Removed ${count(well)} of ${items(total)} for good. Lumen removed nothing else.`,
+    },
   },
   held: {
     unknownPath: "(unknown location)",
