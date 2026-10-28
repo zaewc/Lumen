@@ -320,26 +320,46 @@ h1 {
   display: none;
 }
 
-/* Secondary downloads stay next to the primary action, behind one disclosure. */
-.intro .download-choices {
-  width: 100%;
-  max-width: 720px;
-  margin-top: 12px;
-  border: 0;
-}
-
-.intro .download-choices > summary {
-  justify-content: center;
+/* Under the primary action, a link down to every download and guide. */
+.all-downloads {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
   min-height: 44px;
+  margin-top: 12px;
   padding: 10px 0;
   color: var(--ink-2);
   font-size: 0.9375rem;
   font-weight: 450;
 }
 
+.all-downloads:hover {
+  color: var(--ink);
+}
+
+/* Every download and guide, at the foot of the page. */
+.download-choices {
+  max-width: calc(720px + 2 * var(--gutter));
+  margin: 0 auto;
+  padding: 64px var(--gutter) 72px;
+  scroll-margin-top: 16px;
+}
+
+.download-choices > h2 {
+  font-size: clamp(1.5rem, 2.2vw, 1.875rem);
+  letter-spacing: -0.03em;
+}
+
 .download-body {
   padding: 12px 0 0;
   text-align: left;
+}
+
+/* Links within the page glide there, unless motion is reduced. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 h2 {

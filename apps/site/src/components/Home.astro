@@ -5,6 +5,7 @@ import { REPO_URL } from "../data/release";
 import { messages } from "../i18n";
 import type { Locale } from "../i18n/types";
 import Base from "../layouts/Base.astro";
+import Downloads from "./Downloads.astro";
 import Hero from "./Hero.astro";
 import Showcase from "./Showcase.astro";
 import "../styles/story.css";
@@ -49,6 +50,7 @@ const base = import.meta.env.BASE_URL;
     ))}
   </div>
   <Showcase locale={locale} part="closer" />
+  <Downloads locale={locale} />
   <script>
     import "../scripts/site.ts";
   </script>

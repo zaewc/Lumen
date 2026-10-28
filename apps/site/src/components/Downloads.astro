@@ -1,6 +1,7 @@
 ---
-// The download section: the release status, a row per platform, and the
-// other files and verification steps below them.
+// The download section, at the foot of the page (the hero links to it): the
+// release status, a row per platform, and the other files and verification
+// steps below them.
 import { PLATFORMS, RELEASES_URL } from "../data/release";
 import { messages } from "../i18n";
 import type { Locale } from "../i18n/types";
@@ -18,8 +19,8 @@ const { locale } = Astro.props;
 const t = messages[locale];
 ---
 
-<details class="download-choices disclosure" id="download">
-  <summary>{t.download.title}</summary>
+<section class="download-choices" id="download" aria-labelledby="download-title">
+  <h2 id="download-title">{t.download.title}</h2>
   <div class="download-body">
   <p class="status" id="release-status" aria-live="polite">
     <span class="no-js"><Rich text={t.download.noScript} /></span>
@@ -32,4 +33,4 @@ const t = messages[locale];
   <OtherFiles locale={locale} />
   <Verify locale={locale} />
   </div>
-</details>
+</section>
