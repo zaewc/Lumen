@@ -351,7 +351,10 @@ Developer Mode is driven by the `lumen-devkb` knowledge base
 DerivedData and simulators, Docker, `node_modules`, pnpm, npm and Yarn caches, Cargo,
 Gradle, CocoaPods, Next.js build output, Android build outputs, IDE caches, AI tool
 caches and Homebrew. The tool's own cleanup command is preferred; self-managed caches
-are shown as informational. When a candidate matched an entry with a tool command,
+are shown as informational. Cargo project matching covers only the default debug and
+release intermediate `deps`, `build` and `incremental` directories beside a scanned
+regular `Cargo.toml`; final outputs and custom layouts remain outside that entry.
+When a candidate matched an entry with a tool command,
 `lumen assess`, `lumen plan` and the clean-up page show it
 (`CandidateView.tool_command`, quoted for a POSIX shell when copied). In the desktop
 app the user can also run it, after a confirmation that it cannot be undone:
@@ -386,6 +389,7 @@ the schema cannot express:
 
 - paths are relative to a known root, and never the root itself or every child of it;
 - a project location needs marker files;
+- an optional location `kind` restricts evidence to a real directory or regular file;
 - programs are bare names that the runner resolves from the user's `PATH`, then known
   install locations, and arguments are an argument vector, never a shell string;
 - a `tool_action` entry has an action, and a `not_regenerable` one never does;

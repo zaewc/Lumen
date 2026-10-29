@@ -28,7 +28,7 @@ use lumen_domain::{
     SourceName, Subject, Timestamp,
 };
 
-use crate::{Entry, KnowledgeBase, Location, Root};
+use crate::{ArtifactKind, Entry, KnowledgeBase, Location, Root};
 
 /// Provenance source of match evidence.
 pub const SOURCE: &str = "devkb";
@@ -109,6 +109,7 @@ struct Resolved<'kb> {
     root: Option<Vec<Component>>,
     pattern: Vec<Component>,
     markers: Vec<Vec<Component>>,
+    kind: Option<ArtifactKind>,
 }
 
 fn resolve<'kb>(
@@ -135,6 +136,7 @@ fn resolve<'kb>(
         entry,
         root: root.map(|r| components(r, env.platform)),
         pattern: pattern(&location.path, env.platform),
+        kind: location.kind,
         markers: location
             .markers
             .iter()
@@ -332,6 +334,7 @@ impl Matcher<'_> {
             let ids: BTreeSet<&str> = self
                 .resolved
                 .iter()
+                .filter(|r| r.kind.is_none_or(|kind| kind.matches(object.kind)))
                 .filter(|r| r.matches(names, &markers.paths))
                 .map(|r| r.entry.id.as_str())
                 .collect();
@@ -948,6 +951,144 @@ mod tests {
             ));
             let (cache, rest) = scanned.split_at(1);
             assert_eq!(chunked(&builtin, &environment, &[cache, rest]), found);
+        }
+    }
+
+    #[test]
+    fn optional_location_kind_narrows_only_that_location() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let environment = env(Platform::Linux);
+        for (required, file, directory) in [
+            (None, true, true),
+            (Some(ArtifactKind::File), true, false),
+            (Some(ArtifactKind::Directory), false, true),
+        ] {
+            let mut entry: Entry = serde_json::from_str(ENTRIES)?;
+            entry.locations.truncate(1);
+            entry.locations[0].kind = required;
+            let json = serde_json::to_string(&entry)?;
+            let kb = KnowledgeBase::load(&[("sample-cache.json", &json)])?;
+            for actual in [
+                EntryKind::File,
+                EntryKind::Directory,
+                EntryKind::Symlink,
+                EntryKind::Special,
+            ] {
+                let scanned = [object(unix("/Users/ana/.cache/sample"), actual, 1)];
+                let expected = match actual {
+                    EntryKind::File => file,
+                    EntryKind::Directory => directory,
+                    _ => false,
+                };
+                assert_eq!(
+                    !kb.matches(&environment, &scanned, Timestamp::UNIX_EPOCH)
+                        .is_empty(),
+                    expected,
+                    "{required:?}, {actual:?}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn cargo_matches_intermediates_but_not_deliverables() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        for platform in [Platform::Macos, Platform::Linux, Platform::Windows] {
+            let path = |tail: &str| {
+                if platform == Platform::Windows {
+                    windows(&format!(r"C:\src\{tail}").replace('/', "\\"))
+                } else {
+                    unix(&format!("/src/{tail}"))
+                }
+            };
+            let mut scanned = Vec::new();
+            for (index, tail) in [
+                "app/target/debug/deps",
+                "app/target/debug/build",
+                "app/target/debug/incremental",
+                "app/target/release/deps",
+                "app/target/release/build",
+                "app/target/release/incremental",
+                "app/target",
+                "app/target/debug",
+                "app/target/release",
+                "app/target/debug/examples",
+                "app/target/doc",
+                "app/target/package",
+                "app/target/release/bundle",
+                "app/src",
+                "other/target/debug/deps",
+                "app/target/debug/deps/nested",
+            ]
+            .iter()
+            .enumerate()
+            {
+                scanned.push(object(path(tail), EntryKind::Directory, index as u128 + 1));
+            }
+            scanned.push(object(path("app/target/release/app"), EntryKind::File, 50));
+            scanned.push(object(path("app/Cargo.toml"), EntryKind::File, 51));
+            let environment = env(platform);
+            let found = builtin.matches(&environment, &scanned, Timestamp::UNIX_EPOCH);
+            assert_eq!(found.len(), 6, "{platform:?}");
+            for (evidence, cache) in found.iter().zip(&scanned[..6]) {
+                assert_eq!(
+                    evidence.subject,
+                    Subject::File {
+                        identity: cache.identity().clone()
+                    }
+                );
+                assert!(matches!(
+                    &evidence.fact,
+                    Fact::KnowledgeBaseMatch { entry } if entry.as_str() == "cargo-project-build-cache"
+                ));
+            }
+            let (caches, rest) = scanned.split_at(6);
+            assert_eq!(chunked(&builtin, &environment, &[caches, rest]), found);
+        }
+    }
+
+    #[test]
+    fn cargo_requires_a_regular_manifest_and_a_real_cache_directory() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let environment = env(Platform::Linux);
+        let cache = dir("/src/app/target/debug/deps", 1);
+        assert_eq!(
+            builtin.matches(
+                &environment,
+                std::slice::from_ref(&cache),
+                Timestamp::UNIX_EPOCH
+            ),
+            []
+        );
+        for kind in [
+            EntryKind::Directory,
+            EntryKind::Symlink,
+            EntryKind::Junction,
+            EntryKind::OtherReparsePoint,
+        ] {
+            let marker = object(unix("/src/app/Cargo.toml"), kind, 2);
+            assert_eq!(
+                builtin.matches(
+                    &environment,
+                    &[cache.clone(), marker],
+                    Timestamp::UNIX_EPOCH
+                ),
+                []
+            );
+        }
+        for kind in [
+            EntryKind::File,
+            EntryKind::Symlink,
+            EntryKind::Junction,
+            EntryKind::OtherReparsePoint,
+        ] {
+            let cache = object(unix("/src/app/target/debug/deps"), kind, 1);
+            let marker = object(unix("/src/app/Cargo.toml"), EntryKind::File, 2);
+            assert_eq!(
+                builtin.matches(&environment, &[cache, marker], Timestamp::UNIX_EPOCH),
+                []
+            );
         }
     }
 

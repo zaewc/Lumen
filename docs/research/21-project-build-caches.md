@@ -51,7 +51,28 @@ of net free-space increase. Current existence, complete coverage, hard links, ru
 processes and the policy must be checked again before proposing an action. No user
 files were moved or removed during this investigation.
 
-Cargo build outputs need a separate entry and research: the official
-[Cargo build-cache guide](https://doc.rust-lang.org/cargo/reference/build-cache.html)
-distinguishes final artifacts from internal caches. Do not mark the entire `target`
-directory as disposable merely because it has that name.
+## Cargo intermediate build artifacts
+
+Verified 2026-10-29 against the official
+[build-cache guide](https://doc.rust-lang.org/cargo/reference/build-cache.html) and
+[`cargo clean` reference](https://doc.rust-lang.org/cargo/commands/cargo-clean.html).
+Cargo distinguishes final outputs from intermediate dependencies, build-script output
+and incremental compiler caches. Match only `target/{debug,release}/{deps,build,incremental}`
+beside a scanned regular `Cargo.toml`, on macOS, Windows and Linux. A manifest name is
+metadata evidence of the layout; no manifest contents are opened or executed.
+These locations require directory kind: an unexpected regular file at a cache path
+does not inherit its classification. Other entries retain their existing matching.
+
+Keep the whole `target` and profile roots, final executables/libraries, examples,
+documentation, package archives and desktop bundles outside this entry. Prefer this
+narrow reversible scope over offering `cargo clean`, which removes the entire target
+directory by default. No new command or policy exception is introduced.
+
+Rebuilding may take hours and build scripts may need network access. Custom target
+or build directories, cross-compilation triples and named profiles remain unknown:
+interpreting Cargo configuration or treating an arbitrary environment root as an
+entire disposable artifact would widen this entry beyond its verified scope.
+Existing coverage, ownership, in-use, cloud and executor checks still decide eligibility.
+On Linux the portable scanner cannot rule out clone sharing, so a recognized cache
+can retain a zero reclaimable lower bound and remain `KEEP`; recognition alone never
+overrides that size protection.

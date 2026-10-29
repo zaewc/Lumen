@@ -32,6 +32,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/cargo-global-cache.json"),
     ),
     (
+        "cargo-project-build-cache.json",
+        include_str!("../entries/cargo-project-build-cache.json"),
+    ),
+    (
         "claude-code-session-data.json",
         include_str!("../entries/claude-code-session-data.json"),
     ),
@@ -164,10 +168,34 @@ pub struct Location {
     /// `/`-separated path below the root; a `*` component matches any one name.
     /// Empty only for an `env_var` root (the variable names the artifact).
     pub path: String,
+    /// Required filesystem kind, when documented. Omitted entries accept a
+    /// regular file or directory; links and special files never match.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<ArtifactKind>,
     /// Files relative to the root, any one of which must exist for the location
     /// to match (e.g. a lockfile). Required for a `project` root.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub markers: Vec<String>,
+}
+
+/// A filesystem artifact that can supply knowledge-base evidence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ArtifactKind {
+    /// A regular file.
+    File,
+    /// A real directory.
+    Directory,
+}
+
+impl ArtifactKind {
+    fn matches(self, actual: lumen_domain::EntryKind) -> bool {
+        matches!(
+            (self, actual),
+            (Self::File, lumen_domain::EntryKind::File)
+                | (Self::Directory, lumen_domain::EntryKind::Directory)
+        )
+    }
 }
 
 /// A directory known per user or per project.

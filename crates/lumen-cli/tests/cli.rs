@@ -214,6 +214,99 @@ fn assess_reports_a_known_artifact_and_moves_nothing() -> Result<(), Box<dyn std
     Ok(())
 }
 
+/// A real scan discovers Cargo intermediates without proposing final outputs.
+#[test]
+fn assess_finds_cargo_intermediates_and_preserves_outputs() -> Result<(), Box<dyn std::error::Error>>
+{
+    let paths = [
+        "home/project/Cargo.toml",
+        "home/project/target/debug/deps/generated.rlib",
+        "home/project/target/release/app",
+        "home/project/target/package/app.crate",
+        "home/project/src/main.rs",
+    ];
+    let nodes: Vec<_> = paths
+        .iter()
+        .map(|path| Node::File {
+            path: (*path).into(),
+            contents: vec![7; 4096],
+        })
+        .collect();
+    let fx = Fixture::build(&nodes)?;
+    let home = std::fs::canonicalize(fx.path("home")?)?;
+    let db = fx.path("index.db")?;
+    let run = |args: &[&std::ffi::OsStr]| {
+        Command::new(env!("CARGO_BIN_EXE_lumen"))
+            .args(args)
+            .env("HOME", &home)
+            .env("USERPROFILE", &home)
+            .output()
+    };
+    let scan = run(&[
+        "scan".as_ref(),
+        home.as_os_str(),
+        "--db".as_ref(),
+        db.as_os_str(),
+    ])?;
+    assert!(
+        scan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&scan.stderr)
+    );
+    let out = run(&[
+        "assess".as_ref(),
+        "--db".as_ref(),
+        db.as_os_str(),
+        "--json".as_ref(),
+        "--no-ai".as_ref(),
+    ])?;
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&out.stdout)?;
+    let candidates = report["candidates"].as_array().ok_or("no candidates")?;
+    let item = candidates
+        .iter()
+        .find(|c| {
+            c["path"]
+                .as_str()
+                .is_some_and(|p| std::path::Path::new(p).ends_with("project/target/debug/deps"))
+        })
+        .ok_or("Cargo intermediates must reach assessment")?;
+    assert!(
+        item["reasons"].as_array().is_some_and(|reasons| reasons
+            .iter()
+            .any(|r| r == "Quarantine proposed: the tool that made it can regenerate it.")),
+        "the knowledge-base evidence must reach policy: {item}"
+    );
+    // The portable Unix scanner cannot exclude clone sharing on Linux, so its
+    // reclaimable lower bound can be zero even for an ordinary fixture file.
+    if item["reclaimable_bytes"] == 0 {
+        assert_eq!(item["verdict"], "KEEP", "{item}");
+    } else {
+        assert!(
+            matches!(item["verdict"].as_str(), Some("QUARANTINE" | "REVIEW")),
+            "{item}"
+        );
+    }
+    assert!(item["tool_command"].is_null());
+    for candidate in candidates {
+        if candidate["verdict"] == "QUARANTINE" {
+            let path = candidate["path"].as_str().ok_or("candidate path")?;
+            assert!(
+                std::path::Path::new(path).ends_with("project/target/debug/deps"),
+                "{candidate}"
+            );
+        }
+    }
+    for path in paths {
+        assert_eq!(std::fs::read(fx.path(path)?)?, vec![7; 4096], "{path}");
+    }
+    Ok(())
+}
+
 /// An Electron app's Chromium cache is a candidate of its own; the app's
 /// other data beside it never is, and assessing moves nothing.
 #[cfg(target_os = "macos")]
