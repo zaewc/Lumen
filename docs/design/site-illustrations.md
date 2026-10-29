@@ -89,8 +89,43 @@ with alpha.
 The home page and the README show the app itself (`apps/site/public/screens/` and
 `docs/assets/readme/`): the web app run in a browser on its in-memory transport, with
 its sample data (a fictional `/Users/ana`, never a real disk) and the built-in-key
-option on so AI notes appear, at the desktop window's default width (1120 px, 2x).
-The site uses one light `clean-up` capture per language (WebP, 1600 px wide);
-the README also shows Quarantine and the review view in light and dark. Retake them
-when the screens change noticeably, so the pictures never show a UI the app no longer
-has.
+option on so AI notes appear, at the desktop window's default size (1120 × 800 px,
+2x; Quarantine uses the minimum 560 px height to fit its two sample items). They were
+refreshed on 2026-10-29 after the storage-identity redesign: horizontal
+navigation, storage composition and an evidence inspector replace the old sidebar UI.
+The site displays one light Explore capture per language (WebP, 1600 × 1143 px).
+Its other four localized review/Quarantine assets are also refreshed; they are not
+additional home-page sections. The README uses eight English PNGs:
+Explore, Storage and the evidence inspector at 2240 × 1600 px, and Quarantine at
+2240 × 1120 px, each in light and dark.
+
+### Retaking the captures
+
+`scripts/capture-app-screens.mjs` uses Node.js 24's built-in CDP connection and `cwebp`,
+with no new package dependency. Start the web dev server:
+
+```sh
+pnpm --filter @lumen/web exec vite --host 127.0.0.1 --port 5198 --strictPort
+```
+
+In another terminal, start an isolated Chrome instance (macOS for the platform fonts):
+
+```sh
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+  --remote-debugging-port=9342 --no-first-run --no-default-browser-check \
+  --disable-background-networking --disable-component-update \
+  --user-data-dir="$(mktemp -d -t lumen-screens)" about:blank
+```
+
+Then run `node scripts/capture-app-screens.mjs`. `LUMEN_CAPTURE_ORIGIN` and
+`LUMEN_CAPTURE_CDP` can override those loopback URLs. The script changes only the
+served fixture bootstrap to enable sample AI notes; it does not edit the app's source
+or rendered DOM, invoke the native host, access a keychain or contact an AI service.
+It checks the bootstrap shape, pins the sample clock to 2026-10-29, waits for fonts
+and expected data, and rejects runtime exceptions, external requests and horizontal
+overflow. All pictured paths belong to the fictional `/Users/ana`.
+
+Retake the captures when screens change noticeably. Inspect the results, build the
+site and check both languages at desktop and mobile widths. Stop the temporary
+browser and server after capture. The 3D concept illustrations and app icon above
+are separate assets and do not need replacement when only the UI changes.

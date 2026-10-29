@@ -17,7 +17,7 @@ what is safe to remove, into a quarantine you can restore from.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/clean-up-dark.png">
-  <img src="docs/assets/readme/clean-up-light.png" width="840" alt="Lumen's Clean up page: 9.9 GB proposed across developer tools and app caches, with items that only their own tool should clean listed with the command to run.">
+  <img src="docs/assets/readme/clean-up-light.png" width="840" alt="Lumen's Explore page with sample data: storage composition by decision, 9.9 GB proposed, and tool-native cleanup commands.">
 </picture>
 
 </div>
@@ -46,16 +46,16 @@ what is safe to remove, into a quarantine you can restore from.
     <td width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/review-dark.png">
-        <img src="docs/assets/readme/review-light.png" alt="Items that need review, with AI notes such as: likely an app's settings or data.">
+        <img src="docs/assets/readme/review-light.png" alt="An item's evidence inspector: origin, location, review decision and the reasons behind it, with an optional AI note. Sample data.">
       </picture>
-      <p align="center"><b>Needs review</b>, with what AI thinks each item is</p>
+      <p align="center"><b>Evidence</b>: an item's origin and the reasons behind its decision</p>
     </td>
     <td width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/overview-dark.png">
-        <img src="docs/assets/readme/overview-light.png" alt="Overview: the startup disk is 96.9% used, and the last scan proposed 9.9 GB.">
+        <img src="docs/assets/readme/overview-light.png" alt="Storage with sample data: available disk space, a measured capacity view and the last scan grouped by decision.">
       </picture>
-      <p align="center"><b>Overview</b> of the disk and the last scan</p>
+      <p align="center"><b>Storage</b>: disk capacity and the last scan's composition</p>
     </td>
   </tr>
   <tr>

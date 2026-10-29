@@ -19,7 +19,7 @@ export const ko: Messages = {
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   showcase: {
-    main: "Lumen의 정리 화면. 개발 도구와 앱 캐시에서 9.9 GB를 정리할 수 있다고 제안하고, 도구가 직접 정리해야 하는 항목은 명령과 함께 보여 줘요.",
+    main: "예시 데이터를 보여 주는 Lumen 탐색 화면. 판단별 용량 구성과 개발 도구·앱 캐시의 정리 제안 9.9 GB를 보여 주고, 도구가 직접 정리해야 하는 항목은 명령과 함께 보여 줘요.",
   },
   features: {
     title: "Lumen이 하는 일",

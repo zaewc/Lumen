@@ -18,7 +18,7 @@ export const en: Messages = {
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   showcase: {
-    main: "Lumen's Clean up page, proposing 9.9 GB across developer tools and app caches, and listing items that only their own tool should clean with the command to run.",
+    main: "Lumen's Explore page with sample data: storage composition by decision, 9.9 GB proposed across developer tools and app caches, and commands for items their own tool should clean.",
   },
   features: {
     title: "What Lumen does",
