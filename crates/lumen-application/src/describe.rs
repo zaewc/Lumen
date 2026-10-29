@@ -78,16 +78,33 @@ pub async fn describe(
     assessed: &mut [Assessed],
     request: &dyn Fn(&PolicyInput) -> Option<JevRequest>,
 ) {
+    describe_with_progress(describer, clock, assessed, request, &mut |_, _| {}).await;
+}
+
+/// Like [`describe`], reporting attempted items out of the selected total.
+/// An unavailable judge ends the stage early; unattempted items are never
+/// counted as completed.
+pub async fn describe_with_progress(
+    describer: &dyn Describer,
+    clock: &dyn Clock,
+    assessed: &mut [Assessed],
+    request: &dyn Fn(&PolicyInput) -> Option<JevRequest>,
+    progress: &mut dyn FnMut(usize, usize),
+) {
     let Some(descriptor) = describer.descriptor() else {
         return;
     };
     let output_schema = SchemaVersion::new("jev.item-note", 1, 0)
         .unwrap_or_else(|e| unreachable!("constant schema version is valid: {e}"));
-    for index in chosen(assessed) {
+    let chosen = chosen(assessed);
+    let total = chosen.len();
+    progress(0, total);
+    for (completed, index) in chosen.into_iter().enumerate() {
         let Some(item) = assessed.get_mut(index) else {
             continue;
         };
         let Some(jev_request) = request(&item.input) else {
+            progress(completed + 1, total);
             continue;
         };
         let requested_at = clock.now();
@@ -119,6 +136,7 @@ pub async fn describe(
             latency_ms,
             note,
         });
+        progress(completed + 1, total);
         if stop {
             break;
         }
@@ -484,7 +502,19 @@ mod tests {
                 )
             })
             .collect();
-        ready(describe(&describer, &Epoch, &mut assessed, &request));
+        let mut progress = Vec::new();
+        ready(describe_with_progress(
+            &describer,
+            &Epoch,
+            &mut assessed,
+            &request,
+            &mut |done, total| progress.push((done, total)),
+        ));
+        assert_eq!(
+            progress,
+            [(0, 6), (1, 6), (2, 6), (3, 6), (4, 6)],
+            "an unavailable judge never claims the remaining items are done"
+        );
         assert_eq!(
             describer.asked(),
             ["item-1", "item-2", "item-3", "item-4"],

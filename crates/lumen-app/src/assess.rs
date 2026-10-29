@@ -253,6 +253,47 @@ pub fn with_probes<T>(run: impl FnOnce(&Probes<'_>) -> T) -> Result<T, AssessErr
 /// follows the page and the candidates, not the size of the scan.
 const PAGE: usize = 50_000;
 
+/// Work currently running; percentages apply within one stage, not the scan.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AssessStage {
+    /// Reading installed applications and services; no known total.
+    Inventory,
+    /// Finding project markers in the recorded entries.
+    Markers,
+    /// Matching recorded entries to evidence producers.
+    Evidence,
+    /// Recording evidence and loading relationships; no known total.
+    Graph,
+    /// Deciding candidates, including any optional judge request.
+    Deciding,
+    /// Describing selected review items without changing decisions.
+    Describing,
+}
+
+/// Advisory counts only: no paths, contents or action authority.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AssessProgress {
+    /// Current work.
+    pub stage: AssessStage,
+    /// Units actually processed, including unsuccessful attempts.
+    pub completed: u64,
+    /// Units in this stage, or `None` when they cannot be counted.
+    pub total: Option<u64>,
+}
+
+fn report(
+    progress: &mut dyn FnMut(AssessProgress),
+    stage: AssessStage,
+    completed: u64,
+    total: Option<u64>,
+) {
+    progress(AssessProgress {
+        stage,
+        completed,
+        total,
+    });
+}
+
 /// One candidate's part of the scan: the candidate, everything below it, and
 /// their listings, read from `index.db` when the candidate is decided.
 #[derive(Debug, Default)]
@@ -393,15 +434,25 @@ fn find(
     matcher: &lumen_devkb::Matcher<'_>,
     home: Option<&RawPath>,
     times: (lumen_domain::Timestamp, lumen_domain::Timestamp),
+    progress: &mut dyn FnMut(AssessProgress),
 ) -> Result<Found, StoreError> {
     let (scanned_at, now) = times;
+    let total = Some(store.entry_count(scan)?);
+    let mut completed = 0_u64;
+    report(progress, AssessStage::Markers, completed, total);
     let mut markers = Markers::new();
-    for_each_page(store, scan, |page| matcher.add_markers(page, &mut markers))?;
+    for_each_page(store, scan, |page| {
+        matcher.add_markers(page, &mut markers);
+        completed = completed.saturating_add(u64::try_from(page.len()).unwrap_or(u64::MAX));
+        report(progress, AssessStage::Markers, completed, total);
+    })?;
     let mut found = Found {
         evidence: Vec::new(),
         relationships: Vec::new(),
         entries: Vec::new(),
     };
+    completed = 0;
+    report(progress, AssessStage::Evidence, completed, total);
     for_each_page(store, scan, |page| {
         let produced = platform_contributions(inventory, page, home, now);
         let known = matcher.matches(page, &markers, scanned_at);
@@ -429,6 +480,8 @@ fn find(
         found.evidence.extend(produced.evidence);
         found.evidence.extend(known);
         found.relationships.extend(produced.relationships);
+        completed = completed.saturating_add(u64::try_from(page.len()).unwrap_or(u64::MAX));
+        report(progress, AssessStage::Evidence, completed, total);
     })?;
     Ok(found)
 }
@@ -442,6 +495,15 @@ fn find(
 /// knowledge base fails, or recording would leave less than
 /// [`space::RESERVE`] free on the database's disk.
 pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> {
+    prepare_with_progress(db, clock, &mut |_| {})
+}
+
+fn prepare_with_progress(
+    db: &Path,
+    clock: &dyn Clock,
+    progress: &mut dyn FnMut(AssessProgress),
+) -> Result<Assessment, AssessError> {
+    report(progress, AssessStage::Inventory, 0, None);
     let mut store = IndexStore::new(open_index(db)?);
     let scan = store
         .latest_completed_scan()?
@@ -475,7 +537,9 @@ pub fn prepare(db: &Path, clock: &dyn Clock) -> Result<Assessment, AssessError> 
         &kb.matcher(&env),
         home.as_ref(),
         (scanned_at, now),
+        progress,
     )?;
+    report(progress, AssessStage::Graph, 0, None);
     let gathered = gather(
         &found.entries,
         &inventory,
@@ -744,9 +808,29 @@ pub fn assess(
     judge: &dyn lumen_application::ports::JudgeModel,
     describer: &dyn lumen_application::ports::Describer,
 ) -> Result<Vec<Assessed>, AssessError> {
+    assess_with_progress(db, clock, judge, describer, &mut |_| {})
+}
+
+/// Like [`assess`], reporting actual work at stage boundaries and after each
+/// page or candidate. The observer cannot change decisions. It may stop
+/// listening without stopping the assessment.
+///
+/// # Errors
+///
+/// An [`AssessError`], as for [`prepare`].
+#[tracing::instrument(name = "assess_with_progress", skip_all)]
+pub fn assess_with_progress(
+    db: &Path,
+    clock: &dyn Clock,
+    judge: &dyn lumen_application::ports::JudgeModel,
+    describer: &dyn lumen_application::ports::Describer,
+    progress: &mut dyn FnMut(AssessProgress),
+) -> Result<Vec<Assessed>, AssessError> {
     let timer = std::time::Instant::now();
-    let assessment = prepare(db, clock)?;
+    let assessment = prepare_with_progress(db, clock, progress)?;
     let candidates = select(&assessment.gathered, &assessment.entries);
+    let total = Some(u64::try_from(candidates.len()).unwrap_or(u64::MAX));
+    report(progress, AssessStage::Deciding, 0, total);
     let counter = std::cell::Cell::new(0_u32);
     let now = clock.now();
     let request = |input: &lumen_policy::PolicyInput| {
@@ -755,7 +839,7 @@ pub fn assess(
     };
     let assessed = with_probes(|probes| -> Result<Vec<Assessed>, AssessError> {
         let mut assessed = Vec::new();
-        for candidate in &candidates {
+        for (index, candidate) in candidates.iter().enumerate() {
             // Only this candidate's part of the scan is read, and dropped
             // after its decision; candidates inside it are decided on their
             // own, so its decision covers the rest.
@@ -767,15 +851,29 @@ pub fn assess(
             )) {
                 assessed.push(decided);
             }
+            report(
+                progress,
+                AssessStage::Deciding,
+                u64::try_from(index + 1).unwrap_or(u64::MAX),
+                total,
+            );
         }
         Ok(assessed)
     })??;
     let mut assessed = assessed;
-    block_on(lumen_application::describe::describe(
+    block_on(lumen_application::describe::describe_with_progress(
         describer,
         clock,
         &mut assessed,
         &request,
+        &mut |completed, total| {
+            report(
+                progress,
+                AssessStage::Describing,
+                u64::try_from(completed).unwrap_or(u64::MAX),
+                Some(u64::try_from(total).unwrap_or(u64::MAX)),
+            );
+        },
     ));
     let count = |verdict: lumen_domain::Verdict| {
         assessed
@@ -835,6 +933,66 @@ mod tests {
             protection: Protection::default(),
             access: AccessState::Readable,
         }
+    }
+
+    #[test]
+    fn evidence_progress_counts_only_entries_in_the_selected_scan()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let fixture = lumen_testkit::Fixture::build(&[])?;
+        let mut store = IndexStore::new(open_index(&fixture.root().join("index.db"))?);
+        let scan: ScanId = "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a3".parse()?;
+        let other: ScanId = "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a4".parse()?;
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[])?;
+        store.begin_scan(other, Timestamp::UNIX_EPOCH, &[])?;
+        store.insert_entries(other, &[scanned("/other", 9, 0)])?;
+        let inventory = PlatformInventory {
+            reports: Vec::new(),
+            #[cfg(target_os = "macos")]
+            apps: Vec::new(),
+            #[cfg(windows)]
+            declarations: Vec::new(),
+        };
+        let kb = KnowledgeBase::builtin()?;
+        let env = Environment {
+            platform: Platform::Linux,
+            home: None,
+            local_app_data: None,
+            roaming_app_data: None,
+            vars: Vec::new(),
+        };
+        for count in [0_u64, 3] {
+            let entries: Vec<_> = (0..count)
+                .map(|n| scanned(&format!("/test/{n}"), u128::from(n), 0))
+                .collect();
+            store.insert_entries(scan, &entries)?;
+            let mut events = Vec::new();
+            find(
+                &store,
+                scan,
+                &inventory,
+                &kb.matcher(&env),
+                None,
+                (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
+                &mut |event| events.push(event),
+            )?;
+            let mut expected = Vec::new();
+            for stage in [AssessStage::Markers, AssessStage::Evidence] {
+                expected.push(AssessProgress {
+                    stage,
+                    completed: 0,
+                    total: Some(count),
+                });
+                if count > 0 {
+                    expected.push(AssessProgress {
+                        stage,
+                        completed: count,
+                        total: Some(count),
+                    });
+                }
+            }
+            assert_eq!(events, expected);
+        }
+        Ok(())
     }
 
     /// An app's support folder holding a cache that is decided on its own:

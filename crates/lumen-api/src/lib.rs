@@ -22,6 +22,8 @@ use utoipa::OpenApi;
         views::ScanRequest,
         views::ScanView,
         views::ScanProgressView,
+        views::AssessProgressView,
+        views::AssessStageView,
         views::RootView,
         views::VerdictView,
         views::CandidateView,
@@ -70,6 +72,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn assessment_progress_preserves_large_counts_and_unknown_totals() {
+        use lumen_app::assess::{AssessProgress, AssessStage};
+        let view = views::AssessProgressView::from(AssessProgress {
+            stage: AssessStage::Deciding,
+            completed: u64::MAX,
+            total: None,
+        });
+        assert_eq!(
+            serde_json::to_value(view).ok(),
+            Some(serde_json::json!({
+                "stage": "deciding", "completed": u64::MAX.to_string(), "total": null,
+            }))
+        );
+    }
+
+    #[test]
     fn the_document_is_openapi_3_1_with_every_view() {
         let doc = serde_json::to_value(openapi()).unwrap_or_default();
         assert!(
@@ -83,7 +101,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 35);
+        assert_eq!(schemas, 37);
     }
 
     #[test]

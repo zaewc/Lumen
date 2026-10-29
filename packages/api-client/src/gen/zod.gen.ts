@@ -23,6 +23,27 @@ export const zAiSettingsView = z.object({
 });
 
 /**
+ * Current assessment work. Each stage has its own units and total.
+ */
+export const zAssessStageView = z.enum([
+  "inventory",
+  "markers",
+  "evidence",
+  "graph",
+  "deciding",
+  "describing",
+]);
+
+/**
+ * Advisory progress, without paths or contents. Never an action input.
+ */
+export const zAssessProgressView = z.object({
+  completed: z.string(),
+  stage: zAssessStageView,
+  total: z.string().nullable(),
+});
+
+/**
  * How sure AI review was.
  */
 export const zConfidenceView = z.enum(["low", "medium", "high"]);

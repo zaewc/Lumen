@@ -65,6 +65,9 @@ typed API keys into the session-operation cache.
 The scan, evidence and decision stages appear in the start, progress, confirmation
 and completion views. They describe actual workflow states and never imply a scan
 percentage. Settings and held-item rows use the same readable type and spacing.
+Assessment observers report actual indexed-entry, candidate and description counts
+within named stages. Each known total supports its own percentage; inventory and
+graph work remain indeterminate. Stage counts are advisory and never affect policy.
 In short windows, confirmation titles/actions stay visible while their explanation
 scrolls. The long AI disclosure starts focus on its heading and keeps a structured
 list, following the [WAI dialog focus guidance](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/).

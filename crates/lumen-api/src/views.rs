@@ -8,7 +8,7 @@
 //! match them exhaustively. An absent value is always sent, as `null`, so
 //! optional fields are required and nullable in the schema.
 
-use lumen_app::assess::{ToolGuidance, tool_action};
+use lumen_app::assess::{AssessProgress, AssessStage, ToolGuidance, tool_action};
 use lumen_app::held::{HeldItem, Outcome};
 use lumen_app::quarantine::{ItemResult, QuarantineReport};
 use lumen_app::{Planned, RootSummary, ScanSummary};
@@ -26,6 +26,54 @@ use utoipa::ToSchema;
 
 fn bytes(count: ByteCount) -> String {
     count.get().to_string()
+}
+
+/// Current assessment work. Each stage has its own units and total.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AssessStageView {
+    /// Reading platform inventories.
+    Inventory,
+    /// Looking for project markers in the index.
+    Markers,
+    /// Matching evidence to indexed entries.
+    Evidence,
+    /// Recording evidence and loading relationships.
+    Graph,
+    /// Applying the policy and optional judge to candidates.
+    Deciding,
+    /// Describing selected review items.
+    Describing,
+}
+
+/// Advisory progress, without paths or contents. Never an action input.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AssessProgressView {
+    /// Work currently running; percentages are local to this stage.
+    pub stage: AssessStageView,
+    /// Units processed, as a decimal string.
+    pub completed: String,
+    /// Total units for this stage; null when unknown.
+    #[schema(required = true)]
+    pub total: Option<String>,
+}
+
+impl From<AssessProgress> for AssessProgressView {
+    fn from(progress: AssessProgress) -> Self {
+        Self {
+            stage: match progress.stage {
+                AssessStage::Inventory => AssessStageView::Inventory,
+                AssessStage::Markers => AssessStageView::Markers,
+                AssessStage::Evidence => AssessStageView::Evidence,
+                AssessStage::Graph => AssessStageView::Graph,
+                AssessStage::Deciding => AssessStageView::Deciding,
+                AssessStage::Describing => AssessStageView::Describing,
+            },
+            completed: progress.completed.to_string(),
+            total: progress.total.map(|total| total.to_string()),
+        }
+    }
 }
 
 fn reclaim(assessed: &Assessed) -> ByteCount {

@@ -5,6 +5,8 @@ export type {
   AiKeyView,
   AiNoteView,
   AiSettingsView,
+  AssessProgressView,
+  AssessStageView,
   CandidateView,
   ClientOptions,
   ConfidenceView,

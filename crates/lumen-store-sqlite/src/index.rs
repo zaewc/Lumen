@@ -513,6 +513,21 @@ impl IndexStore {
         rows.map(|row| row?).collect()
     }
 
+    /// Number of indexed entries, including directories, in this scan only.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] if SQLite fails or the count is invalid.
+    pub fn entry_count(&self, scan: ScanId) -> Result<u64, StoreError> {
+        let count = self.conn.query_row(
+            "SELECT count(*) FROM dirs d CROSS JOIN entries e ON e.dir = d.id
+             WHERE d.scan = (SELECT key FROM scans WHERE id = ?1)",
+            [scan.to_string()],
+            |row| row.get(0),
+        )?;
+        from_i64("entry_count", count)
+    }
+
     /// All entries of a scan, in the scan's [order](Self).
     ///
     /// # Errors
@@ -1206,6 +1221,7 @@ pub(crate) mod tests {
         let (_fx, mut store) = store()?;
         let scan = scan_id(9);
         store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[])?;
+        assert_eq!(store.entry_count(scan)?, 0);
         let paths: [&[u8]; 10] = [
             b"/",
             b"/a",
@@ -1225,6 +1241,8 @@ pub(crate) mod tests {
         store.begin_scan(scan_id(10), Timestamp::UNIX_EPOCH, &[])?;
         store.insert_entries(scan_id(10), &[entry(b"/a/b/c", 99), entry(b"/a/b/e", 98)])?;
         let all = store.entries(scan)?;
+        assert_eq!(store.entry_count(scan)?, 10);
+        assert_eq!(store.entry_count(scan_id(10))?, 2);
         let ordered: Vec<&[u8]> = all.iter().map(|e| e.path.as_bytes()).collect();
         assert_eq!(
             ordered,

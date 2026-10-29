@@ -49,6 +49,35 @@ export type AiSettingsView = {
 };
 
 /**
+ * Advisory progress, without paths or contents. Never an action input.
+ */
+export type AssessProgressView = {
+  /**
+   * Units processed, as a decimal string.
+   */
+  completed: string;
+  /**
+   * Work currently running; percentages are local to this stage.
+   */
+  stage: AssessStageView;
+  /**
+   * Total units for this stage; null when unknown.
+   */
+  total: string | null;
+};
+
+/**
+ * Current assessment work. Each stage has its own units and total.
+ */
+export type AssessStageView =
+  | "inventory"
+  | "markers"
+  | "evidence"
+  | "graph"
+  | "deciding"
+  | "describing";
+
+/**
  * One assessed candidate.
  */
 export type CandidateView = {

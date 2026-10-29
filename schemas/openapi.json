@@ -86,6 +86,45 @@
           }
         }
       },
+      "AssessProgressView": {
+        "type": "object",
+        "description": "Advisory progress, without paths or contents. Never an action input.",
+        "required": [
+          "stage",
+          "completed",
+          "total"
+        ],
+        "properties": {
+          "completed": {
+            "type": "string",
+            "description": "Units processed, as a decimal string."
+          },
+          "stage": {
+            "$ref": "#/components/schemas/AssessStageView",
+            "description": "Work currently running; percentages are local to this stage."
+          },
+          "total": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Total units for this stage; null when unknown."
+          }
+        },
+        "additionalProperties": false
+      },
+      "AssessStageView": {
+        "type": "string",
+        "description": "Current assessment work. Each stage has its own units and total.",
+        "enum": [
+          "inventory",
+          "markers",
+          "evidence",
+          "graph",
+          "deciding",
+          "describing"
+        ]
+      },
       "CandidateView": {
         "type": "object",
         "description": "One assessed candidate.",
