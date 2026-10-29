@@ -375,6 +375,10 @@ immediate observations, not proof of bytes reclaimed by Lumen: snapshots, delaye
 reclamation and other programs can affect them. Only aggregate byte readings enter
 local logs; paths and volume identifiers do not. Cleanup outcomes stay independent
 of measurement availability, and quarantine alone is not reported as freeing space.
+The shared UI shows the selected items' estimate separately from the observed change,
+including decreases, no change, and unavailable measurements. A batch compares the
+first and last reading per volume rather than adding overlapping observations;
+expandable details show both readings. Results persist when navigating away.
 
 Entries are JSON files in `crates/lumen-devkb/entries/`, one per artifact, embedded at
 build time and validated on load against `schemas/devkb-entry.schema.json` plus rules

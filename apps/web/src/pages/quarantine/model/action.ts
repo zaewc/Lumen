@@ -1,10 +1,16 @@
-import type { HeldItemView } from "@lumen/api-client";
+import type { HeldItemView, SpaceChangeView } from "@lumen/api-client";
 import { useQueryClient } from "@tanstack/react-query";
+import { heldTotal } from "@/entities/held";
 import { operationOf, QUERY_KEYS, useSessionOperation, useTransport } from "@/shared/api";
 import type { Done, LastAction } from "../lib/outcome";
 import { actionable, type BulkResult, bulkResult } from "../lib/selection";
 
-type Reported = { readonly one: LastAction } | { readonly many: BulkResult };
+type Reported = ({ readonly one: LastAction } | { readonly many: BulkResult }) & {
+  readonly measurement: {
+    readonly changes: readonly SpaceChangeView[] | null;
+    readonly expected: string | null;
+  } | null;
+};
 interface Input {
   readonly action: Done["action"];
   readonly items: readonly HeldItemView[];
@@ -28,25 +34,44 @@ export function useHeldAction() {
     ): Promise<Reported> => {
       const { act } = actionable(action, items);
       const done: LastAction[] = [];
+      const changes: SpaceChangeView[] = [];
+      let fullyMeasured = true;
       try {
         for (const [index, item] of act.entries()) {
           report({ done: index, total: act.length });
-          const result: Done =
-            action === "restore"
-              ? { action, outcome: (await transport.restore(operationOf(item))).outcome }
-              : { action, outcome: (await transport.finalize(operationOf(item))).outcome };
+          let result: Done;
+          if (action === "restore") {
+            result = { action, outcome: (await transport.restore(operationOf(item))).outcome };
+          } else {
+            const finalized = await transport.finalize(operationOf(item));
+            if (finalized.space_change === null) fullyMeasured = false;
+            else changes.push(finalized.space_change);
+            result = { action, outcome: finalized.outcome };
+          }
           done.push({ original: item.original, done: result });
         }
         report({ done: act.length, total: act.length });
         const one = done[0];
-        return mode === "one" && one !== undefined
-          ? { one }
-          : {
-              many: bulkResult(
-                action,
-                done.map((item) => item.done),
-              ),
-            };
+        const result =
+          mode === "one" && one !== undefined
+            ? { one }
+            : {
+                many: bulkResult(
+                  action,
+                  done.map((item) => item.done),
+                ),
+              };
+        const estimated = heldTotal(act);
+        return {
+          ...result,
+          measurement:
+            action === "finalize"
+              ? {
+                  changes: fullyMeasured ? changes : null,
+                  expected: estimated.exact ? estimated.bytes : null,
+                }
+              : null,
+        };
       } finally {
         // A failure can follow earlier successes; refresh even after a partial batch.
         await queries.invalidateQueries({ queryKey: QUERY_KEYS.held });

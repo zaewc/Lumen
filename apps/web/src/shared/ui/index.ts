@@ -27,4 +27,5 @@ export { LogoMark } from "./Logo";
 export { ErrorNotice, Notice, type NoticeTone } from "./Notice";
 export { Page } from "./Page";
 export { type Segment, Segmented } from "./Segmented";
+export { SpaceChangeResult } from "./SpaceChange";
 export { Switch } from "./Switch";

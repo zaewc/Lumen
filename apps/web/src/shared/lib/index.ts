@@ -10,3 +10,4 @@ export {
   shortcutProps,
   useShortcut,
 } from "./shortcut";
+export { summarizeSpaceChanges } from "./space-change";

@@ -227,13 +227,24 @@ export const en = {
     removesData:
       "It removes Docker's stopped containers, unused networks, dangling images and unused build cache.",
     running: "Running… this can take a few minutes.",
-    succeeded: "The command finished. Scan again to see the space it freed.",
+    succeeded: "The command finished. Scan again to see what remains.",
     failed: (code: number | null) =>
       code === null ? "The command failed." : `The command failed (exit code ${code}).`,
     timedOut: "It was still running after 15 minutes, so Lumen stopped it.",
     output: "Show output",
     runFailed: "Lumen could not run the command.",
     runNote: "Running it cannot be undone. Check what it removes before you run it.",
+  },
+  spaceChange: {
+    estimate: (size: string) => `Selected items: estimated ${size}.`,
+    increased: (size: string) => `Observed free space increased by ${size}.`,
+    decreased: (size: string) => `Observed free space decreased by ${size}.`,
+    unchanged: "The readings show no change in free space.",
+    unknown: "Lumen could not measure the free-space change.",
+    details: "View measurements",
+    disk: (index: number) => `Disk ${index}`,
+    readings: (before: string, after: string) => `${before} → ${after} available`,
+    note: "Other apps also affect these readings. Disk space can take time to be reclaimed.",
   },
   coverage: {
     incomplete: "Lumen could not read some folders and left them alone. Sizes may be larger.",

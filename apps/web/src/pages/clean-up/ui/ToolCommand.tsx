@@ -3,7 +3,7 @@ import { useEffect, useId, useState } from "react";
 import { useToolRun } from "@/entities/tool-run";
 import { useTransport } from "@/shared/api";
 import { type Messages, useI18n } from "@/shared/i18n";
-import { buttonClass, ErrorNotice } from "@/shared/ui";
+import { buttonClass, ErrorNotice, SpaceChangeResult } from "@/shared/ui";
 import { commandLine } from "../lib/command";
 
 /** Whether the command was just copied, or copying failed. */
@@ -131,6 +131,7 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
             >
               {runText(m, run.data)}
             </p>
+            <SpaceChangeResult changes={run.data.space_changes} />
             {run.data.output.trim() !== "" && (
               <details className="text-[12px] text-ink-2">
                 <summary className="cursor-pointer">{m.toolCommand.output}</summary>

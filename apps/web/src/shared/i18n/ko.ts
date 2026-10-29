@@ -238,13 +238,24 @@ export const ko = {
     removesData:
       "Docker의 멈춘 컨테이너, 쓰지 않는 네트워크, 이름 없는 이미지, 쓰지 않는 빌드 캐시가 지워져요.",
     running: "실행하는 중… 몇 분 걸릴 수 있어요.",
-    succeeded: "명령이 끝났어요. 다시 검사하면 늘어난 공간이 보여요.",
+    succeeded: "명령이 끝났어요. 다시 검사하면 남은 항목을 확인할 수 있어요.",
     failed: (code: number | null) =>
       code === null ? "명령이 실패했어요." : `명령이 실패했어요(종료 코드 ${code}).`,
     timedOut: "15분이 지나도 끝나지 않아서 멈췄어요.",
     output: "출력 보기",
     runFailed: "명령을 실행하지 못했어요.",
     runNote: "실행하면 되돌릴 수 없어요. 무엇을 지우는지 확인한 뒤 실행해 주세요.",
+  },
+  spaceChange: {
+    estimate: (size: string) => `선택한 항목의 예상 확보 공간은 ${size}예요.`,
+    increased: (size: string) => `작업 전후 여유 공간이 ${size} 늘었어요.`,
+    decreased: (size: string) => `작업 전후 여유 공간이 ${size} 줄었어요.`,
+    unchanged: "현재 측정에서는 여유 공간 변화가 없어요.",
+    unknown: "여유 공간 변화를 측정하지 못했어요.",
+    details: "측정값 보기",
+    disk: (index: number) => `디스크 ${index}`,
+    readings: (before: string, after: string) => `여유 공간 ${before} → ${after}`,
+    note: "측정값에는 다른 앱의 작업도 포함돼요. 디스크 수치는 늦게 반영될 수 있어요.",
   },
   coverage: {
     incomplete: "일부 폴더를 읽지 못해서 그대로 두었어요. 실제 크기는 더 클 수 있어요.",

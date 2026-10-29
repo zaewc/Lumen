@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { heldTotal, useHeld } from "@/entities/held";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
-import { buttonClass, ErrorNotice, InfoTip, Notice, Page } from "@/shared/ui";
+import { buttonClass, ErrorNotice, InfoTip, Notice, Page, SpaceChangeResult } from "@/shared/ui";
 import { doneText, doneWell } from "../lib/outcome";
 import {
   actionable,
@@ -131,6 +131,7 @@ export function QuarantinePage() {
             <p>{bulkText(m, reported.many)}</p>
           </Notice>
         )}
+        {reported?.measurement && <SpaceChangeResult {...reported.measurement} />}
       </div>
       {confirming && removable.act.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-500/8 px-3 py-2.5 dark:bg-red-400/10">
