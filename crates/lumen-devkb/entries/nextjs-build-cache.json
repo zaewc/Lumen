@@ -1,0 +1,18 @@
+{
+  "id": "nextjs-build-cache",
+  "tool": "Next.js",
+  "locations": [
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "project" },
+      "path": ".next/cache",
+      "markers": ["package.json"]
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://nextjs.org/docs/app/guides/ci-build-caching"
+  ],
+  "last_verified": "2026-10-29"
+}

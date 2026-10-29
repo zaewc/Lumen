@@ -14,7 +14,7 @@
 //!   objects (ADR-0017);
 //! - names compare without case on macOS and Windows, whose default volumes are
 //!   case-insensitive, and exactly elsewhere;
-//! - a project location matches only if one of its markers was itself scanned:
+//! - a project location matches only if one of its markers was scanned as a file:
 //!   an unscanned marker is unknown, so no evidence is produced.
 //!
 //! [`KnowledgeBase::matches`] matches a whole scan at once. A [`Matcher`]
@@ -261,7 +261,7 @@ impl KnowledgeBase {
         let matcher = self.matcher(env);
         let paths = matcher.paths(scanned);
         let mut markers = Markers::new();
-        matcher.collect_markers(&paths, &mut markers);
+        matcher.collect_markers(scanned, &paths, &mut markers);
         matcher.evidence(scanned, &paths, &markers, observed_at)
     }
 }
@@ -269,7 +269,7 @@ impl KnowledgeBase {
 impl Matcher<'_> {
     /// Pass 1: adds the marker paths among `chunk` to `markers`.
     pub fn add_markers(&self, chunk: &[FilesystemEntry], markers: &mut Markers) {
-        self.collect_markers(&self.paths(chunk), markers);
+        self.collect_markers(chunk, &self.paths(chunk), markers);
     }
 
     /// Pass 2: `KnowledgeBaseMatch` evidence for every file or directory in
@@ -294,15 +294,23 @@ impl Matcher<'_> {
             .collect()
     }
 
-    fn collect_markers(&self, paths: &[Vec<Component>], markers: &mut Markers) {
+    fn collect_markers(
+        &self,
+        scanned: &[FilesystemEntry],
+        paths: &[Vec<Component>],
+        markers: &mut Markers,
+    ) {
         markers.paths.extend(
-            paths
+            scanned
                 .iter()
-                .filter(|p| {
-                    p.last()
-                        .is_some_and(|name| self.marker_names.contains(name))
+                .zip(paths)
+                .filter(|(entry, path)| {
+                    entry.kind == EntryKind::File
+                        && path
+                            .last()
+                            .is_some_and(|name| self.marker_names.contains(name))
                 })
-                .cloned(),
+                .map(|(_, path)| path.clone()),
         );
     }
 
@@ -838,6 +846,66 @@ mod tests {
             ],
         );
         assert_eq!(found, [(1, "sample-build".to_owned())]);
+    }
+
+    #[test]
+    fn only_regular_files_qualify_as_project_markers() {
+        for kind in [
+            EntryKind::Directory,
+            EntryKind::Symlink,
+            EntryKind::Junction,
+            EntryKind::OtherReparsePoint,
+            EntryKind::Special,
+        ] {
+            let scanned = [
+                dir("/src/app/target", 1),
+                object(unix("/src/app/Cargo.toml"), kind, 2),
+            ];
+            let linux = env(Platform::Linux);
+            assert!(matched(&linux, &scanned).is_empty(), "{kind:?}");
+            let (target, marker) = scanned.split_at(1);
+            assert_eq!(chunked(&kb(), &linux, &[target, marker]), Vec::new());
+        }
+    }
+
+    #[test]
+    fn nextjs_matches_only_a_projects_build_cache() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        for platform in [Platform::Macos, Platform::Linux, Platform::Windows] {
+            let path = |tail: &str| {
+                if platform == Platform::Windows {
+                    windows(&format!(r"C:\src\{tail}").replace('/', "\\"))
+                } else {
+                    unix(&format!("/src/{tail}"))
+                }
+            };
+            let scanned = [
+                object(path("app/.next/cache"), EntryKind::Directory, 1),
+                object(path("app/package.json"), EntryKind::File, 2),
+                object(path("app/.next"), EntryKind::Directory, 3),
+                object(path("app/.next/server"), EntryKind::Directory, 4),
+                object(path("app/.next/static"), EntryKind::Directory, 5),
+                object(path("app/node_modules"), EntryKind::Directory, 6),
+                object(path("app/src"), EntryKind::Directory, 7),
+                object(path("other/.next/cache"), EntryKind::Directory, 8),
+                object(path("app/.next/cache/webpack"), EntryKind::Directory, 9),
+            ];
+            let environment = env(platform);
+            let found = builtin.matches(&environment, &scanned, Timestamp::UNIX_EPOCH);
+            assert_eq!(found.len(), 1, "{platform:?}");
+            assert_eq!(
+                found[0].subject,
+                Subject::File {
+                    identity: scanned[0].identity().clone()
+                }
+            );
+            assert!(matches!(
+                &found[0].fact,
+                Fact::KnowledgeBaseMatch { entry } if entry.as_str() == "nextjs-build-cache"
+            ));
+            let (cache, rest) = scanned.split_at(1);
+            assert_eq!(chunked(&builtin, &environment, &[cache, rest]), found);
+        }
     }
 
     #[test]

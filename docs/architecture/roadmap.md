@@ -132,6 +132,7 @@ call yet:
 | 6.14a | `ci(devkb): flag stale entries on a schedule` | `xtask devkb --max-age-days`; a scheduled workflow, so time passing never fails unrelated PRs |
 | 6.15+ | `feat(devkb): add <tool> entry` | one PR per tool, each with sources. Landed: Cargo, Gradle, Go build and module caches, npm, pnpm, uv, Homebrew, Claude Code, Xcode DerivedData, iOS DeviceSupport and simulator devices, CocoaPods download cache, JetBrains system directory (`not_regenerable` guard: it holds Local History), Docker Desktop disk image (`not_regenerable`), Visual Studio Code (Chromium caches, `CachedData`, `CachedExtensionVSIXs`; from its source, 13.33). Open: simulator runtimes (no home-relative location), Docker objects via `docker system prune`, Yarn (Yarn 1 has no documented path; Berry's `cache clean --mirror` is a no-op under the default global cache and plain `cache clean` depends on the working directory) |
 | 6.16 | `feat(devkb): match entries against scanned entries` | resolve entry locations per platform and environment; `KnowledgeBaseMatch` evidence |
+| 6.16a | `feat(devkb): discover project build caches` | Next.js `.next/cache` beside a scanned regular `package.json`; preserve build output and source files. Project markers exclude directories, symlinks and reparse points ([research 21](../research/21-project-build-caches.md)). |
 | 6.17 | `docs(graph): document evidence graph` | `docs/architecture/evidence-graph.md` |
 
 ## Phase 7: Policy (complete)
