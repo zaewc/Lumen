@@ -20,7 +20,7 @@ use lumen_application::collect::{Inventory, summarize};
 use lumen_application::gather::gather;
 use lumen_application::observe::below;
 use lumen_application::ports::{Clock, InUseProbe, InventoryReport, OwnershipProbe};
-use lumen_devkb::{Environment, KnowledgeBase, Markers};
+use lumen_devkb::{Environment, KnowledgeBase, Markers, Root};
 use lumen_domain::{
     CleanupMechanism, Evidence, Fact, Platform, PlatformCapabilities, RawPath, Relationship,
     ScanId, SourceName, SourceNameError, Subject,
@@ -103,7 +103,36 @@ fn home() -> Option<RawPath> {
 }
 
 fn env_path(name: &str) -> Option<RawPath> {
-    std::env::var_os(name).and_then(|value| crate::raw_path(Path::new(&value)).ok())
+    std::env::var_os(name).and_then(|value| cache_path(Path::new(&value)))
+}
+
+fn cache_path(path: &Path) -> Option<RawPath> {
+    path.is_absolute()
+        .then(|| crate::raw_path(path).ok())
+        .flatten()
+}
+
+/// Read only directory variables declared by applicable knowledge-base locations.
+/// Do not enumerate the process environment: it can contain credentials.
+fn cache_vars(
+    kb: &KnowledgeBase,
+    platform: Platform,
+    mut read: impl FnMut(&str) -> Option<RawPath>,
+) -> Vec<(String, RawPath)> {
+    let names: BTreeSet<_> = kb
+        .entries()
+        .iter()
+        .flat_map(|entry| &entry.locations)
+        .filter(|location| location.platforms.contains(&platform))
+        .filter_map(|location| match &location.root {
+            Root::EnvVar { name } => Some(name),
+            _ => None,
+        })
+        .collect();
+    names
+        .into_iter()
+        .filter_map(|name| read(name).map(|path| (name.clone(), path)))
+        .collect()
 }
 
 /// The platform's inventory, read once per assessment, and what its
@@ -525,7 +554,7 @@ fn prepare_with_progress(
         home: home.clone(),
         local_app_data: env_path("LOCALAPPDATA"),
         roaming_app_data: env_path("APPDATA"),
-        vars: Vec::new(),
+        vars: cache_vars(&kb, platform, env_path),
     };
     // The scan's facts and what is derived from them alone are dated by the
     // scan, so assessing it again records nothing new.
@@ -933,6 +962,88 @@ mod tests {
             protection: Protection::default(),
             access: AccessState::Readable,
         }
+    }
+
+    #[test]
+    fn custom_cache_roots_reach_the_real_matcher() -> Result<(), Box<dyn std::error::Error>> {
+        let kb = KnowledgeBase::builtin()?;
+        let mut read_names = Vec::new();
+        let vars = cache_vars(&kb, Platform::Linux, |name| {
+            read_names.push(name.to_owned());
+            let value = match name {
+                "UV_CACHE_DIR" => "/custom/uv",
+                "npm_config_cache" => "/custom/npm-lower",
+                "NPM_CONFIG_CACHE" => "/custom/npm-upper",
+                _ => return None,
+            };
+            RawPath::from_unix_bytes(value.as_bytes().to_vec()).ok()
+        });
+        assert_eq!(
+            read_names.len(),
+            read_names.iter().collect::<BTreeSet<_>>().len()
+        );
+        assert!(
+            !read_names
+                .iter()
+                .any(|name| name == "PATH" || name == "JEB_API_KEY")
+        );
+        assert_eq!(vars.len(), 3);
+        let env = Environment {
+            platform: Platform::Linux,
+            home: None,
+            local_app_data: None,
+            roaming_app_data: None,
+            vars,
+        };
+        let found = kb.matches(
+            &env,
+            &[
+                scanned("/custom/uv", 1, 0),
+                scanned("/custom/npm-lower/_cacache", 2, 0),
+                scanned("/custom/npm-upper/_cacache", 3, 0),
+                scanned("/custom/uv/child", 4, 0),
+                scanned("/unrelated", 5, 0),
+            ],
+            Timestamp::UNIX_EPOCH,
+        );
+        let identities: BTreeSet<_> = found
+            .iter()
+            .filter_map(|e| match &e.subject {
+                Subject::File { identity } => Some(identity.file.get()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(identities, BTreeSet::from([1, 2, 3]));
+        Ok(())
+    }
+
+    #[test]
+    fn unset_relative_and_other_platform_roots_do_not_match()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let kb = KnowledgeBase::builtin()?;
+        assert!(cache_path(Path::new("relative")).is_none());
+        assert!(cache_path(Path::new("")).is_none());
+        assert!(cache_path(&std::env::temp_dir()).is_some());
+        let vars = cache_vars(&kb, Platform::Linux, |_| None);
+        let env = Environment {
+            platform: Platform::Linux,
+            home: None,
+            local_app_data: None,
+            roaming_app_data: None,
+            vars,
+        };
+        assert_eq!(
+            kb.matches(&env, &[scanned("/relative", 1, 0)], Timestamp::UNIX_EPOCH),
+            []
+        );
+        assert_eq!(
+            cache_vars(&kb, Platform::Windows, |name| {
+                assert_ne!(name, "HOMEBREW_CACHE");
+                None
+            }),
+            []
+        );
+        Ok(())
     }
 
     #[test]
