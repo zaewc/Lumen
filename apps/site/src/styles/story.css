@@ -34,19 +34,6 @@
   pointer-events: none;
 }
 
-.chapter:nth-child(2) .chapter-layout {
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr);
-}
-
-.chapter:nth-child(2) .chapter-content {
-  grid-column: 2;
-}
-
-.chapter:nth-child(2) .chapter-art {
-  grid-column: 1;
-  margin: -24px -48px 0 0;
-}
-
 .chapter h2 {
   margin: 0;
   font-size: clamp(2.5rem, 3.9vw, 3.5rem);
@@ -82,18 +69,15 @@
     padding: 40px var(--gutter) 56px;
   }
 
-  .chapter-layout,
-  .chapter:nth-child(2) .chapter-layout {
+  .chapter-layout {
     grid-template-columns: 1fr;
   }
 
-  .chapter .chapter-content,
-  .chapter:nth-child(2) .chapter-content {
+  .chapter .chapter-content {
     grid-area: 2 / 1;
   }
 
-  .chapter .chapter-art,
-  .chapter:nth-child(2) .chapter-art {
+  .chapter .chapter-art {
     grid-area: 1 / 1;
     justify-self: end;
     width: min(64vw, 280px);

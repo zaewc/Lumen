@@ -4,6 +4,8 @@ Created with the built-in image_gen tool on 2026-10-25 for the owner's request.
 These are conceptual illustrations of safety, evidence and on-device storage;
 they do not depict the application UI or real scan results. Transparent alpha is
 preserved in the checked-in WebP files. No external font or runtime dependency.
+Story sections share a left text column, with their illustration to the right on
+desktop, so consecutive headings keep the same alignment.
 
 Final project assets:
 
