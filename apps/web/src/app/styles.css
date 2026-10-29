@@ -205,6 +205,26 @@
   background: var(--lm-accent-soft);
 }
 
+/* Native value attributes keep measured progress compatible with desktop CSP. */
+.assessment-progress {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 2px;
+  border: 0;
+  background: var(--lm-accent-soft);
+  color: var(--lm-accent);
+}
+.assessment-progress::-webkit-progress-bar {
+  background: var(--lm-accent-soft);
+}
+.assessment-progress::-webkit-progress-value {
+  background: var(--lm-accent);
+}
+.assessment-progress::-moz-progress-bar {
+  background: var(--lm-accent);
+}
+
 /* The indeterminate progress bar: a short bar sliding across its track. */
 @keyframes indeterminate {
   0% {

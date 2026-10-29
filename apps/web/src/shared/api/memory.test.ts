@@ -1,5 +1,6 @@
 import {
   zAiSettingsView,
+  zAssessProgressView,
   zCandidateView,
   zDiskView,
   zFinalizeOutcomeView,
@@ -20,7 +21,15 @@ describe("memoryTransport", () => {
     const progress: unknown[] = [];
     zScanView.parse(await transport.scan({ roots: ["/Users/ana"] }, (p) => progress.push(p)));
     expect(progress.map((p) => zScanProgressView.parse(p).entries)).toEqual(["1580"]);
-    const candidates = (await transport.assess()).map((c) => zCandidateView.parse(c));
+    const assessedProgress: unknown[] = [];
+    const candidates = (await transport.assess((p) => assessedProgress.push(p))).map((c) =>
+      zCandidateView.parse(c),
+    );
+    const measured = assessedProgress.map((p) => zAssessProgressView.parse(p));
+    expect(measured.map((p) => p.completed)).toEqual(
+      Array.from({ length: candidates.length + 1 }, (_, n) => n.toString()),
+    );
+    expect(measured.every((p) => p.total === candidates.length.toString())).toBe(true);
     expect(candidates.find((c) => c.verdict === "review")?.tool_command?.program).toBe("xcrun");
     expect(
       candidates.filter((c) => c.verdict === "review" && c.tool_command === null).length,

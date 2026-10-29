@@ -1,4 +1,5 @@
-import type { ScanProgressView } from "@lumen/api-client";
+import type { AssessProgressView, ScanProgressView } from "@lumen/api-client";
+import { AssessmentProgress } from "@/entities/scan-session";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { FlowStage } from "./FlowStage";
@@ -29,10 +30,12 @@ function Stat({
 /** A scan in progress (live totals), then the assessment that follows it. */
 export function ProgressPanel({
   progress,
+  assessmentProgress,
   deciding,
   focus,
 }: {
   readonly progress: ScanProgressView | null;
+  readonly assessmentProgress: AssessProgressView | null;
   readonly deciding: boolean;
   readonly focus: boolean;
 }) {
@@ -41,20 +44,32 @@ export function ProgressPanel({
   const none = "–";
   return (
     <section className="max-w-4xl space-y-7">
-      <FlowStage phase={deciding ? "evidence" : "scan"} />
+      <FlowStage
+        phase={
+          !deciding
+            ? "scan"
+            : assessmentProgress?.stage === "deciding" || assessmentProgress?.stage === "describing"
+              ? "decision"
+              : "evidence"
+        }
+      />
       <div role="status" className="space-y-1">
         <StepHeading focus={focus} className="text-[24px] font-medium tracking-[-0.035em] text-ink">
           {deciding ? m.scanning.deciding : m.scanning.title}
         </StepHeading>
         <p className="text-ink-2">{deciding ? m.scanning.decidingHint : m.scanning.readOnly}</p>
       </div>
-      <div
-        role="progressbar"
-        aria-label={m.scanning.progress}
-        className="h-0.5 overflow-hidden bg-accent-soft"
-      >
-        <div className="h-full w-2/5 animate-[indeterminate_1.4s_ease-in-out_infinite] bg-accent motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50" />
-      </div>
+      {deciding ? (
+        <AssessmentProgress progress={assessmentProgress} />
+      ) : (
+        <div
+          role="progressbar"
+          aria-label={m.scanning.progress}
+          className="h-0.5 overflow-hidden bg-accent-soft"
+        >
+          <div className="h-full w-2/5 animate-[indeterminate_1.4s_ease-in-out_infinite] bg-accent motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50" />
+        </div>
+      )}
       <dl className="flex flex-wrap gap-x-12 gap-y-4">
         <Stat label={m.scanning.items} value={progress ? count(progress.entries) : none} />
         <Stat

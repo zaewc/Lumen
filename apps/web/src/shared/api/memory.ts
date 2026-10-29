@@ -330,12 +330,21 @@ export function memoryTransport({
       }
       return scanView;
     },
-    assess: async () => {
-      await wait(pace);
-      // Like the host: on but without a key, nothing is asked.
-      return ai.enabled && ai.key !== "none"
-        ? candidates.map((c) => ({ ...c, ai_note: notes.get(c.path) ?? null }))
-        : candidates;
+    assess: async (onProgress) => {
+      const result: CandidateView[] = [];
+      const total = candidates.length.toString();
+      onProgress?.({ stage: "deciding", completed: "0", total });
+      for (const candidate of candidates) {
+        await wait(pace / Math.max(candidates.length, 1));
+        // Like the host: on but without a key, nothing is asked.
+        result.push(
+          ai.enabled && ai.key !== "none"
+            ? { ...candidate, ai_note: notes.get(candidate.path) ?? null }
+            : candidate,
+        );
+        onProgress?.({ stage: "deciding", completed: result.length.toString(), total });
+      }
+      return result;
     },
     plan: async () => {
       await wait(pace / 2);

@@ -3,6 +3,7 @@
 // response is validated against the generated schemas before use.
 import type {
   AiSettingsView,
+  AssessProgressView,
   CandidateView,
   DiskView,
   ExecuteRequest,
@@ -38,7 +39,7 @@ export interface LumenTransport {
    */
   scan(request: ScanRequest, onProgress?: (progress: ScanProgressView) => void): Promise<ScanView>;
   /** Decides the latest completed scan; moves nothing. */
-  assess(): Promise<readonly CandidateView[]>;
+  assess(onProgress?: (progress: AssessProgressView) => void): Promise<readonly CandidateView[]>;
   /** Plans every candidate proposed for quarantine; moves nothing. */
   plan(): Promise<PlanView>;
   /** Executes one plan, confirmed by its full hash. */

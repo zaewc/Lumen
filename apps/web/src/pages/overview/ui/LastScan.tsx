@@ -1,7 +1,12 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useId } from "react";
 import { heldTotal, useHeld } from "@/entities/held";
-import { DecisionMap, summarize, useScanSession } from "@/entities/scan-session";
+import {
+  AssessmentProgress,
+  DecisionMap,
+  summarize,
+  useScanSession,
+} from "@/entities/scan-session";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { ChevronIcon, Notice } from "@/shared/ui";
@@ -77,9 +82,13 @@ function Running() {
           {m.overview.session.showProgress}
         </Link>
       </p>
-      <div className="h-1 overflow-hidden rounded-full bg-accent-soft">
-        <div className="h-full w-2/5 animate-[indeterminate_1.6s_ease-in-out_infinite] rounded-full bg-accent motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50" />
-      </div>
+      {!session.scanning ? (
+        <AssessmentProgress progress={session.assessmentProgress} />
+      ) : (
+        <div className="h-1 overflow-hidden rounded-full bg-accent-soft">
+          <div className="h-full w-2/5 animate-[indeterminate_1.6s_ease-in-out_infinite] rounded-full bg-accent motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50" />
+        </div>
+      )}
     </div>
   );
 }

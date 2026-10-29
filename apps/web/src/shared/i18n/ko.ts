@@ -132,7 +132,17 @@ export const ko = {
   scanning: {
     title: "검사하는 중…",
     deciding: "판단하는 중…",
-    decidingHint: "찾은 항목에 안전 규칙을 적용하고 있어요.",
+    decidingHint: "항목의 출처와 근거를 살펴보고 있어요.",
+    stages: {
+      inventory: "설치된 앱을 확인하는 중…",
+      markers: "항목의 출처를 확인하는 중…",
+      evidence: "판단 근거를 연결하는 중…",
+      graph: "근거의 관계를 살펴보는 중…",
+      deciding: "안전 규칙으로 판단하는 중…",
+      describing: "검토할 항목의 설명을 확인하는 중…",
+    },
+    stagePercent: (n: number) => `이 단계 ${n}%`,
+    processed: (done: string, total: string) => `${total}개 중 ${done}개 확인`,
     readOnly: "읽기만 하고, 아무것도 바꾸지 않아요.",
     progress: "검사 진행 상황",
     items: "찾은 항목",

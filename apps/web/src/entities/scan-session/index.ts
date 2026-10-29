@@ -13,5 +13,6 @@ export {
   statusOf,
   summarize,
 } from "./model/summary";
+export { AssessmentProgress } from "./ui/AssessmentProgress";
 export { DecisionMap } from "./ui/DecisionMap";
 export { DecisionMark } from "./ui/DecisionMark";

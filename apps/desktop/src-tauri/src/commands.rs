@@ -14,9 +14,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use lumen_api::views::{
-    AiSettingsView, CandidateView, DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView,
-    PlanView, QuarantineReportView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
-    ToolRunView,
+    AiSettingsView, AssessProgressView, CandidateView, DiskView, ExecuteRequest,
+    FinalizeOutcomeView, HeldItemView, PlanView, QuarantineReportView, RestoreOutcomeView,
+    ScanProgressView, ScanRequest, ScanView, ToolRunView,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -199,17 +199,43 @@ fn with_judge<T>(
 
 /// Decides the latest completed scan; moves nothing.
 #[tauri::command]
-pub(crate) async fn assess(core: State<'_, Core>) -> Result<Vec<CandidateView>, CommandError> {
+pub(crate) async fn assess(
+    core: State<'_, Core>,
+    progress: Channel<AssessProgressView>,
+) -> Result<Vec<CandidateView>, CommandError> {
     let db = core.db.clone();
     let secrets = core.secrets.clone();
     let builtin = core.builtin.clone();
     let views = blocking(move || {
+        let mut listening = true;
+        let mut last = None;
         let assessed = with_judge(
             &db,
             secrets.as_deref(),
             builtin.as_ref(),
             |judge, describer| {
-                lumen_app::assess(&db, &SystemClock, judge, describer).map_err(CommandError::new)
+                lumen_app::assess::assess_with_progress(
+                    &db,
+                    &SystemClock,
+                    judge,
+                    describer,
+                    &mut |event| {
+                        if !listening {
+                            return;
+                        }
+                        let now = std::time::Instant::now();
+                        let due = last.is_none_or(|(stage, sent): (_, std::time::Instant)| {
+                            stage != event.stage
+                                || now.duration_since(sent) >= std::time::Duration::from_millis(250)
+                        });
+                        if due || event.total == Some(event.completed) {
+                            last = Some((event.stage, now));
+                            // A closed panel/window stops delivery, never the work.
+                            listening = progress.send(AssessProgressView::from(event)).is_ok();
+                        }
+                    },
+                )
+                .map_err(CommandError::new)
             },
             Vec::as_slice,
         )?;

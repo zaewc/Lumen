@@ -121,6 +121,15 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
             json!({ "request": { "roots": [home] }, "progress": "__CHANNEL__:7" }),
         );
         assert_eq!(scan["roots"][0]["coverage_complete"], true, "{scan}");
+        let assessed = ok("assess", json!({ "progress": "__CHANNEL__:8" }));
+        assert!(
+            assessed.as_array().is_some_and(|items| !items.is_empty()),
+            "{assessed}"
+        );
+        assert!(
+            item.exists(),
+            "assessment only reads, even without a progress listener"
+        );
         // REVIEW instead of QUARANTINE (in-use visibility): covered elsewhere.
         let plan = invoke(&window, "plan", json!({})).ok()?;
         let report = ok(

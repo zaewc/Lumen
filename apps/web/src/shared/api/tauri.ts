@@ -3,6 +3,7 @@
 // with the generated schemas before the UI uses them (ADR-0011).
 import {
   zAiSettingsView,
+  zAssessProgressView,
   zCandidateView,
   zDiskView,
   zFinalizeOutcomeView,
@@ -32,7 +33,14 @@ export function tauriTransport(): LumenTransport {
       };
       return zScanView.parse(await invoke("scan", { request, progress }));
     },
-    assess: async () => zCandidateView.array().parse(await invoke("assess")),
+    assess: async (onProgress) => {
+      const progress = new Channel<unknown>();
+      progress.onmessage = (message) => {
+        const parsed = zAssessProgressView.safeParse(message);
+        if (parsed.success) onProgress?.(parsed.data);
+      };
+      return zCandidateView.array().parse(await invoke("assess", { progress }));
+    },
     plan: async () => zPlanView.parse(await invoke("plan")),
     execute: async (request) => zQuarantineReportView.parse(await invoke("execute", { request })),
     held: async () => zHeldItemView.array().parse(await invoke("held")),

@@ -121,7 +121,17 @@ export const en = {
   scanning: {
     title: "Scanning…",
     deciding: "Deciding…",
-    decidingHint: "Lumen is applying its safety rules to what it found.",
+    decidingHint: "Lumen is examining the origins of items and their evidence.",
+    stages: {
+      inventory: "Checking installed apps…",
+      markers: "Checking where items came from…",
+      evidence: "Connecting evidence to items…",
+      graph: "Examining relationships…",
+      deciding: "Applying safety rules…",
+      describing: "Checking descriptions of review items…",
+    },
+    stagePercent: (n: number) => `${n}% of this stage`,
+    processed: (done: string, total: string) => `${done} of ${total} items checked`,
     readOnly: "Lumen only reads and changes nothing.",
     progress: "Scan progress",
     items: "Items found",

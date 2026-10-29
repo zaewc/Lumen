@@ -82,7 +82,7 @@ export function CleanUpPage() {
       case "deciding":
         return (
           <button type="button" disabled className={buttonClass("primary")}>
-            {m.common.scanning}
+            {step === "deciding" ? m.scanning.deciding : m.common.scanning}
           </button>
         );
       case "decideFailed":
@@ -113,7 +113,12 @@ export function CleanUpPage() {
       case "scanning":
       case "deciding":
         return (
-          <ProgressPanel progress={session.progress} deciding={step === "deciding"} focus={acted} />
+          <ProgressPanel
+            progress={session.progress}
+            assessmentProgress={session.assessmentProgress}
+            deciding={step === "deciding"}
+            focus={acted}
+          />
         );
       case "decideFailed":
         return (

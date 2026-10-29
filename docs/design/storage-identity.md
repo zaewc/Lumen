@@ -68,6 +68,10 @@ percentage. Settings and held-item rows use the same readable type and spacing.
 Assessment observers report actual indexed-entry, candidate and description counts
 within named stages. Each known total supports its own percentage; inventory and
 graph work remain indeterminate. Stage counts are advisory and never affect policy.
+The desktop forwards these counts at most four times a second, always including
+stage boundaries and completion. Overview and the progress view share the same
+session state. Navigating away never cancels assessment; a new scan discards old
+progress events. The bar uses native progress values, compatible with desktop CSP.
 In short windows, confirmation titles/actions stay visible while their explanation
 scrolls. The long AI disclosure starts focus on its heading and keeps a structured
 list, following the [WAI dialog focus guidance](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/).

@@ -1,4 +1,5 @@
 import type {
+  AssessProgressView,
   CandidateView,
   PlanView,
   QuarantineReportView,
@@ -6,7 +7,7 @@ import type {
   ScanView,
 } from "@lumen/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
+import { createContext, type ReactNode, useContext, useMemo, useRef, useState } from "react";
 import { QUERY_KEYS, useSessionOperation, useTransport } from "@/shared/api";
 
 /** Where the assessment of the latest scan is. */
@@ -30,6 +31,7 @@ export interface ScanSession {
   readonly assessment: AssessmentStatus;
   readonly candidates: readonly CandidateView[] | null;
   readonly assessmentError: unknown;
+  readonly assessmentProgress: AssessProgressView | null;
   /** What the last clean-up did, until a new scan starts. */
   readonly report: QuarantineReportView | null;
   /** Scans these roots (none: the whole disk), read-only. */
@@ -52,18 +54,28 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
   const transport = useTransport();
   const queries = useQueryClient();
   const [progress, setProgress] = useState<ScanProgressView | null>(null);
+  const [assessmentProgress, setAssessmentProgress] = useState<AssessProgressView | null>(null);
+  const generation = useRef(0);
   const [report, setReport] = useState<QuarantineReportView | null>(null);
   const [lastRoots, setLastRoots] = useState<string[]>([]);
   const scan = useMutation({
     mutationFn: (roots: string[]) => {
       setProgress(null);
+      generation.current += 1;
+      setAssessmentProgress(null);
       return transport.scan({ roots }, setProgress);
     },
   });
   const scanId = scan.data?.scan;
   const assessment = useQuery({
     queryKey: [...QUERY_KEYS.assessment, scanId],
-    queryFn: () => transport.assess(),
+    queryFn: () => {
+      const current = generation.current;
+      setAssessmentProgress(null);
+      return transport.assess((next) => {
+        if (generation.current === current) setAssessmentProgress(next);
+      });
+    },
     enabled: scanId !== undefined,
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
@@ -96,6 +108,7 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
       assessment: assessment.status,
       candidates: assessment.data ?? null,
       assessmentError: assessment.error,
+      assessmentProgress,
       report,
       cleaning,
       cleanUpError: execution.error,
@@ -127,6 +140,8 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
         execution.reset();
         setReport(null);
         setProgress(null);
+        generation.current += 1;
+        setAssessmentProgress(null);
         reset();
       },
     }),
@@ -138,6 +153,7 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
       assessment.status,
       assessment.data,
       assessment.error,
+      assessmentProgress,
       report,
       lastRoots,
       mutate,
