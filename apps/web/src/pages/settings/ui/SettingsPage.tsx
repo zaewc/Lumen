@@ -4,7 +4,7 @@ import { useTransport } from "@/shared/api";
 import { APP_VERSION } from "@/shared/config";
 import { LOCALE_NAMES, LOCALES, useI18n } from "@/shared/i18n";
 import { isMac, userAgent } from "@/shared/lib";
-import { buttonClass, Group, GroupRow, Page, Segmented } from "@/shared/ui";
+import { buttonClass, Disclosure, Group, GroupRow, Page, Segmented } from "@/shared/ui";
 import { AiReviewSetting } from "./AiReviewSetting";
 
 /** English / 한국어, each named in its own language. */
@@ -52,7 +52,7 @@ function OpenSettingsButton() {
   );
 }
 
-/** Why some folders may be unread, and (on a Mac) how to allow Full Disk Access. */
+/** Permission guidance, not a report of macOS's current grant state. */
 function PermissionsGroup() {
   const { m } = useI18n();
   const mac = isMac(userAgent());
@@ -66,13 +66,15 @@ function PermissionsGroup() {
             mac ? (
               <>
                 <p>{p.fdaIntro}</p>
-                <p className="mt-2 font-medium text-ink">{p.steps}</p>
-                <ol className="mt-1 list-decimal space-y-0.5 pl-5 marker:text-ink-3">
-                  <li>{p.step1}</li>
-                  <li>{p.step2}</li>
-                  <li>{p.step3}</li>
-                </ol>
-                <OpenSettingsButton />
+                <Disclosure summary={p.steps} className="mt-2">
+                  <ol className="list-decimal space-y-0.5 pl-5 marker:text-ink-3">
+                    <li>{p.step1}</li>
+                    <li>{p.step2}</li>
+                    <li>{p.step3}</li>
+                    <li>{p.step4}</li>
+                  </ol>
+                  <OpenSettingsButton />
+                </Disclosure>
               </>
             ) : (
               p.accessIntro
