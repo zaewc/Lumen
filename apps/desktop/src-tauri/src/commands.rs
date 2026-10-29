@@ -42,7 +42,9 @@ pub(crate) struct Core {
     pub(crate) builtin: Option<ApiKey>,
     /// The knowledge-base entries with a tool command that the latest
     /// assessment matched: the only commands the page may run (ADR-0049).
-    pub(crate) tool_entries: std::sync::Mutex<std::collections::BTreeSet<String>>,
+    pub(crate) tool_entries: std::sync::Mutex<
+        std::collections::BTreeMap<String, Vec<(lumen_domain::RawPath, lumen_domain::VolumeId)>>,
+    >,
     /// Held while a tool's command runs: one at a time.
     pub(crate) tool_running: Arc<std::sync::Mutex<()>>,
 }
@@ -53,7 +55,14 @@ impl std::fmt::Debug for Core {
             .field("db", &self.db)
             .field("secrets", &self.secrets.is_some())
             .field("builtin", &self.builtin.is_some())
-            .field("tool_entries", &self.tool_entries)
+            .field(
+                "tool_entries",
+                &self
+                    .tool_entries
+                    .try_lock()
+                    .ok()
+                    .map(|entries| entries.len()),
+            )
             .field("tool_running", &self.tool_running.try_lock().is_err())
             .finish()
     }
@@ -206,7 +215,7 @@ pub(crate) async fn assess(
     let db = core.db.clone();
     let secrets = core.secrets.clone();
     let builtin = core.builtin.clone();
-    let views = blocking(move || {
+    let (views, entries) = blocking(move || {
         let mut listening = true;
         let mut last = None;
         let assessed = with_judge(
@@ -239,13 +248,19 @@ pub(crate) async fn assess(
             },
             Vec::as_slice,
         )?;
-        Ok(assessed.iter().map(CandidateView::from).collect::<Vec<_>>())
+        let views: Vec<_> = assessed.iter().map(CandidateView::from).collect();
+        let mut entries = std::collections::BTreeMap::<_, Vec<_>>::new();
+        for (view, assessed) in views.iter().zip(&assessed) {
+            if let Some(command) = &view.tool_command {
+                entries.entry(command.entry.clone()).or_default().push((
+                    assessed.candidate.path.clone(),
+                    assessed.candidate.identity().volume.clone(),
+                ));
+            }
+        }
+        Ok((views, entries))
     })
     .await?;
-    let entries = views
-        .iter()
-        .filter_map(|view| view.tool_command.as_ref().map(|c| c.entry.clone()))
-        .collect();
     *core
         .tool_entries
         .lock()
@@ -262,16 +277,15 @@ pub(crate) async fn run_tool_command(
     core: State<'_, Core>,
     entry: String,
 ) -> Result<ToolRunView, CommandError> {
-    let found = core
+    let targets = core
         .tool_entries
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .contains(&entry);
-    if !found {
-        return Err(CommandError::new(
-            "that command is not offered for anything in the latest scan",
-        ));
-    }
+        .get(&entry)
+        .cloned()
+        .ok_or_else(|| {
+            CommandError::new("that command is not offered for anything in the latest scan")
+        })?;
     let command = lumen_app::tools::builtin(&entry)
         .ok_or_else(|| CommandError::new("that command is not in Lumen's knowledge base"))?;
     let running = Arc::clone(&core.tool_running);
@@ -282,8 +296,9 @@ pub(crate) async fn run_tool_command(
         };
         let home =
             std::env::home_dir().ok_or_else(|| CommandError::new("the home folder is unknown"))?;
-        let run = lumen_app::tools::run(&command, &home, lumen_app::tools::TIME_LIMIT)
-            .map_err(CommandError::new)?;
+        let run =
+            lumen_app::tools::run_measured(&command, &home, lumen_app::tools::TIME_LIMIT, &targets)
+                .map_err(CommandError::new)?;
         Ok(ToolRunView::from(run))
     })
     .await

@@ -35,6 +35,7 @@ export type {
   ScanRequest,
   ScanView,
   SkipView,
+  SpaceChangeView,
   ToolCommandView,
   ToolRunView,
   UpdateView,

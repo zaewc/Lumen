@@ -249,7 +249,8 @@
         "required": [
           "operation",
           "original",
-          "outcome"
+          "outcome",
+          "space_change"
         ],
         "properties": {
           "operation": {
@@ -266,6 +267,17 @@
           "outcome": {
             "$ref": "#/components/schemas/FinalizeView",
             "description": "What happened."
+          },
+          "space_change": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SpaceChangeView",
+                "description": "Observed volume change; unavailable readings are never zero."
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -928,6 +940,33 @@
           "manifest"
         ]
       },
+      "SpaceChangeView": {
+        "type": "object",
+        "description": "Observed free space on one volume, not a causal cleanup guarantee.",
+        "required": [
+          "volume",
+          "before_available_bytes",
+          "after_available_bytes"
+        ],
+        "properties": {
+          "after_available_bytes": {
+            "type": "string",
+            "description": "Available bytes immediately afterwards; may be smaller.",
+            "maxLength": 20,
+            "pattern": "^[0-9]+$"
+          },
+          "before_available_bytes": {
+            "type": "string",
+            "description": "Available bytes before the operation.",
+            "maxLength": 20,
+            "pattern": "^[0-9]+$"
+          },
+          "volume": {
+            "type": "string",
+            "description": "Opaque volume identity; never a path to act on."
+          }
+        }
+      },
       "ToolCommandView": {
         "type": "object",
         "description": "A developer tool's own cleanup command, as a literal argument vector:\nshown in full, with desktop execution by entry ID after confirmation.",
@@ -971,7 +1010,8 @@
           "success",
           "exit_code",
           "timed_out",
-          "output"
+          "output",
+          "space_changes"
         ],
         "properties": {
           "exit_code": {
@@ -985,6 +1025,16 @@
           "output": {
             "type": "string",
             "description": "The end of what it printed."
+          },
+          "space_changes": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SpaceChangeView"
+            },
+            "description": "Every matched volume measured once, or unknown measurement coverage."
           },
           "success": {
             "type": "boolean",

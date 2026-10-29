@@ -14,7 +14,9 @@ use std::path::{Path, PathBuf};
 
 use lumen_application::finalize::{FinalizeOutcome, FinalizeReason, finalize_item};
 use lumen_application::observe::below;
-use lumen_application::ports::{Clock, InUse, InUseProbe, JournalError, PreparedItem};
+use lumen_application::ports::{
+    Clock, InUse, InUseProbe, JournalError, PreparedItem, QuarantineExecutor as _,
+};
 use lumen_application::restore::{RestoreOutcome, restore_item};
 use lumen_domain::{
     ByteCount, FileIdentity, ItemLocation, OperationId, QuarantineEvent, QuarantineState, RawPath,
@@ -24,6 +26,7 @@ use lumen_fs_exec::{Executor, original_path};
 use lumen_store_sqlite::{JournalEntry, LedgerJournal, LedgerStore, StoreError, open_ledger};
 
 use crate::assess::{AssessError, with_probes};
+use crate::space_change::{SpaceChange, SpaceWatch};
 use crate::store::{LocationError, PrivilegeError, refuse_privileged, stores};
 
 /// How long a retained item is kept before [`finalize_expired`] removes it
@@ -81,6 +84,8 @@ pub struct Outcome<T> {
     pub original: Option<PathBuf>,
     /// What happened.
     pub outcome: T,
+    /// Observed volume change around permanent removal; unknown for restore.
+    pub space_change: Option<SpaceChange>,
 }
 
 fn held(entries: &[JournalEntry], state: QuarantineState) -> Option<HeldItem> {
@@ -214,6 +219,7 @@ pub fn restore(
         operation,
         original: held.original,
         outcome,
+        space_change: None,
     })
 }
 
@@ -232,6 +238,9 @@ pub fn finalize(
     let mut store = ledger(db)?;
     let held = find(&store, operation)?;
     let executor = executor()?;
+    let watch = executor
+        .held(&held.item, operation)
+        .and_then(|(path, identity)| SpaceWatch::parent(&path, &identity.volume));
     let mut journal = LedgerJournal::new(&mut store, clock);
     let outcome = with_probes(|probes| -> Result<_, HeldError> {
         Ok(finalize_item(
@@ -249,6 +258,7 @@ pub fn finalize(
         operation,
         original: held.original,
         outcome,
+        space_change: watch.and_then(SpaceWatch::finish),
     })
 }
 
@@ -309,6 +319,9 @@ pub fn finalize_expired(
         let probe = HeldProbe::new(probes.in_use)?;
         due.into_iter()
             .map(|held| {
+                let watch = executor
+                    .held(&held.item, held.operation)
+                    .and_then(|(path, identity)| SpaceWatch::parent(&path, &identity.volume));
                 let outcome = finalize_item(
                     &executor,
                     &mut journal,
@@ -322,6 +335,7 @@ pub fn finalize_expired(
                     operation: held.operation,
                     original: held.original,
                     outcome,
+                    space_change: watch.and_then(SpaceWatch::finish),
                 })
             })
             .collect::<Result<Vec<_>, HeldError>>()

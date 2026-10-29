@@ -16,6 +16,8 @@ pub mod roots;
 pub mod scan;
 pub mod space;
 #[cfg(any(unix, windows))]
+pub mod space_change;
+#[cfg(any(unix, windows))]
 pub mod store;
 pub mod system;
 pub mod tools;

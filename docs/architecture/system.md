@@ -366,6 +366,16 @@ Unset or invalid roots do not match; variables are not inferred from a terminal'
 configuration or collected wholesale. Matching a custom location supplies evidence,
 not permission to remove it: all existing policy and execution checks still apply.
 
+Permanent removal and confirmed tool commands also report observed free-space
+changes (`SpaceChangeView`). Each target volume is measured at its surviving parent,
+with the directory identity checked around both readings. Unavailable or changed
+targets remain unknown; tool measurements require complete coverage of at most 64
+matched targets and de-duplicate volumes. Negative changes are preserved. These are
+immediate observations, not proof of bytes reclaimed by Lumen: snapshots, delayed
+reclamation and other programs can affect them. Only aggregate byte readings enter
+local logs; paths and volume identifiers do not. Cleanup outcomes stay independent
+of measurement availability, and quarantine alone is not reported as freeing space.
+
 Entries are JSON files in `crates/lumen-devkb/entries/`, one per artifact, embedded at
 build time and validated on load against `schemas/devkb-entry.schema.json` plus rules
 the schema cannot express:

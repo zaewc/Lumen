@@ -131,18 +131,18 @@ pub enum ScanError {
 /// The platform's best enumerator: `getattrlistbulk` on macOS, which measures
 /// clone-aware private sizes (ADR-0028).
 #[cfg(target_os = "macos")]
-fn enumerator() -> impl DirEnumerator {
+pub(crate) fn enumerator() -> impl DirEnumerator {
     lumen_platform_macos::BulkEnumerator::new()
 }
 
 /// Directory handles on Windows (ADR-0017).
 #[cfg(windows)]
-fn enumerator() -> impl DirEnumerator {
+pub(crate) fn enumerator() -> impl DirEnumerator {
     lumen_platform_windows::HandleEnumerator
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-fn enumerator() -> impl DirEnumerator {
+pub(crate) fn enumerator() -> impl DirEnumerator {
     lumen_scan::StdFsEnumerator
 }
 

@@ -41,6 +41,7 @@ named like a path, name or hash with `[redacted]`.
 | `plan executed` | `quarantine` | `items`, `quarantined`, `skipped`, `failed`, `resolved`, `moved_bytes`, `warnings` |
 | `restore finished` | `restore` | `outcome`: `restored`, `not_restored`, `not_restorable` |
 | `finalize finished` | `finalize` | `outcome`: `finalized`, `found_at_source`, `not_found`, `failed`, `maybe_in_use`, `not_finalizable` |
+| `volume free space observed` | `finalize`, or a confirmed tool command | `before_available`, `after_available` (bytes available on the same volume; other disk activity and delayed reclamation can affect the change) |
 
 ## Not recorded
 

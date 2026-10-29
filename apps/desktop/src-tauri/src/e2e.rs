@@ -164,6 +164,21 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
     };
     let finalized = ok("finalize", json!({ "operationId": second }));
     assert_eq!(finalized["outcome"]["kind"], "finalized", "{finalized}");
+    let measured = &finalized["space_change"];
+    assert!(
+        measured["volume"]
+            .as_str()
+            .is_some_and(|v| v.starts_with("dev:")),
+        "{finalized}"
+    );
+    for key in ["before_available_bytes", "after_available_bytes"] {
+        assert!(
+            measured[key]
+                .as_str()
+                .is_some_and(|v| v.parse::<u64>().is_ok()),
+            "{finalized}"
+        );
+    }
     assert!(!item.exists());
     assert_eq!(ok("held", json!({})), json!([]));
 }

@@ -166,6 +166,7 @@ export type FinalizeOutcomeView = {
    * What happened.
    */
   outcome: FinalizeView;
+  space_change: SpaceChangeView | null;
 };
 
 /**
@@ -558,6 +559,24 @@ export type SkipView =
   | "manifest";
 
 /**
+ * Observed free space on one volume, not a causal cleanup guarantee.
+ */
+export type SpaceChangeView = {
+  /**
+   * Available bytes immediately afterwards; may be smaller.
+   */
+  after_available_bytes: string;
+  /**
+   * Available bytes before the operation.
+   */
+  before_available_bytes: string;
+  /**
+   * Opaque volume identity; never a path to act on.
+   */
+  volume: string;
+};
+
+/**
  * A developer tool's own cleanup command, as a literal argument vector:
  * shown in full, with desktop execution by entry ID after confirmation.
  */
@@ -598,6 +617,10 @@ export type ToolRunView = {
    * The end of what it printed.
    */
   output: string;
+  /**
+   * Every matched volume measured once, or unknown measurement coverage.
+   */
+  space_changes: Array<SpaceChangeView> | null;
   /**
    * It exited with status 0.
    */

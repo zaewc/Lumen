@@ -407,6 +407,7 @@ export function memoryTransport({
         operation,
         original: item?.original ?? null,
         outcome: item === undefined ? { kind: "not_found" } : { kind: "finalized" },
+        space_change: null,
       });
     },
     aiSettings: () => Promise.resolve(ai),
@@ -425,7 +426,13 @@ export function memoryTransport({
     },
     runToolCommand: async () => {
       await wait(pace * 2);
-      return { success: true, exit_code: 0, timed_out: false, output: "Removed 1,284 packages\n" };
+      return {
+        success: true,
+        exit_code: 0,
+        timed_out: false,
+        output: "Removed 1,284 packages\n",
+        space_changes: null,
+      };
     },
     setAiKey: async (key) => {
       await wait(pace);

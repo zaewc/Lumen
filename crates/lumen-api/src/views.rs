@@ -384,6 +384,29 @@ pub struct ToolCommandView {
     pub removes_data: bool,
 }
 
+/// Observed free space on one volume, not a causal cleanup guarantee.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct SpaceChangeView {
+    /// Opaque volume identity; never a path to act on.
+    pub volume: String,
+    /// Available bytes before the operation.
+    #[schema(pattern = r"^[0-9]+$", max_length = 20)]
+    pub before_available_bytes: String,
+    /// Available bytes immediately afterwards; may be smaller.
+    #[schema(pattern = r"^[0-9]+$", max_length = 20)]
+    pub after_available_bytes: String,
+}
+
+impl From<&lumen_app::space_change::SpaceChange> for SpaceChangeView {
+    fn from(change: &lumen_app::space_change::SpaceChange) -> Self {
+        Self {
+            volume: change.volume.as_str().to_owned(),
+            before_available_bytes: change.before_available.to_string(),
+            after_available_bytes: change.after_available.to_string(),
+        }
+    }
+}
+
 /// How running a tool's command ended (ADR-0049).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ToolRunView {
@@ -396,6 +419,9 @@ pub struct ToolRunView {
     pub timed_out: bool,
     /// The end of what it printed.
     pub output: String,
+    /// Every matched volume measured once, or unknown measurement coverage.
+    #[schema(required = true)]
+    pub space_changes: Option<Vec<SpaceChangeView>>,
 }
 
 impl From<lumen_app::tools::ToolRun> for ToolRunView {
@@ -405,6 +431,10 @@ impl From<lumen_app::tools::ToolRun> for ToolRunView {
             exit_code: run.exit_code,
             timed_out: run.timed_out,
             output: run.output,
+            space_changes: run
+                .space_changes
+                .as_ref()
+                .map(|changes| changes.iter().map(SpaceChangeView::from).collect()),
         }
     }
 }
@@ -798,6 +828,9 @@ pub struct FinalizeOutcomeView {
     pub original: Option<String>,
     /// What happened.
     pub outcome: FinalizeView,
+    /// Observed volume change; unavailable readings are never zero.
+    #[schema(required = true)]
+    pub space_change: Option<SpaceChangeView>,
 }
 
 fn original<T>(outcome: &Outcome<T>) -> Option<String> {
@@ -852,6 +885,7 @@ impl From<&Outcome<FinalizeOutcome>> for FinalizeOutcomeView {
             operation: outcome.operation.to_string(),
             original: original(outcome),
             outcome: view,
+            space_change: outcome.space_change.as_ref().map(SpaceChangeView::from),
         }
     }
 }

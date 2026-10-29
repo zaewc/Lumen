@@ -183,15 +183,6 @@ export const zFinalizeView = z.union([
 ]);
 
 /**
- * What a finalization did to one held item.
- */
-export const zFinalizeOutcomeView = z.object({
-  operation: z.string(),
-  original: z.string().nullable(),
-  outcome: zFinalizeView,
-});
-
-/**
  * What a restore did.
  */
 export const zRestoreView = z.union([
@@ -317,6 +308,31 @@ export const zQuarantineReportView = z.object({
 });
 
 /**
+ * Observed free space on one volume, not a causal cleanup guarantee.
+ */
+export const zSpaceChangeView = z.object({
+  after_available_bytes: z
+    .string()
+    .max(20)
+    .regex(/^[0-9]+$/),
+  before_available_bytes: z
+    .string()
+    .max(20)
+    .regex(/^[0-9]+$/),
+  volume: z.string(),
+});
+
+/**
+ * What a finalization did to one held item.
+ */
+export const zFinalizeOutcomeView = z.object({
+  operation: z.string(),
+  original: z.string().nullable(),
+  outcome: zFinalizeView,
+  space_change: zSpaceChangeView.nullable(),
+});
+
+/**
  * A developer tool's own cleanup command, as a literal argument vector:
  * shown in full, with desktop execution by entry ID after confirmation.
  */
@@ -338,6 +354,7 @@ export const zToolRunView = z.object({
     .max(2147483647, { error: "Invalid value: Expected int32 to be <= 2147483647" })
     .nullable(),
   output: z.string(),
+  space_changes: z.array(zSpaceChangeView).nullable(),
   success: z.boolean(),
   timed_out: z.boolean(),
 });

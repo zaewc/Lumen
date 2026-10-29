@@ -69,6 +69,8 @@ pub struct ToolRun {
     /// The end of what it printed (standard output and error, interleaved
     /// as they arrived), at most [`OUTPUT_LIMIT`] bytes.
     pub output: String,
+    /// All matched volumes observed around the run, or unknown coverage.
+    pub space_changes: Option<Vec<crate::space_change::SpaceChange>>,
 }
 
 /// Why a command did not run.
@@ -232,6 +234,35 @@ pub fn run(command: &ToolCommand, home: &Path, limit: Duration) -> Result<ToolRu
     run_with_dirs(command, home, limit, &search_dirs(home))
 }
 
+/// Run a confirmed command and observe its matched volumes. Read failures do
+/// not fail cleanup; tool failures still report any observed space change.
+///
+/// # Errors
+/// The same errors as [`run`].
+pub fn run_measured(
+    command: &ToolCommand,
+    home: &Path,
+    limit: Duration,
+    targets: &[(lumen_domain::RawPath, lumen_domain::VolumeId)],
+) -> Result<ToolRun, ToolError> {
+    observe_run(targets, || run(command, home, limit))
+}
+
+fn observe_run(
+    targets: &[(lumen_domain::RawPath, lumen_domain::VolumeId)],
+    run: impl FnOnce() -> Result<ToolRun, ToolError>,
+) -> Result<ToolRun, ToolError> {
+    let watches = crate::space_change::watch_targets(targets);
+    let mut result = run()?;
+    result.space_changes = watches.and_then(|watches| {
+        watches
+            .into_iter()
+            .map(crate::space_change::SpaceWatch::finish)
+            .collect()
+    });
+    Ok(result)
+}
+
 fn run_with_dirs(
     command: &ToolCommand,
     home: &Path,
@@ -347,6 +378,7 @@ fn run_command(
         exit_code: status.and_then(|s| s.code()),
         timed_out,
         output: String::from_utf8_lossy(&bytes).into_owned(),
+        space_changes: None,
     })
 }
 
@@ -395,6 +427,29 @@ mod tests {
             None,
             "a directory"
         );
+    }
+
+    #[test]
+    fn failed_commands_still_report_the_observed_volume() -> Result<(), Box<dyn std::error::Error>>
+    {
+        use lumen_application::ports::DirEnumerator as _;
+        let fx = fixture();
+        let program = script(&fx, "bin/tool", "exit 3");
+        let path = crate::raw_path(&fx.path("bin/plain")?)?;
+        let volume = crate::scan::enumerator()
+            .stat(&path)?
+            .identity()
+            .volume
+            .clone();
+        let run = observe_run(&[(path, volume.clone())], || {
+            run_program(&program, &[], fx.root(), Duration::from_secs(10))
+        })?;
+        assert!(!run.success);
+        assert_eq!(run.exit_code, Some(3));
+        let changes = run.space_changes.ok_or("measurement missing")?;
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].volume, volume);
+        Ok(())
     }
 
     #[test]
