@@ -17,6 +17,7 @@ import type {
   ToolRunView,
   UpdateView,
 } from "@lumen/api-client";
+import type { Theme } from "@/shared/theme";
 
 /** An operation ID, as the core issued it; never built by the UI. */
 export type OperationId = string & { readonly brand: "OperationId" };
@@ -57,6 +58,8 @@ export interface LumenTransport {
    * macOS desktop app), absent elsewhere.
    */
   openFullDiskAccess?(): Promise<void>;
+  /** Sets the desktop window appearance; absent in a browser. */
+  setTheme?(theme: Theme): Promise<void>;
   /** Turns AI review on (the user's consent; needs a stored key) or off. */
   setAiReview(enabled: boolean): Promise<AiSettingsView>;
   /** Stores a Jeb API key in the system's secret store; it is never returned. */

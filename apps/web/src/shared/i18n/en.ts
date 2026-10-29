@@ -360,6 +360,13 @@ export const en = {
   },
   settings: {
     title: "Settings",
+    appearance: {
+      title: "Theme",
+      system: "System",
+      light: "Light",
+      dark: "Dark",
+      failed: "Lumen could not change the window's appearance.",
+    },
     permissions: {
       title: "Permissions",
       fda: "Full Disk Access",

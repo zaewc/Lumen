@@ -16,6 +16,7 @@
     "allow-set-ai-key",
     "allow-disk",
     "allow-open-full-disk-access",
+    "allow-set-theme",
     "allow-check-update",
     "allow-install-update",
     "allow-run-tool-command"

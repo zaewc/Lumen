@@ -4,7 +4,16 @@ import { useTransport } from "@/shared/api";
 import { APP_VERSION } from "@/shared/config";
 import { LOCALE_NAMES, LOCALES, useI18n } from "@/shared/i18n";
 import { isMac, userAgent } from "@/shared/lib";
-import { buttonClass, Disclosure, Group, GroupRow, Page, Segmented } from "@/shared/ui";
+import { THEMES, useTheme } from "@/shared/theme";
+import {
+  buttonClass,
+  Disclosure,
+  ErrorNotice,
+  Group,
+  GroupRow,
+  Page,
+  Segmented,
+} from "@/shared/ui";
 import { AiReviewSetting } from "./AiReviewSetting";
 
 /** English / 한국어, each named in its own language. */
@@ -22,6 +31,28 @@ function LanguageSetting() {
         />
       }
     />
+  );
+}
+
+function ThemeSetting() {
+  const { m } = useI18n();
+  const { theme, setTheme, error } = useTheme();
+  const appearance = m.settings.appearance;
+  return (
+    <>
+      <GroupRow
+        title={appearance.title}
+        trailing={
+          <Segmented
+            label={appearance.title}
+            value={theme}
+            onChange={setTheme}
+            segments={THEMES.map((value) => ({ value, label: appearance[value] }))}
+          />
+        }
+      />
+      {error !== null && <ErrorNotice message={appearance.failed} error={error} />}
+    </>
   );
 }
 
@@ -174,6 +205,7 @@ export function SettingsPage() {
       <Group>
         <AiReviewSetting />
         <LanguageSetting />
+        <ThemeSetting />
       </Group>
       <PermissionsGroup />
       <AboutGroup />

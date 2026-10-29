@@ -17,6 +17,7 @@ const allowed = new Set([
   "set_ai_key",
   "disk",
   "open_full_disk_access",
+  "set_theme",
   "check_update",
   "install_update",
   "run_tool_command",

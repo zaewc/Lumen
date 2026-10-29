@@ -59,6 +59,7 @@ pub fn app<R: Runtime>(
             commands::ai_settings,
             commands::disk,
             commands::open_full_disk_access,
+            commands::set_theme,
             commands::set_ai_review,
             commands::set_ai_key,
             commands::run_tool_command,

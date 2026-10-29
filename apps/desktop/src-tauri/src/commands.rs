@@ -24,7 +24,7 @@ use lumen_application::CancelToken;
 use lumen_application::assess::Assessed;
 use lumen_application::ports::{Clock as _, Describer, JudgeModel, NoopJudge, SecretStore};
 use lumen_domain::{ConfirmationSurface, OperationId, PlanId};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::State;
 use tauri::ipc::Channel;
 
@@ -316,6 +316,26 @@ pub(crate) async fn disk() -> Result<DiskView, CommandError> {
 const FULL_DISK_ACCESS: &str =
     "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles";
 
+/// The only appearance choices accepted from the webview.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ThemePreference {
+    System,
+    Light,
+    Dark,
+}
+
+/// Changes native window chrome to match the user's appearance preference.
+#[tauri::command]
+pub(crate) async fn set_theme<R: tauri::Runtime>(app: tauri::AppHandle<R>, theme: ThemePreference) {
+    let appearance = match theme {
+        ThemePreference::System => None,
+        ThemePreference::Light => Some(tauri::Theme::Light),
+        ThemePreference::Dark => Some(tauri::Theme::Dark),
+    };
+    app.set_theme(appearance);
+}
+
 /// Opens the Full Disk Access pane of System Settings, so the user can allow
 /// Lumen there. A fixed address with no input from the window; Lumen grants
 /// itself nothing. Only on macOS.
@@ -484,6 +504,22 @@ mod tests {
     use lumen_scan::ScanProgress;
 
     use super::*;
+
+    #[test]
+    fn theme_accepts_only_the_three_appearance_choices() {
+        for value in [r#""system""#, r#""light""#, r#""dark""#] {
+            assert!(
+                serde_json::from_str::<ThemePreference>(value).is_ok(),
+                "{value}"
+            );
+        }
+        for value in [r#""auto""#, r#""../dark""#, "true", "null", "{}"] {
+            assert!(
+                serde_json::from_str::<ThemePreference>(value).is_err(),
+                "{value}"
+            );
+        }
+    }
 
     fn path(text: &str) -> RawPath {
         RawPath::from_unix_bytes(text.as_bytes().to_vec()).unwrap_or_else(|e| unreachable!("{e}"))

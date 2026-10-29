@@ -19,6 +19,11 @@ understanding storage and evaluating evidence, before making a decision.
 
 - A cool paper canvas, dark ink, generous but useful type, and a small cobalt
   signature. Dark mode has its own surface hierarchy and legible secondary text.
+- Settings offers System, Light and Dark. The local preference persists; System
+  follows appearance changes while running. Tokens, semantic dark variants, native
+  controls and desktop chrome use the same choice. Screenshot fixtures select System.
+  The selectors follow [Tailwind's custom dark mode](https://tailwindcss.com/docs/dark-mode);
+  desktop chrome uses [Tauri's app theme](https://docs.rs/tauri/2.12.3/tauri/struct.AppHandle.html#method.set_theme).
 - A 4 px spacing unit; 12/14 px metadata/body, 28 px page titles and larger
   tabular figures only for the storage measurements that anchor a view.
 - Rules and alignment organize lists. Surfaces are reserved for input, inspection

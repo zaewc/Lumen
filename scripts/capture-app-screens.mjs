@@ -140,6 +140,7 @@ try {
       if (preload) await send("Page.removeScriptToEvaluateOnNewDocument", { identifier: preload });
       preload = (await send("Page.addScriptToEvaluateOnNewDocument", {
         source: `localStorage.setItem("lumen.locale", ${JSON.stringify(locale)});
+          localStorage.setItem("lumen.theme", "system");
           const OriginalDate = Date;
           globalThis.Date = class extends OriginalDate {
             constructor(...args) { super(...(args.length ? args : ["2026-10-29T03:00:00Z"])); }

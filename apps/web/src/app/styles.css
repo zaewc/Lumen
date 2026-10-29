@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
 /* Tauri injects an inline hiding rule that production's style-src blocks.
  * Keep its IPC frame alive but out of layout through this external sheet.
  * Otherwise its default 300 × 150 box adds document scroll and a white pane.
@@ -45,12 +56,8 @@
 
 @layer base {
   :root {
-    /*
-     * Follow the operating system's light or dark appearance (Tailwind's
-     * `dark:` variant uses the same media query), so native controls,
-     * scrollbars and the <dialog> backdrop match the page.
-     */
-    color-scheme: light dark;
+    /* Explicit preferences override the OS for tokens and dark: utilities alike. */
+    color-scheme: light;
 
     --lm-window: #fafbfd;
     --lm-sidebar: #f2f5f9;
@@ -76,8 +83,9 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
+  :root {
+    @variant dark {
+      color-scheme: dark;
       --lm-window: #141b26;
       --lm-sidebar: #101620;
       --lm-surface: #1b2534;

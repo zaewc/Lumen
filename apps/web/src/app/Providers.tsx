@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ScanSessionProvider } from "@/entities/scan-session";
 import { type LumenTransport, TransportContext } from "@/shared/api";
 import { I18nProvider } from "@/shared/i18n";
+import { ThemeProvider } from "@/shared/theme";
 
 const queries = new QueryClient();
 
@@ -18,7 +19,9 @@ export function Providers({
     <I18nProvider>
       <TransportContext value={transport}>
         <QueryClientProvider client={queries}>
-          <ScanSessionProvider>{children}</ScanSessionProvider>
+          <ThemeProvider setNativeTheme={transport.setTheme}>
+            <ScanSessionProvider>{children}</ScanSessionProvider>
+          </ThemeProvider>
         </QueryClientProvider>
       </TransportContext>
     </I18nProvider>

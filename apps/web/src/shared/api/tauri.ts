@@ -45,6 +45,9 @@ export function tauriTransport(): LumenTransport {
     openFullDiskAccess: async () => {
       await invoke("open_full_disk_access");
     },
+    setTheme: async (theme) => {
+      await invoke("set_theme", { theme });
+    },
     checkUpdate: async () => zUpdateView.parse(await invoke("check_update")),
     installUpdate: async () => {
       await invoke("install_update");

@@ -368,6 +368,13 @@ export const ko = {
   },
   settings: {
     title: "설정",
+    appearance: {
+      title: "테마",
+      system: "시스템 설정",
+      light: "라이트",
+      dark: "다크",
+      failed: "창의 테마를 바꾸지 못했어요.",
+    },
     permissions: {
       title: "권한",
       fda: "전체 디스크 접근 권한",
