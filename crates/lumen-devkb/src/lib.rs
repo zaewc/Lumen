@@ -85,6 +85,10 @@ const BUILTIN: &[(&str, &str)] = &[
     ),
     ("npm-cache.json", include_str!("../entries/npm-cache.json")),
     (
+        "npm-npx-cache.json",
+        include_str!("../entries/npm-npx-cache.json"),
+    ),
+    (
         "obsidian-chromium-caches.json",
         include_str!("../entries/obsidian-chromium-caches.json"),
     ),

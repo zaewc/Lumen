@@ -214,6 +214,83 @@ fn assess_reports_a_known_artifact_and_moves_nothing() -> Result<(), Box<dyn std
     Ok(())
 }
 
+/// Configured npm caches produce separate native commands without running them.
+#[test]
+fn configured_npx_cache_has_its_own_command_and_assessment_modifies_nothing()
+-> Result<(), Box<dyn std::error::Error>> {
+    let paths = [
+        "scanned/cache/_npx/package/index.js",
+        "scanned/cache/_cacache/download",
+        "scanned/project/node_modules/package/index.js",
+    ];
+    let nodes: Vec<_> = paths
+        .iter()
+        .map(|path| Node::File {
+            path: (*path).into(),
+            contents: vec![7; 4096],
+        })
+        .collect();
+    let fx = Fixture::build(&nodes)?;
+    let root = std::fs::canonicalize(fx.path("scanned")?)?;
+    let cache = root.join("cache");
+    let db = fx.path("index.db")?;
+    let run = |args: &[&std::ffi::OsStr]| {
+        Command::new(env!("CARGO_BIN_EXE_lumen"))
+            .args(args)
+            .env("npm_config_cache", &cache)
+            .env_remove("NPM_CONFIG_CACHE")
+            .output()
+    };
+    let scan = run(&[
+        "scan".as_ref(),
+        root.as_os_str(),
+        "--db".as_ref(),
+        db.as_os_str(),
+    ])?;
+    assert!(
+        scan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&scan.stderr)
+    );
+    let out = run(&[
+        "assess".as_ref(),
+        "--db".as_ref(),
+        db.as_os_str(),
+        "--json".as_ref(),
+        "--no-ai".as_ref(),
+    ])?;
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&out.stdout)?;
+    let candidates = report["candidates"].as_array().ok_or("no candidates")?;
+    let find = |name: &str| {
+        candidates.iter().find(|c| {
+            c["path"]
+                .as_str()
+                .is_some_and(|p| std::path::Path::new(p) == cache.join(name))
+        })
+    };
+    let npx = find("_npx").ok_or("npx cache was not discovered")?;
+    assert_ne!(npx["verdict"], "QUARANTINE");
+    assert_eq!(npx["tool_command"]["program"], "npm");
+    assert_eq!(
+        npx["tool_command"]["args"],
+        serde_json::json!(["cache", "npx", "rm", "--force"])
+    );
+    let npm = find("_cacache").ok_or("npm download cache was not discovered")?;
+    assert_eq!(
+        npm["tool_command"]["args"],
+        serde_json::json!(["cache", "clean", "--force"])
+    );
+    for path in paths {
+        assert_eq!(std::fs::read(fx.path(path)?)?, vec![7; 4096]);
+    }
+    Ok(())
+}
+
 /// A real scan discovers Cargo intermediates without proposing final outputs.
 #[test]
 fn assess_finds_cargo_intermediates_and_preserves_outputs() -> Result<(), Box<dyn std::error::Error>>
