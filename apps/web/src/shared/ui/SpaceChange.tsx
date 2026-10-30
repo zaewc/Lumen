@@ -16,11 +16,13 @@ export function SpaceChangeResult({
   const headline =
     summary === null
       ? text.unknown
-      : summary.delta > 0n
-        ? text.increased(formatBytes(summary.delta.toString()))
-        : summary.delta < 0n
-          ? text.decreased(formatBytes((-summary.delta).toString()))
-          : text.unchanged;
+      : summary.delta === null
+        ? text.multiple
+        : summary.delta > 0n
+          ? text.increased(formatBytes(summary.delta.toString()))
+          : summary.delta < 0n
+            ? text.decreased(formatBytes((-summary.delta).toString()))
+            : text.unchanged;
   return (
     <div className="mt-2 space-y-1 text-[13px] text-ink-2">
       {expected !== null && <p>{text.estimate(formatBytes(expected))}</p>}
@@ -39,6 +41,7 @@ export function SpaceChangeResult({
           ))}
         </details>
       )}
+      {summary !== null && summary.delta === null && <p className="text-[12px]">{text.shared}</p>}
       <p className="text-[12px]">{text.note}</p>
     </div>
   );

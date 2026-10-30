@@ -382,6 +382,9 @@ The shared UI shows the selected items' estimate separately from the observed ch
 including decreases, no change, and unavailable measurements. A batch compares the
 first and last reading per volume rather than adding overlapping observations;
 expandable details show both readings. Results persist when navigating away.
+Distinct volumes can share available storage (for example APFS volumes in one
+container), so the UI never adds their changes into a single total; it shows each
+volume separately ([measurement rationale](../research/22-free-space-observations.md)).
 
 Entries are JSON files in `crates/lumen-devkb/entries/`, one per artifact, embedded at
 build time and validated on load against `schemas/devkb-entry.schema.json` plus rules

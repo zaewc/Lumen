@@ -241,6 +241,8 @@ export const en = {
     decreased: (size: string) => `Observed free space decreased by ${size}.`,
     unchanged: "The readings show no change in free space.",
     unknown: "Lumen could not measure the free-space change.",
+    multiple: "Free space was measured for each disk.",
+    shared: "Volumes can share free space, so these readings are shown separately.",
     details: "View measurements",
     disk: (index: number) => `Disk ${index}`,
     readings: (before: string, after: string) => `${before} → ${after} available`,

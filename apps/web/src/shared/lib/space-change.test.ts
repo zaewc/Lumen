@@ -12,13 +12,17 @@ describe("observed space changes", () => {
     expect(result).toEqual({ readings: [reading("a", "100", "160")], delta: 60n });
   });
 
-  it("keeps disks separate and includes decreases at full integer precision", () => {
-    const result = summarizeSpaceChanges([
-      reading("a", "9007199254740993", "9007199254741000"),
-      reading("b", "100", "80"),
-    ]);
-    expect(result?.readings).toHaveLength(2);
-    expect(result?.delta).toBe(-13n);
+  it("does not sum separate volumes that may share their available space", () => {
+    const result = summarizeSpaceChanges([reading("a", "100", "150"), reading("b", "100", "150")]);
+    expect(result).toEqual({
+      readings: [reading("a", "100", "150"), reading("b", "100", "150")],
+      delta: null,
+    });
+  });
+
+  it("includes decreases at full integer precision", () => {
+    const result = summarizeSpaceChanges([reading("a", "9007199254741000", "9007199254740993")]);
+    expect(result?.delta).toBe(-7n);
   });
 
   it("distinguishes measured zero from missing or invalid measurements", () => {

@@ -252,6 +252,8 @@ export const ko = {
     decreased: (size: string) => `작업 전후 여유 공간이 ${size} 줄었어요.`,
     unchanged: "현재 측정에서는 여유 공간 변화가 없어요.",
     unknown: "여유 공간 변화를 측정하지 못했어요.",
+    multiple: "디스크별 여유 공간을 측정했어요.",
+    shared: "여유 공간을 공유할 수 있어 디스크별로 표시해요.",
     details: "측정값 보기",
     disk: (index: number) => `디스크 ${index}`,
     readings: (before: string, after: string) => `여유 공간 ${before} → ${after}`,
