@@ -1,7 +1,12 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
-import { useInstallUpdate, useUpdate } from "@/entities/app-update";
+import {
+  dismissedUpdate,
+  storeDismissedUpdate,
+  useInstallUpdate,
+  useUpdate,
+} from "@/entities/app-update";
 import { useHeld } from "@/entities/held";
 import { useScanSession } from "@/entities/scan-session";
 import { useToolRun } from "@/entities/tool-run";
@@ -124,7 +129,7 @@ export function Sidebar() {
   const install = useInstallUpdate();
   const update = useUpdate();
   const version = update.data?.available ?? null;
-  const [dismissed, dismiss] = useState<string | null>(null);
+  const [dismissed, dismiss] = useState(dismissedUpdate);
   const showUpdate = version !== null && version !== dismissed && install.status !== "pending";
   const session = useScanSession();
   const activity =
@@ -192,7 +197,10 @@ export function Sidebar() {
             <button
               type="button"
               className={buttonClass("quiet", "sm")}
-              onClick={() => dismiss(version)}
+              onClick={() => {
+                storeDismissedUpdate(version);
+                dismiss(version);
+              }}
             >
               {m.settings.about.update.later}
             </button>

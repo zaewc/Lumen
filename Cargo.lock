@@ -2457,6 +2457,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-updater",
  "thiserror 2.0.21",
+ "tracing",
 ]
 
 [[package]]
