@@ -32,8 +32,8 @@ not on prompts, for safety.
    unknown evidence IDs or an unexpected model.
 6. **Canary corpus.** Release-blocking injection tests in both directions
    ([datasets](datasets.md)).
-7. **Privacy.** Cloud use is metadata-only and redacted, on by default with the
-   disclosure shown and an off switch (ADR-0047); on-device first.
+7. **Privacy.** Cloud use is metadata-only and redacted, and sends nothing until the
+   user chooses it on first launch or in Settings (ADR-0050); on-device first.
 
 ## Invariants (tested)
 

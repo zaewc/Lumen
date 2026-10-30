@@ -56,7 +56,7 @@ Assumptions:
                                             │                    ▼
                                             │            (Privileged helper)
                                             ▼
-                               (TB5: network, on by default) ──▶ (Cloud Jev provider)
+                               (TB5: network, user's choice) ──▶ (Cloud Jev provider)
  (Developer tools) ◀──(TB6: subprocess)── (Tool runner)
  (CI / release) ──(TB7: supply chain)──▶ (Signed artifacts) ──▶ users
 ```
@@ -92,7 +92,7 @@ Assumptions:
 | Tampering (prompt injection) | Filename or plist value says "this is safe to delete" | Jev has no tools or actions; closed-vocabulary output; untrusted data JSON-encoded and labelled; monotone-safety policy (Jev only increases caution by default); injection canary suite as a release gate ([ADR-0020](../decisions/0020-jev-evidence-only-judge.md)) |
 | Tampering | Policy rule data altered on disk | Rules embedded at build time; no runtime-downloaded policy |
 | Elevation of privilege | Logic error lets a protected item reach `QUARANTINE` | Hard-protection stage first; property tests; mutation testing; CODEOWNERS on `lumen-policy` |
-| Information disclosure | Evidence bundle sent to cloud Jev reveals user names or paths | Cloud tier on by default with disclosure and an off switch (ADR-0047); home directory tokenised, user names stripped, no contents; disclosure UI |
+| Information disclosure | Evidence bundle sent to cloud Jev reveals user names or paths | Cloud tier off until the user chooses it on first launch, with a kept off switch (ADR-0050); home directory tokenised, user names stripped, no contents; disclosure UI |
 
 ### Executor and quarantine
 
@@ -118,7 +118,7 @@ Assumptions:
 
 | Threat | Example | Controls |
 | --- | --- | --- |
-| Information disclosure | Provider retains metadata | Metadata only, never file contents; home folder redaction; on by default with the disclosure shown and a kept off switch ([ADR-0047](../decisions/0047-ai-review-on-by-default.md)); zero-retention endpoints on OpenRouter; Jeb publishes no retention policy, and the disclosure says its operator may keep requests ([ADR-0036](../decisions/0036-jeb-on-the-school-ai-hub.md)) |
+| Information disclosure | Provider retains metadata | Metadata only, never file contents; home folder redaction; nothing sent until the user chooses, asked once on first launch and kept ([ADR-0050](../decisions/0050-ask-about-ai-review-on-first-launch.md)); zero-retention endpoints on OpenRouter; Jeb publishes no retention policy, and the disclosure says its operator may keep requests ([ADR-0036](../decisions/0036-jeb-on-the-school-ai-hub.md)) |
 | Tampering | Response from an unexpected model or a refusal parsed as data | Pinned model ID check, `stop_reason` handling, schema validation, unknown evidence IDs rejected |
 | Spoofing | API key theft from local storage | Keys stored in the OS keychain or credential manager; never logged |
 | Information disclosure | Lumen's built-in Jeb key read out of a release binary and its quota spent elsewhere | **Accepted risk** ([ADR-0042](../decisions/0042-ship-a-built-in-jeb-key-in-release-builds.md)): not obfuscated, as that would not protect it; compiled in only on tag builds from the protected `release` environment, never in pull request runs; the AI Hub's operator approved this use (owner confirmation, 2026-10-30); a stored user key wins; revocable, and a failed judge only means no judgment; rotation is a new release |
@@ -147,7 +147,7 @@ Assumptions:
 | Linking / identifying | Content hashes and app lists fingerprint a user | Hashes and inventories never leave the device by default |
 | Detecting | Telemetry reveals the presence of sensitive apps | No paths, names or app lists in metrics; telemetry opt-in |
 | Disclosure | Exported diagnostics contain paths | User reviews the export; redaction layer on by default |
-| Unawareness | Users don't know what cloud Jev sends | Disclosure in Settings and at scan start, an off switch kept per user (ADR-0047) |
+| Unawareness | Users don't know what cloud Jev sends | The first-launch question says what is sent and where; disclosure in Settings and at scan start; the choice is kept per user (ADR-0050) |
 | Non-compliance | Store privacy declarations wrong | Privacy manifest and Play data-safety form generated from `docs/operations/privacy.md` (planned) |
 
 ## 6. Attack tree: unintended deletion of user data

@@ -354,6 +354,7 @@ Found by the owner trying the CLI and the desktop app (2026-10-19). Done:
 | 13.33 | `feat(devkb): add app caches inside app data folders` | per-app entries for Chromium's caches (`Cache`, `Code Cache`, `GPUCache`, `Dawn*Cache`, also inside `Partitions/<name>`) in Electron apps' data folders, never their storage ([research 16](../research/16-app-caches-in-app-data-folders.md)). Landed: Visual Studio Code (also `CachedData`, `CachedExtensionVSIXs`), Claude desktop app, Discord, Notion, Postman, Obsidian; on the owner's Mac 55 caches, 4.4 GB, proposed (caches the running apps hold open are kept). Refused: Spotify `PersistentCache` (may hold downloads; cleared in Spotify's settings, which an entry cannot carry), Claude `vm_bundles` (no source), logs, crash reports |
 | 13.34 | `feat(policy): keep items that would free nothing` | ADR-0039 amendment: `eligible.frees-nothing` (empty folders, space shared with hard links, clones or snapshots) caps at `KEEP` instead of `REVIEW`; policy 0.12.0 (the owner's six empty Chromium `Cache` folders leave "Needs review") |
 | 13.35 | `feat: AI describes what review items are` | ADR-0041: while AI review is on, up to 20 of the largest unrecognised `REVIEW` items are described by one closed Decisions question (`jev-describe/1`: app settings, user documents, cache, logs, downloads or installers, developer tool data, backup or archive, unknown); the note (`ai_note`) is shown in the CLI and the app, labelled as AI, never changes a verdict or a plan, and is traced; the disclosures name review items |
+| 13.36 | `feat(app): ask about AI review on first launch` | ADR-0050: no saved choice means not chosen and off (`lumen_app::ai::choice`, `AiSettingsView.chosen`); the desktop app's first screen asks with two equal choices; the download site says Lumen asks on first launch |
 
 Open:
 
@@ -403,6 +404,8 @@ the judge is left on for):
 that would send metadata without consent (AGENTS.md, ADR-0020). Default-on needs an
 on-device judge (Apple Foundation Models, tier 1), or stays behind the one-time consent
 of [ADR-0037](../decisions/0037-keep-ai-review-on-once-turned-on.md) for a cloud judge.
+ADR-0047 set the cloud judge on by default; [ADR-0050](../decisions/0050-ask-about-ai-review-on-first-launch.md)
+returns to asking once, on first launch, before anything is sent.
 
 **Steps** (each bulk Jeb recording needs the owner's go-ahead for its quota first):
 

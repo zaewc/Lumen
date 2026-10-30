@@ -117,6 +117,13 @@ export const en = {
       confirm: "Turn on AI review",
       turningOn: "Turning on…",
     },
+    firstLaunch: {
+      title: "Use AI review?",
+      intro:
+        "Lumen decides with its own safety rules. If you like, an AI model takes a second look. Nothing is sent until you choose.",
+      on: "Turn on AI review",
+      off: "Continue without AI review",
+    },
   },
   scanning: {
     title: "Scanning…",

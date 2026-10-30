@@ -1,10 +1,11 @@
-//! Whether AI review is on (ADR-0037, ADR-0047): sending metadata about proposed
+//! Whether AI review is on (ADR-0037, ADR-0050): sending metadata about proposed
 //! quarantines, and about up to 20 of the largest items left for review
 //! (ADR-0041), to the judge (Jeb or Jev).
 //!
-//! The choice lives next to the database in `ai-review.json`. With no file,
-//! AI review is on by default (ADR-0047); a file that exists but cannot be
-//! read counts as off, so a damaged opt-out never turns into sending.
+//! The choice lives next to the database in `ai-review.json`. With no file the
+//! user has not chosen yet: nothing is sent, and the desktop app asks once, on
+//! first launch (ADR-0050). A file that exists but cannot be read counts as a
+//! choice of off, so a damaged opt-out never turns into sending.
 //!
 //! The judge's API key is the one the user stored in the operating system's
 //! secret store (ADR-0036): Jeb's when one is stored, otherwise `OpenRouter`'s.
@@ -374,21 +375,21 @@ fn file(db: &Path) -> PathBuf {
     db.with_file_name("ai-review.json")
 }
 
-/// AI review when the user has not chosen (ADR-0047): on.
-pub const ON_BY_DEFAULT: AiReview = AiReview {
-    enabled: true,
-    consented_at: None,
-};
-
-/// The choice recorded next to `db` (ADR-0047): on when nothing is recorded,
-/// the recorded choice otherwise. A record that exists but cannot be read
-/// counts as off, so a damaged opt-out never turns into sending.
-pub fn load(db: &Path) -> AiReview {
+/// The choice recorded next to `db` (ADR-0050), or `None` while the user has
+/// not chosen. A record that exists but cannot be read counts as a choice of
+/// off, so a damaged opt-out never turns into sending, and is not asked again.
+pub fn choice(db: &Path) -> Option<AiReview> {
     match std::fs::read(file(db)) {
-        Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => ON_BY_DEFAULT,
-        Err(_) => AiReview::default(),
+        Ok(bytes) => Some(serde_json::from_slice(&bytes).unwrap_or_default()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(_) => Some(AiReview::default()),
     }
+}
+
+/// Whether AI review is on next to `db`: the recorded choice, and off while
+/// the user has not chosen (ADR-0050). Nothing is sent before a choice.
+pub fn load(db: &Path) -> AiReview {
+    choice(db).unwrap_or_default()
 }
 
 /// Turns AI review on, recording when, or off (keeping the record of the
@@ -423,10 +424,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ai_review_is_on_until_turned_off_and_stays_off() {
+    fn ai_review_is_off_until_chosen_and_keeps_the_choice() {
         let fx = Fixture::build(&[]).unwrap_or_else(|e| unreachable!("{e}"));
         let db = fx.path("index.db").unwrap_or_else(|e| unreachable!("{e}"));
-        assert_eq!(load(&db), ON_BY_DEFAULT, "on by default (ADR-0047)");
+        assert_eq!(choice(&db), None, "not chosen yet (ADR-0050)");
+        assert!(!load(&db).enabled, "nothing is sent before a choice");
         let at = Timestamp::from_unix(1_800_000_000, 0).unwrap_or_else(|_| unreachable!());
         let on = set(&db, true, at).unwrap_or_else(|e| unreachable!("{e}"));
         assert_eq!(load(&db), on);
@@ -448,6 +450,11 @@ mod tests {
         assert!(
             !load(&db).enabled,
             "an opt-out that cannot be read stays off"
+        );
+        assert_eq!(
+            choice(&db),
+            Some(AiReview::default()),
+            "and counts as chosen, so it is not asked again"
         );
     }
 
@@ -505,8 +512,8 @@ mod tests {
             .unwrap_or_else(|e| unreachable!("{e}"));
         let builtin = builtin_key_from(Some(BUILTIN));
         assert!(
-            active_judge(&db, Some(&store), builtin.as_ref()).is_some(),
-            "on by default (ADR-0047)"
+            active_judge(&db, Some(&store), builtin.as_ref()).is_none(),
+            "no judge before the user chooses, even with keys (ADR-0050)"
         );
         let at = Timestamp::from_unix(1_800_000_000, 0).unwrap_or_else(|_| unreachable!());
         set(&db, false, at).unwrap_or_else(|e| unreachable!("{e}"));

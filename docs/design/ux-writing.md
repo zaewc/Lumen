@@ -94,6 +94,10 @@ Use these and only these, in both languages.
   2026-10-30). "Later" keeps that version's notice dismissed across launches and
   leaves a compact update link. Only a different version may announce itself again.
   Installation and restart always require the user's explicit choice in Settings.
+  Until the user has chosen whether to use AI review, the first screen asks
+  ([ADR-0050](../decisions/0050-ask-about-ai-review-on-first-launch.md)): a page, not
+  a dialog, that takes no focus and offers "AI 검토 켜기" and "AI 검토 없이 쓰기" as
+  equal choices.
 - Every request can be declined with an equal, visible choice.
 - No fake urgency, guilt, begging or exaggerated savings.
 - Icons match the situation: a warning sign only for real warnings, a spinner only

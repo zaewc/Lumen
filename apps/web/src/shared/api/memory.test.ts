@@ -64,10 +64,11 @@ describe("memoryTransport", () => {
     expect((await transport.finalize(operationOf(second))).outcome.kind).toBe("not_found");
   });
 
-  it("starts with AI review on, which needs a key before it can be turned on again", async () => {
+  it("starts with AI review not chosen and off, and needs a key to turn it on", async () => {
     const transport = memoryTransport();
     expect(zAiSettingsView.parse(await transport.aiSettings())).toEqual({
-      enabled: true,
+      chosen: false,
+      enabled: false,
       consented_at: null,
       key: "none",
       key_source: null,
@@ -75,7 +76,9 @@ describe("memoryTransport", () => {
     await expect(transport.setAiReview(true)).rejects.toThrow();
     await expect(transport.setAiKey("not a key")).rejects.toThrow();
     expect((await transport.setAiKey(" jeb-key ")).key).toBe("jeb");
+    expect((await transport.aiSettings()).chosen).toBe(false);
     const on = zAiSettingsView.parse(await transport.setAiReview(true));
+    expect(on.chosen).toBe(true);
     expect(on.enabled).toBe(true);
     expect(on.consented_at).not.toBeNull();
     const off = zAiSettingsView.parse(await transport.setAiReview(false));
@@ -102,7 +105,8 @@ describe("memoryTransport", () => {
   it("turns AI review on with the built-in key, and lets a stored key replace it", async () => {
     const transport = memoryTransport({ builtinKey: true });
     expect(await transport.aiSettings()).toEqual({
-      enabled: true,
+      chosen: false,
+      enabled: false,
       consented_at: null,
       key: "jeb",
       key_source: "builtin",

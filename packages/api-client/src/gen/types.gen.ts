@@ -30,9 +30,15 @@ export type AiNoteView = {
 };
 
 /**
- * Whether AI review is on (ADR-0037), and which key it would use.
+ * Whether AI review is on (ADR-0037), whether the user has chosen yet
+ * (ADR-0050), and which key it would use.
  */
 export type AiSettingsView = {
+  /**
+   * Whether the user has chosen on or off. Until they have, AI review is
+   * off and the app asks once (ADR-0050).
+   */
+  chosen: boolean;
   /**
    * When the user last turned it on; `null` if never.
    */

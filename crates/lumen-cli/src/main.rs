@@ -440,7 +440,7 @@ fn run(_args: &ScanArgs) -> Result<(), Box<dyn Error>> {
 
 /// Runs `with` with the judge (and the same judge as the describer of review
 /// items, ADR-0041) when this run asked for it, or when AI review is on next
-/// to `db` (on by default, ADR-0047), and records its traces. When it is on
+/// to `db` (off until the user chooses, ADR-0050), and records its traces. When it is on
 /// only by the setting and no judge can be built (no key), the run goes on
 /// without it and says why; `--jev` still fails then.
 #[cfg(any(unix, windows))]
@@ -558,8 +558,8 @@ fn report(result: Result<(), Box<dyn Error>>) -> ExitCode {
     }
 }
 
-/// `lumen ai on|off|status`: the saved choice next to `db` (ADR-0037); on
-/// when nothing is saved (ADR-0047).
+/// `lumen ai on|off|status`: the saved choice next to `db` (ADR-0037); off,
+/// and nothing sent, while nothing is saved (ADR-0050).
 #[cfg(any(unix, windows))]
 fn run_ai(action: AiAction, db: &std::path::Path) -> Result<(), Box<dyn Error>> {
     use lumen_application::ports::Clock as _;
@@ -578,11 +578,16 @@ fn run_ai(action: AiAction, db: &std::path::Path) -> Result<(), Box<dyn Error>> 
             "AI review is off: nothing is sent unless a run passes --jev.\n".into()
         }
         AiAction::Status => {
-            let review = lumen_app::ai::load(db);
-            let state = match (review.enabled, review.consented_at) {
-                (true, Some(at)) => format!("AI review is on (since {at}).\n"),
-                (true, None) => "AI review is on.\n".into(),
-                (false, _) => "AI review is off.\n".into(),
+            let state = match lumen_app::ai::choice(db) {
+                None => format!(
+                    "AI review is off until you choose: `lumen ai on --db {0}` or `lumen ai off --db {0}`.\n",
+                    db.display()
+                ),
+                Some(review) => match (review.enabled, review.consented_at) {
+                    (true, Some(at)) => format!("AI review is on (since {at}).\n"),
+                    (true, None) => "AI review is on.\n".into(),
+                    (false, _) => "AI review is off.\n".into(),
+                },
             };
             format!("{state}{}", jev::key_line()?)
         }

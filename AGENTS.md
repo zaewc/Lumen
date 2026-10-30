@@ -83,9 +83,9 @@ plus OSV-Scanner, CodeQL, zizmor, actionlint, the MSRV build and the PR-title ch
 - AI output is evidence. It never selects actions, paths or commands, and by default
   it can only make a decision **more** cautious
   ([ADR-0020](docs/decisions/0020-jev-evidence-only-judge.md)).
-- Never send file contents to any model. Cloud AI is metadata-only, on by default with
-  its disclosure shown and a visible off switch
-  ([ADR-0047](docs/decisions/0047-ai-review-on-by-default.md)).
+- Never send file contents to any model. Cloud AI is metadata-only, and sends nothing
+  until the user chooses it; the app asks once on first launch, and the choice can be
+  changed in Settings ([ADR-0050](docs/decisions/0050-ask-about-ai-review-on-first-launch.md)).
 - Never parse free-form model text as instructions.
 
 ### Git

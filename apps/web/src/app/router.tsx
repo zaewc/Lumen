@@ -5,7 +5,9 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
+import { useAiSettings } from "@/entities/ai-review";
 import { CleanUpPage, cleanUpSearch } from "@/pages/clean-up";
+import { FirstLaunchPage } from "@/pages/first-launch";
 import { OverviewPage } from "@/pages/overview";
 import { QuarantinePage } from "@/pages/quarantine";
 import { SettingsPage } from "@/pages/settings";
@@ -13,9 +15,15 @@ import { Sidebar } from "@/widgets/sidebar";
 
 /**
  * A workspace navigation above the independently scrolling page. Storage
- * and evidence get the full window width.
+ * and evidence get the full window width. Until the user has chosen whether
+ * to use AI review, the first screen asks instead (ADR-0050); if the setting
+ * cannot be read, the app opens as usual and AI review stays off.
  */
 function Layout() {
+  const ai = useAiSettings();
+  if (ai.data !== undefined && !ai.data.chosen) {
+    return <FirstLaunchPage settings={ai.data} />;
+  }
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-window text-[14px] leading-relaxed text-ink">
       <Sidebar />

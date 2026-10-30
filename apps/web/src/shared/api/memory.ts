@@ -300,12 +300,12 @@ export function memoryTransport({
   readonly pace?: number;
   readonly builtinKey?: boolean;
 } = {}): LumenTransport {
-  // AI review, as the host keeps it: on at first (ADR-0047), and without a
-  // key unless the build has one. The key itself is not kept, only that one
-  // was given.
+  // AI review, as the host keeps it: not chosen and off at first (ADR-0050),
+  // and without a key unless the build has one. The key itself is not kept,
+  // only that one was given.
   let ai: AiSettingsView = builtinKey
-    ? { enabled: true, consented_at: null, key: "jeb", key_source: "builtin" }
-    : { enabled: true, consented_at: null, key: "none", key_source: null };
+    ? { chosen: false, enabled: false, consented_at: null, key: "jeb", key_source: "builtin" }
+    : { chosen: false, enabled: false, consented_at: null, key: "none", key_source: null };
   let held: readonly HeldItemView[] = initiallyHeld;
   let moves = 0;
   const take = (operation: string): HeldItemView | undefined => {
@@ -419,6 +419,7 @@ export function memoryTransport({
       }
       ai = {
         ...ai,
+        chosen: true,
         enabled,
         consented_at: enabled ? new Date().toISOString() : ai.consented_at,
       };
