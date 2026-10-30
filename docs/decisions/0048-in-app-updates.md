@@ -67,15 +67,27 @@ Chosen option: **1**.
 
 A new version gets a full-width, nonmodal notice below the navigation on every
 page, with its version and a link directly to the update setting. "Later" hides
-that version's notice for this app session; the small navigation link remains.
+that version's notice across app launches using local storage; the small navigation
+link remains. If local storage is unavailable, dismissal lasts for the session.
 A different version is announced again. Installation in progress hides the notice;
 navigation does not reset either the dismissal or the existing installation.
 
-Checks run at startup and every six hours. Returning to an app with stale results
-also refreshes them, using TanStack Query's
-[focus behavior](https://tanstack.com/query/latest/docs/framework/react/guides/window-focus-refetching).
+Checks run at startup and every six hours. Returning to a window with stale results
+also refreshes them. TanStack Query's default visibility handling does not cover
+switching between visible desktop apps. A root-level listener therefore uses
+the Rust host's [native window events](https://docs.rs/tauri/latest/tauri/struct.Builder.html#method.on_window_event):
+`WindowEvent::Focused(true)` dispatches a fixed `lumen:window-focus` DOM event into
+that window. This needs no new IPC capability or isolation exception. The UI listens
+to it and the DOM window focus event, scoped to the active, stale update query.
+Overlapping events share an in-flight check. Both listeners are removed on unmount.
+Other queries are not explicitly refetched.
+Age is compared to the cached result's timestamp on focus, even when background
+throttling has delayed the observer's stale timer.
 Fresh results are shared between navigation and Settings. Failures stay quiet, and
 no check downloads or installs anything. Browser-only hosts show no update notice.
+This status notice is the explicit exception to the launch rule documented in
+[UX writing](../design/ux-writing.md#no-dark-patterns); it never opens a dialog or
+takes focus, and a declined version does not reappear on each launch.
 
 ### Consequences
 

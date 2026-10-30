@@ -88,7 +88,12 @@ Use these and only these, in both languages.
 
 ## No dark patterns
 
-- Nothing pops up on launch; the first screen does what the user came for.
+- Nothing opens a dialog or takes focus on launch; the first screen does what the
+  user came for. A newer published version may show a nonmodal status notice below
+  navigation ([ADR-0048](../decisions/0048-in-app-updates.md), owner request
+  2026-10-30). "Later" keeps that version's notice dismissed across launches and
+  leaves a compact update link. Only a different version may announce itself again.
+  Installation and restart always require the user's explicit choice in Settings.
 - Every request can be declined with an equal, visible choice.
 - No fake urgency, guilt, begging or exaggerated savings.
 - Icons match the situation: a warning sign only for real warnings, a spinner only

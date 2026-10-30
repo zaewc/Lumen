@@ -48,6 +48,15 @@ pub fn app<R: Runtime>(
         // In-app updates (ADR-0048); reached only through Lumen's own
         // `check_update` and `install_update`, never from the page.
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::Focused(true))
+                && let Some(view) = window.get_webview_window(window.label())
+                && let Err(error) =
+                    view.eval("window.dispatchEvent(new Event('lumen:window-focus'))")
+            {
+                tracing::warn!(%error, "Could not notify the interface of window focus");
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::scan,
             commands::assess,
