@@ -92,6 +92,7 @@ impl QuarantineExecutor for World {
         self.put(ItemLocation::Source);
         Ok(RestoredItem {
             parent_replaced: false,
+            matches_record: true,
         })
     }
 

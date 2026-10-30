@@ -3,7 +3,9 @@
 //! Each test prepares an item, changes the tree the way a racing process
 //! could, and then asks the executor to quarantine it. The executor must
 //! refuse with the item untouched at its source, and must never act on what
-//! replaced it. Runs in temporary fixture directories only.
+//! replaced it. The last tests change an item while it is held: restoring is
+//! never stricter than finalizing, so what could be removed can be put back.
+//! Runs in temporary fixture directories only.
 
 #![cfg(unix)]
 
@@ -11,7 +13,10 @@ use std::os::unix::ffi::OsStrExt as _;
 use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
 use std::path::{Path, PathBuf};
 
-use lumen_application::ports::{ExecutionFailure, Located, PreparedItem, QuarantineExecutor as _};
+use lumen_application::ports::{
+    ExecutionFailure, Located, NotRestored, PreparedItem, QuarantineExecutor as _, Removal,
+    RestoreFailure, RestoredItem,
+};
 use lumen_domain::{ItemLocation, OperationId, QuarantineFailure, RawPath};
 use lumen_fs_exec::Executor;
 use lumen_testkit::{Fixture, Node};
@@ -223,4 +228,61 @@ fn a_read_only_parent_leaves_the_item_at_its_source() {
     );
     assert!(root.join("cache/app/data.bin").exists());
     assert_eq!(executor.locate(&item, op(8)), Located::AtSource);
+}
+
+#[test]
+fn a_held_directory_that_gains_an_entry_can_be_restored_as_it_could_be_finalized() {
+    let (_fx, root, executor) = setup();
+    let gain = |operation: OperationId| {
+        let held = root.join("Quarantine").join(operation.to_string());
+        // Past one timestamp tick (see above), so the change is visible.
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::fs::write(held.join(".DS_Store"), b"written while held")
+            .unwrap_or_else(|e| unreachable!("{e}"));
+    };
+    let item = prepare(&executor, &root, "cache/dir");
+    assert_eq!(executor.quarantine(&item, op(9), b"{}"), Ok(()));
+    gain(op(9));
+    assert_eq!(executor.locate(&item, op(9)), Located::InStore);
+    assert_eq!(
+        executor.restore(&item, op(9)),
+        Ok(RestoredItem {
+            parent_replaced: false,
+            matches_record: false,
+        })
+    );
+    assert!(root.join("cache/dir/x").exists());
+    assert_eq!(
+        std::fs::read(root.join("cache/dir/.DS_Store")).unwrap_or_default(),
+        b"written while held"
+    );
+    assert!(executor.forget(&item, op(9)), "restored: sidecar forgotten");
+    // The same change does not stop permanent removal either.
+    let again = prepare(&executor, &root, "cache/dir");
+    assert_eq!(executor.quarantine(&again, op(10), b"{}"), Ok(()));
+    gain(op(10));
+    assert_eq!(executor.finalize(&again, op(10)), Ok(()));
+    assert!(store_is_empty(&root));
+}
+
+#[test]
+fn a_held_file_that_changes_is_neither_restored_nor_finalized() {
+    let (_fx, root, executor) = setup();
+    let item = prepare(&executor, &root, "cache/app/data.bin");
+    assert_eq!(executor.quarantine(&item, op(11), b"{}"), Ok(()));
+    let held = root.join("Quarantine").join(op(11).to_string());
+    std::fs::write(&held, b"changed while held").unwrap_or_else(|e| unreachable!("{e}"));
+    assert_eq!(
+        executor.restore(&item, op(11)),
+        Err(RestoreFailure {
+            reason: NotRestored::ItemChanged,
+            left: ItemLocation::Quarantine,
+        })
+    );
+    assert_eq!(executor.finalize(&item, op(11)), Err(Removal::Nothing));
+    assert_eq!(
+        std::fs::read(&held).unwrap_or_default(),
+        b"changed while held"
+    );
+    assert!(!root.join("cache/app/data.bin").exists());
 }

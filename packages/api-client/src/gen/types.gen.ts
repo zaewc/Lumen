@@ -422,7 +422,9 @@ export type RestoreView =
        */
       parent_replaced: boolean;
       /**
-       * It matched its record after the move.
+       * It matched its record in full after the move; false if it changed
+       * while in quarantine (a folder that gained or lost entries) or the
+       * check after the move failed.
        */
       verified: boolean;
     }

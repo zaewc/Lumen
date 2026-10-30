@@ -761,7 +761,9 @@ pub enum RestoreView {
     Restored {
         /// Its folder had been recreated since.
         parent_replaced: bool,
-        /// It matched its record after the move.
+        /// It matched its record in full after the move; false if it changed
+        /// while in quarantine (a folder that gained or lost entries) or the
+        /// check after the move failed.
         verified: bool,
     },
     /// Still in quarantine.

@@ -98,7 +98,7 @@ Assumptions:
 
 | Threat | Example | Controls |
 | --- | --- | --- |
-| Tampering | Another process modifies or replaces quarantined items | Stores private to their owner (Unix: owner and mode 0700; Windows: owner and protected DACL compared exactly), planted stores refused, never repaired; restore and finalize re-check identity, kind, size, time and links |
+| Tampering | Another process modifies or replaces quarantined items | Stores private to their owner (Unix: owner and mode 0700; Windows: owner and protected DACL compared exactly), planted stores refused, never repaired; restore and finalize re-check a held file's identity, kind, size, time and links, and a held directory's identity and kind; both use the same check, so anything finalize would remove can still be restored |
 | Denial of service | Crash mid-move loses track of a file | Durable journal intent before each move; startup reconciliation resolves every unfinished operation from where the item is, and leaves contradictions for the user (roadmap 9.6c); crash points tested at every journal step (9.9c) |
 | Tampering | Restore overwrites a newer file at the original path | No-replace rename in both directions; a taken name is a conflict for the user |
 | Elevation of privilege | Finalize follows a link or a mount point inside a quarantined directory and removes something else | The whole tree is checked first (same volume, depth limit, readable); links and junctions are removed as themselves; entries opened by handle relative to their directory |
@@ -195,6 +195,11 @@ GOAL: a file the user needs is permanently lost because of Lumen
   within the same tick as the directory's previous change, between preparation and
   the move, goes undetected and is quarantined with the directory; it stays
   restorable. Found by the Windows race suite on 2026-10-15.
+- A held directory is checked by identity and kind only, on restore as on finalize, so
+  entries added or removed while it is held (Finder's `.DS_Store`, an app still
+  writing) neither block restoring it nor stop its removal. A directory whose
+  finalization stopped part way can be restored with only what remains. Either way the
+  restore is reported as not matching its record, so the user is asked to check it.
 
 ## 8. Security testing obligations
 

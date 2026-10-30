@@ -15,6 +15,9 @@ exception is recorded in an ADR.
 - [ ] No volume is crossed; a mount point is never entered.
 - [ ] Before acting, the item is compared with its record: identity, kind, size, time,
       link count (a directory held in the store: identity and kind).
+- [ ] Restore is never stricter than finalize: both (and `locate`) check a held item
+      with the same `check_held`, so whatever could be removed permanently can be put
+      back.
 - [ ] Names are checked (`plain`): not empty, `.`, `..`, no separator, no NUL.
 
 ## Never losing data
