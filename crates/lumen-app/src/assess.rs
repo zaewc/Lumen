@@ -135,6 +135,18 @@ fn cache_vars(
         .collect()
 }
 
+/// Where the knowledge base's locations are, from this process's
+/// environment: the one a tool's own command inherits when it runs.
+fn environment(kb: &KnowledgeBase, platform: Platform) -> Environment {
+    Environment {
+        platform,
+        home: home(),
+        local_app_data: env_path("LOCALAPPDATA"),
+        roaming_app_data: env_path("APPDATA"),
+        vars: cache_vars(kb, platform, env_path),
+    }
+}
+
 /// The platform's inventory, read once per assessment, and what its
 /// producers need to link scanned entries to it.
 struct PlatformInventory {
@@ -549,13 +561,7 @@ fn prepare_with_progress(
             .iter()
             .all(|r| r.status == lumen_domain::SourceStatus::Complete);
     let kb = KnowledgeBase::builtin()?;
-    let env = Environment {
-        platform,
-        home: home.clone(),
-        local_app_data: env_path("LOCALAPPDATA"),
-        roaming_app_data: env_path("APPDATA"),
-        vars: cache_vars(&kb, platform, env_path),
-    };
+    let env = environment(&kb, platform);
     // The scan's facts and what is derived from them alone are dated by the
     // scan, so assessing it again records nothing new.
     let scanned_at = store.scan_finished_at(scan)?.unwrap_or(now);
@@ -647,26 +653,29 @@ pub(crate) fn builtin_knowledge_base() -> Option<&'static KnowledgeBase> {
 }
 
 /// The cleanup command of the tool whose knowledge-base entry `assessed`
-/// matched, if that entry has one: the first such entry in evidence order.
-/// `None` if no entry with a command matched, or the knowledge base does
-/// not load.
+/// matched, if that entry has one and it acts on `assessed` here: the first
+/// such entry in evidence order. `None` if no entry with a command matched,
+/// the command would clear another folder the tool is configured to use, or
+/// the knowledge base does not load.
 pub fn tool_action(assessed: &Assessed) -> Option<ToolGuidance> {
+    let kb = builtin_knowledge_base()?;
     let subject = Subject::File {
         identity: assessed.candidate.identity().clone(),
     };
-    tool_guidance(
-        builtin_knowledge_base()?,
-        &subject,
-        &assessed.input.evidence,
-    )
+    let env = std::cell::OnceCell::new();
+    tool_guidance(kb, &subject, &assessed.input.evidence, |entry| {
+        let env = env.get_or_init(|| environment(kb, platform()));
+        kb.command_acts_on(env, &entry.id, &assessed.candidate.path)
+    })
 }
 
 /// The first knowledge-base entry matched by `subject` itself in `evidence`
-/// that has an official cleanup command, as guidance.
+/// that has an official cleanup command which `acts` on it, as guidance.
 fn tool_guidance(
     kb: &KnowledgeBase,
     subject: &Subject,
     evidence: &[Evidence],
+    acts: impl Fn(&lumen_devkb::Entry) -> bool,
 ) -> Option<ToolGuidance> {
     evidence
         .iter()
@@ -675,6 +684,7 @@ fn tool_guidance(
             Fact::KnowledgeBaseMatch { entry } => kb.get(entry.as_str()),
             _ => None,
         })
+        .filter(|entry| entry.official_action.is_some() && acts(entry))
         .find_map(|entry| {
             entry.official_action.as_ref().map(|action| ToolGuidance {
                 entry: entry.id.clone(),
@@ -1046,6 +1056,79 @@ mod tests {
         Ok(())
     }
 
+    /// An old default cache beside a configured one: both are uv's cache, but
+    /// `uv cache prune` clears only the folder uv is configured to use, so
+    /// only that one is shown with it (and only it makes the command runnable).
+    #[test]
+    fn a_tool_command_goes_only_with_the_folder_it_clears() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let kb = KnowledgeBase::builtin()?;
+        let items = [
+            scanned("/home/ana/.cache/uv", 1, 0),
+            scanned("/data/uv", 2, 0),
+        ];
+        // Which items are uv's cache, and which are shown with its command.
+        let assess = |set: &[(&str, &str)]| {
+            let env = Environment {
+                platform: Platform::Linux,
+                home: RawPath::from_unix_bytes("/home/ana").ok(),
+                local_app_data: None,
+                roaming_app_data: None,
+                vars: cache_vars(&kb, Platform::Linux, |name| {
+                    let (_, value) = set.iter().find(|(var, _)| *var == name)?;
+                    RawPath::from_unix_bytes(*value).ok()
+                }),
+            };
+            let evidence = kb.matches(&env, &items, Timestamp::UNIX_EPOCH);
+            let mut identified = Vec::new();
+            let mut commanded = Vec::new();
+            for item in &items {
+                let subject = Subject::File {
+                    identity: item.identity().clone(),
+                };
+                let id = item.identity().file.get();
+                if evidence
+                    .iter()
+                    .any(|e| e.subject == subject && e.fact == matched("uv-cache"))
+                {
+                    identified.push(id);
+                }
+                if tool_guidance(&kb, &subject, &evidence, |entry| {
+                    kb.command_acts_on(&env, &entry.id, &item.path)
+                })
+                .is_some_and(|guidance| guidance.args == ["cache", "prune"])
+                {
+                    commanded.push(id);
+                }
+            }
+            (identified, commanded)
+        };
+        assert_eq!(assess(&[]), (vec![1], vec![1]), "uv's default cache");
+        assert_eq!(
+            assess(&[("UV_CACHE_DIR", "/data/uv")]),
+            (vec![1, 2], vec![2]),
+            "the old default is still uv's cache, but not what the command clears"
+        );
+        assert_eq!(
+            assess(&[("XDG_CACHE_HOME", "/data")]),
+            (vec![1, 2], vec![2])
+        );
+        assert_eq!(
+            assess(&[("XDG_CACHE_HOME", "/home/ana/.cache")]),
+            (vec![1], vec![1]),
+            "a variable naming the default folder keeps the command"
+        );
+        assert_eq!(
+            assess(&[
+                ("UV_CACHE_DIR", "/data/uv"),
+                ("XDG_CACHE_HOME", "/elsewhere")
+            ]),
+            (vec![1, 2], vec![]),
+            "two variables naming different folders: which one uv uses is unknown"
+        );
+        Ok(())
+    }
+
     #[test]
     fn evidence_progress_counts_only_entries_in_the_selected_scan()
     -> Result<(), Box<dyn std::error::Error>> {
@@ -1247,7 +1330,7 @@ mod tests {
         let kb = KnowledgeBase::builtin()?;
         let input = input(&[matched("xcode-simulator-devices")]);
         assert_eq!(
-            tool_guidance(&kb, &input.subject, &input.evidence),
+            tool_guidance(&kb, &input.subject, &input.evidence, |_| true),
             Some(ToolGuidance {
                 entry: "xcode-simulator-devices".to_owned(),
                 tool: "Xcode".to_owned(),
@@ -1274,7 +1357,7 @@ mod tests {
             matched("npm-cache"),
             matched("xcode-simulator-devices"),
         ]);
-        let guidance = tool_guidance(&kb, &input.subject, &input.evidence);
+        let guidance = tool_guidance(&kb, &input.subject, &input.evidence, |_| true);
         assert_eq!(guidance.map(|g| g.program), Some("npm".to_owned()));
         Ok(())
     }
@@ -1292,8 +1375,11 @@ mod tests {
         for record in &mut input.evidence {
             record.subject = other.clone();
         }
-        assert_eq!(tool_guidance(&kb, &input.subject, &input.evidence), None);
-        assert_eq!(tool_guidance(&kb, &input.subject, &[]), None);
+        assert_eq!(
+            tool_guidance(&kb, &input.subject, &input.evidence, |_| true),
+            None
+        );
+        assert_eq!(tool_guidance(&kb, &input.subject, &[], |_| true), None);
         Ok(())
     }
 

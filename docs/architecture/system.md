@@ -368,6 +368,13 @@ reading only variable names declared for the current platform in the knowledge b
 Unset or invalid roots do not match; variables are not inferred from a terminal's
 configuration or collected wholesale. Matching a custom location supplies evidence,
 not permission to remove it: all existing policy and execution checks still apply.
+A tool uses the folder its variable names instead of its default one, and its command
+inherits Lumen's environment, so while one of an entry's variables is set the command
+is shown, and can be run, only with that variable's folder
+(`KnowledgeBase::command_acts_on`). An old default folder beside it still matches the
+entry and keeps its verdict, but is shown without the command. If the entry's
+variables name different folders, Lumen cannot tell which one the tool uses and shows
+the command with none of them.
 
 Permanent removal and confirmed tool commands also report observed free-space
 changes (`SpaceChangeView`). Each target volume is measured at its surviving parent,

@@ -266,6 +266,36 @@ impl KnowledgeBase {
         matcher.collect_markers(scanned, &paths, &mut markers);
         matcher.evidence(scanned, &paths, &markers, observed_at)
     }
+
+    /// Whether entry `id`'s own command acts on `path`, an object that matched
+    /// the entry in `env`. A tool uses the folder its variable names instead
+    /// of its default one, so while any of the entry's variables is in `env`
+    /// only their locations count, and only if they name one folder: which
+    /// one the tool picks is otherwise unknown. An old default folder beside
+    /// a configured one still matches the entry; its command just does not
+    /// clear it.
+    #[must_use]
+    pub fn command_acts_on(&self, env: &Environment, id: &str, path: &RawPath) -> bool {
+        let Some(entry) = self.get(id) else {
+            return false;
+        };
+        let configured: Vec<Resolved<'_>> = entry
+            .locations
+            .iter()
+            .filter(|l| matches!(l.root, Root::EnvVar { .. }))
+            .filter_map(|l| resolve(entry, l, env))
+            .collect();
+        let folders: BTreeSet<Vec<Component>> = configured
+            .iter()
+            .map(|r| [r.root.as_deref().unwrap_or_default(), r.pattern.as_slice()].concat())
+            .collect();
+        let names = components(path, env.platform);
+        configured.is_empty()
+            || (folders.len() == 1
+                && configured
+                    .iter()
+                    .any(|r| r.matches(&names, &HashSet::new())))
+    }
 }
 
 impl Matcher<'_> {
