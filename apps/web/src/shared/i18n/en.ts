@@ -22,6 +22,7 @@ export const en = {
     loading: "Loading…",
     close: "Close",
     details: "Details",
+    noDetails: "Lumen got no details about this error.",
     tryAgain: "Try again",
     scanDisk: "Scan disk",
     scanning: "Scanning…",

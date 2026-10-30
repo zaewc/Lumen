@@ -3,7 +3,7 @@ import { type ReactNode, useState } from "react";
 import { summarize, useScanSession } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
-import { buttonClass, Disclosure, Page } from "@/shared/ui";
+import { buttonClass, ErrorDetails, Page } from "@/shared/ui";
 import type { Filter } from "../model/filter";
 import { cleanUpStep } from "../model/step";
 import { useCleanUpAction } from "./CleanUpAction";
@@ -129,13 +129,7 @@ export function CleanUpPage() {
             <button type="button" onClick={rescan} className={buttonClass("secondary")}>
               {m.common.tryAgain}
             </button>
-            <Disclosure
-              summary={<span className="text-[12px] text-ink-3">{m.common.details}</span>}
-            >
-              <p className="font-mono text-[11px] break-all text-ink-3 select-text">
-                {String(session.assessmentError)}
-              </p>
-            </Disclosure>
+            <ErrorDetails error={session.assessmentError} />
           </section>
         );
       case "results":

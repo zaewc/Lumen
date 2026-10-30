@@ -34,6 +34,7 @@ export const ko = {
     loading: "불러오는 중…",
     close: "닫기",
     details: "자세히",
+    noDetails: "이 오류는 자세한 내용이 없어요.",
     tryAgain: "다시 시도",
     scanDisk: "디스크 검사",
     scanning: "검사하는 중…",
