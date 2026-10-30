@@ -27,12 +27,13 @@
   "regeneration": { "effort": "minutes", "network": true },
   "official_action": {
     "program": "brew",
-    "args": ["cleanup"],
-    "dry_run_args": ["cleanup", "--dry-run"]
+    "args": ["cleanup", "--prune=all", "--scrub"],
+    "dry_run_args": ["cleanup", "--prune=all", "--scrub", "--dry-run"]
   },
   "sources": [
     "https://docs.brew.sh/Manpage#cleanup-options-formulacask-",
+    "https://github.com/Homebrew/brew/blob/main/Library/Homebrew/cleanup.rb",
     "https://docs.brew.sh/Manpage#environment"
   ],
-  "last_verified": "2026-10-13"
+  "last_verified": "2026-10-30"
 }
