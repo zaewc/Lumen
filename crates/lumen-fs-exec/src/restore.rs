@@ -1,10 +1,15 @@
 //! Restoring a quarantined item to where it was (roadmap 9.7, ADR-0015).
 //!
-//! The item must still be exactly what was quarantined, and its original
-//! parent must be reachable from the scan root by handle, without following
-//! any link or leaving the store's volume. The parent may have been recreated
-//! since (a regenerated cache directory, say); that is reported, not refused,
-//! because putting the item back at its path is what restoring means.
+//! The item in the store gets the same check as
+//! [`finalize`](crate::finalize()), so restoring is never stricter than
+//! permanent removal: whatever Lumen would remove, it can put back. A file
+//! must still be exactly what was quarantined; a directory must be the same
+//! directory (identity and kind), whatever entries it gained or lost while
+//! held. Its original parent must be reachable from the scan root by handle,
+//! without following any link or leaving the store's volume. The parent may
+//! have been recreated since (a regenerated cache directory, say); that is
+//! reported, not refused, because putting the item back at its path is what
+//! restoring means.
 //!
 //! The move back is one no-replace rename: if anything now has the item's
 //! name, nothing is overwritten and the user decides. Both directories are
@@ -24,7 +29,7 @@ use rustix::io::Errno;
 use crate::fault::{self, Point};
 use crate::move_into::Left;
 use crate::store::Store;
-use crate::verify::{Mismatch, PlanItem, check_leaf, directory_flags, identity, plain};
+use crate::verify::{Mismatch, PlanItem, check_held, directory_flags, identity, plain};
 
 /// Why a restore failed, and where it left the item.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -119,7 +124,7 @@ pub fn restore(store: &Store, name: &[u8], item: &PlanItem) -> Result<Restored, 
             errno,
         })
     })?;
-    check_leaf(&held, &item.expected).map_err(RestoreError::NotInStore)?;
+    check_held(&held, &item.expected).map_err(RestoreError::NotInStore)?;
     let parent = parent(item, store.identity.dev).map_err(RestoreError::ParentUnreachable)?;
     let parent_replaced = !fstat(&parent).is_ok_and(|stat| identity(&stat) == item.parent_identity);
     renameat_with(
@@ -151,7 +156,7 @@ pub fn restore(store: &Store, name: &[u8], item: &PlanItem) -> Result<Restored, 
                 errno,
             })
         })?;
-    check_leaf(&restored, &item.expected).map_err(RestoreError::Unverified)?;
+    check_held(&restored, &item.expected).map_err(RestoreError::Unverified)?;
     Ok(Restored { parent_replaced })
 }
 
@@ -223,6 +228,57 @@ mod tests {
             Err(RestoreError::NotInStore(Mismatch::SizeChanged))
         );
         assert!(!root.join("cache/app/data.bin").exists());
+    }
+
+    #[test]
+    fn a_directory_that_changed_while_held_comes_back_with_its_new_entries() {
+        let (_fx, root, store) = setup();
+        let item = quarantined(&root, &store, "cache/dir", "item-2");
+        // Past one timestamp tick, so the change shows in the directory's time
+        // (see `races.rs`).
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        let held = root.join("Quarantine/item-2");
+        std::fs::write(held.join(".DS_Store"), b"written while held")
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        std::fs::create_dir(held.join("sub")).unwrap_or_else(|e| unreachable!("{e}"));
+        let now = rustix::fs::lstat(&held).unwrap_or_else(|e| unreachable!("{e}"));
+        assert!(
+            crate::verify::check_leaf(&now, &item.expected).is_err(),
+            "the directory no longer matches its record in full"
+        );
+        assert_eq!(
+            restore(&store, b"item-2", &item),
+            Ok(Restored {
+                parent_replaced: false
+            }),
+            "finalize would remove it, so it can be put back"
+        );
+        assert!(!held.exists());
+        assert!(root.join("cache/dir/x").exists());
+        assert_eq!(
+            std::fs::read(root.join("cache/dir/.DS_Store")).unwrap_or_default(),
+            b"written while held"
+        );
+        assert!(root.join("cache/dir/sub").is_dir());
+    }
+
+    #[test]
+    fn a_directory_replaced_while_held_stays_in_the_store() {
+        let (_fx, root, store) = setup();
+        let item = quarantined(&root, &store, "cache/dir", "item-2");
+        // Keep the old directory alive so the new one cannot reuse its inode.
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "test fixture inside its own temporary directory"
+        )]
+        std::fs::rename(root.join("Quarantine/item-2"), root.join("Quarantine/old"))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        std::fs::create_dir(root.join("Quarantine/item-2")).unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            restore(&store, b"item-2", &item),
+            Err(RestoreError::NotInStore(Mismatch::IdentityChanged))
+        );
+        assert!(!root.join("cache/dir").exists());
     }
 
     #[test]

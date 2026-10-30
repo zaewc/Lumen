@@ -23,7 +23,7 @@ use windows_sys::Win32::Storage::FileSystem::{
 use crate::location::Removed;
 use crate::win_store::WinStore;
 use crate::win_sys::{self, Handle, Want};
-use crate::win_verify::{WinExpected, WinMismatch, check_leaf, identity, is_reparse};
+use crate::win_verify::{WinExpected, WinMismatch, check_held, is_reparse};
 
 /// The deepest directory nesting finalization removes.
 pub const MAX_DEPTH: usize = 256;
@@ -160,23 +160,11 @@ pub fn finalize(
         }
     })?;
     let facts = win_sys::facts(&held).map_err(|e| WinFinalizeError::Unreadable(code(&e)))?;
+    check_held(&facts, expected).map_err(WinFinalizeError::NotInStore)?;
     if expected.directory {
-        if is_reparse(&facts) {
-            return Err(WinFinalizeError::NotInStore(WinMismatch::ReparsePoint(
-                "the item",
-            )));
-        }
-        if identity(&facts) != expected.identity {
-            return Err(WinFinalizeError::NotInStore(WinMismatch::IdentityChanged));
-        }
-        if !facts.directory {
-            return Err(WinFinalizeError::NotInStore(WinMismatch::KindChanged));
-        }
         let volume = store.identity.volume;
         check_tree(&held, volume, 1)?;
         remove_tree(&held, volume)?;
-    } else {
-        check_leaf(&facts, expected).map_err(WinFinalizeError::NotInStore)?;
     }
     win_sys::delete(&held).map_err(|e| WinFinalizeError::Removal(code(&e)))?;
     drop(held);

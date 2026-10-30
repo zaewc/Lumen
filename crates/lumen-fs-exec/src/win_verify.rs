@@ -186,7 +186,8 @@ pub(crate) fn check_leaf(facts: &Facts, expected: &WinExpected) -> Result<(), Wi
 
 /// Checks an item held in a store: a file in full, a directory by identity
 /// and kind (an interrupted finalization may have changed its contents; the
-/// store is private to its owner, ADR-0015).
+/// store is private to its owner, ADR-0015). Restore, finalize and locate all
+/// use this one check, so restoring is never stricter than permanent removal.
 pub(crate) fn check_held(facts: &Facts, expected: &WinExpected) -> Result<(), WinMismatch> {
     if !expected.directory {
         return check_leaf(facts, expected);

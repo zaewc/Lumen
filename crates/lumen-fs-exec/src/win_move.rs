@@ -21,9 +21,10 @@ use windows_sys::Win32::Foundation::{
 
 use crate::location::Left;
 use crate::win_store::WinStore;
-use crate::win_sys::{self, Handle, Want};
+use crate::win_sys::{self, Facts, Handle, Want};
 use crate::win_verify::{
-    WinExpected, WinMismatch, WinPlanItem, WinVerified, check_leaf, identity, is_reparse, walk,
+    WinExpected, WinMismatch, WinPlanItem, WinVerified, check_held, check_leaf, identity,
+    is_reparse, walk,
 };
 
 /// Why a move or restore failed, and where it left the item.
@@ -106,14 +107,18 @@ fn gone(error: &io::Error) -> bool {
     )
 }
 
+/// How an item is compared with its record after a rename.
+type Check = fn(&Facts, &WinExpected) -> Result<(), WinMismatch>;
+
 /// After a rename: the old name is gone and the item, reopened by its new
-/// name, is still what was planned.
+/// name, still passes `check`.
 fn check_after(
     from: &Handle,
     old: &[u16],
     to: &Handle,
     new: &[u16],
     expected: &WinExpected,
+    check: Check,
 ) -> Result<(), WinMoveError> {
     let want = Want::Movable {
         directory: expected.directory,
@@ -130,7 +135,7 @@ fn check_after(
                 code: code(&error),
             })
         })?;
-    check_leaf(&moved, expected).map_err(WinMoveError::Unverified)
+    check(&moved, expected).map_err(WinMoveError::Unverified)
 }
 
 /// Renames the verified item into `store` as `name`, then checks it.
@@ -148,10 +153,20 @@ pub fn move_into(
         return Err(WinMoveError::InvalidName);
     }
     win_sys::rename_into(&verified.leaf, &store.dir, name).map_err(|e| rename_error(&e))?;
-    check_after(&verified.parent, &verified.name, &store.dir, name, expected)
+    check_after(
+        &verified.parent,
+        &verified.name,
+        &store.dir,
+        name,
+        expected,
+        check_leaf,
+    )
 }
 
-/// Moves `name` in `store` back to where `item` was.
+/// Moves `name` in `store` back to where `item` was. The held item gets the
+/// same check as [`finalize`](crate::finalize()) (a file in full, a directory
+/// by identity and kind), so restoring is never stricter than permanent
+/// removal.
 ///
 /// # Errors
 ///
@@ -179,7 +194,7 @@ pub fn restore(
             code: code(&error),
         })
     })?;
-    check_leaf(&facts, &item.expected).map_err(WinMoveError::NotInStore)?;
+    check_held(&facts, &item.expected).map_err(WinMoveError::NotInStore)?;
     let (_root, parent) =
         walk(&item.root, &item.components).map_err(WinMoveError::ParentUnreachable)?;
     let parent_facts = win_sys::facts(&parent).map_err(|error| {
@@ -198,7 +213,14 @@ pub fn restore(
     }
     let parent_replaced = identity(&parent_facts) != item.parent_identity;
     win_sys::rename_into(&held, &parent, &item.leaf).map_err(|e| rename_error(&e))?;
-    check_after(&store.dir, name, &parent, &item.leaf, &item.expected)?;
+    check_after(
+        &store.dir,
+        name,
+        &parent,
+        &item.leaf,
+        &item.expected,
+        check_held,
+    )?;
     Ok(WinRestored { parent_replaced })
 }
 
@@ -280,6 +302,43 @@ mod tests {
             );
             assert!(root.join(relative).exists(), "{relative} came back");
         }
+    }
+
+    #[test]
+    fn a_directory_that_changed_while_held_comes_back_and_a_changed_file_stays() {
+        let (_fx, root, units, store) = setup();
+        let [dir, file] =
+            [("cache/dir", "item-2"), ("cache/app/data.bin", "item-1")].map(|(relative, name)| {
+                let item = plan(&units, relative);
+                let verified = verify(&item).unwrap_or_else(|e| unreachable!("{e}"));
+                assert_eq!(
+                    move_into(&verified, &store, &wide(name), &item.expected),
+                    Ok(())
+                );
+                item
+            });
+        // Past one timestamp tick (NTFS: up to ~15.6 ms), so the change shows.
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::fs::write(root.join("Quarantine/item-2/new"), b"written while held")
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        std::fs::write(root.join("Quarantine/item-1"), b"changed while held")
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            restore(&store, &wide("item-2"), &dir),
+            Ok(WinRestored {
+                parent_replaced: false
+            }),
+            "finalize would remove it, so it can be put back"
+        );
+        assert_eq!(
+            std::fs::read(root.join("cache/dir/new")).unwrap_or_default(),
+            b"written while held"
+        );
+        assert!(matches!(
+            restore(&store, &wide("item-1"), &file),
+            Err(WinMoveError::NotInStore(_))
+        ));
+        assert!(root.join("Quarantine/item-1").exists());
     }
 
     #[test]
