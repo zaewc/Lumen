@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useI18n } from "@/shared/i18n";
+import { errorMessage } from "@/shared/lib";
 import { Disclosure } from "./Disclosure";
 import { CheckIcon, WarningIcon } from "./icons";
 
@@ -47,16 +48,28 @@ export function ErrorNotice({
   readonly error: unknown;
   readonly children?: ReactNode;
 }) {
-  const { m } = useI18n();
   return (
     <div role="alert">
       <Notice tone="warning">
         <p className="font-medium">{message}</p>
         {children !== undefined && <div className="flex flex-wrap gap-2 pt-1">{children}</div>}
-        <Disclosure summary={<span className="text-[12px] text-ink-3">{m.common.details}</span>}>
-          <p className="font-mono text-[11px] break-all text-ink-3 select-text">{String(error)}</p>
-        </Disclosure>
+        <ErrorDetails error={error} />
       </Notice>
     </div>
+  );
+}
+
+/**
+ * "Details" with the core's own words about `error` (the host's message or
+ * an `Error`'s message), or a generic line when it carries none.
+ */
+export function ErrorDetails({ error }: { readonly error: unknown }) {
+  const { m } = useI18n();
+  return (
+    <Disclosure summary={<span className="text-[12px] text-ink-3">{m.common.details}</span>}>
+      <p className="font-mono text-[11px] break-all text-ink-3 select-text">
+        {errorMessage(error) ?? m.common.noDetails}
+      </p>
+    </Disclosure>
   );
 }

@@ -24,7 +24,7 @@ export {
   WarningIcon,
 } from "./icons";
 export { LogoMark } from "./Logo";
-export { ErrorNotice, Notice, type NoticeTone } from "./Notice";
+export { ErrorDetails, ErrorNotice, Notice, type NoticeTone } from "./Notice";
 export { Page } from "./Page";
 export { type Segment, Segmented } from "./Segmented";
 export { SpaceChangeResult } from "./SpaceChange";
