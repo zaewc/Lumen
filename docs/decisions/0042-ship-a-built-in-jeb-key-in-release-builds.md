@@ -5,6 +5,8 @@
 - Amends: [ADR-0036](0036-jeb-on-the-school-ai-hub.md) (whose key is used),
   [ADR-0037](0037-keep-ai-review-on-once-turned-on.md) (turning it on no longer needs a
   stored key)
+- Amended by: [ADR-0047](0047-ai-review-on-by-default.md) (AI review is on by default,
+  without a consent step)
 
 ## Context and problem statement
 
@@ -68,7 +70,9 @@ Chosen option: **1**.
 - **Consent is unchanged:** AI review starts off and is turned on only through the
   consent dialog or `lumen ai on`, with the same disclosure, now naming Lumen's
   built-in key when that is the one used. With a built-in key the dialog no longer
-  asks for one, but still offers to store the user's own key.
+  asks for one, but still offers to store the user's own key. (Superseded by
+  ADR-0047: AI review is now on by default, with the disclosure shown and an off
+  switch.)
 - **Never shown:** the key is an `ApiKey`, whose `Debug` output is redacted; errors,
   logs and judge traces never contain it. Views say only where the key comes from
   (`key_source`: `builtin`, `stored` or `null`). `lumen jev key status` and
@@ -89,7 +93,8 @@ Chosen option: **1**.
   release ships a new key, or the user stores their own. Rotation means a new release.
 - Bad: the Jeb operator (the school) has not been asked whether a student key may be
   shared this way. **The owner should confirm the operator's permission** before
-  publishing a release that carries the key, and stop if it is refused.
+  publishing a release that carries the key, and stop if it is refused. (Resolved: see
+  "Operator permission" below.)
 - Bad: a shared key concentrates load. Jeb allows one request at a time per account
   and has per-account quotas (ADR-0036), and each assessment may send one request per
   proposed item plus up to 20 descriptions of review items (ADR-0041). Many users at
@@ -122,3 +127,11 @@ Chosen option: **1**.
 - GitHub Docs, "Using environments for deployment" and "Using secrets in GitHub
   Actions": environment secrets are available only to jobs that reference the
   environment, after its protection rules pass.
+
+### Operator permission (owner confirmation, 2026-10-30)
+
+The owner confirmed that the AI Hub's operator approved this use: release builds carry
+the owner's Jeb key, and AI review sends metadata with it while on by default
+(ADR-0047). The precondition in Consequences is met. The other consequences stand: the
+key remains extractable, its quota and the one-request-at-a-time limit are shared, and
+the operator still publishes no retention policy, which the disclosure says.

@@ -1,6 +1,6 @@
 # ADR-0037: Keep AI review on once the user turns it on
 
-- Status: Accepted
+- Status: Superseded in part by [ADR-0047](0047-ai-review-on-by-default.md) (on by default); the kept choice and the off switch stand
 - Date: 2026-10-21
 - Amends: [ADR-0020](0020-jev-evidence-only-judge.md), [ADR-0036](0036-jeb-on-the-school-ai-hub.md) (how consent is given)
 - Amended by: [ADR-0041](0041-ai-describes-what-review-items-are.md) (review items are also described)

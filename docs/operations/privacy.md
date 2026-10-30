@@ -4,9 +4,9 @@
 > telemetry. This page lists every signal; the settings screen will show the same list.
 
 Lumen records how its own work went, so problems can be diagnosed. These records stay
-on your machine. Nothing is sent to Lumen or anyone else. You can read the log files,
-delete them, or export the recent events to attach to a support request after reviewing
-them.
+on your machine and are never sent to Lumen or anyone else; [AI review](#ai-review) is
+the one feature that sends data. You can read the log files, delete them, or export the
+recent events to attach to a support request after reviewing them.
 
 ## Where
 
@@ -48,7 +48,7 @@ named like a path, name or hash with `[redacted]`.
 - File contents, file or folder names, paths, app names, operation or plan IDs, and
   content hashes.
 - Anything about what Jev said: Jev's own traces live in the ledger (ADR-0020), not in
-  these logs, and are never sent anywhere except in the opt-in request itself.
+  these logs, and are never sent anywhere except in the AI review request itself.
 - API keys, including Lumen's built-in Jeb key: no log, error or trace contains one.
 - Usage analytics, crash reports or identifiers of you or your device.
 

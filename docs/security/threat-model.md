@@ -118,10 +118,10 @@ Assumptions:
 
 | Threat | Example | Controls |
 | --- | --- | --- |
-| Information disclosure | Provider retains metadata | Opt-in, redaction, documented provider data policy; zero-data-retention status confirmed before launch |
+| Information disclosure | Provider retains metadata | Metadata only, never file contents; home folder redaction; on by default with the disclosure shown and a kept off switch ([ADR-0047](../decisions/0047-ai-review-on-by-default.md)); zero-retention endpoints on OpenRouter; Jeb publishes no retention policy, and the disclosure says its operator may keep requests ([ADR-0036](../decisions/0036-jeb-on-the-school-ai-hub.md)) |
 | Tampering | Response from an unexpected model or a refusal parsed as data | Pinned model ID check, `stop_reason` handling, schema validation, unknown evidence IDs rejected |
 | Spoofing | API key theft from local storage | Keys stored in the OS keychain or credential manager; never logged |
-| Information disclosure | Lumen's built-in Jeb key read out of a release binary and its quota spent elsewhere | **Accepted risk** ([ADR-0042](../decisions/0042-ship-a-built-in-jeb-key-in-release-builds.md)): not obfuscated, as that would not protect it; compiled in only on tag builds from the protected `release` environment, never in pull request runs; a stored user key wins; revocable, and a failed judge only means no judgment; rotation is a new release |
+| Information disclosure | Lumen's built-in Jeb key read out of a release binary and its quota spent elsewhere | **Accepted risk** ([ADR-0042](../decisions/0042-ship-a-built-in-jeb-key-in-release-builds.md)): not obfuscated, as that would not protect it; compiled in only on tag builds from the protected `release` environment, never in pull request runs; the AI Hub's operator approved this use (owner confirmation, 2026-10-30); a stored user key wins; revocable, and a failed judge only means no judgment; rotation is a new release |
 
 ### TB6: Developer tool commands
 

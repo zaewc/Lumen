@@ -98,9 +98,10 @@ under the row and in the item's details, labelled as AI.
    compiled in from `LUMEN_JEB_BUILTIN_KEY` by `lumen_app::ai::builtin_key()`. Other
    builds have none.
 
-A built-in key only removes the need to type one: AI review still starts off and still
-needs the user's consent. With it, the consent dialog does not ask for a key but offers
-to store the user's own, and the disclosure says that Lumen's built-in key is used.
+A built-in key only removes the need to type one. With it, AI review works on a fresh
+install, on by default ([ADR-0047](../decisions/0047-ai-review-on-by-default.md)),
+Settings still offers to store the user's own key, and the disclosure says that
+Lumen's built-in key is used. The AI Hub's operator approved this use (ADR-0042).
 Interfaces see only where the key comes from (`AiSettingsView.key_source`: `builtin`,
 `stored` or `null`); `lumen ai status` and `lumen jev key status` say "built-in key
 available". The key is never shown, logged, put in an error or traced. A stored key
