@@ -345,6 +345,22 @@ export const en = {
         well === total
           ? `Removed ${items(total)} for good.`
           : `Removed ${count(well)} of ${items(total)} for good. Lumen removed nothing else.`,
+      restoredStopped: (well: number, total: number, untried: number) =>
+        [
+          `Restored ${count(well)} of ${items(total)}, then an error stopped Lumen.`,
+          untried > 0 ? `It didn't try the other ${count(untried)}.` : null,
+          "What's still in the list stays in Quarantine.",
+        ]
+          .filter((sentence) => sentence !== null)
+          .join(" "),
+      removedStopped: (well: number, total: number, untried: number) =>
+        [
+          `Removed ${count(well)} of ${items(total)} for good, then an error stopped Lumen.`,
+          untried > 0 ? `It didn't try the other ${count(untried)}.` : null,
+          "What's still in the list stays in Quarantine, and you can restore it.",
+        ]
+          .filter((sentence) => sentence !== null)
+          .join(" "),
     },
   },
   held: {

@@ -353,6 +353,22 @@ export const ko = {
         well === total
           ? `${items(total)}를 영구 삭제했어요.`
           : `${items(total)} 중 ${count(well)}개를 영구 삭제했어요. 나머지는 삭제하지 않았어요.`,
+      restoredStopped: (well: number, total: number, untried: number) =>
+        [
+          `${items(total)} 중 ${count(well)}개를 복원하고, 오류가 생겨서 멈췄어요.`,
+          untried > 0 ? `나머지 ${count(untried)}개는 복원하지 않았어요.` : null,
+          "목록에 남은 항목은 격리함에 그대로 있어요.",
+        ]
+          .filter((sentence) => sentence !== null)
+          .join(" "),
+      removedStopped: (well: number, total: number, untried: number) =>
+        [
+          `${items(total)} 중 ${count(well)}개를 영구 삭제하고, 오류가 생겨서 멈췄어요.`,
+          untried > 0 ? `나머지 ${count(untried)}개는 삭제하지 않았어요.` : null,
+          "목록에 남은 항목은 격리함에 그대로 있어서 복원할 수 있어요.",
+        ]
+          .filter((sentence) => sentence !== null)
+          .join(" "),
     },
   },
   held: {
