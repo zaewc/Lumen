@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
 import { useInstallUpdate, useUpdate } from "@/entities/app-update";
 import { useHeld } from "@/entities/held";
@@ -7,7 +7,7 @@ import { useScanSession } from "@/entities/scan-session";
 import { useToolRun } from "@/entities/tool-run";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
-import { ArchiveIcon, DriveIcon, GearIcon, LogoMark, SearchIcon } from "@/shared/ui";
+import { ArchiveIcon, buttonClass, DriveIcon, GearIcon, LogoMark, SearchIcon } from "@/shared/ui";
 
 const ITEM =
   "relative flex h-12 items-center justify-center gap-2 px-2 min-[960px]:px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-fill hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-[current=page]:text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-transparent aria-[current=page]:after:bg-accent motion-reduce:transition-none min-[960px]:h-[72px] [&>svg]:hidden min-[960px]:[&>svg]:block [&>svg]:size-[18px] [&>svg]:text-ink-3 aria-[current=page]:[&>svg]:text-accent-ink";
@@ -68,10 +68,8 @@ function NavItem({
 }
 
 /** A newer version, when one is out; it opens Settings, where it installs. */
-function UpdateStatus() {
+function UpdateStatus({ version }: { readonly version: string | null }) {
   const { m } = useI18n();
-  const update = useUpdate();
-  const version = update.data?.available ?? null;
   if (version === null) {
     return null;
   }
@@ -79,6 +77,7 @@ function UpdateStatus() {
   return (
     <Link
       to="/settings"
+      hash="app-update"
       title={label}
       className="flex h-8 items-center gap-2 rounded px-2 text-[12px] font-medium text-accent-ink hover:bg-fill focus-visible:outline-2 focus-visible:outline-accent"
     >
@@ -123,6 +122,10 @@ export function Sidebar() {
   const held = useHeld();
   const command = useToolRun();
   const install = useInstallUpdate();
+  const update = useUpdate();
+  const version = update.data?.available ?? null;
+  const [dismissed, dismiss] = useState<string | null>(null);
+  const showUpdate = version !== null && version !== dismissed && install.status !== "pending";
   const session = useScanSession();
   const activity =
     install.status === "pending"
@@ -142,39 +145,63 @@ export function Sidebar() {
   usePlaceShortcut("/quarantine");
   usePlaceShortcut("/settings");
   return (
-    <header className="flex shrink-0 flex-wrap items-center border-b border-line bg-sidebar px-3 min-[960px]:gap-4 min-[960px]:px-6">
-      <div className="flex h-14 shrink-0 items-center gap-2.5 px-2 min-[960px]:h-[72px] min-[960px]:pr-6">
-        <LogoMark className="size-8" />
-        <span className="text-[21px] font-semibold tracking-[-0.06em] text-ink">Lumen</span>
-      </div>
-      <nav
-        aria-label={m.nav.label}
-        className="order-last w-full min-[960px]:order-none min-[960px]:w-auto"
-      >
-        <ul className="flex min-w-0">
-          <NavItem to="/" icon={<DriveIcon />} label={m.nav.overview} />
-          <NavItem to="/clean" icon={<SearchIcon />} label={m.nav.cleanUp} />
-          <NavItem
-            to="/quarantine"
-            icon={<ArchiveIcon />}
-            label={m.nav.quarantine}
-            {...(count > 0
-              ? { badge: { text: countFormat(locale)(count), label: m.nav.held(count) } }
-              : {})}
-          />
-          <NavItem to="/settings" icon={<GearIcon />} label={m.nav.settings} />
-        </ul>
-      </nav>
-      <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-x-2">
-        <UpdateStatus />
-        {activity !== null ? (
-          <span role="status" className="max-w-52 truncate px-2 text-[12px] text-ink-2">
-            {activity}
-          </span>
-        ) : (
-          <AiStatus />
-        )}
-      </div>
-    </header>
+    <>
+      <header className="flex shrink-0 flex-wrap items-center border-b border-line bg-sidebar px-3 min-[960px]:gap-4 min-[960px]:px-6">
+        <div className="flex h-14 shrink-0 items-center gap-2.5 px-2 min-[960px]:h-[72px] min-[960px]:pr-6">
+          <LogoMark className="size-8" />
+          <span className="text-[21px] font-semibold tracking-[-0.06em] text-ink">Lumen</span>
+        </div>
+        <nav
+          aria-label={m.nav.label}
+          className="order-last w-full min-[960px]:order-none min-[960px]:w-auto"
+        >
+          <ul className="flex min-w-0">
+            <NavItem to="/" icon={<DriveIcon />} label={m.nav.overview} />
+            <NavItem to="/clean" icon={<SearchIcon />} label={m.nav.cleanUp} />
+            <NavItem
+              to="/quarantine"
+              icon={<ArchiveIcon />}
+              label={m.nav.quarantine}
+              {...(count > 0
+                ? { badge: { text: countFormat(locale)(count), label: m.nav.held(count) } }
+                : {})}
+            />
+            <NavItem to="/settings" icon={<GearIcon />} label={m.nav.settings} />
+          </ul>
+        </nav>
+        <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-x-2">
+          {!showUpdate && <UpdateStatus version={version} />}
+          {activity !== null ? (
+            <span role="status" className="max-w-52 truncate px-2 text-[12px] text-ink-2">
+              {activity}
+            </span>
+          ) : (
+            <AiStatus />
+          )}
+        </div>
+      </header>
+      {showUpdate && (
+        <aside
+          aria-label={m.settings.about.update.title}
+          className="flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-accent/20 bg-accent-soft px-5 py-3 min-[960px]:px-8"
+        >
+          <p role="status" className="min-w-0 text-[14px] font-medium text-ink">
+            {m.settings.about.update.notice(version)}
+          </p>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              className={buttonClass("quiet", "sm")}
+              onClick={() => dismiss(version)}
+            >
+              {m.settings.about.update.later}
+            </button>
+            <Link to="/settings" hash="app-update" className={buttonClass("primary", "sm")}>
+              {m.settings.about.update.noticeAction}
+            </Link>
+          </div>
+        </aside>
+      )}
+    </>
   );
 }

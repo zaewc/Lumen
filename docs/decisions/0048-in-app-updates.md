@@ -63,6 +63,20 @@ Chosen option: **1**.
 - **Failure:** a failed check is silent at start and reported in Settings; a failed
   download or a bad signature installs nothing.
 
+### Update visibility (owner request, 2026-10-30)
+
+A new version gets a full-width, nonmodal notice below the navigation on every
+page, with its version and a link directly to the update setting. "Later" hides
+that version's notice for this app session; the small navigation link remains.
+A different version is announced again. Installation in progress hides the notice;
+navigation does not reset either the dismissal or the existing installation.
+
+Checks run at startup and every six hours. Returning to an app with stale results
+also refreshes them, using TanStack Query's
+[focus behavior](https://tanstack.com/query/latest/docs/framework/react/guides/window-focus-refetching).
+Fresh results are shared between navigation and Settings. Failures stay quiet, and
+no check downloads or installs anything. Browser-only hosts show no update notice.
+
 ### Consequences
 
 - Good: people update with one click; a tampered or foreign file is refused by the
