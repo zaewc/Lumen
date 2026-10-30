@@ -65,7 +65,7 @@ the executor, and it is traced like a judgment. `lumen plan` describes nothing.
 | --- | --- | --- | --- |
 | 0 | yes | no | `NoopJudge` |
 | 1 | not offered yet: evaluation only | no | on-device: Apple Foundation Models through the `fm-judge` helper, recorded and replayed by `lumen-jev-eval` ([ADR-0044](../decisions/0044-evaluate-an-on-device-judge-with-foundation-models.md)); later ONNX Runtime / llama.cpp; Android ML Kit for foreground only |
-| 2 | on by default, with the disclosure shown and an off switch that is kept ([ADR-0047](../decisions/0047-ai-review-on-by-default.md)) | metadata only, redacted, of proposed items and of up to 20 items left for review; zero-retention endpoints on OpenRouter, no retention guarantee on Jeb (disclosed on every run) | `JevJudge`: Jeb on the school AI Hub by default ([ADR-0036](../decisions/0036-jeb-on-the-school-ai-hub.md)), or TypeSafe's Jev via OpenRouter ([ADR-0031](../decisions/0031-jev-on-typesafe-via-openrouter.md)) |
+| 2 | off until the user chooses; the desktop app asks once on first launch, and the choice is kept ([ADR-0050](../decisions/0050-ask-about-ai-review-on-first-launch.md)) | metadata only, redacted, of proposed items and of up to 20 items left for review; zero-retention endpoints on OpenRouter, no retention guarantee on Jeb (disclosed on every run) | `JevJudge`: Jeb on the school AI Hub by default ([ADR-0036](../decisions/0036-jeb-on-the-school-ai-hub.md)), or TypeSafe's Jev via OpenRouter ([ADR-0031](../decisions/0031-jev-on-typesafe-via-openrouter.md)) |
 
 Apple Private Cloud Compute counts as tier 2.
 
@@ -76,12 +76,14 @@ answers for `run` to replay through `lumen_jev::foundation` and the evidence gua
 Nothing in the app asks it. Whether the app uses it, and whether it may be on by
 default (the privacy condition of roadmap Phase 14), is decided after its results.
 
-Tier 2 is on by default ([ADR-0047](../decisions/0047-ai-review-on-by-default.md)):
-with no saved choice next to `index.db`, `lumen_app::ai::load` reports it on, and the
+Tier 2 is asked for once ([ADR-0050](../decisions/0050-ask-about-ai-review-on-first-launch.md)): with no saved
+choice next to `index.db`, `lumen_app::ai::choice` returns `None`, `load` reports it
+off, `AiSettingsView.chosen` is `false`, and nothing is sent. The desktop app's first
+screen then asks, with two equal choices, and records the answer. While it is on, the
 CLI's `assess` and `plan` and the app consult the judge whenever a key is available
-(without one they go on without it and say so). It is turned off with `lumen ai off`
+(without one they go on without it and say so). It is changed with `lumen ai on|off`
 or the AI review switch in the desktop app's Settings page, and the choice is kept;
-Settings and the scan's start panel say that it is on, what is sent and where. Turning
+Settings and the scan's start panel say whether it is on, what is sent and where. Turning
 it back on in the app shows the same disclosure in a dialog, takes a Jeb key there if none is available (into the OS secret store, never
 returned to the UI), and records the choice next to the app's own `index.db`
 (`lumen_app::ai`). While on, the app's `assess` and `plan` commands consult the judge
@@ -98,8 +100,8 @@ under the row and in the item's details, labelled as AI.
    compiled in from `LUMEN_JEB_BUILTIN_KEY` by `lumen_app::ai::builtin_key()`. Other
    builds have none.
 
-A built-in key only removes the need to type one. With it, AI review works on a fresh
-install, on by default ([ADR-0047](../decisions/0047-ai-review-on-by-default.md)),
+A built-in key only removes the need to type one. With it, choosing AI review on first
+launch ([ADR-0050](../decisions/0050-ask-about-ai-review-on-first-launch.md)) needs no key from the user,
 Settings still offers to store the user's own key, and the disclosure says that
 Lumen's built-in key is used. The AI Hub's operator approved this use (ADR-0042).
 Interfaces see only where the key comes from (`AiSettingsView.key_source`: `builtin`,

@@ -11,3 +11,4 @@ export {
   serviceName,
   sourceOnConsent,
 } from "./model/ai";
+export { AiKeyField, AiReviewFacts } from "./ui/AiReviewFacts";

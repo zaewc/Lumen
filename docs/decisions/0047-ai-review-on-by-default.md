@@ -1,6 +1,6 @@
 # ADR-0047: AI review on by default
 
-- Status: Accepted
+- Status: Superseded in part by [ADR-0050](0050-ask-about-ai-review-on-first-launch.md) (asked on first launch, nothing sent before a choice); the disclosure and the kept off switch stand
 - Date: 2026-10-28
 - Supersedes: the opt-in default of [ADR-0020](0020-jev-evidence-only-judge.md) (tier 2)
   and [ADR-0037](0037-keep-ai-review-on-once-turned-on.md) (AI review starts off and is

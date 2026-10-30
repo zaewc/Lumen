@@ -59,7 +59,7 @@ request.
                  │ Lumen core (Rust): application use cases                 │
                  │  scan · evidence · graph · policy · plan · quarantine    │
                  └──┬────────────┬──────────────┬───────────────┬───────────┘
-                    │ ports      │              │               │ optional, on by default
+                    │ ports      │              │               │ optional, user's choice
         ┌───────────▼───┐ ┌──────▼──────┐ ┌─────▼──────┐ ┌──────▼──────────────┐
         │ OS APIs       │ │ SQLite      │ │ Developer  │ │ Jev providers        │
         │ (fs, inventory│ │ index.db    │ │ tools (CLI │ │ on-device / cloud    │
@@ -437,8 +437,8 @@ Forecasts use the history of `ScanSnapshot` volume totals:
   steps are uninterruptible journaled units; cancellation happens between items.
 - **Observability:** `tracing` with a redaction layer; local sinks; OpenTelemetry
   opt-in and content-free ([ADR-0022](../decisions/0022-privacy-preserving-observability.md)).
-- **Privacy:** no file contents leave the device; cloud Jev is metadata-only, on by
-  default with its disclosure and an off switch ([ADR-0047](../decisions/0047-ai-review-on-by-default.md));
+- **Privacy:** no file contents leave the device; cloud Jev is metadata-only, and off
+  until the user chooses it on first launch ([ADR-0050](../decisions/0050-ask-about-ai-review-on-first-launch.md));
   content hashes stay local.
 - **Persistence:** `index.db` (rebuildable) and `ledger.db` (durable)
   ([ADR-0012](../decisions/0012-local-persistence-sqlite.md)).

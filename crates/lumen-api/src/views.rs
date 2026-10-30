@@ -935,9 +935,13 @@ impl From<lumen_app::ai::KeySource> for AiKeySourceView {
     }
 }
 
-/// Whether AI review is on (ADR-0037), and which key it would use.
+/// Whether AI review is on (ADR-0037), whether the user has chosen yet
+/// (ADR-0050), and which key it would use.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct AiSettingsView {
+    /// Whether the user has chosen on or off. Until they have, AI review is
+    /// off and the app asks once (ADR-0050).
+    pub chosen: bool,
     /// Whether assessments ask the judge about proposed quarantines.
     pub enabled: bool,
     /// When the user last turned it on; `null` if never.
@@ -951,13 +955,15 @@ pub struct AiSettingsView {
 }
 
 impl AiSettingsView {
-    /// The view of `review` with `key`: the service and source of the key it
-    /// would use, if any.
+    /// The view of the user's `choice` (`None` while they have not chosen)
+    /// with `key`: the service and source of the key it would use, if any.
     pub fn new(
-        review: lumen_app::ai::AiReview,
+        choice: Option<lumen_app::ai::AiReview>,
         key: Option<(lumen_app::ai::Service, lumen_app::ai::KeySource)>,
     ) -> Self {
+        let review = choice.unwrap_or_default();
         Self {
+            chosen: choice.is_some(),
             enabled: review.enabled,
             consented_at: review.consented_at,
             key: key.map(|(service, _)| service).into(),

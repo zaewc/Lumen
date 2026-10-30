@@ -87,11 +87,12 @@ path it looked up earlier. The rules are in the
 
 ## AI review
 
-AI review is **on by default, and you can turn it off** in Settings
-([ADR-0047](docs/decisions/0047-ai-review-on-by-default.md)). While it is on, Lumen
+**Lumen asks once, on first launch, whether to use AI review**, and sends nothing
+until you choose; you can change it in Settings at any time
+([ADR-0050](docs/decisions/0050-ask-about-ai-review-on-first-launch.md)). While it is on, Lumen
 sends the metadata of items it proposes and of up to 20 large items left for review
-(paths with your home folder as `~`, sizes, ages, the evidence behind the decision)
-to the school AI Hub's Jeb model. **File contents are never sent.** The AI's answer
+(paths with your home folder as `~`, file names, sizes, ages, the evidence behind the
+decision) to the school AI Hub's Jeb model, whose operator may keep requests. **File contents are never sent.** The AI's answer
 is evidence: it can make a decision more careful, never less, and it never chooses
 what to move or delete ([ADR-0020](docs/decisions/0020-jev-evidence-only-judge.md)).
 How accurate it is, and how that is measured, is in [`docs/ai/`](docs/ai/architecture.md).

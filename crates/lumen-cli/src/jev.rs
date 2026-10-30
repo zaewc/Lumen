@@ -48,7 +48,7 @@ pub(crate) fn set(service: Service) -> Result<String, Box<dyn Error>> {
     let key = read_key(&mut std::io::stdin().lock())?;
     store()?.set(service.secret(), &Secret::new(key))?;
     Ok(format!(
-        "Stored the {} API key in the system's secret store. The judge is used only when a run passes --jev.\n",
+        "Stored the {} API key in the system's secret store. The judge is used when a run passes --jev, or while AI review is on (`lumen ai status --db <FILE>`).\n",
         service.label()
     ))
 }

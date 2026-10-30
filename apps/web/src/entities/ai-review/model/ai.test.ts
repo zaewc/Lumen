@@ -10,7 +10,13 @@ import {
   sourceOnConsent,
 } from "./ai";
 
-const off: AiSettingsView = { enabled: false, consented_at: null, key: "none", key_source: null };
+const off: AiSettingsView = {
+  chosen: true,
+  enabled: false,
+  consented_at: null,
+  key: "none",
+  key_source: null,
+};
 const stored: AiSettingsView = { ...off, key: "jeb", key_source: "stored" };
 const builtin: AiSettingsView = { ...off, key: "jeb", key_source: "builtin" };
 

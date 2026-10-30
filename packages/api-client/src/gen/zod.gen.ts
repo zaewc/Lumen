@@ -13,9 +13,11 @@ export const zAiKeySourceView = z.enum(["builtin", "stored"]);
 export const zAiKeyView = z.enum(["jeb", "openrouter", "none"]);
 
 /**
- * Whether AI review is on (ADR-0037), and which key it would use.
+ * Whether AI review is on (ADR-0037), whether the user has chosen yet
+ * (ADR-0050), and which key it would use.
  */
 export const zAiSettingsView = z.object({
+  chosen: z.boolean(),
   consented_at: z.iso.datetime().nullable(),
   enabled: z.boolean(),
   key: zAiKeyView,

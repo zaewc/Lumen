@@ -49,14 +49,19 @@
       },
       "AiSettingsView": {
         "type": "object",
-        "description": "Whether AI review is on (ADR-0037), and which key it would use.",
+        "description": "Whether AI review is on (ADR-0037), whether the user has chosen yet\n(ADR-0050), and which key it would use.",
         "required": [
+          "chosen",
           "enabled",
           "consented_at",
           "key",
           "key_source"
         ],
         "properties": {
+          "chosen": {
+            "type": "boolean",
+            "description": "Whether the user has chosen on or off. Until they have, AI review is\noff and the app asks once (ADR-0050)."
+          },
           "consented_at": {
             "type": [
               "string",

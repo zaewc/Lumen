@@ -44,15 +44,18 @@ fn invoke(window: &WebviewWindow<MockRuntime>, cmd: &str, body: Value) -> Result
     })
 }
 
-/// AI review: on by default but without a key (ADR-0047), a key stored
-/// (never shown), on with the time of consent, then off again.
+/// AI review: not chosen and off at first, without a key (ADR-0050), a key
+/// stored (never shown), on with the time of consent, then off again.
 fn ai_review(window: &WebviewWindow<MockRuntime>) {
     let ok = |cmd: &str, body: Value| {
         invoke(window, cmd, body).unwrap_or_else(|e| unreachable!("{cmd}: {e}"))
     };
     assert_eq!(
         ok("ai_settings", json!({})),
-        json!({ "enabled": true, "consented_at": null, "key": "none", "key_source": null })
+        json!({
+            "chosen": false, "enabled": false, "consented_at": null, "key": "none",
+            "key_source": null
+        })
     );
     let disk = ok("disk", json!({}));
     let bytes = |field: &str| {
@@ -78,6 +81,7 @@ fn ai_review(window: &WebviewWindow<MockRuntime>) {
     assert_eq!(stored["key_source"], "stored", "{stored}");
     assert!(!stored.to_string().contains("jeb-e2e-fake-key"), "{stored}");
     let on = ok("set_ai_review", json!({ "enabled": true }));
+    assert_eq!(on["chosen"], true, "{on}");
     assert_eq!(on["enabled"], true, "{on}");
     assert!(on["consented_at"].is_string(), "{on}");
     let off = ok("set_ai_review", json!({ "enabled": false }));

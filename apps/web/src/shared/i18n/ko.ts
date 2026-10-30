@@ -128,6 +128,13 @@ export const ko = {
       confirm: "AI 검토 켜기",
       turningOn: "켜는 중…",
     },
+    firstLaunch: {
+      title: "AI 검토를 쓸까요?",
+      intro:
+        "Lumen은 안전 규칙으로 판단해요. 원하면 AI가 한 번 더 살펴봐요. 고르기 전에는 아무것도 보내지 않아요.",
+      on: "AI 검토 켜기",
+      off: "AI 검토 없이 쓰기",
+    },
   },
   scanning: {
     title: "검사하는 중…",

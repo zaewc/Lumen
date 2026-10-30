@@ -333,7 +333,7 @@ fn ai_view(
     builtin: bool,
 ) -> Result<AiSettingsView, CommandError> {
     let key = lumen_app::ai::key_source(secrets, builtin).map_err(CommandError::new)?;
-    Ok(AiSettingsView::new(lumen_app::ai::load(db), key))
+    Ok(AiSettingsView::new(lumen_app::ai::choice(db), key))
 }
 
 /// How full the disk holding the user's home folder is: a read of the
