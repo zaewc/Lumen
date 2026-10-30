@@ -466,6 +466,10 @@ pub struct RestoreFailure {
 pub struct RestoredItem {
     /// The original parent had been recreated (best effort).
     pub parent_replaced: bool,
+    /// The item matched its record in full after the move. A directory that
+    /// changed while held (entries added or removed, or a finalization that
+    /// stopped part way) is restored, but does not.
+    pub matches_record: bool,
 }
 
 /// The journal could not record an entry.

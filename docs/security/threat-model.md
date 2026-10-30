@@ -198,7 +198,8 @@ GOAL: a file the user needs is permanently lost because of Lumen
 - A held directory is checked by identity and kind only, on restore as on finalize, so
   entries added or removed while it is held (Finder's `.DS_Store`, an app still
   writing) neither block restoring it nor stop its removal. A directory whose
-  finalization stopped part way can be restored with only what remains.
+  finalization stopped part way can be restored with only what remains. Either way the
+  restore is reported as not matching its record, so the user is asked to check it.
 
 ## 8. Security testing obligations
 

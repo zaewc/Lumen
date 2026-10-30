@@ -247,7 +247,8 @@ fn a_held_directory_that_gains_an_entry_can_be_restored_as_it_could_be_finalized
     assert_eq!(
         executor.restore(&item, op(9)),
         Ok(RestoredItem {
-            parent_replaced: false
+            parent_replaced: false,
+            matches_record: false,
         })
     );
     assert!(root.join("cache/dir/x").exists());

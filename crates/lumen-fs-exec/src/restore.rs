@@ -5,11 +5,12 @@
 //! permanent removal: whatever Lumen would remove, it can put back. A file
 //! must still be exactly what was quarantined; a directory must be the same
 //! directory (identity and kind), whatever entries it gained or lost while
-//! held. Its original parent must be reachable from the scan root by handle,
-//! without following any link or leaving the store's volume. The parent may
-//! have been recreated since (a regenerated cache directory, say); that is
-//! reported, not refused, because putting the item back at its path is what
-//! restoring means.
+//! held; whether it still matches its record in full is reported
+//! ([`Restored::matches_record`]). Its original parent must be reachable from
+//! the scan root by handle, without following any link or leaving the store's
+//! volume. The parent may have been recreated since (a regenerated cache
+//! directory, say); that is reported, not refused, because putting the item
+//! back at its path is what restoring means.
 //!
 //! The move back is one no-replace rename: if anything now has the item's
 //! name, nothing is overwritten and the user decides. Both directories are
@@ -29,7 +30,7 @@ use rustix::io::Errno;
 use crate::fault::{self, Point};
 use crate::move_into::Left;
 use crate::store::Store;
-use crate::verify::{Mismatch, PlanItem, check_held, directory_flags, identity, plain};
+use crate::verify::{Mismatch, PlanItem, check_held, check_leaf, directory_flags, identity, plain};
 
 /// Why a restore failed, and where it left the item.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -86,6 +87,11 @@ pub struct Restored {
     /// Informational and best effort: identity is `(dev, ino)`, and a parent
     /// recreated after the old one was freed may reuse its inode number.
     pub parent_replaced: bool,
+    /// The restored item still matched its record in full (identity, kind,
+    /// size, time, links). Always so for a file; not for a directory that
+    /// gained or lost entries while held, or whose finalization stopped part
+    /// way, which is restored all the same.
+    pub matches_record: bool,
 }
 
 /// Opens the original parent of `item` by handle, on `device` only.
@@ -157,7 +163,10 @@ pub fn restore(store: &Store, name: &[u8], item: &PlanItem) -> Result<Restored, 
             })
         })?;
     check_held(&restored, &item.expected).map_err(RestoreError::Unverified)?;
-    Ok(Restored { parent_replaced })
+    Ok(Restored {
+        parent_replaced,
+        matches_record: check_leaf(&restored, &item.expected).is_ok(),
+    })
 }
 
 #[cfg(test)]
@@ -187,7 +196,8 @@ mod tests {
             assert_eq!(
                 restore(&store, name.as_bytes(), &item),
                 Ok(Restored {
-                    parent_replaced: false
+                    parent_replaced: false,
+                    matches_record: true
                 })
             );
             let back =
@@ -243,13 +253,14 @@ mod tests {
         std::fs::create_dir(held.join("sub")).unwrap_or_else(|e| unreachable!("{e}"));
         let now = rustix::fs::lstat(&held).unwrap_or_else(|e| unreachable!("{e}"));
         assert!(
-            crate::verify::check_leaf(&now, &item.expected).is_err(),
+            check_leaf(&now, &item.expected).is_err(),
             "the directory no longer matches its record in full"
         );
         assert_eq!(
             restore(&store, b"item-2", &item),
             Ok(Restored {
-                parent_replaced: false
+                parent_replaced: false,
+                matches_record: false
             }),
             "finalize would remove it, so it can be put back"
         );
@@ -316,7 +327,8 @@ mod tests {
         assert_eq!(
             restore(&store, b"item-1", &item),
             Ok(Restored {
-                parent_replaced: true
+                parent_replaced: true,
+                matches_record: true
             })
         );
         assert!(root.join("cache/app/data.bin").exists());

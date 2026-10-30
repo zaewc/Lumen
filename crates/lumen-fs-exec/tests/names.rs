@@ -98,7 +98,8 @@ fn every_name_survives_quarantine_restore_and_finalize() {
         assert_eq!(
             executor.restore(&item, op(n)),
             Ok(RestoredItem {
-                parent_replaced: false
+                parent_replaced: false,
+                matches_record: true
             }),
             "{name:?}"
         );

@@ -23,7 +23,8 @@ pub enum RestoreOutcome {
     Restored {
         /// The original parent had been recreated.
         parent_replaced: bool,
-        /// The item matched its record after the move.
+        /// The item matched its record in full after the move: false when the
+        /// check after the move failed, or a directory changed while held.
         verified: bool,
     },
     /// Still in the store.
@@ -50,7 +51,7 @@ pub fn restore_item(
         return Ok(RestoreOutcome::NotRestorable(state));
     }
     let (parent_replaced, verified) = match executor.restore(item, operation) {
-        Ok(restored) => (restored.parent_replaced, true),
+        Ok(restored) => (restored.parent_replaced, restored.matches_record),
         Err(failure) if failure.left == ItemLocation::Source => (false, false),
         Err(failure) => return Ok(RestoreOutcome::NotRestored(failure.reason)),
     };
@@ -177,6 +178,7 @@ mod tests {
             let (outcome, journal) = run(
                 Ok(RestoredItem {
                     parent_replaced: true,
+                    matches_record: true,
                 }),
                 state,
             );
@@ -195,6 +197,31 @@ mod tests {
                 )]
             );
         }
+    }
+
+    #[test]
+    fn a_directory_that_changed_while_held_is_restored_but_not_verified() {
+        let (outcome, journal) = run(
+            Ok(RestoredItem {
+                parent_replaced: false,
+                matches_record: false,
+            }),
+            QuarantineState::Retained,
+        );
+        assert_eq!(
+            outcome,
+            RestoreOutcome::Restored {
+                parent_replaced: false,
+                verified: false
+            }
+        );
+        assert_eq!(
+            journal.0,
+            [(
+                QuarantineEvent::Restore,
+                br#"{"parent_replaced":false,"verified":false}"#.to_vec()
+            )]
+        );
     }
 
     #[test]
@@ -240,6 +267,7 @@ mod tests {
             let (outcome, journal) = run(
                 Ok(RestoredItem {
                     parent_replaced: false,
+                    matches_record: true,
                 }),
                 state,
             );

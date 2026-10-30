@@ -257,6 +257,7 @@ impl QuarantineExecutor for Executor {
         restore(&store, name.as_bytes(), &plan)
             .map(|restored| RestoredItem {
                 parent_replaced: restored.parent_replaced,
+                matches_record: restored.matches_record,
             })
             .map_err(|error| RestoreFailure {
                 reason: match error {
@@ -415,7 +416,8 @@ mod tests {
         assert_eq!(
             executor.restore(&prepared, op(3)),
             Ok(RestoredItem {
-                parent_replaced: false
+                parent_replaced: false,
+                matches_record: true
             })
         );
         assert_eq!(executor.locate(&prepared, op(3)), Located::AtSource);

@@ -85,6 +85,10 @@ impl WinMoveError {
 pub struct WinRestored {
     /// The original parent was replaced by another directory at its path.
     pub parent_replaced: bool,
+    /// The restored item still matched its record in full. Always so for a
+    /// file; not for a directory that gained or lost entries while held, or
+    /// whose finalization stopped part way, which is restored all the same.
+    pub matches_record: bool,
 }
 
 fn code(error: &io::Error) -> i32 {
@@ -111,7 +115,7 @@ fn gone(error: &io::Error) -> bool {
 type Check = fn(&Facts, &WinExpected) -> Result<(), WinMismatch>;
 
 /// After a rename: the old name is gone and the item, reopened by its new
-/// name, still passes `check`.
+/// name, still passes `check`. Returns what the item is now.
 fn check_after(
     from: &Handle,
     old: &[u16],
@@ -119,7 +123,7 @@ fn check_after(
     new: &[u16],
     expected: &WinExpected,
     check: Check,
-) -> Result<(), WinMoveError> {
+) -> Result<Facts, WinMoveError> {
     let want = Want::Movable {
         directory: expected.directory,
     };
@@ -135,7 +139,8 @@ fn check_after(
                 code: code(&error),
             })
         })?;
-    check(&moved, expected).map_err(WinMoveError::Unverified)
+    check(&moved, expected).map_err(WinMoveError::Unverified)?;
+    Ok(moved)
 }
 
 /// Renames the verified item into `store` as `name`, then checks it.
@@ -161,6 +166,7 @@ pub fn move_into(
         expected,
         check_leaf,
     )
+    .map(drop)
 }
 
 /// Moves `name` in `store` back to where `item` was. The held item gets the
@@ -213,7 +219,7 @@ pub fn restore(
     }
     let parent_replaced = identity(&parent_facts) != item.parent_identity;
     win_sys::rename_into(&held, &parent, &item.leaf).map_err(|e| rename_error(&e))?;
-    check_after(
+    let restored = check_after(
         &store.dir,
         name,
         &parent,
@@ -221,7 +227,10 @@ pub fn restore(
         &item.expected,
         check_held,
     )?;
-    Ok(WinRestored { parent_replaced })
+    Ok(WinRestored {
+        parent_replaced,
+        matches_record: check_leaf(&restored, &item.expected).is_ok(),
+    })
 }
 
 /// Writes `bytes` as the manifest sidecar of `item` in `store`, never over an
@@ -297,7 +306,8 @@ mod tests {
             assert_eq!(
                 restore(&store, &wide(name), &item),
                 Ok(WinRestored {
-                    parent_replaced: false
+                    parent_replaced: false,
+                    matches_record: true
                 })
             );
             assert!(root.join(relative).exists(), "{relative} came back");
@@ -326,7 +336,8 @@ mod tests {
         assert_eq!(
             restore(&store, &wide("item-2"), &dir),
             Ok(WinRestored {
-                parent_replaced: false
+                parent_replaced: false,
+                matches_record: false
             }),
             "finalize would remove it, so it can be put back"
         );

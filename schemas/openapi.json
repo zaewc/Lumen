@@ -733,7 +733,7 @@
               },
               "verified": {
                 "type": "boolean",
-                "description": "It matched its record after the move."
+                "description": "It matched its record in full after the move; false if it changed\nwhile in quarantine (a folder that gained or lost entries) or the\ncheck after the move failed."
               }
             }
           },
