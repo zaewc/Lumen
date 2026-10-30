@@ -39,8 +39,9 @@ Security. Signing and notarization are roadmap 12.8.
    fails if the tag does not match either version.
 3. The workflow builds each target with Lumen's built-in Jeb key (below), writes the
    SBOMs and checksums, attests them and creates a **draft** release with generated
-   notes. Builds require `JEB_API_KEY` and `TAURI_SIGNING_PRIVATE_KEY` from the
-   `release` environment; `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` holds the key's password.
+   notes. Builds require `JEB_API_KEY` from the `release` environment. The separate
+   `sign` job requires `TAURI_SIGNING_PRIVATE_KEY` and
+   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` from it; no build ever receives them.
 4. Review the draft (files, checksums, notes and `latest.json`), then publish it.
    Check that the manifest version matches the tag, every platform URL names an
    attached file, and each signature matches its attached `.sig` file.
@@ -50,7 +51,9 @@ updater requires a later published version; publishing 0.5.0 alone does not veri
 that installation path.
 
 The build jobs can read the repository and nothing else (on tag runs, the two compile
-steps also get the built-in Jeb key); only the attest job can mint
+steps also get the built-in Jeb key). The `sign` job alone holds the updater key: it
+blocks egress, installs only the locked Tauri CLI with lifecycle scripts off, and runs
+nothing else while the key is set. Only the attest job can mint
 a signing token, and only the release job can write releases. Neither runs repository
 code. Release builds use no cache. On Linux, the CLI build and SBOM jobs may reach only the
 toolchain, crates.io, npm, GitHub and artifact storage; the desktop job audits its
@@ -58,7 +61,19 @@ network use while its package mirrors are pinned down. The macOS and Windows run
 cannot enforce that limit.
 
 A pull request that changes the workflow runs the builds as a dry run; nothing is
-attested or published, and no secret is used.
+attested or published, and no secret is used. The `sign` job then signs with a
+throwaway key, so its steps and egress allow-list are exercised too.
+
+### Who can start a release
+
+Set 2026-10-31 in the repository settings:
+
+- **The `release` environment** accepts only `v*` tags and requires the owner's
+  approval before any job that uses it starts. A tag run therefore waits twice: once
+  for the build jobs, which start together, and once for the `sign` job. A pushed tag
+  alone, for example from a stolen token, gets no secret.
+- **The `release tags` ruleset** lets only repository admins create, move or delete
+  `v*` tags.
 
 ## Built-in Jeb key
 
