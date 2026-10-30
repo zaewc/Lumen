@@ -1,0 +1,44 @@
+{
+  "id": "npm-npx-cache",
+  "tool": "npx",
+  "locations": [
+    {
+      "platforms": ["macos", "linux"],
+      "root": { "kind": "home" },
+      "kind": "directory",
+      "path": ".npm/_npx"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "local_app_data" },
+      "kind": "directory",
+      "path": "npm-cache/_npx"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "npm_config_cache" },
+      "kind": "directory",
+      "path": "_npx"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "NPM_CONFIG_CACHE" },
+      "kind": "directory",
+      "path": "_npx"
+    }
+  ],
+  "safety_class": "tool_action",
+  "regeneration": { "effort": "minutes", "network": true },
+  "official_action": {
+    "program": "npm",
+    "args": ["cache", "npx", "rm", "--force"],
+    "dry_run_args": ["cache", "npx", "rm", "--force", "--dry-run"]
+  },
+  "sources": [
+    "https://docs.npmjs.com/cli/v11/commands/npm-cache/",
+    "https://docs.npmjs.com/cli/v12/commands/npm-cache/",
+    "https://github.com/npm/cli/blob/v11.21.1/workspaces/config/lib/definitions/definitions.js",
+    "https://github.com/npm/cli/blob/v11.21.1/lib/commands/cache.js"
+  ],
+  "last_verified": "2026-10-30"
+}

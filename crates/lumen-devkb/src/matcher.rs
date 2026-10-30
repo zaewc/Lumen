@@ -987,6 +987,84 @@ mod tests {
     }
 
     #[test]
+    fn npx_cache_stays_separate_from_packages_and_the_download_cache() {
+        let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        for platform in [Platform::Macos, Platform::Linux, Platform::Windows] {
+            let (base, custom) = if platform == Platform::Windows {
+                ("C:/Users/ana/AppData/Local/npm-cache", "D:/cache")
+            } else {
+                ("/Users/ana/.npm", "/custom/npm")
+            };
+            let parse = |path: &str| {
+                if platform == Platform::Windows {
+                    windows(&path.replace('/', "\\"))
+                } else {
+                    unix(path)
+                }
+            };
+            let join = |root: &str, tail: &str| parse(&format!("{root}/{tail}"));
+            let target = join(base, "_npx");
+            let custom_target = join(custom, "_npx");
+            let npx_matches = |environment: &Environment, entries: &[FilesystemEntry]| {
+                kb.matches(environment, entries, Timestamp::UNIX_EPOCH)
+                    .into_iter()
+                    .filter(|e| matches!(&e.fact, Fact::KnowledgeBaseMatch { entry } if entry.as_str() == "npm-npx-cache"))
+                    .collect::<Vec<_>>()
+            };
+            let mut environment = env(platform);
+            environment.local_app_data = Some(windows(r"C:\Users\ana\AppData\Local"));
+            let scanned = [
+                object(target.clone(), EntryKind::Directory, 1),
+                object(join(base, "_cacache"), EntryKind::Directory, 2),
+                object(parse(base), EntryKind::Directory, 3),
+                object(join(base, "_npx/package"), EntryKind::Directory, 4),
+                object(
+                    join(custom, "project/node_modules"),
+                    EntryKind::Directory,
+                    7,
+                ),
+            ];
+            let found = npx_matches(&environment, &scanned);
+            assert_eq!(found.len(), 1, "{platform:?}");
+            assert_eq!(
+                found[0].subject,
+                Subject::File {
+                    identity: scanned[0].identity().clone()
+                }
+            );
+            assert!(kb.command_acts_on(&environment, "npm-npx-cache", &target));
+            for kind in [
+                EntryKind::File,
+                EntryKind::Symlink,
+                EntryKind::Junction,
+                EntryKind::OtherReparsePoint,
+            ] {
+                assert_eq!(
+                    npx_matches(&environment, &[object(target.clone(), kind, 5)]),
+                    [],
+                    "{platform:?} {kind:?}"
+                );
+            }
+            for variable in ["npm_config_cache", "NPM_CONFIG_CACHE"] {
+                environment.vars = vec![(variable.into(), parse(custom))];
+                let configured = object(custom_target.clone(), EntryKind::Directory, 6);
+                assert_eq!(
+                    npx_matches(&environment, std::slice::from_ref(&configured)).len(),
+                    1
+                );
+                assert!(kb.command_acts_on(&environment, "npm-npx-cache", &custom_target));
+                assert!(!kb.command_acts_on(&environment, "npm-npx-cache", &target));
+            }
+            environment.vars = vec![
+                ("npm_config_cache".into(), parse(base)),
+                ("NPM_CONFIG_CACHE".into(), parse(custom)),
+            ];
+            assert!(!kb.command_acts_on(&environment, "npm-npx-cache", &target));
+            assert!(!kb.command_acts_on(&environment, "npm-npx-cache", &custom_target));
+        }
+    }
+
+    #[test]
     fn projects_need_a_scanned_marker() {
         let found = matched(
             &env(Platform::Linux),
