@@ -151,6 +151,7 @@ function UpdateRow() {
   return (
     <GroupRow
       title={u.title}
+      titleId="app-update"
       description={<span aria-live="polite">{description}</span>}
       trailing={
         available !== null && installable ? (
