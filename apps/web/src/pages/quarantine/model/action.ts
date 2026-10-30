@@ -2,6 +2,7 @@ import type { HeldItemView, SpaceChangeView } from "@lumen/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { heldTotal } from "@/entities/held";
 import { operationOf, QUERY_KEYS, useSessionOperation, useTransport } from "@/shared/api";
+import { runBatch } from "../lib/batch";
 import type { Done, LastAction } from "../lib/outcome";
 import { actionable, type BulkResult, bulkResult } from "../lib/selection";
 
@@ -33,24 +34,25 @@ export function useHeldAction() {
       report: (progress: Progress) => void,
     ): Promise<Reported> => {
       const { act } = actionable(action, items);
-      const done: LastAction[] = [];
       const changes: SpaceChangeView[] = [];
       let fullyMeasured = true;
       try {
-        for (const [index, item] of act.entries()) {
-          report({ done: index, total: act.length });
-          let result: Done;
-          if (action === "restore") {
-            result = { action, outcome: (await transport.restore(operationOf(item))).outcome };
-          } else {
-            const finalized = await transport.finalize(operationOf(item));
-            if (finalized.space_change === null) fullyMeasured = false;
-            else changes.push(finalized.space_change);
-            result = { action, outcome: finalized.outcome };
-          }
-          done.push({ original: item.original, done: result });
-        }
-        report({ done: act.length, total: act.length });
+        const { done, stopped } = await runBatch(
+          act,
+          async (item): Promise<LastAction> => {
+            let result: Done;
+            if (action === "restore") {
+              result = { action, outcome: (await transport.restore(operationOf(item))).outcome };
+            } else {
+              const finalized = await transport.finalize(operationOf(item));
+              if (finalized.space_change === null) fullyMeasured = false;
+              else changes.push(finalized.space_change);
+              result = { action, outcome: finalized.outcome };
+            }
+            return { original: item.original, done: result };
+          },
+          (count) => report({ done: count, total: act.length }),
+        );
         const one = done[0];
         const result =
           mode === "one" && one !== undefined
@@ -59,15 +61,18 @@ export function useHeldAction() {
                 many: bulkResult(
                   action,
                   done.map((item) => item.done),
+                  stopped,
                 ),
               };
-        const estimated = heldTotal(act);
+        // Only finished items count; the one that failed may have changed the
+        // disk without a reading, so a stopped run's change stays unknown.
+        const estimated = heldTotal(act.slice(0, done.length));
         return {
           ...result,
           measurement:
             action === "finalize"
               ? {
-                  changes: fullyMeasured ? changes : null,
+                  changes: fullyMeasured && stopped === null ? changes : null,
                   expected: estimated.exact ? estimated.bytes : null,
                 }
               : null,
