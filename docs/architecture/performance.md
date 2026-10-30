@@ -6,6 +6,11 @@ or cache states are not comparable.
 
 Run the micro-benchmarks with `just bench` (criterion, `crates/*/benches/`).
 
+For cleanup effectiveness, use the separate manual
+[space-recovery experiment](../research/24-space-recovery-experiment.md): it records
+cache estimates and observed volume readings around quarantine/finalization, with
+hard-link and sparse controls. Scanner throughput is not reclaimed capacity.
+
 ## Machine
 
 - Apple M4 Pro, 12 cores, 24 GiB, macOS 26.6.2, internal APFS SSD.
