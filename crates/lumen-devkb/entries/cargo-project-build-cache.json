@@ -1,0 +1,55 @@
+{
+  "id": "cargo-project-build-cache",
+  "tool": "Cargo",
+  "locations": [
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "project" },
+      "kind": "directory",
+      "path": "target/debug/deps",
+      "markers": ["Cargo.toml"]
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "project" },
+      "kind": "directory",
+      "path": "target/debug/build",
+      "markers": ["Cargo.toml"]
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "project" },
+      "kind": "directory",
+      "path": "target/debug/incremental",
+      "markers": ["Cargo.toml"]
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "project" },
+      "kind": "directory",
+      "path": "target/release/deps",
+      "markers": ["Cargo.toml"]
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "project" },
+      "kind": "directory",
+      "path": "target/release/build",
+      "markers": ["Cargo.toml"]
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "project" },
+      "kind": "directory",
+      "path": "target/release/incremental",
+      "markers": ["Cargo.toml"]
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "hours", "network": true },
+  "sources": [
+    "https://doc.rust-lang.org/cargo/reference/build-cache.html",
+    "https://doc.rust-lang.org/cargo/commands/cargo-clean.html"
+  ],
+  "last_verified": "2026-10-29"
+}
