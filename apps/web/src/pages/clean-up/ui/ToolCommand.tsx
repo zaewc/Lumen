@@ -86,6 +86,11 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
       <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
         {runner ? m.toolCommand.runNote : m.toolCommand.note}
       </p>
+      {command.entry === "homebrew-download-cache" && (
+        <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
+          {m.toolCommand.homebrewDownloads}
+        </p>
+      )}
       {runner && !confirming && !pending && (
         <button
           type="button"

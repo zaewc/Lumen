@@ -215,6 +215,8 @@ export const en = {
     } satisfies { readonly [C in ConfidenceView]: string },
   },
   toolCommand: {
+    homebrewDownloads:
+      "Homebrew cleans up old installed versions and recent download caches. A future installation may need to download these files again.",
     title: (tool: string) => `${tool} can clean this up itself`,
     copy: "Copy",
     copied: "Copied",

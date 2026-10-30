@@ -226,6 +226,8 @@ export const ko = {
     },
   },
   toolCommand: {
+    homebrewDownloads:
+      "Homebrew가 오래된 설치 버전과 최근 다운로드 캐시를 정리해요. 다음 설치 때 필요한 파일을 다시 받을 수 있어요.",
     title: (tool: string) => `${tool}에서 직접 정리할 수 있어요`,
     copy: "복사",
     copied: "복사했어요",

@@ -363,6 +363,11 @@ knowledge base without a shell (`lumen_app::tools`,
 [ADR-0049](../decisions/0049-run-tool-commands-on-request.md)).
 The resolved search path is also passed to the tool, so interpreters and child
 programs work when Lumen was opened from the Dock or Finder.
+Homebrew's reviewed cache command includes `--prune=all --scrub` so recent downloads
+are considered; its preview uses the same flags with `--dry-run`. The UI explains
+possible re-downloads before confirmation. Homebrew decides removal eligibility;
+`--prune=all` can also remove downloads for installed packages
+([scope research](../research/23-native-cleanup-scope.md)).
 Assessment resolves custom cache locations from the running process's environment,
 reading only variable names declared for the current platform in the knowledge base.
 Unset or invalid roots do not match; variables are not inferred from a terminal's

@@ -414,6 +414,29 @@ mod tests {
     }
 
     #[test]
+    fn homebrew_cache_cleanup_and_preview_pass_the_reviewed_scope()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let kb = KnowledgeBase::builtin()?;
+        let command = command(&kb, "homebrew-download-cache").ok_or("Homebrew command")?;
+        let fx = fixture();
+        let fake = script(&fx, "bin/brew", "printf '%s\\n' \"$@\"");
+        let result = run_program(&fake, &command.args, fx.root(), Duration::from_secs(10))?;
+        assert!(result.success);
+        assert_eq!(result.output, "cleanup\n--prune=all\n--scrub\n");
+        let entry = kb.get("homebrew-download-cache").ok_or("Homebrew entry")?;
+        assert_eq!(entry.safety_class, SafetyClass::ToolAction);
+        let preview = entry
+            .official_action
+            .as_ref()
+            .and_then(|action| action.dry_run_args.as_ref())
+            .ok_or("Homebrew preview")?;
+        let result = run_program(&fake, preview, fx.root(), Duration::from_secs(10))?;
+        assert!(result.success);
+        assert_eq!(result.output, "cleanup\n--prune=all\n--scrub\n--dry-run\n");
+        Ok(())
+    }
+
+    #[test]
     fn programs_are_found_only_as_runnable_files_in_order() {
         let fx = fixture();
         let bin = fx.path("bin").unwrap_or_else(|e| unreachable!("{e}"));
