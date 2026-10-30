@@ -1,5 +1,6 @@
 import type { HeldItemView } from "@lumen/api-client";
 import type { Messages } from "@/shared/i18n";
+import type { Stopped } from "./batch";
 import { type Done, doneWell } from "./outcome";
 
 /** The selected items, by operation. */
@@ -54,21 +55,36 @@ export function actionable(
 /** How an action on several items ended. */
 export interface BulkResult {
   readonly action: Done["action"];
-  /** Items acted on. */
+  /** Items asked for (including any an error kept Lumen from finishing or trying). */
   readonly total: number;
   /** Items that came out as asked (restored and verified, or removed). */
   readonly well: number;
+  /** The error that stopped the run early, after `well` items were already done. */
+  readonly stopped: Stopped | null;
 }
 
-/** The result of `action`, from each item's outcome. */
-export function bulkResult(action: Done["action"], done: readonly Done[]): BulkResult {
-  return { action, total: done.length, well: done.filter(doneWell).length };
+/** The result of `action`, from each finished item's outcome and what stopped the run. */
+export function bulkResult(
+  action: Done["action"],
+  done: readonly Done[],
+  stopped: Stopped | null = null,
+): BulkResult {
+  const unfinished = stopped === null ? 0 : stopped.untried + 1;
+  return { action, total: done.length + unfinished, well: done.filter(doneWell).length, stopped };
 }
 
 /** The result in words. */
 export function bulkText(m: Messages, result: BulkResult): string {
   const text = m.quarantine.selection;
-  return result.action === "restore"
-    ? text.restored(result.well, result.total)
-    : text.removed(result.well, result.total);
+  const { well, total, stopped } = result;
+  switch (result.action) {
+    case "restore":
+      return stopped === null
+        ? text.restored(well, total)
+        : text.restoredStopped(well, total, stopped.untried);
+    case "finalize":
+      return stopped === null
+        ? text.removed(well, total)
+        : text.removedStopped(well, total, stopped.untried);
+  }
 }

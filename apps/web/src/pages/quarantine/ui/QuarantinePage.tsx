@@ -3,7 +3,15 @@ import { useEffect, useId, useRef, useState } from "react";
 import { heldTotal, useHeld } from "@/entities/held";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
-import { buttonClass, ErrorNotice, InfoTip, Notice, Page, SpaceChangeResult } from "@/shared/ui";
+import {
+  buttonClass,
+  ErrorDetails,
+  ErrorNotice,
+  InfoTip,
+  Notice,
+  Page,
+  SpaceChangeResult,
+} from "@/shared/ui";
 import { doneText, doneWell } from "../lib/outcome";
 import {
   actionable,
@@ -49,14 +57,17 @@ export function QuarantinePage() {
   const working = bulk.status === "pending";
   const progress = bulk.progress;
   const reported = bulk.data;
+  // After an error stopped a run, the items it did not finish stay selected,
+  // so the list shows which ones are still in Quarantine.
+  const stopped = reported !== null && "many" in reported && reported.many.stopped !== null;
   useEffect(() => {
     if (bulk.status === "success" || bulk.status === "error") {
       setConfirming(false);
     }
-    if (bulk.status === "success") {
+    if (bulk.status === "success" && !stopped) {
       setPicked(new Set());
     }
-  }, [bulk.status]);
+  }, [bulk.status, stopped]);
 
   const actions =
     working && progress ? (
@@ -129,6 +140,7 @@ export function QuarantinePage() {
         {reported !== null && "many" in reported && (
           <Notice tone={reported.many.well === reported.many.total ? "success" : "warning"}>
             <p>{bulkText(m, reported.many)}</p>
+            {reported.many.stopped !== null && <ErrorDetails error={reported.many.stopped.error} />}
           </Notice>
         )}
         {reported?.measurement && <SpaceChangeResult {...reported.measurement} />}
