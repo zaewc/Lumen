@@ -2370,7 +2370,7 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "lumen-api"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "lumen-app",
  "lumen-application",
@@ -2382,7 +2382,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-app"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "lumen-application",
  "lumen-devkb",
@@ -2406,7 +2406,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-application"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "lumen-domain",
  "lumen-graph",
@@ -2418,7 +2418,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-cli"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "lumen-app",
  "lumen-application",
@@ -2434,7 +2434,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-cluster"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "criterion",
  "thiserror 2.0.21",
@@ -2442,7 +2442,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-desktop"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "lumen-api",
  "lumen-app",
@@ -2462,7 +2462,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-devkb"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "jsonschema",
  "lumen-domain",
@@ -2475,7 +2475,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-domain"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "blake3",
  "jsonschema",
@@ -2489,7 +2489,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-ffi"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "lumen-cluster",
  "thiserror 2.0.21",
@@ -2498,7 +2498,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-fs-exec"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "lumen-application",
  "lumen-domain",
@@ -2512,7 +2512,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-graph"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "blake3",
  "lumen-domain",
@@ -2524,7 +2524,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-jev"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "jsonschema",
  "lumen-application",
@@ -2539,7 +2539,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-jev-eval"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "blake3",
  "lumen-app",
@@ -2555,7 +2555,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-platform-macos"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "criterion",
  "dispatch2",
@@ -2574,7 +2574,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-platform-windows"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "lumen-application",
  "lumen-domain",
@@ -2587,7 +2587,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-policy"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "criterion",
  "lumen-domain",
@@ -2599,7 +2599,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-scan"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "criterion",
  "lumen-application",
@@ -2612,7 +2612,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-store-sqlite"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "lumen-application",
  "lumen-domain",
@@ -2630,7 +2630,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-telemetry"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "lumen-testkit",
  "serde_json",
@@ -2642,7 +2642,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-testkit"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "lumen-application",
  "lumen-domain",
@@ -6248,7 +6248,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "lumen-api",
  "lumen-devkb",
