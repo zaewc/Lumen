@@ -42,12 +42,17 @@ Chosen option: **1**.
   the public key compiled into the app (minisign, Ed25519) before installing.
 - **Signing key:** an updater key pair separate from code signing. The public key is in
   `tauri.conf.json`; the private key and its password are secrets of the `release`
-  environment (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`), given
-  only to the tag-run desktop build, like the built-in Jeb key (ADR-0042). The owner
+  environment (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`). They
+  never reach a build, whose steps run dependency build scripts and the web build:
+  the release workflow's `sign` job downloads the built files and signs them with
+  `tauri signer sign`, on a Linux runner with egress blocked, after installing only the
+  locked Tauri CLI with lifecycle scripts off (amended 2026-10-31; before, the key was
+  in the desktop build's environment on runners without egress control). The owner
   keeps an offline backup: losing the key means existing installs can no longer be
   updated.
-- **Artifacts:** `bundle.createUpdaterArtifacts` makes the macOS `.app.tar.gz`, and
-  signatures for it, the NSIS installer and the AppImage. The release job writes
+- **Artifacts:** the desktop job archives the macOS app as `.app.tar.gz` the way the
+  bundler's `createUpdaterArtifacts` does (the app bundle as the only top-level
+  entry); the `sign` job signs it, the NSIS installer and the AppImage. The release job writes
   `latest.json` (version, notes link, date, and per platform the URL and signature:
   `darwin-aarch64` and `darwin-x86_64` both point at the universal archive) and
   attaches it, its checksum and attestation with the rest.
