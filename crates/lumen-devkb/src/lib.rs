@@ -88,6 +88,7 @@ const BUILTIN: &[(&str, &str)] = &[
         "obsidian-chromium-caches.json",
         include_str!("../entries/obsidian-chromium-caches.json"),
     ),
+    ("pip-cache.json", include_str!("../entries/pip-cache.json")),
     (
         "pnpm-store.json",
         include_str!("../entries/pnpm-store.json"),

@@ -1,0 +1,43 @@
+{
+  "id": "pip-cache",
+  "tool": "pip",
+  "locations": [
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/pip"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/pip"
+    },
+    {
+      "platforms": ["macos", "linux"],
+      "root": { "kind": "env_var", "name": "XDG_CACHE_HOME" },
+      "path": "pip"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "local_app_data" },
+      "path": "pip/Cache"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "PIP_CACHE_DIR" },
+      "path": ""
+    }
+  ],
+  "safety_class": "tool_action",
+  "regeneration": { "effort": "minutes", "network": true },
+  "official_action": {
+    "program": "pip3",
+    "args": ["cache", "purge"]
+  },
+  "sources": [
+    "https://pip.pypa.io/en/stable/topics/caching/",
+    "https://pip.pypa.io/en/stable/cli/pip_cache/",
+    "https://pip.pypa.io/en/stable/cli/pip/"
+  ],
+  "last_verified": "2026-10-29"
+}

@@ -909,6 +909,83 @@ mod tests {
         );
     }
 
+    /// pip's cache matches at its default on each platform, under
+    /// `XDG_CACHE_HOME` and at `PIP_CACHE_DIR`; never its parent or contents.
+    #[test]
+    fn pip_cache_matches_where_pip_documents_it() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mut linux = env(Platform::Linux);
+        linux.vars = vec![("XDG_CACHE_HOME".to_owned(), unix("/xdg"))];
+        assert_eq!(
+            ids(
+                &linux,
+                &[dir("/Users/ana/.cache/pip", 1), dir("/xdg/pip", 2)]
+            ),
+            ["pip-cache", "pip-cache"]
+        );
+        assert_eq!(
+            ids(
+                &linux,
+                &[
+                    dir("/Users/ana/.cache/Pip", 1),
+                    dir("/Users/ana/.cache/pip/http-v2", 2),
+                    dir("/Users/ana/Library/Caches/pip", 3),
+                ]
+            )
+            .len(),
+            0
+        );
+        let mut mac = env(Platform::Macos);
+        mac.vars = linux.vars.clone();
+        assert_eq!(
+            ids(
+                &mac,
+                &[dir("/Users/ana/Library/Caches/pip", 1), dir("/xdg/pip", 2)]
+            ),
+            ["pip-cache", "pip-cache"]
+        );
+        assert_eq!(
+            ids(&mac, &[dir("/Users/ana/.cache/pip", 1)]).len(),
+            0,
+            "macOS uses ~/.cache only through XDG_CACHE_HOME"
+        );
+        let mut win = env(Platform::Windows);
+        win.local_app_data = Some(windows(r"C:\Users\ana\AppData\Local"));
+        win.vars = vec![("PIP_CACHE_DIR".to_owned(), windows(r"D:\pip"))];
+        let local = |tail: &str, ino| {
+            object(
+                windows(&format!(r"C:\Users\ana\AppData\Local\{tail}")),
+                EntryKind::Directory,
+                ino,
+            )
+        };
+        assert_eq!(
+            ids(
+                &win,
+                &[
+                    local(r"pip\Cache", 1),
+                    local(r"pip\cache", 2),
+                    object(windows(r"D:\pip"), EntryKind::Directory, 3),
+                ]
+            ),
+            ["pip-cache", "pip-cache", "pip-cache"]
+        );
+        assert_eq!(
+            ids(&win, &[local("pip", 1), local(r"pip\Cache\wheels", 2)]).len(),
+            0
+        );
+    }
+
     #[test]
     fn projects_need_a_scanned_marker() {
         let found = matched(
