@@ -1,10 +1,10 @@
-//! Whether AI review is on (ADR-0037): the user's one-time, revocable consent to
-//! send metadata about proposed quarantines, and about up to 20 of the largest
-//! items left for review (ADR-0041), to the judge (Jeb or Jev).
+//! Whether AI review is on (ADR-0037, ADR-0047): sending metadata about proposed
+//! quarantines, and about up to 20 of the largest items left for review
+//! (ADR-0041), to the judge (Jeb or Jev).
 //!
-//! The choice lives next to the database in `ai-review.json`. It starts off; a
-//! missing file means off, and so does one that cannot be read, so AI review
-//! is never on without a choice on record.
+//! The choice lives next to the database in `ai-review.json`. With no file,
+//! AI review is on by default (ADR-0047); a file that exists but cannot be
+//! read counts as off, so a damaged opt-out never turns into sending.
 //!
 //! The judge's API key is the one the user stored in the operating system's
 //! secret store (ADR-0036): Jeb's when one is stored, otherwise `OpenRouter`'s.

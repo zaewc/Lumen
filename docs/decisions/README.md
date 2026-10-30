@@ -45,7 +45,7 @@ recommended option.
 | [0034](0034-command-line-plan-confirmation.md) | Confirm cleanup plans from the command line by plan hash | Accepted |
 | [0035](0035-show-tool-commands-never-run-them.md) | Show tools' own cleanup commands; never run them | Superseded by [0049](0049-run-tool-commands-on-request.md) |
 | [0036](0036-jeb-on-the-school-ai-hub.md) | Use Jeb on the school AI Hub as the default judge | Accepted |
-| [0037](0037-keep-ai-review-on-once-turned-on.md) | Keep AI review on once the user turns it on | Accepted |
+| [0037](0037-keep-ai-review-on-once-turned-on.md) | Keep AI review on once the user turns it on | Superseded in part by [0047](0047-ai-review-on-by-default.md) |
 | [0038](0038-unsigned-beta-from-a-project-website.md) | Ship an unsigned beta from a project website | Accepted |
 | [0039](0039-ask-for-review-only-where-a-person-can-act.md) | Ask for review only where a person can act | Accepted |
 | [0040](0040-decide-known-artifacts-inside-app-state-on-their-own.md) | Decide known artifacts inside an app's state on their own | Accepted |
