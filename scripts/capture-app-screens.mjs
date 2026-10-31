@@ -152,12 +152,18 @@ try {
         { name: "prefers-reduced-motion", value: "reduce" },
       ] });
       await send("Page.navigate", { url: `${origin}/` });
+      // New fixture sessions make the same explicit AI choice as a first launch.
+      // This only enables the in-memory sample judge; no native/cloud call is made.
+      await until(`[...document.querySelectorAll('main button')].some(element =>
+        ["Turn on AI review", "AI 검토 켜기"].includes(element.textContent.trim()))`);
+      await click(`[...document.querySelectorAll('main button')].find(element =>
+        ["Turn on AI review", "AI 검토 켜기"].includes(element.textContent.trim()))`);
       await until(`document.documentElement.lang === ${JSON.stringify(locale)} &&
         [...document.querySelectorAll('main button')].some(element =>
           ["Scan disk", "디스크 검사"].includes(element.textContent.trim()))`);
       await click(`[...document.querySelectorAll('main button')].find(element =>
         ["Scan disk", "디스크 검사"].includes(element.textContent.trim()))`);
-      await until("document.querySelectorAll('[data-row]').length === 13");
+      await until("document.querySelectorAll('[data-row]').length === 14");
       await capture("clean-up", locale, theme);
 
       await click("document.querySelectorAll('fieldset label')[1]");
