@@ -153,9 +153,37 @@ fn app_location(input: &PolicyInput, kinds: &[AppDataKind]) -> BTreeSet<Evidence
     }
 }
 
+/// Evidence that the subject holds a web browser profile's state.
+fn browser_profile_evidence(input: &PolicyInput) -> BTreeSet<EvidenceId> {
+    input
+        .evidence
+        .iter()
+        .filter(|e| e.subject == input.subject && matches!(e.fact, Fact::BrowserProfile { .. }))
+        .map(Evidence::id)
+        .collect()
+}
+
+/// The subject holds a web browser profile's state: cookies, saved sign-ins
+/// and site storage, such as an app's embedded Chromium keeps, even in its
+/// `Caches` folder. That is the user's data, not a re-creatable cache, so it is
+/// kept, whoever owns it.
+pub(crate) fn browser_profile(input: &PolicyInput) -> Option<Finding> {
+    let evidence = browser_profile_evidence(input);
+    (!evidence.is_empty()).then(|| Finding {
+        verdict: Verdict::Keep,
+        evidence,
+        risk: BTreeSet::from([RiskFactor::SensitiveData]),
+        rule: None,
+    })
+}
+
 /// An application's own `Caches` folder: Apple documents that apps "must be
-/// able to re-create or download these files as needed".
+/// able to re-create or download these files as needed". Not one that holds
+/// a browser profile: [`browser_profile`] keeps that.
 pub(crate) fn app_cache(input: &PolicyInput) -> Option<Finding> {
+    if !browser_profile_evidence(input).is_empty() {
+        return None;
+    }
     let evidence = app_location(input, &[AppDataKind::Caches]);
     (!evidence.is_empty()).then(|| Finding {
         verdict: Verdict::Quarantine,
@@ -394,6 +422,34 @@ mod tests {
             &[],
         )?;
         assert_eq!(fired(&unowned), ["default.review"], "an owner is required");
+        Ok(())
+    }
+
+    #[test]
+    fn an_apps_cache_holding_a_browser_profile_is_kept() -> Result<(), PolicyError> {
+        let profile = Fact::BrowserProfile {
+            marker: UntrustedText::new("Default/Cookies"),
+        };
+        let mut facts = owned(AppDataKind::Caches);
+        facts.push(profile.clone());
+        let decision = decide(&facts, &[])?;
+        assert_eq!(decision.verdict(), Verdict::Keep);
+        assert_eq!(fired(&decision), ["classify.browser-profile"]);
+        assert_eq!(decision.risk().level, lumen_domain::RiskLevel::Critical);
+        let matched = decide(
+            &[kb_match("x-cache"), profile],
+            &[("x-cache", KnowledgeClass::Regenerable)],
+        )?;
+        assert_eq!(
+            matched.verdict(),
+            Verdict::Keep,
+            "kept whatever else matches it"
+        );
+        assert_eq!(
+            fired(&decide(&owned(AppDataKind::Caches), &[])?),
+            ["classify.app-cache"],
+            "a cache without one is unchanged"
+        );
         Ok(())
     }
 
