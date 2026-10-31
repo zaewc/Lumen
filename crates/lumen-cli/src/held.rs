@@ -20,7 +20,7 @@ fn path_text(path: Option<&PathBuf>) -> String {
 /// Every item held in quarantine, oldest first.
 pub(crate) fn list(db: &Path, clock: &dyn Clock) -> Result<String, Box<dyn Error>> {
     let now = clock.now();
-    let held = held::list(db)?;
+    let held = held::list(db, clock)?;
     let mut lines: Vec<String> = held
         .iter()
         .map(|h| {
@@ -30,7 +30,9 @@ pub(crate) fn list(db: &Path, clock: &dyn Clock) -> Result<String, Box<dyn Error
                 // Never removed automatically (ADR-0051).
                 (QuarantineState::Retained, Some(Chooser::Person)) => "chosen by you",
                 (QuarantineState::Retained, None) => "kept until you act",
-                _ => "held after a failure",
+                // Interrupted, and not where the journal says (UX-3).
+                (QuarantineState::Failed { .. }, _) => "held after a failure",
+                _ => "needs you: check it",
             };
             let size = h.reclaim.map_or_else(|| "?".to_owned(), human);
             format!(

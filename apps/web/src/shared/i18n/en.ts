@@ -347,6 +347,8 @@ export const en = {
     empty: "Quarantine is empty",
     emptyHint: "Items you clean up wait here, so you can restore them if you change your mind.",
     goCleanUp: "Explore storage",
+    interrupted: (n: number) =>
+      `A clean-up stopped partway, and Lumen cannot tell where ${n === 1 ? "this item is" : `these ${count(n)} items are`}. Lumen did not remove ${n === 1 ? "it" : "them"}. Check where ${n === 1 ? "it was" : "they were"}:`,
     selection: {
       all: "Select all",
       item: (name: string) => `Select ${name}`,

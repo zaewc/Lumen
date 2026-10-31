@@ -354,6 +354,8 @@ export const ko = {
     empty: "격리함이 비어 있어요",
     emptyHint: "정리한 항목은 여기서 기다려요. 마음이 바뀌면 복원할 수 있어요.",
     goCleanUp: "저장 공간 살펴보기",
+    interrupted: (n: number) =>
+      `정리가 중간에 멈춰서 ${items(n)}가 어디 있는지 알 수 없어요. Lumen은 삭제하지 않았어요. 원래 있던 곳을 확인해 주세요.`,
     selection: {
       all: "전체 선택",
       item: (name: string) => `${name} 선택`,

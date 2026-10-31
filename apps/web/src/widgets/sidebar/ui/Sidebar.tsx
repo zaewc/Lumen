@@ -7,7 +7,7 @@ import {
   useInstallUpdate,
   useUpdate,
 } from "@/entities/app-update";
-import { useHeld } from "@/entities/held";
+import { inQuarantine, useHeld } from "@/entities/held";
 import { useScanSession } from "@/entities/scan-session";
 import { useToolRun } from "@/entities/tool-run";
 import { countFormat, useI18n } from "@/shared/i18n";
@@ -167,7 +167,7 @@ export function Sidebar() {
             : session.scan !== null && session.assessment === "pending"
               ? m.scanning.deciding
               : null;
-  const count = held.data?.length ?? 0;
+  const count = inQuarantine(held.data ?? []).length;
   usePlaceShortcut("/");
   usePlaceShortcut("/clean");
   usePlaceShortcut("/quarantine");

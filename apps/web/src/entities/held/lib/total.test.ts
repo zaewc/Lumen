@@ -1,6 +1,6 @@
 import type { HeldItemView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
-import { heldTotal } from "./total";
+import { heldTotal, inQuarantine } from "./total";
 
 const item = (reclaim_bytes: string | null): HeldItemView => ({
   operation: "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a3",
@@ -19,5 +19,13 @@ describe("heldTotal", () => {
       exact: true,
     });
     expect(heldTotal([item("100"), item(null)])).toEqual({ bytes: "100", exact: false });
+  });
+});
+
+describe("inQuarantine", () => {
+  it("leaves out what an interrupted clean-up left where Lumen cannot tell", () => {
+    const failed: HeldItemView = { ...item(null), state: "held_after_failure" };
+    const lost: HeldItemView = { ...item(null), state: "needs_attention" };
+    expect(inQuarantine([item("1"), failed, lost])).toEqual([item("1"), failed]);
   });
 });

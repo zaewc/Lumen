@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useId } from "react";
-import { heldTotal, useHeld } from "@/entities/held";
+import { heldTotal, inQuarantine, useHeld } from "@/entities/held";
 import {
   AssessmentProgress,
   DecisionMap,
@@ -46,7 +46,7 @@ function RowContent({
 function QuarantineRow() {
   const { m } = useI18n();
   const held = useHeld();
-  const items = held.data ?? [];
+  const items = inQuarantine(held.data ?? []);
   const total = heldTotal(items);
   const size = formatBytes(total.bytes);
   return (
@@ -108,7 +108,7 @@ export function LastScan() {
   const running = session.scanning || (session.scan !== null && session.assessment === "pending");
   const summary = session.candidates === null ? null : summarize(session.candidates);
   const report = session.report;
-  const anyHeld = (held.data?.length ?? 0) > 0;
+  const anyHeld = inQuarantine(held.data ?? []).length > 0;
   const s = m.overview.session;
   return (
     <section aria-labelledby={title} className="space-y-2">

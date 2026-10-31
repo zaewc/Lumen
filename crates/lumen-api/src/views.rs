@@ -722,6 +722,10 @@ pub enum HeldStateView {
     Retained,
     /// Left in quarantine by a failed or rolled-back operation.
     HeldAfterFailure,
+    /// A cleanup was interrupted and the item is not where its record says;
+    /// Lumen left it as it is. It needs the person: restoring or removing it
+    /// here is refused.
+    NeedsAttention,
 }
 
 /// One item in quarantine.
@@ -771,10 +775,10 @@ impl From<&HeldItem> for HeldItemView {
     fn from(item: &HeldItem) -> Self {
         Self {
             operation: item.operation.to_string(),
-            state: if item.state == QuarantineState::Retained {
-                HeldStateView::Retained
-            } else {
-                HeldStateView::HeldAfterFailure
+            state: match item.state {
+                QuarantineState::Retained => HeldStateView::Retained,
+                QuarantineState::Failed { .. } => HeldStateView::HeldAfterFailure,
+                _ => HeldStateView::NeedsAttention,
             },
             original: item.original.as_ref().map(|p| p.display().to_string()),
             since: item.since,

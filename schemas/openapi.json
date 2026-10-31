@@ -510,7 +510,8 @@
         "description": "Why an item is held.",
         "enum": [
           "retained",
-          "held_after_failure"
+          "held_after_failure",
+          "needs_attention"
         ]
       },
       "ItemKindView": {

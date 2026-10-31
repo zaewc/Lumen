@@ -47,6 +47,9 @@ pub(crate) struct Core {
     >,
     /// Held while a tool's command runs: one at a time.
     pub(crate) tool_running: Arc<std::sync::Mutex<()>>,
+    /// Startup's reconciliation (UX-3): run once, when the app starts, and
+    /// waited for before the held items are first listed.
+    pub(crate) settled: Arc<std::sync::Once>,
 }
 
 impl std::fmt::Debug for Core {
@@ -64,6 +67,7 @@ impl std::fmt::Debug for Core {
                     .map(|entries| entries.len()),
             )
             .field("tool_running", &self.tool_running.try_lock().is_err())
+            .field("settled", &self.settled.is_completed())
             .finish()
     }
 }
@@ -494,12 +498,27 @@ pub(crate) async fn execute(
     .await
 }
 
+/// Settles cleanups a crash or quit interrupted, once per launch, so what
+/// they moved is listed without another cleanup (UX-3). A failure is logged
+/// and leaves everything where it is; the app works on regardless.
+pub(crate) fn settle_once(db: &Path, settled: &std::sync::Once) {
+    settled.call_once(|| match lumen_app::held::reconcile(db, &SystemClock) {
+        Ok(Some(_)) => {}
+        Ok(None) => {
+            tracing::info!("another Lumen holds the ledger; it settles what was interrupted");
+        }
+        Err(error) => tracing::warn!(%error, "interrupted cleanups were not reconciled"),
+    });
+}
+
 /// What quarantine holds.
 #[tauri::command]
 pub(crate) async fn held(core: State<'_, Core>) -> Result<Vec<HeldItemView>, CommandError> {
     let db = core.db.clone();
+    let settled = Arc::clone(&core.settled);
     blocking(move || {
-        let items = lumen_app::held::list(&db).map_err(CommandError::new)?;
+        settle_once(&db, &settled);
+        let items = lumen_app::held::list(&db, &SystemClock).map_err(CommandError::new)?;
         Ok(items.iter().map(HeldItemView::from).collect())
     })
     .await
