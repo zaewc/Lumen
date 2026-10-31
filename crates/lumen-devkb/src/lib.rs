@@ -28,6 +28,10 @@ pub use validate::Problem;
 /// The built-in entries as `(file name, JSON)`, one per tool (roadmap 6.15+).
 const BUILTIN: &[(&str, &str)] = &[
     (
+        "android-gradle-project-build-cache.json",
+        include_str!("../entries/android-gradle-project-build-cache.json"),
+    ),
+    (
         "cargo-global-cache.json",
         include_str!("../entries/cargo-global-cache.json"),
     ),

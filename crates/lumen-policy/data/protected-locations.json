@@ -159,5 +159,45 @@
     "root": "home",
     "path": ".config/google-chrome",
     "source": "https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md"
+  },
+  {
+    "id": "edge-macos",
+    "kind": "sensitive",
+    "platforms": ["macos"],
+    "root": "home",
+    "path": "Library/Application Support/Microsoft Edge",
+    "source": "https://learn.microsoft.com/en-us/deployedge/edge-learnmore-create-user-directory-vars"
+  },
+  {
+    "id": "edge-windows",
+    "kind": "sensitive",
+    "platforms": ["windows"],
+    "root": "local_app_data",
+    "path": "Microsoft/Edge/User Data",
+    "source": "https://learn.microsoft.com/en-us/deployedge/edge-learnmore-create-user-directory-vars"
+  },
+  {
+    "id": "brave-macos",
+    "kind": "sensitive",
+    "platforms": ["macos"],
+    "root": "home",
+    "path": "Library/Application Support/BraveSoftware/Brave-Browser",
+    "source": "https://github.com/brave/brave-core/blob/master/build/config.gni"
+  },
+  {
+    "id": "brave-windows",
+    "kind": "sensitive",
+    "platforms": ["windows"],
+    "root": "local_app_data",
+    "path": "BraveSoftware/Brave-Browser/User Data",
+    "source": "https://github.com/brave/brave-core/blob/master/build/config.gni"
+  },
+  {
+    "id": "arc-macos",
+    "kind": "sensitive",
+    "platforms": ["macos"],
+    "root": "home",
+    "path": "Library/Application Support/Arc",
+    "source": "https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md"
   }
 ]

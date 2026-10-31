@@ -509,6 +509,8 @@ export const ko = {
       "classify.devkb-self-managed": "유지: 이 항목을 만든 도구가 알아서 정리해요.",
       "classify.devkb-unknown": "검토 필요: 이 항목에 맞는 도구 정보를 불러오지 못했어요.",
       "classify.vendor-declared-cache": "검토 필요: 만든 회사가 지워도 된다고 밝힌 데이터예요.",
+      "classify.browser-profile":
+        "유지: 웹 브라우저의 로그인 정보, 쿠키, 사이트 데이터가 들어 있어서 Lumen이 건드리지 않아요.",
       "classify.app-cache": "정리 제안: 앱의 캐시라서 앱이 다시 만들어요.",
       "classify.app-state": "유지: 앱의 데이터, 설정, 문서가 들어 있어서 Lumen이 건드리지 않아요.",
       "classify.orphan": "검토 필요: 이 항목을 쓰던 앱이 삭제된 것 같아요.",
