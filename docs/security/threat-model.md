@@ -203,6 +203,12 @@ GOAL: a file the user needs is permanently lost because of Lumen
   writing) neither block restoring it nor stop its removal. A directory whose
   finalization stopped part way can be restored with only what remains. Either way the
   restore is reported as not matching its record, so the user is asked to check it.
+- Cloud sync folders are recognised from the scan's placeholder and sync-root flags
+  and from the providers' documented default folders. A folder synced only through
+  iCloud Desktop & Documents, or a Windows sync root moved away from its default,
+  whose items carry no flag, can still be proposed
+  ([research 32](../research/32-cloud-sync-folders.md)). Quarantine keeps it
+  restorable, but the provider may already have deleted the cloud copy.
 
 ## 8. Security testing obligations
 
