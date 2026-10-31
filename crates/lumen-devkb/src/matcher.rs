@@ -15,7 +15,10 @@
 //! - names compare without case on macOS and Windows, whose default volumes are
 //!   case-insensitive, and exactly elsewhere;
 //! - a project location matches only if one of its markers was scanned as a file:
-//!   an unscanned marker is unknown, so no evidence is produced.
+//!   an unscanned marker is unknown, so no evidence is produced;
+//! - a project location never matches inside another instance of its own path
+//!   (`node_modules/pkg/node_modules`, `target/debug/deps/x/target/debug/deps`):
+//!   a marker there was shipped by a package, not written for a project.
 //!
 //! [`KnowledgeBase::matches`] matches a whole scan at once. A [`Matcher`]
 //! matches one in chunks with the same result: it gathers the scan's
@@ -101,6 +104,11 @@ fn fits(names: &[Component], pattern: &[Component]) -> bool {
     names.len() == pattern.len() && names.iter().zip(pattern).all(|(n, p)| p == "*" || n == p)
 }
 
+/// Whether `pattern` occurs in `names` as consecutive components.
+fn contains(names: &[Component], pattern: &[Component]) -> bool {
+    !pattern.is_empty() && names.windows(pattern.len()).any(|run| fits(run, pattern))
+}
+
 /// A location resolved against the environment.
 #[derive(Debug)]
 struct Resolved<'kb> {
@@ -153,12 +161,16 @@ impl Resolved<'_> {
                 && fits(&names[root.len()..], &self.pattern);
         }
         // A project root is whatever precedes the pattern; it must be a real
-        // directory, never the filesystem root.
+        // directory, never the filesystem root, and never inside another
+        // instance of the pattern: a lockfile or manifest that a package
+        // shipped inside `node_modules` describes no project, and what lies
+        // there belongs to the outer artifact.
         let Some(split) = names.len().checked_sub(self.pattern.len()) else {
             return false;
         };
         split > 0
             && fits(&names[split..], &self.pattern)
+            && !contains(&names[..split], &self.pattern)
             && self.markers.iter().any(|marker| {
                 let mut path = names[..split].to_vec();
                 path.extend_from_slice(marker);
@@ -1273,6 +1285,179 @@ mod tests {
             assert_eq!(
                 builtin.matches(&environment, &[cache, marker], Timestamp::UNIX_EPOCH),
                 []
+            );
+        }
+    }
+
+    const LOCKFILES: [&str; 6] = [
+        "package-lock.json",
+        "npm-shrinkwrap.json",
+        "pnpm-lock.yaml",
+        "yarn.lock",
+        "bun.lock",
+        "bun.lockb",
+    ];
+
+    /// The objects in `scanned` that matched `node-modules-with-lockfile`.
+    fn node_modules(environment: &Environment, scanned: &[FilesystemEntry]) -> Vec<u128> {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        builtin
+            .matches(environment, scanned, Timestamp::UNIX_EPOCH)
+            .into_iter()
+            .filter_map(|e| match (e.subject, e.fact) {
+                (Subject::File { identity }, Fact::KnowledgeBaseMatch { entry })
+                    if entry.as_str() == "node-modules-with-lockfile" =>
+                {
+                    Some(identity.file.get())
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn node_modules_matches_beside_any_lockfile() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        for platform in [Platform::Macos, Platform::Linux, Platform::Windows] {
+            let path = |tail: &str| {
+                if platform == Platform::Windows {
+                    windows(&format!(r"C:\src\{tail}").replace('/', "\\"))
+                } else {
+                    unix(&format!("/src/{tail}"))
+                }
+            };
+            for lockfile in LOCKFILES {
+                let scanned = [
+                    object(path("app/node_modules"), EntryKind::Directory, 1),
+                    object(path(&format!("app/{lockfile}")), EntryKind::File, 2),
+                    object(path("app/package.json"), EntryKind::File, 3),
+                    object(path("app/node_modules/.bin"), EntryKind::Directory, 4),
+                    object(path("app/node_modules/left-pad"), EntryKind::Directory, 5),
+                    object(path("app/node_modules/.cache"), EntryKind::Directory, 6),
+                    object(path("app/src"), EntryKind::Directory, 7),
+                ];
+                let environment = env(platform);
+                assert_eq!(
+                    node_modules(&environment, &scanned),
+                    [1],
+                    "{platform:?}, {lockfile}"
+                );
+                let (modules, rest) = scanned.split_at(1);
+                assert_eq!(
+                    chunked(&builtin, &environment, &[modules, rest]),
+                    builtin.matches(&environment, &scanned, Timestamp::UNIX_EPOCH),
+                    "{platform:?}, {lockfile}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn node_modules_needs_a_regular_lockfile_and_a_real_directory() {
+        let linux = env(Platform::Linux);
+        let modules = dir("/src/app/node_modules", 1);
+        // A manifest alone does not pin what a reinstall produces, and a
+        // workspace package's own `node_modules` has no lockfile beside it.
+        let unpinned = [
+            modules.clone(),
+            object(unix("/src/app/package.json"), EntryKind::File, 2),
+            dir("/src/repo/packages/web/node_modules", 3),
+            object(
+                unix("/src/repo/packages/web/package.json"),
+                EntryKind::File,
+                4,
+            ),
+            object(unix("/src/repo/pnpm-lock.yaml"), EntryKind::File, 5),
+        ];
+        assert_eq!(node_modules(&linux, &unpinned), Vec::<u128>::new());
+        for kind in [
+            EntryKind::Directory,
+            EntryKind::Symlink,
+            EntryKind::Junction,
+            EntryKind::OtherReparsePoint,
+        ] {
+            let lockfile = object(unix("/src/app/package-lock.json"), kind, 2);
+            assert_eq!(
+                node_modules(&linux, &[modules.clone(), lockfile]),
+                Vec::<u128>::new(),
+                "{kind:?} lockfile"
+            );
+        }
+        for kind in [
+            EntryKind::File,
+            EntryKind::Symlink,
+            EntryKind::Junction,
+            EntryKind::OtherReparsePoint,
+            EntryKind::Special,
+        ] {
+            let modules = object(unix("/src/app/node_modules"), kind, 1);
+            let lockfile = object(unix("/src/app/package-lock.json"), EntryKind::File, 2);
+            assert_eq!(
+                node_modules(&linux, &[modules, lockfile]),
+                Vec::<u128>::new(),
+                "{kind:?} node_modules"
+            );
+        }
+    }
+
+    #[test]
+    fn node_modules_inside_node_modules_never_match_on_their_own() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        for platform in [Platform::Macos, Platform::Linux, Platform::Windows] {
+            let path = |tail: &str| {
+                if platform == Platform::Windows {
+                    windows(&format!(r"C:\src\{tail}").replace('/', "\\"))
+                } else {
+                    unix(&format!("/src/{tail}"))
+                }
+            };
+            // Packages ship lockfiles (`yarn.lock`, `npm-shrinkwrap.json`), so
+            // a nested `node_modules` can sit beside one, whether or not the
+            // outer one matched.
+            let scanned = [
+                object(path("app/node_modules"), EntryKind::Directory, 1),
+                object(path("app/package-lock.json"), EntryKind::File, 2),
+                object(
+                    path("app/node_modules/pkg/node_modules"),
+                    EntryKind::Directory,
+                    3,
+                ),
+                object(path("app/node_modules/pkg/yarn.lock"), EntryKind::File, 4),
+                object(
+                    path("app/node_modules/.pnpm/pkg@1.0.0/node_modules"),
+                    EntryKind::Directory,
+                    5,
+                ),
+                object(
+                    path("app/node_modules/.pnpm/pkg@1.0.0/pnpm-lock.yaml"),
+                    EntryKind::File,
+                    6,
+                ),
+                object(path("loose/node_modules"), EntryKind::Directory, 7),
+                object(
+                    path("loose/node_modules/pkg/node_modules"),
+                    EntryKind::Directory,
+                    8,
+                ),
+                object(
+                    path("loose/node_modules/pkg/npm-shrinkwrap.json"),
+                    EntryKind::File,
+                    9,
+                ),
+                object(
+                    path("node_modules/checkout/node_modules"),
+                    EntryKind::Directory,
+                    10,
+                ),
+                object(path("node_modules/checkout/bun.lock"), EntryKind::File, 11),
+            ];
+            let environment = env(platform);
+            assert_eq!(node_modules(&environment, &scanned), [1], "{platform:?}");
+            let (outer, rest) = scanned.split_at(2);
+            assert_eq!(
+                chunked(&builtin, &environment, &[rest, outer]),
+                builtin.matches(&environment, &[rest, outer].concat(), Timestamp::UNIX_EPOCH),
+                "{platform:?}"
             );
         }
     }
