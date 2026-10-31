@@ -28,6 +28,10 @@ pub use validate::Problem;
 /// The built-in entries as `(file name, JSON)`, one per tool (roadmap 6.15+).
 const BUILTIN: &[(&str, &str)] = &[
     (
+        "brave-browser-caches.json",
+        include_str!("../entries/brave-browser-caches.json"),
+    ),
+    (
         "cargo-global-cache.json",
         include_str!("../entries/cargo-global-cache.json"),
     ),

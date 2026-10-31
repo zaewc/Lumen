@@ -1064,6 +1064,105 @@ mod tests {
         }
     }
 
+    /// Brave's caches match in the user cache directory Chromium derives from
+    /// Brave's `BraveSoftware/Brave-Browser` user data directory; nothing in
+    /// a profile, no other channel and no Windows location ever matches.
+    #[test]
+    fn brave_caches_match_only_in_its_user_cache_directory() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mac = env(Platform::Macos);
+        let caches = "/Users/ana/Library/Caches/BraveSoftware/Brave-Browser";
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir(&format!("{caches}/Default/Cache"), 1),
+                    dir(&format!("{caches}/Profile 1/Code Cache"), 2),
+                ]
+            ),
+            ["brave-browser-caches"; 2]
+        );
+        let support = "/Users/ana/Library/Application Support/BraveSoftware/Brave-Browser";
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir(caches, 1),
+                    dir(&format!("{caches}/Default"), 2),
+                    dir(&format!("{caches}/Default/Cache/Cache_Data"), 3),
+                    dir(&format!("{support}/Default/Cache"), 4),
+                    dir(&format!("{support}/Default/Cookies"), 5),
+                    dir(&format!("{support}/Default/IndexedDB"), 6),
+                    dir(
+                        "/Users/ana/Library/Caches/BraveSoftware/Brave-Browser-Beta/Default/Cache",
+                        7
+                    ),
+                ]
+            )
+            .len(),
+            0
+        );
+        let mut linux = env(Platform::Linux);
+        linux.vars = vec![("XDG_CACHE_HOME".to_owned(), unix("/xdg"))];
+        assert_eq!(
+            ids(
+                &linux,
+                &[
+                    dir(
+                        "/Users/ana/.cache/BraveSoftware/Brave-Browser/Default/Cache",
+                        1
+                    ),
+                    dir("/xdg/BraveSoftware/Brave-Browser/Default/Code Cache", 2),
+                ]
+            ),
+            ["brave-browser-caches"; 2]
+        );
+        assert_eq!(
+            ids(
+                &linux,
+                &[
+                    dir(
+                        "/Users/ana/.config/BraveSoftware/Brave-Browser/Default/Cache",
+                        1
+                    ),
+                    dir(
+                        "/Users/ana/.cache/bravesoftware/brave-browser/Default/Cache",
+                        2
+                    ),
+                ]
+            )
+            .len(),
+            0
+        );
+        let mut win = env(Platform::Windows);
+        win.local_app_data = Some(windows(r"C:\Users\ana\AppData\Local"));
+        assert_eq!(
+            ids(
+                &win,
+                &[object(
+                    windows(
+                        r"C:\Users\ana\AppData\Local\BraveSoftware\Brave-Browser\User Data\Default\Cache"
+                    ),
+                    EntryKind::Directory,
+                    1,
+                )]
+            )
+            .len(),
+            0,
+            "Brave's Windows caches are inside its profile"
+        );
+    }
+
     #[test]
     fn projects_need_a_scanned_marker() {
         let found = matched(
