@@ -1277,6 +1277,48 @@ mod tests {
         }
     }
 
+    /// React Native's shared prebuilt-binary cache matches as one directory
+    /// on macOS; never `~/Library/Caches`, a tarball inside it, a link or a
+    /// file at its path, or the same name on another platform.
+    #[test]
+    fn react_native_matches_only_its_shared_prebuilt_cache() {
+        let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |environment: &Environment, scanned: &[FilesystemEntry]| -> Vec<u128> {
+            kb.matches(environment, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match (e.subject, e.fact) {
+                    (Subject::File { identity }, Fact::KnowledgeBaseMatch { entry })
+                        if entry.as_str() == "react-native-prebuilt-cache" =>
+                    {
+                        Some(identity.file.get())
+                    }
+                    _ => None,
+                })
+                .collect()
+        };
+        let cache = "/Users/ana/Library/Caches/ReactNative";
+        let scanned = [
+            dir(cache, 1),
+            dir("/Users/ana/Library/Caches", 2),
+            object(
+                unix(&format!("{cache}/hermes-ios-0.86.3-debug.tar.gz")),
+                EntryKind::File,
+                3,
+            ),
+            dir("/Users/ana/src/app/ios/Pods", 4),
+        ];
+        let mac = env(Platform::Macos);
+        assert_eq!(ids(&mac, &scanned), [1]);
+        assert_eq!(ids(&env(Platform::Linux), &scanned), Vec::<u128>::new());
+        for kind in [EntryKind::File, EntryKind::Symlink] {
+            assert_eq!(
+                ids(&mac, &[object(unix(cache), kind, 5)]),
+                Vec::<u128>::new(),
+                "{kind:?}"
+            );
+        }
+    }
+
     #[test]
     fn one_match_per_object_and_entry() {
         let mut both = env(Platform::Macos);
