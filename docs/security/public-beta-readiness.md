@@ -111,6 +111,22 @@ items list after a crash or quit
 **Action:** Reconcile on startup, surface items needing attention, and prevent
 quit/update during cleanup or quarantine actions. Add a desktop recovery test.
 
+**Progress (2026-10-31):** the desktop app reconciles once when it starts, off
+the main thread, and the held items list (desktop and `lumen list`) settles
+interrupted operations before it lists
+([`held.rs`](../../crates/lumen-app/src/held.rs)). Nothing is moved, restored or
+removed: an item moved but not verified is held after a failure (restore only),
+a verified one is retained. An operation reconciliation cannot settle (its item
+is neither where it was recorded nor in the store) is left as it is and shown
+on the Quarantine page as needing the person, outside the held count and size.
+A ledger lock (`ledger.lock`) keeps reconciliation from journaling over a
+cleanup in another Lumen process or twice at once; quarantine holds it for the
+whole plan. A desktop recovery test starts the app after a crash mid-cleanup
+and finds the item listed and restorable. Remaining: prevent quit and update
+while a cleanup or Quarantine action runs; a way to dismiss an operation that
+needs the person; restore and finalize under the same lock; recovery from a
+lost or corrupt ledger (FS-7).
+
 ### SC-1: Previously exposed updater signing key was not rotated
 
 **Evidence:** Historical release builds exposed the updater signing key to
@@ -170,6 +186,8 @@ service key; otherwise omit it from public builds.
 - **FS-6/7:** Startup reconciliation and recovery from a lost/corrupt ledger are
   absent. Surface interrupted operations and define a sidecar/ledger recovery
   strategy.
+  **Progress (2026-10-31):** FS-6 is done: see UX-3. FS-7, recovering from a lost
+  or corrupt ledger, remains.
 - **FS-8/9:** A failed restore may remain eligible for automatic removal;
   retention depends on the wall clock. Add a safety test and make failed restore
   items ineligible for expiry; test clock anomalies.

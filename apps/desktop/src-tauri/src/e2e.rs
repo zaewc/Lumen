@@ -22,6 +22,44 @@ use tauri::{AppHandle, Manager as _, RunEvent, WebviewWindow};
 /// Set in the child process that runs the flow.
 const CHILD: &str = "LUMEN_DESKTOP_E2E_HOME";
 
+/// Set in the child process that starts after an interrupted cleanup.
+const RECOVERY: &str = "LUMEN_DESKTOP_RECOVERY_HOME";
+
+/// Re-runs `test` in a child process with `HOME` (and `var`) at `home`.
+fn in_child(test: &str, var: &str, home: &Path) {
+    let exe = std::env::current_exe().unwrap_or_else(|e| unreachable!("{e}"));
+    let out = Command::new(exe)
+        .args(["--exact", test, "--nocapture"])
+        .env("HOME", home)
+        .env(var, home)
+        .output()
+        .unwrap_or_else(|e| unreachable!("{e}"));
+    assert!(
+        out.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+/// Runs `flow` once the app, built as the real one is, has set itself up.
+fn run_app(flow: impl Fn(&AppHandle<MockRuntime>) + 'static) {
+    let secrets = Arc::new(MemorySecretStore::default());
+    let app = crate::app(mock_builder(), Some(secrets), None)
+        .build(crate::context())
+        .unwrap_or_else(|e| unreachable!("{e}"));
+    let exit = app.run_return(move |handle, event| {
+        if matches!(event, RunEvent::Ready) {
+            flow(handle);
+            // Closing the last window ends the (mock) event loop.
+            if let Some(window) = handle.get_webview_window("main") {
+                window.close().unwrap_or_else(|e| unreachable!("{e}"));
+            }
+        }
+    });
+    assert_eq!(exit, 0);
+}
+
 fn invoke(window: &WebviewWindow<MockRuntime>, cmd: &str, body: Value) -> Result<Value, Value> {
     get_ipc_response(
         window,
@@ -191,21 +229,7 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
 #[test]
 fn the_desktop_flow_runs_end_to_end() {
     if let Some(home) = std::env::var_os(CHILD) {
-        // The app sets itself up (state, window) when its event loop is ready.
-        let secrets = Arc::new(MemorySecretStore::default());
-        let app = crate::app(mock_builder(), Some(secrets), None)
-            .build(crate::context())
-            .unwrap_or_else(|e| unreachable!("{e}"));
-        let exit = app.run_return(move |handle, event| {
-            if matches!(event, RunEvent::Ready) {
-                flow(handle, Path::new(&home));
-                // Closing the last window ends the (mock) event loop.
-                if let Some(window) = handle.get_webview_window("main") {
-                    window.close().unwrap_or_else(|e| unreachable!("{e}"));
-                }
-            }
-        });
-        assert_eq!(exit, 0);
+        run_app(move |handle| flow(handle, Path::new(&home)));
         return;
     }
     let fx = Fixture::build(&[
@@ -220,21 +244,86 @@ fn the_desktop_flow_runs_end_to_end() {
     .unwrap_or_else(|e| unreachable!("{e}"));
     let home = std::fs::canonicalize(fx.path("home").unwrap_or_else(|e| unreachable!("{e}")))
         .unwrap_or_else(|e| unreachable!("{e}"));
-    let exe = std::env::current_exe().unwrap_or_else(|e| unreachable!("{e}"));
-    let out = Command::new(exe)
-        .args([
-            "--exact",
-            "e2e::the_desktop_flow_runs_end_to_end",
-            "--nocapture",
-        ])
-        .env("HOME", &home)
-        .env(CHILD, &home)
-        .output()
+    in_child("e2e::the_desktop_flow_runs_end_to_end", CHILD, &home);
+}
+
+/// The operation a crash interrupted in the fixture home.
+const INTERRUPTED: &str = "0190f0d2-6c1e-7a3b-8c4d-5e6f70819401";
+
+/// What a crash right after the move leaves: `Caches/big` in the store, and
+/// only the intent in the app's ledger.
+fn crash_after_move(home: &Path) {
+    use lumen_application::ports::QuarantineExecutor as _;
+    use lumen_domain::{OperationId, QuarantineEvent, Timestamp};
+    use lumen_store_sqlite::{JournalEntry, LedgerStore, open_ledger};
+
+    let support = home.join("Library/Application Support");
+    let executor =
+        lumen_fs_exec::Executor::new(&support, vec![b"Lumen".to_vec(), b"Quarantine".to_vec()]);
+    let root = lumen_app::raw_path(home).unwrap_or_else(|e| unreachable!("{e}"));
+    let item = executor
+        .prepare(&root, &[b"Caches".to_vec(), b"big".to_vec()])
+        .unwrap_or_else(|e| unreachable!("{e:?}"));
+    let operation: OperationId = INTERRUPTED.parse().unwrap_or_else(|e| unreachable!("{e}"));
+    let data = support.join(&crate::context::<MockRuntime>().config().identifier);
+    std::fs::create_dir_all(&data).unwrap_or_else(|e| unreachable!("{e}"));
+    let mut ledger = LedgerStore::new(
+        open_ledger(&data.join("ledger.db")).unwrap_or_else(|e| unreachable!("{e}")),
+    );
+    ledger
+        .journal(&JournalEntry {
+            operation,
+            event: QuarantineEvent::Journal,
+            at: Timestamp::UNIX_EPOCH,
+            detail: serde_json::from_slice(&item.0).unwrap_or_else(|e| unreachable!("{e}")),
+        })
         .unwrap_or_else(|e| unreachable!("{e}"));
+    executor
+        .quarantine(&item, operation, b"{}")
+        .unwrap_or_else(|e| unreachable!("{e:?}"));
+}
+
+/// UX-3: after a crash mid-cleanup, the next launch lists the moved item
+/// without another cleanup, and it can be restored.
+#[test]
+fn an_interrupted_cleanup_is_listed_after_the_next_launch() {
+    if let Some(home) = std::env::var_os(RECOVERY) {
+        run_app(move |handle| {
+            let window = handle
+                .get_webview_window("main")
+                .unwrap_or_else(|| unreachable!("the main window"));
+            let item = Path::new(&home).join("Caches/big");
+            let held = invoke(&window, "held", json!({})).unwrap_or_else(|e| unreachable!("{e}"));
+            assert_eq!(held[0]["operation"], INTERRUPTED, "{held}");
+            assert_eq!(held[0]["state"], "held_after_failure", "{held}");
+            assert_eq!(held[0]["original"], item.display().to_string(), "{held}");
+            let restored = invoke(&window, "restore", json!({ "operationId": INTERRUPTED }))
+                .unwrap_or_else(|e| unreachable!("{e}"));
+            assert_eq!(restored["outcome"]["kind"], "restored", "{restored}");
+            assert_eq!(std::fs::read(&item).unwrap_or_default(), vec![7; 4096]);
+        });
+        return;
+    }
+    let fx = Fixture::build(&[
+        Node::File {
+            path: "home/Caches/big".into(),
+            contents: vec![7; 4096],
+        },
+        Node::Dir {
+            path: "home/Library/Application Support".into(),
+        },
+    ])
+    .unwrap_or_else(|e| unreachable!("{e}"));
+    let home = std::fs::canonicalize(fx.path("home").unwrap_or_else(|e| unreachable!("{e}")))
+        .unwrap_or_else(|e| unreachable!("{e}"));
+    crash_after_move(&home);
     assert!(
-        out.status.success(),
-        "{}\n{}",
-        String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr)
+        !home.join("Caches/big").exists(),
+        "moved by the crashed run"
+    );
+    in_child(
+        "e2e::an_interrupted_cleanup_is_listed_after_the_next_launch",
+        RECOVERY,
+        &home,
     );
 }

@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useId, useRef, useState } from "react";
-import { heldTotal, useHeld } from "@/entities/held";
+import { heldTotal, inQuarantine, useHeld } from "@/entities/held";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import {
@@ -35,7 +35,8 @@ export function QuarantinePage() {
   const warning = useId();
   const [picked, setPicked] = useState<Selection>(new Set());
   const [confirming, setConfirming] = useState(false);
-  const items = held.data ?? [];
+  const items = inQuarantine(held.data ?? []);
+  const interrupted = (held.data ?? []).filter((item) => item.state === "needs_attention");
   // Items that left the list (restored, removed) leave the selection too.
   const selected = stillHeld(items, picked);
   const selectedItems = chosen(items, selected);
@@ -188,6 +189,18 @@ export function QuarantinePage() {
             {m.common.tryAgain}
           </button>
         </ErrorNotice>
+      )}
+      {interrupted.length > 0 && (
+        <Notice tone="warning">
+          <p>{m.quarantine.interrupted(interrupted.length)}</p>
+          <ul>
+            {interrupted.map((item) => (
+              <li key={item.operation} className="break-all select-text">
+                {item.original ?? m.held.unknownPath}
+              </li>
+            ))}
+          </ul>
+        </Notice>
       )}
       {held.isSuccess && items.length === 0 && (
         <section className="max-w-xl space-y-3 py-4">

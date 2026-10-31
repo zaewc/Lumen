@@ -3,8 +3,9 @@
 //!
 //! Refuses unless the process is not privileged (ADR-0005), the plan exists,
 //! the confirmation is its full hash, and it is at most 24 hours old and
-//! still proposed. Then, in order: interrupted operations from earlier runs
-//! are reconciled; the plan is confirmed and started; every item is decided
+//! still proposed. Then, in order: the ledger is locked against other
+//! Lumen processes until the end ([`lock_ledger`]); interrupted operations
+//! from earlier runs are reconciled; the plan is confirmed and started; every item is decided
 //! again on fresh evidence and either skipped or quarantined through the
 //! journaled, no-replace path; the plan finishes. Everything moved stays
 //! restorable in the store.
@@ -24,7 +25,7 @@ use lumen_store_sqlite::{
 };
 
 use crate::assess::{AssessError, block_on, prepare, with_probes};
-use crate::store::{LocationError, PrivilegeError, refuse_privileged, stores};
+use crate::store::{LocationError, PrivilegeError, lock_ledger, refuse_privileged, stores};
 
 /// How long a plan may wait for its confirmation (ADR-0034).
 pub const MAX_PLAN_AGE_SECS: i64 = 24 * 60 * 60;
@@ -66,6 +67,9 @@ pub enum QuarantineError {
     /// The quarantine store could not be created or opened.
     #[error("the quarantine store could not be prepared: {0}")]
     StoreUnavailable(String),
+    /// The ledger could not be locked against other Lumen processes.
+    #[error("the ledger could not be locked: {0}")]
+    Lock(std::io::Error),
 }
 
 /// What became of one planned item.
@@ -227,6 +231,8 @@ pub fn quarantine(
     let now = clock.now();
     let mut index = IndexStore::new(open_index(db)?);
     let stored = checked_plan(&index, plan, confirm, now)?;
+    // Held until the plan finishes; another cleanup in progress is waited for.
+    let _lock = lock_ledger(db, true).map_err(QuarantineError::Lock)?;
     let confirmation = Confirmation {
         plan_hash: stored.plan.hash(),
         confirmed_at: now,

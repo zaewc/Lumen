@@ -270,7 +270,7 @@ export type HeldItemView = {
 /**
  * Why an item is held.
  */
-export type HeldStateView = "retained" | "held_after_failure";
+export type HeldStateView = "retained" | "held_after_failure" | "needs_attention";
 
 /**
  * What kind of item AI review says a review item most likely is.

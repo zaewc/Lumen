@@ -40,8 +40,11 @@ tauri-plugin-updater = { version = "=2.14.0", default-features = false, features
 ] }
 
 [dev-dependencies]
+# An interrupted cleanup in a fixture home, for the recovery test (UX-3).
+lumen-fs-exec.workspace = true
 # Scan totals, to build progress events in tests.
 lumen-scan.workspace = true
+lumen-store-sqlite.workspace = true
 lumen-testkit.workspace = true
 # The mock runtime, to drive the real invoke handler and capabilities in tests.
 tauri = { version = "=2.12.3", features = ["isolation", "test"] }

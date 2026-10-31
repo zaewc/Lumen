@@ -1,2 +1,2 @@
 export { useHeld } from "./api/held";
-export { type HeldTotal, heldTotal } from "./lib/total";
+export { type HeldTotal, heldTotal, inQuarantine } from "./lib/total";

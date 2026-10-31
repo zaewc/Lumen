@@ -488,7 +488,7 @@ Forecasts use the history of `ScanSnapshot` volume totals:
 | Directory unreadable (TCC, ACL) | `Denied` node, unknown size, coverage gap; scan continues |
 | Change feed drops events | Subtree invalidation; periodic full sweep |
 | Identity mismatch at execution | Item aborted to `REVIEW`, reason recorded |
-| Crash mid-plan | Journal reconciliation on start; each item is either at its source or in quarantine |
+| Crash mid-plan | Journal reconciliation when the desktop app starts, before held items are listed and before each plan, under a ledger lock; each item is at its source or in quarantine, or left as it is and shown as needing the person |
 | Ledger DB lost or corrupt | Rebuild from sidecar manifests in quarantine stores |
 | Quarantine volume unsupported | Item becomes `REVIEW` (no copy-and-delete) |
 | Jev unavailable or invalid | Decision proceeds without Jev evidence |

@@ -107,7 +107,7 @@ export const zGroupView = z.object({
 /**
  * Why an item is held.
  */
-export const zHeldStateView = z.enum(["retained", "held_after_failure"]);
+export const zHeldStateView = z.enum(["retained", "held_after_failure", "needs_attention"]);
 
 /**
  * One item in quarantine.

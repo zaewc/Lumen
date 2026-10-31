@@ -2,7 +2,8 @@
 //! ADR-0046).
 
 use std::collections::BTreeSet;
-use std::path::PathBuf;
+use std::fs::{File, OpenOptions, TryLockError};
+use std::path::{Path, PathBuf};
 
 use lumen_domain::VolumeId;
 use lumen_fs_exec::Executor;
@@ -116,7 +117,7 @@ pub fn stores() -> Result<Stores, LocationError> {
     use lumen_platform_windows::volumes;
 
     let main = store_location()?;
-    let letter = |path: &std::path::Path| {
+    let letter = |path: &Path| {
         path.to_string_lossy()
             .chars()
             .next()
@@ -127,7 +128,7 @@ pub fn stores() -> Result<Stores, LocationError> {
     let facts = volumes::mounted();
     let main_volume = facts
         .iter()
-        .find(|f| letter(std::path::Path::new(&f.root)) == main_letter)
+        .find(|f| letter(Path::new(&f.root)) == main_letter)
         .and_then(|f| f.serial)
         .and_then(id);
     let single_user = volumes::single_user_pc();
@@ -191,4 +192,36 @@ pub fn refuse_privileged() -> Result<(), PrivilegeError> {
         return Err(PrivilegeError::Elevated);
     }
     Ok(())
+}
+
+/// Takes the lock on the ledger next to `db` (`ledger.lock`), exclusively and
+/// across processes, until the file is dropped. `None`: someone else holds
+/// it. With `wait`, waits for it instead.
+///
+/// Every holder settles interrupted operations first (a quarantine, the
+/// held-items listing, the desktop's startup), so a caller that finds the
+/// lock taken skips reconciliation: the holder did it or is doing it, and an
+/// operation that looks unfinished may be in flight. Without the lock, two
+/// reconciliations could journal one outcome twice, or one could journal
+/// over a move still under way.
+///
+/// # Errors
+///
+/// The [`std::io::Error`] if the lock file cannot be opened or locked.
+pub fn lock_ledger(db: &Path, wait: bool) -> std::io::Result<Option<File>> {
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(db.with_file_name("ledger.lock"))?;
+    if wait {
+        file.lock()?;
+        return Ok(Some(file));
+    }
+    match file.try_lock() {
+        Ok(()) => Ok(Some(file)),
+        Err(TryLockError::WouldBlock) => Ok(None),
+        Err(TryLockError::Error(error)) => Err(error),
+    }
 }

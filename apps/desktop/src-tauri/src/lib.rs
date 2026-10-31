@@ -88,12 +88,20 @@ pub fn app<R: Runtime>(
             if let Ok(telemetry) = lumen_telemetry::start(&config) {
                 app.manage(telemetry);
             }
+            let db = data.join("index.db");
+            let settled = Arc::new(std::sync::Once::new());
+            // Interrupted cleanups are settled off the main thread (UX-3).
+            let startup = (db.clone(), Arc::clone(&settled));
+            drop(tauri::async_runtime::spawn_blocking(move || {
+                commands::settle_once(&startup.0, &startup.1);
+            }));
             app.manage(commands::Core {
-                db: data.join("index.db"),
+                db,
                 secrets,
                 builtin,
                 tool_entries: std::sync::Mutex::default(),
                 tool_running: Arc::default(),
+                settled,
             });
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")
