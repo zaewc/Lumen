@@ -3,7 +3,7 @@
 //! ```text
 //! lumen scan <PATH>... [--db <FILE>] [--json]
 //! lumen assess --db <FILE> [--json]
-//! lumen plan --db <FILE>
+//! lumen plan --db <FILE> [--choose <PATH>]...
 //! lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>
 //! lumen list --db <FILE>
 //! lumen restore --db <FILE> --op <ID>
@@ -15,7 +15,10 @@
 //! `assess` decides the latest completed scan in the database and reports each
 //! candidate's verdict and reasons; it moves nothing (roadmap 10.13b). `plan`
 //! stores the QUARANTINE candidates as a plan and prints its hash; it moves
-//! nothing either (roadmap 10.13c, ADR-0034). `quarantine` executes exactly
+//! nothing either (roadmap 10.13c, ADR-0034). Each `--choose` adds one review
+//! item the person chose (ADR-0051): only a REVIEW item without a tool command
+//! that can be regenerated or is unknown; anything else fails the plan. A
+//! chosen item is never removed when retention ends. `quarantine` executes exactly
 //! that plan, re-deciding every item first, and only with its full hash; it
 //! moves items into a restorable store (roadmap 10.14b). `list` shows what the
 //! store holds, `restore` puts one item back, and `finalize` removes one item
@@ -52,7 +55,7 @@ mod quarantine;
 #[cfg(any(unix, windows))]
 mod report;
 
-const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE>\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)";
+const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -172,6 +175,7 @@ fn parse_plan(args: &[String]) -> Result<Command, String> {
     let mut iter = args.iter();
     let mut db = None;
     let mut ai = AiChoice::Setting;
+    let mut chosen = Vec::new();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--jev" => ai = AiChoice::On,
@@ -182,12 +186,16 @@ fn parse_plan(args: &[String]) -> Result<Command, String> {
                     return Err("--db given more than once".into());
                 }
             }
+            "--choose" => chosen.push(PathBuf::from(
+                iter.next()
+                    .ok_or("--choose needs the path of a review item")?,
+            )),
             "-h" | "--help" => return Ok(Command::Help),
             other => return Err(format!("unknown argument: {other}")),
         }
     }
-    let db = db.ok_or("plan needs --db <FILE> [--jev | --no-ai]")?;
-    Ok(Command::Plan(PlanArgs { db, ai }))
+    let db = db.ok_or("plan needs --db <FILE> [--choose <PATH>]... [--jev | --no-ai]")?;
+    Ok(Command::Plan(PlanArgs { db, ai, chosen }))
 }
 
 /// Parsed `plan` arguments.
@@ -195,6 +203,8 @@ fn parse_plan(args: &[String]) -> Result<Command, String> {
 struct PlanArgs {
     db: PathBuf,
     ai: AiChoice,
+    /// Review items the person chose (ADR-0051), as given.
+    chosen: Vec<PathBuf>,
 }
 
 fn parse_ai(args: &[String]) -> Result<Command, String> {
@@ -511,6 +521,15 @@ fn run_assess(_args: &AssessArgs) -> Result<(), Box<dyn Error>> {
 
 #[cfg(any(unix, windows))]
 fn run_plan(args: &PlanArgs) -> Result<(), Box<dyn Error>> {
+    // Absolute, as scanned; never resolved, so a link is chosen as itself.
+    let chosen = args
+        .chosen
+        .iter()
+        .map(|path| {
+            let absolute = std::path::absolute(path)?;
+            lumen_app::raw_path(&absolute).map_err(|e| format!("{}: {e}", path.display()).into())
+        })
+        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
     let planned = with_judge(
         args.ai,
         &args.db,
@@ -520,6 +539,7 @@ fn run_plan(args: &PlanArgs) -> Result<(), Box<dyn Error>> {
                 &lumen_app::SystemClock,
                 &lumen_app::UuidV7Ids,
                 judge,
+                &chosen,
             )?)
         },
         |planned| planned.items.as_slice(),
@@ -712,7 +732,24 @@ mod tests {
             Ok(Command::Plan(PlanArgs {
                 db: "x.db".into(),
                 ai: AiChoice::Setting,
+                chosen: Vec::new(),
             }))
+        );
+        assert_eq!(
+            parse(&args(&[
+                "plan", "--choose", "/a", "--db", "x.db", "--choose", "/b c"
+            ])),
+            Ok(Command::Plan(PlanArgs {
+                db: "x.db".into(),
+                ai: AiChoice::Setting,
+                chosen: vec!["/a".into(), "/b c".into()],
+            })),
+            "one path per --choose, in order"
+        );
+        assert!(parse(&args(&["plan", "--db", "x.db", "--choose"])).is_err());
+        assert!(
+            parse(&args(&["plan", "--db", "x.db", "--choose-all"])).is_err(),
+            "no select-all"
         );
         assert!(parse(&args(&["plan"])).is_err());
         assert!(
@@ -810,6 +847,7 @@ mod tests {
             Ok(Command::Plan(PlanArgs {
                 db: "x.db".into(),
                 ai: AiChoice::On,
+                chosen: Vec::new(),
             }))
         );
         assert!(matches!(
