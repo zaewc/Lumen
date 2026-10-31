@@ -130,7 +130,7 @@ call yet:
 | 6.13 | `feat(platform-windows): read Disk Cleanup handler declarations` | vendor-declared cache edges |
 | 6.14 | `feat(devkb): add knowledge-base schema and loader` | `lumen-devkb` entry schema (`schemas/devkb-entry.schema.json`), validation (safe relative paths, bare program names, https sources, class/action consistency), `last_verified` check |
 | 6.14a | `ci(devkb): flag stale entries on a schedule` | `xtask devkb --max-age-days`; a scheduled workflow, so time passing never fails unrelated PRs |
-| 6.15+ | `feat(devkb): add <tool> entry` | one PR per tool, each with sources. Landed: Cargo, Gradle, Go build and module caches, npm, pnpm, uv, pip, Homebrew, Claude Code, Xcode DerivedData, iOS DeviceSupport and simulator devices, CocoaPods download cache, JetBrains system directory (`not_regenerable` guard: it holds Local History), Docker Desktop disk image (`not_regenerable`), Visual Studio Code (Chromium caches, `CachedData`, `CachedExtensionVSIXs`; from its source, 13.33). Open: simulator runtimes (no home-relative location), Docker objects via `docker system prune`, Yarn (Yarn 1 has no documented path; Berry's `cache clean --mirror` is a no-op under the default global cache and plain `cache clean` depends on the working directory) |
+| 6.15+ | `feat(devkb): add <tool> entry` | one PR per tool, each with sources. Landed: Cargo, Gradle, Go build and module caches, npm, pnpm, uv, pip, Homebrew, Claude Code, Xcode DerivedData, iOS DeviceSupport and simulator devices, CocoaPods download cache, JetBrains system directory (`not_regenerable` guard: it holds Local History), Docker Desktop disk image (`not_regenerable`), Visual Studio Code (Chromium caches, `CachedData`, `CachedExtensionVSIXs`; from its source, 13.33). Phase 15: Android Gradle module intermediates, `node_modules` beside a lockfile, SwiftPM, Expo CLI and React Native caches, Chrome, Arc, Edge, Brave and Figma caches, Electron update staging, dotslash, pnpm metadata, Poetry, rustup downloads and temporary folders. Open: simulator runtimes (no home-relative location), Docker objects via `docker system prune`, Yarn (Yarn 1 has no documented path; Berry's `cache clean --mirror` is a no-op under the default global cache and plain `cache clean` depends on the working directory) |
 | 6.15n | `feat(devkb): recognize npx executable caches` | npm's `_npx`, separately from `_cacache`; explicit `npm cache npx rm --force` with a dry-run argument vector, configured-root guards, no project package removal ([research 25](../research/25-npx-cache.md)). |
 | 6.16 | `feat(devkb): match entries against scanned entries` | resolve entry locations per platform and environment; `KnowledgeBaseMatch` evidence |
 | 6.16a | `feat(devkb): discover project build caches` | Next.js `.next/cache` beside a scanned regular `package.json`; preserve build output and source files. Project markers exclude directories, symlinks and reparse points ([research 21](../research/21-project-build-caches.md)). |
@@ -430,16 +430,16 @@ their sources before merge.
 
 | # | Scope | Status |
 | --- | --- | --- |
-| 15.1 | Research 26 and [ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md) (this section) | this PR |
-| 15.2 | `feat(devkb)`: Android Gradle module intermediates and `.cxx` beside a Gradle build file | open |
-| 15.3 | `feat(devkb)`: iOS, React Native, Expo and SwiftPM build caches | open |
-| 15.4 | `feat(devkb)`: Chromium caches of browsers (Chrome, Arc, Edge, Brave) and large Electron apps | open |
-| 15.5 | `feat(devkb)`: Electron update staging and tool caches (Yarn, dotslash, pnpm metadata, Poetry, Android and rustup downloads) | open |
-| 15.6 | `feat(devkb)`: `node_modules` beside a lockfile | open |
-| 15.7 | `feat`: say which running apps hold proposable caches ("quit Spotify to free 1.1 GB"), without changing a verdict | open |
-| 15.8 | `feat(app)`: plans record who chose each item; chosen review items are confirmed as review items and never removed automatically (ADR-0051) | open |
-| 15.9 | `feat(application)`: large unrecognised folders as review candidates (ADR-0051) | open |
-| 15.10 | `feat(web)`: choose review items to quarantine, with AI notes beside them (ADR-0051) | open |
+| 15.1 | Research 26 and [ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md) (this section) | done (#548) |
+| 15.2 | `feat(devkb)`: Android Gradle module intermediates and `.cxx` beside a Gradle build file | done (#549; `.cxx` left out, see research 26) |
+| 15.3 | `feat(devkb)`: iOS, React Native, Expo and SwiftPM build caches | done (#553, #555, #557; `ios/build` left out: it can hold signed builds) |
+| 15.4 | `feat(devkb)`: Chromium caches of browsers (Chrome, Arc, Edge, Brave) and large Electron apps | done (#550, #552, #554, #556, #558; profiles kept by #568, #570) |
+| 15.5 | `feat(devkb)`: Electron update staging and tool caches (Yarn, dotslash, pnpm metadata, Poetry, Android and rustup downloads) | done (#560–#564); Yarn and Android downloads open |
+| 15.6 | `feat(devkb)`: `node_modules` beside a lockfile | done (#551) |
+| 15.7 | `feat`: say which running apps hold proposable caches ("quit Spotify to free 1.1 GB"), without changing a verdict | done (#565–#567) |
+| 15.8 | `feat(app)`: plans record who chose each item; chosen review items are confirmed as review items and never removed automatically (ADR-0051) | done in the core and CLI (#571–#573); desktop (#574) waits for a host-rendered confirmation (FS-1 in the [readiness audit](../security/public-beta-readiness.md)) |
+| 15.9 | `feat(application)`: large unrecognised folders as review candidates (ADR-0051) | #575, blocked on FS-2 (sync roots) and FS-3 (protected ancestors) |
+| 15.10 | `feat(web)`: choose review items to quarantine, with AI notes beside them (ADR-0051) | open; waits for FS-1 |
 | 15.11 | Later: user-domain logs and Windows `%TEMP%` with age rules; orphaned app caches | open |
 
 ## Later phases (outline)
