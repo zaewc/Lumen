@@ -88,6 +88,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/jetbrains-system-directory.json"),
     ),
     (
+        "microsoft-edge-caches.json",
+        include_str!("../entries/microsoft-edge-caches.json"),
+    ),
+    (
         "nextjs-build-cache.json",
         include_str!("../entries/nextjs-build-cache.json"),
     ),

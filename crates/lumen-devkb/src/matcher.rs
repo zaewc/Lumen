@@ -1097,6 +1097,92 @@ mod tests {
         );
     }
 
+    /// Edge's caches match in the user cache directory Chromium derives from
+    /// Edge's documented user data directory; nothing in a profile, and no
+    /// Windows location (the cache is inside the profile there), ever matches.
+    #[test]
+    fn edge_caches_match_only_in_its_user_cache_directory() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mac = env(Platform::Macos);
+        let caches = "/Users/ana/Library/Caches/Microsoft Edge";
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir(&format!("{caches}/Default/Cache"), 1),
+                    dir(&format!("{caches}/Profile 1/Code Cache"), 2),
+                ]
+            ),
+            ["microsoft-edge-caches"; 2]
+        );
+        let support = "/Users/ana/Library/Application Support/Microsoft Edge";
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir(caches, 1),
+                    dir(&format!("{caches}/Default"), 2),
+                    dir(&format!("{caches}/Default/Cache/Cache_Data"), 3),
+                    dir(&format!("{support}/Default/Cache"), 4),
+                    dir(&format!("{support}/Default/Cookies"), 5),
+                    dir(&format!("{support}/Default/Local Storage"), 6),
+                    dir(&format!("{support}/NativeMessagingHosts"), 7),
+                    dir(
+                        "/Users/ana/Library/Caches/Microsoft Edge Beta/Default/Cache",
+                        8
+                    ),
+                ]
+            )
+            .len(),
+            0
+        );
+        let mut linux = env(Platform::Linux);
+        linux.vars = vec![("XDG_CACHE_HOME".to_owned(), unix("/xdg"))];
+        assert_eq!(
+            ids(
+                &linux,
+                &[
+                    dir("/Users/ana/.cache/microsoft-edge/Default/Cache", 1),
+                    dir("/xdg/microsoft-edge/Default/Code Cache", 2),
+                ]
+            ),
+            ["microsoft-edge-caches"; 2]
+        );
+        assert_eq!(
+            ids(
+                &linux,
+                &[dir("/Users/ana/.config/microsoft-edge/Default/Cache", 1)]
+            )
+            .len(),
+            0
+        );
+        let mut win = env(Platform::Windows);
+        win.local_app_data = Some(windows(r"C:\Users\ana\AppData\Local"));
+        assert_eq!(
+            ids(
+                &win,
+                &[object(
+                    windows(r"C:\Users\ana\AppData\Local\Microsoft\Edge\User Data\Default\Cache"),
+                    EntryKind::Directory,
+                    1,
+                )]
+            )
+            .len(),
+            0,
+            "Edge's Windows caches are inside its profile"
+        );
+    }
+
     #[test]
     fn npx_cache_stays_separate_from_packages_and_the_download_cache() {
         let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
