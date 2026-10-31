@@ -314,7 +314,13 @@ jobs:
               echo "::error::missing $file for the updater"
               exit 1
             fi
-            pnpm --filter @lumen/desktop exec tauri signer sign "$PWD/dist/$file"
+            # Bind the signature to the version: the updater requires it
+            # (requireSignedVersion) and refuses a signature without one.
+            pnpm --filter @lumen/desktop exec tauri signer sign --app-version "$version" "$PWD/dist/$file"
+            if ! base64 -d "dist/$file.sig" | grep -q "^trusted comment: .*version:${version}\(\s\|$\)"; then
+              echo "::error::the signature of $file does not name version $version"
+              exit 1
+            fi
             mv "dist/$file.sig" signatures/
           done
           ls -l signatures
