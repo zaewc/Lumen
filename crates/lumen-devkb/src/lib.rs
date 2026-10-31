@@ -126,6 +126,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/postman-chromium-caches.json"),
     ),
     (
+        "react-native-prebuilt-cache.json",
+        include_str!("../entries/react-native-prebuilt-cache.json"),
+    ),
+    (
         "swiftpm-shared-cache.json",
         include_str!("../entries/swiftpm-shared-cache.json"),
     ),
