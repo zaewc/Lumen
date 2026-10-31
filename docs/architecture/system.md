@@ -354,6 +354,10 @@ caches and Homebrew. The tool's own cleanup command is preferred; self-managed c
 are shown as informational. Cargo project matching covers only the default debug and
 release intermediate `deps`, `build` and `incremental` directories beside a scanned
 regular `Cargo.toml`; final outputs and custom layouts remain outside that entry.
+A project's `node_modules` directory is regenerable only beside a scanned regular
+npm, pnpm, Yarn or Bun lockfile, and a project location never matches inside another
+instance of its own path, such as a package's `node_modules` inside `node_modules`
+([research 31](../research/31-node-modules.md)).
 When a candidate matched an entry with a tool command,
 `lumen assess`, `lumen plan` and the clean-up page show it
 (`CandidateView.tool_command`, quoted for a POSIX shell when copied). In the desktop
