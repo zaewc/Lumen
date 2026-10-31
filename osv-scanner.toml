@@ -72,19 +72,6 @@ ignored in deny.toml. Upstream: tauri-apps/tauri#10910.\
 """
 
 [[IgnoredVulns]]
-id = "GHSA-86w9-cpqp-85rv"
-ignoreUntil = 2027-01-19T00:00:00Z
-reason = """
-node-forge <= 1.4.0: RSA PKCS#1 v1.5 verification accepts padded \
-DigestAlgorithm sequences (forgery with low-exponent keys); no fixed version \
-yet. It comes only with the Expo CLI (dev tool): @expo/cli parses the \
-developer's own iOS signing certificates and @expo/code-signing-certificates \
-signs and checks the developer's own expo-updates certificates. No signature \
-from an untrusted party is verified and nothing of it ships in the app. \
-Re-check for a fixed node-forge before expiry.\
-"""
-
-[[IgnoredVulns]]
 id = "GHSA-w5hq-g745-h8pq"
 ignoreUntil = 2027-01-19T00:00:00Z
 reason = """
@@ -121,3 +108,28 @@ fixed deepmerge, or an @expo/config without it, before expiry.\
 id = "CVE-2026-93753"
 ignoreUntil = 2027-01-28T00:00:00Z
 reason = "Alias of GHSA-gcqx-w48m-w2h4 (deepmerge prototype poisoning); see that entry."
+
+[[IgnoredVulns]]
+id = "GHSA-3g3m-2fjr-6pw4"
+ignoreUntil = 2027-01-31T00:00:00Z
+reason = """
+glob >= 9.0.0, <= 14.0.1: an aborted async walk keeps reading directories in \
+the background, so a caller's AbortSignal does not bound its I/O. glob 13.0.6 \
+comes only through the Expo CLI (@expo/cli, @expo/config, dev tools never in \
+the app bundle), which globs the developer's own project without relying on \
+abort to bound untrusted work. The fix exists only in glob 14, a major version \
+Expo 58 does not accept. Re-check for an Expo release on glob 14 before expiry.\
+"""
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2027-01-31T00:00:00Z
+reason = """
+minimatch < 11.0.1: an attacker-controlled pattern can amplify globParts \
+(denial of service) at optimizationLevel >= 2. minimatch 10.2.6 comes only \
+through the Expo CLI (glob 13 and @expo/fingerprint, dev tools never in the \
+app bundle), which matches patterns from the developer's own project config, \
+never untrusted input. The fix exists only in minimatch 11, a major version \
+Expo 58 does not accept. Re-check for an Expo release on minimatch 11 before \
+expiry.\
+"""

@@ -115,6 +115,11 @@ pub(crate) const RULES: &[Rule] = &[
         check: crate::classify::vendor_declared_cache,
     },
     Rule {
+        id: "classify.browser-profile",
+        stage: PolicyStage::Classification,
+        check: crate::classify::browser_profile,
+    },
+    Rule {
         id: "classify.app-cache",
         stage: PolicyStage::Classification,
         check: crate::classify::app_cache,
