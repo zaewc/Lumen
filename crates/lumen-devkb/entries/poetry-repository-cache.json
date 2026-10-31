@@ -1,0 +1,51 @@
+{
+  "id": "poetry-repository-cache",
+  "tool": "Poetry",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/pypoetry/cache/repositories",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/pypoetry/cache/repositories",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["macos", "linux"],
+      "root": { "kind": "env_var", "name": "XDG_CACHE_HOME" },
+      "path": "pypoetry/cache/repositories",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "local_app_data" },
+      "path": "pypoetry/Cache/cache/repositories",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "POETRY_CACHE_DIR" },
+      "path": "cache/repositories",
+      "kind": "directory"
+    }
+  ],
+  "safety_class": "tool_action",
+  "regeneration": { "effort": "minutes", "network": true },
+  "official_action": {
+    "program": "poetry",
+    "args": ["cache", "clear", "--all", "--no-interaction"]
+  },
+  "sources": [
+    "https://python-poetry.org/docs/configuration/",
+    "https://python-poetry.org/docs/cli/",
+    "https://github.com/python-poetry/poetry/blob/main/src/poetry/config/config.py",
+    "https://github.com/python-poetry/poetry/blob/main/src/poetry/console/commands/cache/clear.py",
+    "https://github.com/python-poetry/poetry/blob/main/src/poetry/locations.py",
+    "https://github.com/tox-dev/platformdirs/blob/main/src/platformdirs/macos.py"
+  ],
+  "last_verified": "2026-10-31"
+}

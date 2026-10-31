@@ -986,6 +986,82 @@ mod tests {
         );
     }
 
+    /// Poetry's repository cache matches where Poetry puts it; the cache
+    /// folder above it, which holds the projects' virtual environments by
+    /// default, and its artifacts never match.
+    #[test]
+    fn poetry_matches_only_its_repository_cache() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mac = env(Platform::Macos);
+        let poetry =
+            |tail: &str, ino| dir(&format!("/Users/ana/Library/Caches/pypoetry{tail}"), ino);
+        let default = unix("/Users/ana/Library/Caches/pypoetry/cache/repositories");
+        assert_eq!(
+            ids(&mac, &[poetry("/cache/repositories", 1)]),
+            ["poetry-repository-cache"]
+        );
+        assert!(builtin.command_acts_on(&mac, "poetry-repository-cache", &default));
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    poetry("", 1),
+                    poetry("/cache", 2),
+                    poetry("/virtualenvs", 3),
+                    poetry("/virtualenvs/app-1a2b3c4d-py3.13", 4),
+                    poetry("/artifacts", 5),
+                    poetry("/cache/repositories/PyPI", 6),
+                ]
+            )
+            .len(),
+            0
+        );
+        let mut custom = env(Platform::Macos);
+        custom.vars = vec![("POETRY_CACHE_DIR".to_owned(), unix("/custom/poetry"))];
+        let configured = unix("/custom/poetry/cache/repositories");
+        assert_eq!(
+            ids(&custom, &[dir("/custom/poetry/cache/repositories", 1)]),
+            ["poetry-repository-cache"]
+        );
+        assert!(builtin.command_acts_on(&custom, "poetry-repository-cache", &configured));
+        assert!(!builtin.command_acts_on(&custom, "poetry-repository-cache", &default));
+        let mut linux = env(Platform::Linux);
+        linux.vars = vec![("XDG_CACHE_HOME".to_owned(), unix("/xdg"))];
+        assert_eq!(
+            ids(
+                &linux,
+                &[
+                    dir("/Users/ana/.cache/pypoetry/cache/repositories", 1),
+                    dir("/xdg/pypoetry/cache/repositories", 2),
+                ]
+            ),
+            ["poetry-repository-cache", "poetry-repository-cache"]
+        );
+        let mut win = env(Platform::Windows);
+        win.local_app_data = Some(windows(r"C:\Users\ana\AppData\Local"));
+        assert_eq!(
+            ids(
+                &win,
+                &[object(
+                    windows(r"C:\Users\ana\AppData\Local\pypoetry\Cache\cache\repositories"),
+                    EntryKind::Directory,
+                    1
+                )]
+            ),
+            ["poetry-repository-cache"]
+        );
+    }
+
     #[test]
     fn npx_cache_stays_separate_from_packages_and_the_download_cache() {
         let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
