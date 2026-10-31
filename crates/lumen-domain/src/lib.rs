@@ -91,7 +91,7 @@ pub use lifecycle::{
 };
 pub use manifest::{MANIFEST_SCHEMA, QuarantineManifest, UnixOwnership};
 pub use path::{PathError, PathFlavor, RawPath};
-pub use plan::{CleanupPlan, PlannedItem};
+pub use plan::{Chooser, CleanupPlan, PlannedItem};
 pub use quarantine::{
     ItemLocation, QuarantineEvent, QuarantineFailure, QuarantineState, TransitionError,
 };

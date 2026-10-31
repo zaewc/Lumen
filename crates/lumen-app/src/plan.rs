@@ -6,7 +6,7 @@ use std::path::Path;
 
 use lumen_application::assess::Assessed;
 use lumen_application::ports::{Clock, IdGenerator};
-use lumen_domain::{CleanupPlan, PlannedItem, Subject, Verdict};
+use lumen_domain::{Chooser, CleanupPlan, PlannedItem, Subject, Verdict};
 use lumen_store_sqlite::{IndexStore, StoreError, open_index};
 
 use crate::assess::AssessError;
@@ -74,6 +74,7 @@ pub fn plan(
                 .as_ref()
                 .map(|o| o.reclaim)
                 .unwrap_or_default(),
+            chosen_by: Chooser::Policy,
         })
         .collect();
     let plan = CleanupPlan::new(ids.plan_id(), clock.now(), items);
