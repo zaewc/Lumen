@@ -5,6 +5,7 @@
 //! parse as a trace and agree with its indexed columns, so a tampered row is
 //! reported, never returned.
 
+mod choosers;
 mod journal;
 mod port;
 mod sizes;

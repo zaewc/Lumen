@@ -140,7 +140,8 @@
           "reasons",
           "tool_command",
           "group",
-          "ai_note"
+          "ai_note",
+          "free_when_closed"
         ],
         "properties": {
           "ai_note": {
@@ -148,6 +149,17 @@
               {
                 "$ref": "#/components/schemas/AiNoteView",
                 "description": "What AI review says a review item most likely is (ADR-0041): a note\nfor people, labelled as AI, that never changes the verdict. `null`\nunless the item is under review and AI review described it."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "free_when_closed": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FreeWhenClosedView",
+                "description": "For an item kept only because running apps use it: the policy would\npropose it once they are closed and it is scanned again. Display only:\nthe verdict stays `keep` and nothing plans from it. `null` otherwise."
               },
               {
                 "type": "null"
@@ -189,6 +201,14 @@
             "description": "The policy's verdict."
           }
         }
+      },
+      "ChooserView": {
+        "type": "string",
+        "description": "Who put an item into a plan (ADR-0051).",
+        "enum": [
+          "policy",
+          "person"
+        ]
       },
       "ConfidenceView": {
         "type": "string",
@@ -386,6 +406,22 @@
         ],
         "description": "What a finalization did."
       },
+      "FreeWhenClosedView": {
+        "type": "object",
+        "description": "The apps to close so that a kept item could be proposed on the next scan.",
+        "required": [
+          "processes"
+        ],
+        "properties": {
+          "processes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What the probe reported using it, as escaped display names (such as\n`Spotify`), sorted; empty when the platform did not name them."
+          }
+        }
+      },
       "GroupKindView": {
         "type": "string",
         "description": "The kind of group an item is presented in.",
@@ -425,9 +461,21 @@
           "state",
           "original",
           "since",
-          "reclaim_bytes"
+          "reclaim_bytes",
+          "chosen_by"
         ],
         "properties": {
+          "chosen_by": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ChooserView",
+                "description": "Who chose it (ADR-0051); `null` if that was not recorded. Only an item\nthe policy proposed is removed for good when its retention ends; the\nothers stay until the person restores or removes them."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "operation": {
             "type": "string",
             "description": "The operation that moved it."

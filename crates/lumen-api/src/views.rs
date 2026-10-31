@@ -18,7 +18,7 @@ use lumen_application::finalize::FinalizeOutcome;
 use lumen_application::ports::{NotRestored, Removal};
 use lumen_application::restore::RestoreOutcome;
 use lumen_domain::{
-    ByteCount, ItemKind, ItemLocation, ItemNote, JudgmentConfidence, QuarantineFailure,
+    ByteCount, Chooser, ItemKind, ItemLocation, ItemNote, JudgmentConfidence, QuarantineFailure,
     QuarantineState, Verdict,
 };
 use serde::{Deserialize, Serialize};
@@ -226,6 +226,19 @@ pub struct CandidateView {
     /// unless the item is under review and AI review described it.
     #[schema(required = true)]
     pub ai_note: Option<AiNoteView>,
+    /// For an item kept only because running apps use it: the policy would
+    /// propose it once they are closed and it is scanned again. Display only:
+    /// the verdict stays `keep` and nothing plans from it. `null` otherwise.
+    #[schema(required = true)]
+    pub free_when_closed: Option<FreeWhenClosedView>,
+}
+
+/// The apps to close so that a kept item could be proposed on the next scan.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct FreeWhenClosedView {
+    /// What the probe reported using it, as escaped display names (such as
+    /// `Spotify`), sorted; empty when the platform did not name them.
+    pub processes: Vec<String>,
 }
 
 /// What kind of item AI review says a review item most likely is.
@@ -485,6 +498,13 @@ impl From<&Assessed> for CandidateView {
                 .note
                 .filter(|note| note.shown() && assessed.decision.verdict() == Verdict::Review)
                 .map(AiNoteView::from),
+            free_when_closed: assessed
+                .free_when_closed
+                .as_ref()
+                .filter(|_| assessed.decision.verdict() == Verdict::Keep)
+                .map(|free| FreeWhenClosedView {
+                    processes: free.processes.clone(),
+                }),
         }
     }
 }
@@ -721,6 +741,30 @@ pub struct HeldItemView {
     /// estimated; `null` for items quarantined before sizes were recorded.
     #[schema(required = true)]
     pub reclaim_bytes: Option<String>,
+    /// Who chose it (ADR-0051); `null` if that was not recorded. Only an item
+    /// the policy proposed is removed for good when its retention ends; the
+    /// others stay until the person restores or removes them.
+    #[schema(required = true)]
+    pub chosen_by: Option<ChooserView>,
+}
+
+/// Who put an item into a plan (ADR-0051).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ChooserView {
+    /// The policy proposed it.
+    Policy,
+    /// The person chose it from the items left for review.
+    Person,
+}
+
+impl From<Chooser> for ChooserView {
+    fn from(chooser: Chooser) -> Self {
+        match chooser {
+            Chooser::Policy => Self::Policy,
+            Chooser::Person => Self::Person,
+        }
+    }
 }
 
 impl From<&HeldItem> for HeldItemView {
@@ -735,6 +779,7 @@ impl From<&HeldItem> for HeldItemView {
             original: item.original.as_ref().map(|p| p.display().to_string()),
             since: item.since,
             reclaim_bytes: item.reclaim.map(bytes),
+            chosen_by: item.chosen_by.map(ChooserView::from),
         }
     }
 }

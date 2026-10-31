@@ -37,6 +37,7 @@ or a malicious peer cannot introduce a value the rules forbid.
 | `candidate` | `CleanupCandidate`, `CleanupAction`, `Category`, `Confidence` | What users review |
 | `quarantine` | `QuarantineState`, `QuarantineEvent`, `ItemLocation` | Reversibility lifecycle |
 | `lifecycle` | `ScanState`, `PlanState`, `Confirmation` | Scan and plan lifecycles |
+| `plan` | `CleanupPlan`, `PlannedItem`, `Chooser` | What a confirmation authorizes, and who chose each item ([ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md)) |
 | `judgment` | `Judgment`, `ReasonCode`, `JudgeDescriptor`, `JevTrace` | Jev model contract |
 | `schema` | JSON Schema helpers | See [Contracts](#contracts) |
 
@@ -58,6 +59,7 @@ or a malicious peer cannot introduce a value the rules forbid.
 | `Keep` offers no action; `Quarantine` proposes only reversible actions | `CleanupCandidate::new` |
 | No move without a journal intent; no permanent deletion without retention; failures after the move stay restorable | `QuarantineState::apply` |
 | A plan executes only after confirmation of its exact hash | `PlanState::apply` |
+| A plan's hash covers every item and who chose it (`lumen.plan/2`) | `CleanupPlan::hash` (golden test) |
 | Model output is a closed vocabulary citing only evidence it was sent | `Judgment` (`deny_unknown_fields`), `Judgment::validate_for` |
 
 ## Contracts

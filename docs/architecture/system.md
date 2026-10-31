@@ -189,7 +189,10 @@ CleanupCandidate
   `PhotoLibraryDelete`, `CloudEvict`, `OpenSystemSettings`, `ArchiveApp`. Each declares
   its reversibility.
 - `CleanupPlan`: an ordered set of actions bound to a `PlanId`, with a plan hash, the
-  decisions it relies on, and expected identities.
+  decisions it relies on, and expected identities. Each item records who chose it
+  (`Chooser::Policy` for a proposed item, `Chooser::Person` for a review item the
+  person chose), and the hash (`lumen.plan/2`) covers that
+  ([ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md)).
 
 ### 6.4 State machines
 
@@ -219,7 +222,9 @@ Invariants (property-tested):
 - `Finalized` is reachable only from `Retained`.
 - A plan cannot be `Executing` without `Confirmed`.
 - `REVIEW` items are never part of a confirmed plan unless the user individually
-  promoted them.
+  chose them; a chosen item is confirmed only while it is still `REVIEW` (or
+  `QUARANTINE`) for the same rules, and is never finalized when retention ends
+  (ADR-0051).
 
 ## 7. Evidence graph
 
@@ -289,6 +294,15 @@ Every `Recommendation` answers, from evidence (or states "unknown" with the reas
 Explanations are generated from templates, never from AI free text. A Jev rationale,
 if present, is shown separately and labelled as AI-generated.
 
+An item kept only because a running process uses it (`protect.in-use`) also says what
+quitting would allow ([ADR-0039, 2026-10-31 amendment](../decisions/0039-ask-for-review-only-where-a-person-can-act.md#amendment-say-which-apps-to-quit-2026-10-31)):
+assessment evaluates its input once more, by the policy alone, with the fresh in-use
+fact replaced by "not in use" (both `No` and `Partial`). When both would be
+`QUARANTINE`, `Assessed.free_when_closed` names the processes the probe reported
+(`CandidateView.free_when_closed`, escaped like paths), and `lumen assess` and the
+clean-up page say which apps to quit and scan again. The verdict stays `KEEP`; the
+counterfactual is never stored, planned, confirmed or sent to Jev.
+
 ## 10. Scanning
 
 See [ADR-0017](../decisions/0017-scan-engine-and-size-accounting.md) and
@@ -306,14 +320,20 @@ See [ADR-0017](../decisions/0017-scan-engine-and-size-accounting.md) and
 ## 11. Cleanup execution
 
 1. The user selects candidates. The core builds a `CleanupPlan`, re-runs the policy on
-   fresh evidence, and returns `PlanId` plus the plan hash.
+   fresh evidence, and returns `PlanId` plus the plan hash. The plan holds every
+   candidate the policy proposes and the review items the person chose
+   (`lumen plan --choose <PATH>`): only `REVIEW` items without a tool command or `classify.devkb-not-regenerable`;
+   any other chosen path fails the plan with the reason (ADR-0051).
 2. The user confirms. The UI sends `execute_plan(plan_id, confirmation_token)`.
 3. Per item, the executor re-verifies identity by handle, checks the in-use gate
    (`No`, or `Partial` for the user's own files under
    [ADR-0030](../decisions/0030-partial-in-use-visibility.md)),
    writes a journal intent, performs a no-replace rename into the quarantine store,
    verifies, and records completion. A mismatch aborts that item to `REVIEW`.
-4. Retention then finalization, or rollback by operation ID.
+4. Retention then finalization, or rollback by operation ID. Only items the policy
+   proposed are finalized when retention ends; an item the person chose, or one whose
+   chooser the ledger does not record, stays until the person restores it or removes
+   it for good (ADR-0051).
 5. Tool actions (developer caches) and other irreversible actions are executed
    separately, after a dry run, labelled irreversible.
 
@@ -354,6 +374,10 @@ caches and Homebrew. The tool's own cleanup command is preferred; self-managed c
 are shown as informational. Cargo project matching covers only the default debug and
 release intermediate `deps`, `build` and `incremental` directories beside a scanned
 regular `Cargo.toml`; final outputs and custom layouts remain outside that entry.
+A project's `node_modules` directory is regenerable only beside a scanned regular
+npm, pnpm, Yarn or Bun lockfile, and a project location never matches inside another
+instance of its own path, such as a package's `node_modules` inside `node_modules`
+([research 31](../research/31-node-modules.md)).
 When a candidate matched an entry with a tool command,
 `lumen assess`, `lumen plan` and the clean-up page show it
 (`CandidateView.tool_command`, quoted for a POSIX shell when copied). In the desktop
