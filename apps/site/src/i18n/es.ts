@@ -32,7 +32,7 @@ export const es: Messages = {
       },
       {
         title: "La IA vuelve a comprobarlo",
-        text: "La primera vez que se inicia, Lumen pregunta si quieres usar la revisión con IA y no envía nada hasta que eliges. Si la activas, las rutas, los tamaños y la antigüedad de los elementos se envían al servidor Jeb de una escuela; quien lo administra podría guardarlos. El contenido de los archivos nunca sale de tu dispositivo. La IA vuelve a revisar lo que Lumen propone y añade una nota sobre qué podrían ser los elementos que requieren revisión. Solo puede hacer que una decisión sea más prudente. Puedes cambiar tu elección en Ajustes.",
+        text: "Al activar la revisión con IA, se envían las rutas, los tamaños y la antigüedad de los elementos al servidor Jeb de una escuela, cuyo operador podría conservarlos (no se envía el contenido de los archivos). La IA vuelve a revisar los elementos propuestos para limpiar y añade una nota sobre qué podrían ser los que requieren revisión.",
       },
       {
         title: "Limpia solo cuando lo confirmas",
