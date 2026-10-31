@@ -11,9 +11,8 @@ No P0 issue was identified. The filesystem executor's handle-relative checks,
 no-follow behavior, no-replace moves, restore safeguards, journal ordering and
 fail-closed policy have substantial test coverage. The most important release
 blockers are cloud-sync locations being treated as reversible, insufficient
-host-level confirmation for person-chosen cleanup, Linux whole-disk scans that
-do not hard-protect system paths, and configured cloud AI requests that use a
-redaction marker instead of their authentication key.
+host-level confirmation for person-chosen cleanup, and Linux whole-disk scans
+that do not hard-protect system paths.
 
 Do not merge #574 or #575 as written. The filesystem review found #571 and #572
 safe to merge in order, and #573 safe with follow-up work. CI passed for
@@ -115,6 +114,12 @@ the time of review. There is no evidence that the key was stolen
 release trusted by the old key, then use a new key; document the rotation and
 test rejection of an old-key signature after transition.
 
+**Progress (2026-10-31):** a new key pair was generated offline; #583 puts its
+public key in `tauri.conf.json` and documents the procedure in
+[`release.md`](../operations/release.md). 0.8.3 is the transition release, signed
+with the old key; the `release` environment's secrets are replaced after it is
+published.
+
 ### RELEASE-1: Public installer signing and AI-service authorization need a
 release decision
 
@@ -126,20 +131,6 @@ whether that approval or abuse limits are in place.
 **Action:** Complete platform signing/notarization or explicitly constrain beta
 distribution. Confirm written authorization and quotas for the embedded
 service key; otherwise omit it from public builds.
-
-### AI-1: Cloud AI authentication sends a placeholder instead of the API key
-
-**Evidence:** The shared OpenRouter transport sends `Authorization: ******`;
-its test expects that literal placeholder. Both Jeb and OpenRouter use the
-transport
-([`openrouter.rs`](../../crates/lumen-jev/src/openrouter.rs)).
-
-**Impact:** Configured cloud judges cannot authenticate, so requests fail and
-the app continues without Jev evidence. This does not let the AI choose actions.
-
-**Action:** Send the configured bearer credential without logging it. Update
-the test to verify header construction without expecting a placeholder, and
-verify that failures are surfaced as unavailable AI evidence.
 
 ## P2 — Close before or shortly after beta, with owners and dates
 
@@ -186,6 +177,22 @@ verify that failures are surfaced as unavailable AI evidence.
   residual data-minimization risk, not evidence of a consent bypass
   ([`request.rs`](../../crates/lumen-jev/src/request.rs),
   [`privacy.md`](../operations/privacy.md)).
+- **AI-4:** Making a plan assesses again and asks the judge again
+  ([`plan.rs`](../../crates/lumen-app/src/plan.rs)). An item the judge moved to
+  review during assessment returns to the plan if the second request fails (for
+  example 429 under a shared key) or the answer differs, and the confirmation
+  does not list items. Carry the assessment's judge effect into the plan, or plan
+  from the stored assessment.
+- **AI-5:** Consultation does not stop after the judge is unavailable: every
+  proposed item is still sent after a 401, 429 or timeout, each with a 30-second
+  limit and no cap per assessment
+  ([`consult.rs`](../../crates/lumen-application/src/consult.rs),
+  [`openrouter.rs`](../../crates/lumen-jev/src/openrouter.rs)). Stop after the
+  first unavailable answer and cap requests per assessment.
+- **AI-6:** The desktop app never says when AI review could not check items; the
+  views carry no consultation outcome
+  ([`views.rs`](../../crates/lumen-api/src/views.rs)). Report asked, answered and
+  unavailable counts and show them.
 - **UX-4/5:** Bulk permanent-removal confirmation can remain armed after the
   selection changes, and bulk results can misstate what happened. Reset
   confirmation on selection changes and accurately report per-item outcomes.
@@ -214,6 +221,12 @@ verify that failures are surfaced as unavailable AI evidence.
 ## Validation and limitations
 
 - No builds or tests were run as part of the read-only audits.
+- An earlier version of this document listed "AI-1: cloud AI authentication sends
+  a placeholder instead of the API key". That was wrong: the transport sends
+  `Bearer <key>` ([`openrouter.rs`](../../crates/lumen-jev/src/openrouter.rs),
+  `.header("Authorization", &format!("Bearer {}", self.key.0))`) and its tests
+  check that exact header; the placeholder came from a review tool masking the
+  key in its own output. AI-4 to AI-6 come from the AI review at `bf29007`.
 - #571 passed CI and merged as `8f32014` (#571). Its branch deletion closed
   stacked PR #572 automatically; #572 was reopened, retargeted to `main`, and
   merged as `37c5c07` after its fresh checks passed.

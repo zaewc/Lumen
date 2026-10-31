@@ -145,6 +145,15 @@ relationships reach from its candidate, so no other entry's facts could ever rea
 a decision. On `~/Library/Developer` (198 k entries) this recorded 30 records
 instead of 790 k, with identical decisions.
 
+Cloud backing is the one scan fact that depends on other entries: an entry is
+`CloudBacked(true)` when its own flags say so, when it lies at or below a directory
+flagged as a placeholder, dataless item or sync root, or when it is a directory with
+a flagged entry anywhere below it ([FS-2](../security/public-beta-readiness.md#fs-2-cloud-synced-folders-can-be-moved-out-of-their-sync-domain)). Moving such an item out of
+its sync root would make the provider delete it in the cloud and on every device.
+The flagged directories and the parents of flagged entries are collected in the
+same pass over the scan that collects the knowledge base's markers
+(`lumen_application::cloud::CloudDomains`); nothing is opened or hydrated.
+
 ## Explanation chains
 
 ```text

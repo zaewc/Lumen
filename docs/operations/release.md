@@ -44,7 +44,9 @@ Security. Signing and notarization are roadmap 12.8.
    `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` from it; no build ever receives them.
 4. Review the draft (files, checksums, notes and `latest.json`), then publish it.
    Check that the manifest version matches the tag, every platform URL names an
-   attached file, and each signature matches its attached `.sig` file.
+   attached file, and each signature matches its attached `.sig` file and names the
+   version in its trusted comment (`version:<version>`): the updater requires it
+   (`requireSignedVersion`) and refuses an update whose signature has none.
 
 0.5.0 is the first build with in-app updates. Testing installation through the
 updater requires a later published version; publishing 0.5.0 alone does not verify
@@ -74,6 +76,37 @@ Set 2026-10-31 in the repository settings:
   alone, for example from a stolen token, gets no secret.
 - **The `release tags` ruleset** lets only repository admins create, move or delete
   `v*` tags.
+
+## Rotating the updater key
+
+Installed copies trust the public key they were built with, so a new key reaches
+them only through an update signed by the old one. Rotate in two releases:
+
+1. Generate the new key pair offline (`pnpm --filter @lumen/desktop exec tauri signer
+   generate -w ~/.tauri/lumen.key`), keep an offline backup of the private key and its
+   password, and put the new public key in `tauri.conf.json` in its own pull request.
+2. Cut the next release as usual while the `release` environment still holds the old
+   private key. The `sign` job signs it with the old key, so installed copies accept
+   it; once installed, they trust only the new key.
+3. After publishing that release, replace both secrets with the new key:
+
+   ```sh
+   gh secret set TAURI_SIGNING_PRIVATE_KEY --env release --repo zaewc/Lumen < ~/.tauri/lumen.key
+   gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --env release --repo zaewc/Lumen
+   ```
+
+4. Every later release is signed with the new key. Check its `latest.json` signatures
+   name the new key id (`minisign -V -P <new public key> -m <file> -x <file>.sig`).
+
+Copies that skip the transition release cannot verify later updates and must be
+reinstalled from the download site. Whoever holds the old key can still sign updates
+that those copies accept, so after a suspected compromise, say on the download site
+and in the release notes that people on older versions should reinstall.
+
+The key was rotated on 2026-10-31 (old key id `31842E07C726AE3C`, new key id
+`320080298D3AA6F8`): releases up to 0.8.1 put the old key in the desktop build's
+environment on runners without egress control (ADR-0048). There is no evidence it was
+read; the rotation removes the need to rule that out.
 
 ## Built-in Jeb key
 
