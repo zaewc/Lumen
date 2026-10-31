@@ -316,7 +316,8 @@ pub(crate) async fn plan(core: State<'_, Core>) -> Result<PlanView, CommandError
             secrets.as_deref(),
             builtin.as_ref(),
             |judge, _describer| {
-                lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge).map_err(CommandError::new)
+                lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge, &[])
+                    .map_err(CommandError::new)
             },
             |planned| planned.items.as_slice(),
         )?;

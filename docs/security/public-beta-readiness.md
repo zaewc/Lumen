@@ -218,9 +218,9 @@ verify that failures are surfaced as unavailable AI evidence.
   stacked PR #572 automatically; #572 was reopened, retargeted to `main`, and
   merged as `37c5c07` after its fresh checks passed.
 - #573 was rebased onto current `main`. That exposed an outdated test fixture
-  missing the `free_when_closed` field added by #565; the fixture was updated,
-  its three planning unit tests and the local pre-push Clippy hook passed, and
-  GitHub CI is pending. #574 and #575 remain blocked by the findings above.
+  missing the `free_when_closed` field added by #565 and a stale OpenAPI schema
+  count; both were corrected, every GitHub check passed, and it merged as
+  `b0c510a`. #574 and #575 remain blocked by the findings above.
 - Filesystem, UX and supply-chain observations were initially made against
   `bf29007`; re-check any implementation-level finding against current `main`
   before fixing it.
