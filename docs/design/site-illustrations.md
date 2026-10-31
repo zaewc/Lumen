@@ -97,9 +97,10 @@ option on so AI notes appear, at the desktop window's default size (1120 × 800 
 2x; Quarantine uses the minimum 560 px height to fit its two sample items). They were
 refreshed on 2026-10-29 after the storage-identity redesign: horizontal
 navigation, storage composition and an evidence inspector replace the old sidebar UI.
-The site displays one light Explore capture per language (WebP, 1600 × 1143 px).
-Its other four localized review/Quarantine assets are also refreshed; they are not
-additional home-page sections. The README uses eight English PNGs:
+The site displays one light Explore capture per available screenshot language:
+Korean and English. Other localized pages use the English capture (WebP, 1600 ×
+1143 px). Its other four Korean and English review/Quarantine assets are also
+refreshed; they are not additional home-page sections. The README uses eight English PNGs:
 Explore, Storage and the evidence inspector at 2240 × 1600 px, and Quarantine at
 2240 × 1120 px, each in light and dark.
 
