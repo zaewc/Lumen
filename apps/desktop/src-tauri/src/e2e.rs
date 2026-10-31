@@ -95,7 +95,7 @@ fn ai_review(window: &WebviewWindow<MockRuntime>) {
 
 /// The flow itself, in the child: AI review's switch, then scan → plan →
 /// execute → held → restore → plan → execute → finalize, plus a command the
-/// capability does not grant.
+/// capability does not grant and chosen paths the host refuses.
 fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
     let window = app
         .get_webview_window("main")
@@ -134,8 +134,15 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
             item.exists(),
             "assessment only reads, even without a progress listener"
         );
+        for chosen in [json!(["relative/x"]), json!([home.join("nowhere")])] {
+            assert!(
+                invoke(&window, "plan", json!({ "chosen": chosen })).is_err(),
+                "only review items of the latest assessment can be chosen (ADR-0051): {chosen}"
+            );
+        }
         // REVIEW instead of QUARANTINE (in-use visibility): covered elsewhere.
         let plan = invoke(&window, "plan", json!({})).ok()?;
+        assert_eq!(plan["chosen"], json!([]), "{plan}");
         let report = ok(
             "execute",
             json!({ "request": { "plan": plan["plan"], "confirmation": plan["hash"] } }),

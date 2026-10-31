@@ -336,6 +336,12 @@ export type NotRestoredView = "name_taken" | "origin_unreachable" | "item_change
  */
 export type PlanView = {
   /**
+   * The paths of the items the person chose (ADR-0051), as in `items`;
+   * the policy proposed every other item. Lumen keeps chosen items in
+   * quarantine until the person restores or removes them.
+   */
+  chosen: Array<string>;
+  /**
    * When it was made; it expires 24 hours later.
    */
   created_at: string;

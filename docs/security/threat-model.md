@@ -84,6 +84,7 @@ Assumptions:
 | Elevation of privilege | Compromised webview (XSS, webview 0-day) issues arbitrary deletes | No path-accepting mutation commands; plan IDs + confirmation tokens; per-window capabilities; no `fs`/`shell` plugins; isolation pattern; strict CSP ([ADR-0004](../decisions/0004-desktop-shell-tauri.md), [ADR-0023](../decisions/0023-ipc-security.md)) |
 | Spoofing | Malicious web page calls the loopback dashboard API (CSRF, DNS rebinding) | Dashboard off by default; `Host` and `Origin` allowlists including WebSockets; header bearer token; no CORS ([ADR-0010](../decisions/0010-web-dashboard-role.md)) |
 | Tampering | UI alters a plan between review and execution | Plan hash bound to the confirmation token; core re-runs the policy at execution |
+| Elevation of privilege | Compromised webview sends chosen paths with a plan request to quarantine something Lumen keeps ([ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md)) | Chosen paths only select among the latest assessment's candidates; the host plans only `REVIEW` items without a tool command or `classify.devkb-not-regenerable`, and fails the plan for any other; no select-all; the plan hash records who chose each item; confirmation re-decides a chosen item and skips it unless it is still `REVIEW` (or `QUARANTINE`) for the same rules; chosen items are never removed automatically |
 | Repudiation | "I never approved that" | Ledger records the plan hash, confirmation time and UI surface |
 
 ### Core, policy and Jev

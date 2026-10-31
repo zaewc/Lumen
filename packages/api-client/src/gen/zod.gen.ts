@@ -398,6 +398,7 @@ export const zCandidateView = z.object({
  * A cleanup plan, waiting for confirmation.
  */
 export const zPlanView = z.object({
+  chosen: z.array(z.string()),
   created_at: z.iso.datetime(),
   hash: z.string(),
   items: z.array(zCandidateView),

@@ -3,7 +3,10 @@
 //!
 //! Reads return view models. Mutations name a plan (with its full hash as the
 //! confirmation) or an operation; no command accepts a path to act on. Scans
-//! take roots, but only read. Every command runs on a blocking thread so the
+//! take roots, but only read. Planning takes the paths of review items the
+//! person chose, but only as a selection among the latest assessment's
+//! candidates: the host refuses any other, and nothing moves until the plan
+//! is confirmed by its hash (ADR-0051). Every command runs on a blocking thread so the
 //! webview never waits on the filesystem.
 //!
 //! AI review (ADR-0037) is a setting next to the database: the UI can read
@@ -23,7 +26,7 @@ use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
 use lumen_application::CancelToken;
 use lumen_application::assess::Assessed;
 use lumen_application::ports::{Clock as _, Describer, JudgeModel, NoopJudge, SecretStore};
-use lumen_domain::{ConfirmationSurface, OperationId, PlanId};
+use lumen_domain::{ConfirmationSurface, OperationId, PlanId, RawPath};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use tauri::ipc::Channel;
@@ -43,7 +46,7 @@ pub(crate) struct Core {
     /// The knowledge-base entries with a tool command that the latest
     /// assessment matched: the only commands the page may run (ADR-0049).
     pub(crate) tool_entries: std::sync::Mutex<
-        std::collections::BTreeMap<String, Vec<(lumen_domain::RawPath, lumen_domain::VolumeId)>>,
+        std::collections::BTreeMap<String, Vec<(RawPath, lumen_domain::VolumeId)>>,
     >,
     /// Held while a tool's command runs: one at a time.
     pub(crate) tool_running: Arc<std::sync::Mutex<()>>,
@@ -128,7 +131,7 @@ impl Progress {
                     directories: totals.directories.to_string(),
                     allocated_bytes: allocated.get().to_string(),
                     unreadable: self.unreadable.to_string(),
-                    current: current.as_ref().map(lumen_domain::RawPath::display),
+                    current: current.as_ref().map(RawPath::display),
                     elapsed_ms: now.duration_since(self.started).as_millis().to_string(),
                 })
             }
@@ -304,9 +307,39 @@ pub(crate) async fn run_tool_command(
     .await
 }
 
-/// Plans every candidate proposed for quarantine; moves nothing.
+/// At most this many review items may be chosen for one plan.
+const MAX_CHOSEN: usize = 10_000;
+
+/// The review items the webview says the person chose, as raw paths. Only
+/// absolute paths without NUL, at most [`MAX_CHOSEN`] of them; whether each
+/// may be chosen is decided by planning against the latest assessment, never
+/// here (ADR-0051).
+fn chosen_paths(chosen: Option<Vec<String>>) -> Result<Vec<RawPath>, CommandError> {
+    let chosen = chosen.unwrap_or_default();
+    if chosen.len() > MAX_CHOSEN {
+        return Err(CommandError::new("too many items chosen for one plan"));
+    }
+    chosen
+        .iter()
+        .map(|text| {
+            let path = Path::new(text);
+            if !path.is_absolute() {
+                return Err(CommandError::new("a chosen item is not an absolute path"));
+            }
+            lumen_app::raw_path(path)
+                .map_err(|_| CommandError::new("a chosen item is not a valid path"))
+        })
+        .collect()
+}
+
+/// Plans every candidate proposed for quarantine, and the review items the
+/// person chose (ADR-0051); moves nothing.
 #[tauri::command]
-pub(crate) async fn plan(core: State<'_, Core>) -> Result<PlanView, CommandError> {
+pub(crate) async fn plan(
+    core: State<'_, Core>,
+    chosen: Option<Vec<String>>,
+) -> Result<PlanView, CommandError> {
+    let chosen = chosen_paths(chosen)?;
     let db = core.db.clone();
     let secrets = core.secrets.clone();
     let builtin = core.builtin.clone();
@@ -316,7 +349,7 @@ pub(crate) async fn plan(core: State<'_, Core>) -> Result<PlanView, CommandError
             secrets.as_deref(),
             builtin.as_ref(),
             |judge, _describer| {
-                lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge, &[])
+                lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge, &chosen)
                     .map_err(CommandError::new)
             },
             |planned| planned.items.as_slice(),
@@ -561,6 +594,23 @@ mod tests {
                 "{value}"
             );
         }
+    }
+
+    #[test]
+    fn chosen_items_must_be_absolute_paths_and_few_enough() {
+        assert_eq!(chosen_paths(None).ok(), Some(Vec::new()));
+        let home = if cfg!(windows) {
+            r"C:\Users\t\x"
+        } else {
+            "/home/t/x"
+        };
+        assert_eq!(
+            chosen_paths(Some(vec![home.into()])).map(|p| p.len()).ok(),
+            Some(1)
+        );
+        assert!(chosen_paths(Some(vec!["relative/x".into()])).is_err());
+        assert!(chosen_paths(Some(vec![String::new()])).is_err());
+        assert!(chosen_paths(Some(vec![home.into(); MAX_CHOSEN + 1])).is_err());
     }
 
     fn path(text: &str) -> RawPath {

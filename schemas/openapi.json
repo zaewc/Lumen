@@ -618,9 +618,17 @@
           "plan",
           "hash",
           "created_at",
-          "items"
+          "items",
+          "chosen"
         ],
         "properties": {
+          "chosen": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The paths of the items the person chose (ADR-0051), as in `items`;\nthe policy proposed every other item. Lumen keeps chosen items in\nquarantine until the person restores or removes them."
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",

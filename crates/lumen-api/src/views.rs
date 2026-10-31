@@ -501,6 +501,10 @@ pub struct PlanView {
     pub created_at: lumen_domain::Timestamp,
     /// Its items, each with what it would free and why.
     pub items: Vec<CandidateView>,
+    /// The paths of the items the person chose (ADR-0051), as in `items`;
+    /// the policy proposed every other item. Lumen keeps chosen items in
+    /// quarantine until the person restores or removes them.
+    pub chosen: Vec<String>,
 }
 
 impl From<&Planned> for PlanView {
@@ -510,6 +514,13 @@ impl From<&Planned> for PlanView {
             hash: planned.plan.hash().to_string(),
             created_at: planned.plan.created_at(),
             items: planned.items.iter().map(CandidateView::from).collect(),
+            chosen: planned
+                .plan
+                .items()
+                .iter()
+                .filter(|item| item.chosen_by == Chooser::Person)
+                .map(|item| item.path.display())
+                .collect(),
         }
     }
 }

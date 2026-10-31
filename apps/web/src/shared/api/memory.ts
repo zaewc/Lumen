@@ -247,6 +247,7 @@ const planView: PlanView = {
   hash: "b3:8c05bf8f00722b4a58174b715d1b11cfc4f69000c54b269df53b85cfa0cff22f",
   created_at: "2026-10-16T09:00:00Z",
   items: proposed,
+  chosen: [],
 };
 
 /** The planned item that changes before the move, so it is skipped. */
