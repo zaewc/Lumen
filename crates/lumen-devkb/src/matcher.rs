@@ -986,6 +986,80 @@ mod tests {
         );
     }
 
+    /// Electron update staging matches only the folders Squirrel.Mac and
+    /// electron-updater name after these apps; the staged update inside, other
+    /// apps' updaters and anything but a real directory never match.
+    #[test]
+    fn electron_update_staging_matches_only_the_named_folders() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mac = env(Platform::Macos);
+        let caches = |tail: &str, ino| dir(&format!("/Users/ana/Library/Caches/{tail}"), ino);
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    caches("com.microsoft.VSCode.ShipIt", 1),
+                    caches("notion.id.ShipIt", 2),
+                    caches("notion-updater", 3),
+                ]
+            ),
+            [
+                "vscode-squirrel-update-staging",
+                "notion-squirrel-update-staging",
+                "notion-electron-updater-cache",
+            ]
+        );
+        for kb in [
+            "vscode-squirrel-update-staging",
+            "notion-squirrel-update-staging",
+        ] {
+            assert_eq!(
+                builtin.get(kb).map(|e| e.safety_class),
+                Some(crate::SafetyClass::SelfManaged),
+                "a staged update is installed when the app quits: {kb}"
+            );
+        }
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    caches("com.microsoft.VSCode.ShipIt/update.Fwhrz8L", 1),
+                    caches("com.microsoft.VSCode", 2),
+                    caches("notion-updater/pending", 3),
+                    caches("com.figma.Desktop.ShipIt", 4),
+                    caches("org.pqrs.Karabiner-Updater", 5),
+                    dir("/Users/ana/Library/Application Support/notion-updater", 6),
+                ]
+            )
+            .len(),
+            0
+        );
+        let file = object(
+            unix("/Users/ana/Library/Caches/notion-updater"),
+            EntryKind::File,
+            1,
+        );
+        assert_eq!(ids(&mac, &[file]).len(), 0);
+        assert_eq!(
+            ids(
+                &env(Platform::Linux),
+                &[caches("notion.id.ShipIt", 1), caches("notion-updater", 2)]
+            )
+            .len(),
+            0
+        );
+    }
+
     #[test]
     fn npx_cache_stays_separate_from_packages_and_the_download_cache() {
         let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));

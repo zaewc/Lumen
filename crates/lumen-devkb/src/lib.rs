@@ -83,6 +83,14 @@ const BUILTIN: &[(&str, &str)] = &[
         "notion-chromium-caches.json",
         include_str!("../entries/notion-chromium-caches.json"),
     ),
+    (
+        "notion-electron-updater-cache.json",
+        include_str!("../entries/notion-electron-updater-cache.json"),
+    ),
+    (
+        "notion-squirrel-update-staging.json",
+        include_str!("../entries/notion-squirrel-update-staging.json"),
+    ),
     ("npm-cache.json", include_str!("../entries/npm-cache.json")),
     (
         "npm-npx-cache.json",
@@ -117,6 +125,10 @@ const BUILTIN: &[(&str, &str)] = &[
     (
         "vscode-extension-vsix-cache.json",
         include_str!("../entries/vscode-extension-vsix-cache.json"),
+    ),
+    (
+        "vscode-squirrel-update-staging.json",
+        include_str!("../entries/vscode-squirrel-update-staging.json"),
     ),
     (
         "xcode-derived-data.json",
