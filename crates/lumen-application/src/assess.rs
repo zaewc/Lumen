@@ -3,7 +3,8 @@
 //!
 //! **Selection.** A scanned file or directory is a candidate when some
 //! evidence says what it is: a knowledge-base match, an application data
-//! location, or a vendor's cache declaration. A candidate inside another
+//! location, or a vendor's cache declaration; or when it is a large folder
+//! nothing else names ([`crate::large`], ADR-0051). A candidate inside another
 //! candidate is dropped, so the outer item is decided as a whole, with one
 //! exception: a knowledge-base match inside an application's state (its
 //! support folder, container or preferences, or a folder that holds a browser
@@ -48,14 +49,16 @@ use crate::ports::{Clock, DirOutcome, InUse, InUseProbe, JudgeModel, OwnershipPr
 /// How many relationship hops around a candidate its bundle covers.
 pub const BUNDLE_DEPTH: usize = 2;
 
-/// Whether `fact` says what a filesystem object is (and so makes it worth
-/// deciding about).
-const fn identifies(fact: &Fact) -> bool {
+/// Whether `fact` makes a filesystem object worth deciding about: it says
+/// what the object is, or that it is a large folder nothing else names
+/// ([`crate::large`]).
+pub(crate) const fn identifies(fact: &Fact) -> bool {
     matches!(
         fact,
         Fact::KnowledgeBaseMatch { .. }
             | Fact::AppDataLocation { .. }
             | Fact::VendorDeclaredCache { .. }
+            | Fact::LargeUnrecognised { .. }
     )
 }
 

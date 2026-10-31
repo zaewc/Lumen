@@ -77,6 +77,9 @@ fn fact() -> impl Strategy<Value = Fact> {
         Just(Fact::BrowserProfile {
             marker: UntrustedText::new("Default/Cookies"),
         }),
+        Just(Fact::LargeUnrecognised {
+            reclaimable: ByteCount::new(1 << 30),
+        }),
     ]
 }
 
@@ -334,6 +337,38 @@ fn cloud(input: &PolicyInput) -> bool {
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(2048))]
+
+    /// ADR-0051: a large folder nothing else names carries only
+    /// `LargeUnrecognised`, which no rule reads. It is decided exactly as
+    /// without it, by the protections and the defaults, and is never
+    /// proposed for quarantine.
+    #[test]
+    fn a_large_unrecognised_folder_is_never_proposed(input in policy_input()) {
+        let mut without = input;
+        without.evidence.retain(|e| {
+            !matches!(
+                e.fact,
+                Fact::KnowledgeBaseMatch { .. }
+                    | Fact::VendorDeclaredCache { .. }
+                    | Fact::OwningApplication(_)
+                    | Fact::AppDataLocation { .. }
+                    | Fact::BrowserProfile { .. }
+                    | Fact::LargeUnrecognised { .. }
+            )
+        });
+        let mut folder = without.clone();
+        folder.evidence.push(evidence(Fact::LargeUnrecognised {
+            reclaimable: ByteCount::new(1 << 30),
+        }));
+        let decision = decide(&folder)?;
+        prop_assert_ne!(decision.verdict(), Verdict::Quarantine);
+        let unclassified = decision.fired_rules().iter().all(|fired| {
+            fired.stage != PolicyStage::Classification
+                || fired.rule.as_str().starts_with("default.")
+        });
+        prop_assert!(unclassified, "no classification rule fires");
+        prop_assert_eq!(decision, decide(&without)?);
+    }
 
     #[test]
     fn protected_items_are_always_kept(input in policy_input()) {

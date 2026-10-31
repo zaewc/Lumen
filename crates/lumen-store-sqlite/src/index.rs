@@ -702,6 +702,36 @@ impl IndexStore {
         let rows = query.query_map([scan.to_string()], |row| Ok(listing_from_row(row)))?;
         rows.map(|row| row?).collect()
     }
+
+    /// The directories of a scan that were not listed in full: no listing, or
+    /// one that was refused or cut short. Unread is never empty (ADR-0008),
+    /// so a directory with any of them below it is incomplete. On a scan with
+    /// full coverage this is empty, so callers keep it in memory instead of
+    /// every listing.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Corrupt`] for any row that fails validation, or
+    /// [`StoreError`] if SQLite fails.
+    pub fn unlisted_directories(&self, scan: ScanId) -> Result<Vec<RawPath>, StoreError> {
+        let mut query = self.conn.prepare_cached(
+            "SELECT d.flavor, d.path, e.name
+             FROM dirs d CROSS JOIN entries e ON e.dir = d.id
+             LEFT JOIN listings l ON l.dir = e.dir AND l.name = e.name
+             WHERE d.scan = (SELECT key FROM scans WHERE id = ?1) AND e.kind = ?2
+               AND (l.dir IS NULL OR l.complete = 0 OR l.access != ?3)
+             ORDER BY d.flavor, d.path, e.name",
+        )?;
+        let rows = query.query_map(
+            params![
+                scan.to_string(),
+                kind_text(EntryKind::Directory),
+                access_text(AccessState::Readable)?
+            ],
+            |row| Ok(path_from_row(row)),
+        )?;
+        rows.map(|row| row?).collect()
+    }
 }
 
 /// A `LIMIT` value.
@@ -1449,6 +1479,44 @@ pub(crate) mod tests {
         );
         assert_eq!(pending[0].identity.file, FileId::new(2));
         assert_eq!(pending[0].root_volume.as_str(), "dev:1");
+        Ok(())
+    }
+
+    #[test]
+    fn unlisted_directories_are_those_not_listed_in_full() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let (_fx, mut store) = store()?;
+        let scan = scan_id(8);
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[raw(b"/r")])?;
+        store.insert_entries(
+            scan,
+            &[
+                dir(b"/r", 1, "dev:1"),
+                dir(b"/r/listed", 2, "dev:1"),
+                dir(b"/r/never", 3, "dev:1"),
+                dir(b"/r/denied", 4, "dev:1"),
+                dir(b"/r/partial", 5, "dev:1"),
+                entry(b"/r/file", 6),
+            ],
+        )?;
+        let outcome = |access, complete| DirOutcome { access, complete };
+        store.insert_listings(
+            scan,
+            &[
+                (raw(b"/r"), outcome(AccessState::Readable, true)),
+                (raw(b"/r/listed"), outcome(AccessState::Readable, true)),
+                (
+                    raw(b"/r/denied"),
+                    outcome(AccessState::Denied(DenialReason::Posix), false),
+                ),
+                (raw(b"/r/partial"), outcome(AccessState::Readable, false)),
+            ],
+        )?;
+        assert_eq!(
+            store.unlisted_directories(scan)?,
+            [raw(b"/r/denied"), raw(b"/r/never"), raw(b"/r/partial")],
+            "files are never listings"
+        );
         Ok(())
     }
 
