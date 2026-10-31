@@ -506,6 +506,11 @@ export const en = {
         "Kept: Lumen could not read part of it, so its contents are unknown.",
       "protect.location-data": "Kept: Lumen could not check its list of protected locations.",
       "protect.location-context": "Kept: Lumen could not check its list of protected locations.",
+      "protect.contains-system": "Kept: it holds part of the operating system.",
+      "protect.contains-sensitive":
+        "Kept: it holds passwords, keys or a web browser's sign-ins, so Lumen leaves it alone.",
+      "protect.contains-cloud":
+        "Kept: it holds a cloud sync folder, so removing it here could remove those files everywhere.",
       "eligible.quarantine-unsupported":
         "Needs review: this device cannot move it to Quarantine reversibly.",
       "eligible.frees-nothing": "Kept: removing it would free no space.",

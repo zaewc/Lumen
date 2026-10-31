@@ -30,15 +30,9 @@ use lumen_domain::{
 pub const SOURCE: &str = "macos.web-profile";
 
 /// Entry names that only a browser profile's state has: its cookies, saved
-/// sign-ins, autofill data and site storage.
-pub const MARKERS: &[&str] = &[
-    "Cookies",
-    "Login Data",
-    "Web Data",
-    "Local Storage",
-    "Session Storage",
-    "IndexedDB",
-];
+/// sign-ins, autofill data and site storage. The same names mark a profile
+/// anywhere in a scan ([`lumen_application::profiles`]).
+pub use lumen_application::profiles::MARKERS;
 
 /// How many levels below a `Caches` child a marker may be.
 pub const MAX_DEPTH: usize = 3;

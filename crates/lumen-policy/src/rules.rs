@@ -20,6 +20,11 @@ pub(crate) const RULES: &[Rule] = &[
         check: crate::locations::check,
     },
     Rule {
+        id: "protect.contains-protected",
+        stage: PolicyStage::HardProtection,
+        check: crate::locations::check_holds,
+    },
+    Rule {
         id: "protect.os-protected",
         stage: PolicyStage::HardProtection,
         check: os_protected,
@@ -624,7 +629,13 @@ mod tests {
         ] {
             let decision = partial_at(path, &facts)?;
             assert_eq!(decision.verdict(), Verdict::Keep, "{path} {facts:?}");
-            assert_eq!(fired(&decision), ["protect.in-use-partial"]);
+            // The home folder also holds protected locations (FS-3).
+            let expected: &[&str] = if path == "/home/t" {
+                &["protect.contains-sensitive", "protect.in-use-partial"]
+            } else {
+                &["protect.in-use-partial"]
+            };
+            assert_eq!(fired(&decision), expected);
         }
         Ok(())
     }

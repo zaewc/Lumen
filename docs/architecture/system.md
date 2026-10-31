@@ -253,6 +253,10 @@ confirmation. The policy is IO-free and versioned; decisions are reproducible fr
 `(policy_version, evidence_hash)`.
 
 `lumen-policy` implements the stages. A hard protection ends evaluation with `KEEP`.
+Protected locations are kept with everything below them (`protect.location.<id>`), and
+so is every folder that holds one (`protect.contains-system`, `-sensitive` or `-cloud`,
+by the most critical kind held): moving `~/Library` would move the keychains inside it
+([FS-3](../security/public-beta-readiness.md)).
 Eligibility rules cap the verdict: an item the platform cannot quarantine, or a link or
 special file, is at most `REVIEW`, and an item whose removal would free no space now
 (`eligible.frees-nothing`: empty, or shared with hard links, clones or snapshots) is
