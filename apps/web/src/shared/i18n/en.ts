@@ -7,6 +7,14 @@ const count = countFormat("en");
 /** "1 item", "1,204 items". */
 const items = (n: number) => `${count(n)} ${n === 1 ? "item" : "items"}`;
 
+/** "Spotify and Discord"; past three names, "A, B, C and 2 more". */
+function appList(apps: readonly string[]): string {
+  if (apps.length > 3) {
+    return `${apps.slice(0, 3).join(", ")} and ${count(apps.length - 3)} more`;
+  }
+  return new Intl.ListFormat("en", { type: "conjunction" }).format(apps);
+}
+
 /** The English catalog. Its shape is the shape of every catalog. */
 export const en = {
   language: "Language",
@@ -185,6 +193,10 @@ export const en = {
     listHint: "Move between items with the up and down arrow keys.",
     emptyFilter: "No items with this status.",
     partial: "The scan stopped early. Here is what it found until then.",
+    whenClosed: (size: string, ...apps: string[]) =>
+      apps.length === 0
+        ? `Quit the apps using some kept items, then scan again to clean up ${size} more.`
+        : `Quit ${appList(apps)}, then scan again to clean up ${size} more.`,
     outOfSpace:
       "The scan stopped because the disk is almost full (Lumen always leaves 2 GB free). Here is what it found until then. Free some space and scan again.",
   },
@@ -202,6 +214,10 @@ export const en = {
     aiTitle: "AI review advised caution.",
     aiBody: "So Lumen leaves it for you to review instead of proposing it.",
     aiNoteHint: "A guess from AI review. It does not change Lumen's decision.",
+    whenClosed: (...apps: string[]) =>
+      apps.length === 0
+        ? "Quit the apps using it, then scan again to clean it up."
+        : `Quit ${appList(apps)}, then scan again to clean it up.`,
   },
   aiNote: {
     likely: (kind: string, confidence: string) => `AI: likely ${kind} (${confidence})`,
@@ -506,6 +522,8 @@ export const en = {
       "classify.devkb-unknown":
         "Needs review: Lumen could not load the tool information that matches it.",
       "classify.vendor-declared-cache": "Needs review: its maker says you can delete it.",
+      "classify.browser-profile":
+        "Kept: it holds a web browser's sign-ins, cookies or site data, so Lumen leaves it alone.",
       "classify.app-cache": "Proposed: it is an app's cache, which the app makes again.",
       "classify.app-state":
         "Kept: it holds an app's own data, settings or documents, so Lumen leaves it alone.",

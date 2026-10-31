@@ -1,0 +1,49 @@
+{
+  "id": "microsoft-edge-caches",
+  "tool": "Microsoft Edge",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/Microsoft Edge/*/Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/Microsoft Edge/*/Code Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/microsoft-edge/*/Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/microsoft-edge/*/Code Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "env_var", "name": "XDG_CACHE_HOME" },
+      "path": "microsoft-edge/*/Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "env_var", "name": "XDG_CACHE_HOME" },
+      "path": "microsoft-edge/*/Code Cache"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "seconds", "network": true },
+  "sources": [
+    "https://learn.microsoft.com/en-us/microsoft-edge/extensions/developer-guide/native-messaging",
+    "https://learn.microsoft.com/en-us/deployedge/microsoft-edge-browser-policies/diskcachedir",
+    "https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md",
+    "https://github.com/chromium/chromium/blob/main/chrome/common/chrome_paths_mac.mm",
+    "https://github.com/chromium/chromium/blob/main/chrome/common/chrome_paths_linux.cc",
+    "https://github.com/chromium/chromium/blob/main/chrome/browser/net/profile_network_context_service.cc",
+    "https://github.com/chromium/chromium/blob/main/chrome/browser/chrome_content_browser_client.cc",
+    "https://github.com/chromium/chromium/blob/main/content/browser/storage_partition_impl.cc"
+  ],
+  "last_verified": "2026-10-31"
+}

@@ -3,6 +3,12 @@ import { countFormat } from "./format";
 
 const count = countFormat("ko");
 
+/** "Spotify, Discord"; past three names, "A, B, C 외 2개". */
+function appList(apps: readonly string[]): string {
+  const shown = apps.slice(0, 3).join(", ");
+  return apps.length > 3 ? `${shown} 외 ${count(apps.length - 3)}개` : shown;
+}
+
 /**
  * The particle "이란" after a final consonant and "란" after a vowel
  * (‘격리함’이란, ‘영구 삭제’란), read from the last Hangul syllable.
@@ -196,6 +202,10 @@ export const ko = {
     listHint: "위아래 화살표 키로 항목 사이를 이동할 수 있어요.",
     emptyFilter: "이 상태인 항목이 없어요.",
     partial: "검사가 중간에 멈췄어요. 그때까지 찾은 항목만 보여 드려요.",
+    whenClosed: (size: string, ...apps: string[]) =>
+      apps.length === 0
+        ? `사용 중인 앱을 종료하고 다시 검사하면 ${size}를 더 정리할 수 있어요.`
+        : `${appList(apps)} 앱을 종료하고 다시 검사하면 ${size}를 더 정리할 수 있어요.`,
     outOfSpace:
       "디스크 공간이 거의 없어서 검사를 멈췄어요(Lumen은 늘 2 GB를 비워 둬요). 그때까지 찾은 항목만 보여 드려요. 공간을 조금 비운 뒤 다시 검사해 주세요.",
   },
@@ -213,6 +223,10 @@ export const ko = {
     aiTitle: "AI 검토가 주의를 권했어요.",
     aiBody: "그래서 정리를 제안하지 않고, 직접 검토하도록 남겨 두었어요.",
     aiNoteHint: "AI 검토의 추측이에요. Lumen의 판단은 바뀌지 않아요.",
+    whenClosed: (...apps: string[]) =>
+      apps.length === 0
+        ? "사용 중인 앱을 종료하고 다시 검사하면 정리할 수 있어요."
+        : `${appList(apps)} 앱을 종료하고 다시 검사하면 정리할 수 있어요.`,
   },
   aiNote: {
     likely: (kind: string, confidence: string) => `AI: ${kind}로 보여요(${confidence})`,
@@ -509,6 +523,8 @@ export const ko = {
       "classify.devkb-self-managed": "유지: 이 항목을 만든 도구가 알아서 정리해요.",
       "classify.devkb-unknown": "검토 필요: 이 항목에 맞는 도구 정보를 불러오지 못했어요.",
       "classify.vendor-declared-cache": "검토 필요: 만든 회사가 지워도 된다고 밝힌 데이터예요.",
+      "classify.browser-profile":
+        "유지: 웹 브라우저의 로그인 정보, 쿠키, 사이트 데이터가 들어 있어서 Lumen이 건드리지 않아요.",
       "classify.app-cache": "정리 제안: 앱의 캐시라서 앱이 다시 만들어요.",
       "classify.app-state": "유지: 앱의 데이터, 설정, 문서가 들어 있어서 Lumen이 건드리지 않아요.",
       "classify.orphan": "검토 필요: 이 항목을 쓰던 앱이 삭제된 것 같아요.",

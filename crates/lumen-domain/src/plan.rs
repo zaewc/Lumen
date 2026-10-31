@@ -1,11 +1,12 @@
 //! Cleanup plans and their hash (roadmap 10.10, ADR-0034, system.md §11).
 //!
 //! A plan is what the user is shown and confirms: its ID, when it was made, and
-//! its items in path order, each with the subject, its raw path, and the policy
+//! its items in path order, each with the subject, its raw path, the policy
 //! version, evidence hash and reclaim estimate of the decision that put it
-//! there. The [`PlanHash`] is BLAKE3 over `lumen.plan/1\0` and the plan's
-//! canonical JSON; a confirmation names it, so the plan that executes is
-//! exactly the plan that was shown. A golden test pins the bytes.
+//! there, and who chose it ([`Chooser`], ADR-0051). The [`PlanHash`] is BLAKE3
+//! over `lumen.plan/2\0` and the plan's canonical JSON; a confirmation names
+//! it, so the plan that executes is exactly the plan that was shown, including
+//! who chose each item. A golden test pins the bytes.
 
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +14,20 @@ use crate::{
     EvidenceHash, PlanHash, PlanId, PolicyVersion, RawPath, ReclaimEstimate, Subject, Timestamp,
 };
 
-const HASH_DOMAIN: &[u8] = b"lumen.plan/1\0";
+const HASH_DOMAIN: &[u8] = b"lumen.plan/2\0";
+
+/// Who put an item into a plan (ADR-0051).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Chooser {
+    /// The policy proposed it (`QUARANTINE`); it follows the retention
+    /// period like every proposed item (ADR-0015).
+    Policy,
+    /// The person chose it from the items left for review. It is confirmed
+    /// as a review item and never removed automatically: it stays in
+    /// quarantine until the person restores it or removes it for good.
+    Person,
+}
 
 /// One item of a cleanup plan.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -28,6 +42,8 @@ pub struct PlannedItem {
     pub evidence_hash: EvidenceHash,
     /// Space it frees.
     pub reclaim: ReclaimEstimate,
+    /// Who chose it.
+    pub chosen_by: Chooser,
 }
 
 /// A cleanup plan: the exact set of items a confirmation authorizes.
@@ -112,6 +128,7 @@ mod tests {
             policy_version: PolicyVersion::new(0, 10, 0),
             evidence_hash: EvidenceHash::from_bytes([7; 32]),
             reclaim: ReclaimEstimate::for_selection([&size]),
+            chosen_by: Chooser::Policy,
         }
     }
 
@@ -145,13 +162,24 @@ mod tests {
     }
 
     #[test]
+    fn who_chose_an_item_is_part_of_the_hash() {
+        let mut chosen = item("/a", 1);
+        chosen.chosen_by = Chooser::Person;
+        let chosen = plan(vec![chosen]);
+        assert_ne!(plan(vec![item("/a", 1)]).hash(), chosen.hash());
+        let json: serde_json::Value = serde_json::from_slice(&chosen.canonical_bytes())
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(json["items"][0]["chosen_by"], "person");
+    }
+
+    #[test]
     fn the_hash_is_pinned() {
         // Golden value: changing the canonical form or the domain is a
-        // reviewed change with a version bump (`lumen.plan/2`), never an accident.
+        // reviewed change with a version bump (`lumen.plan/3`), never an accident.
         assert_eq!(plan(vec![item("/a", 1)]).hash().to_string(), GOLDEN);
     }
 
-    /// Computed independently: BLAKE3 over `lumen.plan/1\0` and the canonical
+    /// Computed independently: BLAKE3 over `lumen.plan/2\0` and the canonical
     /// JSON printed by this crate, recomputed with Python's `blake3`.
-    const GOLDEN: &str = "b3:8c05bf8f00722b4a58174b715d1b11cfc4f69000c54b269df53b85cfa0cff22f";
+    const GOLDEN: &str = "b3:a7121340b583de888bb00b059f7cb837e0293eddceb1d5e0d1814b7c3aec1f81";
 }

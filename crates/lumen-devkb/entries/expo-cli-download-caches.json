@@ -1,0 +1,33 @@
+{
+  "id": "expo-cli-download-caches",
+  "tool": "Expo CLI",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "kind": "directory",
+      "path": ".expo/ios-simulator-app-cache"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "home" },
+      "kind": "directory",
+      "path": ".expo/android-apk-cache"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "home" },
+      "kind": "directory",
+      "path": ".expo/expo-go"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://docs.expo.dev/more/expo-cli/#environment-variables",
+    "https://github.com/expo/expo/blob/cc008c0d2fad8f4f0f6aadbc4bf2e2147069d6bc/packages/@expo/cli/src/utils/downloadExpoGoAsync.ts",
+    "https://github.com/expo/expo/blob/cc008c0d2fad8f4f0f6aadbc4bf2e2147069d6bc/packages/@expo/cli/src/utils/downloadAppAsync.ts",
+    "https://github.com/expo/expo/blob/cc008c0d2fad8f4f0f6aadbc4bf2e2147069d6bc/packages/@expo/cli/src/api/user/UserSettings.ts"
+  ],
+  "last_verified": "2026-10-31"
+}
