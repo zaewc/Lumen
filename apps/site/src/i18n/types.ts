@@ -1,10 +1,10 @@
-// The shape of the site's copy. ko.ts and en.ts both have this type, so the
-// two languages cannot drift apart: a missing or extra key fails `tsc`.
+// The shape of the site's copy. Every catalog uses this type, so translations
+// cannot drift apart: a missing or extra key fails `tsc`.
 
 import type { PlatformId } from "../data/release";
 import type { ClientStrings } from "./client";
 
-export type Locale = "ko" | "en";
+export type Locale = "ko" | "en" | "ru" | "ja" | "zh-CN" | "es";
 
 /** A run of text with a little inline markup, rendered by Rich.astro. */
 export type Inline =
@@ -17,8 +17,7 @@ export type Rich = readonly Inline[];
 
 export interface Messages {
   readonly lang: Locale;
-  /** The language link's text, in the other language. */
-  readonly otherLanguage: string;
+  readonly language: string;
   readonly description: string;
   readonly ogDescription: string;
   readonly skip: string;

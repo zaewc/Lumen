@@ -4,7 +4,7 @@ import type { Messages } from "./types";
 // Korean copy in 해요체: active, positive, no honorific ~시, Lumen's glossary.
 export const ko: Messages = {
   lang: "ko",
-  otherLanguage: "English",
+  language: "언어",
   description:
     "공간을 이해하고, 안전하게 정리해요. Lumen은 안전 규칙과 AI 검토로 기기의 저장 공간과 파일의 근거를 살펴보는 시험 배포 단계의 오픈 소스 소프트웨어예요. AI 검토를 쓸지는 처음 실행할 때 물어봐요.",
   ogDescription:

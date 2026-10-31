@@ -1,6 +1,6 @@
 ---
 import { REPO_URL } from "../data/release";
-import { localePath, messages, otherLocale } from "../i18n";
+import { LOCALES, LOCALE_NAMES, localePath, messages } from "../i18n";
 import type { Locale } from "../i18n/types";
 
 interface Props {
@@ -9,7 +9,6 @@ interface Props {
 
 const { locale } = Astro.props;
 const t = messages[locale];
-const other = otherLocale(locale);
 const base = import.meta.env.BASE_URL;
 ---
 
@@ -20,6 +19,13 @@ const base = import.meta.env.BASE_URL;
       <a href={REPO_URL}>GitHub</a>
       <a href={`${REPO_URL}/blob/main/README.md#documentation`}>{t.nav.docs}</a>
     </nav>
-    <a class="lang-link" href={localePath(other, base)} hreflang={other} lang={other}>{t.otherLanguage}</a>
+    <details class="locale-picker">
+      <summary aria-label={t.language}>{LOCALE_NAMES[locale]}</summary>
+      <ul>
+        {LOCALES.filter((choice) => choice !== locale).map((choice) => (
+          <li><a href={localePath(choice, base)} hreflang={choice} lang={choice}>{LOCALE_NAMES[choice]}</a></li>
+        ))}
+      </ul>
+    </details>
   </div>
 </header>
