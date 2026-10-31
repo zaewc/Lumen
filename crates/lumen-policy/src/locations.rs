@@ -388,6 +388,59 @@ mod tests {
     }
 
     #[test]
+    fn other_chromium_browsers_profiles_are_kept_and_their_caches_are_not() {
+        for (path, rule) in [
+            (
+                "/Users/ana/Library/Application Support/Microsoft Edge/Default/Cookies",
+                "edge-macos",
+            ),
+            (
+                "/Users/ana/Library/Application Support/BraveSoftware/Brave-Browser/Default",
+                "brave-macos",
+            ),
+            (
+                "/Users/ana/Library/Application Support/Arc/User Data/Default",
+                "arc-macos",
+            ),
+            (
+                "/Users/ana/Library/Application Support/Arc/StorableSidebar.json",
+                "arc-macos",
+            ),
+        ] {
+            assert_eq!(
+                mac(path).as_deref(),
+                Some(format!("protect.location.{rule}").as_str()),
+                "{path}"
+            );
+        }
+        for (path, rule) in [
+            (
+                r"C:\Users\ana\AppData\Local\Microsoft\Edge\User Data\Default",
+                "edge-windows",
+            ),
+            (
+                r"C:\Users\ana\AppData\Local\BraveSoftware\Brave-Browser\User Data",
+                "brave-windows",
+            ),
+        ] {
+            assert_eq!(
+                win(path).as_deref(),
+                Some(format!("protect.location.{rule}").as_str()),
+                "{path}"
+            );
+        }
+        // Their separate disk caches stay decidable.
+        for path in [
+            "/Users/ana/Library/Caches/Microsoft Edge/Default/Cache",
+            "/Users/ana/Library/Caches/BraveSoftware/Brave-Browser/Default/Cache",
+            "/Users/ana/Library/Caches/Arc/User Data/Default/Cache",
+            "/Users/ana/Library/Application Support/BraveSoftware/Brave-Browser-Beta",
+        ] {
+            assert_eq!(mac(path), None, "{path}");
+        }
+    }
+
+    #[test]
     fn sensitive_locations_record_sensitive_risk() {
         let finding = check(&PolicyInput {
             subject: Subject::File {

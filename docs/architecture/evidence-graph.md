@@ -40,8 +40,10 @@ An `Evidence` record is `{subject, fact, basis, provenance}`:
   modified/accessed, in use (`InUse`, or `NotInUseByVisibleProcesses` when not every
   process was visible), vendor-declared cache, knowledge-base match, code
   signature, cloud-backed, protection, app data location (`AppDataLocation`: caches,
-  container, application support, preferences, saved state, web data), and whether
-  the current user owns the subject (`OwnedByCurrentUser`).
+  container, application support, preferences, saved state, web data), whether
+  the subject holds a web browser profile's state, recognised by entry names
+  (`BrowserProfile`, [ADR-0040](../decisions/0040-decide-known-artifacts-inside-app-state-on-their-own.md)),
+  and whether the current user owns the subject (`OwnedByCurrentUser`).
 - `basis` says how it is known: `Observed`, or `Absence` with the sources that
   were searched. Absence is only as strong as those sources' coverage report allows;
   unreadable is never empty.
