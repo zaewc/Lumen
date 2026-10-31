@@ -157,6 +157,34 @@ struct PlatformInventory {
     declarations: Vec<lumen_platform_windows::cleanup::CacheDeclaration>,
 }
 
+/// What the platform's producers note in a first pass over the whole scan,
+/// because it qualifies entries in other chunks.
+#[derive(Default)]
+struct PlatformMarkers {
+    /// Apps' `Caches` folders that hold a browser profile.
+    #[cfg(target_os = "macos")]
+    web_profiles: lumen_platform_macos::web_profile::WebProfiles,
+}
+
+#[cfg(target_os = "macos")]
+fn add_platform_markers(
+    markers: &mut PlatformMarkers,
+    entries: &[lumen_domain::FilesystemEntry],
+    home: Option<&RawPath>,
+) {
+    if let Some(home) = home {
+        markers.web_profiles.add(home, entries);
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn add_platform_markers(
+    _markers: &mut PlatformMarkers,
+    _entries: &[lumen_domain::FilesystemEntry],
+    _home: Option<&RawPath>,
+) {
+}
+
 /// What the platform's producers say about one chunk of scanned entries.
 #[derive(Default)]
 struct Contributions {
@@ -184,11 +212,13 @@ fn platform_inventory() -> PlatformInventory {
 #[cfg(target_os = "macos")]
 fn platform_contributions(
     inventory: &PlatformInventory,
+    markers: &PlatformMarkers,
     entries: &[lumen_domain::FilesystemEntry],
     home: Option<&RawPath>,
-    now: lumen_domain::Timestamp,
+    times: (lumen_domain::Timestamp, lumen_domain::Timestamp),
 ) -> Contributions {
     use lumen_platform_macos::support::link_support_locations;
+    let (scanned_at, now) = times;
     let mut contributions = Contributions::default();
     if let Some(home) = home {
         for link in link_support_locations(home, &inventory.apps, entries, now) {
@@ -196,6 +226,10 @@ fn platform_contributions(
             contributions.evidence.push(link.location);
             contributions.relationships.push(link.relationship);
         }
+        // Derived from the scan alone, so dated by it.
+        contributions
+            .evidence
+            .extend(markers.web_profiles.evidence(home, entries, scanned_at));
     }
     contributions
 }
@@ -222,9 +256,10 @@ fn platform_inventory() -> PlatformInventory {
 #[cfg(windows)]
 fn platform_contributions(
     inventory: &PlatformInventory,
+    _markers: &PlatformMarkers,
     entries: &[lumen_domain::FilesystemEntry],
     _home: Option<&RawPath>,
-    now: lumen_domain::Timestamp,
+    (_, now): (lumen_domain::Timestamp, lumen_domain::Timestamp),
 ) -> Contributions {
     use lumen_platform_windows::cleanup::declared_caches;
     Contributions {
@@ -243,9 +278,10 @@ fn platform_inventory() -> PlatformInventory {
 #[cfg(not(any(target_os = "macos", windows)))]
 fn platform_contributions(
     _inventory: &PlatformInventory,
+    _markers: &PlatformMarkers,
     _entries: &[lumen_domain::FilesystemEntry],
     _home: Option<&RawPath>,
-    _now: lumen_domain::Timestamp,
+    _times: (lumen_domain::Timestamp, lumen_domain::Timestamp),
 ) -> Contributions {
     Contributions::default()
 }
@@ -465,8 +501,8 @@ struct Found {
 }
 
 /// Runs the platform's producers and the knowledge base over the scan, a page
-/// at a time: first the knowledge base's markers (a marker can qualify an
-/// entry in another page), then the producers. Keeps only the entries their
+/// at a time: first the knowledge base's and the platform's markers (a marker
+/// can qualify an entry in another page), then the producers. Keeps only the entries their
 /// output names; no other entry's facts could reach a decision (roadmap 10.8).
 fn find(
     store: &IndexStore,
@@ -477,13 +513,15 @@ fn find(
     times: (lumen_domain::Timestamp, lumen_domain::Timestamp),
     progress: &mut dyn FnMut(AssessProgress),
 ) -> Result<Found, StoreError> {
-    let (scanned_at, now) = times;
+    let (scanned_at, _) = times;
     let total = Some(store.entry_count(scan)?);
     let mut completed = 0_u64;
     report(progress, AssessStage::Markers, completed, total);
     let mut markers = Markers::new();
+    let mut platform_markers = PlatformMarkers::default();
     for_each_page(store, scan, |page| {
         matcher.add_markers(page, &mut markers);
+        add_platform_markers(&mut platform_markers, page, home);
         completed = completed.saturating_add(u64::try_from(page.len()).unwrap_or(u64::MAX));
         report(progress, AssessStage::Markers, completed, total);
     })?;
@@ -495,7 +533,7 @@ fn find(
     completed = 0;
     report(progress, AssessStage::Evidence, completed, total);
     for_each_page(store, scan, |page| {
-        let produced = platform_contributions(inventory, page, home, now);
+        let produced = platform_contributions(inventory, &platform_markers, page, home, times);
         let known = matcher.matches(page, &markers, scanned_at);
         let named: HashSet<&Subject> = produced
             .evidence
@@ -765,6 +803,8 @@ fn group_of(kb: Option<&KnowledgeBase>, subject: &Subject, evidence: &[Evidence]
                 }
         )
     });
+    // A cache that holds a browser profile is kept as the app's data.
+    let cache = cache && !about().any(|fact| matches!(fact, Fact::BrowserProfile { .. }));
     let data = about().any(|fact| matches!(fact, Fact::AppDataLocation { .. }));
     let kind = if cache {
         GroupKind::AppCache

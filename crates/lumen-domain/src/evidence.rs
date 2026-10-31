@@ -120,6 +120,14 @@ pub enum Fact {
     /// Whether the subject is owned by the account Lumen runs as (Unix owner
     /// ID, Windows owner SID). ADR-0030 relies on it.
     OwnedByCurrentUser(bool),
+    /// The subject holds a web browser profile's state (cookies, saved
+    /// sign-ins, site storage), such as an app's embedded Chromium, recognised
+    /// by the names of entries below it. No file is opened.
+    BrowserProfile {
+        /// The entry that showed it, relative to the subject, e.g.
+        /// `Default/Cookies`.
+        marker: UntrustedText,
+    },
 }
 
 /// Kinds of per-application data locations the platforms document.
