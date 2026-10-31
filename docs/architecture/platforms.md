@@ -61,6 +61,10 @@ Research: [03-macos-platform](../research/03-macos-platform.md),
 - `SF_DATALESS` and sync-root items are never opened, and dataless directories are
   not listed (reported as not scanned). `IOPOL_MATERIALIZE_DATALESS_FILES_OFF` is set
   per scanner thread, because the process policy is inherited and can be `ON`.
+- Items at or below a dataless or `EF_IS_SYNC_ROOT` directory, and directories
+  holding a dataless item, are cloud-backed and `KEEP`. iCloud Drive's container does
+  not report `EF_IS_SYNC_ROOT`, so materialised items there are found only through a
+  dataless neighbour.
 - Four size figures per node: logical, allocated, freed now, and freed after snapshots
   expire (with `tmutil listlocalsnapshotdates`).
 - Three free-space figures: `statfs` free, `ImportantUsage`, and `OpportunisticUsage`.
@@ -106,6 +110,11 @@ Research: [03-macos-platform](../research/03-macos-platform.md),
 - Browser profiles: the user data folders of Chrome, Microsoft Edge, Brave and Arc in
   `~/Library/Application Support` (their separate `~/Library/Caches` folders are not
   protected).
+- Cloud sync folders and everything below them: `~/Library/CloudStorage` (every File
+  Provider domain), `~/Library/Mobile Documents` (iCloud Drive), and the legacy
+  `~/Dropbox`, `~/Dropbox (*)`, `~/OneDrive` and `~/OneDrive - *` folders
+  ([research 32](../research/32-cloud-sync-folders.md)). iCloud Desktop & Documents is
+  not detected yet.
 
 **Defer to Apple:** iCloud, Photos, Mail and Messages storage, and login items. Lumen
 links to System Settings instead of acting.
@@ -152,7 +161,8 @@ Research: [04-windows-platform](../research/04-windows-platform.md).
 
 **Cloud files:**
 
-- Sync roots and `RECALL_ON_*` items are `KEEP`.
+- Sync roots and `RECALL_ON_*` items are `KEEP`, and so is everything at or below a
+  placeholder or pinned/unpinned directory and every directory holding such an item.
 - The only space action is dehydration, delegated to the provider or Storage Sense.
 
 **In-use gate:** Restart Manager (`RmGetList`), one session per batch, files only.
@@ -176,7 +186,11 @@ Lumen never calls `RmShutdown`.
   `%LOCALAPPDATA%` (`KEEP`).
 - `System Volume Information`, other users' `$Recycle.Bin`, `$Extend`.
 - `SoftwareDistribution\DataStore`, `catroot2`.
-- Sync roots, and the install directories of installed apps (`REVIEW`).
+- Cloud sync folders at their documented defaults and everything below them:
+  `%USERPROFILE%\OneDrive`, `OneDrive - *`, `iCloud Drive`, `iCloudDrive`,
+  `Dropbox` and `Dropbox (*)` ([research 32](../research/32-cloud-sync-folders.md)).
+- Sync roots elsewhere are kept through their placeholder attributes. The install
+  directories of installed apps are `REVIEW`.
 
 **Delegate:** DISM `/StartComponentCleanup` (never `/ResetBase` in one-click flows),
 `powercfg` for hibernation, and the Delivery Optimization cmdlet. Disk Cleanup handler

@@ -74,6 +74,7 @@ Assumptions:
 | Denial of service | Enormous or deep trees, sparse giant files, directory loops, slow network mounts | Bounded queues, per-volume semaphores, stall watchdog, no traversal of reparse points or mounts, timeouts; partial failure keeps the scan alive |
 | Denial of service | Archive or decompression bombs | Archives are never opened |
 | Information disclosure | Scanner reads file contents | Metadata only; contents read only for duplicate hashing of user-selected scopes, never for placeholders |
+| Tampering, denial of service | A materialised folder inside a sync root (a `node_modules` in a Dropbox project) is quarantined: moving it out of the sync root deletes it in the cloud and on every device | Entries at or below a placeholder, dataless or sync-root directory, and directories holding a placeholder or dataless item, are `CloudBacked` and kept (`protect.cloud-backed`); computed from scan flags only |
 | Tampering | Cloud placeholder hydration triggered by scan | Placeholder detection from metadata; process-wide no-materialise policy on macOS; placeholder compatibility mode on Windows |
 | Tampering | Malicious names (control characters, RTL override, newlines, invalid UTF-8, NFC/NFD and case twins) mislead the UI or the user | Bytes stored raw; display escaping with visible control characters; identity-based comparisons |
 
@@ -172,7 +173,7 @@ GOAL: a file the user needs is permanently lost because of Lumen
 │   ├── 3.4 Retention expires unnoticed                                → explicit retention UI; finalization logged
 │   └── 3.5 Irreversible action mistaken for reversible                → labelled actions; never batched together
 └── 4. Side effects
-    ├── 4.1 Cloud sync propagates a deletion                           → sync roots KEEP; iCloud Photos warning
+    ├── 4.1 Cloud sync propagates a deletion                           → sync roots, their contents and placeholder holders KEEP; iCloud Photos warning
     └── 4.2 Tool command removes more than expected                    → dry run captured as evidence; user confirmation
 ```
 
@@ -202,6 +203,12 @@ GOAL: a file the user needs is permanently lost because of Lumen
   writing) neither block restoring it nor stop its removal. A directory whose
   finalization stopped part way can be restored with only what remains. Either way the
   restore is reported as not matching its record, so the user is asked to check it.
+- Cloud sync folders are recognised from the scan's placeholder and sync-root flags
+  and from the providers' documented default folders. A folder synced only through
+  iCloud Desktop & Documents, or a Windows sync root moved away from its default,
+  whose items carry no flag, can still be proposed
+  ([research 32](../research/32-cloud-sync-folders.md)). Quarantine keeps it
+  restorable, but the provider may already have deleted the cloud copy.
 
 ## 8. Security testing obligations
 

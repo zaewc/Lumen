@@ -2,10 +2,15 @@
 //!
 //! `data/protected-locations.json` lists locations whose contents Lumen must
 //! never touch, each with the official source that documents it: operating-system
-//! locations (`system`) and credentials, keys and browser profiles
-//! (`sensitive`). An item at or below one of them is `Keep` (`protect.location.<id>`),
-//! unless it lies in one of the location's documented exceptions (e.g.
-//! `/usr/local`).
+//! locations (`system`), credentials, keys and browser profiles
+//! (`sensitive`), and cloud providers' sync folders (`cloud`), where moving an
+//! item out deletes it in the cloud and on every device. An item at or below
+//! one of them is `Keep` (`protect.location.<id>`), unless it lies in one of the
+//! location's documented exceptions (e.g. `/usr/local`).
+//!
+//! A location's last name may end in `*` to match every name it starts with:
+//! `OneDrive - *` is every work or school `OneDrive` folder, whatever the
+//! organization is called.
 //!
 //! The data is embedded and validated at first use. If it is invalid, every
 //! item is kept (`protect.location-data`), and so is every item when a root the
@@ -56,6 +61,8 @@ enum Kind {
     System,
     /// Credentials, keys or a browser profile.
     Sensitive,
+    /// A cloud provider's sync folder.
+    Cloud,
 }
 
 /// One protected location.
@@ -83,6 +90,15 @@ fn safe_relative(path: &str) -> bool {
         })
 }
 
+/// A safe relative path whose last name may end in one `*` after at least
+/// one other character.
+fn safe_pattern(path: &str) -> bool {
+    match path.strip_suffix('*') {
+        Some(stem) => !stem.ends_with('/') && safe_relative(stem),
+        None => safe_relative(path),
+    }
+}
+
 fn valid(location: &Location) -> bool {
     let windows_root = matches!(
         location.root,
@@ -101,7 +117,8 @@ fn valid(location: &Location) -> bool {
             .platforms
             .iter()
             .all(|p| any_root || (*p == Platform::Windows) == windows_root)
-        && safe_relative(&location.path)
+        && safe_pattern(&location.path)
+        && (location.except.is_empty() || safe_relative(&location.path))
         && location.except.iter().all(|e| {
             safe_relative(e)
                 && e.strip_prefix(&location.path)
@@ -159,8 +176,31 @@ pub(crate) fn components(path: &RawPath, platform: Platform) -> Vec<String> {
     parts
 }
 
-fn pattern(path: &str, platform: Platform) -> Vec<String> {
-    path.split('/').map(|part| fold(part, platform)).collect()
+/// One name of a location's path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Part {
+    /// This name.
+    Exact(String),
+    /// Any name starting with this.
+    Prefix(String),
+}
+
+impl Part {
+    fn matches(&self, name: &str) -> bool {
+        match self {
+            Self::Exact(exact) => name == exact,
+            Self::Prefix(prefix) => name.starts_with(prefix.as_str()),
+        }
+    }
+}
+
+fn pattern(path: &str, platform: Platform) -> Vec<Part> {
+    path.split('/')
+        .map(|part| match part.strip_suffix('*') {
+            Some(prefix) => Part::Prefix(fold(prefix, platform)),
+            None => Part::Exact(fold(part, platform)),
+        })
+        .collect()
 }
 
 /// Whether `names` is `location` or below it, outside its exceptions.
@@ -186,9 +226,13 @@ fn covers(location: &Location, names: &[String], input: &PolicyInput) -> bool {
         },
     };
     let under = |relative: &str| {
-        let mut full = base.clone();
+        let mut full: Vec<Part> = base.iter().cloned().map(Part::Exact).collect();
         full.extend(pattern(relative, platform));
-        names.starts_with(&full)
+        names.len() >= full.len()
+            && full
+                .iter()
+                .zip(names)
+                .all(|(part, name)| part.matches(name))
     };
     under(&location.path) && !location.except.iter().any(|e| under(e))
 }
@@ -201,6 +245,7 @@ pub(crate) fn check(input: &PolicyInput) -> Option<Finding> {
         risk: BTreeSet::from([match kind {
             Kind::System => RiskFactor::OsProtected,
             Kind::Sensitive => RiskFactor::SensitiveData,
+            Kind::Cloud => RiskFactor::CloudBacked,
         }]),
         rule: Some(rule),
     };
@@ -441,6 +486,106 @@ mod tests {
     }
 
     #[test]
+    fn cloud_sync_folders_and_everything_below_them_are_kept() {
+        for (path, rule) in [
+            (
+                "/Users/ana/Library/CloudStorage/Dropbox/project/node_modules",
+                "macos-cloud-storage",
+            ),
+            (
+                "/Users/ana/Library/CloudStorage/OneDrive-Contoso",
+                "macos-cloud-storage",
+            ),
+            (
+                "/Users/ana/Library/CloudStorage/GoogleDrive-ana@example.com/My Drive/x",
+                "macos-cloud-storage",
+            ),
+            (
+                "/Users/ana/Library/Mobile Documents/com~apple~CloudDocs/app/build",
+                "icloud-drive-macos",
+            ),
+            ("/Users/ana/Dropbox/app/node_modules", "dropbox"),
+            ("/Users/ana/Dropbox (Contoso)/x", "dropbox-named"),
+            ("/Users/ana/OneDrive/x", "onedrive-macos-legacy"),
+            ("/Users/ana/OneDrive - Contoso/x", "onedrive-organization"),
+        ] {
+            assert_eq!(
+                mac(path).as_deref(),
+                Some(format!("protect.location.{rule}").as_str()),
+                "{path}"
+            );
+        }
+        for (path, rule) in [
+            (
+                r"C:\Users\ana\OneDrive\app\node_modules",
+                "onedrive-windows",
+            ),
+            (
+                r"C:\Users\ana\onedrive - contoso ltd\x",
+                "onedrive-organization",
+            ),
+            (r"C:\Users\ana\iCloud Drive\x", "icloud-drive-windows"),
+            (r"C:\Users\ana\iCloudDrive", "icloud-drive-windows-legacy"),
+            (r"C:\Users\ana\Dropbox\x", "dropbox"),
+        ] {
+            assert_eq!(
+                win(path).as_deref(),
+                Some(format!("protect.location.{rule}").as_str()),
+                "{path}"
+            );
+        }
+        assert_eq!(
+            linux("/home/ana/Dropbox/x").as_deref(),
+            Some("protect.location.dropbox")
+        );
+        // Neighbours, other users' homes and look-alikes stay decidable.
+        for path in [
+            "/Users/ana/Library/Caches/com.getdropbox.dropbox",
+            "/Users/ana/OneDriveBackup",
+            "/Users/ana/Dropbox2",
+            "/Users/ana/projects/Dropbox/x",
+            "/Users/bob/Library/CloudStorage/Dropbox",
+        ] {
+            assert_eq!(mac(path), None, "{path}");
+        }
+        assert_eq!(win(r"C:\OneDriveTemp\x"), None);
+        assert_eq!(linux("/home/ana/OneDrive/x"), None, "not a Linux location");
+    }
+
+    #[test]
+    fn cloud_locations_record_cloud_risk() {
+        let finding = check(&PolicyInput {
+            subject: Subject::File {
+                identity: FileIdentity {
+                    volume: VolumeId::new("v").unwrap_or_else(|_| unreachable!()),
+                    file: FileId::new(1),
+                },
+            },
+            evidence_hash: EvidenceHash::from_bytes([0; 32]),
+            evidence: Vec::new(),
+            paths: vec![unix("/Users/ana/Library/CloudStorage/Box-Box/x")],
+            context: context(Platform::Macos),
+            observed: None,
+            knowledge: std::collections::BTreeMap::new(),
+            jev: None,
+        });
+        assert_eq!(
+            finding.map(|f| f.risk),
+            Some(BTreeSet::from([RiskFactor::CloudBacked]))
+        );
+    }
+
+    #[test]
+    fn only_a_last_name_may_end_in_a_wildcard() {
+        for good in ["a/b*", "OneDrive - *", "Dropbox (*", "a b"] {
+            assert!(safe_pattern(good), "{good:?}");
+        }
+        for bad in ["*", "a/*", "a*/b", "a**", "a*b", "a/b*/", ""] {
+            assert!(!safe_pattern(bad), "{bad:?}");
+        }
+    }
+
+    #[test]
     fn sensitive_locations_record_sensitive_risk() {
         let finding = check(&PolicyInput {
             subject: Subject::File {
@@ -542,6 +687,14 @@ mod tests {
             ]))
             .is_some()
         );
+        assert!(
+            parse(&entry(&[
+                ("kind", r#""cloud""#),
+                ("path", r#""Dropbox (*""#),
+                ("except", "[]")
+            ]))
+            .is_some()
+        );
         for bad in [
             entry(&[("id", r#""A""#)]),
             entry(&[("kind", r#""other""#)]),
@@ -556,6 +709,8 @@ mod tests {
             entry(&[("except", r#"["opt/local"]"#)]),
             entry(&[("except", r#"["usrlocal"]"#)]),
             entry(&[("source", r#""http://x.example""#)]),
+            entry(&[("path", r#""usr*""#)]),
+            entry(&[("path", r#""*""#), ("except", "[]")]),
             format!("[{},{}]", &ok[1..ok.len() - 1], &ok[1..ok.len() - 1]),
             "not json".to_owned(),
         ] {

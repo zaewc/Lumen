@@ -13,6 +13,7 @@
 
 pub mod assess;
 mod cancel;
+pub mod cloud;
 pub mod collect;
 pub mod confirm;
 pub mod consult;
