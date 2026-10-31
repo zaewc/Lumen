@@ -79,6 +79,9 @@ Research: [03-macos-platform](../research/03-macos-platform.md),
 
 - App bundles → bundle ID → Team ID.
 - `~/Library/{Caches, Application Support, Containers, Preferences, Saved Application State, HTTPStorages}/<id>`.
+- Embedded browser profiles in `~/Library/Caches/<child>`, by the names of profile
+  state below it (`Cookies`, `Login Data`, `Local Storage`, ...), which keep the folder
+  ([ADR-0040](../decisions/0040-decide-known-artifacts-inside-app-state-on-their-own.md)).
 - `Contents/Library/LaunchAgents|LaunchDaemons`; launchd plists in the five standard
   directories.
 - `pkgutil` receipts.

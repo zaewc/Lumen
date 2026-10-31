@@ -74,6 +74,9 @@ fn fact() -> impl Strategy<Value = Fact> {
             Just(AppDataKind::Preferences),
         ]
         .prop_map(|kind| Fact::AppDataLocation { kind }),
+        Just(Fact::BrowserProfile {
+            marker: UntrustedText::new("Default/Cookies"),
+        }),
     ]
 }
 
@@ -317,16 +320,23 @@ proptest! {
     }
 
     #[test]
-    fn app_state_small_unrecognised_items_and_items_freeing_nothing_are_kept(
+    fn app_state_browser_profiles_small_unrecognised_items_and_items_freeing_nothing_are_kept(
         input in policy_input(),
     ) {
         let decision = decide(&input)?;
         let fired = |id: &str| decision.fired_rules().iter().any(|r| r.rule.as_str() == id);
         if fired("classify.app-state")
+            || fired("classify.browser-profile")
             || fired("default.keep-small")
             || fired("eligible.frees-nothing")
         {
             prop_assert_eq!(decision.verdict(), Verdict::Keep);
+        }
+        let profile = input.evidence.iter().any(|e| {
+            e.subject == input.subject && matches!(e.fact, Fact::BrowserProfile { .. })
+        });
+        if profile {
+            prop_assert_eq!(decision.verdict(), Verdict::Keep, "a browser profile is kept");
         }
         if fired("default.keep-small") {
             let observed = input.observed.as_ref();

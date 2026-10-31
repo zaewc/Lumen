@@ -6,8 +6,9 @@
 //! location, or a vendor's cache declaration. A candidate inside another
 //! candidate is dropped, so the outer item is decided as a whole, with one
 //! exception: a knowledge-base match inside an application's state (its
-//! support folder, container or preferences) is decided on its own, such as
-//! an Electron app's `Cache` folder inside its `Application Support` folder.
+//! support folder, container or preferences, or a folder that holds a browser
+//! profile) is decided on its own, such as an Electron app's `Cache` folder
+//! inside its `Application Support` folder.
 //! The policy never proposes state for quarantine, so the two never overlap in
 //! a plan, and the state's own decision covers the rest of it
 //! ([`nested`]): space is never counted twice.
@@ -61,15 +62,19 @@ const fn is_state(fact: &Fact) -> bool {
 
 /// The scanned entries some evidence identifies, in path order: the outermost
 /// ones, and the knowledge-base matches inside an outer candidate that is only
-/// identified as an application's state.
+/// identified as an application's state, or that holds a browser profile.
 ///
 /// Such state is never proposed for quarantine (the policy reviews or keeps
-/// it), so a match inside it, decided on its own, never overlaps another
-/// proposed item. A match inside anything else (another match, a cache) is
-/// decided with its outer item.
+/// it; a browser profile is always kept), so a match inside it, decided on its
+/// own, never overlaps another proposed item. A match inside anything else
+/// (another match, a cache) is decided with its outer item.
 pub fn select<'a>(gathered: &Gathered, scanned: &'a [FilesystemEntry]) -> Vec<&'a FilesystemEntry> {
     let mut identified: BTreeMap<&Subject, Vec<&Fact>> = BTreeMap::new();
+    let mut profiles: BTreeSet<&Subject> = BTreeSet::new();
     for record in &gathered.evidence {
+        if matches!(record.fact, Fact::BrowserProfile { .. }) {
+            profiles.insert(&record.subject);
+        }
         if identifies(&record.fact) {
             identified
                 .entry(&record.subject)
@@ -100,7 +105,12 @@ pub fn select<'a>(gathered: &Gathered, scanned: &'a [FilesystemEntry]) -> Vec<&'
             .filter(|outer| below(&entry.path, &outer.path))
             .peekable();
         let free = enclosing.peek().is_none();
-        if free || matched && enclosing.all(|outer| facts(outer).iter().all(|f| is_state(f))) {
+        let state = |outer: &&FilesystemEntry| {
+            profiles.contains(&Subject::File {
+                identity: outer.identity().clone(),
+            }) || facts(outer).iter().all(|f| is_state(f))
+        };
+        if free || matched && enclosing.all(state) {
             selected.push(entry);
         }
     }
@@ -635,6 +645,47 @@ mod tests {
         assert_eq!(inner, [b"/support/Cache".as_slice()]);
         assert_eq!(nested(&scanned[1], &chosen).len(), 0);
         assert_eq!(nested(&scanned[6], &chosen).len(), 0);
+    }
+
+    /// An app's `Caches` folder that holds a browser profile is always kept,
+    /// so a match inside it is decided on its own, like one inside state.
+    #[test]
+    fn matches_inside_a_cache_holding_a_browser_profile_are_their_own() {
+        let source = SourceName::new("devkb").unwrap_or_else(|_| unreachable!());
+        let scanned = vec![
+            entry("/caches", EntryKind::Directory, 1),
+            entry("/caches/Data", EntryKind::Directory, 2),
+        ];
+        let mut gathered = Gathered {
+            evidence: vec![
+                fact(
+                    file(1),
+                    Fact::AppDataLocation {
+                        kind: AppDataKind::Caches,
+                    },
+                ),
+                fact(file(1), Fact::OwningApplication(app())),
+                fact(file(2), Fact::KnowledgeBaseMatch { entry: source }),
+            ],
+            relationships: Vec::new(),
+        };
+        let paths = |gathered: &Gathered| -> Vec<Vec<u8>> {
+            select(gathered, &scanned)
+                .iter()
+                .map(|e| e.path.as_bytes().to_vec())
+                .collect()
+        };
+        assert_eq!(paths(&gathered), [b"/caches".to_vec()]);
+        gathered.evidence.push(fact(
+            file(1),
+            Fact::BrowserProfile {
+                marker: UntrustedText::new("Default/Cookies"),
+            },
+        ));
+        assert_eq!(
+            paths(&gathered),
+            [b"/caches".to_vec(), b"/caches/Data".to_vec()]
+        );
     }
 
     #[test]
