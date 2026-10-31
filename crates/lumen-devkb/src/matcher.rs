@@ -1139,6 +1139,52 @@ mod tests {
         }
     }
 
+    /// Swift Package Manager's shared Git mirrors and registry downloads match
+    /// on macOS; the cache root, its manifest and collection databases, the
+    /// configuration and security folders and `~/.swiftpm` links never do.
+    #[test]
+    fn swiftpm_matches_only_its_fetched_dependency_caches() {
+        let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |environment: &Environment, scanned: &[FilesystemEntry]| -> Vec<u128> {
+            kb.matches(environment, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match (e.subject, e.fact) {
+                    (Subject::File { identity }, Fact::KnowledgeBaseMatch { entry })
+                        if entry.as_str() == "swiftpm-shared-cache" =>
+                    {
+                        Some(identity.file.get())
+                    }
+                    _ => None,
+                })
+                .collect()
+        };
+        let root = "/Users/ana/Library/Caches/org.swift.swiftpm";
+        let at = |tail: &str| format!("{root}/{tail}");
+        let scanned = [
+            dir(&at("repositories"), 1),
+            dir(&at("registry/downloads"), 2),
+            dir(root, 3),
+            dir(&at("manifests"), 4),
+            object(unix(&at("package-collection.db")), EntryKind::File, 5),
+            dir(&at("package-metadata"), 6),
+            dir(&at("registry"), 7),
+            dir(&at("repositories/swift-syntax-1a2b3c4d"), 8),
+            dir("/Users/ana/Library/org.swift.swiftpm/configuration", 9),
+            dir("/Users/ana/Library/org.swift.swiftpm/security", 10),
+            object(unix("/Users/ana/.swiftpm/cache"), EntryKind::Symlink, 11),
+        ];
+        let mac = env(Platform::Macos);
+        assert_eq!(ids(&mac, &scanned), [1, 2]);
+        assert_eq!(ids(&env(Platform::Linux), &scanned), Vec::<u128>::new());
+        for kind in [EntryKind::File, EntryKind::Symlink] {
+            assert_eq!(
+                ids(&mac, &[object(unix(&at("repositories")), kind, 12)]),
+                Vec::<u128>::new(),
+                "{kind:?}"
+            );
+        }
+    }
+
     #[test]
     fn optional_location_kind_narrows_only_that_location() -> Result<(), Box<dyn std::error::Error>>
     {

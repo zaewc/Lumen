@@ -1,0 +1,26 @@
+{
+  "id": "swiftpm-shared-cache",
+  "tool": "Swift Package Manager",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "kind": "directory",
+      "path": "Library/Caches/org.swift.swiftpm/repositories"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "kind": "directory",
+      "path": "Library/Caches/org.swift.swiftpm/registry/downloads"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://github.com/swiftlang/swift-package-manager/blob/ce48202febce7b8ca0e15ea0081f67bb94502ea7/Sources/PackageManagerDocs/Documentation.docc/Package/PackagePurgeCache.md",
+    "https://github.com/swiftlang/swift-package-manager/blob/ce48202febce7b8ca0e15ea0081f67bb94502ea7/Sources/CoreCommands/SwiftCommandState.swift",
+    "https://github.com/swiftlang/swift-package-manager/blob/ce48202febce7b8ca0e15ea0081f67bb94502ea7/Sources/Basics/FileSystem/FileSystem+Extensions.swift"
+  ],
+  "last_verified": "2026-10-31"
+}
