@@ -1,7 +1,7 @@
 ---
 // What the app looks like and what it does: one capture under the hero and
 // the list of what Lumen does.
-import { messages } from "../i18n";
+import { messages, screenshotLocale } from "../i18n";
 import type { Locale } from "../i18n/types";
 import AppWindow from "./AppWindow.astro";
 import "../styles/showcase.css";
@@ -13,12 +13,13 @@ interface Props {
 
 const { locale, part } = Astro.props;
 const t = messages[locale];
+const captureLocale = screenshotLocale(locale);
 const screens = `${import.meta.env.BASE_URL}screens/`;
 ---
 
 {part === "capture" && (
   <figure class="capture">
-    <AppWindow src={`${screens}clean-up-${locale}.webp`} alt={t.showcase.main} width={1600} height={1143} eager />
+    <AppWindow src={`${screens}clean-up-${captureLocale}.webp`} alt={t.showcase.main} width={1600} height={1143} eager />
   </figure>
 )}
 {part === "features" && (
