@@ -4,8 +4,10 @@
 //!
 //! - its operating-system protections, always, so the policy's hard-protection
 //!   stage sees them (`Fact::Protected`);
-//! - whether it is cloud-backed: a provider placeholder or dataless file
-//!   (`Fact::CloudBacked`), where removal could propagate to the cloud;
+//! - whether it is cloud-backed (`Fact::CloudBacked`), where removal could
+//!   propagate to the cloud: a provider placeholder, dataless item or sync
+//!   root, anything at or below one, or a directory holding one
+//!   ([`CloudDomains`]);
 //! - its modification and access times, when the platform reported them.
 //!
 //! Installed applications come from inventory sources: [`summarize`] records
@@ -31,18 +33,24 @@ use lumen_domain::{
     SourceStatus, Subject, Timestamp,
 };
 
+use crate::cloud::CloudDomains;
 use crate::ports::{InUse, InventoryReport};
 
 /// The source named in the provenance of scan-derived facts.
 pub const SCAN_SOURCE: &str = "lumen.scan";
 
-/// The facts the scan established about `entry`, observed at `observed_at`.
+/// The facts the scan established about `entry`, observed at `observed_at`,
+/// with `cloud` the scan's cloud domains.
 ///
 /// A stored directory's metadata always came from its parent's listing; its
 /// `access` says whether its *contents* were read (recorded separately as a
 /// listing), so its own facts are stated either way. A file's facts are
 /// stated only if its metadata was read.
-pub fn filesystem_evidence(entry: &FilesystemEntry, observed_at: Timestamp) -> Vec<Evidence> {
+pub fn filesystem_evidence(
+    entry: &FilesystemEntry,
+    cloud: &CloudDomains,
+    observed_at: Timestamp,
+) -> Vec<Evidence> {
     if entry.kind != EntryKind::Directory && !entry.access.is_observed() {
         return Vec::new();
     }
@@ -52,8 +60,10 @@ pub fn filesystem_evidence(entry: &FilesystemEntry, observed_at: Timestamp) -> V
     let subject = Subject::File {
         identity: entry.identity().clone(),
     };
-    let cloud = entry.size.flags.cloud_placeholder || entry.size.flags.dataless;
-    let mut facts = vec![Fact::Protected(entry.protection), Fact::CloudBacked(cloud)];
+    let mut facts = vec![
+        Fact::Protected(entry.protection),
+        Fact::CloudBacked(cloud.contains(entry)),
+    ];
     facts.extend(entry.times.modified.map(Fact::LastModified));
     facts.extend(entry.times.accessed.map(Fact::LastAccessed));
     facts
@@ -257,7 +267,7 @@ mod tests {
         let mut protected = entry(AccessState::Readable);
         protected.protection.system_restricted = true;
         protected.size.flags.dataless = true;
-        let evidence = filesystem_evidence(&protected, at(1_800_000_000));
+        let evidence = filesystem_evidence(&protected, &CloudDomains::new(), at(1_800_000_000));
         assert_eq!(
             facts(&evidence),
             [
@@ -280,7 +290,8 @@ mod tests {
 
     #[test]
     fn an_unprotected_local_file_says_so_explicitly() {
-        let evidence = filesystem_evidence(&entry(AccessState::Readable), at(1));
+        let evidence =
+            filesystem_evidence(&entry(AccessState::Readable), &CloudDomains::new(), at(1));
         assert!(facts(&evidence).contains(&Fact::Protected(Protection::default())));
         assert!(facts(&evidence).contains(&Fact::CloudBacked(false)));
     }
@@ -404,7 +415,7 @@ mod tests {
         let mut dir = entry(AccessState::NotScanned);
         dir.kind = EntryKind::Directory;
         assert!(
-            facts(&filesystem_evidence(&dir, at(1)))
+            facts(&filesystem_evidence(&dir, &CloudDomains::new(), at(1)))
                 .contains(&Fact::Protected(Protection::default()))
         );
     }
@@ -415,7 +426,10 @@ mod tests {
             AccessState::NotScanned,
             AccessState::Denied(DenialReason::Posix),
         ] {
-            assert_eq!(filesystem_evidence(&entry(access), at(1)), []);
+            assert_eq!(
+                filesystem_evidence(&entry(access), &CloudDomains::new(), at(1)),
+                []
+            );
         }
     }
 }
