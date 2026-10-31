@@ -60,6 +60,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/docker-desktop-disk-image.json"),
     ),
     (
+        "expo-cli-download-caches.json",
+        include_str!("../entries/expo-cli-download-caches.json"),
+    ),
+    (
         "go-build-cache.json",
         include_str!("../entries/go-build-cache.json"),
     ),

@@ -1175,6 +1175,70 @@ mod tests {
         }
     }
 
+    /// Expo CLI's Expo Go downloads match as whole cache directories; the
+    /// home folder's sign-in state, code-signing keys and settings never do.
+    #[test]
+    fn expo_matches_only_its_download_caches() {
+        let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        for platform in [Platform::Macos, Platform::Linux, Platform::Windows] {
+            let home = if platform == Platform::Windows {
+                windows(r"C:\Users\ana")
+            } else {
+                unix("/Users/ana")
+            };
+            let path = |tail: &str| {
+                if platform == Platform::Windows {
+                    windows(&format!(r"C:\Users\ana\.expo\{tail}").replace('/', "\\"))
+                } else {
+                    unix(&format!("/Users/ana/.expo/{tail}"))
+                }
+            };
+            let mut environment = env(platform);
+            environment.home = Some(home);
+            let expo = |scanned: &[FilesystemEntry]| -> Vec<u128> {
+                kb.matches(&environment, scanned, Timestamp::UNIX_EPOCH)
+                    .into_iter()
+                    .filter_map(|e| match (e.subject, e.fact) {
+                        (Subject::File { identity }, Fact::KnowledgeBaseMatch { entry })
+                            if entry.as_str() == "expo-cli-download-caches" =>
+                        {
+                            Some(identity.file.get())
+                        }
+                        _ => None,
+                    })
+                    .collect()
+            };
+            let scanned = [
+                object(path("ios-simulator-app-cache"), EntryKind::Directory, 1),
+                object(path("android-apk-cache"), EntryKind::Directory, 2),
+                object(path("expo-go"), EntryKind::Directory, 3),
+                object(path("state.json"), EntryKind::File, 4),
+                object(path("codesigning"), EntryKind::Directory, 5),
+                object(path("ngrok.yml"), EntryKind::File, 6),
+                object(path("android-apk-cache/Expo-Go-1.apk"), EntryKind::File, 7),
+                object(path("template-cache"), EntryKind::Directory, 8),
+            ];
+            let expected: &[u128] = if platform == Platform::Macos {
+                &[1, 2, 3]
+            } else {
+                &[2, 3]
+            };
+            assert_eq!(expo(&scanned), expected, "{platform:?}");
+            for kind in [
+                EntryKind::File,
+                EntryKind::Symlink,
+                EntryKind::Junction,
+                EntryKind::OtherReparsePoint,
+            ] {
+                assert_eq!(
+                    expo(&[object(path("expo-go"), kind, 9)]),
+                    [],
+                    "{platform:?} {kind:?}"
+                );
+            }
+        }
+    }
+
     #[test]
     fn projects_need_a_scanned_marker() {
         let found = matched(
