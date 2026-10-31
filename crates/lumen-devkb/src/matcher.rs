@@ -1363,6 +1363,71 @@ mod tests {
         );
     }
 
+    /// pnpm's metadata cache matches at its documented defaults and below
+    /// `XDG_CACHE_HOME`, apart from the store and never its contents.
+    #[test]
+    fn pnpm_metadata_cache_stays_separate_from_the_store() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mut mac = env(Platform::Macos);
+        mac.vars = vec![("XDG_CACHE_HOME".to_owned(), unix("/xdg"))];
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir("/Users/ana/Library/Caches/pnpm", 1),
+                    dir("/xdg/pnpm", 2),
+                    dir("/Users/ana/Library/pnpm/store", 3),
+                ]
+            ),
+            ["pnpm-metadata-cache", "pnpm-metadata-cache", "pnpm-store"]
+        );
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir("/Users/ana/Library/Caches/pnpm/v12", 1),
+                    dir("/Users/ana/Library/Caches/pnpm/v12/metadata", 2),
+                    dir("/Users/ana/Library/pnpm", 3),
+                    dir("/Users/ana/.cache/pnpm", 4),
+                    object(
+                        unix("/Users/ana/Library/Caches/pnpm"),
+                        EntryKind::Symlink,
+                        5
+                    ),
+                ]
+            )
+            .len(),
+            0
+        );
+        assert_eq!(
+            ids(&env(Platform::Linux), &[dir("/Users/ana/.cache/pnpm", 1)]),
+            ["pnpm-metadata-cache"]
+        );
+        let mut win = env(Platform::Windows);
+        win.local_app_data = Some(windows(r"C:\Users\ana\AppData\Local"));
+        let local = |tail: &str| {
+            object(
+                windows(&format!(r"C:\Users\ana\AppData\Local\{tail}")),
+                EntryKind::Directory,
+                1,
+            )
+        };
+        assert_eq!(
+            ids(&win, &[local("pnpm-cache"), local("pnpm")]),
+            ["pnpm-metadata-cache"]
+        );
+    }
+
     /// The dotslash cache matches at its documented default on each platform and
     /// at `DOTSLASH_CACHE`; its command acts on the configured folder only.
     #[test]

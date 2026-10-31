@@ -1,0 +1,39 @@
+{
+  "id": "pnpm-metadata-cache",
+  "tool": "pnpm",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/pnpm",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/pnpm",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "local_app_data" },
+      "path": "pnpm-cache",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "XDG_CACHE_HOME" },
+      "path": "pnpm",
+      "kind": "directory"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://pnpm.io/settings/other#cachedir",
+    "https://pnpm.io/cli/cache-path",
+    "https://pnpm.io/cli/cache-prune",
+    "https://pnpm.io/uninstall"
+  ],
+  "last_verified": "2026-10-31"
+}
