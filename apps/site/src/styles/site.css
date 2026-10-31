@@ -184,20 +184,56 @@ pre {
   color: var(--ink);
 }
 
-.lang-link {
+.locale-picker {
+  position: relative;
+  font-size: 0.9375rem;
+}
+
+.locale-picker summary {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  padding: 4px 0;
   color: var(--ink-2);
-  font-size: 0.9375rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.locale-picker summary::-webkit-details-marker {
+  display: none;
+}
+
+.locale-picker summary::after {
+  margin-left: 6px;
+  content: "⌄";
+}
+
+.locale-picker ul {
+  position: absolute;
+  z-index: 2;
+  top: 100%;
+  right: 0;
+  min-width: max-content;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--window);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 10%);
+  list-style: none;
+}
+
+.locale-picker a {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 4px;
+  color: var(--ink-2);
   text-decoration: none;
 }
 
-.lang-link:hover {
+.locale-picker a:hover,
+.locale-picker a:focus-visible {
+  background: var(--surface);
   color: var(--ink);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
 }
 
 /* Keep source, documentation and language within reach on a narrow screen. */

@@ -4,7 +4,7 @@ import type { Messages } from "./types";
 // English copy: sentence case, active and plain, Lumen's glossary.
 export const en: Messages = {
   lang: "en",
-  otherLanguage: "한국어",
+  language: "Language",
   description:
     "Storage intelligence for every device. Safety rules, with optional AI review (Lumen asks on first launch), help you understand your storage before deciding what to remove. Lumen is pre-alpha software.",
   ogDescription:

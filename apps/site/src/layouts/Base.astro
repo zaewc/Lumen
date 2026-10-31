@@ -3,7 +3,7 @@
 // download pages the skip link, header and footer.
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
-import { localePath, messages } from "../i18n";
+import { LOCALES, localePath, messages } from "../i18n";
 import type { Locale } from "../i18n/types";
 import "../styles/site.css";
 
@@ -46,8 +46,9 @@ const csp = [
       ) : (
         <>
           <meta name="description" content={t.description} />
-          <link rel="alternate" hreflang="ko" href={absolute("ko")} />
-          <link rel="alternate" hreflang="en" href={absolute("en")} />
+          {LOCALES.map((alternate) => (
+            <link rel="alternate" hreflang={alternate} href={absolute(alternate)} />
+          ))}
           <link rel="alternate" hreflang="x-default" href={absolute("ko")} />
         </>
       )

@@ -1,8 +1,7 @@
 ---
 // GitHub Pages serves this page for any missing path, so its links are
 // absolute to the project site (https://zaewc.github.io/Lumen/).
-import { en } from "../i18n/en";
-import { ko } from "../i18n/ko";
+import { LOCALE_NAMES, LOCALES, localePath, messages } from "../i18n";
 import Base from "../layouts/Base.astro";
 
 const base = import.meta.env.BASE_URL;
@@ -10,8 +9,11 @@ const base = import.meta.env.BASE_URL;
 
 <Base locale="ko" notFound>
   <main class="wrap intro">
-    <h1>{ko.notFound.title}</h1>
-    <p class="lead"><a href={base}>{ko.notFound.home}</a></p>
-    <p class="lead" lang="en"><a href={`${base}en/`}>{en.notFound.home}</a></p>
+    <h1>{messages.ko.notFound.title}</h1>
+    {LOCALES.map((locale) => (
+      <p class="lead" lang={locale}>
+        <a href={localePath(locale, base)}>{LOCALE_NAMES[locale]} · {messages[locale].notFound.home}</a>
+      </p>
+    ))}
   </main>
 </Base>
