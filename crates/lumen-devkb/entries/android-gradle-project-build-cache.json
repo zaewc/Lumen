@@ -1,0 +1,23 @@
+{
+  "id": "android-gradle-project-build-cache",
+  "tool": "Android Gradle plugin",
+  "locations": [
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "project" },
+      "kind": "directory",
+      "path": "build/intermediates",
+      "markers": ["build.gradle", "build.gradle.kts"]
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://developer.android.com/reference/tools/gradle-api/com/android/build/api/artifact/Artifact.Category",
+    "https://android.googlesource.com/platform/tools/base/+/refs/heads/mirror-goog-studio-main/build-system/gradle-api/src/main/java/com/android/build/api/artifact/Artifact.kt",
+    "https://android.googlesource.com/platform/tools/base/+/refs/heads/mirror-goog-studio-main/build-system/gradle-core/src/main/java/com/android/build/gradle/internal/scope/ArtifactTypeUtil.kt",
+    "https://developer.android.com/reference/tools/gradle-api/com/android/build/api/dsl/Cmake",
+    "https://docs.gradle.org/current/userguide/directory_layout.html"
+  ],
+  "last_verified": "2026-10-31"
+}
