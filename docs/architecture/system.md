@@ -311,7 +311,10 @@ See [ADR-0017](../decisions/0017-scan-engine-and-size-accounting.md) and
 ## 11. Cleanup execution
 
 1. The user selects candidates. The core builds a `CleanupPlan`, re-runs the policy on
-   fresh evidence, and returns `PlanId` plus the plan hash.
+   fresh evidence, and returns `PlanId` plus the plan hash. The plan holds every
+   candidate the policy proposes and the review items the person chose
+   (`lumen plan --choose <PATH>`): only `REVIEW` items without a tool command or `classify.devkb-not-regenerable`;
+   any other chosen path fails the plan with the reason (ADR-0051).
 2. The user confirms. The UI sends `execute_plan(plan_id, confirmation_token)`.
 3. Per item, the executor re-verifies identity by handle, checks the in-use gate
    (`No`, or `Partial` for the user's own files under
