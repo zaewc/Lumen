@@ -154,6 +154,11 @@ fn path() -> impl Strategy<Value = Vec<RawPath>> {
             Just("/System/Library/x"),
             Just("/home/t/Library/CloudStorage/Dropbox/app/node_modules"),
             Just("/home/t/Dropbox/app/node_modules"),
+            Just("/home/t"),
+            Just("/home/t/.config"),
+            Just("/home/t/Library"),
+            Just("/home/t/projects"),
+            Just("/private/var"),
         ]
         .prop_map(|p| {
             RawPath::from_unix_bytes(p.as_bytes().to_vec()).unwrap_or_else(|_| unreachable!())
@@ -276,7 +281,40 @@ fn must_keep(input: &PolicyInput) -> bool {
         .paths
         .iter()
         .any(|p| p.as_bytes().starts_with(b"/home/t/.ssh/"));
-    protected || !in_use_gate_passes || incomplete || system_path || sensitive_path || cloud(input)
+    protected
+        || !in_use_gate_passes
+        || incomplete
+        || system_path
+        || sensitive_path
+        || cloud(input)
+        || holds_protected(input)
+}
+
+/// Whether a path of the input is a folder holding a protected location
+/// (security audit FS-3): the home folder holds `.ssh`, `~/.config` Chrome's
+/// Linux profile, `~/Library` the macOS keychains and `/private/var` the
+/// macOS system database.
+fn holds_protected(input: &PolicyInput) -> bool {
+    let mac = input.context.platform == Platform::Macos;
+    input.paths.iter().any(|p| match p.as_bytes() {
+        b"/home/t" => true,
+        b"/home/t/.config" => !mac,
+        b"/home/t/Library" | b"/private/var" => mac,
+        _ => false,
+    })
+}
+
+/// Folders that hold a protected location on the platforms the inputs use.
+fn holder() -> impl Strategy<Value = RawPath> {
+    prop_oneof![
+        Just("/home/t"),
+        Just("/home/t/.config"),
+        Just("/home/t/Library"),
+        Just("/private/var"),
+    ]
+    .prop_map(|p| {
+        RawPath::from_unix_bytes(p.as_bytes().to_vec()).unwrap_or_else(|_| unreachable!())
+    })
 }
 
 /// Whether the input says the item is cloud-backed or lies in a cloud sync
@@ -310,6 +348,22 @@ proptest! {
     fn cloud_items_are_never_proposed(input in policy_input()) {
         if cloud(&input) {
             prop_assert_eq!(decide(&input)?.verdict(), Verdict::Keep);
+        }
+    }
+
+    #[test]
+    fn holding_a_protected_location_keeps_and_never_lowers_caution(
+        input in policy_input(),
+        holder in holder(),
+    ) {
+        let mut with = input.clone();
+        with.paths.push(holder);
+        let before = decide(&input)?.verdict();
+        let after = decide(&with)?;
+        prop_assert!(after.verdict() <= before, "{:?} vs {:?}", after.verdict(), before);
+        if holds_protected(&with) {
+            prop_assert_eq!(after.verdict(), Verdict::Keep);
+            prop_assert_eq!(after.jev_effect(), JevEffect::None);
         }
     }
 

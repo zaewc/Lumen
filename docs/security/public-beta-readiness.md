@@ -152,6 +152,15 @@ service key; otherwise omit it from public builds.
 - **FS-3:** Directory candidates can contain protected locations, credentials
   or browser profiles without being protected themselves. Make protected
   ancestor checks and browser-profile coverage prerequisites for #575.
+
+  **Progress (2026-10-31):** policy 0.17.0 keeps every folder that holds a protected location: an ancestor of a system, credential, browser-profile
+  or cloud location fires `protect.contains-system`, `-sensitive` or `-cloud`, so
+  `~/Library`, `~/Library/Application Support`, `%LOCALAPPDATA%` and the home folder are
+  `KEEP`. Any directory with a Chromium profile's entry names (`Cookies`, `Login Data`,
+  …) anywhere below it gets `BrowserProfile` from the scan
+  (`lumen_application::profiles`) and is kept, wherever the profile lies. Both only add
+  `KEEP`. Not yet covered: credentials outside their default folders (an `.ssh` in a
+  backup) and Firefox and Safari profiles, which the location table does not list.
 - **FS-4/5:** Directory contents can drift after scan, and the executor record
   is not fully bound to the planned identity. Add identity and subtree-change
   tests before widening person-selected folder cleanup.

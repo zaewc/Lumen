@@ -8,6 +8,9 @@
 //!   propagate to the cloud: a provider placeholder, dataless item or sync
 //!   root, anything at or below one, or a directory holding one
 //!   ([`CloudDomains`]);
+//! - for a directory with a web browser profile anywhere below it, that it
+//!   holds one (`Fact::BrowserProfile`, [`ProfileHolders`]), so the policy
+//!   keeps it (security audit FS-3);
 //! - its modification and access times, when the platform reported them.
 //!
 //! Installed applications come from inventory sources: [`summarize`] records
@@ -35,12 +38,38 @@ use lumen_domain::{
 
 use crate::cloud::CloudDomains;
 use crate::ports::{InUse, InventoryReport};
+use crate::profiles::ProfileHolders;
 
 /// The source named in the provenance of scan-derived facts.
 pub const SCAN_SOURCE: &str = "lumen.scan";
 
+/// What the whole scan says about entries in other pages: its cloud domains
+/// and the directories holding a browser profile. Built in a first pass over
+/// every page.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct ScanDomains {
+    /// Cloud sync domains (security audit FS-2).
+    pub cloud: CloudDomains,
+    /// Browser profiles (security audit FS-3).
+    pub profiles: ProfileHolders,
+}
+
+impl ScanDomains {
+    /// Nothing noted.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Pass 1: notes what one page of the scan holds.
+    pub fn add(&mut self, page: &[FilesystemEntry]) {
+        self.cloud.add(page);
+        self.profiles.add(page);
+    }
+}
+
 /// The facts the scan established about `entry`, observed at `observed_at`,
-/// with `cloud` the scan's cloud domains.
+/// with `domains` built from the whole scan.
 ///
 /// A stored directory's metadata always came from its parent's listing; its
 /// `access` says whether its *contents* were read (recorded separately as a
@@ -48,7 +77,7 @@ pub const SCAN_SOURCE: &str = "lumen.scan";
 /// stated only if its metadata was read.
 pub fn filesystem_evidence(
     entry: &FilesystemEntry,
-    cloud: &CloudDomains,
+    domains: &ScanDomains,
     observed_at: Timestamp,
 ) -> Vec<Evidence> {
     if entry.kind != EntryKind::Directory && !entry.access.is_observed() {
@@ -62,8 +91,14 @@ pub fn filesystem_evidence(
     };
     let mut facts = vec![
         Fact::Protected(entry.protection),
-        Fact::CloudBacked(cloud.contains(entry)),
+        Fact::CloudBacked(domains.cloud.contains(entry)),
     ];
+    facts.extend(
+        domains
+            .profiles
+            .marker(entry)
+            .map(|marker| Fact::BrowserProfile { marker }),
+    );
     facts.extend(entry.times.modified.map(Fact::LastModified));
     facts.extend(entry.times.accessed.map(Fact::LastAccessed));
     facts
@@ -221,7 +256,7 @@ mod tests {
 
     use lumen_domain::{
         AccessState, ByteCount, DenialReason, EntryKind, EntryTimes, FileId, FileIdentity,
-        Protection, RawPath, SizeFacts, SizeFlags, VolumeId,
+        Protection, RawPath, SizeFacts, SizeFlags, UntrustedText, VolumeId,
     };
 
     use super::*;
@@ -267,7 +302,7 @@ mod tests {
         let mut protected = entry(AccessState::Readable);
         protected.protection.system_restricted = true;
         protected.size.flags.dataless = true;
-        let evidence = filesystem_evidence(&protected, &CloudDomains::new(), at(1_800_000_000));
+        let evidence = filesystem_evidence(&protected, &ScanDomains::new(), at(1_800_000_000));
         assert_eq!(
             facts(&evidence),
             [
@@ -291,7 +326,7 @@ mod tests {
     #[test]
     fn an_unprotected_local_file_says_so_explicitly() {
         let evidence =
-            filesystem_evidence(&entry(AccessState::Readable), &CloudDomains::new(), at(1));
+            filesystem_evidence(&entry(AccessState::Readable), &ScanDomains::new(), at(1));
         assert!(facts(&evidence).contains(&Fact::Protected(Protection::default())));
         assert!(facts(&evidence).contains(&Fact::CloudBacked(false)));
     }
@@ -308,7 +343,7 @@ mod tests {
     fn app_id(value: &str) -> AppId {
         AppId {
             scheme: lumen_domain::AppIdScheme::BundleId,
-            value: lumen_domain::UntrustedText::new(value),
+            value: UntrustedText::new(value),
         }
     }
 
@@ -415,8 +450,38 @@ mod tests {
         let mut dir = entry(AccessState::NotScanned);
         dir.kind = EntryKind::Directory;
         assert!(
-            facts(&filesystem_evidence(&dir, &CloudDomains::new(), at(1)))
+            facts(&filesystem_evidence(&dir, &ScanDomains::new(), at(1)))
                 .contains(&Fact::Protected(Protection::default()))
+        );
+    }
+
+    #[test]
+    fn a_directory_holding_a_browser_profile_says_so() {
+        let mut dir = entry(AccessState::Readable);
+        dir.kind = EntryKind::Directory;
+        let mut cookies = entry(AccessState::Readable);
+        cookies.path = RawPath::from_unix_bytes(
+            b"/Users/ana/Library/Caches/x/app/Default/Network/Cookies".to_vec(),
+        )
+        .unwrap_or_else(|_| unreachable!());
+        let mut domains = ScanDomains::new();
+        domains.add(&[cookies.clone()]);
+        let profile = Fact::BrowserProfile {
+            marker: UntrustedText::new("app/Default/Network/Cookies"),
+        };
+        assert!(facts(&filesystem_evidence(&dir, &domains, at(1))).contains(&profile));
+        let without = facts(&filesystem_evidence(&dir, &ScanDomains::new(), at(1)));
+        assert!(
+            !without
+                .iter()
+                .any(|f| matches!(f, Fact::BrowserProfile { .. }))
+        );
+        let file = facts(&filesystem_evidence(&cookies, &domains, at(1)));
+        assert!(
+            !file
+                .iter()
+                .any(|f| matches!(f, Fact::BrowserProfile { .. })),
+            "a file holds nothing"
         );
     }
 
@@ -427,7 +492,7 @@ mod tests {
             AccessState::Denied(DenialReason::Posix),
         ] {
             assert_eq!(
-                filesystem_evidence(&entry(access), &CloudDomains::new(), at(1)),
+                filesystem_evidence(&entry(access), &ScanDomains::new(), at(1)),
                 []
             );
         }
