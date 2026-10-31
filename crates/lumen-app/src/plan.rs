@@ -304,6 +304,7 @@ mod tests {
             reasons: Vec::new(),
             note: None,
             note_trace: None,
+            free_when_closed: None,
         }
     }
 
