@@ -88,6 +88,7 @@ export type AssessStageView =
  */
 export type CandidateView = {
   ai_note: AiNoteView | null;
+  free_when_closed: FreeWhenClosedView | null;
   /**
    * The group it is presented in.
    */
@@ -110,6 +111,11 @@ export type CandidateView = {
    */
   verdict: VerdictView;
 };
+
+/**
+ * Who put an item into a plan (ADR-0051).
+ */
+export type ChooserView = "policy" | "person";
 
 /**
  * How sure AI review was.
@@ -203,6 +209,17 @@ export type FinalizeView =
     };
 
 /**
+ * The apps to close so that a kept item could be proposed on the next scan.
+ */
+export type FreeWhenClosedView = {
+  /**
+   * What the probe reported using it, as escaped display names (such as
+   * `Spotify`), sorted; empty when the platform did not name them.
+   */
+  processes: Array<string>;
+};
+
+/**
  * The kind of group an item is presented in.
  */
 export type GroupKindView = "developer" | "app_cache" | "app_data" | "other";
@@ -226,6 +243,7 @@ export type GroupView = {
  * One item in quarantine.
  */
 export type HeldItemView = {
+  chosen_by: ChooserView | null;
   /**
    * The operation that moved it.
    */

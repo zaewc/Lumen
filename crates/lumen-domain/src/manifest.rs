@@ -2,7 +2,8 @@
 //!
 //! One manifest per quarantined item records everything needed to explain the
 //! move and to put the item back exactly: the original path as raw bytes, the
-//! observed entry, the decision that allowed it, and the user's confirmation.
+//! observed entry, the decision that allowed it, who chose the item (1.1,
+//! ADR-0051), and the user's confirmation.
 //! It is written next to the item in its store, so a lost `ledger.db` can be
 //! rebuilt from the stores. The item's lifecycle state lives in the journal,
 //! not here: a manifest is written once and never changed.
@@ -10,7 +11,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DeviceId, FilesystemEntry, OperationId, PayloadHash, PlanId, PolicyDecision, RawPath,
+    Chooser, DeviceId, FilesystemEntry, OperationId, PayloadHash, PlanId, PolicyDecision, RawPath,
     SchemaVersion, Timestamp, VersionError,
 };
 
@@ -54,11 +55,21 @@ pub struct QuarantineManifest {
     /// The decision that proposed the move, with its policy version and
     /// evidence hash.
     pub decision: PolicyDecision,
+    /// Who chose the item: the policy proposed it, or the person chose it
+    /// from the items left for review (1.1, ADR-0051). Manifests written
+    /// before 1.1 hold only items the policy proposed.
+    #[serde(default = "proposed")]
+    pub chosen_by: Chooser,
     /// When the user confirmed the plan.
     pub confirmed_at: Timestamp,
     /// The Jev consultation the decision used, by request hash, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jev_request: Option<PayloadHash>,
+}
+
+/// Who chose the items of manifests written before 1.1.
+const fn proposed() -> Chooser {
+    Chooser::Policy
 }
 
 impl QuarantineManifest {
@@ -68,7 +79,7 @@ impl QuarantineManifest {
     ///
     /// Never in practice: the name and version are constants that are valid.
     pub fn current_schema() -> Result<SchemaVersion, VersionError> {
-        SchemaVersion::new(MANIFEST_SCHEMA, 1, 0)
+        SchemaVersion::new(MANIFEST_SCHEMA, 1, 1)
     }
 
     /// Whether this code can read the manifest: same schema name and major
@@ -138,6 +149,7 @@ mod tests {
                 },
                 JevEffect::None,
             )?,
+            chosen_by: Chooser::Person,
             confirmed_at: "2026-10-15T00:59:00Z".parse()?,
             jev_request: None,
         })
@@ -147,10 +159,23 @@ mod tests {
     fn manifests_round_trip_and_reject_unknown_fields() -> Result<(), Box<dyn std::error::Error>> {
         let manifest = sample()?;
         let json = serde_json::to_value(&manifest)?;
-        assert_eq!(json["schema_version"], "quarantine.manifest/1.0");
+        assert_eq!(json["schema_version"], "quarantine.manifest/1.1");
+        assert_eq!(json["chosen_by"], "person");
         let back: QuarantineManifest = serde_json::from_value(json.clone())?;
         assert_eq!(back, manifest);
         assert!(back.is_readable());
+        let mut older = json.clone();
+        older["schema_version"] = serde_json::json!("quarantine.manifest/1.0");
+        if let Some(fields) = older.as_object_mut() {
+            fields.remove("chosen_by");
+        }
+        let older: QuarantineManifest = serde_json::from_value(older)?;
+        assert_eq!(
+            older.chosen_by,
+            Chooser::Policy,
+            "1.0 held proposed items only"
+        );
+        assert!(older.is_readable());
         let mut extra = json;
         extra["note"] = serde_json::json!("x");
         assert!(serde_json::from_value::<QuarantineManifest>(extra).is_err());
