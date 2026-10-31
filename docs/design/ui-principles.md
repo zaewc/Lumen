@@ -7,6 +7,8 @@ The interface should feel precise, visual, calm and distinctive. Its identity co
 from understanding storage, relationships and evidence, before deciding what to do.
 The desktop and browser direction is specified in [storage-identity.md](storage-identity.md)
 (owner, 2026-10-28), replacing the earlier operating-system utility appearance.
+The 2026-10-31 visual-only refinement adds [app materials](app-materials.md),
+preserving existing layouts and workflows.
 
 ## Core principles
 
