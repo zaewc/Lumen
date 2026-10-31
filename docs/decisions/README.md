@@ -59,3 +59,4 @@ recommended option.
 | [0048](0048-in-app-updates.md) | In-app updates with Tauri's updater | Accepted |
 | [0049](0049-run-tool-commands-on-request.md) | Run a tool's own cleanup command when the user asks | Accepted |
 | [0050](0050-ask-about-ai-review-on-first-launch.md) | Ask about AI review once, on first launch | Accepted |
+| [0051](0051-quarantine-review-items-the-user-chooses.md) | Quarantine review items the user chooses, and show large unrecognised folders | Accepted |

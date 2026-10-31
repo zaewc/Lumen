@@ -419,6 +419,29 @@ returns to asking once, on first launch, before anything is sent.
 | 14.6 | Model comparison, including an on-device judge (Foundation Models, which spends no Jeb quota). On-device judge built for evaluation ([ADR-0044](../decisions/0044-evaluate-an-on-device-judge-with-foundation-models.md)): the `fm-judge` helper and `lumen-jev-eval record --judge apple-fm`. Recorded 2026-10-27 on the `dev` split of 2026.11.0 ([report](../../ai/reports/fm-decisions/1/apple-fm-2026.11.0-dev.md)): critical-FPR upper bound 22.19%, recall 20.0%, 42 canary flips, 0.87 s per answer. Not integrated into the app; revisit with a newer on-device model or a prompt that passes this split. The AI Hub's chat model `flash-next` is next, for evaluation only ([ADR-0045](../decisions/0045-evaluate-the-ai-hub-chat-model-as-a-judge.md)): `lumen-jev-eval record --judge hub-chat`, recorded 2026-10-27 on the `dev` split of 2026.11.0 ([report](../../ai/reports/chat-decisions/1/flash-next-2026.11.0-dev.md)): critical-FPR upper bound 20.59%, recall 82.3%, 18 canary flips; not integrated | none for the on-device judge; per compared cloud model, one full recording |
 | 14.7 | A larger dataset version with second-reviewed labels, sized for the per-class bound. Built 2026-10-27: [2026.11.0](../ai/datasets.md) (2,263 golden cases, 934 critical in `test-locked`, 480 canaries), with the app's own category and only the evidence the app sends today. Labels second-reviewed by the owner 2026-10-27. Next: recordings | none to build; one full recording per judge: 2,743 requests, about 1.5–2.3 hours at Jeb's pace |
 
+## Phase 15: Recover what the reference cleaners recover
+
+The owner asked (2026-10-31) to raise recovered space toward CleanMyMac and PureMac,
+using AI as far as the rules allow. [Research 26](../research/26-reference-cleaners-and-recovery-gap.md)
+measured the gap: about 223 of 307 GB under the owner's home is never assessed, and
+49.6 GB is kept only because a running app has it open. AI stays evidence only
+(ADR-0020); knowledge-base entries are researched with AI help and checked against
+their sources before merge.
+
+| # | Scope | Status |
+| --- | --- | --- |
+| 15.1 | Research 26 and [ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md) (this section) | this PR |
+| 15.2 | `feat(devkb)`: Android Gradle module intermediates and `.cxx` beside a Gradle build file | open |
+| 15.3 | `feat(devkb)`: iOS, React Native, Expo and SwiftPM build caches | open |
+| 15.4 | `feat(devkb)`: Chromium caches of browsers (Chrome, Arc, Edge, Brave) and large Electron apps | open |
+| 15.5 | `feat(devkb)`: Electron update staging and tool caches (Yarn, dotslash, pnpm metadata, Poetry, Android and rustup downloads) | open |
+| 15.6 | `feat(devkb)`: `node_modules` beside a lockfile | open |
+| 15.7 | `feat`: say which running apps hold proposable caches ("quit Spotify to free 1.1 GB"), without changing a verdict | open |
+| 15.8 | `feat(app)`: plans record who chose each item; chosen review items are confirmed as review items and never removed automatically (ADR-0051) | open |
+| 15.9 | `feat(application)`: large unrecognised folders as review candidates (ADR-0051) | open |
+| 15.10 | `feat(web)`: choose review items to quarantine, with AI notes beside them (ADR-0051) | open |
+| 15.11 | Later: user-domain logs and Windows `%TEMP%` with age rules; orphaned app caches | open |
+
 ## Later phases (outline)
 
 - **Phase 11, UI:** JavaScript bootstrap (pnpm, Biome, TS 7, Turborepo), `apps/web`
@@ -427,3 +450,4 @@ returns to asking once, on first launch, before anything is sent.
   pipeline, signing.
 - **Phase 13, First use:** what trying the product showed; see above.
 - **Phase 14, AI you can leave on:** an accurate, calibrated judge; see above.
+- **Phase 15, Recovery:** recover what the reference cleaners recover, safely; see above.
