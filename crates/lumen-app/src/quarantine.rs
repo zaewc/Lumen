@@ -16,8 +16,8 @@ use lumen_application::ports::{Clock, IdGenerator, JournalError, NoopJudge};
 use lumen_application::quarantine::{Outcome, quarantine_item};
 use lumen_application::reconcile::reconcile;
 use lumen_domain::{
-    ByteCount, Confirmation, ConfirmationSurface, DeviceId, ItemLocation, OperationId, PlanEvent,
-    PlanId, QuarantineFailure, RawPath, Timestamp,
+    ByteCount, Chooser, Confirmation, ConfirmationSurface, DeviceId, ItemLocation, OperationId,
+    PlanEvent, PlanId, QuarantineFailure, RawPath, Timestamp,
 };
 use lumen_store_sqlite::{
     IndexStore, LedgerJournal, LedgerStore, StoreError, StoredPlan, open_index, open_ledger,
@@ -91,6 +91,8 @@ pub struct ItemReport {
     pub path: RawPath,
     /// What it would free, as planned.
     pub reclaim: ByteCount,
+    /// Who chose it (ADR-0051).
+    pub chosen_by: Chooser,
     /// What happened.
     pub result: ItemResult,
 }
@@ -158,15 +160,23 @@ fn prepare_store(base: &Path, names: &[Vec<u8>]) -> Result<Vec<String>, Quaranti
     Ok(warnings)
 }
 
-/// Records what each retained item will free, for the quarantine's totals.
-/// The items are already safe in the store, so a failure here only warns.
-fn record_sizes(ledger: &mut LedgerStore, items: &[ItemReport], warnings: &mut Vec<String>) {
+/// Records what each retained item will free, for the quarantine's totals,
+/// and who chose it, for retention (ADR-0051). The items are already safe in
+/// the store, so a failure here only warns: an item without a recorded
+/// chooser is never removed automatically.
+fn record_items(ledger: &mut LedgerStore, items: &[ItemReport], warnings: &mut Vec<String>) {
     for item in items {
-        if let ItemResult::Quarantined(operation) = item.result
-            && let Err(error) = ledger.record_reclaim(operation, item.reclaim)
-        {
+        let ItemResult::Quarantined(operation) = item.result else {
+            continue;
+        };
+        if let Err(error) = ledger.record_reclaim(operation, item.reclaim) {
             warnings.push(format!(
                 "the size of a quarantined item was not recorded: {error}"
+            ));
+        }
+        if let Err(error) = ledger.record_chooser(operation, item.chosen_by) {
+            warnings.push(format!(
+                "who chose a quarantined item was not recorded, so it waits for you to remove it: {error}"
             ));
         }
     }
@@ -278,12 +288,13 @@ pub fn quarantine(
             items.push(ItemReport {
                 path: item.path.clone(),
                 reclaim: item.reclaim.reclaimable_now,
+                chosen_by: item.chosen_by,
                 result,
             });
         }
         Ok(items)
     })??;
-    record_sizes(&mut ledger, &items, &mut warnings);
+    record_items(&mut ledger, &items, &mut warnings);
     let all_succeeded = items
         .iter()
         .all(|i| matches!(i.result, ItemResult::Quarantined(_)));

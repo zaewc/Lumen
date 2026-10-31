@@ -6,10 +6,12 @@
 //! held. Finalizing is the only permanent removal: it acts on one named
 //! operation, only a retained one, only after finding it in the store, and
 //! only if no visible process uses it there (ADR-0030). [`finalize_expired`]
-//! does the same for every retained item quarantined at least
-//! [`RETENTION_DAYS`] ago; never for an item held after a failure, which
-//! waits for the user.
+//! does the same for every retained item the policy proposed that was
+//! quarantined at least [`RETENTION_DAYS`] ago; never for an item held after
+//! a failure, an item the person chose (ADR-0051), or an item whose chooser
+//! was not recorded: those wait for the user.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use lumen_application::finalize::{FinalizeOutcome, FinalizeReason, finalize_item};
@@ -19,8 +21,8 @@ use lumen_application::ports::{
 };
 use lumen_application::restore::{RestoreOutcome, restore_item};
 use lumen_domain::{
-    ByteCount, FileIdentity, ItemLocation, OperationId, QuarantineEvent, QuarantineState, RawPath,
-    Timestamp,
+    ByteCount, Chooser, FileIdentity, ItemLocation, OperationId, QuarantineEvent, QuarantineState,
+    RawPath, Timestamp,
 };
 use lumen_fs_exec::{Executor, original_path};
 use lumen_store_sqlite::{JournalEntry, LedgerJournal, LedgerStore, StoreError, open_ledger};
@@ -29,8 +31,9 @@ use crate::assess::{AssessError, with_probes};
 use crate::space_change::{SpaceChange, SpaceWatch};
 use crate::store::{LocationError, PrivilegeError, refuse_privileged, stores};
 
-/// How long a retained item is kept before [`finalize_expired`] removes it
-/// (ADR-0015's default).
+/// How long a retained item the policy proposed is kept before
+/// [`finalize_expired`] removes it (ADR-0015's default). Items the person
+/// chose are never removed automatically (ADR-0051).
 pub const RETENTION_DAYS: i64 = 30;
 
 /// Why a held-item operation did not run.
@@ -71,6 +74,9 @@ pub struct HeldItem {
     /// What removing it for good would free, as the confirmed plan estimated;
     /// `None` for items quarantined before sizes were recorded.
     pub reclaim: Option<ByteCount>,
+    /// Who chose it; `None` if that was not recorded. Only an item the
+    /// policy chose is removed when its retention ends.
+    pub chosen_by: Option<Chooser>,
     /// The executor's record of it.
     item: PreparedItem,
 }
@@ -99,6 +105,7 @@ fn held(entries: &[JournalEntry], state: QuarantineState) -> Option<HeldItem> {
         original: original_path(&item),
         since: intent.at,
         reclaim: None,
+        chosen_by: None,
         item,
     })
 }
@@ -133,6 +140,7 @@ pub const fn days_between(since: Timestamp, now: Timestamp) -> i64 {
 pub fn list(db: &Path) -> Result<Vec<HeldItem>, HeldError> {
     let ledger = ledger(db)?;
     let reclaims = ledger.reclaims()?;
+    let choosers = ledger.choosers()?;
     let mut held: Vec<HeldItem> = ledger
         .operations()?
         .into_iter()
@@ -140,6 +148,7 @@ pub fn list(db: &Path) -> Result<Vec<HeldItem>, HeldError> {
         .filter_map(|(state, entries)| held(&entries, state))
         .map(|mut item| {
             item.reclaim = reclaims.get(&item.operation).copied();
+            item.chosen_by = choosers.get(&item.operation).copied();
             item
         })
         .collect();
@@ -283,21 +292,28 @@ const fn finalize_code(outcome: FinalizeOutcome) -> &'static str {
     }
 }
 
-/// The retained operations quarantined at least [`RETENTION_DAYS`] ago,
-/// oldest first. Items held after a failure are never expired.
-fn expired(operations: Vec<(QuarantineState, Vec<JournalEntry>)>, now: Timestamp) -> Vec<HeldItem> {
+/// The retained operations the policy chose that were quarantined at least
+/// [`RETENTION_DAYS`] ago, oldest first. Items held after a failure, items
+/// the person chose and items without a recorded chooser are never expired.
+fn expired(
+    operations: Vec<(QuarantineState, Vec<JournalEntry>)>,
+    choosers: &BTreeMap<OperationId, Chooser>,
+    now: Timestamp,
+) -> Vec<HeldItem> {
     let mut held: Vec<HeldItem> = operations
         .into_iter()
         .filter(|(state, _)| *state == QuarantineState::Retained)
         .filter_map(|(state, entries)| held(&entries, state))
+        .filter(|h| choosers.get(&h.operation) == Some(&Chooser::Policy))
         .filter(|h| days_between(h.since, now) >= RETENTION_DAYS)
         .collect();
     held.sort_by_key(|h| (h.since, h.operation));
     held
 }
 
-/// Removes for good every retained item whose retention has elapsed, each
-/// probed for use first (ADR-0015, ADR-0030). Empty if none is due.
+/// Removes for good every retained item the policy proposed whose retention
+/// has elapsed, each probed for use first (ADR-0015, ADR-0030). Items the
+/// person chose stay until the person acts (ADR-0051). Empty if none is due.
 ///
 /// # Errors
 ///
@@ -309,7 +325,7 @@ pub fn finalize_expired(
 ) -> Result<Vec<Outcome<FinalizeOutcome>>, HeldError> {
     refuse_privileged()?;
     let mut store = ledger(db)?;
-    let due = expired(store.operations()?, clock.now());
+    let due = expired(store.operations()?, &store.choosers()?, clock.now());
     if due.is_empty() {
         return Ok(Vec::new());
     }
@@ -420,6 +436,7 @@ mod tests {
             at: ItemLocation::Quarantine,
             reason: lumen_domain::QuarantineFailure::IdentityMismatch,
         };
+        let choosers = (1..=6).map(|n| (op(n), Chooser::Policy)).collect();
         let due: Vec<OperationId> = expired(
             vec![
                 operation(1, 100, QuarantineState::Retained),
@@ -429,11 +446,30 @@ mod tests {
                 operation(5, 60, QuarantineState::Restored),
                 operation(6, 60, QuarantineState::Retained),
             ],
+            &choosers,
             day(100),
         )
         .iter()
         .map(|h| h.operation)
         .collect();
         assert_eq!(due, [op(6), op(2)], "30 days or more, oldest first");
+    }
+
+    #[test]
+    fn items_the_person_chose_or_of_unknown_chooser_never_expire() {
+        let choosers = BTreeMap::from([(op(1), Chooser::Person), (op(2), Chooser::Policy)]);
+        let due: Vec<OperationId> = expired(
+            vec![
+                operation(1, 0, QuarantineState::Retained),
+                operation(2, 0, QuarantineState::Retained),
+                operation(3, 0, QuarantineState::Retained),
+            ],
+            &choosers,
+            day(1_000),
+        )
+        .iter()
+        .map(|h| h.operation)
+        .collect();
+        assert_eq!(due, [op(2)], "only what the policy proposed expires");
     }
 }

@@ -283,6 +283,7 @@ const initiallyHeld: readonly HeldItemView[] = [
     original: `${HOME}/Library/Developer/Xcode/Archives/2025-11-02`,
     since: "2026-10-01T09:00:00Z",
     reclaim_bytes: "1600000000",
+    chosen_by: "policy",
   },
   {
     operation: "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a4",
@@ -290,6 +291,7 @@ const initiallyHeld: readonly HeldItemView[] = [
     original: `${HOME}/Library/Caches/com.figma.Desktop`,
     since: "2026-10-14T18:30:00Z",
     reclaim_bytes: "540000000",
+    chosen_by: "policy",
   },
 ];
 
@@ -393,6 +395,7 @@ export function memoryTransport({
             original: item.path,
             since: new Date().toISOString(),
             reclaim_bytes: item.reclaimable_bytes,
+            chosen_by: "policy",
           },
         ];
         return {
