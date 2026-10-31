@@ -793,6 +793,52 @@ mod tests {
         ),
         ("Library/Application Support/obsidian/IndexedDB", None),
         ("Library/Application Support/obsidian/obsidian.json", None),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Cache",
+            Some("figma-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Code Cache",
+            Some("figma-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/GPUCache",
+            Some("figma-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v34/DawnWebGPUCache",
+            Some("figma-chromium-caches"),
+        ),
+        ("Library/Application Support/Figma", None),
+        ("Library/Application Support/Figma/Desktop", None),
+        ("Library/Application Support/Figma/DesktopProfile", None),
+        ("Library/Application Support/Figma/DesktopProfile/v43", None),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Cookies",
+            None,
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Local Storage",
+            None,
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/IndexedDB",
+            None,
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Service Worker",
+            None,
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Crashpad",
+            None,
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Cache/Cache_Data",
+            None,
+        ),
+        ("Library/Application Support/Figma/Cache", None),
+        ("Library/Application Support/Figma/font_cache.json", None),
         ("Library/Application Support/SomeApp/Cache", None),
         ("Library/Application Support/Spotify/PersistentCache", None),
         ("Library/Application Support/Claude/vm_bundles", None),
@@ -906,6 +952,57 @@ mod tests {
             ids(&linux, &[dir("/Users/ana/.config/code/Cache", 1)]).len(),
             0,
             "Linux names are exact"
+        );
+    }
+
+    /// Figma documents `%APPDATA%\Figma` with its `DesktopProfile` folder:
+    /// Chromium's caches in each versioned profile match there too, and the
+    /// rest of the profile never does.
+    #[test]
+    fn figma_caches_match_in_its_documented_windows_folder() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mut win = env(Platform::Windows);
+        win.roaming_app_data = Some(windows(r"C:\Users\ana\AppData\Roaming"));
+        let roaming = |tail: &str| {
+            object(
+                windows(&format!(r"C:\Users\ana\AppData\Roaming\{tail}")),
+                EntryKind::Directory,
+                1,
+            )
+        };
+        assert_eq!(
+            ids(
+                &win,
+                &[
+                    roaming(r"Figma\DesktopProfile\v43\Cache"),
+                    roaming(r"Figma\DesktopProfile\v43\DawnGraphiteCache"),
+                ]
+            ),
+            ["figma-chromium-caches"; 2]
+        );
+        assert_eq!(
+            ids(
+                &win,
+                &[
+                    roaming("Figma"),
+                    roaming(r"Figma\Desktop"),
+                    roaming(r"Figma\DesktopProfile\v43"),
+                    roaming(r"Figma\DesktopProfile\v43\Cookies"),
+                    roaming(r"Figma\DesktopProfile\v43\IndexedDB"),
+                ]
+            )
+            .len(),
+            0
         );
     }
 

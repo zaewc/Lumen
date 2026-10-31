@@ -56,6 +56,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/docker-desktop-disk-image.json"),
     ),
     (
+        "figma-chromium-caches.json",
+        include_str!("../entries/figma-chromium-caches.json"),
+    ),
+    (
         "go-build-cache.json",
         include_str!("../entries/go-build-cache.json"),
     ),
