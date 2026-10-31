@@ -46,6 +46,11 @@ export const zAssessProgressView = z.object({
 });
 
 /**
+ * Who put an item into a plan (ADR-0051).
+ */
+export const zChooserView = z.enum(["policy", "person"]);
+
+/**
  * How sure AI review was.
  */
 export const zConfidenceView = z.enum(["low", "medium", "high"]);
@@ -80,6 +85,13 @@ export const zFailureView = z.enum([
 ]);
 
 /**
+ * The apps to close so that a kept item could be proposed on the next scan.
+ */
+export const zFreeWhenClosedView = z.object({
+  processes: z.array(z.string()),
+});
+
+/**
  * The kind of group an item is presented in.
  */
 export const zGroupKindView = z.enum(["developer", "app_cache", "app_data", "other"]);
@@ -101,6 +113,7 @@ export const zHeldStateView = z.enum(["retained", "held_after_failure"]);
  * One item in quarantine.
  */
 export const zHeldItemView = z.object({
+  chosen_by: zChooserView.nullable(),
   operation: z.string(),
   original: z.string().nullable(),
   reclaim_bytes: z.string().nullable(),
@@ -380,6 +393,7 @@ export const zVerdictView = z.enum(["keep", "review", "quarantine"]);
  */
 export const zCandidateView = z.object({
   ai_note: zAiNoteView.nullable(),
+  free_when_closed: zFreeWhenClosedView.nullable(),
   group: zGroupView,
   path: z.string(),
   reasons: z.array(zReasonView),

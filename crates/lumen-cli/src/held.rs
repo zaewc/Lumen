@@ -9,7 +9,7 @@ use lumen_app::held::{self, Outcome, RETENTION_DAYS, days_between};
 use lumen_application::finalize::FinalizeOutcome;
 use lumen_application::ports::{Clock, NotRestored};
 use lumen_application::restore::RestoreOutcome;
-use lumen_domain::{ByteCount, OperationId, QuarantineState};
+use lumen_domain::{ByteCount, Chooser, OperationId, QuarantineState};
 
 use crate::report::human;
 
@@ -25,10 +25,12 @@ pub(crate) fn list(db: &Path, clock: &dyn Clock) -> Result<String, Box<dyn Error
         .iter()
         .map(|h| {
             let days = days_between(h.since, now);
-            let state = if h.state == QuarantineState::Retained {
-                "retained"
-            } else {
-                "held after a failure"
+            let state = match (h.state, h.chosen_by) {
+                (QuarantineState::Retained, Some(Chooser::Policy)) => "retained",
+                // Never removed automatically (ADR-0051).
+                (QuarantineState::Retained, Some(Chooser::Person)) => "chosen by you",
+                (QuarantineState::Retained, None) => "kept until you act",
+                _ => "held after a failure",
             };
             let size = h.reclaim.map_or_else(|| "?".to_owned(), human);
             format!(
@@ -48,7 +50,7 @@ pub(crate) fn list(db: &Path, clock: &dyn Clock) -> Result<String, Box<dyn Error
         format!("at least {}", human(known))
     };
     lines.push(format!(
-        "{} item(s) in quarantine, {total}. Restore with `lumen restore --db {db} --op <ID>`; remove for good with `lumen finalize --db {db} --op <ID>`, or all retained for {RETENTION_DAYS} days or more with `lumen finalize --db {db} --expired`.",
+        "{} item(s) in quarantine, {total}. Restore with `lumen restore --db {db} --op <ID>`; remove for good with `lumen finalize --db {db} --op <ID>`, or all retained for {RETENTION_DAYS} days or more with `lumen finalize --db {db} --expired`. Items chosen by you, or kept until you act, are never removed automatically.",
         held.len(),
         db = db.display(),
     ));

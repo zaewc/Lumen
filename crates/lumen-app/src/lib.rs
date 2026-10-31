@@ -23,7 +23,7 @@ pub mod system;
 pub mod tools;
 
 pub use assess::{AssessError, Assessment, assess, block_on, prepare, with_probes};
-pub use plan::{PlanError, Planned, plan};
+pub use plan::{NotChoosable, PlanError, Planned, plan};
 pub use scan::{RootSummary, ScanError, ScanEvent, ScanSummary, raw_path, scan};
 #[cfg(any(unix, windows))]
 pub use store::{
