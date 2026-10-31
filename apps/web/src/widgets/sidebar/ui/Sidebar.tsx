@@ -44,38 +44,53 @@ function usePlaceShortcut(place: Place): void {
 }
 
 /** One place in the app: an icon, its name, and an optional count. */
-function NavItem({
-  to,
-  icon,
-  label,
-  badge,
-}: {
+interface PlaceItem {
   readonly to: Place;
   readonly icon: ReactNode;
   readonly label: string;
   /** A count and what it means, for screen readers. */
   readonly badge?: { readonly text: string; readonly label: string };
-}) {
+}
+
+/**
+ * A place's link, or, as `copy`, its decorative twin for the navigation lens:
+ * the same layout and type drawn as selected, without link, name or count role.
+ */
+function NavItem({
+  to,
+  icon,
+  label,
+  badge,
+  copy = false,
+}: PlaceItem & { readonly copy?: boolean }) {
+  const content = (
+    <>
+      {icon}
+      <span className="truncate">{label}</span>
+      {badge !== undefined && (
+        <span
+          {...(copy ? {} : { role: "img", "aria-label": badge.label })}
+          className="hidden text-[11px] font-normal tabular-nums text-ink-3 min-[960px]:inline"
+        >
+          {badge.text}
+        </span>
+      )}
+    </>
+  );
   return (
     <li className="min-w-0 flex-1 min-[960px]:flex-none">
-      <Link
-        to={to}
-        activeOptions={{ exact: to === "/" }}
-        {...shortcutProps(label, placeKey(to))}
-        className={ITEM}
-      >
-        {icon}
-        <span className="truncate">{label}</span>
-        {badge !== undefined && (
-          <span
-            role="img"
-            aria-label={badge.label}
-            className="hidden text-[11px] font-normal tabular-nums text-ink-3 min-[960px]:inline"
-          >
-            {badge.text}
-          </span>
-        )}
-      </Link>
+      {copy ? (
+        <span className={ITEM}>{content}</span>
+      ) : (
+        <Link
+          to={to}
+          activeOptions={{ exact: to === "/" }}
+          {...shortcutProps(label, placeKey(to))}
+          className={ITEM}
+        >
+          {content}
+        </Link>
+      )}
     </li>
   );
 }
@@ -157,6 +172,19 @@ export function Sidebar() {
   usePlaceShortcut("/clean");
   usePlaceShortcut("/quarantine");
   usePlaceShortcut("/settings");
+  const places: readonly PlaceItem[] = [
+    { to: "/", icon: <DriveIcon />, label: m.nav.overview },
+    { to: "/clean", icon: <SearchIcon />, label: m.nav.cleanUp },
+    {
+      to: "/quarantine",
+      icon: <ArchiveIcon />,
+      label: m.nav.quarantine,
+      ...(count > 0
+        ? { badge: { text: countFormat(locale)(count), label: m.nav.held(count) } }
+        : {}),
+    },
+    { to: "/settings", icon: <GearIcon />, label: m.nav.settings },
+  ];
   return (
     <>
       <header className="flex shrink-0 flex-wrap items-center border-b border-line bg-sidebar px-3 min-[960px]:gap-4 min-[960px]:px-6">
@@ -169,19 +197,17 @@ export function Sidebar() {
           aria-label={m.nav.label}
           className="order-last w-full min-[960px]:order-none min-[960px]:w-auto"
         >
-          <NavigationGlass />
+          <NavigationGlass>
+            <ul className="flex min-w-0">
+              {places.map((place) => (
+                <NavItem key={place.to} {...place} copy />
+              ))}
+            </ul>
+          </NavigationGlass>
           <ul className="flex min-w-0">
-            <NavItem to="/" icon={<DriveIcon />} label={m.nav.overview} />
-            <NavItem to="/clean" icon={<SearchIcon />} label={m.nav.cleanUp} />
-            <NavItem
-              to="/quarantine"
-              icon={<ArchiveIcon />}
-              label={m.nav.quarantine}
-              {...(count > 0
-                ? { badge: { text: countFormat(locale)(count), label: m.nav.held(count) } }
-                : {})}
-            />
-            <NavItem to="/settings" icon={<GearIcon />} label={m.nav.settings} />
+            {places.map((place) => (
+              <NavItem key={place.to} {...place} />
+            ))}
           </ul>
         </nav>
         <div data-lg-role="rail" className="ml-auto flex min-w-0 flex-wrap justify-end gap-x-2">
