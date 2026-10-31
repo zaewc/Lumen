@@ -169,7 +169,7 @@ mod tests {
     use std::num::NonZeroU32;
 
     use lumen_domain::{
-        ByteCount, Confirmation, ConfirmationSurface, EvidenceHash, FileId, FileIdentity,
+        ByteCount, Chooser, Confirmation, ConfirmationSurface, EvidenceHash, FileId, FileIdentity,
         FiredRule, JevEffect, PlanHash, PlannedItem, PolicyStage, PolicyVersion, RawPath,
         ReclaimEstimate, Risk, RiskLevel, RuleId, SizeFacts, SizeFlags, Subject, Timestamp,
         Verdict, VolumeId,
@@ -222,6 +222,7 @@ mod tests {
                 policy_version: PolicyVersion::new(0, 10, 0),
                 evidence_hash: EvidenceHash::from_bytes([1; 32]),
                 reclaim: ReclaimEstimate::for_selection([&size]),
+                chosen_by: Chooser::Person,
             }],
         ))
     }
