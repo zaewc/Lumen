@@ -66,6 +66,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "developer", source: "Xcode" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Developer/CoreSimulator/Devices`,
@@ -86,6 +87,7 @@ const candidates: readonly CandidateView[] = [
     },
     group: { kind: "developer", source: "Xcode" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/pnpm/store`,
@@ -106,6 +108,7 @@ const candidates: readonly CandidateView[] = [
     },
     group: { kind: "developer", source: "pnpm" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/.gradle/caches`,
@@ -115,6 +118,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "developer", source: "Gradle" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/.npm/_cacache`,
@@ -124,6 +128,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "developer", source: "npm" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Caches/go-build`,
@@ -138,6 +143,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "developer", source: "Go" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Caches/com.spotify.client`,
@@ -152,6 +158,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "app_cache", source: "com.spotify.client" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Caches/Google/Chrome`,
@@ -167,6 +174,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "app_cache", source: "com.google.Chrome" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Application Support/Slack`,
@@ -181,6 +189,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "app_data", source: "com.tinyspeck.slackmacgap" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Application Support/OldEditor`,
@@ -195,6 +204,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "app_data", source: "com.example.OldEditor" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/HTTPStorages/com.tinyspeck.slackmacgap`,
@@ -204,6 +214,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "other", source: null },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Downloads/Installers`,
@@ -213,6 +224,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "other", source: null },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Mobile Documents/com~apple~CloudDocs`,
@@ -228,6 +240,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "other", source: null },
     ai_note: null,
+    free_when_closed: null,
   },
 ];
 

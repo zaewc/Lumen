@@ -15,6 +15,7 @@ export type {
   FailureView,
   FinalizeOutcomeView,
   FinalizeView,
+  FreeWhenClosedView,
   GroupKindView,
   GroupView,
   HeldItemView,

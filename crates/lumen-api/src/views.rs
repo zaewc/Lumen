@@ -226,6 +226,19 @@ pub struct CandidateView {
     /// unless the item is under review and AI review described it.
     #[schema(required = true)]
     pub ai_note: Option<AiNoteView>,
+    /// For an item kept only because running apps use it: the policy would
+    /// propose it once they are closed and it is scanned again. Display only:
+    /// the verdict stays `keep` and nothing plans from it. `null` otherwise.
+    #[schema(required = true)]
+    pub free_when_closed: Option<FreeWhenClosedView>,
+}
+
+/// The apps to close so that a kept item could be proposed on the next scan.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct FreeWhenClosedView {
+    /// What the probe reported using it, as escaped display names (such as
+    /// `Spotify`), sorted; empty when the platform did not name them.
+    pub processes: Vec<String>,
 }
 
 /// What kind of item AI review says a review item most likely is.
@@ -485,6 +498,13 @@ impl From<&Assessed> for CandidateView {
                 .note
                 .filter(|note| note.shown() && assessed.decision.verdict() == Verdict::Review)
                 .map(AiNoteView::from),
+            free_when_closed: assessed
+                .free_when_closed
+                .as_ref()
+                .filter(|_| assessed.decision.verdict() == Verdict::Keep)
+                .map(|free| FreeWhenClosedView {
+                    processes: free.processes.clone(),
+                }),
         }
     }
 }

@@ -20,6 +20,7 @@ function candidate(
     tool_command: null,
     group,
     ai_note: null,
+    free_when_closed: null,
   };
 }
 

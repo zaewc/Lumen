@@ -16,6 +16,11 @@
 //! assembled, and the policy decides, consulting Jev only when one is
 //! configured and a request can be built (roadmap 10.8b).
 //!
+//! **Closing apps.** An item kept only because a running process uses it is
+//! also evaluated as if that process were gone ([`FreeWhenClosed`]), so people
+//! can be told which apps to quit to free its space. That counterfactual is
+//! display only: it is never the decision, never planned, never sent to Jev.
+//!
 //! **Assembly.** The candidate's bundle is the relationships within
 //! [`BUNDLE_DEPTH`] hops of it, plus every piece of evidence about it or about
 //! a subject those relationships reach (such as the owning application's
@@ -27,8 +32,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use lumen_domain::{
     AppDataKind, CleanupMechanism, EntryKind, Evidence, EvidenceId, Fact, FilesystemEntry,
-    ItemNote, JevRequest, JevTrace, PolicyDecision, RawPath, SourceName, Subject, Timestamp,
-    VolumeId,
+    ItemNote, JevRequest, JevTrace, PathFlavor, PolicyDecision, Process, RawPath, SourceName,
+    Subject, Timestamp, Verdict, VolumeId,
 };
 use lumen_graph::{EvidenceBundle, Graph};
 use lumen_policy::{Context, KnowledgeClass, PolicyError, PolicyInput, evaluate, explain};
@@ -37,7 +42,7 @@ use crate::collect::{in_use_evidence, ownership_evidence};
 use crate::consult::{Consulted, decide};
 use crate::gather::Gathered;
 use crate::observe::{below, observed};
-use crate::ports::{Clock, DirOutcome, InUseProbe, JudgeModel, OwnershipProbe};
+use crate::ports::{Clock, DirOutcome, InUse, InUseProbe, JudgeModel, OwnershipProbe};
 
 /// How many relationship hops around a candidate its bundle covers.
 pub const BUNDLE_DEPTH: usize = 2;
@@ -228,12 +233,21 @@ pub fn fresh_evidence(
     probes: &Probes<'_>,
     observed_at: Timestamp,
 ) -> Vec<Evidence> {
+    probe(candidate, probes, observed_at).1
+}
+
+/// [`fresh_evidence`], with the in-use probe's own answer.
+fn probe(
+    candidate: &FilesystemEntry,
+    probes: &Probes<'_>,
+    observed_at: Timestamp,
+) -> (InUse, Vec<Evidence>) {
     let identity = candidate.identity();
     let in_use = probes.in_use.probe(&candidate.path, identity);
     let owned = probes
         .ownership
         .owned_by_current_user(&candidate.path, identity);
-    in_use_evidence(identity, &in_use, probes.in_use_source, observed_at)
+    let fresh = in_use_evidence(identity, &in_use, probes.in_use_source, observed_at)
         .into_iter()
         .chain(ownership_evidence(
             identity,
@@ -241,7 +255,95 @@ pub fn fresh_evidence(
             probes.ownership_source,
             observed_at,
         ))
-        .collect()
+        .collect();
+    (in_use, fresh)
+}
+
+/// The rule that keeps an item a running process uses.
+const IN_USE_RULE: &str = "protect.in-use";
+
+/// An item kept only because running processes use it, which the policy
+/// would propose for quarantine once they are closed. Display only: the
+/// item's verdict stays `Keep`, and nothing plans, confirms or executes from
+/// this.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FreeWhenClosed {
+    /// What the probe reported using it, as display-safe names
+    /// ([`process_name`]), sorted and without duplicates. Empty when the
+    /// platform did not name them.
+    pub processes: Vec<String>,
+}
+
+/// A display-safe name for `process`: the outermost `.app` bundle on its
+/// executable path without the extension (`Spotify` for a helper inside
+/// `Spotify.app`), otherwise the executable's file name. Escaped like every
+/// displayed path; `None` when the executable is unknown.
+pub fn process_name(process: &Process) -> Option<String> {
+    let path = process.executable.as_ref()?;
+    // Escaping never produces a separator, so splitting the display string
+    // splits the path.
+    let shown = path.display();
+    let separators: &[char] = match path.flavor() {
+        PathFlavor::Unix => &['/'],
+        PathFlavor::Windows => &['/', '\\'],
+    };
+    let mut parts = shown.split(separators).filter(|part| !part.is_empty());
+    let bundle = parts
+        .clone()
+        .find_map(|part| part.strip_suffix(".app"))
+        .filter(|name| !name.is_empty());
+    bundle.or_else(|| parts.next_back()).map(str::to_owned)
+}
+
+/// Whether `candidate`, kept by `decision` because the processes in `in_use`
+/// use it, would be proposed for quarantine without them: its input is
+/// evaluated again, by the policy alone, with the fresh in-use fact replaced
+/// by each answer a later probe could give when nothing visible uses it
+/// (`No`, or the `Partial` an unprivileged probe gives; ADR-0030). Only
+/// when both would be proposed. Nothing else is tried: an item also kept for
+/// another reason stays kept here too.
+fn free_when_closed(
+    candidate: &FilesystemEntry,
+    in_use: &InUse,
+    fresh: &[Evidence],
+    decision: &PolicyDecision,
+    sources: &Sources<'_>,
+    probes: &Probes<'_>,
+    observed_at: Timestamp,
+) -> Option<FreeWhenClosed> {
+    let InUse::Yes(processes) = in_use else {
+        return None;
+    };
+    let kept_in_use = decision.verdict() == Verdict::Keep
+        && decision
+            .fired_rules()
+            .iter()
+            .any(|fired| fired.rule.as_str() == IN_USE_RULE);
+    if !kept_in_use {
+        return None;
+    }
+    let proposed = [InUse::No, InUse::Partial { unseen: None }]
+        .iter()
+        .all(|answer| {
+            let unused = in_use_evidence(
+                candidate.identity(),
+                answer,
+                probes.in_use_source,
+                observed_at,
+            );
+            let counterfactual: Vec<Evidence> = fresh
+                .iter()
+                .filter(|record| record.fact != Fact::InUse(true))
+                .cloned()
+                .chain(unused)
+                .collect();
+            evaluate(&assemble(candidate, &counterfactual, sources))
+                .is_ok_and(|would| would.verdict() == Verdict::Quarantine)
+        });
+    let names: BTreeSet<String> = processes.iter().filter_map(process_name).collect();
+    proposed.then(|| FreeWhenClosed {
+        processes: names.into_iter().collect(),
+    })
 }
 
 /// One assessed candidate.
@@ -263,6 +365,9 @@ pub struct Assessed {
     pub note: Option<ItemNote>,
     /// The description request, if one was made ([`crate::describe`]).
     pub note_trace: Option<JevTrace>,
+    /// Whether closing the processes that use it would let the policy propose
+    /// it ([`FreeWhenClosed`]). Display only: nothing decides from it.
+    pub free_when_closed: Option<FreeWhenClosed>,
 }
 
 /// Probes `candidate`, assembles its input and decides it. Jev is consulted
@@ -280,7 +385,8 @@ pub async fn decide_candidate(
     clock: &dyn Clock,
     request: &dyn Fn(&PolicyInput) -> Option<JevRequest>,
 ) -> Result<Assessed, PolicyError> {
-    let fresh = fresh_evidence(candidate, probes, clock.now());
+    let observed_at = clock.now();
+    let (in_use, fresh) = probe(candidate, probes, observed_at);
     let input = assemble(candidate, &fresh, sources);
     let consulted = match (judge.descriptor(), request(&input)) {
         (Some(_), Some(jev_request)) => decide(judge, clock, input.clone(), &jev_request).await?,
@@ -289,7 +395,17 @@ pub async fn decide_candidate(
             trace: None,
         },
     };
+    let free_when_closed = free_when_closed(
+        candidate,
+        &in_use,
+        &fresh,
+        &consulted.decision,
+        sources,
+        probes,
+        observed_at,
+    );
     Ok(Assessed {
+        free_when_closed,
         candidate: candidate.clone(),
         reasons: explain(&consulted.decision),
         decision: consulted.decision,
@@ -307,7 +423,7 @@ mod tests {
     use lumen_domain::{
         AccessState, AppDataKind, AppId, AppIdScheme, Basis, ByteCount, EntryTimes, FileId,
         FileIdentity, Platform, Protection, Provenance, RelationKind, Relationship, SizeFacts,
-        SizeFlags, Timestamp, UntrustedText, VolumeId,
+        SizeFlags, UntrustedText,
     };
 
     use super::*;
@@ -427,10 +543,10 @@ mod tests {
         (scanned, gathered, graph)
     }
 
-    struct Probe(crate::ports::InUse);
+    struct Probe(InUse);
 
     impl InUseProbe for Probe {
-        fn probe(&self, _path: &RawPath, _expected: &FileIdentity) -> crate::ports::InUse {
+        fn probe(&self, _path: &RawPath, _expected: &FileIdentity) -> InUse {
             self.0.clone()
         }
     }
@@ -511,21 +627,9 @@ mod tests {
         };
         let source = SourceName::new("test").unwrap_or_else(|_| unreachable!());
         for (answer, owned, in_use_fact) in [
-            (
-                crate::ports::InUse::No,
-                Some(true),
-                Some(Fact::InUse(false)),
-            ),
-            (
-                crate::ports::InUse::Yes(Vec::new()),
-                None,
-                Some(Fact::InUse(true)),
-            ),
-            (
-                crate::ports::InUse::Unknown { reason: "x" },
-                Some(false),
-                None,
-            ),
+            (InUse::No, Some(true), Some(Fact::InUse(false))),
+            (InUse::Yes(Vec::new()), None, Some(Fact::InUse(true))),
+            (InUse::Unknown { reason: "x" }, Some(false), None),
         ] {
             let probe = Probe(answer);
             let owner = Owner(owned);
@@ -557,6 +661,170 @@ mod tests {
             assert!(!assessed.reasons.is_empty(), "every decision is explained");
             assert_eq!(assessed.candidate, scanned[0]);
         }
+    }
+
+    fn process(executable: Option<&str>) -> Process {
+        Process {
+            pid: 1,
+            started_at: None,
+            executable: executable.map(|path| {
+                RawPath::from_unix_bytes(path.as_bytes().to_vec())
+                    .unwrap_or_else(|_| unreachable!())
+            }),
+            executable_identity: None,
+            application: None,
+        }
+    }
+
+    /// `world()`'s cache, owned by the user below their home, decided with
+    /// the in-use probe answering `answer`; it could be quarantined only when
+    /// `rename` is offered.
+    fn decided(answer: InUse, rename: bool) -> Assessed {
+        let (scanned, gathered, graph) = world();
+        let knowledge = BTreeMap::new();
+        let ctx = Context {
+            home: RawPath::from_unix_bytes(b"/".to_vec()).ok(),
+            mechanisms: if rename {
+                BTreeSet::from([CleanupMechanism::QuarantineRename])
+            } else {
+                BTreeSet::new()
+            },
+            ..context()
+        };
+        let listings = [(
+            scanned[0].path.clone(),
+            DirOutcome {
+                access: AccessState::Readable,
+                complete: true,
+            },
+        )];
+        let sources = Sources {
+            graph: &graph,
+            gathered: &gathered,
+            scanned: &scanned,
+            listings: &listings,
+            context: &ctx,
+            knowledge: &knowledge,
+            store_volumes: None,
+        };
+        let source = SourceName::new("test").unwrap_or_else(|_| unreachable!());
+        let probe = Probe(answer);
+        let owner = Owner(Some(true));
+        let probes = Probes {
+            in_use: &probe,
+            in_use_source: &source,
+            ownership: &owner,
+            ownership_source: &source,
+        };
+        ready(decide_candidate(
+            &scanned[0],
+            &sources,
+            &probes,
+            &crate::ports::NoopJudge,
+            &Epoch,
+            &|_| None,
+        ))
+        .unwrap_or_else(|e| unreachable!("{e}"))
+    }
+
+    fn fired(assessed: &Assessed) -> Vec<&str> {
+        assessed
+            .decision
+            .fired_rules()
+            .iter()
+            .map(|fired| fired.rule.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn an_item_kept_in_use_says_what_closing_its_apps_would_free() {
+        let assessed = decided(
+            InUse::Yes(vec![
+                process(Some(
+                    "/Applications/Spotify.app/Contents/Frameworks/Spotify Helper.app/Contents/MacOS/Spotify Helper",
+                )),
+                process(Some("/Applications/Spotify.app/Contents/MacOS/Spotify")),
+                process(Some("/usr/bin/vi\u{202e}m")),
+                process(None),
+            ]),
+            true,
+        );
+        assert_eq!(assessed.decision.verdict(), Verdict::Keep, "still kept");
+        assert!(fired(&assessed).contains(&IN_USE_RULE));
+        assert!(
+            assessed
+                .input
+                .evidence
+                .iter()
+                .any(|e| e.fact == Fact::InUse(true)),
+            "the input is what the probe said"
+        );
+        assert_eq!(
+            evaluate(&assessed.input).ok().as_ref(),
+            Some(&assessed.decision),
+            "the decision is the real input's"
+        );
+        assert_eq!(
+            assessed.free_when_closed,
+            Some(FreeWhenClosed {
+                processes: vec!["Spotify".to_owned(), "vi⟦U+202E⟧m".to_owned()],
+            }),
+            "named once each, escaped, sorted"
+        );
+        let unnamed = decided(InUse::Yes(vec![process(None)]), true);
+        assert_eq!(
+            unnamed.free_when_closed,
+            Some(FreeWhenClosed {
+                processes: Vec::new()
+            })
+        );
+    }
+
+    #[test]
+    fn only_items_kept_in_use_that_would_be_proposed_get_the_signal() {
+        let idle = decided(InUse::No, true);
+        assert_eq!(
+            idle.decision.verdict(),
+            Verdict::Quarantine,
+            "{:?}",
+            fired(&idle)
+        );
+        assert_eq!(idle.free_when_closed, None, "already proposed");
+        let partial = decided(InUse::Partial { unseen: Some(3) }, true);
+        assert_eq!(partial.decision.verdict(), Verdict::Quarantine);
+        assert_eq!(partial.free_when_closed, None);
+        let unknown = decided(InUse::Unknown { reason: "x" }, true);
+        assert_eq!(unknown.decision.verdict(), Verdict::Keep);
+        assert!(!fired(&unknown).contains(&IN_USE_RULE));
+        assert_eq!(unknown.free_when_closed, None, "unknown is not in use");
+        let no_rename = decided(InUse::Yes(vec![process(Some("/bin/x"))]), false);
+        assert_eq!(no_rename.decision.verdict(), Verdict::Keep);
+        assert_eq!(
+            no_rename.free_when_closed, None,
+            "closing it would only lead to review"
+        );
+    }
+
+    #[test]
+    fn process_names_prefer_the_outermost_app() {
+        let name = |path: &str| process_name(&process(Some(path)));
+        assert_eq!(
+            name("/Applications/Arc.app/Contents/MacOS/Arc"),
+            Some("Arc".to_owned())
+        );
+        assert_eq!(name("/usr/libexec/mds"), Some("mds".to_owned()));
+        assert_eq!(name("/odd/.app/bin/tool"), Some("tool".to_owned()));
+        assert_eq!(process_name(&process(None)), None);
+        let windows = Process {
+            executable: RawPath::from_windows_wide(
+                &"C:\\Program Files\\Discord\\Discord.exe"
+                    .encode_utf16()
+                    .collect::<Vec<_>>(),
+            )
+            .ok(),
+            ..process(None)
+        };
+        assert_eq!(process_name(&windows), Some("Discord.exe".to_owned()));
     }
 
     #[test]

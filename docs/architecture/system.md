@@ -289,6 +289,15 @@ Every `Recommendation` answers, from evidence (or states "unknown" with the reas
 Explanations are generated from templates, never from AI free text. A Jev rationale,
 if present, is shown separately and labelled as AI-generated.
 
+An item kept only because a running process uses it (`protect.in-use`) also says what
+quitting would allow ([ADR-0039, 2026-10-31 amendment](../decisions/0039-ask-for-review-only-where-a-person-can-act.md#amendment-say-which-apps-to-quit-2026-10-31)):
+assessment evaluates its input once more, by the policy alone, with the fresh in-use
+fact replaced by "not in use" (both `No` and `Partial`). When both would be
+`QUARANTINE`, `Assessed.free_when_closed` names the processes the probe reported
+(`CandidateView.free_when_closed`, escaped like paths), and `lumen assess` and the
+clean-up page say which apps to quit and scan again. The verdict stays `KEEP`; the
+counterfactual is never stored, planned, confirmed or sent to Jev.
+
 ## 10. Scanning
 
 See [ADR-0017](../decisions/0017-scan-engine-and-size-accounting.md) and

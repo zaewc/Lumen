@@ -80,6 +80,13 @@ export const zFailureView = z.enum([
 ]);
 
 /**
+ * The apps to close so that a kept item could be proposed on the next scan.
+ */
+export const zFreeWhenClosedView = z.object({
+  processes: z.array(z.string()),
+});
+
+/**
  * The kind of group an item is presented in.
  */
 export const zGroupKindView = z.enum(["developer", "app_cache", "app_data", "other"]);
@@ -380,6 +387,7 @@ export const zVerdictView = z.enum(["keep", "review", "quarantine"]);
  */
 export const zCandidateView = z.object({
   ai_note: zAiNoteView.nullable(),
+  free_when_closed: zFreeWhenClosedView.nullable(),
   group: zGroupView,
   path: z.string(),
   reasons: z.array(zReasonView),
