@@ -1,4 +1,4 @@
-import { Platform, useColorScheme } from "react-native";
+import { Platform, StyleSheet, useColorScheme } from "react-native";
 
 /**
  * Lumen's mobile colours: the desktop app's tokens (apps/web/src/app/styles.css)
@@ -21,34 +21,49 @@ export interface Colors {
   /** The accent for text on `background`. */
   readonly accentInk: string;
   readonly onAccent: string;
+  readonly chrome: string;
+  readonly tint: string;
+  readonly highlight: string;
+  readonly shadow: string;
+  readonly selected: string;
 }
 
 const light: Colors = {
-  background: "#ffffff",
-  ink: "#1d1d1f",
-  ink2: "#5f5f66",
-  ink3: "#85858c",
-  line: "rgba(0, 0, 0, 0.12)",
-  fill: "rgba(118, 118, 128, 0.12)",
+  background: "#f7f9fc",
+  ink: "#182232",
+  ink2: "#4e5d71",
+  ink3: "#66758a",
+  line: "rgba(65, 85, 117, 0.12)",
+  fill: "rgba(65, 85, 117, 0.07)",
   raised: "#ffffff",
   placeholder: "#ececf0",
-  accent: "#4f46e5",
-  accentInk: "#4338ca",
+  accent: "#435bd6",
+  accentInk: "#344fbd",
   onAccent: "#ffffff",
+  chrome: "#f0f1f3",
+  tint: "rgba(255, 255, 255, 0.015)",
+  highlight: "rgba(255, 255, 255, 0.72)",
+  shadow: "rgba(24, 39, 69, 0.12)",
+  selected: "#ffffff",
 };
 
 const dark: Colors = {
-  background: "#000000",
-  ink: "#f4f4f6",
-  ink2: "#ababb3",
-  ink3: "#8a8a93",
-  line: "rgba(255, 255, 255, 0.15)",
+  background: "#121821",
+  ink: "#ecf1f8",
+  ink2: "#b0bfd1",
+  ink3: "#91a3ba",
+  line: "rgba(172, 195, 230, 0.13)",
   fill: "rgba(118, 118, 128, 0.24)",
-  raised: "#636366",
+  raised: "#222d3d",
   placeholder: "#1c1c1f",
-  accent: "#5b5bf7",
-  accentInk: "#a5a8ff",
+  accent: "#5268d1",
+  accentInk: "#a4b4ff",
   onAccent: "#ffffff",
+  chrome: "#202328",
+  tint: "rgba(255, 255, 255, 0.015)",
+  highlight: "rgba(212, 228, 255, 0.1)",
+  shadow: "rgba(0, 4, 14, 0.28)",
+  selected: "#3d4147",
 };
 
 /** The colours for the system's light or dark appearance. */
@@ -58,6 +73,22 @@ export function useColors(): Colors {
 
 /** The smallest touch target: 44 pt (Apple HIG) or 48 dp (Material). */
 export const TOUCH = Platform.OS === "ios" ? 44 : 48;
+
+/** Shared material geometry; structural chrome stays square and integrated. */
+export const material = {
+  edge: StyleSheet.hairlineWidth,
+  controlRadius: 10,
+  segmentRadius: 7,
+};
+
+/** Small controls alone receive elevation; never the photo grid or its cells. */
+export function controlMaterial(c: Colors) {
+  return {
+    borderTopWidth: material.edge,
+    borderTopColor: c.highlight,
+    boxShadow: [{ offsetX: 0, offsetY: 2, blurRadius: 5, color: c.shadow }],
+  };
+}
 
 /** Type sizes after each platform's own scale (iOS text styles, Material type scale). */
 export const type = {

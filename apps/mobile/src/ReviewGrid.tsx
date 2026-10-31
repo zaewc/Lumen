@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { type Analysis, analyze } from "../modules/lumen-core";
 import { count, type Photo, page, requestAccess } from "../modules/lumen-photos";
+import { Material } from "./Material";
 import { Stats } from "./Stats";
 import { type, useColors } from "./theme";
 import { Button, hairline, Message, Segmented, space, TextButton } from "./ui";
@@ -199,7 +200,7 @@ export function ReviewGrid() {
   );
 
   const header = (subtitle?: string, action?: ReactNode) => (
-    <View style={styles.header}>
+    <Material style={styles.header}>
       <View style={styles.fill}>
         <Text accessibilityRole="header" style={[type.largeTitle, { color: c.ink }]}>
           Photos
@@ -209,7 +210,7 @@ export function ReviewGrid() {
         )}
       </View>
       {action}
-    </View>
+    </Material>
   );
 
   switch (library.state) {
@@ -285,7 +286,7 @@ export function ReviewGrid() {
           renderItem={renderItem}
         />
       </View>
-      <View style={[styles.bar, hairline(c)]}>
+      <Material style={[styles.bar, hairline(c)]}>
         {similar.state === "idle" && <Button label="Find similar photos" onPress={findSimilar} />}
         {similar.state === "running" && (
           <View style={styles.status}>
@@ -314,7 +315,7 @@ export function ReviewGrid() {
             )}
           </>
         )}
-      </View>
+      </Material>
     </View>
   );
 }
