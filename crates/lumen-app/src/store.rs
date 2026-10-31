@@ -117,7 +117,7 @@ pub fn stores() -> Result<Stores, LocationError> {
     use lumen_platform_windows::volumes;
 
     let main = store_location()?;
-    let letter = |path: &std::path::Path| {
+    let letter = |path: &Path| {
         path.to_string_lossy()
             .chars()
             .next()
@@ -128,7 +128,7 @@ pub fn stores() -> Result<Stores, LocationError> {
     let facts = volumes::mounted();
     let main_volume = facts
         .iter()
-        .find(|f| letter(std::path::Path::new(&f.root)) == main_letter)
+        .find(|f| letter(Path::new(&f.root)) == main_letter)
         .and_then(|f| f.serial)
         .and_then(id);
     let single_user = volumes::single_user_pc();
