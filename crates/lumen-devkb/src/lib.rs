@@ -32,6 +32,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/android-gradle-project-build-cache.json"),
     ),
     (
+        "arc-browser-caches.json",
+        include_str!("../entries/arc-browser-caches.json"),
+    ),
+    (
         "cargo-global-cache.json",
         include_str!("../entries/cargo-global-cache.json"),
     ),

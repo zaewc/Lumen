@@ -619,6 +619,66 @@ mod tests {
         assert_eq!(found, [1]);
     }
 
+    /// Arc's caches match in the user cache directory Chromium derives from
+    /// Arc's `Application Support/Arc/User Data`; Arc's own folders and its
+    /// profiles never do.
+    #[test]
+    fn arc_caches_match_only_in_its_user_cache_directory() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mac = env(Platform::Macos);
+        let caches = "/Users/ana/Library/Caches/Arc";
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir(&format!("{caches}/User Data/Default/Cache"), 1),
+                    dir(&format!("{caches}/User Data/Default/Code Cache"), 2),
+                    dir(&format!("{caches}/User Data/Profile 1/Cache"), 3),
+                ]
+            ),
+            ["arc-browser-caches"; 3]
+        );
+        let support = "/Users/ana/Library/Application Support/Arc";
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir(caches, 1),
+                    dir(&format!("{caches}/User Data"), 2),
+                    dir(&format!("{caches}/User Data/Default"), 3),
+                    dir(&format!("{caches}/User Data/Default/Cache/Cache_Data"), 4),
+                    dir(&format!("{caches}/EaselImagesCache"), 5),
+                    dir("/Users/ana/Library/Caches/company.thebrowser.Browser", 6),
+                    dir(&format!("{support}/User Data/Default/Cache"), 7),
+                    dir(&format!("{support}/User Data/Default/Cookies"), 8),
+                    dir(&format!("{support}/User Data/Default/IndexedDB"), 9),
+                    dir(&format!("{support}/ArchiveSnapshotCache"), 10),
+                ]
+            )
+            .len(),
+            0
+        );
+        assert_eq!(
+            ids(
+                &env(Platform::Linux),
+                &[dir(&format!("{caches}/User Data/Default/Cache"), 1)]
+            )
+            .len(),
+            0,
+            "Arc's entry is for macOS only"
+        );
+    }
+
     /// Paths below a macOS home and the built-in entry each one matches:
     /// Chromium's caches in known Electron apps' data folders match, and the
     /// rest of those folders (the user's and the sites' data) never does.
