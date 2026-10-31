@@ -70,3 +70,7 @@ overrides:
   # fixed in 4.3.2; pulled in by @hey-api/json-schema-ref-parser, which pins
   # 4.2.0.
   "js-yaml@<4.3.2": 4.3.2
+  # GHSA-4487-j8r4-4g2f, GHSA-5x38-2vff-x55p, GHSA-7wch-p9px-956x and seven more
+  # (up to CVSS 7.5), plus GHSA-86w9-cpqp-85rv, all fixed in 1.4.1 (published
+  # 2026-10-27); pulled in only by the Expo CLI and @expo/code-signing-certificates.
+  "node-forge@<1.4.1": 1.4.1
