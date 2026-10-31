@@ -438,7 +438,7 @@ their sources before merge.
 | 15.6 | `feat(devkb)`: `node_modules` beside a lockfile | done (#551) |
 | 15.7 | `feat`: say which running apps hold proposable caches ("quit Spotify to free 1.1 GB"), without changing a verdict | done (#565–#567) |
 | 15.8 | `feat(app)`: plans record who chose each item; chosen review items are confirmed as review items and never removed automatically (ADR-0051) | done in the core and CLI (#571–#573); desktop (#574) waits for a host-rendered confirmation (FS-1 in the [readiness audit](../security/public-beta-readiness.md)) |
-| 15.9 | `feat(application)`: large unrecognised folders as review candidates (ADR-0051) | #575, blocked on FS-2 (sync roots) and FS-3 (protected ancestors) |
+| 15.9 | `feat(application)`: large unrecognised folders as review candidates (ADR-0051) | done (#575), after FS-2 (#587, #588) and FS-3 (#591) made the policy keep folders below a sync root or holding cloud content, a protected location or a browser profile |
 | 15.10 | `feat(web)`: choose review items to quarantine, with AI notes beside them (ADR-0051) | open; waits for FS-1 |
 | 15.11 | Later: user-domain logs and Windows `%TEMP%` with age rules; orphaned app caches | open |
 

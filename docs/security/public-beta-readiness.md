@@ -161,6 +161,9 @@ service key; otherwise omit it from public builds.
   (`lumen_application::profiles`) and is kept, wherever the profile lies. Both only add
   `KEEP`. Not yet covered: credentials outside their default folders (an `.ssh` in a
   backup) and Firefox and Safari profiles, which the location table does not list.
+  #575 now builds on this: its large unrecognised folders are decided by the same
+  rules, and an end-to-end test shows one holding a credential location or a
+  browser profile is `KEEP`, while a plain one stays `REVIEW`.
 - **FS-4/5:** Directory contents can drift after scan, and the executor record
   is not fully bound to the planned identity. Add identity and subtree-change
   tests before widening person-selected folder cleanup.

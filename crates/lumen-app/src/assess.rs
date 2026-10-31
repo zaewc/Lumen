@@ -18,6 +18,7 @@ use std::thread::{self, Thread};
 use lumen_application::assess::{Assessed, Probes, Sources, decide_candidate, nested, select};
 use lumen_application::collect::{Inventory, ScanDomains, summarize};
 use lumen_application::gather::gather;
+use lumen_application::large::LargeFolders;
 use lumen_application::observe::below;
 use lumen_application::ports::{Clock, InUseProbe, InventoryReport, OwnershipProbe};
 use lumen_devkb::{Environment, KnowledgeBase, Markers, Root};
@@ -493,6 +494,33 @@ fn for_each_page(
     }
 }
 
+/// Where the producers look, and what the search for large folders leaves
+/// alone.
+struct Places<'a> {
+    /// The user's home.
+    home: Option<&'a RawPath>,
+    /// Lumen's own files and folders.
+    own: Vec<RawPath>,
+}
+
+/// Lumen's own files and folders, never offered as large folders: the index
+/// at `db` and the quarantine stores.
+fn own_paths(db: &Path) -> Vec<RawPath> {
+    let db = std::path::absolute(db).ok();
+    let stores = crate::store::stores()
+        .map(|stores| stores.locations)
+        .unwrap_or_default();
+    let store_paths = stores.into_iter().map(|(base, names)| {
+        names.iter().fold(base, |path, name| {
+            path.join(String::from_utf8_lossy(name).as_ref())
+        })
+    });
+    db.into_iter()
+        .chain(store_paths)
+        .filter_map(|path| crate::raw_path(&path).ok())
+        .collect()
+}
+
 /// What the producers found in the whole scan, the entries it is about, and
 /// the scan's cloud domains and browser profiles.
 struct Found {
@@ -505,18 +533,21 @@ struct Found {
 /// Runs the platform's producers and the knowledge base over the scan, a page
 /// at a time: first the knowledge base's and the platform's markers, the
 /// cloud domains and the browser profiles (a marker or a sync root can
-/// qualify an entry in another page), then the producers. Keeps only the entries their
-/// output names; no other entry's facts could reach a decision (roadmap 10.8).
+/// qualify an entry in another page), then the producers, and with them the
+/// search for large folders nothing else names (ADR-0051). Keeps only the
+/// entries their output names; no other entry's facts could reach a decision
+/// (roadmap 10.8).
 fn find(
     store: &IndexStore,
     scan: ScanId,
     inventory: &PlatformInventory,
     matcher: &lumen_devkb::Matcher<'_>,
-    home: Option<&RawPath>,
+    places: &Places<'_>,
     times: (lumen_domain::Timestamp, lumen_domain::Timestamp),
     progress: &mut dyn FnMut(AssessProgress),
 ) -> Result<Found, StoreError> {
     let (scanned_at, _) = times;
+    let home = places.home;
     let total = Some(store.entry_count(scan)?);
     let mut completed = 0_u64;
     report(progress, AssessStage::Markers, completed, total);
@@ -538,9 +569,12 @@ fn find(
     };
     completed = 0;
     report(progress, AssessStage::Evidence, completed, total);
+    let mut large = LargeFolders::new(&store.scan_roots(scan)?, store.unlisted_directories(scan)?)
+        .keeping(places.own.iter().cloned());
     for_each_page(store, scan, |page| {
         let produced = platform_contributions(inventory, &platform_markers, page, home, times);
         let known = matcher.matches(page, &markers, scanned_at);
+        large.observe(page, produced.evidence.iter().chain(&known));
         let named: HashSet<&Subject> = produced
             .evidence
             .iter()
@@ -568,6 +602,11 @@ fn find(
         completed = completed.saturating_add(u64::try_from(page.len()).unwrap_or(u64::MAX));
         report(progress, AssessStage::Evidence, completed, total);
     })?;
+    // Large folders nothing above names (ADR-0051), from the scan alone.
+    for folder in large.finish() {
+        found.evidence.extend(folder.evidence(scanned_at));
+        found.entries.push(folder.entry);
+    }
     Ok(found)
 }
 
@@ -614,7 +653,10 @@ fn prepare_with_progress(
         scan,
         &platform_inventory,
         &kb.matcher(&env),
-        home.as_ref(),
+        &Places {
+            home: home.as_ref(),
+            own: own_paths(db),
+        },
         (scanned_at, now),
         progress,
     )?;
@@ -1212,7 +1254,10 @@ mod tests {
                 scan,
                 &inventory,
                 &kb.matcher(&env),
-                None,
+                &Places {
+                    home: None,
+                    own: Vec::new(),
+                },
                 (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
                 &mut |event| events.push(event),
             )?;
@@ -1289,7 +1334,10 @@ mod tests {
             scan,
             &inventory,
             &kb.matcher(&env),
-            None,
+            &Places {
+                home: None,
+                own: Vec::new(),
+            },
             (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
             &mut |_| {},
         )?;
@@ -1356,7 +1404,10 @@ mod tests {
             scan,
             &inventory,
             &kb.matcher(&env),
-            None,
+            &Places {
+                home: None,
+                own: Vec::new(),
+            },
             (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
             &mut |_| {},
         )?;
@@ -1494,6 +1545,191 @@ mod tests {
             Some((Verdict::Keep, vec!["protect.contains-sensitive".to_owned()])),
             "holds Chrome's Linux profile location"
         );
+        Ok(())
+    }
+
+    /// The stored scan, read in the store's order, yields large folders as
+    /// candidates of their own (ADR-0051), never one not listed in full.
+    #[test]
+    fn large_folders_nothing_names_become_candidates() -> Result<(), Box<dyn std::error::Error>> {
+        let fixture = lumen_testkit::Fixture::build(&[])?;
+        let mut store = IndexStore::new(open_index(&fixture.root().join("index.db"))?);
+        let scan: ScanId = "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a5".parse()?;
+        let root = RawPath::from_unix_bytes(b"/h".to_vec())?;
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, std::slice::from_ref(&root))?;
+        let gib = 1_u64 << 30;
+        store.insert_entries(
+            scan,
+            &[
+                scanned("/h", 1, 0),
+                scanned("/h/big", 2, 0),
+                scanned("/h/big/a", 3, gib),
+                scanned("/h/big/b", 4, gib),
+                scanned("/h/big-twin", 5, 0),
+                scanned("/h/big-twin/a", 6, gib / 2),
+                scanned("/h/locked", 7, 0),
+                scanned("/h/locked/a", 8, 2 * gib),
+                scanned("/h/locked/b", 9, 2 * gib),
+                scanned("/h/locked/inner", 10, 0),
+            ],
+        )?;
+        let readable = lumen_application::ports::DirOutcome {
+            access: AccessState::Readable,
+            complete: true,
+        };
+        let listed: Vec<_> = ["/h", "/h/big", "/h/big-twin", "/h/locked"]
+            .into_iter()
+            .map(|p| RawPath::from_unix_bytes(p.as_bytes().to_vec()).map(|p| (p, readable)))
+            .collect::<Result<_, _>>()?;
+        store.insert_listings(scan, &listed)?;
+        let inventory = PlatformInventory {
+            reports: Vec::new(),
+            #[cfg(target_os = "macos")]
+            apps: Vec::new(),
+            #[cfg(windows)]
+            declarations: Vec::new(),
+        };
+        let kb = KnowledgeBase::builtin()?;
+        let env = Environment {
+            platform: Platform::Linux,
+            home: None,
+            local_app_data: None,
+            roaming_app_data: None,
+            vars: Vec::new(),
+        };
+        let found = find(
+            &store,
+            scan,
+            &inventory,
+            &kb.matcher(&env),
+            &Places {
+                home: None,
+                own: Vec::new(),
+            },
+            (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
+            &mut |_| {},
+        )?;
+        let paths: Vec<&[u8]> = found.entries.iter().map(|e| e.path.as_bytes()).collect();
+        assert_eq!(paths, [b"/h/big".as_slice()]);
+        assert!(found.evidence.iter().any(|record| {
+            record.fact
+                == Fact::LargeUnrecognised {
+                    reclaimable: ByteCount::new(2 * gib),
+                }
+                && record.provenance.observed_at == Timestamp::UNIX_EPOCH
+        }));
+        let gathered = gather(
+            &found.entries,
+            &found.domains,
+            &summarize(&[]),
+            found.evidence,
+            found.relationships,
+            Timestamp::UNIX_EPOCH,
+            Timestamp::UNIX_EPOCH,
+        );
+        assert_eq!(select(&gathered, &found.entries).len(), 1);
+        Ok(())
+    }
+
+    /// A large folder that holds a protected location or a browser profile is
+    /// offered and then kept by the policy (FS-3); a plain one is offered for
+    /// review (ADR-0051). None is ever proposed for quarantine.
+    #[test]
+    fn large_folders_holding_keys_or_profiles_are_kept() -> Result<(), Box<dyn std::error::Error>> {
+        let fixture = lumen_testkit::Fixture::build(&[])?;
+        let mut store = IndexStore::new(open_index(&fixture.root().join("index.db"))?);
+        let scan: ScanId = "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a6".parse()?;
+        let root = RawPath::from_unix_bytes(b"/home/t".to_vec())?;
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, std::slice::from_ref(&root))?;
+        let gib = 1_u64 << 30;
+        let entries = [
+            scanned("/home/t", 1, 0),
+            scanned("/home/t/.config", 2, 0),
+            scanned("/home/t/.config/a", 3, gib),
+            scanned("/home/t/.config/b", 4, gib),
+            scanned("/home/t/apps", 5, 0),
+            scanned("/home/t/apps/a", 6, gib),
+            scanned("/home/t/apps/b", 7, gib),
+            scanned("/home/t/apps/x", 8, 0),
+            scanned("/home/t/apps/x/Default", 9, 0),
+            scanned("/home/t/apps/x/Default/Cookies", 10, 4096),
+            scanned("/home/t/media", 11, 0),
+            scanned("/home/t/media/a", 12, gib),
+            scanned("/home/t/media/b", 13, gib),
+        ];
+        store.insert_entries(scan, &entries)?;
+        let readable = lumen_application::ports::DirOutcome {
+            access: AccessState::Readable,
+            complete: true,
+        };
+        let listed: Vec<_> = entries
+            .iter()
+            .filter(|e| e.kind == EntryKind::Directory)
+            .map(|e| (e.path.clone(), readable))
+            .collect();
+        store.insert_listings(scan, &listed)?;
+        let inventory = PlatformInventory {
+            reports: Vec::new(),
+            #[cfg(target_os = "macos")]
+            apps: Vec::new(),
+            #[cfg(windows)]
+            declarations: Vec::new(),
+        };
+        let kb = KnowledgeBase::builtin()?;
+        let env = Environment {
+            platform: Platform::Linux,
+            home: None,
+            local_app_data: None,
+            roaming_app_data: None,
+            vars: Vec::new(),
+        };
+        let found = find(
+            &store,
+            scan,
+            &inventory,
+            &kb.matcher(&env),
+            &Places {
+                home: None,
+                own: Vec::new(),
+            },
+            (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
+            &mut |_| {},
+        )?;
+        let gathered = gather(
+            &found.entries,
+            &found.domains,
+            &summarize(&[]),
+            found.evidence,
+            found.relationships,
+            Timestamp::UNIX_EPOCH,
+            Timestamp::UNIX_EPOCH,
+        );
+        let decided = decided_on_linux(&entries, &gathered, &found.entries)?;
+        let verdict = |path: &str| {
+            decided
+                .iter()
+                .find(|(p, _, _)| p == path)
+                .map(|(_, verdict, rules)| (*verdict, rules.clone()))
+        };
+        let config = verdict("/home/t/.config");
+        assert_eq!(config.as_ref().map(|(v, _)| *v), Some(Verdict::Keep));
+        assert!(
+            config
+                .is_some_and(|(_, rules)| rules.contains(&"protect.contains-sensitive".to_owned())),
+            "{decided:?}"
+        );
+        let apps = verdict("/home/t/apps");
+        assert_eq!(apps.as_ref().map(|(v, _)| *v), Some(Verdict::Keep));
+        assert!(
+            apps.is_some_and(|(_, rules)| rules.contains(&"classify.browser-profile".to_owned())),
+            "{decided:?}"
+        );
+        assert_eq!(
+            verdict("/home/t/media").map(|(v, _)| v),
+            Some(Verdict::Review),
+            "{decided:?}"
+        );
+        assert_eq!(decided.len(), 3, "{decided:?}");
         Ok(())
     }
 

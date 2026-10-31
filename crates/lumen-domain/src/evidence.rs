@@ -10,7 +10,7 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AppId, CodeSignature, FileIdentity, Protection, ServiceKind, SourceName, Timestamp,
+    AppId, ByteCount, CodeSignature, FileIdentity, Protection, ServiceKind, SourceName, Timestamp,
     UntrustedText, VolumeId,
 };
 
@@ -127,6 +127,13 @@ pub enum Fact {
         /// The entry that showed it, relative to the subject, e.g.
         /// `Default/Cookies`.
         marker: UntrustedText,
+    },
+    /// The subject is a large folder that no other evidence names, selected
+    /// for review from the scan's sizes alone (ADR-0051). It says nothing
+    /// about what the folder is, so no policy rule classifies by it.
+    LargeUnrecognised {
+        /// The space removing it would free now, as the scan measured it.
+        reclaimable: ByteCount,
     },
 }
 
