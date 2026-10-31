@@ -112,6 +112,25 @@ rule now caps at `KEEP`: "Kept: removing it would free no space." Like every cha
 this decision, it only moves verdicts from `REVIEW` to `KEEP`, and an item that frees
 nothing was never a quarantine candidate. The policy version moves to 0.12.0.
 
+### Amendment: say which apps to quit (2026-10-31)
+
+On the owner's Mac, 55 items (about 49.6 GB) were kept only by `protect.in-use`
+because Spotify, Discord, Arc or Claude was running. The hard protection stops the
+policy there, so people saw "Kept: a running process is using it" and nothing about
+what they could do. Quitting an app is an action a person can take, so assessment now
+records, for an item kept by `protect.in-use`, whether the policy alone would propose
+it if nothing visible used it, and which processes the probe named. The counterfactual
+replaces only the fresh in-use fact, by both answers a later probe could give (`No`,
+and the `Partial` an unprivileged probe gives under
+[ADR-0030](0030-partial-in-use-visibility.md)); only when both are `QUARANTINE` is the
+item marked. Interfaces then say, without urgency, which apps to quit and scan again,
+and how much more could be cleaned up. Nothing else changes: the verdict stays `KEEP`,
+the counterfactual decision is not stored, traced, planned, confirmed or sent to Jev,
+and the next scan decides from a fresh probe as always. AI review may still ask for
+review of the item then. Process names come from the executable path (the outermost
+`.app` bundle, otherwise the file name) and are escaped like paths; the Windows probe
+does not name processes yet, so its items say "the apps using it".
+
 ### Consequences
 
 - Good: on the owner's disk, "Needs review" drops from 165 items to the 3 that cannot be

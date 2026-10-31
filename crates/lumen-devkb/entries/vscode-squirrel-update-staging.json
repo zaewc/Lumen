@@ -1,0 +1,22 @@
+{
+  "id": "vscode-squirrel-update-staging",
+  "tool": "Visual Studio Code",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/com.microsoft.VSCode.ShipIt",
+      "kind": "directory"
+    }
+  ],
+  "safety_class": "self_managed",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://www.electronjs.org/docs/latest/api/auto-updater",
+    "https://github.com/microsoft/vscode/blob/main/src/vs/platform/update/electron-main/updateService.darwin.ts",
+    "https://github.com/Squirrel/Squirrel.Mac/blob/master/Squirrel/SQRLDirectoryManager.m",
+    "https://github.com/Squirrel/Squirrel.Mac/blob/master/Squirrel/SQRLShipItLauncher.m",
+    "https://github.com/Squirrel/Squirrel.Mac/blob/master/Squirrel/SQRLUpdater.m"
+  ],
+  "last_verified": "2026-10-31"
+}

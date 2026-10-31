@@ -79,6 +79,9 @@ Research: [03-macos-platform](../research/03-macos-platform.md),
 
 - App bundles → bundle ID → Team ID.
 - `~/Library/{Caches, Application Support, Containers, Preferences, Saved Application State, HTTPStorages}/<id>`.
+- Embedded browser profiles in `~/Library/Caches/<child>`, by the names of profile
+  state below it (`Cookies`, `Login Data`, `Local Storage`, ...), which keep the folder
+  ([ADR-0040](../decisions/0040-decide-known-artifacts-inside-app-state-on-their-own.md)).
 - `Contents/Library/LaunchAgents|LaunchDaemons`; launchd plists in the five standard
   directories.
 - `pkgutil` receipts.
@@ -100,6 +103,9 @@ Research: [03-macos-platform](../research/03-macos-platform.md),
   `/usr/local`), `/bin`, `/sbin`, `/private/var/db`.
 - Data vaults, Preferences plists, items of running apps, keychains, and SSH/GPG
   material.
+- Browser profiles: the user data folders of Chrome, Microsoft Edge, Brave and Arc in
+  `~/Library/Application Support` (their separate `~/Library/Caches` folders are not
+  protected).
 
 **Defer to Apple:** iCloud, Photos, Mail and Messages storage, and login items. Lumen
 links to System Settings instead of acting.
@@ -166,6 +172,8 @@ Lumen never calls `RmShutdown`.
 
 - `%WINDIR%\WinSxS`, `System32`, `SysWOW64`, `\Windows\Installer`.
 - `pagefile.sys`, `hiberfil.sys`, `swapfile.sys`.
+- Browser profiles: `User Data` of Chrome, Microsoft Edge and Brave under
+  `%LOCALAPPDATA%` (`KEEP`).
 - `System Volume Information`, other users' `$Recycle.Bin`, `$Extend`.
 - `SoftwareDistribution\DataStore`, `catroot2`.
 - Sync roots, and the install directories of installed apps (`REVIEW`).

@@ -8,6 +8,7 @@ const item = (reclaim_bytes: string | null): HeldItemView => ({
   original: "/Users/ana/Library/Caches/App",
   since: "2026-10-01T09:00:00Z",
   reclaim_bytes,
+  chosen_by: "policy",
 });
 
 describe("heldTotal", () => {

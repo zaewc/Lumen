@@ -28,6 +28,14 @@ pub use validate::Problem;
 /// The built-in entries as `(file name, JSON)`, one per tool (roadmap 6.15+).
 const BUILTIN: &[(&str, &str)] = &[
     (
+        "android-gradle-project-build-cache.json",
+        include_str!("../entries/android-gradle-project-build-cache.json"),
+    ),
+    (
+        "arc-browser-caches.json",
+        include_str!("../entries/arc-browser-caches.json"),
+    ),
+    (
         "brave-browser-caches.json",
         include_str!("../entries/brave-browser-caches.json"),
     ),
@@ -60,12 +68,24 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/docker-desktop-disk-image.json"),
     ),
     (
+        "dotslash-cache.json",
+        include_str!("../entries/dotslash-cache.json"),
+    ),
+    (
+        "expo-cli-download-caches.json",
+        include_str!("../entries/expo-cli-download-caches.json"),
+    ),
+    (
         "go-build-cache.json",
         include_str!("../entries/go-build-cache.json"),
     ),
     (
         "go-module-cache.json",
         include_str!("../entries/go-module-cache.json"),
+    ),
+    (
+        "google-chrome-caches.json",
+        include_str!("../entries/google-chrome-caches.json"),
     ),
     (
         "gradle-user-home-caches.json",
@@ -80,12 +100,28 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/jetbrains-system-directory.json"),
     ),
     (
+        "microsoft-edge-caches.json",
+        include_str!("../entries/microsoft-edge-caches.json"),
+    ),
+    (
         "nextjs-build-cache.json",
         include_str!("../entries/nextjs-build-cache.json"),
     ),
     (
+        "node-modules-with-lockfile.json",
+        include_str!("../entries/node-modules-with-lockfile.json"),
+    ),
+    (
         "notion-chromium-caches.json",
         include_str!("../entries/notion-chromium-caches.json"),
+    ),
+    (
+        "notion-electron-updater-cache.json",
+        include_str!("../entries/notion-electron-updater-cache.json"),
+    ),
+    (
+        "notion-squirrel-update-staging.json",
+        include_str!("../entries/notion-squirrel-update-staging.json"),
     ),
     ("npm-cache.json", include_str!("../entries/npm-cache.json")),
     (
@@ -105,6 +141,14 @@ const BUILTIN: &[(&str, &str)] = &[
         "postman-chromium-caches.json",
         include_str!("../entries/postman-chromium-caches.json"),
     ),
+    (
+        "react-native-prebuilt-cache.json",
+        include_str!("../entries/react-native-prebuilt-cache.json"),
+    ),
+    (
+        "swiftpm-shared-cache.json",
+        include_str!("../entries/swiftpm-shared-cache.json"),
+    ),
     ("uv-cache.json", include_str!("../entries/uv-cache.json")),
     (
         "visual-studio-component-model-cache.json",
@@ -121,6 +165,10 @@ const BUILTIN: &[(&str, &str)] = &[
     (
         "vscode-extension-vsix-cache.json",
         include_str!("../entries/vscode-extension-vsix-cache.json"),
+    ),
+    (
+        "vscode-squirrel-update-staging.json",
+        include_str!("../entries/vscode-squirrel-update-staging.json"),
     ),
     (
         "xcode-derived-data.json",

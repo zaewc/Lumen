@@ -66,6 +66,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "developer", source: "Xcode" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Developer/CoreSimulator/Devices`,
@@ -86,6 +87,7 @@ const candidates: readonly CandidateView[] = [
     },
     group: { kind: "developer", source: "Xcode" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/pnpm/store`,
@@ -106,6 +108,7 @@ const candidates: readonly CandidateView[] = [
     },
     group: { kind: "developer", source: "pnpm" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/.gradle/caches`,
@@ -115,6 +118,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "developer", source: "Gradle" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/.npm/_cacache`,
@@ -124,6 +128,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "developer", source: "npm" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Caches/go-build`,
@@ -138,6 +143,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "developer", source: "Go" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Caches/com.spotify.client`,
@@ -152,6 +158,17 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "app_cache", source: "com.spotify.client" },
     ai_note: null,
+    free_when_closed: null,
+  },
+  {
+    path: `${HOME}/Library/Application Support/discord/Cache`,
+    verdict: "keep",
+    reclaimable_bytes: "1100000000",
+    reasons: [{ rule: "protect.in-use", text: "Kept: a running process is using it." }],
+    tool_command: null,
+    group: { kind: "app_cache", source: "com.hnc.Discord" },
+    ai_note: null,
+    free_when_closed: { processes: ["Discord"] },
   },
   {
     path: `${HOME}/Library/Caches/Google/Chrome`,
@@ -167,6 +184,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "app_cache", source: "com.google.Chrome" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Application Support/Slack`,
@@ -181,6 +199,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "app_data", source: "com.tinyspeck.slackmacgap" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Application Support/OldEditor`,
@@ -195,6 +214,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "app_data", source: "com.example.OldEditor" },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/HTTPStorages/com.tinyspeck.slackmacgap`,
@@ -204,6 +224,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "other", source: null },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Downloads/Installers`,
@@ -213,6 +234,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "other", source: null },
     ai_note: null,
+    free_when_closed: null,
   },
   {
     path: `${HOME}/Library/Mobile Documents/com~apple~CloudDocs`,
@@ -228,6 +250,7 @@ const candidates: readonly CandidateView[] = [
     tool_command: null,
     group: { kind: "other", source: null },
     ai_note: null,
+    free_when_closed: null,
   },
 ];
 
@@ -260,6 +283,7 @@ const initiallyHeld: readonly HeldItemView[] = [
     original: `${HOME}/Library/Developer/Xcode/Archives/2025-11-02`,
     since: "2026-10-01T09:00:00Z",
     reclaim_bytes: "1600000000",
+    chosen_by: "policy",
   },
   {
     operation: "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a4",
@@ -267,6 +291,7 @@ const initiallyHeld: readonly HeldItemView[] = [
     original: `${HOME}/Library/Caches/com.figma.Desktop`,
     since: "2026-10-14T18:30:00Z",
     reclaim_bytes: "540000000",
+    chosen_by: "policy",
   },
 ];
 
@@ -370,6 +395,7 @@ export function memoryTransport({
             original: item.path,
             since: new Date().toISOString(),
             reclaim_bytes: item.reclaimable_bytes,
+            chosen_by: "policy",
           },
         ];
         return {

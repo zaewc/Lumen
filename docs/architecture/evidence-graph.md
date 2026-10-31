@@ -40,8 +40,10 @@ An `Evidence` record is `{subject, fact, basis, provenance}`:
   modified/accessed, in use (`InUse`, or `NotInUseByVisibleProcesses` when not every
   process was visible), vendor-declared cache, knowledge-base match, code
   signature, cloud-backed, protection, app data location (`AppDataLocation`: caches,
-  container, application support, preferences, saved state, web data), and whether
-  the current user owns the subject (`OwnedByCurrentUser`).
+  container, application support, preferences, saved state, web data), whether
+  the subject holds a web browser profile's state, recognised by entry names
+  (`BrowserProfile`, [ADR-0040](../decisions/0040-decide-known-artifacts-inside-app-state-on-their-own.md)),
+  and whether the current user owns the subject (`OwnedByCurrentUser`).
 - `basis` says how it is known: `Observed`, or `Absence` with the sources that
   were searched. Absence is only as strong as those sources' coverage report allows;
   unreadable is never empty.
@@ -134,7 +136,7 @@ validation and acyclic containment hold for whatever the database contains.
 | `lumen-platform-windows::cleanup` | `VendorDeclaredCache` evidence for folders declared by data-driven Disk Cleanup handlers. No edge: a handler name does not identify an application. |
 | Inventory sources (macOS apps and launchd; Windows apps, startup entries, services) | `Application` and `Service` records with signatures, for later `launches` and `owned_by` edges |
 | In-use probes (`libproc`, Restart Manager) | answers for `opened_by` edges and `InUse` evidence; a partial answer is recorded as `NotInUseByVisibleProcesses`, never as `InUse(false)` (ADR-0030). |
-| `lumen-devkb` | `KnowledgeBaseMatch` evidence (source `devkb`) for each scanned file or directory that is exactly an entry's location, resolved against the machine's home, known folders and environment variables. Descendants, links and projects without a scanned marker never match. |
+| `lumen-devkb` | `KnowledgeBaseMatch` evidence (source `devkb`) for each scanned file or directory that is exactly an entry's location, resolved against the machine's home, known folders and environment variables. Descendants, links, projects without a scanned marker and project locations inside another instance of their own path never match. |
 
 The scan's own facts about an entry (protection, cloud backing, times) are
 gathered only for entries a producer said something about or a relationship

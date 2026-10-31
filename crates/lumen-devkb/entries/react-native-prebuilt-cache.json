@@ -1,0 +1,20 @@
+{
+  "id": "react-native-prebuilt-cache",
+  "tool": "React Native",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "kind": "directory",
+      "path": "Library/Caches/ReactNative"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://github.com/facebook/react-native/pull/56844",
+    "https://github.com/facebook/react-native/blob/4d536fa8cd1ce5a1bb8f158ec3c0ec780d94ab20/packages/react-native/scripts/cocoapods/utils.rb",
+    "https://github.com/facebook/react-native/blob/4d536fa8cd1ce5a1bb8f158ec3c0ec780d94ab20/packages/react-native/sdks/hermes-engine/hermes-utils.rb"
+  ],
+  "last_verified": "2026-10-31"
+}
