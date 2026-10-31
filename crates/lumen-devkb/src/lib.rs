@@ -146,6 +146,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/react-native-prebuilt-cache.json"),
     ),
     (
+        "rustup-downloads.json",
+        include_str!("../entries/rustup-downloads.json"),
+    ),
+    (
         "swiftpm-shared-cache.json",
         include_str!("../entries/swiftpm-shared-cache.json"),
     ),

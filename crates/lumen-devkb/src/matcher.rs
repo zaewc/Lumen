@@ -1433,6 +1433,70 @@ mod tests {
         );
     }
 
+    /// rustup's download and temporary folders match below the home folder
+    /// and `RUSTUP_HOME`; toolchains and rustup's own state never do.
+    #[test]
+    fn rustup_matches_only_downloads_and_temporary_files() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mut mac = env(Platform::Macos);
+        mac.vars = vec![("RUSTUP_HOME".to_owned(), unix("/opt/rustup"))];
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir("/Users/ana/.rustup/downloads", 1),
+                    dir("/Users/ana/.rustup/tmp", 2),
+                    dir("/opt/rustup/downloads", 3),
+                    dir("/opt/rustup/tmp", 4),
+                ]
+            ),
+            [
+                "rustup-downloads",
+                "rustup-downloads",
+                "rustup-downloads",
+                "rustup-downloads",
+            ]
+        );
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir("/Users/ana/.rustup", 1),
+                    dir("/Users/ana/.rustup/toolchains", 2),
+                    dir("/Users/ana/.rustup/update-hashes", 3),
+                    dir("/Users/ana/.rustup/downloads/partial", 4),
+                    dir("/opt/rustup/toolchains", 5),
+                    object(unix("/Users/ana/.rustup/downloads"), EntryKind::File, 6),
+                ]
+            )
+            .len(),
+            0
+        );
+        let mut win = env(Platform::Windows);
+        win.home = Some(windows(r"C:\Users\ana"));
+        assert_eq!(
+            ids(
+                &win,
+                &[object(
+                    windows(r"C:\Users\ana\.rustup\downloads"),
+                    EntryKind::Directory,
+                    1
+                )]
+            ),
+            ["rustup-downloads"]
+        );
+    }
+
     #[test]
     fn npx_cache_stays_separate_from_packages_and_the_download_cache() {
         let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
