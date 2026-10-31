@@ -909,6 +909,105 @@ mod tests {
         );
     }
 
+    /// Chrome's caches match in its user cache directory, outside the
+    /// profile (and outside the protected user data directory); nothing in
+    /// the profile, and no Windows location, ever matches.
+    #[test]
+    fn chrome_caches_match_only_in_its_user_cache_directory() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mac = env(Platform::Macos);
+        let caches = "/Users/ana/Library/Caches/Google/Chrome";
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir(&format!("{caches}/Default/Cache"), 1),
+                    dir(&format!("{caches}/Default/Code Cache"), 2),
+                    dir(&format!("{caches}/Profile 1/Cache"), 3),
+                    dir(&format!("{caches}/System Profile/Code Cache"), 4),
+                ]
+            ),
+            ["google-chrome-caches"; 4]
+        );
+        let support = "/Users/ana/Library/Application Support/Google/Chrome";
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir(caches, 1),
+                    dir(&format!("{caches}/Default"), 2),
+                    dir(&format!("{caches}/Default/Cache/Cache_Data"), 3),
+                    dir(&format!("{caches}/Default/GPUCache"), 4),
+                    dir(&format!("{caches}/Default/Storage/ext/a/def/Cache"), 5),
+                    dir(&format!("{caches}/Cache"), 6),
+                    dir(&format!("{support}/Default/Cache"), 7),
+                    dir(&format!("{support}/Default/Code Cache"), 8),
+                    dir(&format!("{support}/Default/Cookies"), 9),
+                    dir(&format!("{support}/Default/Local Storage"), 10),
+                    dir(&format!("{support}/Default/Service Worker"), 11),
+                    dir(&format!("{support}/GrShaderCache"), 12),
+                    dir(
+                        "/Users/ana/Library/Caches/Google/Chrome Beta/Default/Cache",
+                        13
+                    ),
+                    dir("/Users/ana/.cache/google-chrome/Default/Cache", 14),
+                ]
+            )
+            .len(),
+            0
+        );
+        let mut linux = env(Platform::Linux);
+        linux.vars = vec![("XDG_CACHE_HOME".to_owned(), unix("/xdg"))];
+        assert_eq!(
+            ids(
+                &linux,
+                &[
+                    dir("/Users/ana/.cache/google-chrome/Default/Cache", 1),
+                    dir("/Users/ana/.cache/google-chrome/Profile 2/Code Cache", 2),
+                    dir("/xdg/google-chrome/Default/Cache", 3),
+                ]
+            ),
+            ["google-chrome-caches"; 3]
+        );
+        assert_eq!(
+            ids(
+                &linux,
+                &[
+                    dir("/Users/ana/.config/google-chrome/Default/Cache", 1),
+                    dir("/Users/ana/.cache/google-chrome/Default", 2),
+                    dir("/Users/ana/.cache/Google-Chrome/Default/Cache", 3),
+                ]
+            )
+            .len(),
+            0
+        );
+        let mut win = env(Platform::Windows);
+        win.local_app_data = Some(windows(r"C:\Users\ana\AppData\Local"));
+        assert_eq!(
+            ids(
+                &win,
+                &[object(
+                    windows(r"C:\Users\ana\AppData\Local\Google\Chrome\User Data\Default\Cache"),
+                    EntryKind::Directory,
+                    1,
+                )]
+            )
+            .len(),
+            0,
+            "Chrome's Windows caches are inside its protected profile"
+        );
+    }
+
     /// pip's cache matches at its default on each platform, under
     /// `XDG_CACHE_HOME` and at `PIP_CACHE_DIR`; never its parent or contents.
     #[test]
