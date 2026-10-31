@@ -121,6 +121,10 @@ const BUILTIN: &[(&str, &str)] = &[
         "postman-chromium-caches.json",
         include_str!("../entries/postman-chromium-caches.json"),
     ),
+    (
+        "swiftpm-shared-cache.json",
+        include_str!("../entries/swiftpm-shared-cache.json"),
+    ),
     ("uv-cache.json", include_str!("../entries/uv-cache.json")),
     (
         "visual-studio-component-model-cache.json",
