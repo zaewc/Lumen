@@ -56,6 +56,9 @@ fn template(rule: &str) -> Option<String> {
             "Review: the knowledge-base entry that matched it is unavailable."
         }
         "classify.vendor-declared-cache" => "Review: its vendor declares its contents disposable.",
+        "classify.browser-profile" => {
+            "Kept: it holds a web browser's sign-ins, cookies or site data; Lumen leaves it alone."
+        }
         "classify.app-cache" => {
             "Quarantine proposed: it is an application's cache, which the application re-creates."
         }
