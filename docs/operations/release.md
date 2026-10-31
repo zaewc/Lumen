@@ -44,7 +44,9 @@ Security. Signing and notarization are roadmap 12.8.
    `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` from it; no build ever receives them.
 4. Review the draft (files, checksums, notes and `latest.json`), then publish it.
    Check that the manifest version matches the tag, every platform URL names an
-   attached file, and each signature matches its attached `.sig` file.
+   attached file, and each signature matches its attached `.sig` file and names the
+   version in its trusted comment (`version:<version>`): the updater requires it
+   (`requireSignedVersion`) and refuses an update whose signature has none.
 
 0.5.0 is the first build with in-app updates. Testing installation through the
 updater requires a later published version; publishing 0.5.0 alone does not verify
