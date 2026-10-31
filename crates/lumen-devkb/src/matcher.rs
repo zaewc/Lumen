@@ -865,6 +865,52 @@ mod tests {
         ),
         ("Library/Application Support/obsidian/IndexedDB", None),
         ("Library/Application Support/obsidian/obsidian.json", None),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Cache",
+            Some("figma-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Code Cache",
+            Some("figma-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/GPUCache",
+            Some("figma-chromium-caches"),
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v34/DawnWebGPUCache",
+            Some("figma-chromium-caches"),
+        ),
+        ("Library/Application Support/Figma", None),
+        ("Library/Application Support/Figma/Desktop", None),
+        ("Library/Application Support/Figma/DesktopProfile", None),
+        ("Library/Application Support/Figma/DesktopProfile/v43", None),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Cookies",
+            None,
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Local Storage",
+            None,
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/IndexedDB",
+            None,
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Service Worker",
+            None,
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Crashpad",
+            None,
+        ),
+        (
+            "Library/Application Support/Figma/DesktopProfile/v43/Cache/Cache_Data",
+            None,
+        ),
+        ("Library/Application Support/Figma/Cache", None),
+        ("Library/Application Support/Figma/font_cache.json", None),
         ("Library/Application Support/SomeApp/Cache", None),
         ("Library/Application Support/Spotify/PersistentCache", None),
         ("Library/Application Support/Claude/vm_bundles", None),

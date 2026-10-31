@@ -72,6 +72,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/expo-cli-download-caches.json"),
     ),
     (
+        "figma-chromium-caches.json",
+        include_str!("../entries/figma-chromium-caches.json"),
+    ),
+    (
         "go-build-cache.json",
         include_str!("../entries/go-build-cache.json"),
     ),
