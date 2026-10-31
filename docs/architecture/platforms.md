@@ -61,6 +61,10 @@ Research: [03-macos-platform](../research/03-macos-platform.md),
 - `SF_DATALESS` and sync-root items are never opened, and dataless directories are
   not listed (reported as not scanned). `IOPOL_MATERIALIZE_DATALESS_FILES_OFF` is set
   per scanner thread, because the process policy is inherited and can be `ON`.
+- Items at or below a dataless or `EF_IS_SYNC_ROOT` directory, and directories
+  holding a dataless item, are cloud-backed and `KEEP`. iCloud Drive's container does
+  not report `EF_IS_SYNC_ROOT`, so materialised items there are found only through a
+  dataless neighbour.
 - Four size figures per node: logical, allocated, freed now, and freed after snapshots
   expire (with `tmutil listlocalsnapshotdates`).
 - Three free-space figures: `statfs` free, `ImportantUsage`, and `OpportunisticUsage`.
@@ -152,7 +156,8 @@ Research: [04-windows-platform](../research/04-windows-platform.md).
 
 **Cloud files:**
 
-- Sync roots and `RECALL_ON_*` items are `KEEP`.
+- Sync roots and `RECALL_ON_*` items are `KEEP`, and so is everything at or below a
+  placeholder or pinned/unpinned directory and every directory holding such an item.
 - The only space action is dehydration, delegated to the provider or Storage Sense.
 
 **In-use gate:** Restart Manager (`RmGetList`), one session per batch, files only.

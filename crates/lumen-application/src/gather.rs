@@ -5,7 +5,7 @@
 //! locations, declared caches) each contribute evidence and relationships. To
 //! those the scan's own facts are added: what was observed of every entry a
 //! producer said something about or a relationship connects
-//! ([`filesystem_evidence`]), and whether each application named as an owner
+//! ([`filesystem_evidence`], with the scan's cloud domains), and whether each application named as an owner
 //! is installed ([`application_evidence`]).
 //!
 //! A decision sees only its candidate and the subjects relationships reach
@@ -24,6 +24,7 @@ use lumen_domain::{
     AppId, Evidence, EvidenceId, Fact, FilesystemEntry, Relationship, Subject, Timestamp,
 };
 
+use crate::cloud::CloudDomains;
 use crate::collect::{Inventory, application_evidence, filesystem_evidence};
 
 /// Everything one scan established.
@@ -36,13 +37,15 @@ pub struct Gathered {
 }
 
 /// Combines the producers' `evidence` and `relationships` with the scan's own
-/// facts about `entries`, observed when the scan finished (`scanned_at`), and
+/// facts about `entries` (cloud-backed as `cloud`, built from the whole scan,
+/// says), observed when the scan finished (`scanned_at`), and
 /// the installation state of every owner, observed now (`observed_at`).
 ///
 /// Dating the scan's facts by the scan, not by the assessment, keeps their
 /// IDs stable: assessing the same scan again records nothing new.
 pub fn gather(
     entries: &[FilesystemEntry],
+    cloud: &CloudDomains,
     inventory: &Inventory,
     evidence: impl IntoIterator<Item = Evidence>,
     relationships: impl IntoIterator<Item = Relationship>,
@@ -63,7 +66,7 @@ pub fn gather(
                 identity: entry.identity().clone(),
             })
         })
-        .flat_map(|entry| filesystem_evidence(entry, scanned_at))
+        .flat_map(|entry| filesystem_evidence(entry, cloud, scanned_at))
         .collect();
     let mut by_id: BTreeMap<EvidenceId, Evidence> = BTreeMap::new();
     for record in evidence.into_iter().chain(scanned) {
@@ -171,6 +174,7 @@ mod tests {
         .unwrap_or_else(|e| unreachable!("{e:?}"));
         let gathered = gather(
             &[entry(1), entry(2)],
+            &CloudDomains::new(),
             &inventory,
             [ownership.clone(), ownership.clone()],
             [relationship.clone(), relationship.clone()],
@@ -210,6 +214,7 @@ mod tests {
         let ids = |now| {
             gather(
                 &[entry(1), entry(2)],
+                &CloudDomains::new(),
                 &inventory,
                 [owned(1)],
                 [],
@@ -228,7 +233,15 @@ mod tests {
     fn entries_nothing_identifies_or_connects_add_no_evidence() {
         let inventory = summarize(&[]);
         let entries: Vec<FilesystemEntry> = (1..=100).map(entry).collect();
-        let gathered = gather(&entries, &inventory, [owned(7)], [], at(1), at(2));
+        let gathered = gather(
+            &entries,
+            &CloudDomains::new(),
+            &inventory,
+            [owned(7)],
+            [],
+            at(1),
+            at(2),
+        );
         let subjects: BTreeSet<&Subject> = gathered
             .evidence
             .iter()
@@ -250,5 +263,27 @@ mod tests {
                 .any(|record| record.subject == seven && matches!(record.fact, Fact::Protected(_))),
             "the identified entry keeps its scan facts"
         );
+    }
+
+    #[test]
+    fn an_entry_below_a_cloud_backed_directory_is_cloud_backed() {
+        let inventory = summarize(&[]);
+        let mut root = entry(100);
+        root.path = RawPath::from_unix_bytes(b"/Users/ana/Library/Caches".to_vec())
+            .unwrap_or_else(|_| unreachable!());
+        root.size.flags.cloud_placeholder = true;
+        let mut cloud = CloudDomains::new();
+        cloud.add(&[root, entry(1)]);
+        let cloud_backed = |cloud: &CloudDomains| {
+            gather(&[entry(1)], cloud, &inventory, [owned(1)], [], at(1), at(2))
+                .evidence
+                .iter()
+                .find_map(|record| match record.fact {
+                    Fact::CloudBacked(backed) => Some(backed),
+                    _ => None,
+                })
+        };
+        assert_eq!(cloud_backed(&cloud), Some(true));
+        assert_eq!(cloud_backed(&CloudDomains::new()), Some(false));
     }
 }
