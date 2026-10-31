@@ -1,0 +1,40 @@
+{
+  "id": "rustup-downloads",
+  "tool": "rustup",
+  "locations": [
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "home" },
+      "path": ".rustup/downloads",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "home" },
+      "path": ".rustup/tmp",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "RUSTUP_HOME" },
+      "path": "downloads",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "RUSTUP_HOME" },
+      "path": "tmp",
+      "kind": "directory"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://rust-lang.github.io/rustup/environment-variables.html",
+    "https://github.com/rust-lang/rustup/blob/main/src/config.rs",
+    "https://github.com/rust-lang/rustup/blob/main/src/dist/download.rs",
+    "https://github.com/rust-lang/rustup/blob/main/src/dist/temp.rs",
+    "https://github.com/rust-lang/rustup/blob/main/src/cli/rustup_mode.rs"
+  ],
+  "last_verified": "2026-10-31"
+}
