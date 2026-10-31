@@ -64,6 +64,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/docker-desktop-disk-image.json"),
     ),
     (
+        "dotslash-cache.json",
+        include_str!("../entries/dotslash-cache.json"),
+    ),
+    (
         "expo-cli-download-caches.json",
         include_str!("../entries/expo-cli-download-caches.json"),
     ),
