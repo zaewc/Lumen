@@ -1,0 +1,50 @@
+{
+  "id": "brave-browser-caches",
+  "tool": "Brave",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/BraveSoftware/Brave-Browser/*/Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/BraveSoftware/Brave-Browser/*/Code Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/BraveSoftware/Brave-Browser/*/Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/BraveSoftware/Brave-Browser/*/Code Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "env_var", "name": "XDG_CACHE_HOME" },
+      "path": "BraveSoftware/Brave-Browser/*/Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "env_var", "name": "XDG_CACHE_HOME" },
+      "path": "BraveSoftware/Brave-Browser/*/Code Cache"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "seconds", "network": true },
+  "sources": [
+    "https://github.com/brave/brave-core/blob/master/build/config.gni",
+    "https://github.com/brave/brave-core/blob/master/build/mac/tweak_info_plist.py",
+    "https://github.com/brave/brave-core/blob/master/chromium_src/chrome/common/chrome_paths_linux.cc",
+    "https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md",
+    "https://github.com/chromium/chromium/blob/main/chrome/common/chrome_paths_mac.mm",
+    "https://github.com/chromium/chromium/blob/main/chrome/common/chrome_paths_linux.cc",
+    "https://github.com/chromium/chromium/blob/main/chrome/browser/net/profile_network_context_service.cc",
+    "https://github.com/chromium/chromium/blob/main/chrome/browser/chrome_content_browser_client.cc",
+    "https://github.com/chromium/chromium/blob/main/content/browser/storage_partition_impl.cc"
+  ],
+  "last_verified": "2026-10-31"
+}

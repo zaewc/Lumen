@@ -36,6 +36,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/arc-browser-caches.json"),
     ),
     (
+        "brave-browser-caches.json",
+        include_str!("../entries/brave-browser-caches.json"),
+    ),
+    (
         "cargo-global-cache.json",
         include_str!("../entries/cargo-global-cache.json"),
     ),
