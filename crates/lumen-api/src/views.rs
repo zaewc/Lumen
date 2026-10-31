@@ -18,7 +18,7 @@ use lumen_application::finalize::FinalizeOutcome;
 use lumen_application::ports::{NotRestored, Removal};
 use lumen_application::restore::RestoreOutcome;
 use lumen_domain::{
-    ByteCount, ItemKind, ItemLocation, ItemNote, JudgmentConfidence, QuarantineFailure,
+    ByteCount, Chooser, ItemKind, ItemLocation, ItemNote, JudgmentConfidence, QuarantineFailure,
     QuarantineState, Verdict,
 };
 use serde::{Deserialize, Serialize};
@@ -721,6 +721,30 @@ pub struct HeldItemView {
     /// estimated; `null` for items quarantined before sizes were recorded.
     #[schema(required = true)]
     pub reclaim_bytes: Option<String>,
+    /// Who chose it (ADR-0051); `null` if that was not recorded. Only an item
+    /// the policy proposed is removed for good when its retention ends; the
+    /// others stay until the person restores or removes them.
+    #[schema(required = true)]
+    pub chosen_by: Option<ChooserView>,
+}
+
+/// Who put an item into a plan (ADR-0051).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ChooserView {
+    /// The policy proposed it.
+    Policy,
+    /// The person chose it from the items left for review.
+    Person,
+}
+
+impl From<Chooser> for ChooserView {
+    fn from(chooser: Chooser) -> Self {
+        match chooser {
+            Chooser::Policy => Self::Policy,
+            Chooser::Person => Self::Person,
+        }
+    }
 }
 
 impl From<&HeldItem> for HeldItemView {
@@ -735,6 +759,7 @@ impl From<&HeldItem> for HeldItemView {
             original: item.original.as_ref().map(|p| p.display().to_string()),
             since: item.since,
             reclaim_bytes: item.reclaim.map(bytes),
+            chosen_by: item.chosen_by.map(ChooserView::from),
         }
     }
 }

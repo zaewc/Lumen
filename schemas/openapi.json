@@ -190,6 +190,14 @@
           }
         }
       },
+      "ChooserView": {
+        "type": "string",
+        "description": "Who put an item into a plan (ADR-0051).",
+        "enum": [
+          "policy",
+          "person"
+        ]
+      },
       "ConfidenceView": {
         "type": "string",
         "description": "How sure AI review was.",
@@ -425,9 +433,21 @@
           "state",
           "original",
           "since",
-          "reclaim_bytes"
+          "reclaim_bytes",
+          "chosen_by"
         ],
         "properties": {
+          "chosen_by": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ChooserView",
+                "description": "Who chose it (ADR-0051); `null` if that was not recorded. Only an item\nthe policy proposed is removed for good when its retention ends; the\nothers stay until the person restores or removes them."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "operation": {
             "type": "string",
             "description": "The operation that moved it."

@@ -46,6 +46,11 @@ export const zAssessProgressView = z.object({
 });
 
 /**
+ * Who put an item into a plan (ADR-0051).
+ */
+export const zChooserView = z.enum(["policy", "person"]);
+
+/**
  * How sure AI review was.
  */
 export const zConfidenceView = z.enum(["low", "medium", "high"]);
@@ -101,6 +106,7 @@ export const zHeldStateView = z.enum(["retained", "held_after_failure"]);
  * One item in quarantine.
  */
 export const zHeldItemView = z.object({
+  chosen_by: zChooserView.nullable(),
   operation: z.string(),
   original: z.string().nullable(),
   reclaim_bytes: z.string().nullable(),

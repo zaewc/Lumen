@@ -189,7 +189,10 @@ CleanupCandidate
   `PhotoLibraryDelete`, `CloudEvict`, `OpenSystemSettings`, `ArchiveApp`. Each declares
   its reversibility.
 - `CleanupPlan`: an ordered set of actions bound to a `PlanId`, with a plan hash, the
-  decisions it relies on, and expected identities.
+  decisions it relies on, and expected identities. Each item records who chose it
+  (`Chooser::Policy` for a proposed item, `Chooser::Person` for a review item the
+  person chose), and the hash (`lumen.plan/2`) covers that
+  ([ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md)).
 
 ### 6.4 State machines
 
@@ -219,7 +222,9 @@ Invariants (property-tested):
 - `Finalized` is reachable only from `Retained`.
 - A plan cannot be `Executing` without `Confirmed`.
 - `REVIEW` items are never part of a confirmed plan unless the user individually
-  promoted them.
+  chose them; a chosen item is confirmed only while it is still `REVIEW` (or
+  `QUARANTINE`) for the same rules, and is never finalized when retention ends
+  (ADR-0051).
 
 ## 7. Evidence graph
 
@@ -313,7 +318,10 @@ See [ADR-0017](../decisions/0017-scan-engine-and-size-accounting.md) and
    [ADR-0030](../decisions/0030-partial-in-use-visibility.md)),
    writes a journal intent, performs a no-replace rename into the quarantine store,
    verifies, and records completion. A mismatch aborts that item to `REVIEW`.
-4. Retention then finalization, or rollback by operation ID.
+4. Retention then finalization, or rollback by operation ID. Only items the policy
+   proposed are finalized when retention ends; an item the person chose, or one whose
+   chooser the ledger does not record, stays until the person restores it or removes
+   it for good (ADR-0051).
 5. Tool actions (developer caches) and other irreversible actions are executed
    separately, after a dry run, labelled irreversible.
 

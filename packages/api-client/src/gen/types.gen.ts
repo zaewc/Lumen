@@ -112,6 +112,11 @@ export type CandidateView = {
 };
 
 /**
+ * Who put an item into a plan (ADR-0051).
+ */
+export type ChooserView = "policy" | "person";
+
+/**
  * How sure AI review was.
  */
 export type ConfidenceView = "low" | "medium" | "high";
@@ -226,6 +231,7 @@ export type GroupView = {
  * One item in quarantine.
  */
 export type HeldItemView = {
+  chosen_by: ChooserView | null;
   /**
    * The operation that moved it.
    */

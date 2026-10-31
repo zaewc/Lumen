@@ -8,6 +8,7 @@ export type {
   AssessProgressView,
   AssessStageView,
   CandidateView,
+  ChooserView,
   ClientOptions,
   ConfidenceView,
   DiskView,
