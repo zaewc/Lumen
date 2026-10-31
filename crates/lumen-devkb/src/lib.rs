@@ -146,6 +146,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/pnpm-store.json"),
     ),
     (
+        "poetry-repository-cache.json",
+        include_str!("../entries/poetry-repository-cache.json"),
+    ),
+    (
         "postman-chromium-caches.json",
         include_str!("../entries/postman-chromium-caches.json"),
     ),
