@@ -1393,6 +1393,76 @@ mod tests {
         );
     }
 
+    /// The dotslash cache matches at its documented default on each platform and
+    /// at `DOTSLASH_CACHE`; its command acts on the configured folder only.
+    #[test]
+    fn dotslash_cache_matches_where_dotslash_documents_it() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mut mac = env(Platform::Macos);
+        let default = unix("/Users/ana/Library/Caches/dotslash");
+        assert_eq!(
+            ids(&mac, &[dir("/Users/ana/Library/Caches/dotslash", 1)]),
+            ["dotslash-cache"]
+        );
+        assert!(builtin.command_acts_on(&mac, "dotslash-cache", &default));
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir("/Users/ana/Library/Caches/dotslash/locks", 1),
+                    dir("/Users/ana/Library/Caches/dotslash/10", 2),
+                    dir("/Users/ana/.cache/dotslash", 3),
+                    object(
+                        unix("/Users/ana/Library/Caches/dotslash"),
+                        EntryKind::Symlink,
+                        4
+                    ),
+                ]
+            )
+            .len(),
+            0
+        );
+        mac.vars = vec![("DOTSLASH_CACHE".to_owned(), unix("/custom/ds"))];
+        assert_eq!(ids(&mac, &[dir("/custom/ds", 1)]), ["dotslash-cache"]);
+        assert!(builtin.command_acts_on(&mac, "dotslash-cache", &unix("/custom/ds")));
+        assert!(!builtin.command_acts_on(&mac, "dotslash-cache", &default));
+        let mut linux = env(Platform::Linux);
+        linux.vars = vec![("XDG_CACHE_HOME".to_owned(), unix("/xdg"))];
+        assert_eq!(
+            ids(
+                &linux,
+                &[
+                    dir("/Users/ana/.cache/dotslash", 1),
+                    dir("/xdg/dotslash", 2)
+                ]
+            ),
+            ["dotslash-cache", "dotslash-cache"]
+        );
+        let mut win = env(Platform::Windows);
+        win.local_app_data = Some(windows(r"C:\Users\ana\AppData\Local"));
+        assert_eq!(
+            ids(
+                &win,
+                &[object(
+                    windows(r"C:\Users\ana\AppData\Local\dotslash"),
+                    EntryKind::Directory,
+                    1
+                )]
+            ),
+            ["dotslash-cache"]
+        );
+    }
+
     #[test]
     fn npx_cache_stays_separate_from_packages_and_the_download_cache() {
         let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
