@@ -68,6 +68,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/go-module-cache.json"),
     ),
     (
+        "google-chrome-caches.json",
+        include_str!("../entries/google-chrome-caches.json"),
+    ),
+    (
         "gradle-user-home-caches.json",
         include_str!("../entries/gradle-user-home-caches.json"),
     ),
