@@ -94,6 +94,10 @@ const BUILTIN: &[(&str, &str)] = &[
     ),
     ("pip-cache.json", include_str!("../entries/pip-cache.json")),
     (
+        "pnpm-metadata-cache.json",
+        include_str!("../entries/pnpm-metadata-cache.json"),
+    ),
+    (
         "pnpm-store.json",
         include_str!("../entries/pnpm-store.json"),
     ),
