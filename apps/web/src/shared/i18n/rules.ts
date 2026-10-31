@@ -27,6 +27,7 @@ export const RULE_IDS = [
   "classify.devkb-self-managed",
   "classify.devkb-unknown",
   "classify.vendor-declared-cache",
+  "classify.browser-profile",
   "classify.app-cache",
   "classify.app-state",
   "classify.orphan",

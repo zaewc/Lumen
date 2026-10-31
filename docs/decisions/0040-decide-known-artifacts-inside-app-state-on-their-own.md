@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-26
 - Amends: roadmap 10.8 (candidates are the outermost identified entries)
+- Amended: 2026-10-31 (a cache folder that holds a browser profile)
 
 ## Context and problem statement
 
@@ -51,6 +52,30 @@ Chosen option: **1**.
 - The nested item is decided by its own evidence like any other match: a regenerable
   match is proposed whatever its size (a classification rule fires, so ADR-0039's
   `default.keep-small` does not apply), and an item a running app holds open is kept.
+
+### Amendment: a cache folder that holds a browser profile (2026-10-31)
+
+Apps that embed Chromium can keep a whole browser profile in their `Caches` folder:
+on the owner's Mac `~/Library/Caches/com.spotify.client` holds `Default/` and
+`Browser/` profiles with `Cookies`, `Login Data`, `Web Data` and `Local Storage`, and
+Adobe CEP panels keep `Cookies` and `Local Storage` under
+`~/Library/Caches/CSXS/cep_cache/<panel>`. `classify.app-cache` proposed such a folder
+for quarantine, which would have moved the user's sign-ins and site data and, after
+retention, removed them.
+
+- On macOS, a direct child of `~/Library/Caches` with an entry named `Cookies`,
+  `Login Data`, `Web Data`, `Local Storage`, `Session Storage` or `IndexedDB` at most
+  three levels below it gets `BrowserProfile` evidence (source `macos.web-profile`;
+  names only, compared exactly; nothing is opened). Three levels cover a profile in
+  the folder itself, a profile folder (`Default/Cookies`), and a profile's `Network`
+  folder or a profile one level deeper (`cep_cache/<panel>/Cookies`); deeper names are
+  unrelated content, such as a package named `cookies` in a package manager's cache.
+- `classify.browser-profile` keeps any subject with that evidence (risk: sensitive
+  data), whoever owns it, and `classify.app-cache` does not fire for it. The change
+  only moves verdicts towards `KEEP`. The policy version moves to 0.14.0.
+- Such a folder is always kept, so selection treats it like state: a knowledge-base
+  match inside it (for example a vendor-documented cache sub-folder) is decided on its
+  own, and the folder is decided for the rest.
 
 ### Consequences
 

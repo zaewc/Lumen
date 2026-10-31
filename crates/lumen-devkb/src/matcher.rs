@@ -1324,6 +1324,104 @@ mod tests {
     }
 
     #[test]
+    fn android_gradle_matches_intermediates_but_not_outputs() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        for platform in [Platform::Macos, Platform::Linux, Platform::Windows] {
+            let path = |tail: &str| {
+                if platform == Platform::Windows {
+                    windows(&format!(r"C:\src\{tail}").replace('/', "\\"))
+                } else {
+                    unix(&format!("/src/{tail}"))
+                }
+            };
+            let mut scanned = Vec::new();
+            for (index, tail) in [
+                "rn/android/app/build/intermediates",
+                "rn/node_modules/lib/android/build/intermediates",
+                "rn/android/app/build",
+                "rn/android/app/build/outputs",
+                "rn/android/app/build/outputs/apk",
+                "rn/android/app/build/outputs/mapping",
+                "rn/android/app/build/generated",
+                "rn/android/app/build/tmp",
+                "rn/android/app/build/kotlin",
+                "rn/android/app/build/reports",
+                "rn/android/app/.cxx",
+                "rn/android/.gradle",
+                "rn/android/app/src",
+                "rn/android/app/build/intermediates/cxx",
+                "other/build/intermediates",
+            ]
+            .iter()
+            .enumerate()
+            {
+                scanned.push(object(path(tail), EntryKind::Directory, index as u128 + 1));
+            }
+            scanned.push(object(
+                path("rn/android/app/build.gradle"),
+                EntryKind::File,
+                50,
+            ));
+            scanned.push(object(
+                path("rn/node_modules/lib/android/build.gradle.kts"),
+                EntryKind::File,
+                51,
+            ));
+            let environment = env(platform);
+            let found = builtin.matches(&environment, &scanned, Timestamp::UNIX_EPOCH);
+            assert_eq!(found.len(), 2, "{platform:?}");
+            for (evidence, cache) in found.iter().zip(&scanned[..2]) {
+                assert_eq!(
+                    evidence.subject,
+                    Subject::File {
+                        identity: cache.identity().clone()
+                    }
+                );
+                assert!(matches!(
+                    &evidence.fact,
+                    Fact::KnowledgeBaseMatch { entry } if entry.as_str() == "android-gradle-project-build-cache"
+                ));
+            }
+            let (caches, rest) = scanned.split_at(2);
+            assert_eq!(chunked(&builtin, &environment, &[caches, rest]), found);
+        }
+    }
+
+    #[test]
+    fn android_gradle_requires_a_regular_build_script_and_a_real_directory() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let environment = env(Platform::Macos);
+        let cache = dir("/src/app/build/intermediates", 1);
+        assert_eq!(
+            builtin.matches(
+                &environment,
+                std::slice::from_ref(&cache),
+                Timestamp::UNIX_EPOCH
+            ),
+            []
+        );
+        for kind in [EntryKind::Directory, EntryKind::Symlink] {
+            let marker = object(unix("/src/app/build.gradle"), kind, 2);
+            assert_eq!(
+                builtin.matches(
+                    &environment,
+                    &[cache.clone(), marker],
+                    Timestamp::UNIX_EPOCH
+                ),
+                []
+            );
+        }
+        for kind in [EntryKind::File, EntryKind::Symlink] {
+            let cache = object(unix("/src/app/build/intermediates"), kind, 1);
+            let marker = object(unix("/src/app/build.gradle"), EntryKind::File, 2);
+            assert_eq!(
+                builtin.matches(&environment, &[cache, marker], Timestamp::UNIX_EPOCH),
+                []
+            );
+        }
+    }
+
+    #[test]
     fn one_match_per_object_and_entry() {
         let mut both = env(Platform::Macos);
         both.vars = vec![("SAMPLE_CACHE".to_owned(), unix("/Users/ana/.cache/sample"))];
