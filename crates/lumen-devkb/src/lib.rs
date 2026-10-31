@@ -72,6 +72,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/expo-cli-download-caches.json"),
     ),
     (
+        "figma-chromium-caches.json",
+        include_str!("../entries/figma-chromium-caches.json"),
+    ),
+    (
         "go-build-cache.json",
         include_str!("../entries/go-build-cache.json"),
     ),
@@ -130,6 +134,10 @@ const BUILTIN: &[(&str, &str)] = &[
     ),
     ("pip-cache.json", include_str!("../entries/pip-cache.json")),
     (
+        "pnpm-metadata-cache.json",
+        include_str!("../entries/pnpm-metadata-cache.json"),
+    ),
+    (
         "pnpm-store.json",
         include_str!("../entries/pnpm-store.json"),
     ),
@@ -144,6 +152,10 @@ const BUILTIN: &[(&str, &str)] = &[
     (
         "react-native-prebuilt-cache.json",
         include_str!("../entries/react-native-prebuilt-cache.json"),
+    ),
+    (
+        "rustup-downloads.json",
+        include_str!("../entries/rustup-downloads.json"),
     ),
     (
         "swiftpm-shared-cache.json",

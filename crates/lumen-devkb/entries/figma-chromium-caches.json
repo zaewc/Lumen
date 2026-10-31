@@ -1,0 +1,69 @@
+{
+  "id": "figma-chromium-caches",
+  "tool": "Figma",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Figma/DesktopProfile/*/Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Figma/DesktopProfile/*/Code Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Figma/DesktopProfile/*/GPUCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Figma/DesktopProfile/*/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Application Support/Figma/DesktopProfile/*/DawnWebGPUCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Figma/DesktopProfile/*/Cache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Figma/DesktopProfile/*/Code Cache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Figma/DesktopProfile/*/GPUCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Figma/DesktopProfile/*/DawnGraphiteCache"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "roaming_app_data" },
+      "path": "Figma/DesktopProfile/*/DawnWebGPUCache"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "seconds", "network": true },
+  "sources": [
+    "https://help.figma.com/hc/en-us/articles/22380853110551",
+    "https://www.electronjs.org/docs/latest/api/app",
+    "https://www.electronjs.org/docs/latest/api/session",
+    "https://github.com/electron/electron/blob/main/shell/browser/net/network_context_service.cc",
+    "https://github.com/chromium/chromium/blob/main/chrome/common/chrome_constants.h",
+    "https://www.chromium.org/developers/design-documents/network-stack/disk-cache/",
+    "https://github.com/chromium/chromium/blob/main/content/browser/storage_partition_impl.cc",
+    "https://github.com/chromium/chromium/blob/main/gpu/ipc/common/gpu_disk_cache_type.cc"
+  ],
+  "last_verified": "2026-10-31"
+}
