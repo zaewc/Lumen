@@ -76,3 +76,13 @@ Existing coverage, ownership, in-use, cloud and executor checks still decide eli
 On Linux the portable scanner cannot rule out clone sharing, so a recognized cache
 can retain a zero reclaimable lower bound and remain `KEEP`; recognition alone never
 overrides that size protection.
+
+## Amendment 2026-10-31: `node_modules`
+
+This note kept `node_modules` out because it can hold local changes.
+[Research 31](31-node-modules.md) revisits that against npm, pnpm, Yarn and Bun
+documentation: a `node_modules` directory is now recognised as regenerable only
+directly beside a scanned regular lockfile (`package-lock.json`,
+`npm-shrinkwrap.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock` or `bun.lockb`),
+never inside another `node_modules` and never as a link or file. A `node_modules`
+without a lockfile stays unrecognised. The text above is unchanged.

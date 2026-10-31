@@ -35,6 +35,28 @@ describe("catalogs", () => {
     }
   });
 
+  it("say which apps to quit, calmly, without changing the verdict", () => {
+    expect(ko.results.whenClosed("1.9 GB", "Spotify", "Discord")).toBe(
+      "Spotify, Discord 앱을 종료하고 다시 검사하면 1.9 GB를 더 정리할 수 있어요.",
+    );
+    expect(en.results.whenClosed("1.9 GB", "Spotify", "Discord")).toBe(
+      "Quit Spotify and Discord, then scan again to clean up 1.9 GB more.",
+    );
+    expect(ko.results.whenClosed("1 GB", "A", "B", "C", "D", "E")).toBe(
+      "A, B, C 외 2개 앱을 종료하고 다시 검사하면 1 GB를 더 정리할 수 있어요.",
+    );
+    expect(en.results.whenClosed("1 GB", "A", "B", "C", "D")).toBe(
+      "Quit A, B, C and 1 more, then scan again to clean up 1 GB more.",
+    );
+    expect(ko.results.whenClosed("1 GB")).toBe(
+      "사용 중인 앱을 종료하고 다시 검사하면 1 GB를 더 정리할 수 있어요.",
+    );
+    expect(en.detail.whenClosed("Spotify")).toBe("Quit Spotify, then scan again to clean it up.");
+    expect(ko.detail.whenClosed("Spotify")).toBe(
+      "Spotify 앱을 종료하고 다시 검사하면 정리할 수 있어요.",
+    );
+  });
+
   it("have the same keys and parameters in every language", () => {
     for (const locale of LOCALES) {
       expect(shape(MESSAGES[locale])).toEqual(shape(en));

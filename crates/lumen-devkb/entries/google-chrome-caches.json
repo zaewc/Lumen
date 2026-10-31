@@ -1,0 +1,49 @@
+{
+  "id": "google-chrome-caches",
+  "tool": "Google Chrome",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/Google/Chrome/*/Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/Google/Chrome/*/Code Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/google-chrome/*/Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/google-chrome/*/Code Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "env_var", "name": "XDG_CACHE_HOME" },
+      "path": "google-chrome/*/Cache"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "env_var", "name": "XDG_CACHE_HOME" },
+      "path": "google-chrome/*/Code Cache"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "seconds", "network": true },
+  "sources": [
+    "https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md",
+    "https://github.com/chromium/chromium/blob/main/chrome/common/chrome_paths_mac.mm",
+    "https://github.com/chromium/chromium/blob/main/chrome/common/chrome_paths_linux.cc",
+    "https://github.com/chromium/chromium/blob/main/chrome/browser/net/profile_network_context_service.cc",
+    "https://github.com/chromium/chromium/blob/main/chrome/browser/chrome_content_browser_client.cc",
+    "https://github.com/chromium/chromium/blob/main/content/browser/storage_partition_impl.cc",
+    "https://github.com/chromium/chromium/blob/main/chrome/common/chrome_constants.h",
+    "https://www.chromium.org/developers/design-documents/network-stack/disk-cache/"
+  ],
+  "last_verified": "2026-10-31"
+}

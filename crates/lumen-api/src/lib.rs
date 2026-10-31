@@ -36,6 +36,7 @@ use utoipa::OpenApi;
         views::ReasonView,
         views::ToolCommandView,
         views::AiNoteView,
+        views::FreeWhenClosedView,
         views::ItemKindView,
         views::ConfidenceView,
         views::PlanView,
@@ -47,6 +48,7 @@ use utoipa::OpenApi;
         views::ItemReportView,
         views::QuarantineReportView,
         views::HeldStateView,
+        views::ChooserView,
         views::HeldItemView,
         views::NotRestoredView,
         views::RestoreView,
@@ -102,7 +104,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 38);
+        assert_eq!(schemas, 40);
     }
 
     #[test]
@@ -116,6 +118,7 @@ mod tests {
                 path: lumen_domain::RawPath::from_unix_bytes(b"/home/t/x".to_vec())
                     .unwrap_or_else(|_| unreachable!()),
                 reclaim: ByteCount::new(u64::MAX),
+                chosen_by: lumen_domain::Chooser::Policy,
                 result: lumen_app::quarantine::ItemResult::Failed {
                     reason: QuarantineFailure::IdentityMismatch,
                     left: ItemLocation::Source,
@@ -145,6 +148,7 @@ mod tests {
             .map(|r| r.iter().filter_map(serde_json::Value::as_str).collect())
             .unwrap_or_default();
         assert!(required.contains(&"original"), "{required:?}");
+        assert!(required.contains(&"chosen_by"), "{required:?}");
         let candidate = &doc["components"]["schemas"]["CandidateView"];
         let required: Vec<&str> = candidate["required"]
             .as_array()
@@ -152,6 +156,7 @@ mod tests {
             .unwrap_or_default();
         assert!(required.contains(&"tool_command"), "{required:?}");
         assert!(required.contains(&"ai_note"), "{required:?}");
+        assert!(required.contains(&"free_when_closed"), "{required:?}");
         let ai = &doc["components"]["schemas"]["AiSettingsView"];
         let required: Vec<&str> = ai["required"]
             .as_array()
