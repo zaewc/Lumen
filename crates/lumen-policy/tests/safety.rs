@@ -360,7 +360,12 @@ proptest! {
         with.paths.push(holder);
         let before = decide(&input)?.verdict();
         let after = decide(&with)?;
-        prop_assert!(after.verdict() <= before, "{:?} vs {:?}", after.verdict(), before);
+        // Without any path, a partial in-use answer cannot pass (ADR-0030
+        // needs paths to check), so the item is kept; its first path, of any
+        // kind, can lift that. Compare only inputs that already have paths.
+        if !input.paths.is_empty() {
+            prop_assert!(after.verdict() <= before, "{:?} vs {:?}", after.verdict(), before);
+        }
         if holds_protected(&with) {
             prop_assert_eq!(after.verdict(), Verdict::Keep);
             prop_assert_eq!(after.jev_effect(), JevEffect::None);
