@@ -94,6 +94,15 @@ This status notice is the explicit exception to the launch rule documented in
 [UX writing](../design/ux-writing.md#no-dark-patterns); it never opens a dialog or
 takes focus, and a declined version does not reappear on each launch.
 
+### Key rotation (amended 2026-10-31)
+
+The first key was in the desktop build's environment for releases up to 0.8.1, on
+macOS and Windows runners with no egress control, so any build-time dependency could
+have read it. Nothing shows it was, but installed copies would accept anything it
+signs, so it is replaced: 0.8.3 carries the new public key and is signed with the old
+key, and later releases are signed with the new key only. The procedure is in
+`docs/operations/release.md` ("Rotating the updater key").
+
 ### Consequences
 
 - Good: people update with one click; a tampered or foreign file is refused by the
