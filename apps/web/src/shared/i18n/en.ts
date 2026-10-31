@@ -506,6 +506,8 @@ export const en = {
       "classify.devkb-unknown":
         "Needs review: Lumen could not load the tool information that matches it.",
       "classify.vendor-declared-cache": "Needs review: its maker says you can delete it.",
+      "classify.browser-profile":
+        "Kept: it holds a web browser's sign-ins, cookies or site data, so Lumen leaves it alone.",
       "classify.app-cache": "Proposed: it is an app's cache, which the app makes again.",
       "classify.app-state":
         "Kept: it holds an app's own data, settings or documents, so Lumen leaves it alone.",

@@ -450,6 +450,32 @@
             "fact",
             "value"
           ]
+        },
+        {
+          "description": "The subject holds a web browser profile's state (cookies, saved\nsign-ins, site storage), such as an app's embedded Chromium, recognised\nby the names of entries below it. No file is opened.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "browser_profile"
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "marker": {
+                  "description": "The entry that showed it, relative to the subject, e.g.\n`Default/Cookies`.",
+                  "$ref": "#/$defs/UntrustedText"
+                }
+              },
+              "required": [
+                "marker"
+              ]
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
         }
       ]
     },
