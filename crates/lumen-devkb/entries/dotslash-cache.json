@@ -1,0 +1,49 @@
+{
+  "id": "dotslash-cache",
+  "tool": "DotSlash",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/dotslash",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "home" },
+      "path": ".cache/dotslash",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["linux"],
+      "root": { "kind": "env_var", "name": "XDG_CACHE_HOME" },
+      "path": "dotslash",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["windows"],
+      "root": { "kind": "local_app_data" },
+      "path": "dotslash",
+      "kind": "directory"
+    },
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "env_var", "name": "DOTSLASH_CACHE" },
+      "path": "",
+      "kind": "directory"
+    }
+  ],
+  "safety_class": "tool_action",
+  "regeneration": { "effort": "minutes", "network": true },
+  "official_action": {
+    "program": "dotslash",
+    "args": ["--", "clean"]
+  },
+  "sources": [
+    "https://dotslash-cli.com/docs/flags/",
+    "https://dotslash-cli.com/docs/execution/",
+    "https://github.com/facebook/dotslash/blob/main/src/dotslash_cache.rs",
+    "https://github.com/facebook/dotslash/blob/main/src/subcommand.rs"
+  ],
+  "last_verified": "2026-10-31"
+}
