@@ -1,5 +1,6 @@
 import type { CandidateView, QuarantineReportView, RootView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
+import { closingSummary } from "./closing";
 import { coverageOf } from "./coverage";
 import { cleanUpSearch, filterCounts, shows } from "./filter";
 import { reportSummary } from "./report";
@@ -200,5 +201,23 @@ describe("reportSummary", () => {
     const summary = reportSummary(report);
     expect(summary.moved).toBe(1);
     expect(summary.notMoved.map((item) => item.path)).toEqual(["/b", "/c"]);
+  });
+
+  it("adds up only kept items that quitting their apps would let Lumen propose", () => {
+    const inUse = (path: string, bytes: string, processes: string[]): CandidateView => ({
+      ...candidate(path, "keep", bytes),
+      free_when_closed: { processes },
+    });
+    expect(closingSummary([candidate("/a", "keep", "9"), candidate("/b", "quarantine", "9")])).toBe(
+      null,
+    );
+    const summary = closingSummary([
+      inUse("/spotify", "1100000000", ["Spotify"]),
+      inUse("/discord", "800000000", ["Spotify", "Discord"]),
+      inUse("/unnamed", "1", []),
+      candidate("/kept", "keep", "5000000000"),
+      { ...inUse("/proposed", "7", ["Arc"]), verdict: "quarantine" },
+    ]);
+    expect(summary).toEqual({ apps: ["Discord", "Spotify"], bytes: "1900000001", count: 3 });
   });
 });

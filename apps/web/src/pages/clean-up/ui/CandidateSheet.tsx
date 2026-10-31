@@ -115,6 +115,11 @@ export function CandidateSheet({
                   </li>
                 ))}
               </ol>
+              {candidate.verdict === "keep" && candidate.free_when_closed !== null && (
+                <p className="mt-3 leading-snug text-ink-2">
+                  {m.detail.whenClosed(...candidate.free_when_closed.processes)}
+                </p>
+              )}
               {note !== null && (
                 <p className="mt-3 flex gap-2 leading-snug text-ink-2">
                   <SparkleIcon className="mt-px size-4 shrink-0 text-ink-3" />

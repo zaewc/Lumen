@@ -161,6 +161,16 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: null,
   },
   {
+    path: `${HOME}/Library/Application Support/discord/Cache`,
+    verdict: "keep",
+    reclaimable_bytes: "1100000000",
+    reasons: [{ rule: "protect.in-use", text: "Kept: a running process is using it." }],
+    tool_command: null,
+    group: { kind: "app_cache", source: "com.hnc.Discord" },
+    ai_note: null,
+    free_when_closed: { processes: ["Discord"] },
+  },
+  {
     path: `${HOME}/Library/Caches/Google/Chrome`,
     verdict: "review",
     reclaimable_bytes: "760000000",
