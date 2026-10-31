@@ -151,6 +151,11 @@
         }
       ]
     },
+    "ByteCount": {
+      "description": "Unsigned 64-bit byte count as a canonical decimal string.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
     "CodeSignature": {
       "description": "Who signed a binary, and whether the platform verified it.",
       "type": "object",
@@ -469,6 +474,32 @@
               },
               "required": [
                 "marker"
+              ]
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "The subject is a large folder that no other evidence names, selected\nfor review from the scan's sizes alone (ADR-0051). It says nothing\nabout what the folder is, so no policy rule classifies by it.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "large_unrecognised"
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "reclaimable": {
+                  "description": "The space removing it would free now, as the scan measured it.",
+                  "$ref": "#/$defs/ByteCount"
+                }
+              },
+              "required": [
+                "reclaimable"
               ]
             }
           },

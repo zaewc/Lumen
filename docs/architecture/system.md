@@ -280,6 +280,15 @@ a knowledge-base match nested in a candidate identified only as app state (such 
 Electron app's `Cache` in its `Application Support` folder) is its own candidate, and
 the app's folder is kept for the rest of it, sized without the nested candidates.
 
+Large folders that no evidence names become candidates too
+([ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md)): after a
+scan, at most 30 directories of at least 1 GiB, at the level where their size is spread
+out, fully listed, and never inside, around or equal to another candidate
+([evidence graph](evidence-graph.md#producers-today)). Their only extra fact,
+`LargeUnrecognised`, is one no rule reads, so the policy decides them as any
+unrecognised item: `default.review`, or `KEEP` when a protection fires. They are never
+proposed for quarantine.
+
 ## 9. Explainability
 
 Every `Recommendation` answers, from evidence (or states "unknown" with the reason):

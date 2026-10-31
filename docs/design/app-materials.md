@@ -65,6 +65,11 @@ so the lens bends a copy instead of the backdrop:
 - **Strength.** The rim bends at most 5 px and never more than half the field's
   measured fold limit, so the rim magnifies the icon and label ends at most 2x and
   never repeats them; labels stay legible. A slight colour fringe stays at the rim.
+- **Track grain.** The track carries faint 45° hairlines in an 8 px tile, drawn
+  from the navigation's corner in both the track and the copy, so they meet exactly
+  at the lens edge and visibly bend inside it. The track stays opaque: the lens
+  bends the copy, not what lies behind the window, so translucency would add
+  nothing to bend and cost legibility.
 - **Per engine.** Filter units, the displacement scale per engine, map decoding and
   a new filter id on every change follow the measured rules in
   [the compatibility findings](../research/32-app-glass-optics.md).
@@ -73,4 +78,4 @@ Pointer light changes the lens position's light only; it never regenerates maps.
 Before the first map is ready, without JavaScript, in an unknown engine or with the
 `data-lg-force-fallback` QA hook, the lens is the material pill under the real
 labels. Reduced transparency, increased contrast and forced colours use an opaque
-surface with no filter; reduced motion moves the lens without a slide.
+surface with no filter and no grain; reduced motion moves the lens without a slide.

@@ -17,6 +17,16 @@
   --material-radius-control: 7px;
   --material-radius-overlay: 14px;
   --material-response: 160ms cubic-bezier(0.2, 0.7, 0.3, 1);
+  --nav-grain-ink: rgb(24 34 50 / 0.042);
+  /* Faint 45° hairlines in an 8 px tile, seamless across tiles. Straight lines make
+   * the lens's bend visible at its rim without making the track translucent. */
+  --nav-grain: linear-gradient(
+    45deg,
+    var(--nav-grain-ink) 6.25%,
+    transparent 6.25% 50%,
+    var(--nav-grain-ink) 50% 56.25%,
+    transparent 56.25%
+  );
 }
 
 :root[data-theme="dark"] {
@@ -28,6 +38,7 @@
   --material-edge: rgb(226 231 238 / 0.08);
   --material-light: rgb(255 255 255 / 0.14);
   --material-shadow: 0 4 14;
+  --nav-grain-ink: rgb(255 255 255 / 0.032);
 }
 
 /* The theme provider resolves System before the workspace mounts. */
@@ -62,7 +73,10 @@ nav::before {
   inset: 10px -2px;
   z-index: -1;
   border-radius: 999px;
-  background: var(--lm-fill);
+  /* The tile starts at the navigation's corner, as in .nav-lens-copy. */
+  background:
+    var(--nav-grain) 2px -10px / 8px 8px,
+    var(--lm-fill);
 }
 
 nav a::after {
@@ -260,8 +274,11 @@ nav > ul {
       transparent calc(var(--lens-light-y, 0px) + var(--lens-h, 0px) * 0.7)
     ),
     linear-gradient(var(--material-floating), var(--material-floating)),
+    var(--nav-grain) calc(-1 * var(--lens-origin-x, 0px)) calc(-1 * var(--lens-origin-y, 0px)) / 8px
+    8px,
     linear-gradient(var(--lm-fill), var(--lm-fill)),
-    linear-gradient(var(--material-integrated), var(--material-integrated)), var(--lm-window);
+    linear-gradient(var(--material-integrated), var(--material-integrated)),
+    var(--lm-window);
   will-change: filter;
 }
 
@@ -279,6 +296,9 @@ nav > ul {
 }
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  :root {
+    --nav-grain: linear-gradient(transparent, transparent);
+  }
   .nav-lens {
     background: var(--lm-raised);
     -webkit-backdrop-filter: none;

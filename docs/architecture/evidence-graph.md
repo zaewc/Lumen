@@ -43,7 +43,10 @@ An `Evidence` record is `{subject, fact, basis, provenance}`:
   container, application support, preferences, saved state, web data), whether
   the subject holds a web browser profile's state, recognised by entry names
   (`BrowserProfile`, [ADR-0040](../decisions/0040-decide-known-artifacts-inside-app-state-on-their-own.md)),
-  and whether the current user owns the subject (`OwnedByCurrentUser`).
+  whether the current user owns the subject (`OwnedByCurrentUser`), and that the
+  subject is a large folder nothing else names (`LargeUnrecognised`, with the space
+  it frees; it says nothing about what the folder is, and no policy rule reads it,
+  [ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md)).
 - `basis` says how it is known: `Observed`, or `Absence` with the sources that
   were searched. Absence is only as strong as those sources' coverage report allows;
   unreadable is never empty.
@@ -137,6 +140,7 @@ validation and acyclic containment hold for whatever the database contains.
 | Inventory sources (macOS apps and launchd; Windows apps, startup entries, services) | `Application` and `Service` records with signatures, for later `launches` and `owned_by` edges |
 | In-use probes (`libproc`, Restart Manager) | answers for `opened_by` edges and `InUse` evidence; a partial answer is recorded as `NotInUseByVisibleProcesses`, never as `InUse(false)` (ADR-0030). |
 | `lumen-devkb` | `KnowledgeBaseMatch` evidence (source `devkb`) for each scanned file or directory that is exactly an entry's location, resolved against the machine's home, known folders and environment variables. Descendants, links, projects without a scanned marker and project locations inside another instance of their own path never match. |
+| `lumen-application::large` | `LargeUnrecognised` evidence (source `lumen.large-folder`, dated by the scan) for at most 30 directories per scan, the largest first, from stored metadata alone: at least 1 GiB freed now (`reclaimable_now`), no subdirectory holding 80 % or more (a package such as an `.app` or a Photos library is one item and never split), listed in full, on its parent's volume, below a scan root, holding none of Lumen's own files, and neither holding, nor inside, nor itself an entry the producers above identify. The outermost such folder is chosen. The policy still keeps one that holds a protected location, cloud content or a browser profile (FS-2, FS-3). |
 
 The scan's own facts about an entry (protection, cloud backing, times) are
 gathered only for entries a producer said something about or a relationship
