@@ -1,0 +1,23 @@
+{
+  "id": "notion-electron-updater-cache",
+  "tool": "Notion",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/notion-updater",
+      "kind": "directory"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://www.electron.build/docs/features/auto-update/",
+    "https://github.com/electron-userland/electron-builder/blob/master/packages/app-builder-lib/src/appInfo.ts",
+    "https://github.com/electron-userland/electron-builder/blob/master/packages/electron-updater/src/AppAdapter.ts",
+    "https://github.com/electron-userland/electron-builder/blob/master/packages/electron-updater/src/AppUpdater.ts",
+    "https://github.com/electron-userland/electron-builder/blob/master/packages/electron-updater/src/DownloadedUpdateHelper.ts",
+    "https://github.com/electron-userland/electron-builder/blob/master/packages/electron-updater/src/MacUpdater.ts"
+  ],
+  "last_verified": "2026-10-31"
+}

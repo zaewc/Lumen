@@ -56,6 +56,9 @@ const LEDGER_MIGRATIONS: &[M<'static>] = &[
         "migrations/ledger/0002_quarantine_journal.sql"
     )),
     M::up(include_str!("migrations/ledger/0003_quarantine_sizes.sql")),
+    M::up(include_str!(
+        "migrations/ledger/0004_quarantine_choosers.sql"
+    )),
 ];
 
 /// Errors opening or migrating a database.
@@ -226,10 +229,32 @@ mod tests {
     }
 
     #[test]
+    fn items_quarantined_before_choosers_were_recorded_are_the_policys()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let fx = Fixture::build(&[])?;
+        let mut conn = Connection::open(fx.path("ledger.db")?)?;
+        let migrations = Migrations::from_slice(LEDGER_MIGRATIONS);
+        migrations.to_version(&mut conn, 3)?;
+        let operation = "0190f0d2-6c1e-7a3b-8c4d-5e6f70819201";
+        for event in ["journal", "moved"] {
+            conn.execute(
+                "INSERT INTO quarantine_journal (operation_id, event, recorded_secs, recorded_nanos, body) VALUES (?1, ?2, 0, 0, x'7b7d')",
+                [operation, event],
+            )?;
+        }
+        migrations.to_latest(&mut conn)?;
+        assert_eq!(
+            LedgerStore::new(conn).choosers()?,
+            std::collections::BTreeMap::from([(operation.parse()?, lumen_domain::Chooser::Policy)])
+        );
+        Ok(())
+    }
+
+    #[test]
     fn the_ledger_is_durable_and_hardened() -> Result<(), Box<dyn std::error::Error>> {
         let fx = Fixture::build(&[])?;
         let conn = open_ledger(&fx.path("ledger.db")?)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 3);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 4);
         assert_eq!(
             pragma::<String>(&conn, "journal_mode")?.to_lowercase(),
             "wal"

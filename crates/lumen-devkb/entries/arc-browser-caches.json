@@ -1,0 +1,27 @@
+{
+  "id": "arc-browser-caches",
+  "tool": "Arc",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/Arc/User Data/*/Cache"
+    },
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Caches/Arc/User Data/*/Code Cache"
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "seconds", "network": true },
+  "sources": [
+    "https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md",
+    "https://github.com/chromium/chromium/blob/main/chrome/common/chrome_paths_mac.mm",
+    "https://github.com/chromium/chromium/blob/main/chrome/browser/net/profile_network_context_service.cc",
+    "https://github.com/chromium/chromium/blob/main/chrome/browser/chrome_content_browser_client.cc",
+    "https://github.com/chromium/chromium/blob/main/content/browser/storage_partition_impl.cc",
+    "https://www.chromium.org/developers/design-documents/network-stack/disk-cache/"
+  ],
+  "last_verified": "2026-10-31"
+}
