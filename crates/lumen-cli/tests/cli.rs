@@ -617,6 +617,66 @@ fn plan_prints_the_hash_and_moves_nothing() -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
+/// A chosen path is planned only if the latest assessment left it for review
+/// and the person may choose it (ADR-0051); otherwise the plan fails, says
+/// why, and stores nothing.
+#[cfg(target_os = "macos")]
+#[test]
+fn plan_refuses_items_a_person_may_not_choose() -> Result<(), Box<dyn std::error::Error>> {
+    let fx = Fixture::build(&[Node::File {
+        path: "home/Library/Developer/CoreSimulator/Devices/0A1B/data/x".into(),
+        contents: vec![7; 4096],
+    }])?;
+    let home = std::fs::canonicalize(fx.path("home")?)?;
+    let db = fx.path("index.db")?;
+    let run = |args: &[&std::ffi::OsStr]| {
+        Command::new(env!("CARGO_BIN_EXE_lumen"))
+            .args(args)
+            .env("HOME", &home)
+            .output()
+    };
+    let scan = run(&[
+        "scan".as_ref(),
+        home.as_os_str(),
+        "--db".as_ref(),
+        db.as_os_str(),
+    ])?;
+    assert!(
+        scan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&scan.stderr)
+    );
+    for (chosen, why) in [
+        (
+            home.join("Library/Developer/CoreSimulator/Devices"),
+            "only its tool's own command may clean it",
+        ),
+        (
+            home.join("nowhere"),
+            "the latest assessment has no item there",
+        ),
+    ] {
+        let out = run(&[
+            "plan".as_ref(),
+            "--db".as_ref(),
+            db.as_os_str(),
+            "--no-ai".as_ref(),
+            "--choose".as_ref(),
+            chosen.as_os_str(),
+        ])?;
+        assert!(!out.status.success());
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(stderr.contains("cannot be chosen"), "{stderr}");
+        assert!(stderr.contains(why), "{stderr}");
+        assert!(out.stdout.is_empty(), "no plan");
+    }
+    assert!(
+        home.join("Library/Developer/CoreSimulator/Devices/0A1B/data/x")
+            .exists()
+    );
+    Ok(())
+}
+
 #[test]
 fn quarantine_refuses_an_unknown_plan() -> Result<(), Box<dyn std::error::Error>> {
     let fx = Fixture::build(&[])?;

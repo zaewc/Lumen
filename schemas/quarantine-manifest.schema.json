@@ -4,6 +4,11 @@
   "description": "Everything recorded about one quarantined item.",
   "type": "object",
   "properties": {
+    "chosen_by": {
+      "description": "Who chose the item: the policy proposed it, or the person chose it\nfrom the items left for review (1.1, ADR-0051). Manifests written\nbefore 1.1 hold only items the policy proposed.",
+      "$ref": "#/$defs/Chooser",
+      "default": "policy"
+    },
     "confirmed_at": {
       "description": "When the user confirmed the plan.",
       "$ref": "#/$defs/Timestamp"
@@ -145,6 +150,21 @@
       "description": "Unsigned 64-bit byte count as a canonical decimal string.",
       "type": "string",
       "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "Chooser": {
+      "description": "Who put an item into a plan (ADR-0051).",
+      "oneOf": [
+        {
+          "description": "The policy proposed it (`QUARANTINE`); it follows the retention\nperiod like every proposed item (ADR-0015).",
+          "type": "string",
+          "const": "policy"
+        },
+        {
+          "description": "The person chose it from the items left for review. It is confirmed\nas a review item and never removed automatically: it stays in\nquarantine until the person restores it or removes it for good.",
+          "type": "string",
+          "const": "person"
+        }
+      ]
     },
     "CloneId": {
       "type": "string",

@@ -156,6 +156,7 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
             .is_some_and(|bytes| bytes.parse::<u64>().is_ok_and(|b| b >= 4096)),
         "the plan's estimate is recorded with the item: {held}"
     );
+    assert_eq!(held[0]["chosen_by"], "policy", "{held}");
     let restored = ok("restore", json!({ "operationId": first }));
     assert_eq!(restored["outcome"]["kind"], "restored", "{restored}");
     assert_eq!(

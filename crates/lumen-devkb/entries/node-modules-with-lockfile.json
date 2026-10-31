@@ -1,0 +1,33 @@
+{
+  "id": "node-modules-with-lockfile",
+  "tool": "npm, pnpm, Yarn, Bun",
+  "locations": [
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "project" },
+      "kind": "directory",
+      "path": "node_modules",
+      "markers": [
+        "package-lock.json",
+        "npm-shrinkwrap.json",
+        "pnpm-lock.yaml",
+        "yarn.lock",
+        "bun.lock",
+        "bun.lockb"
+      ]
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": true },
+  "sources": [
+    "https://docs.npmjs.com/cli/v11/commands/npm-ci",
+    "https://docs.npmjs.com/cli/v11/configuring-npm/package-lock-json",
+    "https://pnpm.io/cli/install",
+    "https://pnpm.io/settings/node-modules",
+    "https://classic.yarnpkg.com/en/docs/cli/install",
+    "https://yarnpkg.com/cli/install",
+    "https://yarnpkg.com/configuration/yarnrc",
+    "https://bun.com/docs/cli/install"
+  ],
+  "last_verified": "2026-10-31"
+}

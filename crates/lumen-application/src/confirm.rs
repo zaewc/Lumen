@@ -7,7 +7,10 @@
 //!    from the `CandidateVerifier`), and lie under one of the scan roots;
 //! 2. it is probed and decided again ([`decide_candidate`]); the verdict must
 //!    still be `QUARANTINE` and for the same reasons (the same rules fired) as
-//!    the planned decision. The evidence hash cannot be compared: facts probed
+//!    the planned decision. An item the person chose from the review items
+//!    (ADR-0051) must still be `REVIEW` or `QUARANTINE` with the same rules as
+//!    planned, never `KEEP`, and never with `classify.devkb-not-regenerable`.
+//!    The evidence hash cannot be compared: facts probed
 //!    now carry the time they were observed, so a fresh bundle never hashes
 //!    like the plan's. Any change that alters the decision (in use, ownership,
 //!    the owner's state, the item itself) still skips it;
@@ -16,12 +19,12 @@
 //!
 //! Anything that fails is skipped with the reason and reported as `REVIEW`:
 //! a confirmation never authorizes an item the policy would no longer
-//! propose.
+//! propose, or a chosen item the policy would now keep.
 
 use std::collections::BTreeSet;
 
 use lumen_domain::{
-    Confirmation, DeviceId, JevRequest, OperationId, PathFlavor, PlanId, PlannedItem,
+    Chooser, Confirmation, DeviceId, JevRequest, OperationId, PathFlavor, PlanId, PlannedItem,
     PolicyDecision, QuarantineManifest, RawPath, Subject, Verdict,
 };
 use lumen_policy::PolicyInput;
@@ -36,6 +39,10 @@ const PARTIAL_IN_USE: [&str; 2] = [
     "eligible.in-use-partial-single-user",
 ];
 
+/// The rule that leaves an item for review because it cannot be regenerated;
+/// a person may not choose such an item (ADR-0051).
+pub const NOT_REGENERABLE: &str = "classify.devkb-not-regenerable";
+
 /// Why a planned item is not executed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Skip {
@@ -43,9 +50,10 @@ pub enum Skip {
     Changed,
     /// It is not under any scan root.
     OutsideRoots,
-    /// The policy no longer proposes quarantine.
+    /// The policy no longer proposes quarantine, or would now keep an item
+    /// the person chose.
     NoLongerProposed(Verdict),
-    /// The policy proposes quarantine for different reasons than planned.
+    /// The policy decides it for different reasons than planned.
     ReasonsChanged,
     /// The executor could not record it.
     NotPrepared,
@@ -171,10 +179,16 @@ pub async fn confirm_item(
         return skip(Skip::NoLongerProposed(Verdict::Keep));
     };
     let decision = assessed.decision;
-    if decision.verdict() != Verdict::Quarantine {
+    let still_allowed = match item.chosen_by {
+        Chooser::Policy => decision.verdict() == Verdict::Quarantine,
+        Chooser::Person => matches!(decision.verdict(), Verdict::Review | Verdict::Quarantine),
+    };
+    if !still_allowed {
         return skip(Skip::NoLongerProposed(decision.verdict()));
     }
-    if rules(&decision) != rules(planned) {
+    let now = rules(&decision);
+    if now != rules(planned) || (item.chosen_by == Chooser::Person && now.contains(NOT_REGENERABLE))
+    {
         return skip(Skip::ReasonsChanged);
     }
     let Ok(prepared) = with.executor.prepare(&root, &relative) else {
@@ -198,6 +212,7 @@ pub async fn confirm_item(
         entry: entry.clone(),
         unix: with.executor.unix_ownership(&prepared),
         decision,
+        chosen_by: item.chosen_by,
         confirmed_at: confirmation.confirmed_at,
         jev_request: assessed.trace.map(|trace| trace.request_hash),
     };
@@ -289,6 +304,15 @@ mod tests {
     impl InUseProbe for Free {
         fn probe(&self, _path: &RawPath, _expected: &FileIdentity) -> InUse {
             InUse::No
+        }
+    }
+
+    /// A process has the item open.
+    struct Busy;
+
+    impl InUseProbe for Busy {
+        fn probe(&self, _path: &RawPath, _expected: &FileIdentity) -> InUse {
+            InUse::Yes(Vec::new())
         }
     }
 
@@ -420,17 +444,42 @@ mod tests {
         }
     }
 
-    /// A regenerable knowledge-base match on `/root/cache/x.bin`: the policy
-    /// proposes quarantine when it is free and observed.
-    fn run(present: bool, planned_other: bool) -> Confirmed {
+    /// One confirmation case: the knowledge-base match on `/root/cache/x.bin`
+    /// is `class` (`None`: an entry the policy does not know), the item was planned by `chosen_by`, and it is `busy` now.
+    struct Case {
+        present: bool,
+        planned_other: bool,
+        class: Option<KnowledgeClass>,
+        busy: bool,
+        chosen_by: Chooser,
+    }
+
+    /// A free, regenerable item the policy proposed, unchanged since planning.
+    const PROPOSED: Case = Case {
+        present: true,
+        planned_other: false,
+        class: Some(KnowledgeClass::Regenerable),
+        busy: false,
+        chosen_by: Chooser::Policy,
+    };
+
+    /// Plans the item as it is decided when free, then confirms it as `case`
+    /// says it is now.
+    fn run(case: &Case) -> Confirmed {
         let gathered = gathered();
         let scanned = [entry()];
         let graph = Graph::new();
         let context = context();
-        let knowledge = BTreeMap::from([(
-            SourceName::new("x-cache").unwrap_or_else(|_| unreachable!()),
-            KnowledgeClass::Regenerable,
-        )]);
+        let knowledge: BTreeMap<_, _> = case
+            .class
+            .map(|class| {
+                (
+                    SourceName::new("x-cache").unwrap_or_else(|_| unreachable!()),
+                    class,
+                )
+            })
+            .into_iter()
+            .collect();
         let source = source();
         let sources = Sources {
             graph: &graph,
@@ -441,19 +490,19 @@ mod tests {
             knowledge: &knowledge,
             store_volumes: None,
         };
-        let probes = Probes {
-            in_use: &Free,
+        let probes = |in_use: &'static dyn InUseProbe| Probes {
+            in_use,
             in_use_source: &source,
             ownership: &Mine,
             ownership_source: &source,
         };
         let roots = [raw("/root")];
-        let verifier = Verifier(present);
+        let verifier = Verifier(case.present);
         let with = Confirming {
             sources,
             roots: &roots,
             verifier: &verifier,
-            probes,
+            probes: probes(if case.busy { &Busy } else { &Free }),
             executor: &Executor,
             judge: &NoopJudge,
             clock: &Epoch,
@@ -463,39 +512,34 @@ mod tests {
                 .unwrap_or_else(|_| unreachable!()),
             request: &|_| None,
         };
-        let now = ready(decide_candidate(
+        let then = ready(decide_candidate(
             &entry(),
             &sources,
-            &probes,
+            &probes(&Free),
             &NoopJudge,
             &Epoch,
             &|_| None,
         ))
         .unwrap_or_else(|e| unreachable!("{e}"));
-        assert_eq!(
-            now.decision.verdict(),
-            Verdict::Quarantine,
-            "{:?}",
-            now.reasons
-        );
         let item = PlannedItem {
             subject: Subject::File {
                 identity: identity(),
             },
             path: entry().path,
-            policy_version: now.decision.policy_version(),
-            evidence_hash: now.decision.evidence_hash(),
-            reclaim: now.input.observed.map(|o| o.reclaim).unwrap_or_default(),
+            policy_version: then.decision.policy_version(),
+            evidence_hash: then.decision.evidence_hash(),
+            reclaim: then.input.observed.map(|o| o.reclaim).unwrap_or_default(),
+            chosen_by: case.chosen_by,
         };
         let confirmation = Confirmation {
             plan_hash: PlanHash::from_bytes([0; 32]),
             confirmed_at: Timestamp::UNIX_EPOCH,
             surface: ConfirmationSurface::CommandLine,
         };
-        let planned = if planned_other {
+        let planned = if case.planned_other {
             other_decision()
         } else {
-            now.decision.clone()
+            then.decision.clone()
         };
         ready(confirm_item(
             &item,
@@ -504,6 +548,13 @@ mod tests {
             &confirmation,
             &with,
         ))
+    }
+
+    fn skipped(confirmed: &Confirmed) -> Option<Skip> {
+        match confirmed {
+            Confirmed::Skipped { reason, .. } => Some(*reason),
+            Confirmed::Ready(_) => None,
+        }
     }
 
     /// A `QUARANTINE` decision for another reason than the one made now.
@@ -529,7 +580,7 @@ mod tests {
 
     #[test]
     fn an_unchanged_proposed_item_is_ready_with_its_manifest() {
-        let Confirmed::Ready(item) = run(true, false) else {
+        let Confirmed::Ready(item) = run(&PROPOSED) else {
             unreachable!("expected ready");
         };
         assert_eq!(item.operation, Ids.operation_id());
@@ -540,24 +591,90 @@ mod tests {
         assert_eq!(manifest.plan, Ids.plan_id());
         assert_eq!(manifest.original_path, entry().path);
         assert_eq!(manifest.decision.verdict(), Verdict::Quarantine);
+        assert_eq!(manifest.chosen_by, Chooser::Policy);
     }
 
     #[test]
     fn changed_items_and_reasons_are_skipped() {
-        assert!(matches!(
-            run(false, false),
-            Confirmed::Skipped {
-                reason: Skip::Changed,
-                ..
-            }
-        ));
-        assert!(matches!(
-            run(true, true),
-            Confirmed::Skipped {
-                reason: Skip::ReasonsChanged,
-                ..
-            }
-        ));
+        let gone = Case {
+            present: false,
+            ..PROPOSED
+        };
+        assert_eq!(skipped(&run(&gone)), Some(Skip::Changed));
+        let other = Case {
+            planned_other: true,
+            ..PROPOSED
+        };
+        assert_eq!(skipped(&run(&other)), Some(Skip::ReasonsChanged));
+        let busy = Case {
+            busy: true,
+            ..PROPOSED
+        };
+        assert_eq!(
+            skipped(&run(&busy)),
+            Some(Skip::NoLongerProposed(Verdict::Keep))
+        );
+    }
+
+    #[test]
+    fn a_chosen_review_item_is_confirmed_as_a_review_item() {
+        // A knowledge-base entry the policy does not know: `REVIEW`.
+        let chosen = Case {
+            class: None,
+            chosen_by: Chooser::Person,
+            ..PROPOSED
+        };
+        let Confirmed::Ready(item) = run(&chosen) else {
+            unreachable!("expected ready: {:?}", run(&chosen));
+        };
+        let manifest: QuarantineManifest =
+            serde_json::from_slice(&item.manifest).unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(manifest.decision.verdict(), Verdict::Review);
+        assert_eq!(manifest.chosen_by, Chooser::Person);
+        // The same item the policy did not propose is not executed as proposed.
+        let proposed = Case {
+            chosen_by: Chooser::Policy,
+            ..chosen
+        };
+        assert_eq!(
+            skipped(&run(&proposed)),
+            Some(Skip::NoLongerProposed(Verdict::Review))
+        );
+    }
+
+    #[test]
+    fn a_chosen_item_the_policy_now_keeps_is_skipped() {
+        let now_kept = Case {
+            class: None,
+            busy: true,
+            chosen_by: Chooser::Person,
+            ..PROPOSED
+        };
+        assert_eq!(
+            skipped(&run(&now_kept)),
+            Some(Skip::NoLongerProposed(Verdict::Keep))
+        );
+        let other = Case {
+            planned_other: true,
+            ..now_kept
+        };
+        assert_eq!(
+            skipped(&run(&Case {
+                busy: false,
+                ..other
+            })),
+            Some(Skip::ReasonsChanged)
+        );
+    }
+
+    #[test]
+    fn a_chosen_item_that_cannot_be_regenerated_is_skipped() {
+        let not_regenerable = Case {
+            class: Some(KnowledgeClass::NotRegenerable),
+            chosen_by: Chooser::Person,
+            ..PROPOSED
+        };
+        assert_eq!(skipped(&run(&not_regenerable)), Some(Skip::ReasonsChanged));
     }
 
     #[test]
