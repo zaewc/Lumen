@@ -218,6 +218,9 @@ export function NavigationGlass({ children }: { readonly children: ReactNode }) 
       copy.style.top = `${box.top}px`;
       copy.style.width = `${row.width}px`;
       copy.style.height = `${row.height}px`;
+      // The track's grain is tiled from the navigation's corner; the copy's follows it.
+      copy.style.setProperty("--lens-origin-x", `${box.left}px`);
+      copy.style.setProperty("--lens-origin-y", `${box.top}px`);
       const next: Rect = {
         x: snap(bounds.left + 2) - row.left,
         y: snap(bounds.top + 13) - row.top,
