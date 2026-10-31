@@ -20,7 +20,7 @@ export function Page({
   readonly children: ReactNode;
 }) {
   return (
-    <main className="@container flex min-h-full flex-col">
+    <main data-lg-role="focus" className="@container flex min-h-full flex-col">
       <header className="sticky top-0 z-10 border-b border-line bg-window">
         <div className={`${COLUMN} flex min-h-24 flex-wrap items-center gap-x-4 gap-y-3 py-5`}>
           <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.045em] text-ink">

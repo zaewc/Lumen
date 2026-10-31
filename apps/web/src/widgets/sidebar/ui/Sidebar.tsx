@@ -12,7 +12,15 @@ import { useScanSession } from "@/entities/scan-session";
 import { useToolRun } from "@/entities/tool-run";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
-import { ArchiveIcon, buttonClass, DriveIcon, GearIcon, LogoMark, SearchIcon } from "@/shared/ui";
+import {
+  ArchiveIcon,
+  buttonClass,
+  DriveIcon,
+  GearIcon,
+  LogoMark,
+  NavigationGlass,
+  SearchIcon,
+} from "@/shared/ui";
 
 const ITEM =
   "relative flex h-12 items-center justify-center gap-2 px-2 min-[960px]:px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-fill hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-[current=page]:text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-transparent aria-[current=page]:after:bg-accent motion-reduce:transition-none min-[960px]:h-[72px] [&>svg]:hidden min-[960px]:[&>svg]:block [&>svg]:size-[18px] [&>svg]:text-ink-3 aria-[current=page]:[&>svg]:text-accent-ink";
@@ -157,9 +165,11 @@ export function Sidebar() {
           <span className="text-[21px] font-semibold tracking-[-0.06em] text-ink">Lumen</span>
         </div>
         <nav
+          data-lg-role="dock"
           aria-label={m.nav.label}
           className="order-last w-full min-[960px]:order-none min-[960px]:w-auto"
         >
+          <NavigationGlass />
           <ul className="flex min-w-0">
             <NavItem to="/" icon={<DriveIcon />} label={m.nav.overview} />
             <NavItem to="/clean" icon={<SearchIcon />} label={m.nav.cleanUp} />
@@ -174,7 +184,7 @@ export function Sidebar() {
             <NavItem to="/settings" icon={<GearIcon />} label={m.nav.settings} />
           </ul>
         </nav>
-        <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-x-2">
+        <div data-lg-role="rail" className="ml-auto flex min-w-0 flex-wrap justify-end gap-x-2">
           {!showUpdate && <UpdateStatus version={version} />}
           {activity !== null ? (
             <span role="status" className="max-w-52 truncate px-2 text-[12px] text-ink-2">
