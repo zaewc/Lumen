@@ -13,6 +13,7 @@ import {
 
 function item(operation: string, state: HeldItemView["state"] = "retained"): HeldItemView {
   return {
+    chosen_by: "policy",
     operation,
     original: `/Users/ana/${operation}`,
     reclaim_bytes: "1000",

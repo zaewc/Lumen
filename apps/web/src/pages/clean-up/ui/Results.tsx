@@ -5,6 +5,7 @@ import { type CandidateSummary, DecisionMap } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, userAgent } from "@/shared/lib";
 import { buttonClass, InfoTip, Notice } from "@/shared/ui";
+import { closingSummary } from "../model/closing";
 import { coverageOf } from "../model/coverage";
 import { type Filter, shows } from "../model/filter";
 import { sectionsOf } from "../model/sections";
@@ -61,6 +62,7 @@ export function Results({
   const [open, setOpen] = useState<CandidateView | null>(null);
   const proposed = summary.quarantine;
   const sections = sectionsOf(candidates.filter((candidate) => shows(filter, candidate)));
+  const closing = closingSummary(candidates);
   return (
     <>
       <div className="space-y-3">
@@ -94,6 +96,11 @@ export function Results({
           )}
         </div>
         {proposed.items.length === 0 && <p className="text-ink-2">{m.results.nothing}</p>}
+        {closing !== null && (
+          <p className="text-[13px] text-ink-2">
+            {m.results.whenClosed(formatBytes(closing.bytes), ...closing.apps)}
+          </p>
+        )}
         {scan.partial && (
           <Notice tone="warning">
             <p>{scan.out_of_space ? m.results.outOfSpace : m.results.partial}</p>

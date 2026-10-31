@@ -15,7 +15,10 @@
 //! - names compare without case on macOS and Windows, whose default volumes are
 //!   case-insensitive, and exactly elsewhere;
 //! - a project location matches only if one of its markers was scanned as a file:
-//!   an unscanned marker is unknown, so no evidence is produced.
+//!   an unscanned marker is unknown, so no evidence is produced;
+//! - a project location never matches inside another instance of its own path
+//!   (`node_modules/pkg/node_modules`, `target/debug/deps/x/target/debug/deps`):
+//!   a marker there was shipped by a package, not written for a project.
 //!
 //! [`KnowledgeBase::matches`] matches a whole scan at once. A [`Matcher`]
 //! matches one in chunks with the same result: it gathers the scan's
@@ -101,6 +104,11 @@ fn fits(names: &[Component], pattern: &[Component]) -> bool {
     names.len() == pattern.len() && names.iter().zip(pattern).all(|(n, p)| p == "*" || n == p)
 }
 
+/// Whether `pattern` occurs in `names` as consecutive components.
+fn contains(names: &[Component], pattern: &[Component]) -> bool {
+    !pattern.is_empty() && names.windows(pattern.len()).any(|run| fits(run, pattern))
+}
+
 /// A location resolved against the environment.
 #[derive(Debug)]
 struct Resolved<'kb> {
@@ -153,12 +161,16 @@ impl Resolved<'_> {
                 && fits(&names[root.len()..], &self.pattern);
         }
         // A project root is whatever precedes the pattern; it must be a real
-        // directory, never the filesystem root.
+        // directory, never the filesystem root, and never inside another
+        // instance of the pattern: a lockfile or manifest that a package
+        // shipped inside `node_modules` describes no project, and what lies
+        // there belongs to the outer artifact.
         let Some(split) = names.len().checked_sub(self.pattern.len()) else {
             return false;
         };
         split > 0
             && fits(&names[split..], &self.pattern)
+            && !contains(&names[..split], &self.pattern)
             && self.markers.iter().any(|marker| {
                 let mut path = names[..split].to_vec();
                 path.extend_from_slice(marker);
@@ -909,6 +921,105 @@ mod tests {
         );
     }
 
+    /// Chrome's caches match in its user cache directory, outside the
+    /// profile (and outside the protected user data directory); nothing in
+    /// the profile, and no Windows location, ever matches.
+    #[test]
+    fn chrome_caches_match_only_in_its_user_cache_directory() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mac = env(Platform::Macos);
+        let caches = "/Users/ana/Library/Caches/Google/Chrome";
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir(&format!("{caches}/Default/Cache"), 1),
+                    dir(&format!("{caches}/Default/Code Cache"), 2),
+                    dir(&format!("{caches}/Profile 1/Cache"), 3),
+                    dir(&format!("{caches}/System Profile/Code Cache"), 4),
+                ]
+            ),
+            ["google-chrome-caches"; 4]
+        );
+        let support = "/Users/ana/Library/Application Support/Google/Chrome";
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir(caches, 1),
+                    dir(&format!("{caches}/Default"), 2),
+                    dir(&format!("{caches}/Default/Cache/Cache_Data"), 3),
+                    dir(&format!("{caches}/Default/GPUCache"), 4),
+                    dir(&format!("{caches}/Default/Storage/ext/a/def/Cache"), 5),
+                    dir(&format!("{caches}/Cache"), 6),
+                    dir(&format!("{support}/Default/Cache"), 7),
+                    dir(&format!("{support}/Default/Code Cache"), 8),
+                    dir(&format!("{support}/Default/Cookies"), 9),
+                    dir(&format!("{support}/Default/Local Storage"), 10),
+                    dir(&format!("{support}/Default/Service Worker"), 11),
+                    dir(&format!("{support}/GrShaderCache"), 12),
+                    dir(
+                        "/Users/ana/Library/Caches/Google/Chrome Beta/Default/Cache",
+                        13
+                    ),
+                    dir("/Users/ana/.cache/google-chrome/Default/Cache", 14),
+                ]
+            )
+            .len(),
+            0
+        );
+        let mut linux = env(Platform::Linux);
+        linux.vars = vec![("XDG_CACHE_HOME".to_owned(), unix("/xdg"))];
+        assert_eq!(
+            ids(
+                &linux,
+                &[
+                    dir("/Users/ana/.cache/google-chrome/Default/Cache", 1),
+                    dir("/Users/ana/.cache/google-chrome/Profile 2/Code Cache", 2),
+                    dir("/xdg/google-chrome/Default/Cache", 3),
+                ]
+            ),
+            ["google-chrome-caches"; 3]
+        );
+        assert_eq!(
+            ids(
+                &linux,
+                &[
+                    dir("/Users/ana/.config/google-chrome/Default/Cache", 1),
+                    dir("/Users/ana/.cache/google-chrome/Default", 2),
+                    dir("/Users/ana/.cache/Google-Chrome/Default/Cache", 3),
+                ]
+            )
+            .len(),
+            0
+        );
+        let mut win = env(Platform::Windows);
+        win.local_app_data = Some(windows(r"C:\Users\ana\AppData\Local"));
+        assert_eq!(
+            ids(
+                &win,
+                &[object(
+                    windows(r"C:\Users\ana\AppData\Local\Google\Chrome\User Data\Default\Cache"),
+                    EntryKind::Directory,
+                    1,
+                )]
+            )
+            .len(),
+            0,
+            "Chrome's Windows caches are inside its protected profile"
+        );
+    }
+
     /// pip's cache matches at its default on each platform, under
     /// `XDG_CACHE_HOME` and at `PIP_CACHE_DIR`; never its parent or contents.
     #[test]
@@ -1060,6 +1171,92 @@ mod tests {
         );
     }
 
+    /// Edge's caches match in the user cache directory Chromium derives from
+    /// Edge's documented user data directory; nothing in a profile, and no
+    /// Windows location (the cache is inside the profile there), ever matches.
+    #[test]
+    fn edge_caches_match_only_in_its_user_cache_directory() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |env: &Environment, scanned: &[FilesystemEntry]| -> Vec<String> {
+            builtin
+                .matches(env, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match e.fact {
+                    Fact::KnowledgeBaseMatch { entry } => Some(entry.as_str().to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mac = env(Platform::Macos);
+        let caches = "/Users/ana/Library/Caches/Microsoft Edge";
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir(&format!("{caches}/Default/Cache"), 1),
+                    dir(&format!("{caches}/Profile 1/Code Cache"), 2),
+                ]
+            ),
+            ["microsoft-edge-caches"; 2]
+        );
+        let support = "/Users/ana/Library/Application Support/Microsoft Edge";
+        assert_eq!(
+            ids(
+                &mac,
+                &[
+                    dir(caches, 1),
+                    dir(&format!("{caches}/Default"), 2),
+                    dir(&format!("{caches}/Default/Cache/Cache_Data"), 3),
+                    dir(&format!("{support}/Default/Cache"), 4),
+                    dir(&format!("{support}/Default/Cookies"), 5),
+                    dir(&format!("{support}/Default/Local Storage"), 6),
+                    dir(&format!("{support}/NativeMessagingHosts"), 7),
+                    dir(
+                        "/Users/ana/Library/Caches/Microsoft Edge Beta/Default/Cache",
+                        8
+                    ),
+                ]
+            )
+            .len(),
+            0
+        );
+        let mut linux = env(Platform::Linux);
+        linux.vars = vec![("XDG_CACHE_HOME".to_owned(), unix("/xdg"))];
+        assert_eq!(
+            ids(
+                &linux,
+                &[
+                    dir("/Users/ana/.cache/microsoft-edge/Default/Cache", 1),
+                    dir("/xdg/microsoft-edge/Default/Code Cache", 2),
+                ]
+            ),
+            ["microsoft-edge-caches"; 2]
+        );
+        assert_eq!(
+            ids(
+                &linux,
+                &[dir("/Users/ana/.config/microsoft-edge/Default/Cache", 1)]
+            )
+            .len(),
+            0
+        );
+        let mut win = env(Platform::Windows);
+        win.local_app_data = Some(windows(r"C:\Users\ana\AppData\Local"));
+        assert_eq!(
+            ids(
+                &win,
+                &[object(
+                    windows(r"C:\Users\ana\AppData\Local\Microsoft\Edge\User Data\Default\Cache"),
+                    EntryKind::Directory,
+                    1,
+                )]
+            )
+            .len(),
+            0,
+            "Edge's Windows caches are inside its profile"
+        );
+    }
+
     #[test]
     fn npx_cache_stays_separate_from_packages_and_the_download_cache() {
         let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
@@ -1138,6 +1335,70 @@ mod tests {
         }
     }
 
+    /// Expo CLI's Expo Go downloads match as whole cache directories; the
+    /// home folder's sign-in state, code-signing keys and settings never do.
+    #[test]
+    fn expo_matches_only_its_download_caches() {
+        let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        for platform in [Platform::Macos, Platform::Linux, Platform::Windows] {
+            let home = if platform == Platform::Windows {
+                windows(r"C:\Users\ana")
+            } else {
+                unix("/Users/ana")
+            };
+            let path = |tail: &str| {
+                if platform == Platform::Windows {
+                    windows(&format!(r"C:\Users\ana\.expo\{tail}").replace('/', "\\"))
+                } else {
+                    unix(&format!("/Users/ana/.expo/{tail}"))
+                }
+            };
+            let mut environment = env(platform);
+            environment.home = Some(home);
+            let expo = |scanned: &[FilesystemEntry]| -> Vec<u128> {
+                kb.matches(&environment, scanned, Timestamp::UNIX_EPOCH)
+                    .into_iter()
+                    .filter_map(|e| match (e.subject, e.fact) {
+                        (Subject::File { identity }, Fact::KnowledgeBaseMatch { entry })
+                            if entry.as_str() == "expo-cli-download-caches" =>
+                        {
+                            Some(identity.file.get())
+                        }
+                        _ => None,
+                    })
+                    .collect()
+            };
+            let scanned = [
+                object(path("ios-simulator-app-cache"), EntryKind::Directory, 1),
+                object(path("android-apk-cache"), EntryKind::Directory, 2),
+                object(path("expo-go"), EntryKind::Directory, 3),
+                object(path("state.json"), EntryKind::File, 4),
+                object(path("codesigning"), EntryKind::Directory, 5),
+                object(path("ngrok.yml"), EntryKind::File, 6),
+                object(path("android-apk-cache/Expo-Go-1.apk"), EntryKind::File, 7),
+                object(path("template-cache"), EntryKind::Directory, 8),
+            ];
+            let expected: &[u128] = if platform == Platform::Macos {
+                &[1, 2, 3]
+            } else {
+                &[2, 3]
+            };
+            assert_eq!(expo(&scanned), expected, "{platform:?}");
+            for kind in [
+                EntryKind::File,
+                EntryKind::Symlink,
+                EntryKind::Junction,
+                EntryKind::OtherReparsePoint,
+            ] {
+                assert_eq!(
+                    expo(&[object(path("expo-go"), kind, 9)]),
+                    [],
+                    "{platform:?} {kind:?}"
+                );
+            }
+        }
+    }
+
     #[test]
     fn projects_need_a_scanned_marker() {
         let found = matched(
@@ -1210,6 +1471,52 @@ mod tests {
             ));
             let (cache, rest) = scanned.split_at(1);
             assert_eq!(chunked(&builtin, &environment, &[cache, rest]), found);
+        }
+    }
+
+    /// Swift Package Manager's shared Git mirrors and registry downloads match
+    /// on macOS; the cache root, its manifest and collection databases, the
+    /// configuration and security folders and `~/.swiftpm` links never do.
+    #[test]
+    fn swiftpm_matches_only_its_fetched_dependency_caches() {
+        let kb = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        let ids = |environment: &Environment, scanned: &[FilesystemEntry]| -> Vec<u128> {
+            kb.matches(environment, scanned, Timestamp::UNIX_EPOCH)
+                .into_iter()
+                .filter_map(|e| match (e.subject, e.fact) {
+                    (Subject::File { identity }, Fact::KnowledgeBaseMatch { entry })
+                        if entry.as_str() == "swiftpm-shared-cache" =>
+                    {
+                        Some(identity.file.get())
+                    }
+                    _ => None,
+                })
+                .collect()
+        };
+        let root = "/Users/ana/Library/Caches/org.swift.swiftpm";
+        let at = |tail: &str| format!("{root}/{tail}");
+        let scanned = [
+            dir(&at("repositories"), 1),
+            dir(&at("registry/downloads"), 2),
+            dir(root, 3),
+            dir(&at("manifests"), 4),
+            object(unix(&at("package-collection.db")), EntryKind::File, 5),
+            dir(&at("package-metadata"), 6),
+            dir(&at("registry"), 7),
+            dir(&at("repositories/swift-syntax-1a2b3c4d"), 8),
+            dir("/Users/ana/Library/org.swift.swiftpm/configuration", 9),
+            dir("/Users/ana/Library/org.swift.swiftpm/security", 10),
+            object(unix("/Users/ana/.swiftpm/cache"), EntryKind::Symlink, 11),
+        ];
+        let mac = env(Platform::Macos);
+        assert_eq!(ids(&mac, &scanned), [1, 2]);
+        assert_eq!(ids(&env(Platform::Linux), &scanned), Vec::<u128>::new());
+        for kind in [EntryKind::File, EntryKind::Symlink] {
+            assert_eq!(
+                ids(&mac, &[object(unix(&at("repositories")), kind, 12)]),
+                Vec::<u128>::new(),
+                "{kind:?}"
+            );
         }
     }
 
@@ -1347,6 +1654,179 @@ mod tests {
             assert_eq!(
                 builtin.matches(&environment, &[cache, marker], Timestamp::UNIX_EPOCH),
                 []
+            );
+        }
+    }
+
+    const LOCKFILES: [&str; 6] = [
+        "package-lock.json",
+        "npm-shrinkwrap.json",
+        "pnpm-lock.yaml",
+        "yarn.lock",
+        "bun.lock",
+        "bun.lockb",
+    ];
+
+    /// The objects in `scanned` that matched `node-modules-with-lockfile`.
+    fn node_modules(environment: &Environment, scanned: &[FilesystemEntry]) -> Vec<u128> {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        builtin
+            .matches(environment, scanned, Timestamp::UNIX_EPOCH)
+            .into_iter()
+            .filter_map(|e| match (e.subject, e.fact) {
+                (Subject::File { identity }, Fact::KnowledgeBaseMatch { entry })
+                    if entry.as_str() == "node-modules-with-lockfile" =>
+                {
+                    Some(identity.file.get())
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn node_modules_matches_beside_any_lockfile() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        for platform in [Platform::Macos, Platform::Linux, Platform::Windows] {
+            let path = |tail: &str| {
+                if platform == Platform::Windows {
+                    windows(&format!(r"C:\src\{tail}").replace('/', "\\"))
+                } else {
+                    unix(&format!("/src/{tail}"))
+                }
+            };
+            for lockfile in LOCKFILES {
+                let scanned = [
+                    object(path("app/node_modules"), EntryKind::Directory, 1),
+                    object(path(&format!("app/{lockfile}")), EntryKind::File, 2),
+                    object(path("app/package.json"), EntryKind::File, 3),
+                    object(path("app/node_modules/.bin"), EntryKind::Directory, 4),
+                    object(path("app/node_modules/left-pad"), EntryKind::Directory, 5),
+                    object(path("app/node_modules/.cache"), EntryKind::Directory, 6),
+                    object(path("app/src"), EntryKind::Directory, 7),
+                ];
+                let environment = env(platform);
+                assert_eq!(
+                    node_modules(&environment, &scanned),
+                    [1],
+                    "{platform:?}, {lockfile}"
+                );
+                let (modules, rest) = scanned.split_at(1);
+                assert_eq!(
+                    chunked(&builtin, &environment, &[modules, rest]),
+                    builtin.matches(&environment, &scanned, Timestamp::UNIX_EPOCH),
+                    "{platform:?}, {lockfile}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn node_modules_needs_a_regular_lockfile_and_a_real_directory() {
+        let linux = env(Platform::Linux);
+        let modules = dir("/src/app/node_modules", 1);
+        // A manifest alone does not pin what a reinstall produces, and a
+        // workspace package's own `node_modules` has no lockfile beside it.
+        let unpinned = [
+            modules.clone(),
+            object(unix("/src/app/package.json"), EntryKind::File, 2),
+            dir("/src/repo/packages/web/node_modules", 3),
+            object(
+                unix("/src/repo/packages/web/package.json"),
+                EntryKind::File,
+                4,
+            ),
+            object(unix("/src/repo/pnpm-lock.yaml"), EntryKind::File, 5),
+        ];
+        assert_eq!(node_modules(&linux, &unpinned), Vec::<u128>::new());
+        for kind in [
+            EntryKind::Directory,
+            EntryKind::Symlink,
+            EntryKind::Junction,
+            EntryKind::OtherReparsePoint,
+        ] {
+            let lockfile = object(unix("/src/app/package-lock.json"), kind, 2);
+            assert_eq!(
+                node_modules(&linux, &[modules.clone(), lockfile]),
+                Vec::<u128>::new(),
+                "{kind:?} lockfile"
+            );
+        }
+        for kind in [
+            EntryKind::File,
+            EntryKind::Symlink,
+            EntryKind::Junction,
+            EntryKind::OtherReparsePoint,
+            EntryKind::Special,
+        ] {
+            let modules = object(unix("/src/app/node_modules"), kind, 1);
+            let lockfile = object(unix("/src/app/package-lock.json"), EntryKind::File, 2);
+            assert_eq!(
+                node_modules(&linux, &[modules, lockfile]),
+                Vec::<u128>::new(),
+                "{kind:?} node_modules"
+            );
+        }
+    }
+
+    #[test]
+    fn node_modules_inside_node_modules_never_match_on_their_own() {
+        let builtin = KnowledgeBase::builtin().unwrap_or_else(|e| unreachable!("{e}"));
+        for platform in [Platform::Macos, Platform::Linux, Platform::Windows] {
+            let path = |tail: &str| {
+                if platform == Platform::Windows {
+                    windows(&format!(r"C:\src\{tail}").replace('/', "\\"))
+                } else {
+                    unix(&format!("/src/{tail}"))
+                }
+            };
+            // Packages ship lockfiles (`yarn.lock`, `npm-shrinkwrap.json`), so
+            // a nested `node_modules` can sit beside one, whether or not the
+            // outer one matched.
+            let scanned = [
+                object(path("app/node_modules"), EntryKind::Directory, 1),
+                object(path("app/package-lock.json"), EntryKind::File, 2),
+                object(
+                    path("app/node_modules/pkg/node_modules"),
+                    EntryKind::Directory,
+                    3,
+                ),
+                object(path("app/node_modules/pkg/yarn.lock"), EntryKind::File, 4),
+                object(
+                    path("app/node_modules/.pnpm/pkg@1.0.0/node_modules"),
+                    EntryKind::Directory,
+                    5,
+                ),
+                object(
+                    path("app/node_modules/.pnpm/pkg@1.0.0/pnpm-lock.yaml"),
+                    EntryKind::File,
+                    6,
+                ),
+                object(path("loose/node_modules"), EntryKind::Directory, 7),
+                object(
+                    path("loose/node_modules/pkg/node_modules"),
+                    EntryKind::Directory,
+                    8,
+                ),
+                object(
+                    path("loose/node_modules/pkg/npm-shrinkwrap.json"),
+                    EntryKind::File,
+                    9,
+                ),
+                object(
+                    path("node_modules/checkout/node_modules"),
+                    EntryKind::Directory,
+                    10,
+                ),
+                object(path("node_modules/checkout/bun.lock"), EntryKind::File, 11),
+            ];
+            let environment = env(platform);
+            assert_eq!(node_modules(&environment, &scanned), [1], "{platform:?}");
+            let (outer, rest) = scanned.split_at(2);
+            assert_eq!(
+                chunked(&builtin, &environment, &[rest, outer]),
+                builtin.matches(&environment, &[rest, outer].concat(), Timestamp::UNIX_EPOCH),
+                "{platform:?}"
             );
         }
     }

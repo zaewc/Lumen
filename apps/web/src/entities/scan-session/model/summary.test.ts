@@ -11,6 +11,7 @@ function candidate(path: string, verdict: CandidateView["verdict"], bytes: strin
     tool_command: null,
     group: { kind: "other", source: null },
     ai_note: null,
+    free_when_closed: null,
   };
 }
 

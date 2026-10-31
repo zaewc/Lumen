@@ -60,12 +60,20 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/docker-desktop-disk-image.json"),
     ),
     (
+        "expo-cli-download-caches.json",
+        include_str!("../entries/expo-cli-download-caches.json"),
+    ),
+    (
         "go-build-cache.json",
         include_str!("../entries/go-build-cache.json"),
     ),
     (
         "go-module-cache.json",
         include_str!("../entries/go-module-cache.json"),
+    ),
+    (
+        "google-chrome-caches.json",
+        include_str!("../entries/google-chrome-caches.json"),
     ),
     (
         "gradle-user-home-caches.json",
@@ -80,8 +88,16 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/jetbrains-system-directory.json"),
     ),
     (
+        "microsoft-edge-caches.json",
+        include_str!("../entries/microsoft-edge-caches.json"),
+    ),
+    (
         "nextjs-build-cache.json",
         include_str!("../entries/nextjs-build-cache.json"),
+    ),
+    (
+        "node-modules-with-lockfile.json",
+        include_str!("../entries/node-modules-with-lockfile.json"),
     ),
     (
         "notion-chromium-caches.json",
@@ -112,6 +128,10 @@ const BUILTIN: &[(&str, &str)] = &[
     (
         "postman-chromium-caches.json",
         include_str!("../entries/postman-chromium-caches.json"),
+    ),
+    (
+        "swiftpm-shared-cache.json",
+        include_str!("../entries/swiftpm-shared-cache.json"),
     ),
     ("uv-cache.json", include_str!("../entries/uv-cache.json")),
     (
