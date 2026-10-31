@@ -6,6 +6,7 @@ import { memoryTransport, tauriTransport } from "@/shared/api";
 import { Providers } from "./Providers";
 import { router } from "./router";
 import "./styles.css";
+import "./materials.css";
 
 const element = document.getElementById("root");
 if (element === null) {
