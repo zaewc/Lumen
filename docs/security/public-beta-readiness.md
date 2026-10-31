@@ -12,7 +12,8 @@ no-follow behavior, no-replace moves, restore safeguards, journal ordering and
 fail-closed policy have substantial test coverage. The most important release
 blockers are cloud-sync locations being treated as reversible, insufficient
 host-level confirmation for person-chosen cleanup, and Linux whole-disk scans
-that do not hard-protect system paths.
+that do not hard-protect system paths. FS-2 and SC-1 have since been addressed in
+0.8.3; see their progress notes.
 
 Do not merge #574 or #575 as written. The filesystem review found #571 and #572
 safe to merge in order, and #573 safe with follow-up work. CI passed for
@@ -53,6 +54,14 @@ selection of large unrecognized folders, widening the exposure.
 **Action:** Block #575 until candidates below sync roots and directories with
 cloud placeholders are kept or excluded. Add platform-specific ancestry
 detection and tests for sync-root descendants and placeholder descendants.
+
+**Progress (2026-10-31):** resolved in 0.8.3. #587 keeps every item at or below a
+placeholder, dataless or sync-root directory, and every directory holding one,
+from the scan's own flags (`lumen_application::cloud`). #588 adds each provider's
+default sync folder as a `cloud` protected location (policy 0.16.0), because a
+materialized iCloud Drive item carries no flag
+([research](../research/32-cloud-sync-folders.md)). Both only add `KEEP`; neither
+opens or hydrates a file. #575 still needs FS-3's ancestor protection.
 
 ### PLATFORM-1: Linux whole-disk scans do not hard-protect system paths
 
@@ -118,7 +127,13 @@ test rejection of an old-key signature after transition.
 public key in `tauri.conf.json` and documents the procedure in
 [`release.md`](../operations/release.md). 0.8.3 is the transition release, signed
 with the old key; the `release` environment's secrets are replaced after it is
-published.
+published. 0.8.3 was published the same day: its updater signatures verify with
+the old key and name `version:0.8.3`, the app bundles the new key, and the same
+signatures fail against the new key (checked with a minisign verifier, not yet by
+an installed app). `TAURI_SIGNING_PRIVATE_KEY` was replaced; the password secret
+must match the new key before the next release. The review also found that 0.8.2's
+updater signatures carried no version, which `requireSignedVersion` refuses, so
+installed apps could not update to 0.8.2; #586 signs with the version and checks it.
 
 ### RELEASE-1: Public installer signing and AI-service authorization need a
 release decision
