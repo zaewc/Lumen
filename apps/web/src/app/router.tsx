@@ -25,7 +25,10 @@ function Layout() {
     return <FirstLaunchPage settings={ai.data} />;
   }
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-window text-[14px] leading-relaxed text-ink">
+    <div
+      data-lg-role="stage"
+      className="flex h-dvh flex-col overflow-hidden bg-window text-[14px] leading-relaxed text-ink"
+    >
       <Sidebar />
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
         <Outlet />

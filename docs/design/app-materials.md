@@ -44,3 +44,13 @@ use material for navigation and controls, preserving legibility and accessibilit
   borders, rectangular selection blocks, glow, glass content cards or blurred text.
 - Verification: actual app screenshots, native rendering, geometry and contrast
   checks, Apple reference comparison and a separate polish pass before recapture.
+
+## Navigation optics
+
+One non-interactive lens moves behind the existing links. Its shape-driven,
+bounded, eight-entry map cache uses the skill's thin inverse-lens field at 2x
+resolution and 110% of its measured displacement scale. Foreground DOM is never
+filtered. Pointer light changes CSS variables only; it never regenerates maps.
+Chromium uses the live SVG backdrop path; WebKit/Firefox use the material fallback,
+which is explicitly not described as refraction. Reduced transparency/contrast
+uses an opaque surface. See [compatibility findings](../research/32-app-glass-optics.md).

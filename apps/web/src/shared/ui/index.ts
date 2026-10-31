@@ -24,6 +24,7 @@ export {
   WarningIcon,
 } from "./icons";
 export { LogoMark } from "./Logo";
+export { NavigationGlass } from "./NavigationGlass";
 export { ErrorDetails, ErrorNotice, Notice, type NoticeTone } from "./Notice";
 export { Page } from "./Page";
 export { type Segment, Segmented } from "./Segmented";
