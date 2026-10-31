@@ -152,6 +152,8 @@ fn path() -> impl Strategy<Value = Vec<RawPath>> {
             Just("/usr/lib/x"),
             Just("/usr/local/x"),
             Just("/System/Library/x"),
+            Just("/home/t/Library/CloudStorage/Dropbox/app/node_modules"),
+            Just("/home/t/Dropbox/app/node_modules"),
         ]
         .prop_map(|p| {
             RawPath::from_unix_bytes(p.as_bytes().to_vec()).unwrap_or_else(|_| unreachable!())
@@ -274,7 +276,22 @@ fn must_keep(input: &PolicyInput) -> bool {
         .paths
         .iter()
         .any(|p| p.as_bytes().starts_with(b"/home/t/.ssh/"));
-    protected || !in_use_gate_passes || incomplete || system_path || sensitive_path
+    protected || !in_use_gate_passes || incomplete || system_path || sensitive_path || cloud(input)
+}
+
+/// Whether the input says the item is cloud-backed or lies in a cloud sync
+/// folder: moving it would delete it in the cloud and on every device.
+fn cloud(input: &PolicyInput) -> bool {
+    input
+        .evidence
+        .iter()
+        .any(|e| e.fact == Fact::CloudBacked(true))
+        || input.paths.iter().any(|p| {
+            let bytes = p.as_bytes();
+            bytes.starts_with(b"/home/t/Dropbox/")
+                || (input.context.platform == Platform::Macos
+                    && bytes.starts_with(b"/home/t/Library/CloudStorage/"))
+        })
 }
 
 proptest! {
@@ -286,6 +303,13 @@ proptest! {
         if must_keep(&input) {
             prop_assert_eq!(decision.verdict(), Verdict::Keep);
             prop_assert_eq!(decision.jev_effect(), JevEffect::None);
+        }
+    }
+
+    #[test]
+    fn cloud_items_are_never_proposed(input in policy_input()) {
+        if cloud(&input) {
+            prop_assert_eq!(decide(&input)?.verdict(), Verdict::Keep);
         }
     }
 

@@ -106,6 +106,11 @@ Research: [03-macos-platform](../research/03-macos-platform.md),
 - Browser profiles: the user data folders of Chrome, Microsoft Edge, Brave and Arc in
   `~/Library/Application Support` (their separate `~/Library/Caches` folders are not
   protected).
+- Cloud sync folders and everything below them: `~/Library/CloudStorage` (every File
+  Provider domain), `~/Library/Mobile Documents` (iCloud Drive), and the legacy
+  `~/Dropbox`, `~/Dropbox (*)`, `~/OneDrive` and `~/OneDrive - *` folders
+  ([research 32](../research/32-cloud-sync-folders.md)). iCloud Desktop & Documents is
+  not detected yet.
 
 **Defer to Apple:** iCloud, Photos, Mail and Messages storage, and login items. Lumen
 links to System Settings instead of acting.
@@ -176,7 +181,11 @@ Lumen never calls `RmShutdown`.
   `%LOCALAPPDATA%` (`KEEP`).
 - `System Volume Information`, other users' `$Recycle.Bin`, `$Extend`.
 - `SoftwareDistribution\DataStore`, `catroot2`.
-- Sync roots, and the install directories of installed apps (`REVIEW`).
+- Cloud sync folders at their documented defaults and everything below them:
+  `%USERPROFILE%\OneDrive`, `OneDrive - *`, `iCloud Drive`, `iCloudDrive`,
+  `Dropbox` and `Dropbox (*)` ([research 32](../research/32-cloud-sync-folders.md)).
+- Sync roots elsewhere are kept through their placeholder attributes. The install
+  directories of installed apps are `REVIEW`.
 
 **Delegate:** DISM `/StartComponentCleanup` (never `/ResetBase` in one-click flows),
 `powercfg` for hibernation, and the Delivery Optimization cmdlet. Disk Cleanup handler

@@ -199,5 +199,77 @@
     "root": "home",
     "path": "Library/Application Support/Arc",
     "source": "https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md"
+  },
+  {
+    "id": "macos-cloud-storage",
+    "kind": "cloud",
+    "platforms": ["macos"],
+    "root": "home",
+    "path": "Library/CloudStorage",
+    "source": "https://support.google.com/drive/answer/12178485"
+  },
+  {
+    "id": "icloud-drive-macos",
+    "kind": "cloud",
+    "platforms": ["macos"],
+    "root": "home",
+    "path": "Library/Mobile Documents",
+    "source": "https://developer.apple.com/documentation/foundation/filemanager/url(forubiquitycontaineridentifier:)"
+  },
+  {
+    "id": "icloud-drive-windows",
+    "kind": "cloud",
+    "platforms": ["windows"],
+    "root": "home",
+    "path": "iCloud Drive",
+    "source": "https://support.apple.com/guide/icloud-windows/icw0144825a5/icloud"
+  },
+  {
+    "id": "icloud-drive-windows-legacy",
+    "kind": "cloud",
+    "platforms": ["windows"],
+    "root": "home",
+    "path": "iCloudDrive",
+    "source": "https://support.apple.com/guide/icloud-windows/icw0144825a5/icloud"
+  },
+  {
+    "id": "onedrive-windows",
+    "kind": "cloud",
+    "platforms": ["windows"],
+    "root": "home",
+    "path": "OneDrive",
+    "source": "https://learn.microsoft.com/en-us/windows/win32/shell/knownfolderid"
+  },
+  {
+    "id": "onedrive-macos-legacy",
+    "kind": "cloud",
+    "platforms": ["macos"],
+    "root": "home",
+    "path": "OneDrive",
+    "source": "https://support.microsoft.com/office/missing-files-and-autosave-issues-with-onedrive-on-macos-7fc55219-7fb5-4885-b117-1c8cb53d2db5"
+  },
+  {
+    "id": "onedrive-organization",
+    "kind": "cloud",
+    "platforms": ["macos", "windows"],
+    "root": "home",
+    "path": "OneDrive - *",
+    "source": "https://learn.microsoft.com/en-us/sharepoint/use-group-policy#set-a-custom-name-for-the-onedrive-folder"
+  },
+  {
+    "id": "dropbox",
+    "kind": "cloud",
+    "platforms": ["macos", "windows", "linux"],
+    "root": "home",
+    "path": "Dropbox",
+    "source": "https://help.dropbox.com/installs/locate-dropbox-folder"
+  },
+  {
+    "id": "dropbox-named",
+    "kind": "cloud",
+    "platforms": ["macos", "windows", "linux"],
+    "root": "home",
+    "path": "Dropbox (*",
+    "source": "https://help.dropbox.com/installs/locate-dropbox-folder"
   }
 ]

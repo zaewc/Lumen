@@ -227,6 +227,13 @@ fn protected_strata_stay_kept_and_never_reach_the_judge() {
             ),
         ),
         (
+            "materialised folder in a sync root",
+            large(input(
+                "/Users/ana/Library/CloudStorage/Dropbox/app/node_modules",
+                vec![free()],
+            )),
+        ),
+        (
             "active cache",
             input(
                 "/Users/ana/Library/Caches/com.example.App",
