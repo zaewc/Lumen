@@ -12,6 +12,13 @@
 //! `OneDrive - *` is every work or school `OneDrive` folder, whatever the
 //! organization is called.
 //!
+//! A directory that holds one of them is `Keep` too (security audit FS-3):
+//! moving `~/Library` or a home folder would move the keychains, browser
+//! profiles or sync folders inside it. Such an ancestor fires
+//! `protect.contains-<kind>`, naming what it holds (`system`, `sensitive` or
+//! `cloud`). Whether the location exists is not checked: a directory where it
+//! would be is kept either way.
+//!
 //! The data is embedded and validated at first use. If it is invalid, every
 //! item is kept (`protect.location-data`), and so is every item when a root the
 //! data needs (home; on Windows also the Windows and local app data directories)
@@ -53,8 +60,9 @@ enum Root {
     LocalAppData,
 }
 
-/// What a location protects, which sets the risk recorded.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+/// What a location protects, which sets the risk recorded. Declared from the
+/// most critical, which [`check_holds`] relies on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum Kind {
     /// Part of the operating system.
@@ -203,31 +211,43 @@ fn pattern(path: &str, platform: Platform) -> Vec<Part> {
         .collect()
 }
 
+/// The components `location` is relative to, if they are known for `names`.
+fn base(location: &Location, names: &[String], input: &PolicyInput) -> Option<Vec<String>> {
+    let platform = input.context.platform;
+    let context = &input.context;
+    match location.root {
+        Root::Filesystem => Some(Vec::new()),
+        Root::WindowsDir => context
+            .windows_dir
+            .as_ref()
+            .map(|d| components(d, platform)),
+        Root::Home => context.home.as_ref().map(|d| components(d, platform)),
+        Root::LocalAppData => context
+            .local_app_data
+            .as_ref()
+            .map(|d| components(d, platform)),
+        Root::Volume => names
+            .first()
+            .filter(|drive| drive.len() == 2 && drive.ends_with(':'))
+            .map(|drive| vec![drive.clone()]),
+    }
+}
+
+/// `relative` below `base`, as parts to match names against.
+fn full(base: &[String], relative: &str, platform: Platform) -> Vec<Part> {
+    let mut parts: Vec<Part> = base.iter().cloned().map(Part::Exact).collect();
+    parts.extend(pattern(relative, platform));
+    parts
+}
+
 /// Whether `names` is `location` or below it, outside its exceptions.
 fn covers(location: &Location, names: &[String], input: &PolicyInput) -> bool {
     let platform = input.context.platform;
-    let base: Vec<String> = match location.root {
-        Root::Filesystem => Vec::new(),
-        Root::WindowsDir => match &input.context.windows_dir {
-            Some(dir) => components(dir, platform),
-            None => return false,
-        },
-        Root::Home => match &input.context.home {
-            Some(dir) => components(dir, platform),
-            None => return false,
-        },
-        Root::LocalAppData => match &input.context.local_app_data {
-            Some(dir) => components(dir, platform),
-            None => return false,
-        },
-        Root::Volume => match names.first() {
-            Some(drive) if drive.len() == 2 && drive.ends_with(':') => vec![drive.clone()],
-            _ => return false,
-        },
+    let Some(base) = base(location, names, input) else {
+        return false;
     };
     let under = |relative: &str| {
-        let mut full: Vec<Part> = base.iter().cloned().map(Part::Exact).collect();
-        full.extend(pattern(relative, platform));
+        let full = full(&base, relative, platform);
         names.len() >= full.len()
             && full
                 .iter()
@@ -237,16 +257,35 @@ fn covers(location: &Location, names: &[String], input: &PolicyInput) -> bool {
     under(&location.path) && !location.except.iter().any(|e| under(e))
 }
 
+/// Whether `names` lies strictly above `location`, so a directory there holds
+/// it. Only a location's last name can be a prefix, and an ancestor never
+/// reaches it.
+fn holds(location: &Location, names: &[String], input: &PolicyInput) -> bool {
+    let Some(base) = base(location, names, input) else {
+        return false;
+    };
+    let full = full(&base, &location.path, input.context.platform);
+    names.len() < full.len()
+        && full
+            .iter()
+            .zip(names)
+            .all(|(part, name)| part.matches(name))
+}
+
+fn risk_of(kind: Kind) -> RiskFactor {
+    match kind {
+        Kind::System => RiskFactor::OsProtected,
+        Kind::Sensitive => RiskFactor::SensitiveData,
+        Kind::Cloud => RiskFactor::CloudBacked,
+    }
+}
+
 /// `Keep` if any path of the subject is in a protected location.
 pub(crate) fn check(input: &PolicyInput) -> Option<Finding> {
     let keep = |rule: String, kind: Kind| Finding {
         verdict: Verdict::Keep,
         evidence: BTreeSet::new(),
-        risk: BTreeSet::from([match kind {
-            Kind::System => RiskFactor::OsProtected,
-            Kind::Sensitive => RiskFactor::SensitiveData,
-            Kind::Cloud => RiskFactor::CloudBacked,
-        }]),
+        risk: BTreeSet::from([risk_of(kind)]),
         rule: Some(rule),
     };
     let Some(locations) = locations() else {
@@ -272,6 +311,41 @@ pub(crate) fn check(input: &PolicyInput) -> Option<Finding> {
         }
     }
     None
+}
+
+/// `Keep` if any path of the subject holds a protected location: it is a
+/// strict ancestor of one. The rule names the most critical kind held
+/// (system, then sensitive, then cloud) and the risk lists every kind held.
+///
+/// Missing data or roots are [`check`]'s to report; this check then finds
+/// nothing, and `check` keeps the item.
+pub(crate) fn check_holds(input: &PolicyInput) -> Option<Finding> {
+    let locations = locations()?;
+    let platform = input.context.platform;
+    let mut kinds = BTreeSet::new();
+    for path in &input.paths {
+        let names = components(path, platform);
+        kinds.extend(
+            locations
+                .iter()
+                .filter(|l| l.platforms.contains(&platform) && holds(l, &names, input))
+                .map(|l| l.kind),
+        );
+    }
+    let first = *kinds.first()?;
+    Some(Finding {
+        verdict: Verdict::Keep,
+        evidence: BTreeSet::new(),
+        risk: kinds.into_iter().map(risk_of).collect(),
+        rule: Some(
+            match first {
+                Kind::System => "protect.contains-system",
+                Kind::Sensitive => "protect.contains-sensitive",
+                Kind::Cloud => "protect.contains-cloud",
+            }
+            .to_owned(),
+        ),
+    })
 }
 
 #[cfg(test)]
@@ -352,6 +426,171 @@ mod tests {
 
     fn win(path: &str) -> Option<String> {
         rule_at(context(Platform::Windows), windows(path))
+    }
+
+    fn held_at(context: Context, path: RawPath) -> Option<String> {
+        check_holds(&PolicyInput {
+            subject: Subject::File {
+                identity: FileIdentity {
+                    volume: VolumeId::new("v").unwrap_or_else(|_| unreachable!()),
+                    file: FileId::new(1),
+                },
+            },
+            evidence_hash: EvidenceHash::from_bytes([0; 32]),
+            evidence: Vec::new(),
+            paths: vec![path],
+            context,
+            observed: None,
+            knowledge: std::collections::BTreeMap::new(),
+            jev: None,
+        })
+        .and_then(|f| f.rule)
+    }
+
+    #[test]
+    fn folders_holding_a_protected_location_are_kept() {
+        let sensitive = Some("protect.contains-sensitive");
+        let system = Some("protect.contains-system");
+        let mac = |path: &str| held_at(context(Platform::Macos), unix(path));
+        for path in [
+            "/Users/ana",
+            "/Users",
+            "/Users/ana/Library",
+            "/users/ANA/library",
+            "/Users/ana/Library/Application Support",
+            "/Users/ana/Library/Application Support/Google",
+            "/Users/ana/Library/Application Support/BraveSoftware",
+        ] {
+            assert_eq!(mac(path).as_deref(), sensitive, "{path}");
+        }
+        for path in ["/", "/private", "/private/var"] {
+            assert_eq!(mac(path).as_deref(), system, "{path}");
+        }
+        for path in [
+            // The location itself and what is below it are `check`'s.
+            "/Users/ana/.ssh",
+            "/Users/ana/Library/Application Support/Google/Chrome",
+            "/usr",
+            // Siblings, look-alikes and names that only start the same.
+            "/Users/ana/.ssh-old",
+            "/Users/ana/.ss",
+            "/Users/ana/Library/Application Support/Googlex",
+            "/Users/ana/Library/Application Support/Microsoft",
+            "/Users/ana/Library/Caches",
+            "/Users/ana/projects",
+            "/private/var/folders",
+            "/usr/local",
+            "/Users/bob",
+        ] {
+            assert_eq!(mac(path), None, "{path}");
+        }
+        let linux = |path: &str| held_at(context(Platform::Linux), unix(path));
+        assert_eq!(linux("/home/ana/.config").as_deref(), sensitive);
+        assert_eq!(linux("/home/ana/.Config"), None, "case-sensitive");
+        assert_eq!(linux("/home/ANA"), None, "case-sensitive");
+        assert_eq!(linux("/private/var"), None, "macOS-only entries");
+    }
+
+    #[test]
+    fn windows_folders_holding_a_protected_location_are_kept() {
+        let win = |path: &str| held_at(context(Platform::Windows), windows(path));
+        for path in [
+            r"C:\",
+            r"C:\Windows",
+            r"c:\windows\softwaredistribution",
+            r"D:\",
+        ] {
+            assert_eq!(
+                win(path).as_deref(),
+                Some("protect.contains-system"),
+                "{path}"
+            );
+        }
+        for path in [
+            r"C:\Users",
+            r"\\?\C:\Users\ana",
+            r"C:\Users\ana\AppData",
+            r"C:\Users\ana\AppData\Local\Microsoft",
+            r"c:\users\ana\appdata\local\google\chrome",
+        ] {
+            assert_eq!(
+                win(path).as_deref(),
+                Some("protect.contains-sensitive"),
+                "{path}"
+            );
+        }
+        for path in [
+            r"C:\Windows\Temp",
+            r"C:\Windows\SoftwareDistribution\Download",
+            r"C:\Users\ana\AppData\Local\Temp",
+            r"C:\Users\ana\OneDrive - Contoso",
+            r"D:\data",
+            r"\\server\share",
+        ] {
+            assert_eq!(win(path), None, "{path}");
+        }
+    }
+
+    #[test]
+    fn a_folder_holding_several_kinds_records_each_risk() {
+        let finding = check_holds(&PolicyInput {
+            subject: Subject::File {
+                identity: FileIdentity {
+                    volume: VolumeId::new("v").unwrap_or_else(|_| unreachable!()),
+                    file: FileId::new(1),
+                },
+            },
+            evidence_hash: EvidenceHash::from_bytes([0; 32]),
+            evidence: Vec::new(),
+            paths: vec![unix("/Users/ana/Library")],
+            context: context(Platform::Macos),
+            observed: None,
+            knowledge: std::collections::BTreeMap::new(),
+            jev: None,
+        });
+        assert_eq!(
+            finding.map(|f| f.risk),
+            Some(BTreeSet::from([
+                RiskFactor::SensitiveData,
+                RiskFactor::CloudBacked
+            ]))
+        );
+    }
+
+    #[test]
+    fn a_regenerable_folder_holding_a_protected_location_is_kept() -> Result<(), crate::PolicyError>
+    {
+        use lumen_domain::{Basis, Evidence, Fact, Provenance, SourceName, Timestamp};
+        let fact = |fact| Evidence {
+            subject: crate::testing::file(1),
+            fact,
+            basis: Basis::Observed,
+            provenance: Provenance {
+                source: SourceName::new("test").unwrap_or_else(|_| unreachable!()),
+                observed_at: Timestamp::UNIX_EPOCH,
+            },
+        };
+        let entry = SourceName::new("entry").unwrap_or_else(|_| unreachable!());
+        let mut input = crate::testing::input(vec![
+            fact(Fact::InUse(false)),
+            fact(Fact::KnowledgeBaseMatch {
+                entry: entry.clone(),
+            }),
+        ]);
+        input.knowledge =
+            std::collections::BTreeMap::from([(entry, crate::KnowledgeClass::Regenerable)]);
+        input.paths = vec![unix("/home/t/.config/app")];
+        assert_eq!(crate::evaluate(&input)?.verdict(), Verdict::Quarantine);
+        input.paths = vec![unix("/home/t/.config")];
+        let decision = crate::evaluate(&input)?;
+        assert_eq!(decision.verdict(), Verdict::Keep);
+        let fired: Vec<&str> = decision
+            .fired_rules()
+            .iter()
+            .map(|r| r.rule.as_str())
+            .collect();
+        assert_eq!(fired, ["protect.contains-sensitive"]);
+        Ok(())
     }
 
     #[test]

@@ -16,8 +16,7 @@ use std::task::{Context as TaskContext, Poll, Wake, Waker};
 use std::thread::{self, Thread};
 
 use lumen_application::assess::{Assessed, Probes, Sources, decide_candidate, nested, select};
-use lumen_application::cloud::CloudDomains;
-use lumen_application::collect::{Inventory, summarize};
+use lumen_application::collect::{Inventory, ScanDomains, summarize};
 use lumen_application::gather::gather;
 use lumen_application::observe::below;
 use lumen_application::ports::{Clock, InUseProbe, InventoryReport, OwnershipProbe};
@@ -495,18 +494,18 @@ fn for_each_page(
 }
 
 /// What the producers found in the whole scan, the entries it is about, and
-/// the scan's cloud domains.
+/// the scan's cloud domains and browser profiles.
 struct Found {
     evidence: Vec<Evidence>,
     relationships: Vec<Relationship>,
     entries: Vec<lumen_domain::FilesystemEntry>,
-    cloud: CloudDomains,
+    domains: ScanDomains,
 }
 
 /// Runs the platform's producers and the knowledge base over the scan, a page
-/// at a time: first the knowledge base's and the platform's markers and the
-/// cloud domains (a marker or a sync root can qualify an entry in another
-/// page), then the producers. Keeps only the entries their
+/// at a time: first the knowledge base's and the platform's markers, the
+/// cloud domains and the browser profiles (a marker or a sync root can
+/// qualify an entry in another page), then the producers. Keeps only the entries their
 /// output names; no other entry's facts could reach a decision (roadmap 10.8).
 fn find(
     store: &IndexStore,
@@ -523,10 +522,10 @@ fn find(
     report(progress, AssessStage::Markers, completed, total);
     let mut markers = Markers::new();
     let mut platform_markers = PlatformMarkers::default();
-    let mut cloud = CloudDomains::new();
+    let mut domains = ScanDomains::new();
     for_each_page(store, scan, |page| {
         matcher.add_markers(page, &mut markers);
-        cloud.add(page);
+        domains.add(page);
         add_platform_markers(&mut platform_markers, page, home);
         completed = completed.saturating_add(u64::try_from(page.len()).unwrap_or(u64::MAX));
         report(progress, AssessStage::Markers, completed, total);
@@ -535,7 +534,7 @@ fn find(
         evidence: Vec::new(),
         relationships: Vec::new(),
         entries: Vec::new(),
-        cloud,
+        domains,
     };
     completed = 0;
     report(progress, AssessStage::Evidence, completed, total);
@@ -622,7 +621,7 @@ fn prepare_with_progress(
     report(progress, AssessStage::Graph, 0, None);
     let gathered = gather(
         &found.entries,
-        &found.cloud,
+        &found.domains,
         &inventory,
         found.evidence,
         found.relationships,
@@ -988,7 +987,7 @@ mod tests {
     use lumen_domain::{
         AccessState, AppDataKind, Basis, ByteCount, Category, EntryKind, EntryTimes, EvidenceHash,
         Fact, FileId, FileIdentity, FilesystemEntry, Protection, Provenance, ReclaimEstimate,
-        SizeFacts, SizeFlags, Subject, Timestamp, VolumeId,
+        SizeFacts, SizeFlags, Subject, Timestamp, Verdict, VolumeId,
     };
     use lumen_policy::{Observed, PolicyInput};
 
@@ -1296,7 +1295,7 @@ mod tests {
         )?;
         let gathered = gather(
             &found.entries,
-            &found.cloud,
+            &found.domains,
             &summarize(&[]),
             found.evidence,
             found.relationships,
@@ -1317,6 +1316,183 @@ mod tests {
             cloud_backed,
             BTreeSet::from([(3, true), (5, false), (6, true)]),
             "the npm caches below and outside the sync root, and uv's cache holding a placeholder"
+        );
+        Ok(())
+    }
+
+    /// What the producers found in `entries`, stored as a completed scan, with
+    /// the knowledge base's cache variables set as `vars` says, gathered.
+    fn gathered_from(
+        entries: &[FilesystemEntry],
+        vars: fn(&str) -> Option<&'static str>,
+    ) -> Result<
+        (lumen_application::gather::Gathered, Vec<FilesystemEntry>),
+        Box<dyn std::error::Error>,
+    > {
+        let fixture = lumen_testkit::Fixture::build(&[])?;
+        let mut store = IndexStore::new(open_index(&fixture.root().join("index.db"))?);
+        let scan: ScanId = "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a4".parse()?;
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[])?;
+        store.insert_entries(scan, entries)?;
+        let inventory = PlatformInventory {
+            reports: Vec::new(),
+            #[cfg(target_os = "macos")]
+            apps: Vec::new(),
+            #[cfg(windows)]
+            declarations: Vec::new(),
+        };
+        let kb = KnowledgeBase::builtin()?;
+        let env = Environment {
+            platform: Platform::Linux,
+            home: None,
+            local_app_data: None,
+            roaming_app_data: None,
+            vars: cache_vars(&kb, Platform::Linux, |name| {
+                RawPath::from_unix_bytes(vars(name)?).ok()
+            }),
+        };
+        let found = find(
+            &store,
+            scan,
+            &inventory,
+            &kb.matcher(&env),
+            None,
+            (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
+            &mut |_| {},
+        )?;
+        let gathered = gather(
+            &found.entries,
+            &found.domains,
+            &summarize(&[]),
+            found.evidence,
+            found.relationships,
+            Timestamp::UNIX_EPOCH,
+            Timestamp::UNIX_EPOCH,
+        );
+        Ok((gathered, found.entries))
+    }
+
+    /// A candidate's path, verdict and fired rules.
+    type Decided = (String, Verdict, Vec<String>);
+
+    /// Every candidate in `gathered`, decided by the policy on Linux with
+    /// `/home/t` as home, nothing in use and every directory fully listed.
+    fn decided_on_linux(
+        entries: &[FilesystemEntry],
+        gathered: &lumen_application::gather::Gathered,
+        found: &[FilesystemEntry],
+    ) -> Result<Vec<Decided>, Box<dyn std::error::Error>> {
+        let mut graph = lumen_graph::Graph::new();
+        for relationship in &gathered.relationships {
+            graph.add(relationship.clone())?;
+        }
+        let listed = lumen_application::ports::DirOutcome {
+            access: AccessState::Readable,
+            complete: true,
+        };
+        let listings: Vec<_> = entries
+            .iter()
+            .filter(|e| e.kind == EntryKind::Directory)
+            .map(|e| (e.path.clone(), listed))
+            .collect();
+        let context = Context {
+            platform: Platform::Linux,
+            home: RawPath::from_unix_bytes(b"/home/t".to_vec()).ok(),
+            windows_dir: None,
+            local_app_data: None,
+            mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
+            complete_sources: BTreeSet::new(),
+            single_user: false,
+        };
+        let knowledge = KnowledgeBase::builtin()?.knowledge();
+        let sources = Sources {
+            graph: &graph,
+            gathered,
+            scanned: entries,
+            listings: &listings,
+            context: &context,
+            knowledge: &knowledge,
+            store_volumes: None,
+        };
+        select(gathered, found)
+            .into_iter()
+            .map(|candidate| {
+                let free = Evidence {
+                    subject: Subject::File {
+                        identity: candidate.identity().clone(),
+                    },
+                    fact: Fact::InUse(false),
+                    basis: Basis::Observed,
+                    provenance: Provenance {
+                        source: SourceName::new("test")?,
+                        observed_at: Timestamp::UNIX_EPOCH,
+                    },
+                };
+                let input = lumen_application::assess::assemble(candidate, &[free], &sources);
+                let decision = lumen_policy::evaluate(&input)?;
+                let rules = decision
+                    .fired_rules()
+                    .iter()
+                    .map(|r| r.rule.as_str().to_owned())
+                    .collect();
+                Ok((candidate.path.display(), decision.verdict(), rules))
+            })
+            .collect()
+    }
+
+    /// A known cache with a browser profile somewhere inside it, and a cache
+    /// folder that holds a protected location, are kept; the same cache
+    /// without either is offered for review (FS-3).
+    #[test]
+    fn folders_holding_a_profile_or_a_protected_location_are_kept()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let entries = [
+            scanned("/home/t/.npm-a", 1, 0),
+            scanned("/home/t/.npm-a/_cacache", 2, 0),
+            scanned("/home/t/.npm-a/_cacache/blob", 3, 200_000_000),
+            scanned("/home/t/.npm-b", 4, 0),
+            scanned("/home/t/.npm-b/_cacache", 5, 0),
+            scanned("/home/t/.npm-b/_cacache/blob", 6, 200_000_000),
+            scanned("/home/t/.npm-b/_cacache/app", 7, 0),
+            scanned("/home/t/.npm-b/_cacache/app/Default", 8, 0),
+            scanned("/home/t/.npm-b/_cacache/app/Default/Network", 9, 0),
+            scanned(
+                "/home/t/.npm-b/_cacache/app/Default/Network/Cookies",
+                10,
+                4096,
+            ),
+            scanned("/home/t/.config", 11, 0),
+            scanned("/home/t/.config/blob", 12, 200_000_000),
+        ];
+        let (gathered, found) = gathered_from(&entries, |name| match name {
+            "npm_config_cache" => Some("/home/t/.npm-a"),
+            "NPM_CONFIG_CACHE" => Some("/home/t/.npm-b"),
+            "UV_CACHE_DIR" => Some("/home/t/.config"),
+            _ => None,
+        })?;
+        let decided = decided_on_linux(&entries, &gathered, &found)?;
+        let verdict = |path: &str| {
+            decided
+                .iter()
+                .find(|(p, _, _)| p == path)
+                .map(|(_, verdict, rules)| (*verdict, rules.clone()))
+        };
+        assert_eq!(
+            verdict("/home/t/.npm-a/_cacache").map(|(v, _)| v),
+            Some(Verdict::Review),
+            "{decided:?}"
+        );
+        let profile = verdict("/home/t/.npm-b/_cacache");
+        assert_eq!(profile.as_ref().map(|(v, _)| *v), Some(Verdict::Keep));
+        assert!(
+            profile
+                .is_some_and(|(_, rules)| rules.contains(&"classify.browser-profile".to_owned())),
+            "{decided:?}"
+        );
+        assert_eq!(
+            verdict("/home/t/.config"),
+            Some((Verdict::Keep, vec!["protect.contains-sensitive".to_owned()])),
+            "holds Chrome's Linux profile location"
         );
         Ok(())
     }

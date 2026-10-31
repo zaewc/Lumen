@@ -154,6 +154,13 @@ The flagged directories and the parents of flagged entries are collected in the
 same pass over the scan that collects the knowledge base's markers
 (`lumen_application::cloud::CloudDomains`); nothing is opened or hydrated.
 
+A browser profile is the other: a directory with an entry named like a profile's
+state (`Cookies`, `Login Data`, `Web Data`, `Local Storage`, `Session Storage`,
+`IndexedDB`) anywhere below it gets `BrowserProfile` from the scan, citing the first
+such entry, so `classify.browser-profile` keeps it ([FS-3](../security/public-beta-readiness.md)).
+The parents of those entries are collected in the same pass
+(`lumen_application::profiles::ProfileHolders`); only names are compared.
+
 ## Explanation chains
 
 ```text

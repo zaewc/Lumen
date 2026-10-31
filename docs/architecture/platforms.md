@@ -115,6 +115,9 @@ Research: [03-macos-platform](../research/03-macos-platform.md),
   `~/Dropbox`, `~/Dropbox (*)`, `~/OneDrive` and `~/OneDrive - *` folders
   ([research 32](../research/32-cloud-sync-folders.md)). iCloud Desktop & Documents is
   not detected yet.
+- Folders that hold any of these, such as `~/Library`, `~/Library/Application
+  Support` or the home folder (`protect.contains-*`), and folders with a browser
+  profile anywhere below them, recognised by entry names (FS-3).
 
 **Defer to Apple:** iCloud, Photos, Mail and Messages storage, and login items. Lumen
 links to System Settings instead of acting.
@@ -191,6 +194,9 @@ Lumen never calls `RmShutdown`.
   `Dropbox` and `Dropbox (*)` ([research 32](../research/32-cloud-sync-folders.md)).
 - Sync roots elsewhere are kept through their placeholder attributes. The install
   directories of installed apps are `REVIEW`.
+- Folders that hold any of these, such as `C:\`, `%WINDIR%`, `%LOCALAPPDATA%` or the
+  user's profile folder (`protect.contains-*`), and folders with a browser profile
+  anywhere below them (FS-3).
 
 **Delegate:** DISM `/StartComponentCleanup` (never `/ResetBase` in one-click flows),
 `powercfg` for hibernation, and the Delivery Optimization cmdlet. Disk Cleanup handler

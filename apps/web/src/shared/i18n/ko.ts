@@ -509,6 +509,11 @@ export const ko = {
       "protect.incomplete-scan": "유지: 일부를 읽지 못해서 안에 무엇이 있는지 알 수 없어요.",
       "protect.location-data": "유지: 보호 위치 목록을 확인하지 못했어요.",
       "protect.location-context": "유지: 보호 위치 목록을 확인하지 못했어요.",
+      "protect.contains-system": "유지: 운영 체제의 일부가 들어 있어요.",
+      "protect.contains-sensitive":
+        "유지: 비밀번호, 키, 웹 브라우저 로그인 정보가 들어 있어서 Lumen이 건드리지 않아요.",
+      "protect.contains-cloud":
+        "유지: 클라우드 동기화 폴더가 들어 있어서, 여기서 지우면 그 파일이 모든 기기에서 지워질 수 있어요.",
       "eligible.quarantine-unsupported": "검토 필요: 이 기기에서는 복원할 수 있게 옮길 수 없어요.",
       "eligible.frees-nothing": "유지: 지워도 공간이 생기지 않아요.",
       "eligible.object-kind": "검토 필요: 데이터가 아니라 링크나 특수 파일이에요.",

@@ -30,6 +30,13 @@ fn template(rule: &str) -> Option<String> {
         "protect.incomplete-scan" => {
             "Kept: part of it could not be read, so its contents are unknown."
         }
+        "protect.contains-system" => "Kept: it holds part of the operating system.",
+        "protect.contains-sensitive" => {
+            "Kept: it holds credentials, keys or a web browser's profile; Lumen leaves it alone."
+        }
+        "protect.contains-cloud" => {
+            "Kept: it holds a cloud sync folder, so removing it here could remove those files everywhere."
+        }
         "protect.location-data" | "protect.location-context" => {
             "Kept: Lumen could not check its list of protected locations."
         }
@@ -101,10 +108,13 @@ mod tests {
             "jev.demote",
             "protect.location-data",
             "protect.location-context",
+            "protect.contains-system",
+            "protect.contains-sensitive",
+            "protect.contains-cloud",
         ]);
         for id in ids {
-            // `protect.location` itself always fires under a specific id.
-            if id != "protect.location" {
+            // These always fire under a specific id.
+            if !["protect.location", "protect.contains-protected"].contains(&id) {
                 assert!(template(id).is_some(), "{id}");
             }
         }

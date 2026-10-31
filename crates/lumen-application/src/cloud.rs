@@ -34,7 +34,7 @@ pub struct CloudDomains {
     holders: BTreeSet<Vec<u8>>,
 }
 
-fn separator(path: &RawPath) -> u8 {
+pub(crate) fn separator(path: &RawPath) -> u8 {
     match path.flavor() {
         PathFlavor::Unix => b'/',
         PathFlavor::Windows => b'\\',
@@ -42,7 +42,7 @@ fn separator(path: &RawPath) -> u8 {
 }
 
 /// `path` with a trailing separator, so a prefix test matches whole names.
-fn key(path: &RawPath) -> Vec<u8> {
+pub(crate) fn key(path: &RawPath) -> Vec<u8> {
     let sep = separator(path);
     let mut bytes = path.as_bytes().to_vec();
     if bytes.last() != Some(&sep) {
