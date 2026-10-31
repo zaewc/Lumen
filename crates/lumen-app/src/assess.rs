@@ -16,6 +16,7 @@ use std::task::{Context as TaskContext, Poll, Wake, Waker};
 use std::thread::{self, Thread};
 
 use lumen_application::assess::{Assessed, Probes, Sources, decide_candidate, nested, select};
+use lumen_application::cloud::CloudDomains;
 use lumen_application::collect::{Inventory, summarize};
 use lumen_application::gather::gather;
 use lumen_application::observe::below;
@@ -493,16 +494,19 @@ fn for_each_page(
     }
 }
 
-/// What the producers found in the whole scan, and the entries it is about.
+/// What the producers found in the whole scan, the entries it is about, and
+/// the scan's cloud domains.
 struct Found {
     evidence: Vec<Evidence>,
     relationships: Vec<Relationship>,
     entries: Vec<lumen_domain::FilesystemEntry>,
+    cloud: CloudDomains,
 }
 
 /// Runs the platform's producers and the knowledge base over the scan, a page
-/// at a time: first the knowledge base's and the platform's markers (a marker
-/// can qualify an entry in another page), then the producers. Keeps only the entries their
+/// at a time: first the knowledge base's and the platform's markers and the
+/// cloud domains (a marker or a sync root can qualify an entry in another
+/// page), then the producers. Keeps only the entries their
 /// output names; no other entry's facts could reach a decision (roadmap 10.8).
 fn find(
     store: &IndexStore,
@@ -519,8 +523,10 @@ fn find(
     report(progress, AssessStage::Markers, completed, total);
     let mut markers = Markers::new();
     let mut platform_markers = PlatformMarkers::default();
+    let mut cloud = CloudDomains::new();
     for_each_page(store, scan, |page| {
         matcher.add_markers(page, &mut markers);
+        cloud.add(page);
         add_platform_markers(&mut platform_markers, page, home);
         completed = completed.saturating_add(u64::try_from(page.len()).unwrap_or(u64::MAX));
         report(progress, AssessStage::Markers, completed, total);
@@ -529,6 +535,7 @@ fn find(
         evidence: Vec::new(),
         relationships: Vec::new(),
         entries: Vec::new(),
+        cloud,
     };
     completed = 0;
     report(progress, AssessStage::Evidence, completed, total);
@@ -615,6 +622,7 @@ fn prepare_with_progress(
     report(progress, AssessStage::Graph, 0, None);
     let gathered = gather(
         &found.entries,
+        &found.cloud,
         &inventory,
         found.evidence,
         found.relationships,
@@ -1226,6 +1234,90 @@ mod tests {
             }
             assert_eq!(events, expected);
         }
+        Ok(())
+    }
+
+    /// A known cache inside a cloud sync root is cloud-backed even though it
+    /// is local itself, and so is a folder holding a placeholder (FS-2); the
+    /// same cache elsewhere is not.
+    #[test]
+    fn caches_in_a_sync_root_are_cloud_backed() -> Result<(), Box<dyn std::error::Error>> {
+        let fixture = lumen_testkit::Fixture::build(&[])?;
+        let mut store = IndexStore::new(open_index(&fixture.root().join("index.db"))?);
+        let scan: ScanId = "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a3".parse()?;
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[])?;
+        let mut root = scanned("/sync", 1, 0);
+        root.size.flags.cloud_placeholder = true;
+        let mut placeholder = scanned("/held/uv/archive", 7, 10);
+        placeholder.size.flags.dataless = true;
+        store.insert_entries(
+            scan,
+            &[
+                root,
+                scanned("/sync/npm", 2, 0),
+                scanned("/sync/npm/_cacache", 3, 0),
+                scanned("/local/npm", 4, 0),
+                scanned("/local/npm/_cacache", 5, 0),
+                scanned("/held/uv", 6, 0),
+                placeholder,
+            ],
+        )?;
+        let inventory = PlatformInventory {
+            reports: Vec::new(),
+            #[cfg(target_os = "macos")]
+            apps: Vec::new(),
+            #[cfg(windows)]
+            declarations: Vec::new(),
+        };
+        let kb = KnowledgeBase::builtin()?;
+        let env = Environment {
+            platform: Platform::Linux,
+            home: None,
+            local_app_data: None,
+            roaming_app_data: None,
+            vars: cache_vars(&kb, Platform::Linux, |name| {
+                let value = match name {
+                    "npm_config_cache" => "/sync/npm",
+                    "NPM_CONFIG_CACHE" => "/local/npm",
+                    "UV_CACHE_DIR" => "/held/uv",
+                    _ => return None,
+                };
+                RawPath::from_unix_bytes(value).ok()
+            }),
+        };
+        let found = find(
+            &store,
+            scan,
+            &inventory,
+            &kb.matcher(&env),
+            None,
+            (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
+            &mut |_| {},
+        )?;
+        let gathered = gather(
+            &found.entries,
+            &found.cloud,
+            &summarize(&[]),
+            found.evidence,
+            found.relationships,
+            Timestamp::UNIX_EPOCH,
+            Timestamp::UNIX_EPOCH,
+        );
+        let cloud_backed: BTreeSet<(u128, bool)> = gathered
+            .evidence
+            .iter()
+            .filter_map(|record| match (&record.subject, &record.fact) {
+                (Subject::File { identity }, Fact::CloudBacked(backed)) => {
+                    Some((identity.file.get(), *backed))
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            cloud_backed,
+            BTreeSet::from([(3, true), (5, false), (6, true)]),
+            "the npm caches below and outside the sync root, and uv's cache holding a placeholder"
+        );
         Ok(())
     }
 

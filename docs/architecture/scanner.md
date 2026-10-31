@@ -63,7 +63,10 @@ point is not a directory.
   (`PHCM_EXPOSE_PLACEHOLDERS`), so they appear as reparse points and are never
   opened.
 - Dataless, recall-on-access, pinned and sync-root items are `cloud_placeholder`
-  and never count as reclaimable.
+  and never count as reclaimable. Assessment extends this to everything at or below
+  such a directory and to every directory holding such an item: all are
+  `CloudBacked` and kept
+  ([evidence graph](evidence-graph.md#producers-today)).
 - Proof: guard tests on both platforms; the sink observes the guarded mode during
   listing; a manual scan of iCloud Drive left dataless files dataless
   ([research note](../research/03-macos-platform.md)).
