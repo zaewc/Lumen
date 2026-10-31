@@ -95,8 +95,9 @@ The home page and the README show the app itself (`apps/site/public/screens/` an
 its sample data (a fictional `/Users/ana`, never a real disk) and the built-in-key
 option on so AI notes appear, at the desktop window's default size (1120 × 800 px,
 2x; Quarantine uses the minimum 560 px height to fit its two sample items). They were
-refreshed on 2026-10-29 after the storage-identity redesign: horizontal
-navigation, storage composition and an evidence inspector replace the old sidebar UI.
+refreshed on 2026-10-31 after the app material pass: continuous navigation, a
+refracting navigation lens and layered command surfaces. Storage composition, evidence
+and workflows remain unchanged.
 The site displays one light Explore capture per available screenshot language:
 Korean and English. Other localized pages use the English capture (WebP, 1600 ×
 1143 px). Its other four Korean and English review/Quarantine assets are also
@@ -126,7 +127,8 @@ Then run `node scripts/capture-app-screens.mjs`. `LUMEN_CAPTURE_ORIGIN` and
 `LUMEN_CAPTURE_CDP` can override those loopback URLs. The script changes only the
 served fixture bootstrap to enable sample AI notes; it does not edit the app's source
 or rendered DOM, invoke the native host, access a keychain or contact an AI service.
-It checks the bootstrap shape, pins the sample clock to 2026-10-29, waits for fonts
+It checks the bootstrap shape, chooses AI review through the first-launch screen
+on the fixture transport, pins the sample clock to 2026-10-29, waits for fonts
 and expected data, and rejects runtime exceptions, external requests and horizontal
 overflow. All pictured paths belong to the fictional `/Users/ana`.
 
