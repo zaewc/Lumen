@@ -134,12 +134,39 @@ function appData(
   ];
 }
 
+/** The fixture's candidates' opaque IDs, as the host makes them from file identities. */
+function fileId(n: number): string {
+  return `dev:1000010:${(8_400_000 + n).toString()}`;
+}
+
+/**
+ * The relations in a candidate's bundle (ADR-0053): its own `owned_by` edge,
+ * then those of the app's other folders, two hops away.
+ */
+function ownedBy(
+  app: string,
+  own: number,
+  siblings: readonly number[] = [],
+): CandidateView["relations"] {
+  const edge = (n: number, hops: number): CandidateView["relations"]["edges"][number] => ({
+    from: { type: "file", id: fileId(n) },
+    kind: "owned_by",
+    to: { type: "application", app },
+    hops,
+  });
+  return { edges: [edge(own, 1), ...siblings.map((n) => edge(n, 2))], omitted: "0" };
+}
+
+/** No relation recorded: not the same as unrelated. */
+const noneRecorded: CandidateView["relations"] = { edges: [], omitted: "0" };
+
 /**
  * What a scan of the fixture finds: every group, every verdict, and items to
  * clean up with their tool's own command (ADR-0039).
  */
 const candidates: readonly CandidateView[] = [
   {
+    id: fileId(1),
     path: `${HOME}/Library/Developer/Xcode/DerivedData`,
     verdict: "quarantine",
     reclaimable_bytes: "4200000000",
@@ -150,8 +177,10 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: null,
     times: folderTimes("2026-10-15T17:42:10Z", "2026-10-16T08:12:03Z"),
     facts: [devkb("xcode-derived-data"), ...scanned()],
+    relations: noneRecorded,
   },
   {
+    id: fileId(2),
     path: `${HOME}/Library/Developer/CoreSimulator/Devices`,
     verdict: "review",
     reclaimable_bytes: "3100000000",
@@ -173,8 +202,10 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: null,
     times: folderTimes("2026-09-02T11:20:00Z", "2026-10-14T19:05:44Z"),
     facts: [devkb("xcode-simulator-devices"), ...scanned()],
+    relations: noneRecorded,
   },
   {
+    id: fileId(3),
     path: `${HOME}/Library/pnpm/store`,
     verdict: "review",
     reclaimable_bytes: "5200000000",
@@ -196,8 +227,10 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: null,
     times: folderTimes("2026-10-11T09:31:27Z", "2026-10-11T09:31:27Z"),
     facts: [devkb("pnpm-store"), ...scanned()],
+    relations: noneRecorded,
   },
   {
+    id: fileId(4),
     path: `${HOME}/.gradle/caches`,
     verdict: "quarantine",
     reclaimable_bytes: "2600000000",
@@ -208,8 +241,10 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: null,
     times: folderTimes("2026-06-30T14:02:51Z", "2026-07-01T08:40:12Z"),
     facts: [devkb("gradle-user-home-caches"), ...scanned()],
+    relations: noneRecorded,
   },
   {
+    id: fileId(5),
     path: `${HOME}/.npm/_cacache`,
     verdict: "quarantine",
     reclaimable_bytes: "1800000000",
@@ -220,8 +255,10 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: null,
     times: folderTimes("2026-10-12T22:16:05Z", "2026-10-15T10:01:33Z"),
     facts: [devkb("npm-cache"), ...scanned()],
+    relations: noneRecorded,
   },
   {
+    id: fileId(6),
     path: `${HOME}/Library/Caches/go-build`,
     verdict: "keep",
     reclaimable_bytes: "890000000",
@@ -237,8 +274,10 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: null,
     times: folderTimes("2026-10-16T07:55:19Z", "2026-10-16T07:55:19Z"),
     facts: [devkb("go-build-cache"), ...scanned()],
+    relations: noneRecorded,
   },
   {
+    id: fileId(7),
     path: `${HOME}/Library/Caches/com.spotify.client`,
     verdict: "quarantine",
     reclaimable_bytes: "1300000000",
@@ -254,8 +293,10 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: null,
     times: folderTimes("2026-10-16T08:30:02Z", "2026-10-16T08:41:57Z"),
     facts: [...appData("com.spotify.client", "caches", true), ...scanned()],
+    relations: ownedBy("com.spotify.client", 7),
   },
   {
+    id: fileId(8),
     path: `${HOME}/Library/Application Support/discord/Cache`,
     verdict: "keep",
     reclaimable_bytes: "1100000000",
@@ -266,8 +307,10 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: { processes: ["Discord"] },
     times: folderTimes("2026-10-16T08:57:40Z", "2026-10-16T08:57:40Z"),
     facts: [devkb("discord-chromium-caches"), ...scanned({ inUse: true })],
+    relations: noneRecorded,
   },
   {
+    id: fileId(9),
     path: `${HOME}/Library/Caches/Google/Chrome`,
     verdict: "review",
     reclaimable_bytes: "760000000",
@@ -284,8 +327,10 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: null,
     times: folderTimes("2026-10-16T08:50:12Z", "2026-10-16T08:50:12Z"),
     facts: [...appData("com.google.Chrome", "caches", true), ...scanned({ inUse: "partial" })],
+    relations: ownedBy("com.google.Chrome", 9),
   },
   {
+    id: fileId(10),
     path: `${HOME}/Library/Application Support/Slack`,
     verdict: "keep",
     reclaimable_bytes: "980000000",
@@ -301,8 +346,10 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: null,
     times: folderTimes("2026-10-16T08:44:09Z", "2026-10-16T08:44:09Z"),
     facts: [...appData("com.tinyspeck.slackmacgap", "application_support", true), ...scanned()],
+    relations: ownedBy("com.tinyspeck.slackmacgap", 10, [12]),
   },
   {
+    id: fileId(11),
     path: `${HOME}/Library/Application Support/OldEditor`,
     verdict: "review",
     reclaimable_bytes: "420000000",
@@ -321,8 +368,10 @@ const candidates: readonly CandidateView[] = [
       ...appData("com.example.OldEditor", "application_support", false),
       ...scanned({ owned: null }),
     ],
+    relations: ownedBy("com.example.OldEditor", 11),
   },
   {
+    id: fileId(12),
     path: `${HOME}/Library/HTTPStorages/com.tinyspeck.slackmacgap`,
     verdict: "keep",
     reclaimable_bytes: "380928",
@@ -333,8 +382,10 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: null,
     times: folderTimes("2026-10-16T08:44:12Z", "2026-10-16T08:44:12Z"),
     facts: [...appData("com.tinyspeck.slackmacgap", "web_data", true), ...scanned()],
+    relations: ownedBy("com.tinyspeck.slackmacgap", 12, [10]),
   },
   {
+    id: fileId(13),
     path: `${HOME}/Downloads/Installers`,
     verdict: "review",
     reclaimable_bytes: "2300000000",
@@ -348,8 +399,10 @@ const candidates: readonly CandidateView[] = [
       seen({ type: "large_unrecognised", reclaimable_bytes: "2300000000" }, "lumen.large-folder"),
       ...scanned(),
     ],
+    relations: noneRecorded,
   },
   {
+    id: fileId(14),
     path: `${HOME}/Library/Mobile Documents/com~apple~CloudDocs`,
     verdict: "keep",
     reclaimable_bytes: "0",
@@ -366,6 +419,7 @@ const candidates: readonly CandidateView[] = [
     free_when_closed: null,
     times: folderTimes("2026-10-16T08:20:51Z", "2026-10-16T08:58:00Z"),
     facts: [...scanned({ cloud: true, inUse: true })],
+    relations: noneRecorded,
   },
 ];
 

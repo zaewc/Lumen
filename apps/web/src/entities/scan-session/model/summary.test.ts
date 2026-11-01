@@ -4,6 +4,7 @@ import { statusOf, summarize } from "./summary";
 
 function candidate(path: string, verdict: CandidateView["verdict"], bytes: string): CandidateView {
   return {
+    id: path,
     path,
     verdict,
     reclaimable_bytes: bytes,
@@ -14,6 +15,7 @@ function candidate(path: string, verdict: CandidateView["verdict"], bytes: strin
     free_when_closed: null,
     times: { modified: { state: "not_read" }, accessed: { state: "not_read" }, folder: true },
     facts: [],
+    relations: { edges: [], omitted: "0" },
   };
 }
 

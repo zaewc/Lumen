@@ -14,6 +14,7 @@ function candidate(
   group: CandidateView["group"] = { kind: "other", source: null },
 ): CandidateView {
   return {
+    id: path,
     path,
     verdict,
     reclaimable_bytes: bytes,
@@ -24,6 +25,7 @@ function candidate(
     free_when_closed: null,
     times: { modified: { state: "not_read" }, accessed: { state: "not_read" }, folder: true },
     facts: [],
+    relations: { edges: [], omitted: "0" },
   };
 }
 

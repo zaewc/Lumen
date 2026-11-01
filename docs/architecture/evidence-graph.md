@@ -181,6 +181,12 @@ The parents of those entries are collected in the same pass
   application that owns it is installed, typed, with basis, source and observation
   time. For in use, owned by the current user and owner installed, a missing fact
   means unknown, never "no".
+- `id` and `relations`: `Assessed` keeps the relationships of the candidate's bundle,
+  and the view shows them as `{from, kind, to, hops}`, at most 16, those touching the
+  candidate first, with an `omitted` count. A file node carries the same opaque `id`
+  as a candidate (volume and file ID, never a path), so the interface can highlight
+  related candidates. Today these are `owned_by` edges on macOS only, so an empty list
+  means none was recorded, not that the item is unrelated.
 
 ## Explanation chains
 

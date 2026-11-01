@@ -127,6 +127,13 @@ export type CandidateView = {
    */
   group: GroupView;
   /**
+   * Its opaque ID, from its file identity, never its path (ADR-0053):
+   * stable within an assessment and across scans while the platform
+   * reports the same volume and file IDs, and shared by hard links to it.
+   * For matching relations; rows stay keyed by `path`.
+   */
+  id: string;
+  /**
    * Where it is.
    */
   path: string;
@@ -138,6 +145,11 @@ export type CandidateView = {
    * What removing it would free now, in bytes.
    */
   reclaimable_bytes: string;
+  /**
+   * The relationships in its decision's evidence bundle, nearest first
+   * and bounded (ADR-0053).
+   */
+  relations: RelationsView;
   /**
    * Its modification and access times as the decision saw them, each
    * saying how far it can be relied on (ADR-0053).
@@ -505,6 +517,46 @@ export type ItemResultView =
 export type LocationView = "source" | "quarantine" | "gone";
 
 /**
+ * One end of a relationship. Untrusted text is escaped for display.
+ */
+export type NodeView =
+  | {
+      /**
+       * Its opaque ID, as in `CandidateView.id`.
+       */
+      id: string;
+      type: "file";
+    }
+  | {
+      /**
+       * Its identifier, such as `com.example.app`.
+       */
+      app: string;
+      type: "application";
+    }
+  | {
+      /**
+       * Its process ID, as a decimal string.
+       */
+      pid: string;
+      type: "process";
+    }
+  | {
+      /**
+       * Its label or name.
+       */
+      label: string;
+      type: "service";
+    }
+  | {
+      /**
+       * Its opaque ID.
+       */
+      id: string;
+      type: "volume";
+    };
+
+/**
  * Why a restore did not happen.
  */
 export type NotRestoredView = "name_taken" | "origin_unreachable" | "item_changed" | "failed";
@@ -570,6 +622,59 @@ export type ReasonView = {
    * The reason in English.
    */
   text: string;
+};
+
+/**
+ * The kind of a relationship, read `from <kind> to`.
+ */
+export type RelationKindView =
+  | "contains"
+  | "owned_by"
+  | "created_by"
+  | "opened_by"
+  | "launched_by"
+  | "launches"
+  | "declared_cache_of"
+  | "clone_of"
+  | "duplicate_of"
+  | "stored_in";
+
+/**
+ * One relationship in the candidate's evidence bundle.
+ */
+export type RelationView = {
+  /**
+   * Where it starts.
+   */
+  from: NodeView;
+  /**
+   * 1 when it touches the candidate, 2 when it is one step further.
+   */
+  hops: number;
+  /**
+   * What it says.
+   */
+  kind: RelationKindView;
+  /**
+   * Where it ends.
+   */
+  to: NodeView;
+};
+
+/**
+ * The candidate's relationships, nearest first.
+ */
+export type RelationsView = {
+  /**
+   * At most 16, the nearest first, in a fixed order. Empty means none was
+   * recorded, not that it is unrelated to anything.
+   */
+  edges: Array<RelationView>;
+  /**
+   * How many more there are, as a decimal string: left out by the bound,
+   * or of a kind this view does not know.
+   */
+  omitted: string;
 };
 
 /**

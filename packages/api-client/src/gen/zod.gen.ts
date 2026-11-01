@@ -243,6 +243,32 @@ export const zAiNoteView = z.object({
 export const zLocationView = z.enum(["source", "quarantine", "gone"]);
 
 /**
+ * One end of a relationship. Untrusted text is escaped for display.
+ */
+export const zNodeView = z.union([
+  z.object({
+    id: z.string(),
+    type: z.enum(["file"]),
+  }),
+  z.object({
+    app: z.string(),
+    type: z.enum(["application"]),
+  }),
+  z.object({
+    pid: z.string(),
+    type: z.enum(["process"]),
+  }),
+  z.object({
+    label: z.string(),
+    type: z.enum(["service"]),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.enum(["volume"]),
+  }),
+]);
+
+/**
  * Why a restore did not happen.
  */
 export const zNotRestoredView = z.enum([
@@ -258,6 +284,43 @@ export const zNotRestoredView = z.enum([
 export const zReasonView = z.object({
   rule: z.string(),
   text: z.string(),
+});
+
+/**
+ * The kind of a relationship, read `from <kind> to`.
+ */
+export const zRelationKindView = z.enum([
+  "contains",
+  "owned_by",
+  "created_by",
+  "opened_by",
+  "launched_by",
+  "launches",
+  "declared_cache_of",
+  "clone_of",
+  "duplicate_of",
+  "stored_in",
+]);
+
+/**
+ * One relationship in the candidate's evidence bundle.
+ */
+export const zRelationView = z.object({
+  from: zNodeView,
+  hops: z
+    .int()
+    .gte(0)
+    .max(2147483647, { error: "Invalid value: Expected int32 to be <= 2147483647" }),
+  kind: zRelationKindView,
+  to: zNodeView,
+});
+
+/**
+ * The candidate's relationships, nearest first.
+ */
+export const zRelationsView = z.object({
+  edges: z.array(zRelationView),
+  omitted: z.string(),
 });
 
 /**
@@ -518,9 +581,11 @@ export const zCandidateView = z.object({
   facts: z.array(zFactView),
   free_when_closed: zFreeWhenClosedView.nullable(),
   group: zGroupView,
+  id: z.string(),
   path: z.string(),
   reasons: z.array(zReasonView),
   reclaimable_bytes: z.string(),
+  relations: zRelationsView,
   times: zTimesView,
   tool_command: zToolCommandView.nullable(),
   verdict: zVerdictView,

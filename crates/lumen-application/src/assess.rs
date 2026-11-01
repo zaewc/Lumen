@@ -34,8 +34,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use lumen_domain::{
     AppDataKind, CleanupMechanism, EntryKind, Evidence, EvidenceId, Fact, FilesystemEntry,
-    ItemNote, JevRequest, JevTrace, PathFlavor, PolicyDecision, Process, RawPath, SourceName,
-    Subject, Timestamp, Verdict, VolumeId,
+    ItemNote, JevRequest, JevTrace, PathFlavor, PolicyDecision, Process, RawPath, Relationship,
+    SourceName, Subject, Timestamp, Verdict, VolumeId,
 };
 use lumen_graph::{EvidenceBundle, Graph};
 use lumen_policy::{Context, KnowledgeClass, PolicyError, PolicyInput, evaluate, explain};
@@ -167,6 +167,16 @@ pub fn assemble(
     fresh: &[Evidence],
     sources: &Sources<'_>,
 ) -> PolicyInput {
+    assembled(candidate, fresh, sources).0
+}
+
+/// [`assemble`], with the relationships of the bundle the input's evidence
+/// hash covers.
+fn assembled(
+    candidate: &FilesystemEntry,
+    fresh: &[Evidence],
+    sources: &Sources<'_>,
+) -> (PolicyInput, Vec<Relationship>) {
     let subject = Subject::File {
         identity: candidate.identity().clone(),
     };
@@ -204,7 +214,7 @@ pub fn assemble(
             .mechanisms
             .remove(&CleanupMechanism::QuarantineRename);
     }
-    PolicyInput {
+    let input = PolicyInput {
         subject,
         evidence_hash: bundle.hash(),
         evidence: records.into_values().cloned().collect(),
@@ -213,7 +223,8 @@ pub fn assemble(
         observed: Some(observed(candidate, sources.scanned, sources.listings)),
         knowledge: sources.knowledge.clone(),
         jev: None,
-    }
+    };
+    (input, bundle.relationships().iter().cloned().collect())
 }
 
 /// The probes run for each candidate when it is assessed, and the source
@@ -366,6 +377,10 @@ pub struct Assessed {
     pub candidate: FilesystemEntry,
     /// The input the decision was made from.
     pub input: PolicyInput,
+    /// The relationships within [`BUNDLE_DEPTH`] hops of the candidate, which
+    /// the input's evidence hash covers, sorted. Display only (ADR-0053):
+    /// the policy decides from `input`.
+    pub relationships: Vec<Relationship>,
     /// The decision.
     pub decision: PolicyDecision,
     /// The Jev consultation, if one happened.
@@ -400,7 +415,7 @@ pub async fn decide_candidate(
 ) -> Result<Assessed, PolicyError> {
     let observed_at = clock.now();
     let (in_use, fresh) = probe(candidate, probes, observed_at);
-    let input = assemble(candidate, &fresh, sources);
+    let (input, relationships) = assembled(candidate, &fresh, sources);
     let consulted = match (judge.descriptor(), request(&input)) {
         (Some(_), Some(jev_request)) => decide(judge, clock, input.clone(), &jev_request).await?,
         _ => Consulted {
@@ -424,6 +439,7 @@ pub async fn decide_candidate(
         decision: consulted.decision,
         trace: consulted.trace,
         input,
+        relationships,
         note: None,
         note_trace: None,
     })
@@ -747,6 +763,17 @@ mod tests {
             .iter()
             .map(|fired| fired.rule.as_str())
             .collect()
+    }
+
+    #[test]
+    fn an_assessment_keeps_the_relationships_its_evidence_hash_covers() {
+        let (scanned, gathered, _) = world();
+        let assessed = decided(InUse::No, true);
+        assert_eq!(assessed.candidate, scanned[0]);
+        assert_eq!(
+            assessed.relationships, gathered.relationships,
+            "the owner edge, and nothing invented"
+        );
     }
 
     #[test]

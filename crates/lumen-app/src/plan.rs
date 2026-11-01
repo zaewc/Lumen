@@ -298,6 +298,7 @@ mod tests {
                 knowledge: BTreeMap::new(),
                 jev: None,
             },
+            relationships: Vec::new(),
             candidate,
             decision,
             trace: None,

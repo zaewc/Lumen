@@ -122,6 +122,21 @@ describe("memoryTransport", () => {
     ).toBe(true);
   });
 
+  it("relates candidates only by the edges their bundles hold (ADR-0053)", async () => {
+    const candidates = (await memoryTransport().assess()).map((c) => zCandidateView.parse(c));
+    const ids = new Set(candidates.map((c) => c.id));
+    expect(ids.size).toBe(candidates.length);
+    const edges = candidates.flatMap((c) => c.relations.edges);
+    expect(edges.every((e) => e.from.type !== "file" || ids.has(e.from.id))).toBe(true);
+    // Slack's folders are related through the app, two hops apart.
+    const slack = candidates.filter((c) =>
+      c.relations.edges.some((e) => e.to.type === "application" && e.to.app.includes("slack")),
+    );
+    expect(slack).toHaveLength(2);
+    expect(slack.every((c) => c.relations.edges.some((e) => e.hops === 2))).toBe(true);
+    expect(candidates.some((c) => c.relations.edges.length === 0)).toBe(true);
+  });
+
   it("turns AI review on with the built-in key, and lets a stored key replace it", async () => {
     const transport = memoryTransport({ builtinKey: true });
     expect(await transport.aiSettings()).toEqual({

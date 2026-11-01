@@ -189,6 +189,7 @@
         "type": "object",
         "description": "One assessed candidate.",
         "required": [
+          "id",
           "path",
           "verdict",
           "reclaimable_bytes",
@@ -198,7 +199,8 @@
           "ai_note",
           "free_when_closed",
           "times",
-          "facts"
+          "facts",
+          "relations"
         ],
         "properties": {
           "ai_note": {
@@ -234,6 +236,10 @@
             "$ref": "#/components/schemas/GroupView",
             "description": "The group it is presented in."
           },
+          "id": {
+            "type": "string",
+            "description": "Its opaque ID, from its file identity, never its path (ADR-0053):\nstable within an assessment and across scans while the platform\nreports the same volume and file IDs, and shared by hard links to it.\nFor matching relations; rows stay keyed by `path`."
+          },
           "path": {
             "type": "string",
             "description": "Where it is."
@@ -248,6 +254,10 @@
           "reclaimable_bytes": {
             "type": "string",
             "description": "What removing it would free now, in bytes."
+          },
+          "relations": {
+            "$ref": "#/components/schemas/RelationsView",
+            "description": "The relationships in its decision's evidence bundle, nearest first\nand bounded (ADR-0053)."
           },
           "times": {
             "$ref": "#/components/schemas/TimesView",
@@ -995,6 +1005,111 @@
           "gone"
         ]
       },
+      "NodeView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "A filesystem object: this candidate, another candidate with the same\n`id`, or one Lumen did not assess (then no path is known here).",
+            "required": [
+              "id",
+              "type"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Its opaque ID, as in `CandidateView.id`."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "file"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "An installed or once-installed application.",
+            "required": [
+              "app",
+              "type"
+            ],
+            "properties": {
+              "app": {
+                "type": "string",
+                "description": "Its identifier, such as `com.example.app`."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "application"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A running process.",
+            "required": [
+              "pid",
+              "type"
+            ],
+            "properties": {
+              "pid": {
+                "type": "string",
+                "description": "Its process ID, as a decimal string."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "process"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A background, startup or scheduled component.",
+            "required": [
+              "label",
+              "type"
+            ],
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "Its label or name."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "service"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A volume.",
+            "required": [
+              "id",
+              "type"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Its opaque ID."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "volume"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "One end of a relationship. Untrusted text is escaped for display."
+      },
       "NotRestoredView": {
         "type": "string",
         "description": "Why a restore did not happen.",
@@ -1091,6 +1206,73 @@
           "text": {
             "type": "string",
             "description": "The reason in English."
+          }
+        }
+      },
+      "RelationKindView": {
+        "type": "string",
+        "description": "The kind of a relationship, read `from <kind> to`.",
+        "enum": [
+          "contains",
+          "owned_by",
+          "created_by",
+          "opened_by",
+          "launched_by",
+          "launches",
+          "declared_cache_of",
+          "clone_of",
+          "duplicate_of",
+          "stored_in"
+        ]
+      },
+      "RelationView": {
+        "type": "object",
+        "description": "One relationship in the candidate's evidence bundle.",
+        "required": [
+          "from",
+          "kind",
+          "to",
+          "hops"
+        ],
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/NodeView",
+            "description": "Where it starts."
+          },
+          "hops": {
+            "type": "integer",
+            "format": "int32",
+            "description": "1 when it touches the candidate, 2 when it is one step further.",
+            "minimum": 0
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RelationKindView",
+            "description": "What it says."
+          },
+          "to": {
+            "$ref": "#/components/schemas/NodeView",
+            "description": "Where it ends."
+          }
+        }
+      },
+      "RelationsView": {
+        "type": "object",
+        "description": "The candidate's relationships, nearest first.",
+        "required": [
+          "edges",
+          "omitted"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RelationView"
+            },
+            "description": "At most 16, the nearest first, in a fixed order. Empty means none was\nrecorded, not that it is unrelated to anything."
+          },
+          "omitted": {
+            "type": "string",
+            "description": "How many more there are, as a decimal string: left out by the bound,\nor of a kind this view does not know."
           }
         }
       },

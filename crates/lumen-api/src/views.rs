@@ -27,9 +27,11 @@ use utoipa::ToSchema;
 mod facts;
 #[cfg(test)]
 mod fixture;
+mod relations;
 mod times;
 
 pub use facts::{AppDataKindView, BasisView, FactKindView, FactView};
+pub use relations::{MAX_RELATIONS, NodeView, RelationKindView, RelationView, RelationsView};
 pub use times::{TimeView, TimesView};
 
 fn bytes(count: ByteCount) -> String {
@@ -215,6 +217,11 @@ impl From<Verdict> for VerdictView {
 /// One assessed candidate.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct CandidateView {
+    /// Its opaque ID, from its file identity, never its path (ADR-0053):
+    /// stable within an assessment and across scans while the platform
+    /// reports the same volume and file IDs, and shared by hard links to it.
+    /// For matching relations; rows stay keyed by `path`.
+    pub id: String,
     /// Where it is.
     pub path: String,
     /// The policy's verdict.
@@ -247,6 +254,9 @@ pub struct CandidateView {
     /// current user and owner installed, a missing fact means the question
     /// could not be answered: unknown, never "no".
     pub facts: Vec<FactView>,
+    /// The relationships in its decision's evidence bundle, nearest first
+    /// and bounded (ADR-0053).
+    pub relations: RelationsView,
 }
 
 /// The apps to close so that a kept item could be proposed on the next scan.
@@ -504,6 +514,7 @@ impl From<&Assessed> for CandidateView {
             })
             .collect();
         Self {
+            id: relations::file_id(assessed.candidate.identity()),
             path: assessed.candidate.path.display(),
             verdict: assessed.decision.verdict().into(),
             reclaimable_bytes: bytes(reclaim(assessed)),
@@ -523,6 +534,7 @@ impl From<&Assessed> for CandidateView {
                 }),
             times: times::times(assessed),
             facts: facts::facts(assessed),
+            relations: relations::relations(assessed),
         }
     }
 }

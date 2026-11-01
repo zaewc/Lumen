@@ -337,6 +337,7 @@ mod tests {
             decision,
             trace: None,
             input,
+            relationships: Vec::new(),
             note: None,
             note_trace: None,
             free_when_closed: None,

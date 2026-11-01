@@ -101,6 +101,7 @@ pub(crate) fn assessed(kind: EntryKind, access: AccessState, evidence: Vec<Evide
             knowledge: BTreeMap::new(),
             jev: None,
         },
+        relationships: Vec::new(),
         candidate,
         decision,
         trace: None,
