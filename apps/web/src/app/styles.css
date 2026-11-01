@@ -217,6 +217,41 @@
   }
 }
 
+/* Certainty (docs/design/visual-language.md): resolved, partial, unknown. */
+.certainty-dot {
+  display: inline-block;
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--lm-ink-3);
+  border-radius: 50%;
+}
+
+.certainty-dot[data-certainty="resolved"] {
+  border-color: var(--lm-ink);
+  background: var(--lm-ink);
+}
+
+.certainty-dot[data-certainty="partial"] {
+  border-color: var(--lm-ink-2);
+  background: linear-gradient(90deg, var(--lm-ink-2) 50%, transparent 50%);
+}
+
+@media (forced-colors: active) {
+  .certainty-dot {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+  }
+
+  .certainty-dot[data-certainty="resolved"] {
+    background: CanvasText;
+  }
+
+  .certainty-dot[data-certainty="partial"] {
+    background: linear-gradient(90deg, CanvasText 50%, transparent 50%);
+  }
+}
+
 .decision-track {
   display: flex;
   gap: 3px;
