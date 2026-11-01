@@ -76,9 +76,7 @@ export const ko = {
     available: "사용할 수 있는 공간",
     assessed: "이번 검사에서 찾은 항목 · 크기 기준",
     assessment: (n: number) => `${items(n)}를 살펴봤어요`,
-    origin: "출처",
     unknownOrigin: "출처 정보가 없어요",
-    trail: "출처와 판단",
     workflow: "검사부터 판단까지",
     scanStage: "검사",
     evidenceStage: "근거 확인",
@@ -228,15 +226,49 @@ export const ko = {
     location: "위치",
     decision: "판단",
     reasons: "판단 근거",
-    aiTitle: "AI 검토가 주의를 권했어요.",
-    aiBody: "그래서 정리를 제안하지 않고, 직접 검토하도록 남겨 두었어요.",
     aiNoteHint: "AI 검토의 추측이에요. Lumen의 판단은 바뀌지 않아요.",
     whenClosed: (...apps: string[]) =>
       apps.length === 0
         ? "사용 중인 앱을 종료하고 다시 검사하면 정리할 수 있어요."
         : `${appList(apps)} 앱을 종료하고 다시 검사하면 정리할 수 있어요.`,
-    related: "관련 항목",
-    relatedNone: "Lumen이 기록한 것 중에는 이 항목과 이어지는 다른 항목이 없어요.",
+    relatedNone: "이 항목과 다른 항목을 잇는 기록이 없어요.",
+    sources: {
+      rule: "규칙",
+      location: "위치",
+      time: "시간",
+      relation: "관계",
+      process: "프로세스",
+      ai: "AI 검토",
+    },
+    owner: (app: string, present: boolean | null) =>
+      present === null
+        ? `${app}의 항목이에요. 앱이 설치되어 있는지는 알 수 없어요.`
+        : `${app}의 항목이에요. 앱이 설치되어 ${present ? "있어요" : "있지 않아요"}.`,
+    inUse: (inUse: boolean) => (inUse ? "앱이 열어 두고 있어요." : "열어 둔 앱이 없어요."),
+    unseen: (unseen: number | null) =>
+      unseen === null
+        ? "보이는 앱 중에는 열어 둔 앱이 없어요."
+        : `보이는 앱 중에는 열어 둔 앱이 없어요. 확인하지 못한 프로세스가 ${count(unseen)}개 있어요.`,
+    changed: (date: string, folder: boolean) =>
+      folder
+        ? `폴더 항목이 ${date}에 마지막으로 바뀌었어요. 안의 내용은 그 뒤에 바뀌었을 수 있어요.`
+        : `${date}에 마지막으로 바뀌었어요.`,
+    opened: (date: string, folder: boolean) =>
+      `${date} 또는 그 뒤에 마지막으로 ${folder ? "폴더를 읽었어요" : "열었어요"}. 시스템이 모든 사용을 기록하지는 않아요.`,
+    notRecorded: (which: "modified" | "accessed") =>
+      which === "modified"
+        ? "마지막으로 바뀐 시간이 기록되지 않았어요."
+        : "마지막으로 쓴 시간이 기록되지 않았어요.",
+    notRead: (which: "modified" | "accessed") =>
+      which === "modified"
+        ? "마지막으로 바뀐 시간을 읽지 못해서 알 수 없어요."
+        : "마지막으로 쓴 시간을 읽지 못해서 알 수 없어요.",
+    means: {
+      keep: "Lumen이 그대로 두고 아무것도 옮기지 않아요.",
+      review: "직접 판단하도록 남겨 뒀어요. Lumen이 알아서 옮기지 않아요.",
+      command: "이 항목의 도구가 직접 정리해야 해요. 요청할 때만 명령을 실행해요.",
+      quarantine: "격리함으로 옮기자고 제안해요. 격리함에서 되돌릴 수 있어요.",
+    },
     lens: {
       tool: (n: number, tool: string, size: string) =>
         `${tool}의 다른 항목 ${count(n)}개 · ${size}`,

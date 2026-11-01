@@ -1,22 +1,20 @@
 import type { CandidateView } from "@lumen/api-client";
-import { type ReactNode, useId, useRef } from "react";
-import { statusOf } from "@/entities/scan-session";
-import { aiNoteText, type Messages, reasonText, useI18n } from "@/shared/i18n";
+import { useId, useRef } from "react";
+import { type Certainty, CertaintyDot, statusOf } from "@/entities/scan-session";
+import {
+  aiNoteText,
+  formatDateTime,
+  type Locale,
+  type Messages,
+  reasonText,
+  useI18n,
+} from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import { CloseIcon, Dialog } from "@/shared/ui";
 import type { Lens, LensLine } from "../model/lens";
+import { type EvidenceLine, evidenceStack } from "../model/stack";
 import { StatusText } from "./Status";
 import { ToolCommand } from "./ToolCommand";
-
-/** One step in the item's actual origin, location and decision trail. */
-function Field({ label, children }: { readonly label: string; readonly children: ReactNode }) {
-  return (
-    <div className="relative border-l border-line-strong pb-5 pl-5 last:border-transparent last:pb-0 before:absolute before:top-1 before:-left-1 before:size-2 before:rounded-full before:border before:border-line-strong before:bg-raised">
-      <dt className="text-[12px] text-ink-3">{label}</dt>
-      <dd className="mt-1 min-w-0 text-[14px] text-ink">{children}</dd>
-    </div>
-  );
-}
 
 /** One relation of the open item's lens, in words. */
 function relationText(m: Messages, line: LensLine): string {
@@ -33,12 +31,55 @@ function relationText(m: Messages, line: LensLine): string {
   }
 }
 
+/** A time, saying only as much as the platform can vouch for. */
+function timeText(m: Messages, locale: Locale, line: EvidenceLine & { type: "time" }): string {
+  switch (line.time.state) {
+    case "recorded":
+      return m.detail.changed(formatDateTime(locale, line.time.at), line.folder);
+    case "may_lag":
+      return m.detail.opened(formatDateTime(locale, line.time.at), line.folder);
+    case "not_recorded":
+      return m.detail.notRecorded(line.which);
+    case "not_read":
+      return m.detail.notRead(line.which);
+  }
+}
+
+/** One line of evidence, in words. */
+function lineText(m: Messages, locale: Locale, line: EvidenceLine): string {
+  switch (line.type) {
+    case "reason":
+      return reasonText(m, line.reason);
+    case "owner":
+      return m.detail.owner(line.app, line.present);
+    case "in_use":
+      return m.detail.inUse(line.inUse);
+    case "unseen":
+      return m.detail.unseen(line.unseen === null ? null : Number(line.unseen));
+    case "time":
+      return timeText(m, locale, line);
+    case "related":
+      return relationText(m, line.line);
+    case "unrelated":
+      return m.detail.relatedNone;
+    case "note":
+      return aiNoteText(m, line.note);
+  }
+}
+
+const INK: { readonly [C in Certainty]: string } = {
+  resolved: "text-ink",
+  partial: "text-ink-2",
+  unknown: "text-ink-3",
+};
+
 /**
  * Everything about one candidate, in a sheet along the window's right edge
- * (the whole window when it is narrow): what it frees, the verdict with
- * every reason, AI review's note on what an item to review likely is, where
- * it is, what else it is related to, and the tool's own command if it has one.
- * Escape, the close button or a click beside it closes it.
+ * (the whole window when it is narrow), read top to bottom as an argument
+ * (docs/design/visual-language.md, evidence stack): what it is, each line of
+ * evidence with its source and certainty, the decision and what it means,
+ * then what can be done. Escape, the close button or a click beside it
+ * closes it.
  */
 export function CandidateSheet({
   candidate,
@@ -50,12 +91,10 @@ export function CandidateSheet({
   readonly lens: Lens | null;
   readonly onClose: () => void;
 }) {
-  const { m } = useI18n();
+  const { m, locale } = useI18n();
   const title = useId();
   const close = useRef<HTMLButtonElement>(null);
-  const demoted = candidate?.reasons.some((reason) => reason.rule === "jev.demote") ?? false;
-  // An AI note is only ever on an item to review (ADR-0041).
-  const note = candidate !== null && statusOf(candidate) === "review" ? candidate.ai_note : null;
+  const status = candidate === null ? null : statusOf(candidate);
   return (
     <Dialog
       open={candidate !== null}
@@ -64,12 +103,16 @@ export function CandidateSheet({
       initialFocus={close}
       variant="sheet"
     >
-      {candidate !== null && (
+      {candidate !== null && status !== null && (
         <div className="flex h-full flex-col">
           <header className="flex items-start gap-4 border-b border-line px-6 py-5">
             <div className="min-w-0 flex-1">
-              <p className="mb-1 text-[12px] text-ink-2">
+              <p className="mb-1 truncate text-[12px] text-ink-2">
                 {m.results.groups[candidate.group.kind]}
+                {" · "}
+                {candidate.group.source ?? (
+                  <span className="text-ink-3">{m.workspace.unknownOrigin}</span>
+                )}
               </p>
               <h2 id={title} className="text-title break-words text-ink">
                 {baseName(candidate.path)}
@@ -92,70 +135,47 @@ export function CandidateSheet({
               <p className="mt-1 text-measure text-ink tabular-nums">
                 {formatBytes(candidate.reclaimable_bytes)}
               </p>
+              <p className="sr-only">{m.detail.location}</p>
+              <code className="mt-2 block font-mono text-[12px] leading-relaxed break-all text-ink-2 select-all">
+                {candidate.path}
+              </code>
             </div>
-            <dl aria-label={m.workspace.trail} className="pl-1">
-              <Field label={m.workspace.origin}>
-                {candidate.group.source ?? (
-                  <span className="text-ink-3">{m.workspace.unknownOrigin}</span>
-                )}
-              </Field>
-              <Field label={m.detail.location}>
-                <code className="block font-mono text-[12px] leading-relaxed break-all select-all">
-                  {candidate.path}
-                </code>
-              </Field>
-              <Field label={m.detail.decision}>
-                <StatusText status={statusOf(candidate)} />
-              </Field>
-            </dl>
             <section>
               <h3 className="text-[14px] font-semibold text-ink">{m.detail.reasons}</h3>
-              {demoted && (
-                <p className="mt-2 leading-snug text-ink">
-                  <span className="font-medium">{m.detail.aiTitle}</span> {m.detail.aiBody}
-                </p>
-              )}
-              <ol className="mt-2 divide-y divide-line text-[14px] leading-relaxed text-ink">
-                {candidate.reasons.map((reason, index) => (
+              <ul className="mt-2 text-[14px] leading-snug">
+                {evidenceStack(candidate, lens?.lines ?? []).map((line, index) => (
                   <li
-                    key={reason.rule}
-                    className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-3 py-3"
+                    key={`${line.type}-${index}`}
+                    className="grid grid-cols-[6px_5.5rem_minmax(0,1fr)] items-start gap-x-3 py-2 leading-[20px]"
                   >
-                    <span aria-hidden="true" className="pt-0.5 font-mono text-[12px] text-ink-3">
-                      {String(index + 1).padStart(2, "0")}
+                    <span className="flex h-5 items-center">
+                      <CertaintyDot certainty={line.certainty} />
                     </span>
-                    <span>{reasonText(m, reason)}</span>
+                    <span className="text-[11px] leading-[20px] font-medium tracking-[0.06em] text-ink-3 uppercase">
+                      {m.detail.sources[line.source]}
+                    </span>
+                    <span className={`tabular-nums ${INK[line.certainty]}`}>
+                      {lineText(m, locale, line)}
+                      {line.type === "note" && (
+                        <span className="block text-[12px] text-ink-3">{m.detail.aiNoteHint}</span>
+                      )}
+                    </span>
                   </li>
                 ))}
-              </ol>
-              {candidate.verdict === "keep" && candidate.free_when_closed !== null && (
-                <p className="mt-3 leading-snug text-ink-2">
-                  {m.detail.whenClosed(...candidate.free_when_closed.processes)}
+              </ul>
+              <div className="mt-3 border-t border-ink-3 pt-4">
+                <h3 className="sr-only">{m.detail.decision}</h3>
+                <p className="text-[15px]">
+                  <StatusText status={status} />
                 </p>
-              )}
-              {note !== null && (
-                <p className="mt-3 leading-snug text-ink-2">
-                  {aiNoteText(m, note)}
-                  <span className="block text-[12px] text-ink-3">{m.detail.aiNoteHint}</span>
-                </p>
-              )}
-            </section>
-            {lens !== null && (
-              <section>
-                <h3 className="text-[14px] font-semibold text-ink">{m.detail.related}</h3>
-                {lens.lines.length === 0 ? (
-                  <p className="mt-2 leading-snug text-ink-2">{m.detail.relatedNone}</p>
-                ) : (
-                  <ul className="mt-2 divide-y divide-line text-[14px] leading-relaxed text-ink">
-                    {lens.lines.map((line) => (
-                      <li key={line.relation} className="py-2 tabular-nums">
-                        {relationText(m, line)}
-                      </li>
-                    ))}
-                  </ul>
+                <p className="mt-1 leading-snug text-ink-2">{m.detail.means[status]}</p>
+                {candidate.verdict === "keep" && candidate.free_when_closed !== null && (
+                  <p className="mt-3 leading-snug text-ink">
+                    {m.detail.whenClosed(...candidate.free_when_closed.processes)}
+                  </p>
                 )}
-              </section>
-            )}
+              </div>
+            </section>
             {candidate.tool_command !== null && <ToolCommand command={candidate.tool_command} />}
           </div>
         </div>

@@ -69,9 +69,7 @@ export const en = {
     available: "Available space",
     assessed: "Items in this scan · by size",
     assessment: (n: number) => `${items(n)} assessed`,
-    origin: "Origin",
     unknownOrigin: "No origin information",
-    trail: "Origin and decision",
     workflow: "From scan to decision",
     scanStage: "Scan",
     evidenceStage: "Evidence",
@@ -222,15 +220,49 @@ export const en = {
     location: "Location",
     decision: "Decision",
     reasons: "Evidence",
-    aiTitle: "AI review advised caution.",
-    aiBody: "So Lumen leaves it for you to review instead of proposing it.",
     aiNoteHint: "A guess from AI review. It does not change Lumen's decision.",
     whenClosed: (...apps: string[]) =>
       apps.length === 0
         ? "Quit the apps using it, then scan again to clean it up."
         : `Quit ${appList(apps)}, then scan again to clean it up.`,
-    related: "Related items",
-    relatedNone: "Lumen recorded nothing that links this to another item.",
+    relatedNone: "Nothing recorded links this to another item.",
+    sources: {
+      rule: "Rule",
+      location: "Location",
+      time: "Time",
+      relation: "Relation",
+      process: "Process",
+      ai: "AI review",
+    },
+    owner: (app: string, present: boolean | null) =>
+      present === null
+        ? `Belongs to ${app}. Whether it is installed is unknown.`
+        : `Belongs to ${app}, which is ${present ? "installed" : "not installed"}.`,
+    inUse: (inUse: boolean): string => (inUse ? "An app has it open." : "No app has it open."),
+    unseen: (unseen: number | null) =>
+      unseen === null
+        ? "No visible app has it open."
+        : `No visible app has it open; ${count(unseen)} ${unseen === 1 ? "process" : "processes"} could not be checked.`,
+    changed: (date: string, folder: boolean) =>
+      folder
+        ? `The folder entry last changed ${date}; its contents may have changed later.`
+        : `Last changed ${date}.`,
+    opened: (date: string, folder: boolean) =>
+      `${folder ? "Folder last read" : "Last opened"} ${date} or later; the system may not record every use.`,
+    notRecorded: (which: "modified" | "accessed"): string =>
+      which === "modified"
+        ? "No time of last change was recorded."
+        : "No time of last use was recorded.",
+    notRead: (which: "modified" | "accessed"): string =>
+      which === "modified"
+        ? "Time of last change unknown: not read."
+        : "Time of last use unknown: not read.",
+    means: {
+      keep: "Lumen keeps this and moves nothing.",
+      review: "Lumen leaves this for you to judge and will not move it on its own.",
+      command: "Its own tool should clean this up. Lumen runs the command only if you ask.",
+      quarantine: "Lumen proposes moving this to Quarantine. You can restore it from there.",
+    },
     lens: {
       tool: (n: number, tool: string, size: string) => `${others(n)} from ${tool} · ${size}`,
       processes: (n: number, size: string, ...apps: string[]) =>
