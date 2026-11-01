@@ -4,4 +4,4 @@ export { countFormat, formatDateTime } from "./format";
 export { ko } from "./ko";
 export { detectLocale, LOCALE_NAMES, LOCALES, type Locale } from "./locale";
 export { aiNoteText, MESSAGES, reasonText } from "./messages";
-export { RULE_IDS, type RuleId } from "./rules";
+export { LOCATION_RULE_PREFIX, RULE_IDS, type RuleId } from "./rules";

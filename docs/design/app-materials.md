@@ -1,5 +1,10 @@
 # App materials
 
+> Superseded in part by [ADR-0052](../decisions/0052-restrained-navigation-without-glass.md)
+> (2026-11-01): the navigation lens and the translucent integrated and floating
+> layers give way to [visual-language.md](visual-language.md). This record stays for
+> the history and research behind them.
+
 The owner's 2026-10-31 brief changes visual materials only, preserving navigation,
 placement, dimensions, copy, workflows and confirmation contracts. It applies to
 the desktop/dashboard application and mobile; the Astro download site is excluded.

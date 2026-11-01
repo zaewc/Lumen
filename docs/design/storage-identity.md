@@ -24,8 +24,9 @@ understanding storage and evaluating evidence, before making a decision.
   controls and desktop chrome use the same choice. Screenshot fixtures select System.
   The selectors follow [Tailwind's custom dark mode](https://tailwindcss.com/docs/dark-mode);
   desktop chrome uses [Tauri's app theme](https://docs.rs/tauri/2.12.3/tauri/struct.AppHandle.html#method.set_theme).
-- A 4 px spacing unit; 12/14 px metadata/body, 28 px page titles and larger
-  tabular figures only for the storage measurements that anchor a view.
+- A 4 px spacing unit; 12/14 px metadata/body and larger tabular figures only for
+  the storage measurements that anchor a view. The type scale, colours, marks and
+  surfaces are specified in [visual-language.md](visual-language.md) (2026-11-01).
 - Rules and alignment organize lists. Surfaces are reserved for input, inspection
   and confirmation. No card grids, decorative charts or AI branding.
 - KEEP uses a solid mark; REVIEW an open/dashed mark; QUARANTINE a bounded square;

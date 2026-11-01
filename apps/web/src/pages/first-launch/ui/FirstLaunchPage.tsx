@@ -46,11 +46,11 @@ export function FirstLaunchPage({ settings }: { readonly settings: AiSettingsVie
   return (
     <main
       aria-labelledby={title}
-      className="h-dvh overflow-y-auto overscroll-contain bg-window text-[14px] leading-relaxed text-ink"
+      className="h-dvh overflow-y-auto overscroll-contain bg-canvas text-[14px] leading-relaxed text-ink"
     >
       <div className="mx-auto flex min-h-full w-full max-w-[560px] flex-col justify-center px-4 py-10">
         <LogoMark className="size-10" />
-        <h1 id={title} className="mt-5 text-[24px] font-semibold tracking-[-0.03em] text-ink">
+        <h1 id={title} className="mt-5 text-title text-ink">
           {m.ai.firstLaunch.title}
         </h1>
         <p className="mt-2 text-ink-2">{m.ai.firstLaunch.intro}</p>

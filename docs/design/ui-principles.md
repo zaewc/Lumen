@@ -9,6 +9,9 @@ The desktop and browser direction is specified in [storage-identity.md](storage-
 (owner, 2026-10-28), replacing the earlier operating-system utility appearance.
 The 2026-10-31 visual-only refinement adds [app materials](app-materials.md) and
 [mobile materials](mobile-materials.md), preserving existing layouts and workflows.
+The 2026-11-01 [visual language](visual-language.md) gives the desktop and browser
+interface its own visual system and replaces the desktop glass
+([ADR-0052](../decisions/0052-restrained-navigation-without-glass.md)).
 
 ## Core principles
 
