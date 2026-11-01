@@ -158,6 +158,13 @@ export const en = {
     failed: "Lumen could not decide about what it found. Your files are unchanged.",
   },
   results: {
+    map: {
+      label: "Map of the items in this scan, by size",
+      all: "All items",
+      smaller: (n: number) => `${count(n)} smaller items`,
+      notRead: "Not read",
+      entries: (n: number) => `${count(n)} ${n === 1 ? "entry" : "entries"}`,
+    },
     canFree: (size: string) => `You can clean up ${size}`,
     nothingTitle: "Nothing to clean up",
     nothing: "Lumen proposes only items it is sure are safe to set aside.",

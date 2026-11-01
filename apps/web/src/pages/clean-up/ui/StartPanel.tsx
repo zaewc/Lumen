@@ -39,10 +39,7 @@ export function StartPanel({
     <section className="max-w-2xl space-y-7">
       <FlowStage phase="ready" />
       <div className="space-y-3">
-        <StepHeading
-          focus={focus}
-          className="text-[24px] leading-snug font-medium tracking-[-0.035em] text-ink"
-        >
+        <StepHeading focus={focus} className="text-section text-ink">
           {m.start.title}
         </StepHeading>
         <p className="text-ink-2">{m.start.promise}</p>
@@ -64,7 +61,7 @@ export function StartPanel({
             rows={3}
             spellCheck={false}
             placeholder="/Users/you/Library/Developer"
-            className="w-full rounded-md border border-line-strong bg-window p-2 font-mono text-[12px] text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+            className="w-full rounded-md border border-line-strong bg-canvas p-2 font-mono text-[12px] text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
           />
           <button
             type="submit"

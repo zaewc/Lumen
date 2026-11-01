@@ -26,10 +26,7 @@ export function DonePanel({
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             {moved > 0 && <DecisionMark status="quarantine" />}
-            <StepHeading
-              focus={focus}
-              className="text-[24px] font-medium tracking-[-0.035em] text-ink"
-            >
+            <StepHeading focus={focus} className="text-section text-ink">
               {moved > 0 ? m.done.title(moved, formatBytes(report.moved_bytes)) : m.done.noneMoved}
             </StepHeading>
           </div>
@@ -52,7 +49,7 @@ export function DonePanel({
               <li key={item.path} className="py-3">
                 <p className="font-medium break-words text-ink">{baseName(item.path)}</p>
                 <p className="text-ink-2">{outcomeText(m, item.result)}</p>
-                <p className="font-mono text-[11px] break-all text-ink-3 select-text">
+                <p className="font-mono text-[12px] break-all text-ink-3 select-text">
                   {item.path}
                 </p>
               </li>

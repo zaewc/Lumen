@@ -1,4 +1,11 @@
 export {
+  CERTAINTIES,
+  type Certainty,
+  certaintyOfNote,
+  certaintyOfRule,
+  certaintyOfSize,
+} from "./model/certainty";
+export {
   type AssessmentStatus,
   type ScanSession,
   ScanSessionProvider,
@@ -15,4 +22,4 @@ export {
 } from "./model/summary";
 export { AssessmentProgress } from "./ui/AssessmentProgress";
 export { DecisionMap } from "./ui/DecisionMap";
-export { DecisionMark } from "./ui/DecisionMark";
+export { DecisionMark, type Mark } from "./ui/DecisionMark";

@@ -4,7 +4,7 @@ export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "dang
 export type ButtonSize = "sm" | "md" | "lg";
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap transition-[background-color,color,transform] duration-150 select-none focus-visible:outline-2 focus-visible:outline-offset-2 enabled:active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transform-none motion-reduce:transition-none";
+  "inline-flex items-center justify-center gap-2 rounded font-medium whitespace-nowrap transition-[background-color,color,transform] duration-150 select-none focus-visible:outline-2 focus-visible:outline-offset-2 enabled:active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transform-none motion-reduce:transition-none";
 
 function variantClass(variant: ButtonVariant): string {
   switch (variant) {
