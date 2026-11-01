@@ -80,10 +80,10 @@ Chosen option: **1**. `CandidateView` gains four fields, all built in `lumen-api
 `Assessed` with no new IO:
 
 - **`id`:** an opaque string made from the candidate's file identity (volume and file
-  ID), never from its path. It is stable across scans while the item is the same
-  filesystem object, and survives renames and quarantine. Two hard links to one file
-  share it, because they are one object. Rows stay keyed by path; `id` is for
-  relations.
+  ID), never from its path. It is stable within an assessment, and across scans and
+  renames while the platform reports the same volume and file IDs (a macOS device
+  number can change when a volume is mounted again). Two hard links to one file share
+  it, because they are one object. Rows stay keyed by path; `id` is for relations.
 - **`times`:** `modified` and `accessed`, each one of:
   - `recorded` with `at` (modification time, as the platform reported it);
   - `may_lag` with `at` (access time: the platform may skip or defer updates, so the
@@ -101,8 +101,8 @@ Chosen option: **1**. `CandidateView` gains four fields, all built in `lumen-api
   protection flags, cloud-backed, browser profile, large unrecognised, in use, not in
   use by visible processes, owned by current user), each with its `basis` (`observed`,
   or `absence` with the sources searched), `source` and `observed_at`. Times are in
-  `times`, not repeated here. A fact kind the view does not know is left out, not
-  guessed. For the questions asked of every candidate (in use, owned by the current
+  `times`, not repeated here. Code signatures are not shown: no producer records them
+  for files today. A fact kind the view does not know is left out, not guessed. For the questions asked of every candidate (in use, owned by the current
   user, owner installed), a missing fact means the probe or inventory could not
   answer: **unknown, never "no"**. Facts about other subjects belong to their own
   views.
@@ -111,7 +111,9 @@ Chosen option: **1**. `CandidateView` gains four fields, all built in `lumen-api
   application (its escaped identifier), a process (its ID), a service (its escaped
   label) or a volume. `hops` is 1 for an edge that touches the candidate and 2
   otherwise. At most 16 edges, the nearest first in a fixed order, with an `omitted`
-  count for the rest, so a bound never reads as "no more". Only edges the graph has;
+  count for the rest (and for any edge of a kind the view does not know), so a bound
+  never reads as "no more". Counts and process IDs are decimal strings, like every
+  count in the API. Only edges the graph has;
   none is inferred from paths, names or groups. A file node that is not a candidate is
   shown without a path: the assessment does not hold one.
 
