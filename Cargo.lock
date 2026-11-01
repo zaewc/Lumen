@@ -2375,6 +2375,7 @@ dependencies = [
  "lumen-app",
  "lumen-application",
  "lumen-domain",
+ "lumen-policy",
  "serde",
  "serde_json",
  "utoipa",

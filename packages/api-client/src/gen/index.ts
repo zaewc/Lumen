@@ -38,6 +38,8 @@ export type {
   ScanView,
   SkipView,
   SpaceChangeView,
+  TimesView,
+  TimeView,
   ToolCommandView,
   ToolRunView,
   UpdateView,

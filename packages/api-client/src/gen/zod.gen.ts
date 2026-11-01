@@ -348,6 +348,35 @@ export const zFinalizeOutcomeView = z.object({
 });
 
 /**
+ * One of an item's times, and how far it can be relied on.
+ */
+export const zTimeView = z.union([
+  z.object({
+    at: z.iso.datetime(),
+    state: z.enum(["recorded"]),
+  }),
+  z.object({
+    at: z.iso.datetime(),
+    state: z.enum(["may_lag"]),
+  }),
+  z.object({
+    state: z.enum(["not_recorded"]),
+  }),
+  z.object({
+    state: z.enum(["not_read"]),
+  }),
+]);
+
+/**
+ * The times the decision saw.
+ */
+export const zTimesView = z.object({
+  accessed: zTimeView,
+  folder: z.boolean(),
+  modified: zTimeView,
+});
+
+/**
  * A developer tool's own cleanup command, as a literal argument vector:
  * shown in full, with desktop execution by entry ID after confirmation.
  */
@@ -398,6 +427,7 @@ export const zCandidateView = z.object({
   path: z.string(),
   reasons: z.array(zReasonView),
   reclaimable_bytes: z.string(),
+  times: zTimesView,
   tool_command: zToolCommandView.nullable(),
   verdict: zVerdictView,
 });

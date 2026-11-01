@@ -12,6 +12,7 @@ function candidate(path: string, verdict: CandidateView["verdict"], bytes: strin
     group: { kind: "other", source: null },
     ai_note: null,
     free_when_closed: null,
+    times: { modified: { state: "not_read" }, accessed: { state: "not_read" }, folder: true },
   };
 }
 

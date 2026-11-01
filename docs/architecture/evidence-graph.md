@@ -165,6 +165,19 @@ such entry, so `classify.browser-profile` keeps it ([FS-3](../security/public-be
 The parents of those entries are collected in the same pass
 (`lumen_application::profiles::ProfileHolders`); only names are compared.
 
+## What the interface sees
+
+`CandidateView` carries the evidence behind each decision, built in `lumen-api` from
+`Assessed` with no new IO
+([ADR-0053](../decisions/0053-show-the-evidence-behind-each-candidate.md)):
+
+- `times`: the `LastModified` and `LastAccessed` facts as states. A modification time
+  is `recorded`; an access time is `may_lag`, because platforms skip or defer access
+  updates. `not_recorded` means the metadata was read but held no value (or one at or
+  before the Unix epoch); `not_read` means it was not read. `folder` says the times
+  are a folder entry's own, not its contents'. Creation and status-change times are
+  not facts, so they are not shown.
+
 ## Explanation chains
 
 ```text

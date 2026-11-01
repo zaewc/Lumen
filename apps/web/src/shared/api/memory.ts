@@ -54,6 +54,18 @@ const regenerable = {
 } as const;
 
 /**
+ * A folder's own times: modified as recorded, accessed as it may lag, or not
+ * recorded (`null`: unpacked from an archive that kept no times).
+ */
+function folderTimes(modified: string, accessed: string | null): CandidateView["times"] {
+  return {
+    modified: { state: "recorded", at: modified },
+    accessed: accessed === null ? { state: "not_recorded" } : { state: "may_lag", at: accessed },
+    folder: true,
+  };
+}
+
+/**
  * What a scan of the fixture finds: every group, every verdict, and items to
  * clean up with their tool's own command (ADR-0039).
  */
@@ -67,6 +79,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "developer", source: "Xcode" },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2026-10-15T17:42:10Z", "2026-10-16T08:12:03Z"),
   },
   {
     path: `${HOME}/Library/Developer/CoreSimulator/Devices`,
@@ -88,6 +101,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "developer", source: "Xcode" },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2026-09-02T11:20:00Z", "2026-10-14T19:05:44Z"),
   },
   {
     path: `${HOME}/Library/pnpm/store`,
@@ -109,6 +123,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "developer", source: "pnpm" },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2026-10-11T09:31:27Z", "2026-10-11T09:31:27Z"),
   },
   {
     path: `${HOME}/.gradle/caches`,
@@ -119,6 +134,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "developer", source: "Gradle" },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2026-06-30T14:02:51Z", "2026-07-01T08:40:12Z"),
   },
   {
     path: `${HOME}/.npm/_cacache`,
@@ -129,6 +145,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "developer", source: "npm" },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2026-10-12T22:16:05Z", "2026-10-15T10:01:33Z"),
   },
   {
     path: `${HOME}/Library/Caches/go-build`,
@@ -144,6 +161,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "developer", source: "Go" },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2026-10-16T07:55:19Z", "2026-10-16T07:55:19Z"),
   },
   {
     path: `${HOME}/Library/Caches/com.spotify.client`,
@@ -159,6 +177,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "app_cache", source: "com.spotify.client" },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2026-10-16T08:30:02Z", "2026-10-16T08:41:57Z"),
   },
   {
     path: `${HOME}/Library/Application Support/discord/Cache`,
@@ -169,6 +188,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "app_cache", source: "com.hnc.Discord" },
     ai_note: null,
     free_when_closed: { processes: ["Discord"] },
+    times: folderTimes("2026-10-16T08:57:40Z", "2026-10-16T08:57:40Z"),
   },
   {
     path: `${HOME}/Library/Caches/Google/Chrome`,
@@ -185,6 +205,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "app_cache", source: "com.google.Chrome" },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2026-10-16T08:50:12Z", "2026-10-16T08:50:12Z"),
   },
   {
     path: `${HOME}/Library/Application Support/Slack`,
@@ -200,6 +221,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "app_data", source: "com.tinyspeck.slackmacgap" },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2026-10-16T08:44:09Z", "2026-10-16T08:44:09Z"),
   },
   {
     path: `${HOME}/Library/Application Support/OldEditor`,
@@ -215,6 +237,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "app_data", source: "com.example.OldEditor" },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2025-03-18T10:12:44Z", "2025-11-30T21:03:10Z"),
   },
   {
     path: `${HOME}/Library/HTTPStorages/com.tinyspeck.slackmacgap`,
@@ -225,6 +248,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "other", source: null },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2026-10-16T08:44:12Z", "2026-10-16T08:44:12Z"),
   },
   {
     path: `${HOME}/Downloads/Installers`,
@@ -235,6 +259,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "other", source: null },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2026-08-21T16:03:29Z", null),
   },
   {
     path: `${HOME}/Library/Mobile Documents/com~apple~CloudDocs`,
@@ -251,6 +276,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "other", source: null },
     ai_note: null,
     free_when_closed: null,
+    times: folderTimes("2026-10-16T08:20:51Z", "2026-10-16T08:58:00Z"),
   },
 ];
 

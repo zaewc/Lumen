@@ -105,6 +105,11 @@ export type CandidateView = {
    * What removing it would free now, in bytes.
    */
   reclaimable_bytes: string;
+  /**
+   * Its modification and access times as the decision saw them, each
+   * saying how far it can be relied on (ADR-0053).
+   */
+  times: TimesView;
   tool_command: ToolCommandView | null;
   /**
    * The policy's verdict.
@@ -600,6 +605,52 @@ export type SpaceChangeView = {
    * Opaque volume identity; never a path to act on.
    */
   volume: string;
+};
+
+/**
+ * One of an item's times, and how far it can be relied on.
+ */
+export type TimeView =
+  | {
+      /**
+       * When.
+       */
+      at: string;
+      state: "recorded";
+    }
+  | {
+      /**
+       * When, as recorded.
+       */
+      at: string;
+      state: "may_lag";
+    }
+  | {
+      state: "not_recorded";
+    }
+  | {
+      state: "not_read";
+    };
+
+/**
+ * The times the decision saw.
+ */
+export type TimesView = {
+  /**
+   * When it was last read: `may_lag`, `not_recorded` or `not_read`.
+   */
+  accessed: TimeView;
+  /**
+   * The times are a folder entry's own: they change when entries are
+   * added, removed or renamed in it, never when a file inside changes, so
+   * they do not say when its contents were last used.
+   */
+  folder: boolean;
+  /**
+   * When its content last changed: `recorded`, `not_recorded` or
+   * `not_read`.
+   */
+  modified: TimeView;
 };
 
 /**

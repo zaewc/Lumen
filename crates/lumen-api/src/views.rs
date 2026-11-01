@@ -24,6 +24,12 @@ use lumen_domain::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+#[cfg(test)]
+mod fixture;
+mod times;
+
+pub use times::{TimeView, TimesView};
+
 fn bytes(count: ByteCount) -> String {
     count.get().to_string()
 }
@@ -231,6 +237,9 @@ pub struct CandidateView {
     /// the verdict stays `keep` and nothing plans from it. `null` otherwise.
     #[schema(required = true)]
     pub free_when_closed: Option<FreeWhenClosedView>,
+    /// Its modification and access times as the decision saw them, each
+    /// saying how far it can be relied on (ADR-0053).
+    pub times: TimesView,
 }
 
 /// The apps to close so that a kept item could be proposed on the next scan.
@@ -505,6 +514,7 @@ impl From<&Assessed> for CandidateView {
                 .map(|free| FreeWhenClosedView {
                     processes: free.processes.clone(),
                 }),
+            times: times::times(assessed),
         }
     }
 }

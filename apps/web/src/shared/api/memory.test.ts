@@ -102,6 +102,13 @@ describe("memoryTransport", () => {
     expect(noted.every((c) => c.verdict === "review" && c.tool_command === null)).toBe(true);
   });
 
+  it("shows times in every certainty: recorded, may lag and not recorded (ADR-0053)", async () => {
+    const candidates = (await memoryTransport().assess()).map((c) => zCandidateView.parse(c));
+    expect(candidates.every((c) => c.times.modified.state === "recorded")).toBe(true);
+    const accessed = new Set(candidates.map((c) => c.times.accessed.state));
+    expect(accessed).toEqual(new Set(["may_lag", "not_recorded"]));
+  });
+
   it("turns AI review on with the built-in key, and lets a stored key replace it", async () => {
     const transport = memoryTransport({ builtinKey: true });
     expect(await transport.aiSettings()).toEqual({

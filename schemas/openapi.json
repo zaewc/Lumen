@@ -141,7 +141,8 @@
           "tool_command",
           "group",
           "ai_note",
-          "free_when_closed"
+          "free_when_closed",
+          "times"
         ],
         "properties": {
           "ai_note": {
@@ -184,6 +185,10 @@
           "reclaimable_bytes": {
             "type": "string",
             "description": "What removing it would free now, in bytes."
+          },
+          "times": {
+            "$ref": "#/components/schemas/TimesView",
+            "description": "Its modification and access times as the decision saw them, each\nsaying how far it can be relied on (ADR-0053)."
           },
           "tool_command": {
             "oneOf": [
@@ -1018,6 +1023,106 @@
           "volume": {
             "type": "string",
             "description": "Opaque volume identity; never a path to act on."
+          }
+        }
+      },
+      "TimeView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "The platform reported it.",
+            "required": [
+              "at",
+              "state"
+            ],
+            "properties": {
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When."
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "recorded"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The platform reported it, but it may skip or defer updating it\n(`relatime`, `noatime`, NTFS), so the real time may be later. Never\nproof that the item is unused.",
+            "required": [
+              "at",
+              "state"
+            ],
+            "properties": {
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When, as recorded."
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "may_lag"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The item's metadata was read, but the platform kept no value: none,\nor one at or before the Unix epoch, which filesystems report when\nthey keep none.",
+            "required": [
+              "state"
+            ],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "not_recorded"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The item's metadata was not read, so the time is unknown.",
+            "required": [
+              "state"
+            ],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "not_read"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "One of an item's times, and how far it can be relied on."
+      },
+      "TimesView": {
+        "type": "object",
+        "description": "The times the decision saw.",
+        "required": [
+          "modified",
+          "accessed",
+          "folder"
+        ],
+        "properties": {
+          "accessed": {
+            "$ref": "#/components/schemas/TimeView",
+            "description": "When it was last read: `may_lag`, `not_recorded` or `not_read`."
+          },
+          "folder": {
+            "type": "boolean",
+            "description": "The times are a folder entry's own: they change when entries are\nadded, removed or renamed in it, never when a file inside changes, so\nthey do not say when its contents were last used."
+          },
+          "modified": {
+            "$ref": "#/components/schemas/TimeView",
+            "description": "When its content last changed: `recorded`, `not_recorded` or\n`not_read`."
           }
         }
       },
