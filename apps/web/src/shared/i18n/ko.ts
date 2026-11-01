@@ -161,9 +161,9 @@ export const ko = {
     readOnly: "읽기만 하고, 아무것도 바꾸지 않아요.",
     progress: "검사 진행 상황",
     items: "찾은 항목",
-    size: "디스크 사용량",
     unreadable: "읽지 못한 폴더",
     reading: "읽는 중",
+    readSoFar: (size: string) => `지금까지 읽은 크기 ${size}`,
     failed: "찾은 항목을 판단하지 못했어요. 파일은 모두 그대로 있어요.",
   },
   results: {
@@ -172,6 +172,7 @@ export const ko = {
       all: "전체 항목",
       smaller: (n: number) => `작은 항목 ${count(n)}개`,
       notRead: "읽지 못함",
+      notReadYet: "아직 읽지 않음",
       entries: (n: number) => `${count(n)}개`,
     },
     canFree: (size: string) => `${size}를 정리할 수 있어요`,

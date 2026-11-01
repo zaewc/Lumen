@@ -218,9 +218,11 @@ Rule counts are not confidence: the stack never shows "3 of 4" or a meter.
   the scan action beside it.
 - **Scanning:** the frame fills from the left in hatch as `allocated_bytes` grows,
   against the disk's used space on the home volume, labelled "Read so far", never as
-  a percentage of the scan. Counts stay tabular and update in place.
+  a percentage of the scan. Counts stay tabular and update in place; the frame
+  carries the size read, so no separate size figure repeats it.
 - **Deciding:** stage name and, where the host gives a total, that stage's progress
-  as a 2 px line. Regions are not drawn until decisions exist.
+  as a 2 px line. The frame stays at what was read; regions are not drawn until
+  decisions exist.
 - **Complete:** regions appear in their verdict textures in one crossfade; coverage
   gaps stay visible.
 

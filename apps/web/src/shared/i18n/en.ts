@@ -155,9 +155,9 @@ export const en = {
     readOnly: "Lumen only reads and changes nothing.",
     progress: "Scan progress",
     items: "Items found",
-    size: "Size on disk",
     unreadable: "Unreadable folders",
     reading: "Reading",
+    readSoFar: (size: string) => `Read so far: ${size}`,
     failed: "Lumen could not decide about what it found. Your files are unchanged.",
   },
   results: {
@@ -166,6 +166,7 @@ export const en = {
       all: "All items",
       smaller: (n: number) => `${count(n)} smaller items`,
       notRead: "Not read",
+      notReadYet: "Not read yet",
       entries: (n: number) => `${count(n)} ${n === 1 ? "entry" : "entries"}`,
     },
     canFree: (size: string) => `You can clean up ${size}`,
