@@ -472,3 +472,46 @@
     transition: none;
   }
 }
+
+/* The map's frame while there is no map yet: unread, dashed; what has been
+ * read fills from the left in a hatch that no verdict uses. */
+.map-frame {
+  overflow: hidden;
+  border: 1.5px dashed var(--lm-line-strong);
+  border-radius: 4px;
+}
+
+.map-frame > .topo-label {
+  color: var(--lm-ink-2);
+}
+
+.map-read {
+  min-width: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--lm-fill),
+    var(--lm-fill) 3px,
+    var(--lm-line-strong) 3px,
+    var(--lm-line-strong) 4px
+  );
+  transition: width 400ms ease-out;
+}
+
+/* Decisions arrive at once: the map's regions fade in together. */
+@keyframes topo-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .topo {
+    animation: topo-in 240ms ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-read {
+    transition: none;
+  }
+}

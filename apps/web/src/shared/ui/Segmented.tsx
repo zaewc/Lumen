@@ -9,7 +9,8 @@ export interface Segment<T extends string> {
 }
 
 /**
- * A precise choice row with an underline: native radio buttons underneath, so the
+ * A choice row in text, like the navigation: the chosen one in ink over a
+ * cobalt rule, the rule neutral on hover. Native radio buttons underneath, so the
  * arrow keys move between choices and screen readers announce a group.
  * Counts are left out when the page is narrow (below 28rem), and segments
  * that still do not fit wrap onto another line: the page never scrolls
@@ -39,7 +40,7 @@ export function Segmented<T extends string>({
       {segments.map((segment) => (
         <label
           key={segment.value}
-          className={`${stretch ? "flex-1" : ""} relative -mb-px flex min-h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 border-b-2 border-transparent px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors select-none hover:bg-fill hover:text-ink has-checked:border-accent has-checked:text-accent-ink has-focus-visible:outline-2 has-focus-visible:-outline-offset-2 has-focus-visible:outline-accent motion-reduce:transition-none`}
+          className={`${stretch ? "flex-1" : ""} relative -mb-px flex min-h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 border-b-2 border-transparent px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors select-none hover:border-line-strong hover:text-ink has-checked:border-accent has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:-outline-offset-2 has-focus-visible:outline-accent motion-reduce:transition-none`}
         >
           <input
             type="radio"

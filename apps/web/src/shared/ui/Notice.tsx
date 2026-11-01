@@ -11,13 +11,14 @@ function ToneIcon({ tone }: { readonly tone: NoticeTone }) {
     case "warning":
       return <WarningIcon className="mt-px size-4 text-amber-600 dark:text-amber-400" />;
     case "success":
-      return <CheckIcon className="mt-px size-4 text-emerald-600 dark:text-emerald-400" />;
+      return <CheckIcon className="mt-px size-4 text-ink" />;
   }
 }
 
 /**
- * A short, calm message on one line (or a few): a coloured glyph says what
- * kind it is, the text stays in the ordinary ink. No box around it.
+ * A short, calm message on one line (or a few): a glyph says what kind it
+ * is (amber for a warning; success is an ink check, never green), and the
+ * text stays in the ordinary ink. No box around it.
  */
 export function Notice({
   tone,

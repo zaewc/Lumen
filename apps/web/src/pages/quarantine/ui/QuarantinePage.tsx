@@ -5,6 +5,7 @@ import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import {
   buttonClass,
+  CONFIRM_ROW,
   ErrorDetails,
   ErrorNotice,
   InfoTip,
@@ -104,7 +105,7 @@ export function QuarantinePage() {
             type="button"
             onClick={() => setConfirming(true)}
             disabled={working || confirming}
-            className={buttonClass("dangerQuiet", "sm")}
+            className={buttonClass("plain", "sm")}
           >
             {m.quarantine.selection.removeAsk}
           </button>
@@ -147,8 +148,8 @@ export function QuarantinePage() {
         {reported?.measurement && <SpaceChangeResult {...reported.measurement} />}
       </div>
       {confirming && removable.act.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-500/8 px-3 py-2.5 dark:bg-red-400/10">
-          <div id={warning} className="min-w-0 flex-1 basis-64 text-red-900 dark:text-red-200">
+        <div className={CONFIRM_ROW}>
+          <div id={warning} className="min-w-0 flex-1 basis-64 text-ink">
             <p>{m.quarantine.selection.removeWarning(removable.act.length)}</p>
             {removable.skipped > 0 && (
               <p>{m.quarantine.selection.removeSkips(removable.skipped)}</p>

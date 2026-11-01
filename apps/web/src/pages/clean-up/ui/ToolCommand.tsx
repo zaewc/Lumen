@@ -3,7 +3,7 @@ import { useEffect, useId, useState } from "react";
 import { useToolRun } from "@/entities/tool-run";
 import { useTransport } from "@/shared/api";
 import { type Messages, useI18n } from "@/shared/i18n";
-import { buttonClass, ErrorNotice, SpaceChangeResult } from "@/shared/ui";
+import { buttonClass, ErrorNotice, Notice, SpaceChangeResult } from "@/shared/ui";
 import { commandLine } from "../lib/command";
 
 /** Whether the command was just copied, or copying failed. */
@@ -101,8 +101,8 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
         </button>
       )}
       {confirming && (
-        <div className="mt-2 space-y-2 rounded-md bg-red-500/8 px-3 py-2.5 dark:bg-red-400/10">
-          <div id={warning} className="space-y-1 text-[13px] text-red-900 dark:text-red-200">
+        <div className="mt-2 space-y-2 border-y border-line py-3">
+          <div id={warning} className="space-y-1 text-[13px] text-ink">
             <p>{m.toolCommand.runWarning}</p>
             {command.removes_data && <p className="font-medium">{m.toolCommand.removesData}</p>}
           </div>
@@ -131,11 +131,9 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
         {pending && <p className="mt-2 text-[12px] text-ink-2">{m.toolCommand.running}</p>}
         {current && run.status === "success" && run.data !== null && (
           <div className="mt-2 space-y-1">
-            <p
-              className={`text-[12px] ${run.data.success ? "text-emerald-700 dark:text-emerald-400" : "text-amber-800 dark:text-amber-300"}`}
-            >
-              {runText(m, run.data)}
-            </p>
+            <Notice tone={run.data.success ? "success" : "warning"}>
+              <p>{runText(m, run.data)}</p>
+            </Notice>
             <SpaceChangeResult changes={run.data.space_changes} />
             {run.data.output.trim() !== "" && (
               <details className="text-[12px] text-ink-2">

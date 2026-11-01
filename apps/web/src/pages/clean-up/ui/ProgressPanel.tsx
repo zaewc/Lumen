@@ -1,8 +1,8 @@
 import type { AssessProgressView, ScanProgressView } from "@lumen/api-client";
 import { AssessmentProgress } from "@/entities/scan-session";
 import { countFormat, useI18n } from "@/shared/i18n";
-import { formatBytes } from "@/shared/lib";
 import { FlowStage } from "./FlowStage";
+import { MapFrame } from "./MapFrame";
 import { StepHeading } from "./StepHeading";
 
 /** One live figure of the scan. */
@@ -27,7 +27,10 @@ function Stat({
   );
 }
 
-/** A scan in progress (live totals), then the assessment that follows it. */
+/**
+ * A scan in progress (live totals, and the map's frame filling as it
+ * reads, which carries its size on disk), then the assessment that follows.
+ */
 export function ProgressPanel({
   progress,
   assessmentProgress,
@@ -43,7 +46,7 @@ export function ProgressPanel({
   const count = countFormat(locale);
   const none = "–";
   return (
-    <section className="max-w-4xl space-y-7">
+    <section className="space-y-7">
       <FlowStage
         phase={
           !deciding
@@ -59,23 +62,13 @@ export function ProgressPanel({
         </StepHeading>
         <p className="text-ink-2">{deciding ? m.scanning.decidingHint : m.scanning.readOnly}</p>
       </div>
-      {deciding ? (
-        <AssessmentProgress progress={assessmentProgress} />
-      ) : (
-        <div
-          role="progressbar"
-          aria-label={m.scanning.progress}
-          className="h-0.5 overflow-hidden bg-accent-soft"
-        >
-          <div className="h-full w-2/5 animate-[indeterminate_1.4s_ease-in-out_infinite] bg-accent motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50" />
+      {deciding && (
+        <div className="max-w-4xl">
+          <AssessmentProgress progress={assessmentProgress} />
         </div>
       )}
       <dl className="flex flex-wrap gap-x-12 gap-y-4">
         <Stat label={m.scanning.items} value={progress ? count(progress.entries) : none} />
-        <Stat
-          label={m.scanning.size}
-          value={progress ? formatBytes(progress.allocated_bytes) : none}
-        />
         <Stat
           label={m.scanning.unreadable}
           value={progress ? count(progress.unreadable) : none}
@@ -93,6 +86,7 @@ export function ProgressPanel({
           </span>
         </p>
       )}
+      <MapFrame read={progress?.allocated_bytes ?? "0"} />
     </section>
   );
 }

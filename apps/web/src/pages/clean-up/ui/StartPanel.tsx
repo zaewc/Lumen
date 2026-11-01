@@ -4,11 +4,12 @@ import { useI18n } from "@/shared/i18n";
 import { buttonClass, Disclosure, ErrorNotice } from "@/shared/ui";
 import { rootsOf } from "../lib/roots";
 import { FlowStage } from "./FlowStage";
+import { MapFrame } from "./MapFrame";
 import { StepHeading } from "./StepHeading";
 
 /**
- * Before a scan: what to do (the toolbar's "Scan disk"), and folders for
- * those who want to scan only some.
+ * Before a scan: what to do (the toolbar's "Scan disk"), the map's empty
+ * frame, and folders for those who want to scan only some.
  */
 export function StartPanel({
   folders,
@@ -36,9 +37,9 @@ export function StartPanel({
     }
   };
   return (
-    <section className="max-w-2xl space-y-7">
+    <section className="space-y-7">
       <FlowStage phase="ready" />
-      <div className="space-y-3">
+      <div className="max-w-2xl space-y-3">
         <StepHeading focus={focus} className="text-section text-ink">
           {m.start.title}
         </StepHeading>
@@ -49,6 +50,7 @@ export function StartPanel({
         )}
       </div>
       {error !== null && <ErrorNotice message={m.start.failed} error={error} />}
+      <MapFrame read={null} />
       <Disclosure summary={<span className="text-ink-2">{m.start.chooseFolders}</span>}>
         <form onSubmit={submit} className="space-y-2">
           <label htmlFor={field} className="block text-[13px] text-ink-2">

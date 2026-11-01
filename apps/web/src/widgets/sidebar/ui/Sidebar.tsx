@@ -50,7 +50,7 @@ interface PlaceItem {
 /** A place's link. */
 function NavItem({ to, label, badge }: PlaceItem) {
   return (
-    <li className="min-w-0 flex-1 min-[960px]:flex-none">
+    <li className="min-w-0 flex-auto min-[960px]:flex-none">
       <Link
         to={to}
         activeOptions={{ exact: to === "/" }}

@@ -7,14 +7,14 @@ describe("buttonClass", () => {
     "primary",
     "secondary",
     "quiet",
+    "plain",
     "danger",
-    "dangerQuiet",
   ] as const satisfies readonly ButtonVariant[];
 
-  it("keeps red for the irreversible variants only", () => {
+  it("keeps red for confirming what cannot be undone only", () => {
     for (const variant of variants) {
       const red = buttonClass(variant).includes("red-");
-      expect(red, variant).toBe(variant === "danger" || variant === "dangerQuiet");
+      expect(red, variant).toBe(variant === "danger");
     }
   });
 

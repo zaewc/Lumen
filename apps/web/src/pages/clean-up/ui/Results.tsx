@@ -130,6 +130,7 @@ export function Results({
             summary={summary}
             selected={filter === "all" ? null : filter}
             onSelect={onFilterChange}
+            track={false}
           />
           <CandidateList sections={sections} onOpen={setOpen} lens={lens} />
         </>
