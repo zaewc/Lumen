@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
 import {
   dismissedUpdate,
@@ -12,18 +12,14 @@ import { useScanSession } from "@/entities/scan-session";
 import { useToolRun } from "@/entities/tool-run";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
-import {
-  ArchiveIcon,
-  buttonClass,
-  DriveIcon,
-  GearIcon,
-  LogoMark,
-  NavigationGlass,
-  SearchIcon,
-} from "@/shared/ui";
+import { buttonClass, LogoMark } from "@/shared/ui";
 
+/**
+ * A place's text label. The current place is ink with a cobalt rule under its
+ * label; hovering shows the rule in a neutral tone (ADR-0052).
+ */
 const ITEM =
-  "relative flex h-12 items-center justify-center gap-2 px-2 min-[960px]:px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-fill hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-[current=page]:text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-transparent aria-[current=page]:after:bg-accent motion-reduce:transition-none min-[960px]:h-[72px] [&>svg]:hidden min-[960px]:[&>svg]:block [&>svg]:size-[18px] [&>svg]:text-ink-3 aria-[current=page]:[&>svg]:text-accent-ink";
+  "relative flex h-12 items-center justify-center gap-2 px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-[current=page]:text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-transparent hover:after:bg-line-strong aria-[current=page]:after:bg-accent motion-reduce:transition-none min-[960px]:h-14";
 
 /** The app's places, in the sidebar's order; ⌘1–⌘4 (Ctrl+1–4) open them. */
 const PLACES = ["/", "/clean", "/quarantine", "/settings"] as const;
@@ -43,54 +39,35 @@ function usePlaceShortcut(place: Place): void {
   });
 }
 
-/** One place in the app: an icon, its name, and an optional count. */
+/** One place in the app: its name, and an optional count. */
 interface PlaceItem {
   readonly to: Place;
-  readonly icon: ReactNode;
   readonly label: string;
   /** A count and what it means, for screen readers. */
   readonly badge?: { readonly text: string; readonly label: string };
 }
 
-/**
- * A place's link, or, as `copy`, its decorative twin for the navigation lens:
- * the same layout and type drawn as selected, without link, name or count role.
- */
-function NavItem({
-  to,
-  icon,
-  label,
-  badge,
-  copy = false,
-}: PlaceItem & { readonly copy?: boolean }) {
-  const content = (
-    <>
-      {icon}
-      <span className="truncate">{label}</span>
-      {badge !== undefined && (
-        <span
-          {...(copy ? {} : { role: "img", "aria-label": badge.label })}
-          className="hidden text-[11px] font-normal tabular-nums text-ink-3 min-[960px]:inline"
-        >
-          {badge.text}
-        </span>
-      )}
-    </>
-  );
+/** A place's link. */
+function NavItem({ to, label, badge }: PlaceItem) {
   return (
     <li className="min-w-0 flex-1 min-[960px]:flex-none">
-      {copy ? (
-        <span className={ITEM}>{content}</span>
-      ) : (
-        <Link
-          to={to}
-          activeOptions={{ exact: to === "/" }}
-          {...shortcutProps(label, placeKey(to))}
-          className={ITEM}
-        >
-          {content}
-        </Link>
-      )}
+      <Link
+        to={to}
+        activeOptions={{ exact: to === "/" }}
+        {...shortcutProps(label, placeKey(to))}
+        className={ITEM}
+      >
+        <span className="truncate">{label}</span>
+        {badge !== undefined && (
+          <span
+            role="img"
+            aria-label={badge.label}
+            className="hidden text-[12px] font-normal tabular-nums text-ink-3 min-[960px]:inline"
+          >
+            {badge.text}
+          </span>
+        )}
+      </Link>
     </li>
   );
 }
@@ -173,44 +150,35 @@ export function Sidebar() {
   usePlaceShortcut("/quarantine");
   usePlaceShortcut("/settings");
   const places: readonly PlaceItem[] = [
-    { to: "/", icon: <DriveIcon />, label: m.nav.overview },
-    { to: "/clean", icon: <SearchIcon />, label: m.nav.cleanUp },
+    { to: "/", label: m.nav.overview },
+    { to: "/clean", label: m.nav.cleanUp },
     {
       to: "/quarantine",
-      icon: <ArchiveIcon />,
       label: m.nav.quarantine,
       ...(count > 0
         ? { badge: { text: countFormat(locale)(count), label: m.nav.held(count) } }
         : {}),
     },
-    { to: "/settings", icon: <GearIcon />, label: m.nav.settings },
+    { to: "/settings", label: m.nav.settings },
   ];
   return (
     <>
       <header className="flex shrink-0 flex-wrap items-center border-b border-line bg-sidebar px-3 min-[960px]:gap-4 min-[960px]:px-6">
-        <div className="flex h-14 shrink-0 items-center gap-2.5 px-2 min-[960px]:h-[72px] min-[960px]:pr-6">
+        <div className="flex h-14 shrink-0 items-center gap-2.5 px-2 min-[960px]:pr-6">
           <LogoMark className="size-8" />
           <span className="text-[21px] font-semibold tracking-[-0.06em] text-ink">Lumen</span>
         </div>
         <nav
-          data-lg-role="dock"
           aria-label={m.nav.label}
           className="order-last w-full min-[960px]:order-none min-[960px]:w-auto"
         >
-          <NavigationGlass>
-            <ul className="flex min-w-0">
-              {places.map((place) => (
-                <NavItem key={place.to} {...place} copy />
-              ))}
-            </ul>
-          </NavigationGlass>
           <ul className="flex min-w-0">
             {places.map((place) => (
               <NavItem key={place.to} {...place} />
             ))}
           </ul>
         </nav>
-        <div data-lg-role="rail" className="ml-auto flex min-w-0 flex-wrap justify-end gap-x-2">
+        <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-x-2">
           {!showUpdate && <UpdateStatus version={version} />}
           {activity !== null ? (
             <span role="status" className="max-w-52 truncate px-2 text-[12px] text-ink-2">
