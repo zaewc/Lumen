@@ -20,12 +20,10 @@ export function Page({
   readonly children: ReactNode;
 }) {
   return (
-    <main data-lg-role="focus" className="@container flex min-h-full flex-col">
-      <header className="sticky top-0 z-10 border-b border-line bg-window">
-        <div className={`${COLUMN} flex min-h-24 flex-wrap items-center gap-x-4 gap-y-3 py-5`}>
-          <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.045em] text-ink">
-            {title}
-          </h1>
+    <main className="@container flex min-h-full flex-col">
+      <header className="sticky top-0 z-10 border-b border-line bg-canvas">
+        <div className={`${COLUMN} flex min-h-16 flex-wrap items-center gap-x-4 gap-y-3 py-3`}>
+          <h1 className="text-title text-ink">{title}</h1>
           {accessory !== undefined && (
             <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink-2">
               {accessory}

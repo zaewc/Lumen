@@ -76,7 +76,7 @@ export function InfoTip({ term }: { readonly term: GlossaryTerm }) {
         aria-expanded={open}
         aria-controls={panel}
         onClick={() => setOpen(nextTip(open, "toggle").open)}
-        className="inline-flex size-[18px] items-center justify-center rounded-full border border-line-strong font-serif text-[11px] font-normal italic leading-none text-ink-3 hover:border-ink-3 hover:text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent aria-expanded:border-accent aria-expanded:bg-accent aria-expanded:text-white"
+        className="inline-flex size-[18px] items-center justify-center rounded-full border border-line-strong font-serif text-[12px] font-normal italic leading-none text-ink-3 hover:border-ink-3 hover:text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent aria-expanded:border-accent aria-expanded:bg-accent aria-expanded:text-white"
       >
         i
       </button>
@@ -86,7 +86,7 @@ export function InfoTip({ term }: { readonly term: GlossaryTerm }) {
         role="note"
         hidden={!open}
         style={{ left: shift }}
-        className="absolute top-full z-20 mt-2 block w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-line bg-raised p-3.5 text-left text-[13px] leading-relaxed font-normal tracking-normal text-ink-2 normal-case shadow-xl shadow-black/10 dark:shadow-black/40"
+        className="absolute top-full z-20 mt-2 block w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-line bg-raised p-3.5 text-left text-[13px] leading-relaxed font-normal tracking-normal text-ink-2 normal-case shadow-lg shadow-black/8 dark:shadow-black/40"
       >
         <span className="block font-semibold text-ink">{title}</span>
         <span className="mt-1 block">{body}</span>

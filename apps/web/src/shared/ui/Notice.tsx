@@ -67,7 +67,7 @@ export function ErrorDetails({ error }: { readonly error: unknown }) {
   const { m } = useI18n();
   return (
     <Disclosure summary={<span className="text-[12px] text-ink-3">{m.common.details}</span>}>
-      <p className="font-mono text-[11px] break-all text-ink-3 select-text">
+      <p className="font-mono text-[12px] break-all text-ink-3 select-text">
         {errorMessage(error) ?? m.common.noDetails}
       </p>
     </Disclosure>

@@ -204,9 +204,7 @@ export function QuarantinePage() {
       )}
       {held.isSuccess && items.length === 0 && (
         <section className="max-w-xl space-y-3 py-4">
-          <h2 className="text-[22px] font-medium tracking-[-0.035em] text-ink">
-            {m.quarantine.empty}
-          </h2>
+          <h2 className="text-section text-ink">{m.quarantine.empty}</h2>
           <p className="text-[14px] leading-relaxed text-ink-2">{m.quarantine.emptyHint}</p>
           <Link
             to="/clean"

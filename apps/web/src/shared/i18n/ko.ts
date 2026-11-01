@@ -167,6 +167,13 @@ export const ko = {
     failed: "찾은 항목을 판단하지 못했어요. 파일은 모두 그대로 있어요.",
   },
   results: {
+    map: {
+      label: "이번 검사에서 찾은 항목 지도, 크기 기준",
+      all: "전체 항목",
+      smaller: (n: number) => `작은 항목 ${count(n)}개`,
+      notRead: "읽지 못함",
+      entries: (n: number) => `${count(n)}개`,
+    },
     canFree: (size: string) => `${size}를 정리할 수 있어요`,
     nothingTitle: "정리할 항목이 없어요",
     nothing: "Lumen은 치워 두어도 안전하다고 확신하는 항목만 제안해요.",

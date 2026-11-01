@@ -47,10 +47,7 @@ export function ConfirmDialog({
         <div className="mb-5 shrink-0">
           <FlowStage phase={busy ? "done" : "decision"} />
         </div>
-        <h2
-          id={title}
-          className="shrink-0 text-[22px] leading-snug font-semibold tracking-[-0.03em] text-ink"
-        >
+        <h2 id={title} className="shrink-0 text-title text-ink">
           {empty ? m.confirm.nothingLeft : m.confirm.title(plan.items.length, size)}
         </h2>
         <div className="-mx-1 mt-3 min-h-0 overflow-x-hidden overflow-y-auto px-1">
