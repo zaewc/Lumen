@@ -1,7 +1,14 @@
 import type { CandidateView, RootView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
 import type { Rect } from "./squarify";
-import { layoutTopography, type Placed, topographyOf, trailTo, unreadEntries } from "./topography";
+import {
+  candidatesIn,
+  layoutTopography,
+  type Placed,
+  topographyOf,
+  trailTo,
+  unreadEntries,
+} from "./topography";
 
 function candidate(
   path: string,
@@ -166,5 +173,17 @@ describe("unreadEntries", () => {
   it("counts what incomplete roots could not read", () => {
     expect(unreadEntries([root(false, "3", "1", "2"), root(true, "9")])).toBe(6n);
     expect(unreadEntries([root(true, "0")])).toBe(0n);
+  });
+});
+
+describe("candidatesIn", () => {
+  it("collects every item under a group", () => {
+    const groups = topographyOf([
+      candidate("/a", "3", xcode),
+      candidate("/b", "1", npm),
+      candidate("/c", "2", cache),
+    ]);
+    const [developer] = groups;
+    expect(developer && candidatesIn(developer).map((c) => c.path)).toEqual(["/a", "/b"]);
   });
 });
