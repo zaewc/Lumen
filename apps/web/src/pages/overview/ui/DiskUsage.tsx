@@ -119,7 +119,7 @@ export function DiskUsage() {
           <div className="grid items-center gap-6 min-[800px]:grid-cols-[0.8fr_1.2fr] min-[800px]:gap-16">
             <div>
               <p className="text-[13px] text-ink-2">{m.workspace.available}</p>
-              <p className="mt-1 text-[clamp(2.5rem,5vw,3.5rem)] leading-tight font-medium tracking-[-0.06em] text-ink tabular-nums">
+              <p className="mt-1 text-measure text-ink tabular-nums">
                 {usage === null ? none : formatBytes(usage.available)}
               </p>
               <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-2 tabular-nums">

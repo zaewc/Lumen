@@ -66,7 +66,7 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
     <section>
       <h3 className="text-[13px] font-semibold text-ink-2">{m.toolCommand.title(command.tool)}</h3>
       <div className="mt-2 flex items-start gap-2">
-        <code className="min-w-0 flex-1 rounded-md bg-surface px-2.5 py-1.5 font-mono text-[12px] leading-relaxed break-all text-ink ring-1 ring-line select-all">
+        <code className="min-w-0 flex-1 rounded-md bg-plane px-2.5 py-1.5 font-mono text-[12px] leading-relaxed break-all text-ink ring-1 ring-line select-all">
           {line}
         </code>
         <button
@@ -140,7 +140,7 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
             {run.data.output.trim() !== "" && (
               <details className="text-[12px] text-ink-2">
                 <summary className="cursor-pointer">{m.toolCommand.output}</summary>
-                <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-surface p-2 font-mono text-[11px] whitespace-pre-wrap text-ink ring-1 ring-line select-text">
+                <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-plane p-2 font-mono text-[12px] whitespace-pre-wrap text-ink ring-1 ring-line select-text">
                   {run.data.output}
                 </pre>
               </details>

@@ -84,7 +84,7 @@ export function AiConsentDialog({
           ref={heading}
           id={title}
           tabIndex={-1}
-          className="shrink-0 text-[22px] font-semibold tracking-[-0.03em] text-ink outline-none"
+          className="shrink-0 text-title text-ink outline-none"
         >
           {m.ai.consent.title}
         </h2>
