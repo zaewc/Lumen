@@ -44,7 +44,7 @@ four surfaces with different values and inverts the dark hierarchy).
 | `ink` | #182232 | #ecf1f8 | Primary text, settled marks |
 | `ink-2` | #46546a | #b4c1d2 | Secondary text |
 | `ink-3` | #5a6880 | #94a5bb | Metadata (≥ 5:1 on every surface; today's light ink-3 is 4.45:1) |
-| `cobalt` | #3a52cc | #8fa2ff (marks), #5268d1 (fills) | Information |
+| `accent` (cobalt) | #3a52cc | #8fa2ff (marks), #5268d1 (fills) | Information |
 | `attention` | amber-700 | amber-300 | Incomplete coverage, needs attention |
 | `irreversible` | red-700 | red-400 | Only "Remove for good" and its confirmation |
 
@@ -91,7 +91,7 @@ its word.
 | KEEP | solid square, `ink-3` | solid `ink` at low contrast | settled, stays |
 | REVIEW | dashed open circle, `ink-2` | 135° hatch | unresolved; a person can judge |
 | Own command | chevron, `ink` | dotted edge | the tool removes it |
-| QUARANTINE (proposed) | open square, cobalt | cobalt outline, `cobalt` 8% fill | deliberate, reversible |
+| QUARANTINE (proposed) | open square, cobalt | cobalt outline, cobalt 8% fill | deliberate, reversible |
 | Held | square with inner square, cobalt | — | moved, restorable |
 | Needs attention | open square, dashed `attention` | — | interrupted; see Quarantine |
 | Not read | — | open, dashed outline, no fill | coverage gap; never free space |
@@ -224,7 +224,8 @@ Rule counts are not confidence: the stack never shows "3 of 4" or a meter.
 ## Navigation and places
 
 - **Navigation:** four text tabs in a 56 px header at every width. The current place
-  is `ink` 600 with a 2 px cobalt rule under its label; others are `ink-2`. Hover
+  is `ink` with a 2 px cobalt rule under its label; others are `ink-2`, at the same
+  weight so labels do not shift. Hover
   shows the rule in `line-strong`. No container, track, pill, lens or icons. The
   right rail (activity, AI review status, update) keeps its content, as text.
 - **Storage:** disk strip with the measure (available space), the last assessment's

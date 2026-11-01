@@ -42,7 +42,8 @@ dark-mode hierarchy. Asked directly, the owner chose to remove the lens.
 Chosen option: **1**, specified in [visual-language.md](../design/visual-language.md).
 
 - The navigation is four text tabs without icons, container, track or grain. The
-  current place is `ink` at weight 600 with a 2 px cobalt rule under its label.
+  current place is `ink` with a 2 px cobalt rule under its label; the weight stays
+  the same so labels do not shift.
 - `NavigationGlass.tsx`, `glass-map.ts`, their test and the lens CSS are removed.
 - Headers, dialogs, the inspector, the InfoTip panel, secondary buttons and
   segmented controls become opaque, with hairlines and at most one soft shadow for
