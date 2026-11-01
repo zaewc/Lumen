@@ -27,7 +27,6 @@ function Row({
   index,
   active,
   mark,
-  largest,
   hint,
   onOpen,
   onMove,
@@ -38,7 +37,6 @@ function Row({
   readonly active: boolean;
   /** How the open item's lens draws it, if an item is open. */
   readonly mark: LensMark | null;
-  readonly largest: bigint;
   readonly hint: string;
   readonly onOpen: (candidate: CandidateView) => void;
   readonly onMove: (event: KeyboardEvent, from: number) => void;
@@ -49,8 +47,6 @@ function Row({
   const command = status === "command" ? candidate.tool_command : null;
   const note = status === "review" ? candidate.ai_note : null;
   const { m } = useI18n();
-  const footprint =
-    largest === 0n ? 0 : Number((BigInt(candidate.reclaimable_bytes) * 1000n) / largest) / 10;
   return (
     <li
       data-lens={mark ?? undefined}
@@ -76,9 +72,6 @@ function Row({
         </span>
         <span className="col-start-2 row-start-1 justify-self-end text-right tabular-nums text-ink @xl:col-start-4">
           {formatBytes(candidate.reclaimable_bytes)}
-          <span aria-hidden="true" className="mt-1 hidden h-0.5 w-14 bg-line @xl:block">
-            <span className="block h-full bg-ink-3" style={{ width: `${footprint}%` }} />
-          </span>
         </span>
         <span
           title={location}
@@ -172,10 +165,6 @@ export function CandidateList({
   // Each row's place in reading order, across sections and tools.
   const ordered = sections.flatMap((section) => section.sources.flatMap((group) => group.items));
   const order = new Map(ordered.map((candidate, at) => [candidate.path, at]));
-  const largest = ordered.reduce(
-    (size, item) => (BigInt(item.reclaimable_bytes) > size ? BigInt(item.reclaimable_bytes) : size),
-    0n,
-  );
   const rows = (group: SourceGroup) => (
     <ul className="divide-y divide-line">
       {group.items.map((candidate) => {
@@ -187,7 +176,6 @@ export function CandidateList({
             index={at}
             active={at === active}
             mark={lensMark(lens, candidate.path)}
-            largest={largest}
             hint={hint}
             onOpen={(opened) => {
               setSelected(at);

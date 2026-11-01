@@ -234,7 +234,9 @@ Rule counts are not confidence: the stack never shows "3 of 4" or a meter.
   right rail (activity, AI review status, update) keeps its content, as text.
 - **Storage:** disk strip with the measure (available space), the last assessment's
   DecisionMap, the Quarantine row.
-- **Explore:** unchanged steps; the results step gains the map above the list.
+- **Explore:** unchanged steps; the results step gains the map above the list. The
+  DecisionMap under the map keeps its totals and filter but not its bar, and list rows
+  show sizes without bars: both would repeat the map.
 - **Quarantine:** the same table; rows show the Held or Needs attention mark and the
   time held as text. Restore is a quiet button; "Remove for good…" is quiet `ink-2`
   text that turns red only in its confirmation row.

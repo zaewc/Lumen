@@ -11,10 +11,13 @@ export function DecisionMap({
   summary,
   selected,
   onSelect,
+  track = true,
 }: {
   readonly summary: CandidateSummary;
   readonly selected: Status | null;
   readonly onSelect: (status: Status) => void;
+  /** Draw the composition as a bar; off where a map above already draws it. */
+  readonly track?: boolean;
 }) {
   const { m } = useI18n();
   const name = useId();
@@ -22,18 +25,20 @@ export function DecisionMap({
   return (
     <fieldset className="min-w-0">
       <legend className="mb-3 text-[12px] font-medium text-ink-2">{m.workspace.assessed}</legend>
-      <div aria-hidden="true" className="decision-track">
-        {ORDER.map((status) => (
-          <span
-            key={status}
-            className="decision-segment"
-            data-status={status}
-            style={{
-              width: `${total === 0n ? 0 : Number((BigInt(summary[status].bytes) * 1000n) / total) / 10}%`,
-            }}
-          />
-        ))}
-      </div>
+      {track && (
+        <div aria-hidden="true" className="decision-track">
+          {ORDER.map((status) => (
+            <span
+              key={status}
+              className="decision-segment"
+              data-status={status}
+              style={{
+                width: `${total === 0n ? 0 : Number((BigInt(summary[status].bytes) * 1000n) / total) / 10}%`,
+              }}
+            />
+          ))}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-x-5 min-[640px]:grid-cols-4">
         {ORDER.map((status) => (
           <label
