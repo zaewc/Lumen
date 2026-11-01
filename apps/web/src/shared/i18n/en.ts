@@ -7,6 +7,9 @@ const count = countFormat("en");
 /** "1 item", "1,204 items". */
 const items = (n: number) => `${count(n)} ${n === 1 ? "item" : "items"}`;
 
+/** "1 other item", "3 other items". */
+const others = (n: number) => `${count(n)} other ${n === 1 ? "item" : "items"}`;
+
 /** "Spotify and Discord"; past three names, "A, B, C and 2 more". */
 function appList(apps: readonly string[]): string {
   if (apps.length > 3) {
@@ -226,6 +229,16 @@ export const en = {
       apps.length === 0
         ? "Quit the apps using it, then scan again to clean it up."
         : `Quit ${appList(apps)}, then scan again to clean it up.`,
+    related: "Related items",
+    relatedNone: "Lumen recorded nothing that links this to another item.",
+    lens: {
+      tool: (n: number, tool: string, size: string) => `${others(n)} from ${tool} · ${size}`,
+      processes: (n: number, size: string, ...apps: string[]) =>
+        `${others(n)} also in use by ${appList(apps)} · ${size}`,
+      evidence: (n: number, size: string) =>
+        `${others(n)} linked by what the scan recorded · ${size}`,
+      kind: (n: number, group: string, size: string) => `${others(n)} in ${group} · ${size}`,
+    },
   },
   aiNote: {
     likely: (kind: string, confidence: string) => `AI: likely ${kind} (${confidence})`,

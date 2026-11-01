@@ -1,9 +1,10 @@
 import type { CandidateView } from "@lumen/api-client";
 import { type ReactNode, useId, useRef } from "react";
 import { statusOf } from "@/entities/scan-session";
-import { aiNoteText, reasonText, useI18n } from "@/shared/i18n";
+import { aiNoteText, type Messages, reasonText, useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import { CloseIcon, Dialog } from "@/shared/ui";
+import type { Lens, LensLine } from "../model/lens";
 import { StatusText } from "./Status";
 import { ToolCommand } from "./ToolCommand";
 
@@ -17,18 +18,36 @@ function Field({ label, children }: { readonly label: string; readonly children:
   );
 }
 
+/** One relation of the open item's lens, in words. */
+function relationText(m: Messages, line: LensLine): string {
+  const size = formatBytes(line.bytes);
+  switch (line.relation) {
+    case "tool":
+      return m.detail.lens.tool(line.count, line.tool, size);
+    case "processes":
+      return m.detail.lens.processes(line.count, size, ...line.processes);
+    case "evidence":
+      return m.detail.lens.evidence(line.count, size);
+    case "kind":
+      return m.detail.lens.kind(line.count, m.results.groups[line.kind], size);
+  }
+}
+
 /**
  * Everything about one candidate, in a sheet along the window's right edge
  * (the whole window when it is narrow): what it frees, the verdict with
  * every reason, AI review's note on what an item to review likely is, where
- * it is, and the tool's own command if it has one.
+ * it is, what else it is related to, and the tool's own command if it has one.
  * Escape, the close button or a click beside it closes it.
  */
 export function CandidateSheet({
   candidate,
+  lens,
   onClose,
 }: {
   readonly candidate: CandidateView | null;
+  /** What the candidate is related to (the map and list draw it too). */
+  readonly lens: Lens | null;
   readonly onClose: () => void;
 }) {
   const { m } = useI18n();
@@ -121,6 +140,22 @@ export function CandidateSheet({
                 </p>
               )}
             </section>
+            {lens !== null && (
+              <section>
+                <h3 className="text-[14px] font-semibold text-ink">{m.detail.related}</h3>
+                {lens.lines.length === 0 ? (
+                  <p className="mt-2 leading-snug text-ink-2">{m.detail.relatedNone}</p>
+                ) : (
+                  <ul className="mt-2 divide-y divide-line text-[14px] leading-relaxed text-ink">
+                    {lens.lines.map((line) => (
+                      <li key={line.relation} className="py-2 tabular-nums">
+                        {relationText(m, line)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
             {candidate.tool_command !== null && <ToolCommand command={candidate.tool_command} />}
           </div>
         </div>

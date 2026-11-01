@@ -9,7 +9,7 @@ function variantClass(variant: DialogVariant): string {
     case "alert":
       return "m-auto max-h-[calc(100dvh-2rem)] w-[min(32rem,calc(100vw-2rem))] overflow-y-auto rounded-lg bg-raised p-6 shadow-xl ring-1 ring-line animate-[pop-in_160ms_ease-out] motion-reduce:animate-none backdrop:bg-black/25 dark:backdrop:bg-black/50";
     case "sheet":
-      return "fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden bg-transparent p-0 backdrop:bg-black/15 dark:backdrop:bg-black/40";
+      return "fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden bg-transparent p-0 backdrop:bg-transparent";
   }
 }
 
@@ -21,7 +21,7 @@ function variantClass(variant: DialogVariant): string {
  *
  * `onClose` means "the dialog was dismissed": the owner must set `open` to
  * false. It is also called if the browser closes the dialog on its own. A
- * sheet is also dismissed by a click on the dimmed window beside it.
+ * sheet is also dismissed by a click on the window beside it.
  */
 export function Dialog({
   open,
@@ -99,7 +99,7 @@ export function Dialog({
     >
       {variant === "sheet" ? (
         <div className="flex h-full">
-          {/* The dimmed window beside the sheet: a click there closes it, as
+          {/* The window beside the sheet, left legible: a click there closes it, as
               Escape and the sheet's own close button do for the keyboard. */}
           <button
             type="button"
@@ -109,7 +109,7 @@ export function Dialog({
             onClick={() => latest.current.onClose()}
             className="hidden min-w-0 flex-1 cursor-default min-[720px]:block"
           />
-          <div className="h-full w-full bg-raised shadow-xl animate-[sheet-in_180ms_ease-out] motion-reduce:animate-none min-[720px]:w-[32rem] min-[720px]:border-l min-[720px]:border-line-strong">
+          <div className="h-full w-full bg-raised animate-[sheet-in_180ms_ease-out] motion-reduce:animate-none min-[720px]:w-[32rem] min-[720px]:border-l min-[720px]:border-line-strong">
             {children}
           </div>
         </div>

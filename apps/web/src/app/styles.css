@@ -389,6 +389,13 @@
   opacity: 0.3;
 }
 
+/* The open item's lens: what is related to it, outlined in the gutter so
+ * it reads apart from a proposal's own cobalt edge. */
+.topo-item[data-related="true"] {
+  outline: 1px solid var(--lm-accent);
+  outline-offset: 1px;
+}
+
 .topo-item[data-inspected="true"] {
   outline: 2px solid var(--lm-accent);
   outline-offset: -2px;

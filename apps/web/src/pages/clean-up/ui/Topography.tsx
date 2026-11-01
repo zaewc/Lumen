@@ -3,6 +3,7 @@ import { type KeyboardEvent, useLayoutEffect, useRef, useState } from "react";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import { type Filter, shows } from "../model/filter";
+import { type Lens, lensMark } from "../model/lens";
 import {
   layoutTopography,
   type Placed,
@@ -39,7 +40,8 @@ function groupName(m: ReturnType<typeof useI18n>["m"], group: TopoGroup): string
  * The storage topography (docs/design/visual-language.md): every assessed
  * item as a region sized by what it would free, grouped by kind and tool.
  * Selecting a group zooms into it and narrows the list to it; selecting an
- * item opens its details. The status filter lowers the items outside it.
+ * item opens its details. The status filter lowers the items outside it,
+ * and so does an open item's lens, outlining what is related to it.
  * Items are reached by keyboard in the list below, so only groups and the
  * breadcrumb are tab stops here.
  */
@@ -49,7 +51,7 @@ export function Topography({
   zoom,
   onZoom,
   filter,
-  inspected,
+  lens,
   onOpen,
 }: {
   readonly groups: readonly TopoGroup[];
@@ -59,7 +61,7 @@ export function Topography({
   readonly zoom: string | null;
   readonly onZoom: (group: string | null) => void;
   readonly filter: Filter;
-  readonly inspected: string | null;
+  readonly lens: Lens | null;
   readonly onOpen: (candidate: CandidateView) => void;
 }) {
   const { m } = useI18n();
@@ -147,7 +149,7 @@ export function Topography({
             key={regionKey(p)}
             placed={p}
             filter={filter}
-            inspected={inspected}
+            lens={lens}
             onZoom={zoomTo}
             onOpen={onOpen}
           />
@@ -164,13 +166,13 @@ function regionKey(placed: Placed): string {
 function Region({
   placed,
   filter,
-  inspected,
+  lens,
   onZoom,
   onOpen,
 }: {
   readonly placed: Placed;
   readonly filter: Filter;
-  readonly inspected: string | null;
+  readonly lens: Lens | null;
   readonly onZoom: (group: string) => void;
   readonly onOpen: (candidate: CandidateView) => void;
 }) {
@@ -238,7 +240,8 @@ function Region({
   }
 
   const name = baseName(node.candidate.path);
-  const lowered = !shows(filter, node.candidate);
+  const mark = lensMark(lens, node.candidate.path);
+  const lowered = !shows(filter, node.candidate) || mark === "lowered";
   return (
     <button
       type="button"
@@ -248,7 +251,8 @@ function Region({
       title={`${name} · ${size}`}
       data-status={node.status}
       data-lowered={lowered}
-      data-inspected={inspected === node.candidate.path}
+      data-inspected={mark === "inspected"}
+      data-related={mark === "related"}
       className="topo-region topo-item"
       style={box}
     >

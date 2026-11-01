@@ -8,6 +8,7 @@ import { buttonClass, InfoTip, Notice } from "@/shared/ui";
 import { closingSummary } from "../model/closing";
 import { coverageOf } from "../model/coverage";
 import { type Filter, shows } from "../model/filter";
+import { lensOf } from "../model/lens";
 import { sectionsOf } from "../model/sections";
 import { candidatesIn, topographyOf, trailTo, unreadEntries } from "../model/topography";
 import { CandidateList } from "./CandidateList";
@@ -70,6 +71,8 @@ export function Results({
   const listed = zoomed === undefined ? candidates : candidatesIn(zoomed);
   const sections = sectionsOf(listed.filter((candidate) => shows(filter, candidate)));
   const closing = closingSummary(candidates);
+  // What the open item is related to, across the whole assessment.
+  const lens = useMemo(() => (open === null ? null : lensOf(open, candidates)), [open, candidates]);
   return (
     <>
       <div className="space-y-3">
@@ -120,7 +123,7 @@ export function Results({
             zoom={zoomed?.id ?? null}
             onZoom={setZoom}
             filter={filter}
-            inspected={open?.path ?? null}
+            lens={lens}
             onOpen={setOpen}
           />
           <DecisionMap
@@ -128,11 +131,11 @@ export function Results({
             selected={filter === "all" ? null : filter}
             onSelect={onFilterChange}
           />
-          <CandidateList sections={sections} onOpen={setOpen} selectedPath={open?.path ?? null} />
+          <CandidateList sections={sections} onOpen={setOpen} lens={lens} />
         </>
       )}
       <ScanDetails scan={scan} onStartOver={onStartOver} />
-      <CandidateSheet candidate={open} onClose={() => setOpen(null)} />
+      <CandidateSheet candidate={open} lens={lens} onClose={() => setOpen(null)} />
     </>
   );
 }

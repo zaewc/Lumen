@@ -5,6 +5,7 @@ import { aiNoteText, useI18n } from "@/shared/i18n";
 import { baseName, formatBytes, parentPath } from "@/shared/lib";
 import { commandLine } from "../lib/command";
 import { moveIndex } from "../lib/keys";
+import { type Lens, type LensMark, lensMark } from "../model/lens";
 import type { KindSection, SourceGroup } from "../model/sections";
 import { StatusText } from "./Status";
 
@@ -25,7 +26,7 @@ function Row({
   candidate,
   index,
   active,
-  inspected,
+  mark,
   largest,
   hint,
   onOpen,
@@ -35,7 +36,8 @@ function Row({
   readonly index: number;
   /** The row the keyboard is on: the list's one tab stop. */
   readonly active: boolean;
-  readonly inspected: boolean;
+  /** How the open item's lens draws it, if an item is open. */
+  readonly mark: LensMark | null;
   readonly largest: bigint;
   readonly hint: string;
   readonly onOpen: (candidate: CandidateView) => void;
@@ -50,17 +52,21 @@ function Row({
   const footprint =
     largest === 0n ? 0 : Number((BigInt(candidate.reclaimable_bytes) * 1000n) / largest) / 10;
   return (
-    <li>
+    <li
+      data-lens={mark ?? undefined}
+      className="transition-opacity data-[lens=lowered]:opacity-40 motion-reduce:transition-none"
+    >
       <button
         type="button"
         data-row={index}
-        data-inspected={inspected}
+        data-inspected={mark === "inspected"}
+        data-related={mark === "related"}
         aria-haspopup="dialog"
         tabIndex={active ? 0 : -1}
         aria-describedby={active ? hint : undefined}
         onClick={() => onOpen(candidate)}
         onKeyDown={(event) => onMove(event, index)}
-        className={`${GRID} w-full items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill data-[inspected=true]:bg-accent-soft focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
+        className={`${GRID} w-full items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill data-[inspected=true]:bg-accent-soft data-[related=true]:outline-1 data-[related=true]:-outline-offset-1 data-[related=true]:outline-accent focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
       >
         <span
           title={candidate.path}
@@ -134,11 +140,12 @@ function ListHeading({
 export function CandidateList({
   sections,
   onOpen,
-  selectedPath,
+  lens,
 }: {
   readonly sections: readonly KindSection[];
   readonly onOpen: (candidate: CandidateView) => void;
-  readonly selectedPath: string | null;
+  /** The open item's lens: it lowers what is unrelated to that item. */
+  readonly lens: Lens | null;
 }) {
   const { m } = useI18n();
   const hint = useId();
@@ -179,7 +186,7 @@ export function CandidateList({
             candidate={candidate}
             index={at}
             active={at === active}
-            inspected={candidate.path === selectedPath}
+            mark={lensMark(lens, candidate.path)}
             largest={largest}
             hint={hint}
             onOpen={(opened) => {

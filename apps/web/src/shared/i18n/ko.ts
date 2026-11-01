@@ -235,6 +235,18 @@ export const ko = {
       apps.length === 0
         ? "사용 중인 앱을 종료하고 다시 검사하면 정리할 수 있어요."
         : `${appList(apps)} 앱을 종료하고 다시 검사하면 정리할 수 있어요.`,
+    related: "관련 항목",
+    relatedNone: "Lumen이 기록한 것 중에는 이 항목과 이어지는 다른 항목이 없어요.",
+    lens: {
+      tool: (n: number, tool: string, size: string) =>
+        `${tool}의 다른 항목 ${count(n)}개 · ${size}`,
+      processes: (n: number, size: string, ...apps: string[]) =>
+        `${appList(apps)} 앱이 함께 쓰는 다른 항목 ${count(n)}개 · ${size}`,
+      evidence: (n: number, size: string) =>
+        `검사 기록으로 이어진 다른 항목 ${count(n)}개 · ${size}`,
+      kind: (n: number, group: string, size: string) =>
+        `${group}의 다른 항목 ${count(n)}개 · ${size}`,
+    },
   },
   aiNote: {
     likely: (kind: string, confidence: string) => `AI: ${kind}로 보여요(${confidence})`,

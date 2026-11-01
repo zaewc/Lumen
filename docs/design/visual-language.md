@@ -182,8 +182,10 @@ items related to it **by data the interface has**:
 - the same kind;
 - the relations the evidence API exposes (step 6 of the plan), by their kind.
 
-Related regions get a 1 px cobalt outline, the inspected one 2 px. The inspector
-names each relation in words ("3 other items from Xcode: 6.1 GB"). Only relations
+Related regions get a 1 px cobalt outline outside their edge (a proposal already has a
+cobalt edge inside), the inspected one 2 px inside. Items related only by kind stay
+as they are, without an outline, so the close relations stand out. The inspector
+names each relation in words ("1 other item from Xcode · 3.1 GB"). Only relations
 the API provides are drawn; none is inferred from paths or names.
 
 ### Inspection light: the inspector
