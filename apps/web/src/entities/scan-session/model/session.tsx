@@ -8,7 +8,7 @@ import type {
 } from "@lumen/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useMemo, useRef, useState } from "react";
-import { QUERY_KEYS, useSessionOperation, useTransport } from "@/shared/api";
+import { MOVING_OPERATIONS, QUERY_KEYS, useSessionOperation, useTransport } from "@/shared/api";
 
 /** Where the assessment of the latest scan is. */
 export type AssessmentStatus = "pending" | "error" | "success";
@@ -83,21 +83,18 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
   });
 
   const { mutate, reset } = scan;
-  const execution = useSessionOperation(
-    ["session-operation", "clean-up"],
-    async (confirmed: PlanView) => {
-      const finished = await transport.execute({
-        plan: confirmed.plan,
-        confirmation: confirmed.hash,
-      });
-      setReport(finished);
-      reset();
-      queries.removeQueries({ queryKey: QUERY_KEYS.assessment });
-      await queries.invalidateQueries({ queryKey: QUERY_KEYS.held });
-      await queries.invalidateQueries({ queryKey: QUERY_KEYS.disk });
-      return finished;
-    },
-  );
+  const execution = useSessionOperation(MOVING_OPERATIONS.cleanUp, async (confirmed: PlanView) => {
+    const finished = await transport.execute({
+      plan: confirmed.plan,
+      confirmation: confirmed.hash,
+    });
+    setReport(finished);
+    reset();
+    queries.removeQueries({ queryKey: QUERY_KEYS.assessment });
+    await queries.invalidateQueries({ queryKey: QUERY_KEYS.held });
+    await queries.invalidateQueries({ queryKey: QUERY_KEYS.disk });
+    return finished;
+  });
   const cleaning = execution.status === "pending";
   const value = useMemo<ScanSession>(
     () => ({

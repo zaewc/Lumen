@@ -24,7 +24,7 @@ export function FlowStage({ phase }: { readonly phase: Phase }) {
             className="flex min-w-0 flex-1 items-center gap-2 last:flex-none"
           >
             <span
-              className={`border-b-2 pb-1 font-mono text-[11px] ${index === current ? "border-accent text-accent-ink" : "border-transparent text-ink-3"}`}
+              className={`border-b-2 pb-1 font-mono text-[12px] ${index === current ? "border-accent text-accent-ink" : "border-transparent text-ink-3"}`}
             >
               {String(index + 1).padStart(2, "0")}
             </span>

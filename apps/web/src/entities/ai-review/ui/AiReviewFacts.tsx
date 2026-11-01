@@ -32,7 +32,7 @@ export function AiReviewFacts({
     <ol className="divide-y divide-line text-[14px] leading-relaxed text-ink-2">
       {points.map((point, index) => (
         <li key={point} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3 py-3 first:pt-0">
-          <span aria-hidden="true" className="pt-0.5 font-mono text-[11px] text-ink-3">
+          <span aria-hidden="true" className="pt-0.5 font-mono text-[12px] text-ink-3">
             {String(index + 1).padStart(2, "0")}
           </span>
           <span>{point}</span>
@@ -73,7 +73,7 @@ export function AiKeyField({
         aria-describedby={hintId}
         aria-invalid={invalid}
         disabled={disabled}
-        className="h-9 w-full rounded-lg border border-line-strong bg-window px-3 font-mono text-[13px] text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+        className="h-9 w-full rounded-lg border border-line-strong bg-canvas px-3 font-mono text-[13px] text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
       />
       <p id={hintId} className="text-[12px] text-ink-3">
         {invalid ? m.ai.consent.keyInvalid : hint}

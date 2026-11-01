@@ -15,6 +15,8 @@ what is safe to remove, into a quarantine you can restore from.
 
 [**Download**](https://zaewc.github.io/Lumen/en/) · [한국어](https://zaewc.github.io/Lumen/) · [How it works](ARCHITECTURE.md) · [Roadmap](docs/architecture/roadmap.md)
 
+![Language Stats](https://github-repository-language-graph-wi.vercel.app/api?username=zaewc&repo=Lumen&theme=dark)
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/clean-up-dark.png">
   <img src="docs/assets/readme/clean-up-light.png" width="840" alt="Lumen's Explore page with sample data: storage composition by decision, 9.9 GB proposed, and tool-native cleanup commands.">

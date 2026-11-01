@@ -25,6 +25,9 @@ const CHILD: &str = "LUMEN_DESKTOP_E2E_HOME";
 /// Set in the child process that starts after an interrupted cleanup.
 const RECOVERY: &str = "LUMEN_DESKTOP_RECOVERY_HOME";
 
+/// Set in the child process that tries to quit and update mid-cleanup.
+const HOLD: &str = "LUMEN_DESKTOP_HOLD_HOME";
+
 /// Re-runs `test` in a child process with `HOME` (and `var`) at `home`.
 fn in_child(test: &str, var: &str, home: &Path) {
     let exe = std::env::current_exe().unwrap_or_else(|e| unreachable!("{e}"));
@@ -326,4 +329,82 @@ fn an_interrupted_cleanup_is_listed_after_the_next_launch() {
         RECOVERY,
         &home,
     );
+}
+
+/// The child's half of [`quit_and_updates_wait_for_a_cleanup`]: while an
+/// item action runs, the update and closing the window wait; while an update
+/// installs, no item action starts; and once both are done the window closes.
+fn hold_quit_and_updates() {
+    let secrets = Arc::new(MemorySecretStore::default());
+    let app = crate::app(mock_builder(), Some(secrets), None)
+        .build(crate::context())
+        .unwrap_or_else(|e| unreachable!("{e}"));
+    let mut moving = None;
+    let mut held = 0;
+    let exit = app.run_return(move |handle, event| {
+        crate::hold_quit_events(handle, &event);
+        let window = || {
+            handle
+                .get_webview_window("main")
+                .unwrap_or_else(|| unreachable!("the main window"))
+        };
+        let activity = Arc::clone(&handle.state::<crate::commands::Core>().activity);
+        match event {
+            RunEvent::Ready => {
+                moving = Some(activity.moving().unwrap_or_else(|e| unreachable!("{e}")));
+                let refused = invoke(&window(), "install_update", json!({}))
+                    .err()
+                    .unwrap_or_else(|| unreachable!("no update while items move"));
+                assert!(refused.to_string().contains("moving items"), "{refused}");
+                window().close().unwrap_or_else(|e| unreachable!("{e}"));
+            }
+            // The close request above has been answered by now.
+            RunEvent::MainEventsCleared if moving.is_some() => {
+                held += 1;
+                moving = None;
+                let updating = activity.updating().unwrap_or_else(|e| unreachable!("{e}"));
+                for (cmd, body) in [
+                    (
+                        "execute",
+                        json!({ "request": { "plan": "x", "confirmation": "x" } }),
+                    ),
+                    ("restore", json!({ "operationId": INTERRUPTED })),
+                    ("finalize", json!({ "operationId": INTERRUPTED })),
+                ] {
+                    let refused = invoke(&window(), cmd, body)
+                        .err()
+                        .unwrap_or_else(|| unreachable!("{cmd} waits for the update"));
+                    assert!(
+                        refused.to_string().contains("installing an update"),
+                        "{refused}"
+                    );
+                }
+                drop(updating);
+                window().close().unwrap_or_else(|e| unreachable!("{e}"));
+            }
+            // The mock runtime asks to exit once it has closed the last window.
+            RunEvent::ExitRequested { .. } => {
+                assert!(moving.is_none(), "the window closed while items moved");
+            }
+            RunEvent::Exit => assert_eq!(held, 1),
+            _ => {}
+        }
+    });
+    assert_eq!(exit, 0);
+}
+
+/// UX-3: quitting and updating wait for a clean-up or Quarantine action.
+#[test]
+fn quit_and_updates_wait_for_a_cleanup() {
+    if std::env::var_os(HOLD).is_some() {
+        hold_quit_and_updates();
+        return;
+    }
+    let fx = Fixture::build(&[Node::Dir {
+        path: "home/Library/Application Support".into(),
+    }])
+    .unwrap_or_else(|e| unreachable!("{e}"));
+    let home = std::fs::canonicalize(fx.path("home").unwrap_or_else(|e| unreachable!("{e}")))
+        .unwrap_or_else(|e| unreachable!("{e}"));
+    in_child("e2e::quit_and_updates_wait_for_a_cleanup", HOLD, &home);
 }

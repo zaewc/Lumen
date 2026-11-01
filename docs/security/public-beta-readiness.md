@@ -122,10 +122,15 @@ on the Quarantine page as needing the person, outside the held count and size.
 A ledger lock (`ledger.lock`) keeps reconciliation from journaling over a
 cleanup in another Lumen process or twice at once; quarantine holds it for the
 whole plan. A desktop recovery test starts the app after a crash mid-cleanup
-and finds the item listed and restorable. Remaining: prevent quit and update
-while a cleanup or Quarantine action runs; a way to dismiss an operation that
-needs the person; restore and finalize under the same lock; recovery from a
-lost or corrupt ledger (FS-7).
+and finds the item listed and restorable. While a clean-up or Quarantine
+action runs, closing the window and quitting wait (the page says why, and Lumen
+does not quit later by itself), and an update is refused; while an update
+installs, no clean-up or Quarantine action starts. On macOS, ⌘Q is Lumen's own
+menu item: the standard one sends `terminate:`, which Tauri 2.12 reports only
+as `RunEvent::Exit`, too late to hold. The Dock's Quit, logging out, shutting
+down and force quitting cannot be held; startup reconciliation covers them.
+Remaining: a way to dismiss an operation that needs the person; restore and
+finalize under the same lock; recovery from a lost or corrupt ledger (FS-7).
 
 ### SC-1: Previously exposed updater signing key was not rotated
 

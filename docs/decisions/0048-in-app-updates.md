@@ -64,7 +64,9 @@ Chosen option: **1**.
   only when the user presses Update, then restarts. The check and install are Lumen's
   own commands (no plugin permission is granted to the page). Settings shows the
   current version and a Check for updates button. A `.deb` install is offered the
-  download page instead.
+  download page instead. Installing waits for clean-ups and Quarantine actions: it
+  is refused while one runs, and none starts until the update restarts Lumen or
+  fails (UX-3).
 - **Failure:** a failed check is silent at start and reported in Settings; a failed
   download or a bad signature installs nothing.
 
