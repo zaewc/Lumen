@@ -1,4 +1,4 @@
-export { type ButtonSize, type ButtonVariant, buttonClass } from "./button";
+export { type ButtonSize, type ButtonVariant, buttonClass, CONFIRM_ROW } from "./button";
 export { Dialog, type DialogVariant } from "./Dialog";
 export { Disclosure } from "./Disclosure";
 export { Group, GroupRow } from "./Group";

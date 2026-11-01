@@ -1,5 +1,8 @@
-/** How prominent an action is; red is kept for what cannot be undone. */
-export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "dangerQuiet";
+/**
+ * How prominent an action is. Red is kept for confirming what cannot be
+ * undone; the step that asks for it is `plain`.
+ */
+export type ButtonVariant = "primary" | "secondary" | "quiet" | "plain" | "danger";
 
 export type ButtonSize = "sm" | "md" | "lg";
 
@@ -14,10 +17,10 @@ function variantClass(variant: ButtonVariant): string {
       return "border border-line-strong bg-raised text-ink hover:bg-fill focus-visible:outline-accent disabled:hover:bg-raised";
     case "quiet":
       return "text-accent-ink hover:bg-accent-soft focus-visible:outline-accent";
+    case "plain":
+      return "text-ink-2 hover:bg-fill hover:text-ink focus-visible:outline-accent";
     case "danger":
       return "bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600 disabled:hover:bg-red-600 dark:focus-visible:outline-red-400";
-    case "dangerQuiet":
-      return "text-red-700 hover:bg-red-600/10 focus-visible:outline-red-600 dark:text-red-400 dark:focus-visible:outline-red-400";
   }
 }
 
@@ -36,3 +39,10 @@ function sizeClass(size: ButtonSize): string {
 export function buttonClass(variant: ButtonVariant, size: ButtonSize = "md"): string {
   return `${BASE} ${variantClass(variant)} ${sizeClass(size)}`;
 }
+
+/**
+ * An inline confirmation in a list row or the inspector: a hairline-bounded
+ * row, not a coloured box (docs/design/visual-language.md). Only its
+ * confirming button is red.
+ */
+export const CONFIRM_ROW = "flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-line py-3";

@@ -101,8 +101,8 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
         </button>
       )}
       {confirming && (
-        <div className="mt-2 space-y-2 rounded-md bg-red-500/8 px-3 py-2.5 dark:bg-red-400/10">
-          <div id={warning} className="space-y-1 text-[13px] text-red-900 dark:text-red-200">
+        <div className="mt-2 space-y-2 border-y border-line py-3">
+          <div id={warning} className="space-y-1 text-[13px] text-ink">
             <p>{m.toolCommand.runWarning}</p>
             {command.removes_data && <p className="font-medium">{m.toolCommand.removesData}</p>}
           </div>

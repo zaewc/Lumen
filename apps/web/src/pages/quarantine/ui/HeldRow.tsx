@@ -1,8 +1,9 @@
 import type { HeldItemView } from "@lumen/api-client";
 import { useEffect, useId, useRef, useState } from "react";
+import { DecisionMark } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes, parentPath } from "@/shared/lib";
-import { buttonClass } from "@/shared/ui";
+import { buttonClass, CONFIRM_ROW } from "@/shared/ui";
 import { type Done, daysHeld } from "../lib/outcome";
 
 /**
@@ -57,7 +58,7 @@ export function HeldRow({
   return (
     <li
       data-selected={selected}
-      className="flex gap-3 rounded px-2 py-3 transition-colors data-[selected=true]:bg-accent-soft motion-reduce:transition-none"
+      className="flex gap-3 rounded px-2 py-3 transition-colors data-[selected=true]:bg-fill motion-reduce:transition-none"
     >
       <input
         type="checkbox"
@@ -81,8 +82,9 @@ export function HeldRow({
           </span>
           <span
             title={retained ? undefined : m.held.afterFailure}
-            className={`col-start-2 row-start-2 text-right text-[12px] tabular-nums @2xl:col-start-4 @2xl:row-start-1 @2xl:text-left @2xl:text-[13px] ${retained ? "text-ink-2" : "text-amber-700 dark:text-amber-400"}`}
+            className={`col-start-2 row-start-2 flex items-center justify-end gap-1.5 text-[12px] tabular-nums @2xl:col-start-4 @2xl:row-start-1 @2xl:justify-start @2xl:text-[13px] ${retained ? "text-ink-2" : "text-amber-700 dark:text-amber-400"}`}
           >
+            <DecisionMark status={retained ? "held" : "attention"} />
             {retained ? m.held.days(daysHeld(item.since, new Date())) : m.held.restoreOnly}
           </span>
           <div className="col-span-2 flex justify-end gap-1 @2xl:col-span-1 @2xl:col-start-5 @2xl:row-start-1">
@@ -100,7 +102,7 @@ export function HeldRow({
                 type="button"
                 onClick={() => setConfirming(true)}
                 disabled={busy || confirming}
-                className={buttonClass("dangerQuiet", "sm")}
+                className={buttonClass("plain", "sm")}
               >
                 {m.held.removeForGoodAsk}
               </button>
@@ -108,8 +110,8 @@ export function HeldRow({
           </div>
         </div>
         {retained && confirming && (
-          <div className="mt-2 mb-1 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-500/8 px-3 py-2.5 dark:bg-red-400/10">
-            <p id={warning} className="min-w-0 flex-1 basis-64 text-red-900 dark:text-red-200">
+          <div className={`${CONFIRM_ROW} mt-2`}>
+            <p id={warning} className="min-w-0 flex-1 basis-64 text-ink">
               {m.held.removeForGoodWarning}
             </p>
             <div className="flex gap-2">
