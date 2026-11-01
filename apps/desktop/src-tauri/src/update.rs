@@ -8,10 +8,10 @@
 //! commands are its only way in, and installing is always the user's request.
 
 use lumen_api::views::UpdateView;
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Runtime, State};
 use tauri_plugin_updater::UpdaterExt as _;
 
-use crate::commands::CommandError;
+use crate::commands::{CommandError, Core};
 
 /// Whether this copy can replace itself: everywhere but a Linux install from
 /// a `.deb` package (an `AppImage` says where it runs from in `APPIMAGE`).
@@ -39,15 +39,20 @@ pub(crate) async fn check_update<R: Runtime>(
 }
 
 /// Downloads the newer version, checks its signature, installs it and starts
-/// it. Does nothing (and says so) when there is none or this copy cannot
-/// replace itself.
+/// it. Does nothing (and says so) when there is none, this copy cannot
+/// replace itself, or a clean-up or Quarantine action runs; none starts
+/// until Lumen restarts or the update fails (UX-3).
 #[tauri::command]
-pub(crate) async fn install_update<R: Runtime>(app: AppHandle<R>) -> Result<(), CommandError> {
+pub(crate) async fn install_update<R: Runtime>(
+    app: AppHandle<R>,
+    core: State<'_, Core>,
+) -> Result<(), CommandError> {
     if !installable() {
         return Err(CommandError::new(
             "this copy was installed from a package; update it from the download page",
         ));
     }
+    let _updating = core.activity.updating()?;
     let update = app
         .updater()
         .map_err(CommandError::new)?

@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useInstallUpdate, useUpdate } from "@/entities/app-update";
-import { useTransport } from "@/shared/api";
+import { useMoving, useTransport } from "@/shared/api";
 import { APP_VERSION } from "@/shared/config";
 import { LOCALE_NAMES, LOCALES, useI18n } from "@/shared/i18n";
 import { isMac, userAgent } from "@/shared/lib";
@@ -127,6 +127,8 @@ function UpdateRow() {
   const transport = useTransport();
   const update = useUpdate();
   const install = useInstallUpdate();
+  // The host refuses to update while items move (UX-3); say so first.
+  const moving = useMoving();
   if (transport.checkUpdate === undefined) {
     return null;
   }
@@ -143,6 +145,8 @@ function UpdateRow() {
     description = u.checkFailed;
   } else if (available === null) {
     description = u.upToDate;
+  } else if (installable && moving) {
+    description = u.waitForItems;
   } else {
     description = installable
       ? u.available(available)
@@ -158,7 +162,7 @@ function UpdateRow() {
           <button
             type="button"
             onClick={() => void install.run(undefined)}
-            disabled={install.status === "pending"}
+            disabled={install.status === "pending" || moving}
             className={buttonClass("primary", "sm")}
           >
             {install.status === "pending" ? u.installing : u.install}

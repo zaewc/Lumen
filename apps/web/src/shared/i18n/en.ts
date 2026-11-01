@@ -74,6 +74,7 @@ export const en = {
     evidenceStage: "Evidence",
     decisionStage: "Decide",
     activeCommand: "Command running",
+    quitHeld: "Lumen is moving or removing items. You can close it once that finishes.",
   },
   start: {
     title: "See what's on your disk",
@@ -472,6 +473,7 @@ export const en = {
         installingNote:
           "Lumen downloads the new version, checks its signature, installs it and restarts.",
         installFailed: "The update did not install. This version is unchanged.",
+        waitForItems: "You can update once Lumen finishes moving or removing items.",
         sidebar: (version: string) => `Version ${version} available`,
         notice: (version: string) => `Lumen ${version} is available.`,
         noticeAction: "View update",

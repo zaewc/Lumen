@@ -12,6 +12,7 @@ import { OverviewPage } from "@/pages/overview";
 import { QuarantinePage } from "@/pages/quarantine";
 import { SettingsPage } from "@/pages/settings";
 import { Sidebar } from "@/widgets/sidebar";
+import { QuitHeld } from "./QuitHeld";
 
 /**
  * A workspace navigation above the independently scrolling page. Storage
@@ -30,6 +31,7 @@ function Layout() {
       className="flex h-dvh flex-col overflow-hidden bg-window text-[14px] leading-relaxed text-ink"
     >
       <Sidebar />
+      <QuitHeld />
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
         <Outlet />
       </div>

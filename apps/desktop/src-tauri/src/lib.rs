@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use lumen_application::ports::SecretStore;
 use tauri::webview::WebviewWindowBuilder;
-use tauri::{Builder, Manager as _, Runtime, Url, WebviewUrl};
+use tauri::{AppHandle, Builder, Manager as _, RunEvent, Runtime, Url, WebviewUrl, WebviewWindow};
 
 /// Whether the main window may show `url`: only the app itself, never the
 /// web (ADR-0004).
@@ -31,6 +31,73 @@ fn allowed(url: &Url) -> bool {
         ),
         _ => false,
     }
+}
+
+/// Dispatches the fixed DOM event `name` into `view`, the way native window
+/// events reach the page without a new IPC capability (ADR-0048).
+fn tell_page<R: Runtime>(view: Option<WebviewWindow<R>>, name: &str) {
+    if let Some(view) = view
+        && let Err(error) = view.eval(format!("window.dispatchEvent(new Event('{name}'))"))
+    {
+        tracing::warn!(%error, name, "Could not notify the interface");
+    }
+}
+
+/// Whether quitting now would cut a clean-up or Quarantine action short
+/// (UX-3). Then quitting waits, and the page says why; Lumen does not quit
+/// later by itself.
+fn hold_quit<R: Runtime>(app: &AppHandle<R>) -> bool {
+    let moving = app
+        .try_state::<commands::Core>()
+        .is_some_and(|core| core.activity.is_moving());
+    if moving {
+        tell_page(app.get_webview_window("main"), "lumen:quit-held");
+    }
+    moving
+}
+
+/// Holds closing the window and exit requests while items move (see
+/// [`hold_quit`]). Exit requests come from closing the last window and from
+/// `AppHandle::exit`, which Lumen's own Quit menu item uses on macOS.
+fn hold_quit_events<R: Runtime>(app: &AppHandle<R>, event: &RunEvent) {
+    match event {
+        RunEvent::WindowEvent {
+            event: tauri::WindowEvent::CloseRequested { api, .. },
+            ..
+        } if hold_quit(app) => api.prevent_close(),
+        RunEvent::ExitRequested { api, .. } if hold_quit(app) => api.prevent_exit(),
+        _ => {}
+    }
+}
+
+/// macOS's standard Quit item (⌘Q) sends `terminate:`, which Tao reports
+/// only after the fact (`applicationWillTerminate`, then `RunEvent::Exit`),
+/// so nothing can hold it. Lumen's own item exits through
+/// [`AppHandle::exit`] instead, which raises `RunEvent::ExitRequested`.
+#[cfg(target_os = "macos")]
+const QUIT: &str = "lumen-quit";
+
+/// Tauri's default macOS menu with its Quit item swapped for Lumen's own.
+#[cfg(target_os = "macos")]
+fn menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::Menu<R>> {
+    use tauri::menu::{Menu, MenuItem, MenuItemKind};
+
+    let menu = Menu::default(app)?;
+    if let Some(MenuItemKind::Submenu(first)) = menu.items()?.into_iter().next() {
+        let items = first.items()?;
+        if let Some(MenuItemKind::Predefined(_)) = items.last() {
+            first.remove_at(items.len() - 1)?;
+        }
+        let name = &app.package_info().name;
+        first.append(&MenuItem::with_id(
+            app,
+            QUIT,
+            format!("Quit {name}"),
+            true,
+            Some("CmdOrCtrl+Q"),
+        )?)?;
+    }
+    Ok(menu)
 }
 
 /// The app on `builder`'s runtime: its commands, its core state and its one
@@ -49,12 +116,8 @@ pub fn app<R: Runtime>(
         // `check_update` and `install_update`, never from the page.
         .plugin(tauri_plugin_updater::Builder::new().build())
         .on_window_event(|window, event| {
-            if matches!(event, tauri::WindowEvent::Focused(true))
-                && let Some(view) = window.get_webview_window(window.label())
-                && let Err(error) =
-                    view.eval("window.dispatchEvent(new Event('lumen:window-focus'))")
-            {
-                tracing::warn!(%error, "Could not notify the interface of window focus");
+            if matches!(event, tauri::WindowEvent::Focused(true)) {
+                tell_page(window.get_webview_window(window.label()), "lumen:window-focus");
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -102,6 +165,7 @@ pub fn app<R: Runtime>(
                 tool_entries: std::sync::Mutex::default(),
                 tool_running: Arc::default(),
                 settled,
+                activity: Arc::default(),
             });
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")
@@ -123,7 +187,17 @@ pub fn app<R: Runtime>(
 /// A [`tauri::Error`] if the app cannot start.
 pub fn run() -> Result<(), tauri::Error> {
     let store = lumen_app::ai::os_store().map(Arc::from);
-    app(Builder::default(), store, lumen_app::ai::builtin_key()).run(context())
+    let builder = app(Builder::default(), store, lumen_app::ai::builtin_key());
+    #[cfg(target_os = "macos")]
+    let builder = builder.menu(menu).on_menu_event(|app, event| {
+        if event.id() == QUIT {
+            app.exit(0);
+        }
+    });
+    builder
+        .build(context())?
+        .run(|app, event| hold_quit_events(app, &event));
+    Ok(())
 }
 
 /// The app's configuration, assets and capabilities, embedded at build time.

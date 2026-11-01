@@ -1,7 +1,13 @@
 import type { HeldItemView, SpaceChangeView } from "@lumen/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { heldTotal } from "@/entities/held";
-import { operationOf, QUERY_KEYS, useSessionOperation, useTransport } from "@/shared/api";
+import {
+  MOVING_OPERATIONS,
+  operationOf,
+  QUERY_KEYS,
+  useSessionOperation,
+  useTransport,
+} from "@/shared/api";
 import { runBatch } from "../lib/batch";
 import type { Done, LastAction } from "../lib/outcome";
 import { actionable, type BulkResult, bulkResult } from "../lib/selection";
@@ -21,7 +27,7 @@ interface Progress {
   readonly done: number;
   readonly total: number;
 }
-const KEY = ["session-operation", "quarantine"];
+const KEY = MOVING_OPERATIONS.quarantine;
 
 /** Confirmed actions keep their exact item snapshot across route changes. */
 export function useHeldAction() {

@@ -50,6 +50,9 @@ pub(crate) struct Core {
     /// Startup's reconciliation (UX-3): run once, when the app starts, and
     /// waited for before the held items are first listed.
     pub(crate) settled: Arc<std::sync::Once>,
+    /// Clean-ups and Quarantine actions running, and an update installing:
+    /// quitting and updating wait for the first, item actions for the second.
+    pub(crate) activity: Arc<Activity>,
 }
 
 impl std::fmt::Debug for Core {
@@ -68,6 +71,7 @@ impl std::fmt::Debug for Core {
             )
             .field("tool_running", &self.tool_running.try_lock().is_err())
             .field("settled", &self.settled.is_completed())
+            .field("activity", &self.activity)
             .finish()
     }
 }
@@ -85,6 +89,78 @@ impl CommandError {
         Self {
             message: error.to_string(),
         }
+    }
+}
+
+/// What quitting and updating must not cut short (UX-3): how many item
+/// actions (a clean-up, a restore, a removal for good) run, and whether an
+/// update installs. An update restarts Lumen, so the two never overlap.
+#[derive(Debug, Default)]
+pub(crate) struct Activity(std::sync::Mutex<Busy>);
+
+#[derive(Debug, Default)]
+struct Busy {
+    moving: usize,
+    updating: bool,
+}
+
+impl Activity {
+    fn busy(&self) -> std::sync::MutexGuard<'_, Busy> {
+        self.0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// Marks an item action as running until the guard drops; refused while
+    /// an update installs.
+    pub(crate) fn moving(self: &Arc<Self>) -> Result<Moving, CommandError> {
+        let mut busy = self.busy();
+        if busy.updating {
+            return Err(CommandError::new(
+                "Lumen is installing an update; try again once it restarts",
+            ));
+        }
+        busy.moving += 1;
+        Ok(Moving(Arc::clone(self)))
+    }
+
+    /// Marks an update as installing until the guard drops (or Lumen
+    /// restarts); refused while an item action runs.
+    pub(crate) fn updating(self: &Arc<Self>) -> Result<Updating, CommandError> {
+        let mut busy = self.busy();
+        if busy.moving > 0 {
+            return Err(CommandError::new(
+                "Lumen is moving items; update once that finishes",
+            ));
+        }
+        busy.updating = true;
+        Ok(Updating(Arc::clone(self)))
+    }
+
+    /// Whether an item action runs, so quitting now could interrupt it.
+    pub(crate) fn is_moving(&self) -> bool {
+        self.busy().moving > 0
+    }
+}
+
+/// An item action in progress; see [`Activity::moving`].
+#[derive(Debug)]
+pub(crate) struct Moving(Arc<Activity>);
+
+impl Drop for Moving {
+    fn drop(&mut self) {
+        let mut busy = self.0.busy();
+        busy.moving = busy.moving.saturating_sub(1);
+    }
+}
+
+/// An update installing; see [`Activity::updating`].
+#[derive(Debug)]
+pub(crate) struct Updating(Arc<Activity>);
+
+impl Drop for Updating {
+    fn drop(&mut self) {
+        self.0.busy().updating = false;
     }
 }
 
@@ -479,7 +555,9 @@ pub(crate) async fn execute(
     request: ExecuteRequest,
 ) -> Result<QuarantineReportView, CommandError> {
     let db = core.db.clone();
+    let moving = core.activity.moving()?;
     blocking(move || {
+        let _moving = moving;
         let plan: PlanId = request
             .plan
             .parse()
@@ -536,7 +614,9 @@ pub(crate) async fn restore(
     operation_id: String,
 ) -> Result<RestoreOutcomeView, CommandError> {
     let db = core.db.clone();
+    let moving = core.activity.moving()?;
     blocking(move || {
+        let _moving = moving;
         let outcome = lumen_app::held::restore(&db, operation(&operation_id)?, &SystemClock)
             .map_err(CommandError::new)?;
         Ok(RestoreOutcomeView::from(&outcome))
@@ -551,7 +631,9 @@ pub(crate) async fn finalize(
     operation_id: String,
 ) -> Result<FinalizeOutcomeView, CommandError> {
     let db = core.db.clone();
+    let moving = core.activity.moving()?;
     blocking(move || {
+        let _moving = moving;
         let outcome = lumen_app::held::finalize(&db, operation(&operation_id)?, &SystemClock)
             .map_err(CommandError::new)?;
         Ok(FinalizeOutcomeView::from(&outcome))
@@ -565,6 +647,26 @@ mod tests {
     use lumen_scan::ScanProgress;
 
     use super::*;
+
+    #[test]
+    fn updates_and_item_actions_wait_for_each_other() {
+        let activity = Arc::new(Activity::default());
+        let first = activity.moving().unwrap_or_else(|e| unreachable!("{e}"));
+        let second = activity.moving().unwrap_or_else(|e| unreachable!("{e}"));
+        assert!(activity.is_moving());
+        assert!(activity.updating().is_err(), "not while items move");
+        drop(first);
+        assert!(activity.is_moving(), "one is still running");
+        assert!(activity.updating().is_err());
+        drop(second);
+        assert!(!activity.is_moving());
+        let update = activity.updating().unwrap_or_else(|e| unreachable!("{e}"));
+        assert!(activity.moving().is_err(), "not while an update installs");
+        assert!(!activity.is_moving(), "a refused action is not counted");
+        drop(update);
+        assert!(activity.moving().is_ok(), "again once the update stops");
+        assert!(!activity.is_moving(), "and the guard released it");
+    }
 
     #[test]
     fn theme_accepts_only_the_three_appearance_choices() {

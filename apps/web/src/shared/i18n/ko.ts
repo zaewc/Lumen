@@ -84,6 +84,7 @@ export const ko = {
     evidenceStage: "근거 확인",
     decisionStage: "판단",
     activeCommand: "명령 실행 중",
+    quitHeld: "Lumen이 항목을 옮기거나 지우고 있어요. 끝나면 닫을 수 있어요.",
   },
   start: {
     title: "저장 공간을 살펴봐요",
@@ -476,6 +477,7 @@ export const ko = {
         installing: "업데이트하는 중…",
         installingNote: "새 버전을 내려받아 서명을 확인한 뒤 설치하고 다시 시작해요.",
         installFailed: "업데이트하지 못했어요. 지금 버전은 그대로예요.",
+        waitForItems: "Lumen이 항목을 옮기거나 지우고 나면 업데이트할 수 있어요.",
         sidebar: (version: string) => `새 버전 ${version}`,
         notice: (version: string) => `Lumen ${version} 업데이트가 있어요.`,
         noticeAction: "업데이트 보기",
