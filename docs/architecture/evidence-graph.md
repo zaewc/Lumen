@@ -177,6 +177,10 @@ The parents of those entries are collected in the same pass
   before the Unix epoch); `not_read` means it was not read. `folder` says the times
   are a folder entry's own, not its contents'. Creation and status-change times are
   not facts, so they are not shown.
+- `facts`: every other fact about the candidate in its bundle, and whether each
+  application that owns it is installed, typed, with basis, source and observation
+  time. For in use, owned by the current user and owner installed, a missing fact
+  means unknown, never "no".
 
 ## Explanation chains
 

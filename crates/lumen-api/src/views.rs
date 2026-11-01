@@ -24,10 +24,12 @@ use lumen_domain::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+mod facts;
 #[cfg(test)]
 mod fixture;
 mod times;
 
+pub use facts::{AppDataKindView, BasisView, FactKindView, FactView};
 pub use times::{TimeView, TimesView};
 
 fn bytes(count: ByteCount) -> String {
@@ -240,6 +242,11 @@ pub struct CandidateView {
     /// Its modification and access times as the decision saw them, each
     /// saying how far it can be relied on (ADR-0053).
     pub times: TimesView,
+    /// The facts the decision saw about it, and whether each application
+    /// that owns it is installed (ADR-0053). For in use, owned by the
+    /// current user and owner installed, a missing fact means the question
+    /// could not be answered: unknown, never "no".
+    pub facts: Vec<FactView>,
 }
 
 /// The apps to close so that a kept item could be proposed on the next scan.
@@ -515,6 +522,7 @@ impl From<&Assessed> for CandidateView {
                     processes: free.processes.clone(),
                 }),
             times: times::times(assessed),
+            facts: facts::facts(assessed),
         }
     }
 }

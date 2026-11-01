@@ -91,6 +91,18 @@
           }
         }
       },
+      "AppDataKindView": {
+        "type": "string",
+        "description": "What kind of location the platform documents an app data folder as.",
+        "enum": [
+          "caches",
+          "container",
+          "application_support",
+          "preferences",
+          "saved_application_state",
+          "web_data"
+        ]
+      },
       "AssessProgressView": {
         "type": "object",
         "description": "Advisory progress, without paths or contents. Never an action input.",
@@ -130,6 +142,49 @@
           "describing"
         ]
       },
+      "BasisView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Directly observed.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "observed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Concluded from not finding something in these sources, each of which\nwas searched completely.",
+            "required": [
+              "searched",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "absence"
+                ]
+              },
+              "searched": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The sources searched."
+              }
+            }
+          }
+        ],
+        "description": "How a fact was established."
+      },
       "CandidateView": {
         "type": "object",
         "description": "One assessed candidate.",
@@ -142,7 +197,8 @@
           "group",
           "ai_note",
           "free_when_closed",
-          "times"
+          "times",
+          "facts"
         ],
         "properties": {
           "ai_note": {
@@ -155,6 +211,13 @@
                 "type": "null"
               }
             ]
+          },
+          "facts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactView"
+            },
+            "description": "The facts the decision saw about it, and whether each application\nthat owns it is installed (ADR-0053). For in use, owned by the\ncurrent user and owner installed, a missing fact means the question\ncould not be answered: unknown, never \"no\"."
           },
           "free_when_closed": {
             "oneOf": [
@@ -260,6 +323,303 @@
           }
         },
         "additionalProperties": false
+      },
+      "FactKindView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "It belongs to this application.",
+            "required": [
+              "app",
+              "type"
+            ],
+            "properties": {
+              "app": {
+                "type": "string",
+                "description": "The application's identifier."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "owning_application"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Whether an application that owns it is installed.",
+            "required": [
+              "app",
+              "present",
+              "type"
+            ],
+            "properties": {
+              "app": {
+                "type": "string",
+                "description": "The application's identifier."
+              },
+              "present": {
+                "type": "boolean",
+                "description": "Whether it was found."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "application_present"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It is an application data location of a documented kind.",
+            "required": [
+              "kind",
+              "type"
+            ],
+            "properties": {
+              "kind": {
+                "$ref": "#/components/schemas/AppDataKindView",
+                "description": "The kind."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "app_data_location"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It matches a developer knowledge-base entry.",
+            "required": [
+              "entry",
+              "type"
+            ],
+            "properties": {
+              "entry": {
+                "type": "string",
+                "description": "The entry's ID."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "knowledge_base_match"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A vendor declared it a disposable cache.",
+            "required": [
+              "declared_by",
+              "type"
+            ],
+            "properties": {
+              "declared_by": {
+                "type": "string",
+                "description": "Who declared it."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "vendor_declared_cache"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The operating system's protection flags on it.",
+            "required": [
+              "system_restricted",
+              "undeletable",
+              "system_attribute",
+              "hidden",
+              "type"
+            ],
+            "properties": {
+              "hidden": {
+                "type": "boolean",
+                "description": "Hidden from normal listings."
+              },
+              "system_attribute": {
+                "type": "boolean",
+                "description": "Windows' system attribute."
+              },
+              "system_restricted": {
+                "type": "boolean",
+                "description": "System Integrity Protection or an equivalent."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "protected"
+                ]
+              },
+              "undeletable": {
+                "type": "boolean",
+                "description": "Cannot be unlinked, or immutable."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Whether it is synced with a cloud service, or holds or lies in synced\ncontent.",
+            "required": [
+              "cloud_backed",
+              "type"
+            ],
+            "properties": {
+              "cloud_backed": {
+                "type": "boolean",
+                "description": "Whether it is."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "cloud_backed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It holds a web browser profile's state.",
+            "required": [
+              "marker",
+              "type"
+            ],
+            "properties": {
+              "marker": {
+                "type": "string",
+                "description": "The entry that showed it, relative to the item."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "browser_profile"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A large folder no other evidence names; says nothing about what it is.",
+            "required": [
+              "reclaimable_bytes",
+              "type"
+            ],
+            "properties": {
+              "reclaimable_bytes": {
+                "type": "string",
+                "description": "What removing it would free, as the scan measured it, in bytes."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "large_unrecognised"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Whether a running process uses it, every process checked.",
+            "required": [
+              "in_use",
+              "type"
+            ],
+            "properties": {
+              "in_use": {
+                "type": "boolean",
+                "description": "Whether one does."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "in_use"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "No process Lumen could see uses it, but not every process was\nvisible: not proof of non-use.",
+            "required": [
+              "unseen",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "not_in_use_by_visible_processes"
+                ]
+              },
+              "unseen": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "How many processes could not be checked, as a decimal string;\n`null` when the platform did not say."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Whether the account Lumen runs as owns it.",
+            "required": [
+              "owned",
+              "type"
+            ],
+            "properties": {
+              "owned": {
+                "type": "boolean",
+                "description": "Whether it does."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "owned_by_current_user"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "One fact, typed. Untrusted text is escaped for display."
+      },
+      "FactView": {
+        "type": "object",
+        "description": "One fact the decision saw, with where it came from.",
+        "required": [
+          "fact",
+          "basis",
+          "source",
+          "observed_at"
+        ],
+        "properties": {
+          "basis": {
+            "$ref": "#/components/schemas/BasisView",
+            "description": "How it was established."
+          },
+          "fact": {
+            "$ref": "#/components/schemas/FactKindView",
+            "description": "The fact."
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was observed."
+          },
+          "source": {
+            "type": "string",
+            "description": "The adapter that produced it, such as `macos.support-location.bundle-id`."
+          }
+        }
       },
       "FailureView": {
         "type": "string",

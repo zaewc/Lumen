@@ -13,6 +13,7 @@ function candidate(path: string, verdict: CandidateView["verdict"], bytes: strin
     ai_note: null,
     free_when_closed: null,
     times: { modified: { state: "not_read" }, accessed: { state: "not_read" }, folder: true },
+    facts: [],
   };
 }
 

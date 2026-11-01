@@ -25,6 +25,18 @@ export const zAiSettingsView = z.object({
 });
 
 /**
+ * What kind of location the platform documents an app data folder as.
+ */
+export const zAppDataKindView = z.enum([
+  "caches",
+  "container",
+  "application_support",
+  "preferences",
+  "saved_application_state",
+  "web_data",
+]);
+
+/**
  * Current assessment work. Each stage has its own units and total.
  */
 export const zAssessStageView = z.enum([
@@ -44,6 +56,19 @@ export const zAssessProgressView = z.object({
   stage: zAssessStageView,
   total: z.string().nullable(),
 });
+
+/**
+ * How a fact was established.
+ */
+export const zBasisView = z.union([
+  z.object({
+    kind: z.enum(["observed"]),
+  }),
+  z.object({
+    kind: z.enum(["absence"]),
+    searched: z.array(z.string()),
+  }),
+]);
 
 /**
  * Who put an item into a plan (ADR-0051).
@@ -70,6 +95,74 @@ export const zDiskView = z.object({
 export const zExecuteRequest = z.object({
   confirmation: z.string(),
   plan: z.string(),
+});
+
+/**
+ * One fact, typed. Untrusted text is escaped for display.
+ */
+export const zFactKindView = z.union([
+  z.object({
+    app: z.string(),
+    type: z.enum(["owning_application"]),
+  }),
+  z.object({
+    app: z.string(),
+    present: z.boolean(),
+    type: z.enum(["application_present"]),
+  }),
+  z.object({
+    kind: zAppDataKindView,
+    type: z.enum(["app_data_location"]),
+  }),
+  z.object({
+    entry: z.string(),
+    type: z.enum(["knowledge_base_match"]),
+  }),
+  z.object({
+    declared_by: z.string(),
+    type: z.enum(["vendor_declared_cache"]),
+  }),
+  z.object({
+    hidden: z.boolean(),
+    system_attribute: z.boolean(),
+    system_restricted: z.boolean(),
+    type: z.enum(["protected"]),
+    undeletable: z.boolean(),
+  }),
+  z.object({
+    cloud_backed: z.boolean(),
+    type: z.enum(["cloud_backed"]),
+  }),
+  z.object({
+    marker: z.string(),
+    type: z.enum(["browser_profile"]),
+  }),
+  z.object({
+    reclaimable_bytes: z.string(),
+    type: z.enum(["large_unrecognised"]),
+  }),
+  z.object({
+    in_use: z.boolean(),
+    type: z.enum(["in_use"]),
+  }),
+  z.object({
+    type: z.enum(["not_in_use_by_visible_processes"]),
+    unseen: z.string().nullable(),
+  }),
+  z.object({
+    owned: z.boolean(),
+    type: z.enum(["owned_by_current_user"]),
+  }),
+]);
+
+/**
+ * One fact the decision saw, with where it came from.
+ */
+export const zFactView = z.object({
+  basis: zBasisView,
+  fact: zFactKindView,
+  observed_at: z.iso.datetime(),
+  source: z.string(),
 });
 
 /**
@@ -422,6 +515,7 @@ export const zVerdictView = z.enum(["keep", "review", "quarantine"]);
  */
 export const zCandidateView = z.object({
   ai_note: zAiNoteView.nullable(),
+  facts: z.array(zFactView),
   free_when_closed: zFreeWhenClosedView.nullable(),
   group: zGroupView,
   path: z.string(),

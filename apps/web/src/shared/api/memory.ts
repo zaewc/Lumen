@@ -53,6 +53,17 @@ const regenerable = {
   text: "Quarantine proposed: the tool that made it can regenerate it.",
 } as const;
 
+/** When the fixture's scan finished and its assessment ran. */
+const SCANNED = "2026-10-16T08:58:00Z";
+const ASSESSED = "2026-10-16T09:00:00Z";
+
+type Fact = CandidateView["facts"][number];
+
+/** A fact as its source observed it (ADR-0053). */
+function seen(fact: Fact["fact"], source: string, observedAt = SCANNED): Fact {
+  return { fact, basis: { kind: "observed" }, source, observed_at: observedAt };
+}
+
 /**
  * A folder's own times: modified as recorded, accessed as it may lag, or not
  * recorded (`null`: unpacked from an archive that kept no times).
@@ -63,6 +74,64 @@ function folderTimes(modified: string, accessed: string | null): CandidateView["
     accessed: accessed === null ? { state: "not_recorded" } : { state: "may_lag", at: accessed },
     folder: true,
   };
+}
+
+/**
+ * What the scan and the probes state about every folder here: its protection
+ * flags, cloud backing, whether a process uses it (`partial`: no visible
+ * process does, but not every process was visible) and whether the user owns
+ * it. A probe that could not answer states nothing (`null`): unknown.
+ */
+function scanned({
+  cloud = false,
+  inUse = false,
+  owned = true,
+}: {
+  readonly cloud?: boolean;
+  readonly inUse?: boolean | "partial";
+  readonly owned?: boolean | null;
+} = {}): readonly Fact[] {
+  const flags = { system_restricted: false, undeletable: false, system_attribute: false };
+  const facts: Fact[] = [
+    seen({ type: "protected", ...flags, hidden: false }, "lumen.scan"),
+    seen({ type: "cloud_backed", cloud_backed: cloud }, "lumen.scan"),
+  ];
+  if (inUse === "partial") {
+    const partial: Fact["fact"] = { type: "not_in_use_by_visible_processes", unseen: "3" };
+    facts.push(seen(partial, "macos.process-probe", ASSESSED));
+  } else {
+    facts.push(seen({ type: "in_use", in_use: inUse }, "macos.process-probe", ASSESSED));
+  }
+  if (owned !== null) {
+    facts.push(seen({ type: "owned_by_current_user", owned }, "unix.owner", ASSESSED));
+  }
+  return facts;
+}
+
+/** A developer knowledge-base match. */
+function devkb(entry: string): Fact {
+  return seen({ type: "knowledge_base_match", entry }, "devkb");
+}
+
+/** An application's data folder, named after it, and whether it is installed. */
+function appData(
+  app: string,
+  kind: "caches" | "application_support" | "web_data",
+  installed: boolean,
+): readonly Fact[] {
+  const source = "macos.support-location.bundle-id";
+  return [
+    seen({ type: "owning_application", app }, source),
+    seen({ type: "app_data_location", kind }, source),
+    installed
+      ? seen({ type: "application_present", app, present: true }, "macos.applications", ASSESSED)
+      : {
+          fact: { type: "application_present", app, present: false },
+          basis: { kind: "absence", searched: ["macos.applications"] },
+          source: "lumen.inventory",
+          observed_at: ASSESSED,
+        },
+  ];
 }
 
 /**
@@ -80,6 +149,7 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2026-10-15T17:42:10Z", "2026-10-16T08:12:03Z"),
+    facts: [devkb("xcode-derived-data"), ...scanned()],
   },
   {
     path: `${HOME}/Library/Developer/CoreSimulator/Devices`,
@@ -102,6 +172,7 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2026-09-02T11:20:00Z", "2026-10-14T19:05:44Z"),
+    facts: [devkb("xcode-simulator-devices"), ...scanned()],
   },
   {
     path: `${HOME}/Library/pnpm/store`,
@@ -124,6 +195,7 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2026-10-11T09:31:27Z", "2026-10-11T09:31:27Z"),
+    facts: [devkb("pnpm-store"), ...scanned()],
   },
   {
     path: `${HOME}/.gradle/caches`,
@@ -135,6 +207,7 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2026-06-30T14:02:51Z", "2026-07-01T08:40:12Z"),
+    facts: [devkb("gradle-user-home-caches"), ...scanned()],
   },
   {
     path: `${HOME}/.npm/_cacache`,
@@ -146,6 +219,7 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2026-10-12T22:16:05Z", "2026-10-15T10:01:33Z"),
+    facts: [devkb("npm-cache"), ...scanned()],
   },
   {
     path: `${HOME}/Library/Caches/go-build`,
@@ -162,6 +236,7 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2026-10-16T07:55:19Z", "2026-10-16T07:55:19Z"),
+    facts: [devkb("go-build-cache"), ...scanned()],
   },
   {
     path: `${HOME}/Library/Caches/com.spotify.client`,
@@ -178,6 +253,7 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2026-10-16T08:30:02Z", "2026-10-16T08:41:57Z"),
+    facts: [...appData("com.spotify.client", "caches", true), ...scanned()],
   },
   {
     path: `${HOME}/Library/Application Support/discord/Cache`,
@@ -189,6 +265,7 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: { processes: ["Discord"] },
     times: folderTimes("2026-10-16T08:57:40Z", "2026-10-16T08:57:40Z"),
+    facts: [devkb("discord-chromium-caches"), ...scanned({ inUse: true })],
   },
   {
     path: `${HOME}/Library/Caches/Google/Chrome`,
@@ -206,6 +283,7 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2026-10-16T08:50:12Z", "2026-10-16T08:50:12Z"),
+    facts: [...appData("com.google.Chrome", "caches", true), ...scanned({ inUse: "partial" })],
   },
   {
     path: `${HOME}/Library/Application Support/Slack`,
@@ -222,6 +300,7 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2026-10-16T08:44:09Z", "2026-10-16T08:44:09Z"),
+    facts: [...appData("com.tinyspeck.slackmacgap", "application_support", true), ...scanned()],
   },
   {
     path: `${HOME}/Library/Application Support/OldEditor`,
@@ -238,6 +317,10 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2025-03-18T10:12:44Z", "2025-11-30T21:03:10Z"),
+    facts: [
+      ...appData("com.example.OldEditor", "application_support", false),
+      ...scanned({ owned: null }),
+    ],
   },
   {
     path: `${HOME}/Library/HTTPStorages/com.tinyspeck.slackmacgap`,
@@ -249,6 +332,7 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2026-10-16T08:44:12Z", "2026-10-16T08:44:12Z"),
+    facts: [...appData("com.tinyspeck.slackmacgap", "web_data", true), ...scanned()],
   },
   {
     path: `${HOME}/Downloads/Installers`,
@@ -260,6 +344,10 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2026-08-21T16:03:29Z", null),
+    facts: [
+      seen({ type: "large_unrecognised", reclaimable_bytes: "2300000000" }, "lumen.large-folder"),
+      ...scanned(),
+    ],
   },
   {
     path: `${HOME}/Library/Mobile Documents/com~apple~CloudDocs`,
@@ -277,6 +365,7 @@ const candidates: readonly CandidateView[] = [
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2026-10-16T08:20:51Z", "2026-10-16T08:58:00Z"),
+    facts: [...scanned({ cloud: true, inUse: true })],
   },
 ];
 

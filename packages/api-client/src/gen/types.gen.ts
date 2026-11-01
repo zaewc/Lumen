@@ -55,6 +55,17 @@ export type AiSettingsView = {
 };
 
 /**
+ * What kind of location the platform documents an app data folder as.
+ */
+export type AppDataKindView =
+  | "caches"
+  | "container"
+  | "application_support"
+  | "preferences"
+  | "saved_application_state"
+  | "web_data";
+
+/**
  * Advisory progress, without paths or contents. Never an action input.
  */
 export type AssessProgressView = {
@@ -84,10 +95,32 @@ export type AssessStageView =
   | "describing";
 
 /**
+ * How a fact was established.
+ */
+export type BasisView =
+  | {
+      kind: "observed";
+    }
+  | {
+      kind: "absence";
+      /**
+       * The sources searched.
+       */
+      searched: Array<string>;
+    };
+
+/**
  * One assessed candidate.
  */
 export type CandidateView = {
   ai_note: AiNoteView | null;
+  /**
+   * The facts the decision saw about it, and whether each application
+   * that owns it is installed (ADR-0053). For in use, owned by the
+   * current user and owner installed, a missing fact means the question
+   * could not be answered: unknown, never "no".
+   */
+  facts: Array<FactView>;
   free_when_closed: FreeWhenClosedView | null;
   /**
    * The group it is presented in.
@@ -154,6 +187,134 @@ export type ExecuteRequest = {
    * The plan's ID.
    */
   plan: string;
+};
+
+/**
+ * One fact, typed. Untrusted text is escaped for display.
+ */
+export type FactKindView =
+  | {
+      /**
+       * The application's identifier.
+       */
+      app: string;
+      type: "owning_application";
+    }
+  | {
+      /**
+       * The application's identifier.
+       */
+      app: string;
+      /**
+       * Whether it was found.
+       */
+      present: boolean;
+      type: "application_present";
+    }
+  | {
+      /**
+       * The kind.
+       */
+      kind: AppDataKindView;
+      type: "app_data_location";
+    }
+  | {
+      /**
+       * The entry's ID.
+       */
+      entry: string;
+      type: "knowledge_base_match";
+    }
+  | {
+      /**
+       * Who declared it.
+       */
+      declared_by: string;
+      type: "vendor_declared_cache";
+    }
+  | {
+      /**
+       * Hidden from normal listings.
+       */
+      hidden: boolean;
+      /**
+       * Windows' system attribute.
+       */
+      system_attribute: boolean;
+      /**
+       * System Integrity Protection or an equivalent.
+       */
+      system_restricted: boolean;
+      type: "protected";
+      /**
+       * Cannot be unlinked, or immutable.
+       */
+      undeletable: boolean;
+    }
+  | {
+      /**
+       * Whether it is.
+       */
+      cloud_backed: boolean;
+      type: "cloud_backed";
+    }
+  | {
+      /**
+       * The entry that showed it, relative to the item.
+       */
+      marker: string;
+      type: "browser_profile";
+    }
+  | {
+      /**
+       * What removing it would free, as the scan measured it, in bytes.
+       */
+      reclaimable_bytes: string;
+      type: "large_unrecognised";
+    }
+  | {
+      /**
+       * Whether one does.
+       */
+      in_use: boolean;
+      type: "in_use";
+    }
+  | {
+      type: "not_in_use_by_visible_processes";
+      /**
+       * How many processes could not be checked, as a decimal string;
+       * `null` when the platform did not say.
+       */
+      unseen: string | null;
+    }
+  | {
+      /**
+       * Whether it does.
+       */
+      owned: boolean;
+      type: "owned_by_current_user";
+    };
+
+/**
+ * One fact the decision saw, with where it came from.
+ */
+export type FactView = {
+  /**
+   * How it was established.
+   */
+  basis: BasisView;
+  /**
+   * The fact.
+   */
+  fact: FactKindView;
+  /**
+   * When it was observed.
+   */
+  observed_at: string;
+  /**
+   * The adapter that produced it, such as `macos.support-location.bundle-id`.
+   */
+  source: string;
 };
 
 /**

@@ -109,6 +109,19 @@ describe("memoryTransport", () => {
     expect(accessed).toEqual(new Set(["may_lag", "not_recorded"]));
   });
 
+  it("shows facts with their basis, including partial and unknown answers (ADR-0053)", async () => {
+    const candidates = (await memoryTransport().assess()).map((c) => zCandidateView.parse(c));
+    const facts = candidates.flatMap((c) => c.facts);
+    const types = new Set(facts.map((f) => f.fact.type));
+    expect(types).toContain("not_in_use_by_visible_processes");
+    expect(types).toContain("large_unrecognised");
+    expect(facts.some((f) => f.basis.kind === "absence")).toBe(true);
+    // Unknown: no ownership answer is stated, never `owned: false`.
+    expect(
+      candidates.some((c) => c.facts.every((f) => f.fact.type !== "owned_by_current_user")),
+    ).toBe(true);
+  });
+
   it("turns AI review on with the built-in key, and lets a stored key replace it", async () => {
     const transport = memoryTransport({ builtinKey: true });
     expect(await transport.aiSettings()).toEqual({

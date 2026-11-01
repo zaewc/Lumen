@@ -39,6 +39,10 @@ use utoipa::OpenApi;
         views::FreeWhenClosedView,
         views::TimesView,
         views::TimeView,
+        views::FactView,
+        views::FactKindView,
+        views::BasisView,
+        views::AppDataKindView,
         views::ItemKindView,
         views::ConfidenceView,
         views::PlanView,
@@ -106,7 +110,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 42);
+        assert_eq!(schemas, 46);
     }
 
     #[test]
@@ -160,6 +164,7 @@ mod tests {
         assert!(required.contains(&"ai_note"), "{required:?}");
         assert!(required.contains(&"free_when_closed"), "{required:?}");
         assert!(required.contains(&"times"), "{required:?}");
+        assert!(required.contains(&"facts"), "{required:?}");
         let ai = &doc["components"]["schemas"]["AiSettingsView"];
         let required: Vec<&str> = ai["required"]
             .as_array()

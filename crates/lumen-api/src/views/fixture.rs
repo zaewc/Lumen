@@ -5,10 +5,10 @@ use std::num::NonZeroU32;
 
 use lumen_application::assess::Assessed;
 use lumen_domain::{
-    AccessState, Basis, ByteCount, EntryKind, EntryTimes, Evidence, EvidenceHash, Fact, FileId,
-    FileIdentity, FilesystemEntry, FiredRule, JevEffect, Platform, PolicyDecision, PolicyStage,
-    Protection, Provenance, RawPath, Risk, RiskLevel, RuleId, SizeFacts, SizeFlags, SourceName,
-    Subject, Timestamp, Verdict, VolumeId,
+    AccessState, AppId, AppIdScheme, Basis, ByteCount, EntryKind, EntryTimes, Evidence,
+    EvidenceHash, Fact, FileId, FileIdentity, FilesystemEntry, FiredRule, JevEffect, Platform,
+    PolicyDecision, PolicyStage, Protection, Provenance, RawPath, Risk, RiskLevel, RuleId,
+    SizeFacts, SizeFlags, SourceName, Subject, Timestamp, UntrustedText, Verdict, VolumeId,
 };
 use lumen_policy::{Context, PolicyInput};
 
@@ -22,6 +22,13 @@ pub(crate) fn file(n: u128) -> Subject {
             volume: VolumeId::new("v").unwrap_or_else(|e| unreachable!("{e}")),
             file: FileId::new(n),
         },
+    }
+}
+
+pub(crate) fn app_id(name: &str) -> AppId {
+    AppId {
+        scheme: AppIdScheme::BundleId,
+        value: UntrustedText::new(name),
     }
 }
 
