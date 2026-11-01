@@ -1,3 +1,4 @@
+export { Bytes } from "./Bytes";
 export { type ButtonSize, type ButtonVariant, buttonClass } from "./button";
 export { Dialog, type DialogVariant } from "./Dialog";
 export { Disclosure } from "./Disclosure";

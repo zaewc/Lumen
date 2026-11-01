@@ -5,7 +5,7 @@ import { useScanSession } from "@/entities/scan-session";
 import { QUERY_KEYS, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, sumBytes } from "@/shared/lib";
-import { buttonClass, ErrorNotice, Notice } from "@/shared/ui";
+import { Bytes, buttonClass, ErrorNotice, Notice } from "@/shared/ui";
 import { assessedPermille, diskUsage, percentText } from "../model/disk";
 
 /**
@@ -122,7 +122,7 @@ export function DiskUsage() {
           <div>
             <p className="text-[13px] text-ink-2">{m.workspace.available}</p>
             <p className="mt-1 text-measure text-ink tabular-nums">
-              {usage === null ? none : formatBytes(usage.available)}
+              {usage === null ? none : <Bytes value={usage.available} />}
             </p>
             <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-2 tabular-nums">
               <span>{d.used(usage === null ? none : formatBytes(usage.used))}</span>

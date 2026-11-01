@@ -1,8 +1,8 @@
 import type { HeldItemView } from "@lumen/api-client";
 import { useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "@/shared/i18n";
-import { baseName, formatBytes, parentPath } from "@/shared/lib";
-import { buttonClass } from "@/shared/ui";
+import { baseName, parentPath } from "@/shared/lib";
+import { Bytes, buttonClass } from "@/shared/ui";
 import { type Done, daysHeld } from "../lib/outcome";
 
 /**
@@ -71,7 +71,7 @@ export function HeldRow({
         <div className={`${HELD_GRID} items-center gap-y-1`}>
           <span className="truncate text-ink">{name}</span>
           <span className="col-start-2 row-start-1 text-right tabular-nums text-ink @2xl:col-start-3">
-            {item.reclaim_bytes === null ? "–" : formatBytes(item.reclaim_bytes)}
+            {item.reclaim_bytes === null ? "–" : <Bytes value={item.reclaim_bytes} />}
           </span>
           <span
             title={location ?? undefined}

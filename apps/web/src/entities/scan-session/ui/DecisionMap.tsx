@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { useI18n } from "@/shared/i18n";
-import { formatBytes } from "@/shared/lib";
+import { Bytes } from "@/shared/ui";
 import type { CandidateSummary, Status } from "../model/summary";
 import { DecisionMark } from "./DecisionMark";
 
@@ -53,7 +53,7 @@ export function DecisionMap({
             </span>
             <span className="mt-1 flex flex-wrap items-baseline gap-x-2">
               <span className="text-figure font-medium text-ink tabular-nums">
-                {formatBytes(summary[status].bytes)}
+                <Bytes value={summary[status].bytes} />
               </span>
               <span className="text-[12px] text-ink-3">
                 {m.common.items(summary[status].items.length)}
