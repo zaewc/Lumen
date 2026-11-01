@@ -52,10 +52,7 @@ export function CandidateSheet({
               <p className="mb-1 text-[12px] text-ink-2">
                 {m.results.groups[candidate.group.kind]}
               </p>
-              <h2
-                id={title}
-                className="text-[22px] leading-snug font-semibold tracking-[-0.035em] break-words text-ink"
-              >
+              <h2 id={title} className="text-title break-words text-ink">
                 {baseName(candidate.path)}
               </h2>
             </div>
@@ -73,7 +70,7 @@ export function CandidateSheet({
           <div className="flex-1 divide-y divide-line overflow-y-auto px-6 [&>*]:py-6">
             <div>
               <p className="text-[12px] text-ink-3">{m.detail.size}</p>
-              <p className="mt-1 text-[36px] leading-tight font-medium tracking-[-0.05em] text-ink tabular-nums">
+              <p className="mt-1 text-measure text-ink tabular-nums">
                 {formatBytes(candidate.reclaimable_bytes)}
               </p>
             </div>
@@ -108,7 +105,7 @@ export function CandidateSheet({
                     key={reason.rule}
                     className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-3 py-3"
                   >
-                    <span aria-hidden="true" className="pt-0.5 font-mono text-[11px] text-ink-3">
+                    <span aria-hidden="true" className="pt-0.5 font-mono text-[12px] text-ink-3">
                       {String(index + 1).padStart(2, "0")}
                     </span>
                     <span>{reasonText(m, reason)}</span>

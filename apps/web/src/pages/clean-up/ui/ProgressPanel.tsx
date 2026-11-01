@@ -19,7 +19,7 @@ function Stat({
     <div className="min-w-0">
       <dt className="text-[12px] text-ink-2">{label}</dt>
       <dd
-        className={`mt-1 text-[28px] tracking-[-0.04em] tabular-nums ${warn ? "text-amber-700 dark:text-amber-400" : "text-ink"} font-medium`}
+        className={`mt-1 text-figure tabular-nums ${warn ? "text-amber-700 dark:text-amber-400" : "text-ink"} font-medium`}
       >
         {value}
       </dd>
@@ -54,7 +54,7 @@ export function ProgressPanel({
         }
       />
       <div role="status" className="space-y-1">
-        <StepHeading focus={focus} className="text-[24px] font-medium tracking-[-0.035em] text-ink">
+        <StepHeading focus={focus} className="text-section text-ink">
           {deciding ? m.scanning.deciding : m.scanning.title}
         </StepHeading>
         <p className="text-ink-2">{deciding ? m.scanning.decidingHint : m.scanning.readOnly}</p>
@@ -86,7 +86,7 @@ export function ProgressPanel({
         <p className="flex min-w-0 items-baseline gap-2 text-[12px]">
           <span className="shrink-0 text-ink-3">{m.scanning.reading}</span>
           <span
-            className="min-w-0 truncate font-mono text-[11px] text-ink-2"
+            className="min-w-0 truncate font-mono text-[12px] text-ink-2"
             title={progress.current}
           >
             {progress.current}

@@ -85,8 +85,8 @@ function Running() {
       {!session.scanning ? (
         <AssessmentProgress progress={session.assessmentProgress} />
       ) : (
-        <div className="h-1 overflow-hidden rounded-full bg-accent-soft">
-          <div className="h-full w-2/5 animate-[indeterminate_1.6s_ease-in-out_infinite] rounded-full bg-accent motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50" />
+        <div className="h-0.5 overflow-hidden bg-accent-soft">
+          <div className="h-full w-2/5 animate-[indeterminate_1.6s_ease-in-out_infinite] bg-accent motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50" />
         </div>
       )}
     </div>

@@ -20,15 +20,16 @@
 }
 
 /*
- * Lumen's storage workspace: cool paper, deep ink and a precise cobalt
- * signature. Content, navigation, inputs and elevated inspectors have
- * distinct surface roles in both appearances.
- * `raised` is for what floats above the window (dialogs, the sheet,
- * menus); `surface` for the rare inset area (code, fields). Each token has a
- * light and a dark value; components use them as `bg-window`, `text-ink-2`,
- * `border-line`… and keep Tailwind's palette only for semantic colour
- * (amber for what needs attention, red for what cannot be undone, green for
- * success).
+ * Lumen's visual language (docs/design/visual-language.md): restrained cool
+ * neutrals and cobalt (`accent`) as information, never decoration.
+ * `canvas` is the window and page; `plane` the inset areas (the header, code,
+ * fields, the storage map); `raised` only what sits above the page (dialogs,
+ * the inspector, the InfoTip panel). Each token has a light and a dark value;
+ * components use them as `bg-canvas`, `text-ink-2`, `border-line`… and keep
+ * Tailwind's palette only for semantic colour (amber for what needs attention,
+ * red for what cannot be undone). `ink-3` keeps 5:1 on every surface.
+ *
+ * The type scale has named roles; figures always use tabular numerals.
  */
 @theme inline {
   --font-sans:
@@ -36,9 +37,8 @@
     "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
-  --color-window: var(--lm-window);
-  --color-sidebar: var(--lm-sidebar);
-  --color-surface: var(--lm-surface);
+  --color-canvas: var(--lm-canvas);
+  --color-plane: var(--lm-plane);
   --color-raised: var(--lm-raised);
   --color-fill: var(--lm-fill);
   --color-fill-strong: var(--lm-fill-strong);
@@ -52,6 +52,23 @@
   --color-accent-ink: var(--lm-accent-ink);
   --color-accent-soft: var(--lm-accent-soft);
   --color-meter-track: var(--lm-meter-track);
+
+  /* One measure per screen: available space, the inspected size. */
+  --text-measure: 32px;
+  --text-measure--line-height: 1.15;
+  --text-measure--letter-spacing: -0.03em;
+  --text-measure--font-weight: 600;
+  /* Figures beside a label: totals per status, progress counts. */
+  --text-figure: 20px;
+  --text-figure--line-height: 1.2;
+  --text-figure--letter-spacing: -0.02em;
+  --text-title: 22px;
+  --text-title--line-height: 1.25;
+  --text-title--letter-spacing: -0.025em;
+  --text-title--font-weight: 600;
+  --text-section: 15px;
+  --text-section--line-height: 1.4;
+  --text-section--font-weight: 600;
 }
 
 @layer base {
@@ -59,24 +76,23 @@
     /* Explicit preferences override the OS for tokens and dark: utilities alike. */
     color-scheme: light;
 
-    --lm-window: #fafbfd;
-    --lm-sidebar: #f2f5f9;
-    --lm-surface: #edf1f6;
+    --lm-canvas: #f8f9fb;
+    --lm-plane: #eff2f6;
     --lm-raised: #ffffff;
     --lm-fill: rgb(0 0 0 / 0.04);
     --lm-fill-strong: rgb(0 0 0 / 0.08);
-    --lm-line: #e0e5ed;
-    --lm-line-strong: #bdc7d6;
+    --lm-line: #e1e6ee;
+    --lm-line-strong: #c3ccd9;
     --lm-ink: #182232;
-    --lm-ink-2: #4e5d71;
-    --lm-ink-3: #66758a;
-    --lm-accent: #435bd6;
-    --lm-accent-hover: #334ac1;
+    --lm-ink-2: #46546a;
+    --lm-ink-3: #5a6880;
+    --lm-accent: #3a52cc;
+    --lm-accent-hover: #2f45b8;
     --lm-accent-ink: #344fbd;
-    --lm-accent-soft: rgb(67 91 214 / 0.08);
+    --lm-accent-soft: rgb(58 82 204 / 0.08);
     --lm-meter-track: rgb(0 0 0 / 0.07);
 
-    background-color: var(--lm-window);
+    background-color: var(--lm-canvas);
     color: var(--lm-ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
@@ -86,17 +102,16 @@
   :root {
     @variant dark {
       color-scheme: dark;
-      --lm-window: #141b26;
-      --lm-sidebar: #101620;
-      --lm-surface: #1b2534;
-      --lm-raised: #202c3d;
+      --lm-canvas: #121821;
+      --lm-plane: #1a2230;
+      --lm-raised: #212b3a;
       --lm-fill: rgb(255 255 255 / 0.05);
       --lm-fill-strong: rgb(255 255 255 / 0.1);
       --lm-line: rgb(255 255 255 / 0.09);
       --lm-line-strong: rgb(255 255 255 / 0.18);
       --lm-ink: #ecf1f8;
-      --lm-ink-2: #b0bfd1;
-      --lm-ink-3: #91a3ba;
+      --lm-ink-2: #b4c1d2;
+      --lm-ink-3: #94a5bb;
       --lm-accent: #5268d1;
       --lm-accent-hover: #586ed5;
       --lm-accent-ink: #a4b4ff;
@@ -119,7 +134,7 @@
   html,
   body {
     overscroll-behavior: none;
-    background-color: var(--lm-window);
+    background-color: var(--lm-canvas);
   }
 
   /* Interface text is not selectable, as in a native app; fields, code and `select-text` opt back in. */

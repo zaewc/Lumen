@@ -52,7 +52,7 @@ export function DecisionMap({
               {m.results.status[status]}
             </span>
             <span className="mt-1 flex flex-wrap items-baseline gap-x-2">
-              <span className="text-[21px] leading-tight font-medium tracking-[-0.04em] text-ink tabular-nums">
+              <span className="text-figure font-medium text-ink tabular-nums">
                 {formatBytes(summary[status].bytes)}
               </span>
               <span className="text-[12px] text-ink-3">

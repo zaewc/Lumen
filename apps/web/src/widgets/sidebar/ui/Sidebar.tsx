@@ -163,10 +163,10 @@ export function Sidebar() {
   ];
   return (
     <>
-      <header className="flex shrink-0 flex-wrap items-center border-b border-line bg-sidebar px-3 min-[960px]:gap-4 min-[960px]:px-6">
+      <header className="flex shrink-0 flex-wrap items-center border-b border-line bg-plane px-3 min-[960px]:gap-4 min-[960px]:px-6">
         <div className="flex h-14 shrink-0 items-center gap-2.5 px-2 min-[960px]:pr-6">
           <LogoMark className="size-8" />
-          <span className="text-[21px] font-semibold tracking-[-0.06em] text-ink">Lumen</span>
+          <span className="text-[17px] font-semibold tracking-[-0.03em] text-ink">Lumen</span>
         </div>
         <nav
           aria-label={m.nav.label}

@@ -68,10 +68,7 @@ export function Results({
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div>
-            <StepHeading
-              focus={focus}
-              className="text-[24px] font-medium tracking-[-0.04em] text-ink tabular-nums"
-            >
+            <StepHeading focus={focus} className="text-section text-ink tabular-nums">
               {m.workspace.assessment(candidates.length)}
             </StepHeading>
             <p className="mt-1 text-[13px] text-ink-2">
