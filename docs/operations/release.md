@@ -108,6 +108,15 @@ The key was rotated on 2026-10-31 (old key id `31842E07C726AE3C`, new key id
 environment on runners without egress control (ADR-0048). There is no evidence it was
 read; the rotation removes the need to rule that out.
 
+The `320080298D3AA6F8` key was replaced on 2026-11-01 by `9DCAA122F70AC51F` before
+any release was signed with it: its password was lost, so no update can be signed that
+0.8.3 accepts. 0.9.0 is the first build that trusts the new key. Copies on 0.8.3 or
+earlier are offered 0.9.0 but refuse it at the signature check, so they must be
+reinstalled from the download site; say so in the release notes. The new key's password
+was generated with `openssl rand`, set in the `release` environment only after a test
+signature with it succeeded, and kept in the owner's password manager. Generate any
+future key the same way rather than typing the password at a hidden prompt.
+
 ## Built-in Jeb key
 
 [ADR-0042](../decisions/0042-ship-a-built-in-jeb-key-in-release-builds.md): release
