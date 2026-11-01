@@ -15,7 +15,7 @@ what is safe to remove, into a quarantine you can restore from.
 
 [**Download**](https://zaewc.github.io/Lumen/en/) · [한국어](https://zaewc.github.io/Lumen/) · [How it works](ARCHITECTURE.md) · [Roadmap](docs/architecture/roadmap.md)
 
-![Language Stats](https://github-repository-language-graph-wi.vercel.app/api?username=zaewc&repo=Lumen&theme=dark)
+![Language Stats](https://github-repository-language-graph-wi.vercel.app/api?username=zaewc&repo=Lumen&theme=dark&precision=6)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/clean-up-dark.png">
