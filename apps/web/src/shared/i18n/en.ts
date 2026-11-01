@@ -49,6 +49,7 @@ export const en = {
       available: (size: string) => `${size} available`,
       total: (size: string) => `${size} total`,
       percentUsed: (percent: string) => `${percent}% used`,
+      assessed: (size: string) => `Assessed: ${size}`,
       low: "Almost full: less than 10% is available.",
       loadFailed: "Lumen could not read disk usage.",
     },

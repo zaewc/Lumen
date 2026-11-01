@@ -158,7 +158,8 @@ path segments would invent them. Nested candidates' sizes are already excluded f
 their parents, so areas never double-count.
 
 On Storage, the 64-bar capacity field becomes a **disk strip**: one 12 px band, used
-space in solid `ink` at low contrast, free space as `canvas` with an outline, and a
+space filled in `line-strong` (low contrast, and apart from the solid `ink` of kept
+items below it), free space as `canvas` with an outline, and a
 cobalt bracket under the share that the last assessment covers ("Assessed: 18.4 GB").
 The bracket is the entrance to the map: it links to Explore, and the map opens at
 the same proportions. Disk figures and candidate figures stay separate quantities.

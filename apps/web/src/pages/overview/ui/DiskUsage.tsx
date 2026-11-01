@@ -1,63 +1,60 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useId } from "react";
+import { useScanSession } from "@/entities/scan-session";
 import { QUERY_KEYS, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
-import { formatBytes } from "@/shared/lib";
+import { formatBytes, sumBytes } from "@/shared/lib";
 import { buttonClass, ErrorNotice, Notice } from "@/shared/ui";
-import { diskUsage, percentText } from "../model/disk";
+import { assessedPermille, diskUsage, percentText } from "../model/disk";
 
-/** A measured capacity field: every division has the same physical-space scale. */
-function CapacityField({ used }: { readonly used: number | null }) {
-  const clip = useId();
-  const divisions = Array.from({ length: 64 }, (_, index) => index);
-  const boundary = ((used ?? 0) * 768) / 1000;
+/**
+ * The disk as one band (docs/design/visual-language.md, storage topography):
+ * used space filled, free space open, and a bracket under the share the last
+ * assessment's items take, linking to the map of them on Explore. Shares are
+ * in tenths of a percent.
+ */
+function DiskStrip({
+  used,
+  assessed,
+  label,
+}: {
+  readonly used: number | null;
+  readonly assessed: number;
+  /** What the bracket says; `null` without an assessment. */
+  readonly label: string | null;
+}) {
+  const end = used ?? 0;
+  const start = end - assessed;
+  // The label hangs from the bracket's far end, on whichever side has room.
+  const anchor = end >= 500 ? { right: `${100 - end / 10}%` } : { left: `${start / 10}%` };
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 768 144"
-      className="h-36 w-full"
-      preserveAspectRatio="none"
-    >
-      <defs>
-        <clipPath id={clip}>
-          <rect width={boundary} height={144} />
-        </clipPath>
-      </defs>
-      {divisions.map((index) => (
-        <rect
-          key={index}
-          x={index * 12}
-          y={12}
-          width={9}
-          height={112}
-          fill="var(--lm-meter-track)"
-        />
-      ))}
-      {used !== null && (
-        <>
-          <g clipPath={`url(#${clip})`}>
-            {divisions.map((index) => (
-              <rect
-                key={index}
-                x={index * 12}
-                y={12}
-                width={9}
-                height={112}
-                fill="var(--lm-ink)"
-                opacity={0.64}
-              />
-            ))}
-          </g>
-          <path d={`M${boundary} 4V132`} stroke="var(--lm-accent)" strokeWidth={2} />
-          <path
-            d={`m${boundary - 4} 0 4 4 4-4`}
-            fill="none"
-            stroke="var(--lm-accent)"
-            strokeWidth={2}
+    <div>
+      <div
+        aria-hidden="true"
+        className="h-3 overflow-hidden rounded-[2px] bg-canvas outline-1 -outline-offset-1 outline-line-strong"
+      >
+        {used !== null && (
+          <div className="h-full bg-line-strong" style={{ width: `${used / 10}%` }} />
+        )}
+      </div>
+      {label !== null && assessed > 0 && (
+        <div className="relative mt-1 h-9">
+          <span
+            aria-hidden="true"
+            className="absolute top-0 h-1.5 min-w-1 border-x border-b border-accent"
+            style={{ left: `${start / 10}%`, width: `${assessed / 10}%` }}
           />
-        </>
+          <Link
+            to="/clean"
+            className="absolute top-3 rounded-sm text-[12px] whitespace-nowrap text-accent-ink tabular-nums hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+            style={anchor}
+          >
+            {label}
+          </Link>
+        </div>
       )}
-    </svg>
+    </div>
   );
 }
 
@@ -74,6 +71,12 @@ export function DiskUsage() {
   const usage = disk.isSuccess ? diskUsage(disk.data) : null;
   const percent = usage === null ? null : percentText(usage.usedPermille);
   const low = usage?.low ?? false;
+  const session = useScanSession();
+  const running = session.scanning || (session.scan !== null && session.assessment === "pending");
+  const assessed =
+    session.candidates === null || running
+      ? null
+      : sumBytes(session.candidates.map((c) => c.reclaimable_bytes));
   const d = m.overview.disk;
   const none = "–";
   return (
@@ -116,19 +119,21 @@ export function DiskUsage() {
               {percent === null ? m.common.loading : d.percentUsed(percent)}
             </meter>
           )}
-          <div className="grid items-center gap-6 min-[800px]:grid-cols-[0.8fr_1.2fr] min-[800px]:gap-16">
-            <div>
-              <p className="text-[13px] text-ink-2">{m.workspace.available}</p>
-              <p className="mt-1 text-measure text-ink tabular-nums">
-                {usage === null ? none : formatBytes(usage.available)}
-              </p>
-              <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-2 tabular-nums">
-                <span>{d.used(usage === null ? none : formatBytes(usage.used))}</span>
-                <span>{d.total(usage === null ? none : formatBytes(usage.total))}</span>
-              </p>
-            </div>
-            <CapacityField used={usage?.usedPermille ?? null} />
+          <div>
+            <p className="text-[13px] text-ink-2">{m.workspace.available}</p>
+            <p className="mt-1 text-measure text-ink tabular-nums">
+              {usage === null ? none : formatBytes(usage.available)}
+            </p>
+            <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-2 tabular-nums">
+              <span>{d.used(usage === null ? none : formatBytes(usage.used))}</span>
+              <span>{d.total(usage === null ? none : formatBytes(usage.total))}</span>
+            </p>
           </div>
+          <DiskStrip
+            used={usage?.usedPermille ?? null}
+            assessed={usage === null || assessed === null ? 0 : assessedPermille(usage, assessed)}
+            label={assessed === null ? null : d.assessed(formatBytes(assessed))}
+          />
           {low && (
             <Notice tone="warning">
               <p>{d.low}</p>

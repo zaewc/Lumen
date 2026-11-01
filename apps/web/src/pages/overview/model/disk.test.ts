@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diskUsage, percentText } from "./disk";
+import { assessedPermille, diskUsage, percentText } from "./disk";
 
 describe("diskUsage", () => {
   it("works out used space and its share exactly", () => {
@@ -47,5 +47,23 @@ describe("percentText", () => {
     expect(percentText(969)).toBe("96.9");
     expect(percentText(1000)).toBe("100.0");
     expect(percentText(0)).toBe("0.0");
+  });
+});
+
+describe("assessedPermille", () => {
+  const usage = diskUsage({ total_bytes: "1000000", available_bytes: "400000" });
+
+  it("rounds a small assessment up so it shows", () => {
+    expect(assessedPermille(usage, "1")).toBe(1);
+    expect(assessedPermille(usage, "184000")).toBe(184);
+  });
+
+  it("is nothing without items or a disk", () => {
+    expect(assessedPermille(usage, "0")).toBe(0);
+    expect(assessedPermille(diskUsage({ total_bytes: "0", available_bytes: "0" }), "5")).toBe(0);
+  });
+
+  it("never reaches into free space", () => {
+    expect(assessedPermille(usage, "900000")).toBe(600);
   });
 });

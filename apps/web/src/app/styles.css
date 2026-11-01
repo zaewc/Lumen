@@ -51,7 +51,6 @@
   --color-accent-hover: var(--lm-accent-hover);
   --color-accent-ink: var(--lm-accent-ink);
   --color-accent-soft: var(--lm-accent-soft);
-  --color-meter-track: var(--lm-meter-track);
 
   /* One measure per screen: available space, the inspected size. */
   --text-measure: 32px;
@@ -90,7 +89,6 @@
     --lm-accent-hover: #2f45b8;
     --lm-accent-ink: #344fbd;
     --lm-accent-soft: rgb(58 82 204 / 0.08);
-    --lm-meter-track: rgb(0 0 0 / 0.07);
 
     background-color: var(--lm-canvas);
     color: var(--lm-ink);
@@ -116,7 +114,6 @@
       --lm-accent-hover: #586ed5;
       --lm-accent-ink: #a4b4ff;
       --lm-accent-soft: rgb(96 120 235 / 0.14);
-      --lm-meter-track: rgb(255 255 255 / 0.1);
     }
   }
 

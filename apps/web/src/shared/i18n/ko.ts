@@ -56,6 +56,7 @@ export const ko = {
       available: (size: string) => `남은 공간 ${size}`,
       total: (size: string) => `전체 ${size}`,
       percentUsed: (percent: string) => `${percent}% 사용 중`,
+      assessed: (size: string) => `살펴본 항목 ${size}`,
       low: "디스크가 거의 찼어요. 남은 공간이 10%보다 적어요.",
       loadFailed: "디스크 사용량을 읽지 못했어요.",
     },

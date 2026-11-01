@@ -36,3 +36,19 @@ export function diskUsage(view: DiskView): DiskUsage {
 export function percentText(permille: number): string {
   return `${Math.trunc(permille / 10)}.${permille % 10}`;
 }
+
+/**
+ * The share of the disk an assessment's items take, in tenths of a percent,
+ * rounded up so a small assessment still shows, and never more than the
+ * used share (the items are on the disk; a scan of other volumes is cut off
+ * here rather than drawn over free space).
+ */
+export function assessedPermille(usage: DiskUsage, assessed: string): number {
+  const total = parseBytes(usage.total);
+  const bytes = parseBytes(assessed);
+  if (total === 0n || bytes === 0n) {
+    return 0;
+  }
+  const permille = Number((bytes * 1000n + total - 1n) / total);
+  return Math.min(permille, usage.usedPermille);
+}
