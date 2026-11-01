@@ -63,6 +63,7 @@ its number (`4.2` `GB`), so columns of sizes read as a scale.
 | Role | Size / weight | Notes |
 | --- | --- | --- |
 | Measure | 32 / 600, tracking -0.03em | One per screen: available space, the inspected size |
+| Figure | 20 / 500, tracking -0.02em | Totals beside a label: per status, progress counts |
 | Page title | 22 / 600 | Replaces 28 px; the page header shrinks from 96 to 64 px |
 | Section | 15 / 600 | List sections, step headings (replaces 24 px) |
 | Body | 14 / 400 | |
