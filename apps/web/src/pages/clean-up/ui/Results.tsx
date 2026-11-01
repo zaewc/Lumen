@@ -1,6 +1,6 @@
 import type { CandidateView, ScanView } from "@lumen/api-client";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { type CandidateSummary, DecisionMap } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, userAgent } from "@/shared/lib";
@@ -9,10 +9,12 @@ import { closingSummary } from "../model/closing";
 import { coverageOf } from "../model/coverage";
 import { type Filter, shows } from "../model/filter";
 import { sectionsOf } from "../model/sections";
+import { candidatesIn, topographyOf, trailTo, unreadEntries } from "../model/topography";
 import { CandidateList } from "./CandidateList";
 import { CandidateSheet } from "./CandidateSheet";
 import { ScanDetails } from "./ScanDetails";
 import { StepHeading } from "./StepHeading";
+import { Topography } from "./Topography";
 
 /** Folders the scan could not read: a short warning and the way to allow access. */
 function CoverageNotice({ scan }: { readonly scan: ScanView }) {
@@ -61,7 +63,12 @@ export function Results({
   const { m } = useI18n();
   const [open, setOpen] = useState<CandidateView | null>(null);
   const proposed = summary.quarantine;
-  const sections = sectionsOf(candidates.filter((candidate) => shows(filter, candidate)));
+  const groups = useMemo(() => topographyOf(candidates), [candidates]);
+  // The group the map is zoomed into, if it is still in this assessment.
+  const [zoom, setZoom] = useState<string | null>(null);
+  const zoomed = zoom === null ? undefined : trailTo(groups, zoom)?.at(-1);
+  const listed = zoomed === undefined ? candidates : candidatesIn(zoomed);
+  const sections = sectionsOf(listed.filter((candidate) => shows(filter, candidate)));
   const closing = closingSummary(candidates);
   return (
     <>
@@ -107,6 +114,15 @@ export function Results({
       </div>
       {candidates.length > 0 && (
         <>
+          <Topography
+            groups={groups}
+            unread={unreadEntries(scan.roots)}
+            zoom={zoomed?.id ?? null}
+            onZoom={setZoom}
+            filter={filter}
+            inspected={open?.path ?? null}
+            onOpen={setOpen}
+          />
           <DecisionMap
             summary={summary}
             selected={filter === "all" ? null : filter}

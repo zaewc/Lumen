@@ -208,3 +208,8 @@ export function layoutTopography(
   }
   return placed;
 }
+
+/** Every item under `node`, for narrowing the list to a zoomed group. */
+export function candidatesIn(node: TopoNode): CandidateView[] {
+  return node.type === "item" ? [node.candidate] : node.children.flatMap(candidatesIn);
+}
