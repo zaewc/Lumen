@@ -4,23 +4,9 @@ export { Disclosure } from "./Disclosure";
 export { Group, GroupRow } from "./Group";
 export { InfoTip } from "./InfoTip";
 export {
-  AppIcon,
-  ArchiveIcon,
   CheckIcon,
   ChevronIcon,
   CloseIcon,
-  CodeIcon,
-  DriveIcon,
-  FolderIcon,
-  GaugeIcon,
-  GearIcon,
-  GlobeIcon,
-  InfoIcon,
-  LayersIcon,
-  RestoreIcon,
-  SearchIcon,
-  ShieldIcon,
-  SparkleIcon,
   WarningIcon,
 } from "./icons";
 export { LogoMark } from "./Logo";

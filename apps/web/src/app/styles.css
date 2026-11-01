@@ -151,8 +151,7 @@
 }
 
 .decision-mark[data-status="keep"] {
-  height: 3px;
-  background: currentColor;
+  background: var(--lm-ink-3);
 }
 
 .decision-mark[data-status="review"] {
@@ -168,9 +167,39 @@
   width: 7px;
   height: 7px;
   margin-right: 2px;
+  color: var(--lm-ink);
   border-top: 1.5px solid currentColor;
   border-right: 1.5px solid currentColor;
   transform: rotate(45deg);
+}
+
+/* Moved into Quarantine and restorable: the proposal's square, now filled in. */
+.decision-mark[data-status="held"] {
+  border: 1.5px solid var(--lm-accent);
+  background: linear-gradient(var(--lm-accent), var(--lm-accent)) center / 3px 3px no-repeat;
+}
+
+/* An interrupted move that needs a look; amber-700, amber-300 when dark. */
+.decision-mark[data-status="attention"] {
+  border: 1.5px dashed #b45309;
+
+  @variant dark {
+    border-color: #fcd34d;
+  }
+}
+
+/* Filled marks keep their fill where the system replaces colours. */
+@media (forced-colors: active) {
+  .decision-mark[data-status="keep"],
+  .decision-mark[data-status="held"] {
+    forced-color-adjust: none;
+    background-color: CanvasText;
+  }
+
+  .decision-mark[data-status="held"] {
+    border-color: CanvasText;
+    background: linear-gradient(CanvasText, CanvasText) center / 3px 3px no-repeat;
+  }
 }
 
 .decision-track {

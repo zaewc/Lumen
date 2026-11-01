@@ -3,7 +3,7 @@ import { type ReactNode, useId, useRef } from "react";
 import { statusOf } from "@/entities/scan-session";
 import { aiNoteText, reasonText, useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
-import { CloseIcon, Dialog, SparkleIcon } from "@/shared/ui";
+import { CloseIcon, Dialog } from "@/shared/ui";
 import { StatusText } from "./Status";
 import { ToolCommand } from "./ToolCommand";
 
@@ -95,11 +95,8 @@ export function CandidateSheet({
             <section>
               <h3 className="text-[14px] font-semibold text-ink">{m.detail.reasons}</h3>
               {demoted && (
-                <p className="mt-2 flex gap-2 leading-snug text-ink">
-                  <SparkleIcon className="mt-px size-4 text-ink-3" />
-                  <span>
-                    <span className="font-medium">{m.detail.aiTitle}</span> {m.detail.aiBody}
-                  </span>
+                <p className="mt-2 leading-snug text-ink">
+                  <span className="font-medium">{m.detail.aiTitle}</span> {m.detail.aiBody}
                 </p>
               )}
               <ol className="mt-2 divide-y divide-line text-[14px] leading-relaxed text-ink">
@@ -121,12 +118,9 @@ export function CandidateSheet({
                 </p>
               )}
               {note !== null && (
-                <p className="mt-3 flex gap-2 leading-snug text-ink-2">
-                  <SparkleIcon className="mt-px size-4 shrink-0 text-ink-3" />
-                  <span>
-                    {aiNoteText(m, note)}
-                    <span className="block text-[12px] text-ink-3">{m.detail.aiNoteHint}</span>
-                  </span>
+                <p className="mt-3 leading-snug text-ink-2">
+                  {aiNoteText(m, note)}
+                  <span className="block text-[12px] text-ink-3">{m.detail.aiNoteHint}</span>
                 </p>
               )}
             </section>
