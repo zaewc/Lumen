@@ -209,6 +209,8 @@ service key; otherwise omit it from public builds.
 - **QUALITY-1:** CodeQL analyzes Rust and Actions but not JavaScript/TypeScript.
   Add TypeScript analysis
   ([`codeql.yml`](../../.github/workflows/codeql.yml)).
+  **Progress (2026-11-02):** done. CodeQL now analyzes `javascript-typescript`
+  (no build, `security-extended`) beside `rust` and `actions`.
 - **QUALITY-2:** The threat model calls for parser fuzzing, but checked-in fuzz
   targets and a CI fuzz smoke run were not found. Add reproducible fuzz coverage
   or document the owner-run process

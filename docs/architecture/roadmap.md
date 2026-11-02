@@ -27,7 +27,7 @@ The `gen` recipe from 3.12 is deferred until `xtask` exists (4.16).
 | 3.7 | `ci: add supply-chain workflow` | cargo-deny + OSV-Scanner jobs |
 | 3.8 | `ci: add workflow linting` | zizmor + actionlint jobs |
 | 3.9 | `ci: add secret scanning` | gitleaks job + config |
-| 3.10 | `ci: add CodeQL analysis` | advanced setup for `rust` and `actions` (`javascript-typescript` added with the first TS code) |
+| 3.10 | `ci: add CodeQL analysis` | advanced setup for `rust` and `actions`; `javascript-typescript` added later (QUALITY-1 in the readiness audit) |
 | 3.11 | `ci: enforce Conventional Commits PR titles` | PR-title check on `pull_request` |
 | 3.12 | `build: add justfile` | `just fmt`, `lint`, `test`, `check`, `gen` |
 | 3.13 | `build: add lefthook git hooks` | pre-commit (fmt, gitleaks), commit-msg, pre-push (clippy, deny) |

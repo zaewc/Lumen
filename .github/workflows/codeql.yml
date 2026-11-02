@@ -24,8 +24,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # javascript-typescript is added with the first TypeScript code (roadmap Phase 11).
-        language: [rust, actions]
+        # javascript-typescript covers the web UI, the desktop isolation script,
+        # the mobile app, the download site and the generated API client.
+        language: [rust, javascript-typescript, actions]
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
