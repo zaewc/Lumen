@@ -15,6 +15,9 @@ use crate::{ByteCount, Category, EvidenceId, ItemRef, PayloadHash, SchemaVersion
 /// Domain separator for request hashes.
 const REQUEST_HASH_DOMAIN: &[u8] = b"lumen.jev.request/1\0";
 
+/// Domain separator for response hashes.
+const RESPONSE_HASH_DOMAIN: &[u8] = b"lumen.jev.response/1\0";
+
 /// Schema name of requests.
 pub const JEV_REQUEST_SCHEMA: &str = "jev.request";
 
@@ -189,6 +192,16 @@ impl JevRequest {
     }
 }
 
+/// Domain-separated BLAKE3 of a judge's response exactly as it arrived, before
+/// any parsing or validation (`jev.trace/1` `response_hash`). A trace keeps only
+/// this digest, never the response, so it can be matched to a recorded answer.
+pub fn response_hash(bytes: &[u8]) -> PayloadHash {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(RESPONSE_HASH_DOMAIN);
+    hasher.update(bytes);
+    PayloadHash::from_bytes(*hasher.finalize().as_bytes())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -272,6 +285,29 @@ mod tests {
             "domain-separated"
         );
         Ok(())
+    }
+
+    #[test]
+    fn response_hashes_cover_exact_bytes_and_are_domain_separated() {
+        let body = br#"{"assessment":"uncertain"}"#;
+        assert_eq!(response_hash(body), response_hash(body));
+        assert_ne!(
+            response_hash(body),
+            response_hash(br#"{"assessment":"uncertain"} "#)
+        );
+        assert_ne!(
+            response_hash(body).as_bytes(),
+            blake3::hash(body).as_bytes(),
+            "domain-separated"
+        );
+        let mut as_request = blake3::Hasher::new();
+        as_request.update(REQUEST_HASH_DOMAIN);
+        as_request.update(body);
+        assert_ne!(
+            response_hash(body).as_bytes(),
+            as_request.finalize().as_bytes(),
+            "apart from request hashes"
+        );
     }
 
     #[test]

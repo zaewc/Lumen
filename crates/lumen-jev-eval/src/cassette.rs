@@ -13,7 +13,7 @@
 
 use std::collections::BTreeMap;
 
-use lumen_application::ports::{JudgeError, JudgeFuture, JudgeModel};
+use lumen_application::ports::{Answer, JudgeError, JudgeFuture, JudgeModel};
 use lumen_domain::{JevRequest, JudgeDescriptor, Judgment, PayloadHash, UntrustedText};
 use lumen_jev::decisions::{self, Prompt, Provider};
 use lumen_jev::response::{RawResponse, StopReason, validate};
@@ -298,9 +298,14 @@ impl JudgeModel for ReplayJudge {
     }
 
     fn judge<'a>(&'a self, request: &'a JevRequest) -> JudgeFuture<'a> {
+        // The recorded body is the response exactly as the recorder received
+        // it, so a replay hashes to the same `response_hash` as the live call.
         let answer = match self.answers.get(&request.hash()) {
-            Some(recorded) => validate_recorded(&self.judge, request, recorded),
-            None => Err(JudgeError::Unavailable("no recording for this request")),
+            Some(recorded) => Answer::received(
+                recorded.body.as_bytes(),
+                validate_recorded(&self.judge, request, recorded),
+            ),
+            None => Err(JudgeError::Unavailable("no recording for this request")).into(),
         };
         Box::pin(std::future::ready(answer))
     }
@@ -392,9 +397,32 @@ mod tests {
             .as_mut()
             .poll(&mut Context::from_waker(Waker::noop()))
         {
-            Poll::Ready(answer) => answer,
+            Poll::Ready(answer) => answer.result,
             Poll::Pending => unreachable!("replays answer immediately"),
         }
+    }
+
+    #[test]
+    fn replays_hash_the_recorded_body_like_a_live_answer() -> Result<(), CassetteError> {
+        let judge = ReplayJudge::new(Cassette::parse(&cassette(&[
+            recorded("c_1", RecordedStop::EndTurn, MODEL),
+            recorded("c_2", RecordedStop::Refusal, MODEL),
+        ]))?);
+        for item in ["c_1", "c_2"] {
+            let answer = judge
+                .judge(&request(item))
+                .as_mut()
+                .poll(&mut Context::from_waker(Waker::noop()));
+            let Poll::Ready(answer) = answer else {
+                unreachable!("replays answer immediately");
+            };
+            assert_eq!(
+                answer.response_hash,
+                Some(lumen_domain::response_hash(body(item).as_bytes())),
+                "{item}"
+            );
+        }
+        Ok(())
     }
 
     #[test]

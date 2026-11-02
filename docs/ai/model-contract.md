@@ -185,7 +185,8 @@ judgment, policy effect `none`):
 | `policy_version` | |
 | `input_schema_version`, `output_schema_version` | |
 | `evidence_hash` | Merkle root of the bundle |
-| `request_hash`, `response_hash` | BLAKE3 of canonical bytes |
+| `request_hash` | Domain-separated BLAKE3 of the request's canonical JSON |
+| `response_hash` | Domain-separated BLAKE3 (`lumen.jev.response/1`) of the response body exactly as received, taken before validation, so a rejected answer is hashed too; absent when no body arrived. A replay hashes its recorded body, which matches the live call |
 | `assessment`, `confidence`, `calibrated_precision_bound` | |
 | `validation` | `ok` or the rejection reason |
 | `policy_effect` | `none`, `demoted_to_review`, or `promoted` (only for allow-listed classes) |

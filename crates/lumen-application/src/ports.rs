@@ -8,9 +8,9 @@ use std::pin::Pin;
 
 use lumen_domain::{
     AccessState, Application, FileIdentity, FilesystemEntry, ItemLocation, ItemNote, JevRequest,
-    JudgeDescriptor, Judgment, JudgmentRejection, OperationId, Package, PlanId, Process,
-    QuarantineEvent, QuarantineFailure, QuarantineState, RawPath, ScanId, Service, SnapshotId,
-    SourceName, SourceStatus, Timestamp, UnixOwnership, VolumeId,
+    JudgeDescriptor, Judgment, JudgmentRejection, OperationId, Package, PayloadHash, PlanId,
+    Process, QuarantineEvent, QuarantineFailure, QuarantineState, RawPath, ScanId, Service,
+    SnapshotId, SourceName, SourceStatus, Timestamp, UnixOwnership, VolumeId,
 };
 
 use crate::CancelToken;
@@ -624,8 +624,40 @@ pub enum JudgeError {
     Malformed,
 }
 
+/// A judge's answer, with the hash of the exact bytes it arrived as.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Answer<T> {
+    /// The validated value, or why there is none.
+    pub result: Result<T, JudgeError>,
+    /// [`lumen_domain::response_hash`] of the response body as received,
+    /// before validation: present for an accepted answer and for one that
+    /// failed validation alike. `None` when no body arrived (disabled,
+    /// unreachable, an HTTP error) or the judge is scripted.
+    pub response_hash: Option<PayloadHash>,
+}
+
+impl<T> Answer<T> {
+    /// An answer validated from `body`, the response exactly as received.
+    pub fn received(body: &[u8], result: Result<T, JudgeError>) -> Self {
+        Self {
+            result,
+            response_hash: Some(lumen_domain::response_hash(body)),
+        }
+    }
+}
+
+impl<T> From<Result<T, JudgeError>> for Answer<T> {
+    /// An answer with no response body to hash.
+    fn from(result: Result<T, JudgeError>) -> Self {
+        Self {
+            result,
+            response_hash: None,
+        }
+    }
+}
+
 /// A judgment in flight.
-pub type JudgeFuture<'a> = Pin<Box<dyn Future<Output = Result<Judgment, JudgeError>> + Send + 'a>>;
+pub type JudgeFuture<'a> = Pin<Box<dyn Future<Output = Answer<Judgment>> + Send + 'a>>;
 
 /// The optional AI judge (Jev, ADR-0020). It answers one request with a
 /// validated [`Judgment`], which the policy may use only to add caution.
@@ -649,12 +681,12 @@ impl JudgeModel for NoopJudge {
     }
 
     fn judge<'a>(&'a self, _request: &'a JevRequest) -> JudgeFuture<'a> {
-        Box::pin(std::future::ready(Err(JudgeError::Disabled)))
+        Box::pin(std::future::ready(Err(JudgeError::Disabled).into()))
     }
 }
 
 /// A description in flight.
-pub type NoteFuture<'a> = Pin<Box<dyn Future<Output = Result<ItemNote, JudgeError>> + Send + 'a>>;
+pub type NoteFuture<'a> = Pin<Box<dyn Future<Output = Answer<ItemNote>> + Send + 'a>>;
 
 /// The optional AI describer (ADR-0041): says what kind of item a review item
 /// most likely is, as a note for people. A note is never an input to the
@@ -675,7 +707,7 @@ impl Describer for NoopJudge {
     }
 
     fn describe<'a>(&'a self, _request: &'a JevRequest) -> NoteFuture<'a> {
-        Box::pin(std::future::ready(Err(JudgeError::Disabled)))
+        Box::pin(std::future::ready(Err(JudgeError::Disabled).into()))
     }
 }
 
@@ -742,7 +774,7 @@ mod tests {
         let mut context = Context::from_waker(Waker::noop());
         assert_eq!(
             future.as_mut().poll(&mut context),
-            Poll::Ready(Err(JudgeError::Disabled))
+            Poll::Ready(Answer::from(Err(JudgeError::Disabled)))
         );
         Ok(())
     }

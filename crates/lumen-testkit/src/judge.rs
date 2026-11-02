@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use lumen_application::ports::{JudgeError, JudgeFuture, JudgeModel};
+use lumen_application::ports::{Answer, JudgeError, JudgeFuture, JudgeModel};
 use lumen_domain::{ItemRef, JevRequest, JudgeDescriptor, Judgment};
 
 /// Answers each request from a script keyed by `item_ref`; requests without an
@@ -10,7 +10,7 @@ use lumen_domain::{ItemRef, JevRequest, JudgeDescriptor, Judgment};
 #[derive(Debug, Clone, Default)]
 pub struct MockJudge {
     descriptor: Option<JudgeDescriptor>,
-    script: BTreeMap<ItemRef, Result<Judgment, JudgeError>>,
+    script: BTreeMap<ItemRef, Answer<Judgment>>,
 }
 
 impl MockJudge {
@@ -22,10 +22,22 @@ impl MockJudge {
         }
     }
 
-    /// Answers `item` with `answer`.
+    /// Answers `item` with `answer`, with no response body to hash.
     #[must_use]
     pub fn answer(mut self, item: ItemRef, answer: Result<Judgment, JudgeError>) -> Self {
-        self.script.insert(item, answer);
+        self.script.insert(item, answer.into());
+        self
+    }
+
+    /// Answers `item` with `answer`, as if validated from `body`.
+    #[must_use]
+    pub fn answer_received(
+        mut self,
+        item: ItemRef,
+        body: &[u8],
+        answer: Result<Judgment, JudgeError>,
+    ) -> Self {
+        self.script.insert(item, Answer::received(body, answer));
         self
     }
 }
@@ -40,7 +52,7 @@ impl JudgeModel for MockJudge {
             .script
             .get(&request.item_ref)
             .cloned()
-            .unwrap_or(Err(JudgeError::Unavailable("not scripted")));
+            .unwrap_or_else(|| Err(JudgeError::Unavailable("not scripted")).into());
         Box::pin(std::future::ready(answer))
     }
 }
@@ -81,6 +93,7 @@ mod tests {
             .judge(request)
             .as_mut()
             .poll(&mut Context::from_waker(Waker::noop()))
+            .map(|answer| answer.result)
     }
 
     #[test]

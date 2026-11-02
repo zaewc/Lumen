@@ -221,7 +221,7 @@ pub fn run(judge: &dyn JudgeModel, cases: &[Case]) -> Report {
     let outcomes: Vec<Outcome> = cases
         .iter()
         .map(|case| {
-            let answer = block_on(judge.judge(&case.request));
+            let answer = block_on(judge.judge(&case.request)).result;
             Outcome {
                 case_id: case.case_id.clone(),
                 stratum: case.stratum.clone(),
