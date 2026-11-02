@@ -302,8 +302,8 @@ export const en = {
     copied: "Copied",
     copyFailed: "Lumen could not copy it. Select the command and copy it yourself.",
     note: "Lumen does not run this command. Check what it removes before you run it.",
-    run: "Run command",
-    runConfirm: "Run",
+    run: "Run command…",
+    runConfirm: "Run command",
     runWarning:
       "This command deletes files right away. They do not go through Quarantine, so Lumen cannot restore them. Check what it removes before you run it.",
     removesData:

@@ -97,7 +97,7 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
           onClick={() => setConfirming(true)}
           className={`${buttonClass("secondary", "sm")} mt-2`}
         >
-          {m.toolCommand.run} ›
+          {m.toolCommand.run}
         </button>
       )}
       {confirming && (

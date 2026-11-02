@@ -310,8 +310,8 @@ export const ko = {
     copied: "복사했어요",
     copyFailed: "복사하지 못했어요. 명령을 선택해서 직접 복사해 주세요.",
     note: "Lumen은 이 명령을 실행하지 않아요. 실행하기 전에 무엇을 지우는지 확인해 주세요.",
-    run: "명령 실행하기",
-    runConfirm: "실행",
+    run: "명령 실행하기…",
+    runConfirm: "명령 실행",
     runWarning:
       "이 명령은 파일을 바로 지워요. 격리함을 거치지 않아서 Lumen이 되돌릴 수 없어요. 무엇을 지우는지 확인한 뒤 실행해 주세요.",
     removesData:
