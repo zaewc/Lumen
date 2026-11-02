@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
 import {
@@ -13,6 +13,7 @@ import { useToolRun } from "@/entities/tool-run";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
 import { buttonClass, LogoMark } from "@/shared/ui";
+import { type Activity, headerActivity, type Place } from "../model/activity";
 
 /**
  * A place's text label. The current place is ink with a cobalt rule under its
@@ -22,9 +23,7 @@ const ITEM =
   "relative flex h-12 items-center justify-center gap-2 px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-[current=page]:text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-transparent hover:after:bg-line-strong aria-[current=page]:after:bg-accent motion-reduce:transition-none min-[960px]:h-14";
 
 /** The app's places, in the sidebar's order; ⌘1–⌘4 (Ctrl+1–4) open them. */
-const PLACES = ["/", "/clean", "/quarantine", "/settings"] as const;
-
-type Place = (typeof PLACES)[number];
+const PLACES: readonly Place[] = ["/", "/clean", "/quarantine", "/settings"];
 
 /** The shortcut key of a place: its position in the sidebar. */
 function placeKey(place: Place): string {
@@ -121,6 +120,8 @@ function AiStatus() {
 /**
  * The workspace navigation. On narrow windows the four labelled places
  * form a second row; none of the destinations disappears into an icon.
+ * Its right side names running work the current page does not show, and
+ * whether AI review is on.
  */
 export function Sidebar() {
   const { locale, m } = useI18n();
@@ -132,18 +133,24 @@ export function Sidebar() {
   const [dismissed, dismiss] = useState(dismissedUpdate);
   const showUpdate = version !== null && version !== dismissed && install.status !== "pending";
   const session = useScanSession();
-  const activity =
-    install.status === "pending"
-      ? m.settings.about.update.installing
-      : session.cleaning
-        ? m.confirm.moving
-        : command.status === "pending"
-          ? m.workspace.activeCommand
-          : session.scanning
-            ? m.common.scanning
-            : session.scan !== null && session.assessment === "pending"
-              ? m.scanning.deciding
-              : null;
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const activity = headerActivity(
+    {
+      installing: install.status === "pending",
+      moving: session.cleaning,
+      command: command.status === "pending",
+      scanning: session.scanning,
+      deciding: session.scan !== null && session.assessment === "pending",
+    },
+    PLACES.find((place) => place === pathname) ?? null,
+  );
+  const activityText: { readonly [A in Activity]: string } = {
+    installing: m.settings.about.update.installing,
+    moving: m.confirm.moving,
+    command: m.workspace.activeCommand,
+    scanning: m.common.scanning,
+    deciding: m.scanning.deciding,
+  };
   const count = inQuarantine(held.data ?? []).length;
   usePlaceShortcut("/");
   usePlaceShortcut("/clean");
@@ -180,13 +187,12 @@ export function Sidebar() {
         </nav>
         <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-x-2">
           {!showUpdate && <UpdateStatus version={version} />}
-          {activity !== null ? (
+          {activity !== null && (
             <span role="status" className="max-w-52 truncate px-2 text-[12px] text-ink-2">
-              {activity}
+              {activityText[activity]}
             </span>
-          ) : (
-            <AiStatus />
           )}
+          <AiStatus />
         </div>
       </header>
       {showUpdate && (
