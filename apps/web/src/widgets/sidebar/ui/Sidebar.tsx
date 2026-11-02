@@ -57,11 +57,12 @@ function NavItem({ to, label, badge }: PlaceItem) {
         className={ITEM}
       >
         <span className="truncate">{label}</span>
+        {/* Narrow navigation leaves the count out of sight but not out of reach. */}
         {badge !== undefined && (
           <span
             role="img"
             aria-label={badge.label}
-            className="hidden text-[12px] font-normal tabular-nums text-ink-3 min-[960px]:inline"
+            className="sr-only text-[12px] font-normal tabular-nums text-ink-3 min-[960px]:not-sr-only"
           >
             {badge.text}
           </span>
