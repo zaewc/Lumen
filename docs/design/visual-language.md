@@ -23,7 +23,9 @@ document says so and draws only what exists.
 3. **Attention, not spotlight.** Selection raises what is related and lowers the
    rest a step. Nothing glows, blurs or floats.
 4. **Decisions are conclusions.** A verdict is drawn below the evidence it follows
-   from, like a sum under its lines.
+   from, like a sum under its lines. Where a person decides from it (the inspector),
+   its status is also named up front, so nobody has to read the evidence to learn
+   the answer (2026-11-02 UX brief: simple by default).
 5. **Lumen without glass is still Lumen.** No meaning or hierarchy depends on blur,
    transparency or refraction.
 
@@ -204,7 +206,9 @@ inspector panel is opaque `raised` with a hairline edge.
 
 The inspector reads top to bottom as an argument:
 
-1. **What it is:** name, kind, the measure (size; `≈` if not exact), location (mono).
+1. **What it is:** name, kind, its status (mark and word, under the name, so the
+   answer is visible before the argument), the measure (size; `≈` if not exact),
+   location (mono).
 2. **Evidence lines:** each reason, time and relation the API provides as one line
    with its certainty dot and its source in small caps: RULE, LOCATION, TIME,
    RELATION, PROCESS, AI REVIEW. A time the platform does not record reliably is

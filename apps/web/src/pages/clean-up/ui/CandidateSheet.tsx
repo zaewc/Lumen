@@ -117,6 +117,10 @@ export function CandidateSheet({
               <h2 id={title} className="text-title break-words text-ink">
                 {baseName(candidate.path)}
               </h2>
+              {/* The answer first; why, and what it means, follow below. */}
+              <p className="mt-1.5 text-[13px]">
+                <StatusText status={status} />
+              </p>
             </div>
             <button
               ref={close}
