@@ -141,14 +141,15 @@ export const en = {
   scanning: {
     title: "Scanning…",
     deciding: "Deciding…",
-    decidingHint: "Lumen is examining the origins of items and their evidence.",
+    decidingHint:
+      "Lumen is working out what each item is and what to do with it. It changes nothing.",
     stages: {
       inventory: "Checking installed apps…",
       markers: "Checking where items came from…",
-      evidence: "Connecting evidence to items…",
-      graph: "Examining relationships…",
+      evidence: "Recognising caches and tool folders…",
+      graph: "Linking items to their apps and tools…",
       deciding: "Applying safety rules…",
-      describing: "Checking descriptions of review items…",
+      describing: "AI review is describing items to review…",
     },
     stagePercent: (n: number) => `${n}% of this stage`,
     processed: (done: string, total: string) => `${done} of ${total} items checked`,
