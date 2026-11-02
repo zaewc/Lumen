@@ -1,11 +1,12 @@
 //! Audit records in `ledger.db` (ADR-0012): append-only, `synchronous=FULL`.
 //!
-//! It holds Jev traces (`jev.trace/1`) and the quarantine journal
+//! It holds Jev traces (`jev.trace/1`), the demotions they made, and the quarantine journal
 //! ([`JournalEntry`]); policy decisions and manifests join it later. Reads re-validate every row: the body must
 //! parse as a trace and agree with its indexed columns, so a tampered row is
 //! reported, never returned.
 
 mod choosers;
+mod demotions;
 mod journal;
 mod port;
 mod sizes;

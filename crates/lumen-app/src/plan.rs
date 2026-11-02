@@ -2,15 +2,23 @@
 //! scan is assessed again, and every candidate whose verdict is `QUARANTINE`
 //! goes into a plan, with the review items the person chose, stored as
 //! proposed with its decisions and its hash.
+//!
+//! Assessing again asks the judge again. An item a judgment moved to review
+//! since the latest scan finished stays in review (audit finding AI-4): its
+//! recorded judgment is given to the policy again, so a second request that
+//! fails or is answered differently cannot return it to the plan.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use lumen_application::assess::Assessed;
 use lumen_application::confirm::NOT_REGENERABLE;
 use lumen_application::ports::{Clock, IdGenerator};
-use lumen_domain::{Chooser, CleanupPlan, PlannedItem, PolicyDecision, RawPath, Subject, Verdict};
-use lumen_store_sqlite::{IndexStore, StoreError, open_index};
+use lumen_domain::{
+    Chooser, CleanupPlan, FileIdentity, Judgment, PlannedItem, PolicyDecision, RawPath, Subject,
+    Timestamp, Verdict,
+};
+use lumen_store_sqlite::{IndexStore, LedgerStore, StoreError, open_index, open_ledger};
 
 use crate::assess::{AssessError, tool_action};
 
@@ -100,6 +108,47 @@ pub fn choosable(decision: &PolicyDecision, has_tool_command: bool) -> Result<()
     }
 }
 
+/// `assessed` with the recorded `demoted` judgments given to the policy again:
+/// a candidate it proposes is decided again with its item's latest recorded
+/// judgment, which can only make the decision more cautious (ADR-0020). A
+/// policy error leaves the candidate out of the plan, as if kept.
+fn carry_demotions(
+    assessed: Vec<Assessed>,
+    demoted: &BTreeMap<FileIdentity, Judgment>,
+) -> Vec<Assessed> {
+    assessed
+        .into_iter()
+        .filter_map(|mut item| {
+            if item.decision.verdict() != Verdict::Quarantine {
+                return Some(item);
+            }
+            let Some(judgment) = demoted.get(item.candidate.identity()) else {
+                return Some(item);
+            };
+            let mut input = item.input.clone();
+            input.jev = Some(judgment.clone());
+            let decision = lumen_policy::evaluate(&input).ok()?;
+            item.reasons = lumen_policy::explain(&decision);
+            item.decision = decision;
+            Some(item)
+        })
+        .collect()
+}
+
+/// Each item's latest judgment that demoted it to review since the latest
+/// completed scan of `db` finished, from the ledger next to `db`.
+fn recorded_demotions(db: &Path) -> Result<BTreeMap<FileIdentity, Judgment>, PlanError> {
+    let store = IndexStore::new(open_index(db)?);
+    // Without a finish time, every recorded demotion counts: more caution.
+    let since = match store.latest_completed_scan()? {
+        Some(scan) => store.scan_finished_at(scan)?,
+        None => None,
+    }
+    .unwrap_or(Timestamp::UNIX_EPOCH);
+    let ledger = LedgerStore::new(open_ledger(&db.with_file_name("ledger.db"))?);
+    Ok(ledger.demotions_since(since)?.into_iter().collect())
+}
+
 /// The assessments that enter the plan, with who chose each: every
 /// `QUARANTINE` candidate, and every `chosen` path, each of which must be a
 /// choosable review item. Never drops a chosen path silently.
@@ -149,6 +198,7 @@ pub fn plan(
     chosen: &[RawPath],
 ) -> Result<Planned, PlanError> {
     let assessed = crate::assess::assess(db, clock, judge, &lumen_application::ports::NoopJudge)?;
+    let assessed = carry_demotions(assessed, &recorded_demotions(db)?);
     let picked = pick(assessed, chosen, |a| tool_action(a).is_some())?;
     if picked.is_empty() {
         return Err(PlanError::NothingToPlan);
@@ -194,11 +244,14 @@ mod tests {
     use std::num::NonZeroU32;
 
     use lumen_domain::{
-        AccessState, ByteCount, EntryKind, EntryTimes, EvidenceHash, FileId, FileIdentity,
-        FilesystemEntry, FiredRule, JevEffect, Platform, PolicyStage, Protection, Risk, RiskLevel,
-        RuleId, SizeFacts, SizeFlags, VolumeId,
+        AccessState, Assessment, Basis, ByteCount, CleanupMechanism, EntryKind, EntryTimes,
+        Evidence, EvidenceHash, Fact, FileId, FileIdentity, FilesystemEntry, FiredRule, ItemRef,
+        JevEffect, JevTrace, JudgeDescriptor, JudgmentConfidence, ModelId, Platform, PolicyStage,
+        Protection, Provenance, ReasonCode, ReclaimEstimate, Risk, RiskLevel, RuleId, SizeFacts,
+        SizeFlags, SourceName, TraceValidation, UntrustedText, VolumeId,
     };
-    use lumen_policy::{Context, PolicyInput};
+    use lumen_policy::{Context, KnowledgeClass, Observed, PolicyInput};
+    use lumen_testkit::Fixture;
 
     use super::*;
 
@@ -366,5 +419,166 @@ mod tests {
             "{error:?}"
         );
         assert!(matches!(pick(Vec::new(), &[], |_| false), Ok(v) if v.is_empty()));
+    }
+
+    fn identity(file: u128) -> FileIdentity {
+        FileIdentity {
+            volume: VolumeId::new("v").unwrap_or_else(|e| unreachable!("{e}")),
+            file: FileId::new(file),
+        }
+    }
+
+    /// A free, fully read, regenerable cache with `file`'s identity, decided
+    /// by the real policy: proposed for quarantine.
+    fn proposed(file: u128) -> Assessed {
+        let cache = SourceName::new("x-cache").unwrap_or_else(|e| unreachable!("{e}"));
+        let subject = Subject::File {
+            identity: identity(file),
+        };
+        let evidence = |fact| Evidence {
+            subject: subject.clone(),
+            fact,
+            basis: Basis::Observed,
+            provenance: Provenance {
+                source: SourceName::new("test").unwrap_or_else(|e| unreachable!("{e}")),
+                observed_at: Timestamp::UNIX_EPOCH,
+            },
+        };
+        let mut item = assessed(&format!("/h/{file}"), decision(Verdict::Keep, "x"));
+        item.candidate.size.identity = identity(file);
+        item.input = PolicyInput {
+            subject: subject.clone(),
+            evidence: vec![
+                evidence(Fact::InUse(false)),
+                evidence(Fact::KnowledgeBaseMatch {
+                    entry: cache.clone(),
+                }),
+            ],
+            paths: Vec::new(),
+            context: Context {
+                platform: Platform::Linux,
+                home: Some(raw("/home/t")),
+                mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
+                ..item.input.context.clone()
+            },
+            observed: Some(Observed {
+                entry: item.candidate.clone(),
+                complete: true,
+                reclaim: ReclaimEstimate {
+                    reclaimable_now: ByteCount::new(4096),
+                    ..ReclaimEstimate::default()
+                },
+            }),
+            knowledge: BTreeMap::from([(cache, KnowledgeClass::Regenerable)]),
+            ..item.input
+        };
+        item.decision = lumen_policy::evaluate(&item.input).unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            item.decision.verdict(),
+            Verdict::Quarantine,
+            "{:?}",
+            item.decision.fired_rules()
+        );
+        item
+    }
+
+    fn judgment(assessment: Assessment) -> Judgment {
+        Judgment {
+            item_ref: ItemRef::new("c_1").unwrap_or_else(|e| unreachable!("{e}")),
+            assessment,
+            confidence: JudgmentConfidence::High,
+            reason_codes: BTreeSet::from([ReasonCode::OwnerAppPresent]),
+            evidence_refs: BTreeSet::new(),
+            injection_suspected: false,
+            rationale: UntrustedText::new("recorded"),
+        }
+    }
+
+    #[test]
+    fn a_recorded_demotion_keeps_its_item_out_of_the_plan() {
+        let demoted = BTreeMap::from([
+            (identity(1), judgment(Assessment::LikelyNeeded)),
+            (identity(2), judgment(Assessment::LikelyRemovable)),
+            (identity(9), judgment(Assessment::Uncertain)),
+        ]);
+        let kept = assessed("/h/kept", decision(Verdict::Keep, "default.keep"));
+        let items = vec![proposed(1), proposed(2), proposed(3), kept.clone()];
+        let carried = carry_demotions(items.clone(), &demoted);
+        let verdicts: Vec<(Verdict, JevEffect)> = carried
+            .iter()
+            .map(|a| (a.decision.verdict(), a.decision.jev_effect()))
+            .collect();
+        assert_eq!(
+            verdicts,
+            [
+                (Verdict::Review, JevEffect::DemotedToReview),
+                (Verdict::Quarantine, JevEffect::None),
+                (Verdict::Quarantine, JevEffect::None),
+                (Verdict::Keep, JevEffect::None),
+            ],
+            "a removable judgment changes nothing, and other items are untouched"
+        );
+        assert_eq!(carried.get(3), Some(&kept));
+        assert!(
+            carried
+                .first()
+                .is_some_and(|a| a.reasons != items[0].reasons && !a.reasons.is_empty()),
+            "the reasons follow the decision"
+        );
+        let planned: Vec<String> = pick(carried, &[], |_| false)
+            .unwrap_or_else(|e| unreachable!("{e}"))
+            .into_iter()
+            .map(|(a, _)| a.candidate.path.display())
+            .collect();
+        assert_eq!(planned, ["/h/2", "/h/3"]);
+    }
+
+    #[test]
+    fn demotions_recorded_with_the_traces_are_read_back_for_the_plan() {
+        let fx = Fixture::build(&[]).unwrap_or_else(|e| unreachable!("{e}"));
+        let db = fx.path("index.db").unwrap_or_else(|e| unreachable!("{e}"));
+        let trace = |effect, judgment: Option<Judgment>| JevTrace {
+            requested_at: Timestamp::UNIX_EPOCH,
+            judge: JudgeDescriptor {
+                provider: SourceName::new("mock").unwrap_or_else(|e| unreachable!("{e}")),
+                model: ModelId::new("mock-1").unwrap_or_else(|e| unreachable!("{e}")),
+                model_version: None,
+                prompt_version: "jev-judge/1"
+                    .parse()
+                    .unwrap_or_else(|e| unreachable!("{e}")),
+            },
+            policy_version: lumen_policy::POLICY_VERSION,
+            input_schema: "jev.request/1"
+                .parse()
+                .unwrap_or_else(|e| unreachable!("{e}")),
+            output_schema: "jev.judgment/1"
+                .parse()
+                .unwrap_or_else(|e| unreachable!("{e}")),
+            evidence_hash: EvidenceHash::from_bytes([3; 32]),
+            request_hash: lumen_domain::PayloadHash::from_bytes([4; 32]),
+            response_hash: None,
+            validation: TraceValidation::Accepted,
+            judgment,
+            calibrated_precision_bp: None,
+            policy_effect: effect,
+            latency_ms: 1,
+            note: None,
+        };
+        let mut demoted = proposed(1);
+        demoted.trace = Some(trace(
+            JevEffect::DemotedToReview,
+            Some(judgment(Assessment::LikelyNeeded)),
+        ));
+        let mut unchanged = proposed(2);
+        unchanged.trace = Some(trace(
+            JevEffect::None,
+            Some(judgment(Assessment::LikelyRemovable)),
+        ));
+        crate::ai::record_traces(&db, &[demoted, unchanged, proposed(3)])
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            recorded_demotions(&db).unwrap_or_else(|e| unreachable!("{e}")),
+            BTreeMap::from([(identity(1), judgment(Assessment::LikelyNeeded))])
+        );
     }
 }

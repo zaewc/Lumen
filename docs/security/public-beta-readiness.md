@@ -233,6 +233,11 @@ service key; otherwise omit it from public builds.
   example 429 under a shared key) or the answer differs, and the confirmation
   does not list items. Carry the assessment's judge effect into the plan, or plan
   from the stored assessment.
+  **Progress (2026-11-02):** the judge effect is carried. Each demotion is recorded
+  in the ledger (`jev_demotions`, ledger schema v5) with the item's file identity,
+  and `plan` gives every item demoted since the latest scan finished its recorded
+  judgment again, so it stays in review whatever the second request returns. The
+  confirmation listing its items is still open.
 - **AI-5:** Consultation does not stop after the judge is unavailable: every
   proposed item is still sent after a 401, 429 or timeout, each with a 30-second
   limit and no cap per assessment
