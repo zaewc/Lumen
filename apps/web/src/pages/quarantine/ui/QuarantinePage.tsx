@@ -88,7 +88,7 @@ export function QuarantinePage() {
           type="button"
           onClick={() => setPicked(new Set())}
           disabled={working}
-          className={buttonClass("quiet", "sm")}
+          className={buttonClass("plain", "sm")}
         >
           {m.quarantine.selection.clear}
         </button>
@@ -253,6 +253,7 @@ export function QuarantinePage() {
                 selected={selected.has(item.operation)}
                 onToggle={() => setPicked(toggled(selected, item.operation))}
                 locked={working}
+                selecting={selectedItems.length > 0}
               />
             ))}
           </ul>

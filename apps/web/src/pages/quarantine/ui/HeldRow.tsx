@@ -24,6 +24,7 @@ export function HeldRow({
   selected,
   onToggle,
   locked,
+  selecting,
 }: {
   readonly item: HeldItemView;
   readonly onAction: (action: Done["action"]) => void;
@@ -32,6 +33,11 @@ export function HeldRow({
   readonly onToggle: () => void;
   /** A Quarantine action is running: every row waits for its result. */
   readonly locked: boolean;
+  /**
+   * Items are selected: the toolbar acts on them, so the row's own buttons
+   * step aside (keeping their room, so the columns do not move).
+   */
+  readonly selecting: boolean;
 }) {
   const { m } = useI18n();
   const warning = useId();
@@ -87,7 +93,9 @@ export function HeldRow({
             <DecisionMark status={retained ? "held" : "attention"} />
             {retained ? m.held.days(daysHeld(item.since, new Date())) : m.held.restoreOnly}
           </span>
-          <div className="col-span-2 flex justify-end gap-1 @2xl:col-span-1 @2xl:col-start-5 @2xl:row-start-1">
+          <div
+            className={`col-span-2 flex justify-end gap-1 @2xl:col-span-1 @2xl:col-start-5 @2xl:row-start-1 ${selecting ? "invisible" : ""}`}
+          >
             <button
               type="button"
               onClick={() => onAction("restore")}
@@ -109,7 +117,7 @@ export function HeldRow({
             )}
           </div>
         </div>
-        {retained && confirming && (
+        {retained && confirming && !selecting && (
           <div className={`${CONFIRM_ROW} mt-2`}>
             <p id={warning} className="min-w-0 flex-1 basis-64 text-ink">
               {m.held.removeForGoodWarning}
