@@ -5,7 +5,8 @@
 //! - `index.db`: scans, entries and listings (each directory path stored once,
 //!   entries and listings as directory plus name). Rebuildable by rescanning, so it
 //!   uses `synchronous=NORMAL`.
-//! - `ledger.db`: audit records (Jev traces and the quarantine journal),
+//! - `ledger.db`: audit records (Jev traces, the demotions they made, and the
+//!   quarantine journal),
 //!   append-only and `synchronous=FULL`.
 //!
 //! Every connection is hardened: WAL journaling (verified, not assumed), foreign
@@ -59,6 +60,7 @@ const LEDGER_MIGRATIONS: &[M<'static>] = &[
     M::up(include_str!(
         "migrations/ledger/0004_quarantine_choosers.sql"
     )),
+    M::up(include_str!("migrations/ledger/0005_jev_demotions.sql")),
 ];
 
 /// Errors opening or migrating a database.
@@ -254,7 +256,7 @@ mod tests {
     fn the_ledger_is_durable_and_hardened() -> Result<(), Box<dyn std::error::Error>> {
         let fx = Fixture::build(&[])?;
         let conn = open_ledger(&fx.path("ledger.db")?)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 4);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 5);
         assert_eq!(
             pragma::<String>(&conn, "journal_mode")?.to_lowercase(),
             "wal"
