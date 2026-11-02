@@ -2,7 +2,8 @@ import type { PlanView } from "@lumen/api-client";
 import { type RefObject, useId, useRef } from "react";
 import { formatDateTime, useI18n } from "@/shared/i18n";
 import { formatBytes, sumBytes } from "@/shared/lib";
-import { buttonClass, CheckIcon, Dialog, Disclosure, ErrorNotice } from "@/shared/ui";
+import { Bytes, buttonClass, CheckIcon, Dialog, Disclosure, ErrorNotice } from "@/shared/ui";
+import { planRows } from "../model/confirm";
 
 /**
  * Asks before moving a plan's items to quarantine. Pressing "Move to
@@ -57,6 +58,24 @@ export function ConfirmDialog({
                 <CheckIcon className="mt-0.5 size-[18px] shrink-0 text-ink-3" />
                 <span>{m.confirm.restorable}</span>
               </li>
+            </ul>
+          )}
+          {!empty && (
+            <ul
+              aria-label={m.confirm.items}
+              className="mt-4 divide-y divide-line border-y border-line text-[14px]"
+            >
+              {planRows(plan.items).map((row) => (
+                <li key={row.id} className="flex items-baseline gap-3 py-2" title={row.path}>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-ink">{row.name}</span>
+                    <span className="block truncate text-[12px] text-ink-3">{row.folder}</span>
+                  </span>
+                  <span className="shrink-0 tabular-nums text-ink">
+                    <Bytes value={row.bytes} />
+                  </span>
+                </li>
+              ))}
             </ul>
           )}
           <Disclosure

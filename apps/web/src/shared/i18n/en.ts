@@ -354,6 +354,7 @@ export const en = {
     restorable:
       "You can restore everything from Quarantine for at least 30 days, until you remove it for good.",
     nothingLeft: "There is nothing left to move. Scan again to see what you can clean up.",
+    items: "Items to move",
     move: "Move to Quarantine",
     moving: "Moving…",
     failed: "Lumen could not run the clean-up.",
