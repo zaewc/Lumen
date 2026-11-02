@@ -3,7 +3,7 @@ name: supply-chain
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, develop]
   schedule:
     # New advisories appear without code changes; check weekly (Monday 03:17 UTC).
     - cron: "17 3 * * 1"

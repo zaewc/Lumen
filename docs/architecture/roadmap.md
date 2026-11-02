@@ -362,7 +362,7 @@ Open:
 | --- | --- | --- |
 | 13.a | Quarantine on other drives ([ADR-0046](../decisions/0046-quarantine-on-other-drives-of-a-single-user-pc.md), owner decision 2026-10-27): on a single-user Windows PC, the user's own items on a local fixed NTFS/ReFS drive go into `X:\$LumenQuarantine.<SID>\` on that drive. Done 2026-10-28 in five steps: volume classification and the profile list (#469), the policy rule `eligible.in-use-partial-single-user` (#470), a store per volume in the Windows executor (#471), quarantine offered only on store volumes (#473), the app wiring and finalize under the same condition (#474), and readable failure reasons with a hint for a disconnected drive. macOS unchanged | done; first check on a real Windows PC with a second drive |
 | 13.d | The attest and release jobs stay on egress `audit` (owner, 2026-10-27): they run only on tags, so a pull request cannot test an allow-list, and a wrong one would cost a release. Every other release job blocks egress, the Linux desktop job since #465 | done |
-| 13.e | release-please for versioning (ADR-0026) | |
+| 13.e | release-please for versioning (ADR-0026) | dropped: versions are raised on `develop` and every push to `main` releases (ADR-0054) |
 | 13.g | Signing and notarization (12.8), the first tagged release, mobile device measurements (11.16d) | the owner |
 
 ## Phase 14: AI you can leave on

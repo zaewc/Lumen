@@ -1,12 +1,14 @@
 name: release
 
 # Release artifacts (ADR-0026): the CLI and the desktop app for each
-# platform, with CycloneDX SBOMs, SHA-256 checksums and build-provenance attestations, published as a
-# draft release on a `v*` tag. Builds are unsigned until signing lands
-# (roadmap 12.8). Pull requests that change this workflow run the builds as a
-# dry run; nothing is attested or published from them.
+# platform, with CycloneDX SBOMs, SHA-256 checksums and build-provenance
+# attestations. A push to main whose version has no `v` tag yet builds,
+# checks and publishes that release, and creates its tag (ADR-0054); a push
+# whose version is already released builds nothing. Builds are unsigned until
+# signing lands (roadmap 12.8). Pull requests that change this workflow run the
+# builds as a dry run; nothing is attested or published from them.
 #
-# Tag runs compile Lumen's built-in Jeb key (ADR-0042) into the CLI and the
+# Release runs compile Lumen's built-in Jeb key (ADR-0042) into the CLI and the
 # desktop app: the secret `JEB_API_KEY` of the `release` environment, given
 # only to the two compile steps. Pull request runs reference no environment
 # and pass an empty value, so they never receive it.
@@ -17,7 +19,7 @@ name: release
 # key to exercise the same steps.
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
   pull_request:
     paths: [.github/workflows/release.yml]
 
@@ -32,6 +34,28 @@ env:
   CARGO_INCREMENTAL: "0"
 
 jobs:
+  # Which release this push makes, and whether it is out already. Pull
+  # requests build anyway, as a dry run.
+  version:
+    name: version
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      build: ${{ github.event_name == 'pull_request' || steps.version.outputs.released == 'false' }}
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: version
+        run: scripts/release-version.sh
+
   build:
     name: build (${{ matrix.target }})
     strategy:
@@ -45,8 +69,10 @@ jobs:
             target: aarch64-apple-darwin
           - os: windows-2025
             target: x86_64-pc-windows-msvc
+    needs: version
+    if: needs.version.outputs.build == 'true'
     runs-on: ${{ matrix.os }}
-    # Tag runs only: the environment that holds the built-in Jeb key.
+    # Release runs only: the environment that holds the built-in Jeb key.
     environment: ${{ github.event_name == 'push' && 'release' || '' }}
     # Build scripts of dependencies run here, so this job can read the
     # repository and nothing else: no tokens to sign or publish with.
@@ -76,10 +102,10 @@ jobs:
       # No cache: release builds start clean (ADR-0026).
       - name: Install pinned toolchain
         run: rustup toolchain install
-      - name: Check that the tag matches the version
+      - name: Check that the release tag matches the version
         if: github.event_name == 'push'
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
           version=$(cargo metadata --no-deps --format-version 1 --locked \
             | jq -r '.packages[] | select(.name == "lumen-cli") | .version')
@@ -140,8 +166,10 @@ jobs:
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             bundles: deb,appimage
+    needs: version
+    if: needs.version.outputs.build == 'true'
     runs-on: ${{ matrix.os }}
-    # Tag runs only: the environment that holds the built-in Jeb key.
+    # Release runs only: the environment that holds the built-in Jeb key.
     environment: ${{ github.event_name == 'push' && 'release' || '' }}
     permissions:
       contents: read
@@ -192,10 +220,10 @@ jobs:
           node-version-file: .node-version
           # Release builds never restore a cache (ADR-0026).
           package-manager-cache: false
-      - name: Check that the tag matches the app version
+      - name: Check that the release tag matches the app version
         if: github.event_name == 'push'
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
           version=$(jq -r .version apps/desktop/src-tauri/tauri.conf.json)
           if [ "$TAG" != "v$version" ]; then
@@ -253,7 +281,8 @@ jobs:
   # Pull request runs sign with a throwaway key and no environment.
   sign:
     name: sign updater files
-    needs: desktop
+    needs: [version, desktop]
+    if: needs.version.outputs.build == 'true'
     runs-on: ubuntu-24.04
     environment: ${{ github.event_name == 'push' && 'release' || '' }}
     permissions:
@@ -335,6 +364,8 @@ jobs:
   # blocked writes them for every target.
   sbom:
     name: sbom
+    needs: version
+    if: needs.version.outputs.build == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -395,8 +426,8 @@ jobs:
 
   attest:
     name: attest
-    needs: [build, desktop, sign, sbom]
-    if: github.event_name == 'push'
+    needs: [version, build, desktop, sign, sbom]
+    if: github.event_name == 'push' && needs.version.outputs.build == 'true'
     runs-on: ubuntu-24.04
     # Only first-party actions run with the signing token; no repository code.
     permissions:
@@ -417,7 +448,7 @@ jobs:
       - name: Update manifest
         working-directory: dist
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
           version="${TAG#v}"
           base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
@@ -460,12 +491,12 @@ jobs:
           retention-days: 7
 
   release:
-    name: draft release
-    needs: attest
-    if: github.event_name == 'push'
+    name: release
+    needs: [version, attest]
+    if: github.event_name == 'push' && needs.version.outputs.build == 'true'
     runs-on: ubuntu-24.04
     permissions:
-      contents: write # create the draft release and upload its files
+      contents: write # create the release and its tag, and upload its files
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
@@ -474,10 +505,48 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      # A draft: the owner reviews it and publishes it by hand.
-      - name: Create the draft release
+      # Nobody reviews a draft before it goes out (ADR-0054), so the checks the
+      # owner made by hand run here: every file matches its checksum, and the
+      # updater manifest names this version, attached files and their exact
+      # signatures, each bound to this version.
+      - name: Check the files and the update manifest
+        working-directory: dist
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          sha256sum --check --strict SHA256SUMS
+          version="${TAG#v}"
+          named=$(jq -r .version latest.json)
+          if [ "$named" != "$version" ]; then
+            echo "::error::latest.json names version $named, not $version"
+            exit 1
+          fi
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/"
+          jq -r '.platforms | to_entries[] | [.key, .value.url, .value.signature] | @tsv' latest.json |
+            while IFS=$'\t' read -r platform url signature; do
+              file="${url#"$base"}"
+              if [ "$file" = "$url" ] || [ ! -s "$file" ] || [ ! -s "$file.sig" ]; then
+                echo "::error::$platform: $url does not name an attached file"
+                exit 1
+              fi
+              if [ "$signature" != "$(cat "$file.sig")" ]; then
+                echo "::error::$platform: the signature differs from $file.sig"
+                exit 1
+              fi
+              if ! printf '%s' "$signature" | base64 -d | grep -q "^trusted comment: .*version:${version}\(\s\|$\)"; then
+                echo "::error::$platform: the signature does not name version $version"
+                exit 1
+              fi
+              echo "$platform: $file"
+            done
+      # Published only once every file is attached: created as a draft, then
+      # published, which creates the tag on this commit.
+      - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" --draft --verify-tag --title "$TAG" --generate-notes dist/*
+          TAG: ${{ needs.version.outputs.tag }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh release create "$TAG" --draft --target "$SHA" --title "$TAG" --generate-notes dist/*
+          gh release edit "$TAG" --draft=false --latest

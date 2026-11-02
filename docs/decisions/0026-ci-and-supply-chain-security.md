@@ -1,6 +1,7 @@
 # ADR-0026: Gate merges on hardened GitHub Actions CI with supply-chain checks
 
-- Status: Accepted
+- Status: Accepted; release triggering and approval superseded by
+  [ADR-0054](0054-release-on-every-push-to-main.md)
 - Date: 2026-10-06
 
 ## Context and problem statement

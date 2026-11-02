@@ -125,7 +125,7 @@ Assumptions:
 | Information disclosure | Provider retains metadata | Metadata only, never file contents; home folder redaction; nothing sent until the user chooses, asked once on first launch and kept ([ADR-0050](../decisions/0050-ask-about-ai-review-on-first-launch.md)); zero-retention endpoints on OpenRouter; Jeb publishes no retention policy, and the disclosure says its operator may keep requests ([ADR-0036](../decisions/0036-jeb-on-the-school-ai-hub.md)) |
 | Tampering | Response from an unexpected model or a refusal parsed as data | Pinned model ID check, `stop_reason` handling, schema validation, unknown evidence IDs rejected |
 | Spoofing | API key theft from local storage | Keys stored in the OS keychain or credential manager; never logged |
-| Information disclosure | Lumen's built-in Jeb key read out of a release binary and its quota spent elsewhere | **Accepted risk** ([ADR-0042](../decisions/0042-ship-a-built-in-jeb-key-in-release-builds.md)): not obfuscated, as that would not protect it; compiled in only on tag builds from the protected `release` environment, never in pull request runs; the AI Hub's operator approved this use (owner confirmation, 2026-10-30); a stored user key wins; revocable, and a failed judge only means no judgment; rotation is a new release |
+| Information disclosure | Lumen's built-in Jeb key read out of a release binary and its quota spent elsewhere | **Accepted risk** ([ADR-0042](../decisions/0042-ship-a-built-in-jeb-key-in-release-builds.md)): not obfuscated, as that would not protect it; compiled in only on release builds from `main` through the `release` environment, never in pull request runs; the AI Hub's operator approved this use (owner confirmation, 2026-10-30); a stored user key wins; revocable, and a failed judge only means no judgment; rotation is a new release |
 
 ### TB6: Developer tool commands
 
@@ -141,7 +141,8 @@ Assumptions:
 | --- | --- | --- |
 | Tampering | Compromised dependency (axios 2026-03, arrayref 2026-08) | Committed lockfiles, `--locked`, cargo-deny, OSV-Scanner, pnpm release-age gating, review of new packages, cargo-vet for sensitive crates |
 | Tampering | Compromised action or tag force-push (Trivy 2026-03) | Actions pinned by SHA, zizmor, actionlint, harden-runner, no `pull_request_target` |
-| Elevation of privilege | PR job reads secrets or poisons caches | Minimal permissions; caches saved only on `main`; secrets only in the protected release environment |
+| Elevation of privilege | PR job reads secrets or poisons caches | Minimal permissions; caches saved only on `develop`; secrets only in the protected release environment |
+| Tampering | A token or account with write access merges into `main` and publishes an update every installed copy accepts | **Accepted risk** ([ADR-0054](../decisions/0054-release-on-every-push-to-main.md)): no person approves a release; pull requests and required checks on `main` are the gate; the release job publishes only after checksums and the updater manifest verify; the signing key never reaches a build |
 | Spoofing | Users install a tampered build | Code signing, notarization, artifact attestations, immutable releases |
 
 ## 5. Privacy (LINDDUN)

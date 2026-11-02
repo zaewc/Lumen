@@ -1,0 +1,36 @@
+name: release-version
+
+# Merging into main publishes a release of the version it names (ADR-0054), so
+# a release pull request (develop into main) must name a version that is not
+# released yet. Every pull request checks that Cargo.toml and tauri.conf.json
+# name the same version, so the check can be required on both branches.
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  unreleased:
+    name: release version
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the version
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          if [ "$BASE" = main ] && [ "$HEAD" = develop ]; then
+            scripts/release-version.sh --unreleased
+          else
+            scripts/release-version.sh
+          fi

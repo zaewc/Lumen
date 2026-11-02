@@ -17,7 +17,7 @@ on:
       - "Cargo.lock"
       - ".github/workflows/jev-eval.yml"
   push:
-    branches: [main]
+    branches: [main, develop]
 
 permissions: {}
 
@@ -46,7 +46,7 @@ jobs:
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
       # `run` exits 1 when a gate fails, which both recorded Jeb baselines do
       # (Jeb stays demote-only). Only 2, bad input, is an error here; the
       # comparison with the committed report is the gate.

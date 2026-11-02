@@ -3,7 +3,7 @@ name: codeql
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, develop]
   schedule:
     # Query packs improve over time; re-analyse weekly (Wednesday 04:23 UTC).
     - cron: "23 4 * * 3"

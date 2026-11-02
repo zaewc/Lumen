@@ -1,7 +1,8 @@
 # Releases
 
 > [ADR-0026](../decisions/0026-ci-and-supply-chain-security.md): release provenance
-> users can verify. Workflow: [`release.yml`](../../.github/workflows/release.yml).
+> users can verify. [ADR-0054](../decisions/0054-release-on-every-push-to-main.md):
+> every push to `main` releases. Workflow: [`release.yml`](../../.github/workflows/release.yml).
 
 ## What a release contains
 
@@ -32,27 +33,39 @@ Security. Signing and notarization are roadmap 12.8.
 
 ## Cutting a release
 
-1. Set `version` in the root `Cargo.toml` and in
+Work lands on `develop`; `main` holds what is released
+([ADR-0054](../decisions/0054-release-on-every-push-to-main.md)).
+
+1. On `develop`, set `version` in the root `Cargo.toml` and in
    `apps/desktop/src-tauri/tauri.conf.json` to the new version, in its own pull
-   request.
-2. Once that is merged, tag the merge commit `v<version>` and push the tag. The build
-   fails if the tag does not match either version.
-3. The workflow builds each target with Lumen's built-in Jeb key (below), writes the
-   SBOMs and checksums, attests them and creates a **draft** release with generated
-   notes. Builds require `JEB_API_KEY` from the `release` environment. The separate
-   `sign` job requires `TAURI_SIGNING_PRIVATE_KEY` and
-   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` from it; no build ever receives them.
-4. Review the draft (files, checksums, notes and `latest.json`), then publish it.
-   Check that the manifest version matches the tag, every platform URL names an
-   attached file, and each signature matches its attached `.sig` file and names the
-   version in its trusted comment (`version:<version>`): the updater requires it
-   (`requireSignedVersion`) and refuses an update whose signature has none.
+   request (`chore(release): bump to <version>`).
+2. Open a pull request from `develop` into `main` and merge it with a **merge
+   commit**, so `main` keeps each change's own commit for the release notes. The
+   `release-version` check fails on this pull request while the version is already
+   released.
+3. The push to `main` runs the workflow. Its `version` job reads the version
+   (`scripts/release-version.sh`): if `v<version>` exists already, nothing is built.
+   Otherwise each target is built with Lumen's built-in Jeb key (below), the updater
+   files are signed, the SBOMs, checksums and `latest.json` are written and attested.
+   Builds require `JEB_API_KEY` from the `release` environment; the separate `sign`
+   job requires `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+   from it, and no build ever receives them.
+4. The release job then checks every file against `SHA256SUMS`, and that
+   `latest.json` names the version, attached files, and signatures equal to their
+   `.sig` files that each name `version:<version>` in their trusted comment (the
+   updater requires it, `requireSignedVersion`). Only if all of that holds does it
+   create the release with generated notes, attach the files and publish it as
+   **Latest**, which creates the `v<version>` tag on the merged commit. Installed apps
+   are offered the update from then on.
+
+A release that went out wrong cannot be taken back from copies that already updated:
+fix it with a newer version.
 
 0.5.0 is the first build with in-app updates. Testing installation through the
 updater requires a later published version; publishing 0.5.0 alone does not verify
 that installation path.
 
-The build jobs can read the repository and nothing else (on tag runs, the two compile
+The build jobs can read the repository and nothing else (on release runs, the two compile
 steps also get the built-in Jeb key). The `sign` job alone holds the updater key: it
 blocks egress, installs only the locked Tauri CLI with lifecycle scripts off, and runs
 nothing else while the key is set. Only the attest job can mint
@@ -68,14 +81,15 @@ throwaway key, so its steps and egress allow-list are exercised too.
 
 ### Who can start a release
 
-Set 2026-10-31 in the repository settings:
+Anyone who can merge into `main` (set 2026-11-02, ADR-0054):
 
-- **The `release` environment** accepts only `v*` tags and requires the owner's
-  approval before any job that uses it starts. A tag run therefore waits twice: once
-  for the build jobs, which start together, and once for the `sign` job. A pushed tag
-  alone, for example from a stolen token, gets no secret.
-- **The `release tags` ruleset** lets only repository admins create, move or delete
-  `v*` tags.
+- **Branch rules** require a pull request and the status checks on both `develop` and
+  `main`; they are the only gate before a release.
+- **The `release` environment** accepts only `main` and has no required reviewers, so
+  its secrets reach a run from `main` without anyone approving it, and never a run
+  from another branch, a tag or a pull request.
+- **The `release tags` ruleset** lets the GitHub Actions app create `v*` tags (the
+  release job does), and only repository admins otherwise create, move or delete them.
 
 ## Rotating the updater key
 
@@ -137,14 +151,14 @@ behave as before. The key is never in the repository.
 
 1. Confirm with the Jeb operator (the school's AI Hub) that this key may be shipped in
    public builds.
-2. Create the environment and let only release tags use it:
+2. Create the environment and let only `main` use it:
 
    ```sh
    gh api -X PUT repos/zaewc/Lumen/environments/release \
      -F 'deployment_branch_policy[protected_branches]=false' \
      -F 'deployment_branch_policy[custom_branch_policies]=true'
    gh api -X POST repos/zaewc/Lumen/environments/release/deployment-branch-policies \
-     -f name='v*' -f type=tag
+     -f name=main -f type=branch
    ```
 
 3. Set the secret. The command reads the value from standard input; paste it at the
@@ -214,9 +228,8 @@ download page, served by GitHub Pages at <https://zaewc.github.io/Lumen/>.
   button (`_universal.dmg`, `_x64-setup.exe`, `_amd64.deb`/`_amd64.AppImage` by name
   suffix, taking the first available format); other files, `SHA256SUMS` and the
   `gh attestation verify` command are behind the download disclosure, with the
-  steps for opening an unsigned build. Draft releases and
-  pre-releases are not "Latest", so publish a beta as a normal release or the site keeps
-  saying that no public release is available. Without JavaScript, or when the API cannot be
+  steps for opening an unsigned build. Each release is published as "Latest"
+  (ADR-0054). Without JavaScript, or when the API cannot be
   reached (it allows 60 unauthenticated requests per hour per IP address), every
   download link goes to the release page instead.
 - **How it is deployed:** [`site.yml`](../../.github/workflows/site.yml) installs the

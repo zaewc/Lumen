@@ -9,7 +9,7 @@ on:
       - "apps/fm-judge/**"
       - ".github/workflows/fm-judge.yml"
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - "apps/fm-judge/**"
       - ".github/workflows/fm-judge.yml"

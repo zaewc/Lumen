@@ -3,7 +3,7 @@ name: rust
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, develop]
 
 permissions: {}
 
@@ -54,7 +54,7 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           # Caches written by pull requests could poison later runs (ADR-0026).
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
       - name: Install the desktop host's system libraries (Tauri on Linux)
         if: runner.os == 'Linux'
         run: |
@@ -130,7 +130,7 @@ jobs:
           rustup target add aarch64-linux-android x86_64-linux-android
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
       - name: Mobile core for Android, 16 KB page alignment and Kotlin bindings (ADR-0007)
         # The runner image ships several NDKs; use the newest (r28+ is required).
         run: ANDROID_NDK_HOME="${ANDROID_NDK_LATEST_HOME}" cargo xtask android
@@ -168,7 +168,7 @@ jobs:
           rustup target add aarch64-apple-ios aarch64-apple-ios-sim
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
       - name: Mobile core for iOS as an XCFramework, Swift bindings proven on the host (ADR-0007)
         run: cargo xtask ios
 
@@ -188,6 +188,6 @@ jobs:
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
       - name: Committed JSON Schemas match the Rust types (ADR-0011)
         run: cargo xtask schema --check

@@ -43,16 +43,23 @@ files you will touch, trace dependencies, inspect tests, then change.
    `docs/research/` or an ADR.
 3. **Plan the smallest change** that is one logical unit. If it would exceed about
    400 changed lines of non-generated code, or mixes concerns: **stop and split**.
-4. **Implement** on a branch named `<type>/<short-slug>` from an up-to-date `main`.
+4. **Implement** on a branch named `<type>/<short-slug>` from an up-to-date `develop`.
 5. **Verify:** `just check` (format, clippy, tests, cargo-deny, schema drift, and
    the JavaScript workspace's Biome and typecheck). Run relevant integration tests.
    Fix root causes; never weaken a check.
 6. **Commit** one Conventional Commit (`type(scope): summary`).
 7. **PR:** `gh pr create` with the template sections (Summary, Why, Changes, Tests,
    Security, Risks, Follow-up).
-8. **CI green → merge** (`gh pr merge --squash --delete-branch`), then
-   `git checkout main && git pull --ff-only`.
+8. **CI green → merge** into `develop` (`gh pr merge --squash --delete-branch`), then
+   `git checkout develop && git pull --ff-only`.
 9. **Continue** with the next atomic change.
+
+Releasing ([ADR-0054](docs/decisions/0054-release-on-every-push-to-main.md)): every
+push to `main` publishes the version it names to every installed copy, with no
+approval step. Only when the owner asks for a release: raise the version on `develop`
+in its own PR, then open a PR from `develop` into `main` and merge it with a merge
+commit (`gh pr merge --merge`). Never push or merge into `main` otherwise. Steps:
+[`docs/operations/release.md`](docs/operations/release.md).
 
 One-time setup per clone: install rustup, `cargo-nextest`, `cargo-deny`, `just`,
 `lefthook`, `gitleaks` and Node.js 24 (then `corepack enable`), then run
@@ -91,7 +98,7 @@ plus OSV-Scanner, CodeQL, zizmor, actionlint, the MSRV build and the PR-title ch
 ### Git
 
 - One logical change = one commit = one PR. No unrelated changes in a PR.
-- Never use `--no-verify`, never bypass or disable checks, never force-push `main`,
+- Never use `--no-verify`, never bypass or disable checks, never force-push `main` or `develop`,
   never merge with failing checks.
 - **Never add `Co-Authored-By` or any AI attribution trailer.** Use the repository's
   configured Git identity; never change it.

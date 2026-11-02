@@ -34,7 +34,7 @@ recommended option.
 | [0023](0023-ipc-security.md) | Secure every IPC boundary with authenticated peers and plan-ID commands | Accepted |
 | [0024](0024-polyglot-monorepo-tooling.md) | Use pnpm workspaces, Turborepo and a justfile alongside the Cargo workspace | Accepted |
 | [0025](0025-code-quality-tooling.md) | Enforce code quality with rustfmt/clippy/nextest and Biome/oxlint/Steiger on TypeScript 7 | Accepted |
-| [0026](0026-ci-and-supply-chain-security.md) | Gate merges on hardened GitHub Actions CI with supply-chain checks | Accepted |
+| [0026](0026-ci-and-supply-chain-security.md) | Gate merges on hardened GitHub Actions CI with supply-chain checks | Accepted (release part superseded by 0054) |
 | [0027](0027-atomic-commit-pr-workflow.md) | Ship every atomic change as one Conventional Commit in one pull request | Accepted |
 | [0028](0028-macos-private-size-in-bulk-pass.md) | Request PRIVATESIZE in the macOS bulk pass, not a second pass | Accepted |
 | [0029](0029-fsevents-absolute-streams.md) | Watch absolute paths with FSEvents and pin resume points to the volume UUID | Accepted |
@@ -62,3 +62,4 @@ recommended option.
 | [0051](0051-quarantine-review-items-the-user-chooses.md) | Quarantine review items the user chooses, and show large unrecognised folders | Accepted |
 | [0052](0052-restrained-navigation-without-glass.md) | Restrained navigation and opaque surfaces, without glass | Accepted |
 | [0053](0053-show-the-evidence-behind-each-candidate.md) | Show the evidence behind each candidate | Accepted |
+| [0054](0054-release-on-every-push-to-main.md) | Release on every push to main, developing on develop | Accepted |
