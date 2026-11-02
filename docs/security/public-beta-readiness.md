@@ -222,6 +222,10 @@ service key; otherwise omit it from public builds.
   ([`judgment.rs`](../../crates/lumen-domain/src/judgment.rs),
   [`consult.rs`](../../crates/lumen-application/src/consult.rs),
   [`describe.rs`](../../crates/lumen-application/src/describe.rs)).
+  **Progress (2026-11-02):** done. The judge port answers with
+  `ports::Answer`, which carries `lumen_domain::response_hash` of the body as
+  received, before validation. Judgment and description traces store it for
+  accepted and rejected answers alike, and `None` only when no body arrived.
 - **AI-3:** After the user enables AI review, requests include the basename and
   redacted display path. The current disclosure permits provider retention but
   does not establish a retention guarantee. Confirm processing/retention terms

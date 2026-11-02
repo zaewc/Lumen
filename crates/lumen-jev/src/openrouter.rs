@@ -23,7 +23,9 @@ use std::task::{Poll, Waker};
 use std::thread;
 use std::time::Duration;
 
-use lumen_application::ports::{Describer, JudgeError, JudgeFuture, JudgeModel, NoteFuture};
+use lumen_application::ports::{
+    Answer, Describer, JudgeError, JudgeFuture, JudgeModel, NoteFuture,
+};
 use lumen_domain::{
     ItemNote, JevRequest, JudgeDescriptor, Judgment, ModelId, PromptVersion, SourceName,
 };
@@ -315,26 +317,40 @@ impl JevJudge {
         }
     }
 
-    fn judge_blocking(&self, request: &JevRequest) -> Result<Judgment, JudgeError> {
-        let answer = self.ask(request)?;
-        decisions::judgment_for(request, &answer, self.provider, self.prompt)
-            .map(|(judgment, _snapshot)| judgment)
+    /// The judgment validated from the answer, with the answer's hash taken
+    /// before validation (`jev.trace/1` `response_hash`).
+    fn judge_blocking(&self, request: &JevRequest) -> Answer<Judgment> {
+        match self.ask(request) {
+            Ok(answer) => Answer::received(
+                answer.as_bytes(),
+                decisions::judgment_for(request, &answer, self.provider, self.prompt)
+                    .map(|(judgment, _snapshot)| judgment),
+            ),
+            Err(error) => Err(error.into()).into(),
+        }
     }
 
-    fn describe_blocking(&self, request: &JevRequest) -> Result<ItemNote, JudgeError> {
-        let body = decisions::describe_body_for(request, self.provider)
-            .map_err(|_| AskError::new(None, "the request could not be built"))?
-            .to_string();
-        let answer = self.post(&body)?;
-        decisions::note_for(&answer, self.provider).map(|(note, _snapshot)| note)
+    /// The note validated from the answer, hashed like
+    /// [`Self::judge_blocking`]'s.
+    fn describe_blocking(&self, request: &JevRequest) -> Answer<ItemNote> {
+        let answer = decisions::describe_body_for(request, self.provider)
+            .map_err(|_| AskError::new(None, "the request could not be built"))
+            .and_then(|body| self.post(&body.to_string()));
+        match answer {
+            Ok(answer) => Answer::received(
+                answer.as_bytes(),
+                decisions::note_for(&answer, self.provider).map(|(note, _snapshot)| note),
+            ),
+            Err(error) => Err(error.into()).into(),
+        }
     }
 
     /// Runs `work` with a copy of this judge on its own thread, as a future.
     fn on_thread<'a, T: Send + 'static>(
         &self,
         request: &JevRequest,
-        work: fn(&Self, &JevRequest) -> Result<T, JudgeError>,
-    ) -> Pin<Box<dyn Future<Output = Result<T, JudgeError>> + Send + 'a>> {
+        work: fn(&Self, &JevRequest) -> Answer<T>,
+    ) -> Pin<Box<dyn Future<Output = Answer<T>> + Send + 'a>> {
         let slot = Arc::new(Mutex::new(Slot {
             value: None,
             waker: None,
@@ -365,9 +381,9 @@ impl JevJudge {
             .spawn(worker)
             .is_err()
         {
-            return Box::pin(std::future::ready(Err(JudgeError::Unavailable(
-                "no thread for the request",
-            ))));
+            return Box::pin(std::future::ready(
+                Err(JudgeError::Unavailable("no thread for the request")).into(),
+            ));
         }
         Box::pin(std::future::poll_fn(move |context| {
             let mut slot = slot.lock().unwrap_or_else(PoisonError::into_inner);
@@ -558,8 +574,16 @@ mod tests {
     fn a_decision_round_trips_over_http() {
         let (endpoint, received) = serve(200, answer());
         let judge = judge_with(endpoint);
-        let judgment = block(judge.judge(&request()));
-        assert_eq!(judgment.map(|j| j.assessment), Ok(Assessment::LikelyNeeded));
+        let judged = block(judge.judge(&request()));
+        assert_eq!(
+            judged.response_hash,
+            Some(lumen_domain::response_hash(answer().as_bytes())),
+            "the body as received is hashed"
+        );
+        assert_eq!(
+            judged.result.map(|j| j.assessment),
+            Ok(Assessment::LikelyNeeded)
+        );
         let seen = received
             .recv_timeout(Duration::from_secs(5))
             .unwrap_or_else(|e| unreachable!("{e}"));
@@ -592,15 +616,25 @@ mod tests {
                 json!({"error": {"code": status, "message": "x"}}).to_string(),
             );
             let answer = block(judge_with(endpoint).judge(&request()));
-            assert_eq!(answer, Err(JudgeError::Unavailable(reason)), "{status}");
+            assert_eq!(
+                answer,
+                Answer::from(Err(JudgeError::Unavailable(reason))),
+                "{status}: no body is read, so none is hashed"
+            );
         }
-        let (endpoint, _received) = serve(200, "{\"answers\":{}}".to_owned());
+        let malformed = "{\"answers\":{}}";
+        let (endpoint, _received) = serve(200, malformed.to_owned());
         assert_eq!(
             block(judge_with(endpoint).judge(&request())),
-            Err(JudgeError::Malformed)
+            Answer::received(malformed.as_bytes(), Err(JudgeError::Malformed)),
+            "an answer that fails validation is hashed too"
         );
         let unreachable = block(judge_with("http://127.0.0.1:9/".to_owned()).judge(&request()));
-        assert!(matches!(unreachable, Err(JudgeError::Unavailable(_))));
+        assert!(matches!(
+            unreachable.result,
+            Err(JudgeError::Unavailable(_))
+        ));
+        assert_eq!(unreachable.response_hash, None);
     }
 
     #[test]
@@ -688,7 +722,7 @@ mod tests {
         assert_eq!(descriptor.model.as_str(), MODEL);
         let describer = Describer::descriptor(&judge).unwrap_or_else(|| unreachable!());
         assert_eq!(describer.prompt_version.to_string(), "jev-describe/1");
-        let judgment = block(judge.judge(&request()));
+        let judgment = block(judge.judge(&request())).result;
         assert_eq!(judgment.map(|j| j.assessment), Ok(Assessment::LikelyNeeded));
         let seen = received
             .recv_timeout(Duration::from_secs(5))
@@ -712,10 +746,14 @@ mod tests {
             "usage": {"input_tokens": 400, "output_tokens": 0},
         })
         .to_string();
-        let (endpoint, received) = serve(200, reply);
-        let note = block(judge_with(endpoint).describe(&request()));
+        let (endpoint, received) = serve(200, reply.clone());
+        let described = block(judge_with(endpoint).describe(&request()));
         assert_eq!(
-            note.map(|n| (n.kind, n.confidence)),
+            described.response_hash,
+            Some(lumen_domain::response_hash(reply.as_bytes()))
+        );
+        assert_eq!(
+            described.result.map(|n| (n.kind, n.confidence)),
             Ok((
                 lumen_domain::ItemKind::DownloadsOrInstallers,
                 lumen_domain::JudgmentConfidence::High
@@ -733,7 +771,9 @@ mod tests {
         let (endpoint, _received) = serve(429, "{}".to_owned());
         assert_eq!(
             block(judge_with(endpoint).describe(&request())),
-            Err(JudgeError::Unavailable("OpenRouter rate limit reached"))
+            Answer::from(Err(JudgeError::Unavailable(
+                "OpenRouter rate limit reached"
+            )))
         );
     }
 }

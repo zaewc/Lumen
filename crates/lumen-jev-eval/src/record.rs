@@ -548,7 +548,7 @@ mod tests {
             && matches!(o, RecordOutcome::Refused(JudgeError::NoAnswer(_)))));
         // The replay answers exactly as the recorder's validation did.
         assert_eq!(
-            crate::block_on(replay.judge(&dataset.golden[1].request)),
+            crate::block_on(replay.judge(&dataset.golden[1].request)).result,
             Err(JudgeError::NoAnswer("an unexpected model answered"))
         );
         Ok(())

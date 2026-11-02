@@ -53,7 +53,7 @@ impl JudgeModel for Adversary {
             injection_suspected: false,
             rationale: UntrustedText::new("adversarial"),
         });
-        Box::pin(std::future::ready(answer))
+        Box::pin(std::future::ready(answer.into()))
     }
 }
 

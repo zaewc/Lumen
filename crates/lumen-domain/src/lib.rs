@@ -79,7 +79,7 @@ pub use inventory::{
 };
 pub use jev::{
     CandidateSummary, CoverageNote, CoverageSummary, EvidenceKind, JEV_REQUEST_SCHEMA, JevRequest,
-    RequestEvidence, UntrustedField,
+    RequestEvidence, UntrustedField, response_hash,
 };
 pub use judgment::{
     Assessment, ItemKind, ItemNote, ItemRef, JevTrace, JudgeDescriptor, Judgment,
