@@ -142,6 +142,19 @@ export function QuarantinePage() {
         {reported !== null && "many" in reported && (
           <Notice tone={reported.many.well === reported.many.total ? "success" : "warning"}>
             <p>{bulkText(m, reported.many)}</p>
+            {reported.many.misses.length > 0 && (
+              <ul className="space-y-1">
+                {reported.many.misses.map((miss, index) => (
+                  // A finished run's list never changes, so its order is a stable key.
+                  <li key={index}>
+                    <span className="font-medium">
+                      {miss.original === null ? m.held.unknownPath : baseName(miss.original)}:{" "}
+                    </span>
+                    {doneText(m, miss.done)}
+                  </li>
+                ))}
+              </ul>
+            )}
             {reported.many.stopped !== null && <ErrorDetails error={reported.many.stopped.error} />}
           </Notice>
         )}

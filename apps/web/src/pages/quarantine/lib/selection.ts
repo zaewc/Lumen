@@ -1,7 +1,7 @@
 import type { HeldItemView } from "@lumen/api-client";
 import type { Messages } from "@/shared/i18n";
 import type { Stopped } from "./batch";
-import { type Done, doneWell } from "./outcome";
+import { type Done, doneWell, type LastAction } from "./outcome";
 
 /** The selected items, by operation. */
 export type Selection = ReadonlySet<string>;
@@ -61,6 +61,8 @@ export interface BulkResult {
   readonly well: number;
   /** Items put back where they were that do not exactly match their record. */
   readonly unverified: number;
+  /** Finished items that did not come out as asked, each with what happened. */
+  readonly misses: readonly LastAction[];
   /** The error that stopped the run early, after `well` items were already done. */
   readonly stopped: Stopped | null;
 }
@@ -68,18 +70,20 @@ export interface BulkResult {
 /** The result of `action`, from each finished item's outcome and what stopped the run. */
 export function bulkResult(
   action: Done["action"],
-  done: readonly Done[],
+  done: readonly LastAction[],
   stopped: Stopped | null = null,
 ): BulkResult {
   const unfinished = stopped === null ? 0 : stopped.untried + 1;
-  const unverified = done.filter(
+  const outcomes = done.map((item) => item.done);
+  const unverified = outcomes.filter(
     (d) => d.action === "restore" && d.outcome.kind === "restored" && !d.outcome.verified,
   ).length;
   return {
     action,
     total: done.length + unfinished,
-    well: done.filter(doneWell).length,
+    well: outcomes.filter(doneWell).length,
     unverified,
+    misses: done.filter((item) => !doneWell(item.done)),
     stopped,
   };
 }

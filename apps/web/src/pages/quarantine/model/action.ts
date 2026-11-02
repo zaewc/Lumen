@@ -64,11 +64,7 @@ export function useHeldAction() {
           mode === "one" && one !== undefined
             ? { one }
             : {
-                many: bulkResult(
-                  action,
-                  done.map((item) => item.done),
-                  stopped,
-                ),
+                many: bulkResult(action, done, stopped),
               };
         // Only finished items count; the one that failed may have changed the
         // disk without a reading, so a stopped run's change stays unknown.

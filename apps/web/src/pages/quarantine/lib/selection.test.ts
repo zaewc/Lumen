@@ -1,6 +1,7 @@
 import type { HeldItemView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
 import { en, ko } from "@/shared/i18n";
+import type { Done, LastAction } from "./outcome";
 import {
   actionable,
   bulkResult,
@@ -10,6 +11,11 @@ import {
   stillHeld,
   toggled,
 } from "./selection";
+
+/** Finished outcomes, each about an item named after its position. */
+function named(done: readonly Done[]): LastAction[] {
+  return done.map((d, index) => ({ original: `/Users/ana/item-${index + 1}`, done: d }));
+}
 
 function item(operation: string, state: HeldItemView["state"] = "retained"): HeldItemView {
   return {
@@ -47,44 +53,74 @@ describe("selecting held items", () => {
 
   it("sums up what happened, in each language", () => {
     const restored = { kind: "restored", parent_replaced: false, verified: true } as const;
-    const all = bulkResult("restore", [
-      { action: "restore", outcome: restored },
-      { action: "restore", outcome: restored },
-    ]);
-    expect(all).toEqual({ action: "restore", total: 2, well: 2, unverified: 0, stopped: null });
+    const all = bulkResult(
+      "restore",
+      named([
+        { action: "restore", outcome: restored },
+        { action: "restore", outcome: restored },
+      ]),
+    );
+    expect(all).toEqual({
+      action: "restore",
+      total: 2,
+      well: 2,
+      unverified: 0,
+      misses: [],
+      stopped: null,
+    });
     expect(bulkText(en, all)).toBe("Restored 2 items.");
     expect(bulkText(ko, all)).toBe("항목 2개를 복원했어요.");
-    const partly = bulkResult("finalize", [
-      { action: "finalize", outcome: { kind: "finalized" } },
-      { action: "finalize", outcome: { kind: "maybe_in_use" } },
-      { action: "finalize", outcome: { kind: "finalized" } },
-    ]);
+    const partly = bulkResult(
+      "finalize",
+      named([
+        { action: "finalize", outcome: { kind: "finalized" } },
+        { action: "finalize", outcome: { kind: "maybe_in_use" } },
+        { action: "finalize", outcome: { kind: "finalized" } },
+      ]),
+    );
     expect(bulkText(ko, partly)).toBe(
       "항목 3개 중 2개를 영구 삭제했어요. 나머지는 삭제하지 않았어요.",
     );
     expect(bulkText(en, partly)).toBe("Removed 2 of 3 items for good. Lumen removed nothing else.");
+    expect(partly.misses).toEqual([
+      {
+        original: "/Users/ana/item-2",
+        done: { action: "finalize", outcome: { kind: "maybe_in_use" } },
+      },
+    ]);
   });
 
   it("counts an item restored but unlike its record as out of Quarantine", () => {
     const verified = { kind: "restored", parent_replaced: false, verified: true } as const;
     const unlike = { kind: "restored", parent_replaced: false, verified: false } as const;
     const taken = { kind: "not_restored", reason: "name_taken" } as const;
-    const result = bulkResult("restore", [
-      { action: "restore", outcome: verified },
-      { action: "restore", outcome: unlike },
-      { action: "restore", outcome: taken },
-    ]);
+    const result = bulkResult(
+      "restore",
+      named([
+        { action: "restore", outcome: verified },
+        { action: "restore", outcome: unlike },
+        { action: "restore", outcome: taken },
+      ]),
+    );
     expect(result).toMatchObject({ total: 3, well: 1, unverified: 1 });
+    // Both the unlike item and the one not restored need a look.
+    expect(result.misses.map((miss) => miss.original)).toEqual([
+      "/Users/ana/item-2",
+      "/Users/ana/item-3",
+    ]);
     expect(bulkText(en, result)).toBe(
       "Restored 2 of 3 items. The rest are still in Quarantine. 1 restored item does not exactly match its record, so check it.",
     );
     expect(bulkText(ko, result)).toBe(
       "항목 3개 중 2개를 복원했어요. 나머지는 격리함에 그대로 있어요. 복원한 항목 1개는 기록과 정확히 같지 않아요. 내용을 확인해 주세요.",
     );
-    const allBack = bulkResult("restore", [
-      { action: "restore", outcome: unlike },
-      { action: "restore", outcome: unlike },
-    ]);
+    const allBack = bulkResult(
+      "restore",
+      named([
+        { action: "restore", outcome: unlike },
+        { action: "restore", outcome: unlike },
+      ]),
+    );
     expect(bulkText(en, allBack)).toBe(
       "Restored 2 items. 2 restored items do not exactly match their record, so check them.",
     );
@@ -94,12 +130,16 @@ describe("selecting held items", () => {
     const removed = { action: "finalize", outcome: { kind: "finalized" } } as const;
     const error = { message: "another command is still running" };
     // Items 1-3 removed, item 4 failed, items 5-10 never tried.
-    const stopped = bulkResult("finalize", [removed, removed, removed], { error, untried: 6 });
+    const stopped = bulkResult("finalize", named([removed, removed, removed]), {
+      error,
+      untried: 6,
+    });
     expect(stopped).toEqual({
       action: "finalize",
       total: 10,
       well: 3,
       unverified: 0,
+      misses: [],
       stopped: { error, untried: 6 },
     });
     expect(bulkText(en, stopped)).toBe(
@@ -108,13 +148,13 @@ describe("selecting held items", () => {
     expect(bulkText(ko, stopped)).toBe(
       "항목 10개 중 3개를 영구 삭제하고, 오류가 생겨서 멈췄어요. 나머지 6개는 삭제하지 않았어요. 목록에 남은 항목은 격리함에 그대로 있어서 복원할 수 있어요.",
     );
-    const last = bulkResult("finalize", [removed], { error, untried: 0 });
+    const last = bulkResult("finalize", named([removed]), { error, untried: 0 });
     expect(last.total).toBe(2);
     expect(bulkText(en, last)).toBe(
       "Removed 1 of 2 items for good, then an error stopped Lumen. What's still in the list stays in Quarantine, and you can restore it.",
     );
     const restored = { kind: "restored", parent_replaced: false, verified: true } as const;
-    const restoring = bulkResult("restore", [{ action: "restore", outcome: restored }], {
+    const restoring = bulkResult("restore", named([{ action: "restore", outcome: restored }]), {
       error,
       untried: 2,
     });
