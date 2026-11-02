@@ -177,7 +177,7 @@ export const ko = {
     },
     canFree: (size: string) => `${size}를 정리할 수 있어요`,
     nothingTitle: "정리할 항목이 없어요",
-    nothing: "Lumen은 치워 두어도 안전하다고 확신하는 항목만 제안해요.",
+    nothing: "Lumen은 앱이 다시 만드는 캐시처럼 안전 규칙이 허용하는 항목만 제안해요.",
     filter: "표시",
     filters: {
       all: "전체",

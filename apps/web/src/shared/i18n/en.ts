@@ -171,7 +171,8 @@ export const en = {
     },
     canFree: (size: string) => `You can clean up ${size}`,
     nothingTitle: "Nothing to clean up",
-    nothing: "Lumen proposes only items it is sure are safe to set aside.",
+    nothing:
+      "Lumen proposes only items its safety rules allow, such as caches their app re-creates.",
     filter: "Show",
     filters: {
       all: "All",
@@ -543,7 +544,7 @@ export const en = {
   glossary: {
     verdicts: {
       title: "How Lumen decides",
-      body: "Lumen decides about each item with fixed safety rules, not by guessing. “Proposed”: items such as caches that their app or tool re-creates. “Clean up with its own command”: items only their tool should remove; Lumen shows the tool's command for you to run. “Needs review”: large items Lumen is not sure about, or an uninstalled app's leftovers; they are never moved automatically. “Kept”: items Lumen will not touch, such as system files, files in use, apps' own data or small items it does not recognise. When in doubt, Lumen keeps the item.",
+      body: "Lumen decides about each item with fixed safety rules, not by guessing. “Proposed”: items such as caches that their app or tool re-creates. “Clean up with its own command”: items only their tool should remove; Lumen shows the tool's command for you to run. “Needs review”: large items Lumen is not sure about, or an uninstalled app's leftovers; they are never moved automatically. “Kept”: items Lumen will not touch, such as system files, files in use, apps' own data or small items it does not recognise. When in doubt, Lumen leaves the item where it is.",
     },
     quarantine: {
       title: "Quarantine",
