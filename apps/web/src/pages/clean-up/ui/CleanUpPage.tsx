@@ -123,7 +123,7 @@ export function CleanUpPage() {
       case "decideFailed":
         return (
           <section className="space-y-3">
-            <StepHeading focus={acted} className="text-[15px] font-semibold text-ink">
+            <StepHeading focus={acted} className="text-section text-ink">
               {m.scanning.failed}
             </StepHeading>
             <button type="button" onClick={rescan} className={buttonClass("secondary")}>

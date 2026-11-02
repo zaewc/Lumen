@@ -115,7 +115,7 @@ function ListHeading({
   return (
     <Tag
       id={id}
-      className={`${GRID} items-baseline px-2 ${level === 3 ? "pt-6 pb-2 text-[15px] font-semibold text-ink" : "pt-3 pb-1 text-[12px] font-medium text-ink-2"}`}
+      className={`${GRID} items-baseline px-2 ${level === 3 ? "pt-6 pb-2 text-section text-ink" : "pt-3 pb-1 text-[12px] font-medium text-ink-2"}`}
     >
       <span className="truncate @xl:col-span-3">
         {name}

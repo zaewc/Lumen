@@ -86,7 +86,7 @@ export function DiskUsage() {
       className="space-y-5 border-b border-line pb-8"
     >
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id={title} className="text-[13px] font-semibold text-ink">
+        <h2 id={title} className="text-section text-ink">
           {d.title}
         </h2>
         {percent !== null && (

@@ -64,7 +64,7 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
 
   return (
     <section>
-      <h3 className="text-[13px] font-semibold text-ink-2">{m.toolCommand.title(command.tool)}</h3>
+      <h3 className="text-section text-ink">{m.toolCommand.title(command.tool)}</h3>
       <div className="mt-2 flex items-start gap-2">
         <code className="min-w-0 flex-1 rounded-md bg-plane px-2.5 py-1.5 font-mono text-[12px] leading-relaxed break-all text-ink ring-1 ring-line select-all">
           {line}

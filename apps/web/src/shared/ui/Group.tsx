@@ -19,7 +19,7 @@ export function Group({
   return (
     <section aria-labelledby={title === undefined ? undefined : heading}>
       {title !== undefined && (
-        <h2 id={heading} className="pb-3 text-[15px] font-semibold text-ink">
+        <h2 id={heading} className="pb-3 text-section text-ink">
           {title}
         </h2>
       )}

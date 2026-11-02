@@ -112,7 +112,7 @@ export function LastScan() {
   const s = m.overview.session;
   return (
     <section aria-labelledby={title} className="space-y-2">
-      <h2 id={title} className="text-[13px] font-semibold text-ink">
+      <h2 id={title} className="text-section text-ink">
         {s.title}
       </h2>
       {running && <Running />}

@@ -141,7 +141,7 @@ export function CandidateSheet({
               </code>
             </div>
             <section>
-              <h3 className="text-[14px] font-semibold text-ink">{m.detail.reasons}</h3>
+              <h3 className="text-section text-ink">{m.detail.reasons}</h3>
               <ul className="mt-2 text-[14px] leading-snug">
                 {evidenceStack(candidate, lens?.lines ?? []).map((line, index) => (
                   <li

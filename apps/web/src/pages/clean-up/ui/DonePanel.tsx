@@ -43,7 +43,7 @@ export function DonePanel({
       ))}
       {notMoved.length > 0 && (
         <section>
-          <h3 className="pb-1 font-semibold text-ink">{m.done.notMoved(notMoved.length)}</h3>
+          <h3 className="pb-1 text-section text-ink">{m.done.notMoved(notMoved.length)}</h3>
           <ul className="divide-y divide-line border-y border-line">
             {notMoved.map((item) => (
               <li key={item.path} className="py-3">
