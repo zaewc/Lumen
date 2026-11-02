@@ -88,8 +88,10 @@ Anyone who can merge into `main` (set 2026-11-02, ADR-0054):
 - **The `release` environment** accepts only `main` and has no required reviewers, so
   its secrets reach a run from `main` without anyone approving it, and never a run
   from another branch, a tag or a pull request.
-- **The `release tags` ruleset** lets the GitHub Actions app create `v*` tags (the
-  release job does), and only repository admins otherwise create, move or delete them.
+- **The `release tags` ruleset** lets only repository admins move or delete `v*`
+  tags. Creating one is not restricted: the release job creates it with the workflow
+  token, a tag starts nothing, and a tag created early only makes the push skip that
+  version.
 
 ## Rotating the updater key
 

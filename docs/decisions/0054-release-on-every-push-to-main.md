@@ -63,9 +63,11 @@ Chosen option: **1**.
   raises the version itself.
 - Repository settings: `develop` is the default branch; both `develop` and `main`
   require pull requests and the same status checks; the `release` environment
-  accepts only `main` and has no required reviewers; the `release tags` ruleset lets
-  the GitHub Actions app create `v*` tags, and still lets nobody else but admins
-  create, move or delete them.
+  accepts only `main` and has no required reviewers; the `release tags` ruleset no
+  longer restricts creating `v*` tags (the release job creates them with the
+  workflow token), and still lets only admins move or delete them. A tag starts
+  nothing and the environment refuses tags, so creating one early only makes the
+  push to `main` skip that version.
 
 ### Consequences
 
