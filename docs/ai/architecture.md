@@ -91,6 +91,14 @@ and record its traces in the ledger, like the CLI, and `assess` describes review
 `CandidateView.ai_note` (`{ kind, confidence }` or `null`) is shown as a muted line
 under the row and in the item's details, labelled as AI.
 
+Each judgment that moved a proposed quarantine to review is also recorded in the ledger
+(`jev_demotions`), keyed by the item's file identity. Making a plan assesses the scan
+again and asks again, so `plan` gives every item recorded as demoted since the latest
+scan finished its recorded judgment again: a second request that fails (for example
+429 under a shared key), an answer that differs, or AI review turned off in between
+cannot return the item to the plan. A judgment only adds caution, so carrying one
+forward never removes more.
+
 ### Which key is used
 
 1. A key the user stored in the OS secret store: Jeb's, otherwise OpenRouter's

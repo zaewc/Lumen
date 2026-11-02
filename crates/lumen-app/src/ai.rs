@@ -328,7 +328,8 @@ pub fn active_judge(
 }
 
 /// Records every judge consultation and description request in `assessed`
-/// in the ledger next to `db`.
+/// in the ledger next to `db`, and each item a judgment demoted to review,
+/// which making a plan carries forward ([`crate::plan`], audit finding AI-4).
 ///
 /// # Errors
 ///
@@ -349,6 +350,14 @@ pub fn record_traces(
     )?);
     for trace in traces {
         ledger.append_jev_trace(trace)?;
+    }
+    for item in assessed {
+        if let Some(trace) = &item.trace
+            && trace.policy_effect == lumen_domain::JevEffect::DemotedToReview
+            && let Some(judgment) = &trace.judgment
+        {
+            ledger.record_demotion(trace.requested_at, item.candidate.identity(), judgment)?;
+        }
     }
     Ok(())
 }
