@@ -23,9 +23,7 @@ function RootDetails({ root }: { readonly root: RootView }) {
           {root.reclaimable_exact ? reclaimable : m.details.atLeast(reclaimable)}
         </dd>
       </dl>
-      <p
-        className={`mt-1.5 ${root.coverage_complete ? "text-ink-3" : "text-amber-800 dark:text-amber-300"}`}
-      >
+      <p className={`mt-1.5 ${root.coverage_complete ? "text-ink-3" : "text-attention"}`}>
         {root.coverage_complete
           ? m.details.complete
           : m.details.incomplete(root.denied, root.failed, root.not_scanned)}

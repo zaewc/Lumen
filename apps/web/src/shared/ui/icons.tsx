@@ -82,6 +82,24 @@ export function WarningIcon({ className = "" }: IconProps) {
   );
 }
 
+/** Something did not work: a filled circle, unlike the warning's triangle. */
+export function ErrorIcon({ className = "" }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={`size-5 shrink-0 ${className}`}
+    >
+      <path
+        fillRule="evenodd"
+        d="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm0 3.75a.75.75 0 0 1 .75.75v4a.75.75 0 0 1-1.5 0v-4a.75.75 0 0 1 .75-.75Zm0 8.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
 /** Close. */
 export function CloseIcon({ className = "" }: IconProps) {
   return (

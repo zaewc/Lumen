@@ -25,9 +25,9 @@
  * `canvas` is the window and page; `plane` the inset areas (the header, code,
  * fields, the storage map); `raised` only what sits above the page (dialogs,
  * the inspector, the InfoTip panel). Each token has a light and a dark value;
- * components use them as `bg-canvas`, `text-ink-2`, `border-line`… and keep
- * Tailwind's palette only for semantic colour (amber for what needs attention,
- * red for what cannot be undone). `ink-3` keeps 5:1 on every surface.
+ * components use them as `bg-canvas`, `text-ink-2`, `border-line`… `attention`
+ * (amber) is what needs a look or did not work; Tailwind's red stays only for
+ * what cannot be undone. `ink-3` keeps 5:1 on every surface.
  *
  * The type scale has named roles; figures always use tabular numerals.
  */
@@ -51,6 +51,7 @@
   --color-accent-hover: var(--lm-accent-hover);
   --color-accent-ink: var(--lm-accent-ink);
   --color-accent-soft: var(--lm-accent-soft);
+  --color-attention: var(--lm-attention);
 
   /* One measure per screen: available space, the inspected size. */
   --text-measure: 32px;
@@ -89,6 +90,8 @@
     --lm-accent-hover: #2f45b8;
     --lm-accent-ink: #344fbd;
     --lm-accent-soft: rgb(58 82 204 / 0.08);
+    /* Incomplete coverage, a needed look, something that did not work: amber-700. */
+    --lm-attention: #b45309;
 
     background-color: var(--lm-canvas);
     color: var(--lm-ink);
@@ -114,6 +117,7 @@
       --lm-accent-hover: #586ed5;
       --lm-accent-ink: #a4b4ff;
       --lm-accent-soft: rgb(96 120 235 / 0.14);
+      --lm-attention: #fcd34d;
     }
   }
 
@@ -191,13 +195,9 @@
   background: linear-gradient(var(--lm-accent), var(--lm-accent)) center / 3px 3px no-repeat;
 }
 
-/* An interrupted move that needs a look; amber-700, amber-300 when dark. */
+/* An interrupted move that needs a look. */
 .decision-mark[data-status="attention"] {
-  border: 1.5px dashed #b45309;
-
-  @variant dark {
-    border-color: #fcd34d;
-  }
+  border: 1.5px dashed var(--lm-attention);
 }
 
 /* Filled marks keep their fill where the system replaces colours. */

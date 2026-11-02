@@ -82,7 +82,7 @@ export function HeldRow({
           </span>
           <span
             title={retained ? undefined : m.held.afterFailure}
-            className={`col-start-2 row-start-2 flex items-center justify-end gap-1.5 text-[12px] tabular-nums @2xl:col-start-4 @2xl:row-start-1 @2xl:justify-start @2xl:text-[13px] ${retained ? "text-ink-2" : "text-amber-700 dark:text-amber-400"}`}
+            className={`col-start-2 row-start-2 flex items-center justify-end gap-1.5 text-[12px] tabular-nums @2xl:col-start-4 @2xl:row-start-1 @2xl:justify-start @2xl:text-[13px] ${retained ? "text-ink-2" : "text-attention"}`}
           >
             <DecisionMark status={retained ? "held" : "attention"} />
             {retained ? m.held.days(daysHeld(item.since, new Date())) : m.held.restoreOnly}

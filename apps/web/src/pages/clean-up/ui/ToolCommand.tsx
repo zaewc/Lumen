@@ -79,7 +79,7 @@ export function ToolCommand({ command }: { readonly command: ToolCommandView }) 
           {copy === "copied" ? m.toolCommand.copied : m.toolCommand.copy}
         </button>
       </div>
-      <p aria-live="polite" className="text-[12px] text-amber-800 empty:hidden dark:text-amber-300">
+      <p aria-live="polite" className="text-[12px] text-attention empty:hidden">
         {copy === "failed" && <span className="mt-1 block">{m.toolCommand.copyFailed}</span>}
         {copy === "copied" && <span className="sr-only">{m.toolCommand.copied}</span>}
       </p>

@@ -31,11 +31,7 @@ function RowContent({
   return (
     <>
       <span className="truncate text-ink">{label}</span>
-      <span
-        className={`tabular-nums ${attention ? "text-amber-700 dark:text-amber-400" : "text-ink-2"}`}
-      >
-        {count}
-      </span>
+      <span className={`tabular-nums ${attention ? "text-attention" : "text-ink-2"}`}>{count}</span>
       <span className="text-right tabular-nums text-ink">{size}</span>
       <ChevronIcon className="text-ink-3" />
     </>

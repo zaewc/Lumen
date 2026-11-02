@@ -2,14 +2,16 @@ import type { ReactNode } from "react";
 import { useI18n } from "@/shared/i18n";
 import { errorMessage } from "@/shared/lib";
 import { Disclosure } from "./Disclosure";
-import { CheckIcon, WarningIcon } from "./icons";
+import { CheckIcon, ErrorIcon, WarningIcon } from "./icons";
 
-export type NoticeTone = "warning" | "success";
+export type NoticeTone = "warning" | "error" | "success";
 
 function ToneIcon({ tone }: { readonly tone: NoticeTone }) {
   switch (tone) {
     case "warning":
-      return <WarningIcon className="mt-px size-4 text-amber-600 dark:text-amber-400" />;
+      return <WarningIcon className="mt-px size-4 text-attention" />;
+    case "error":
+      return <ErrorIcon className="mt-px size-4 text-attention" />;
     case "success":
       return <CheckIcon className="mt-px size-4 text-ink" />;
   }
@@ -17,8 +19,9 @@ function ToneIcon({ tone }: { readonly tone: NoticeTone }) {
 
 /**
  * A short, calm message on one line (or a few): a glyph says what kind it
- * is (amber for a warning; success is an ink check, never green), and the
- * text stays in the ordinary ink. No box around it.
+ * is (an amber triangle for a warning, an amber circle for an error; success
+ * is an ink check, never green), and the text stays in the ordinary ink. No
+ * box around it.
  */
 export function Notice({
   tone,
@@ -51,7 +54,7 @@ export function ErrorNotice({
 }) {
   return (
     <div role="alert">
-      <Notice tone="warning">
+      <Notice tone="error">
         <p className="font-medium">{message}</p>
         {children !== undefined && <div className="flex flex-wrap gap-2 pt-1">{children}</div>}
         <ErrorDetails error={error} />

@@ -45,7 +45,7 @@ four surfaces with different values and inverts the dark hierarchy).
 | `ink-2` | #46546a | #b4c1d2 | Secondary text |
 | `ink-3` | #5a6880 | #94a5bb | Metadata (≥ 5:1 on every surface; today's light ink-3 is 4.45:1) |
 | `accent` (cobalt) | #3a52cc | #8fa2ff (marks), #5268d1 (fills) | Information |
-| `attention` | amber-700 | amber-300 | Incomplete coverage, needs attention |
+| `attention` | amber-700 | amber-300 | Incomplete coverage, needs attention, errors (by their mark) |
 | `irreversible` | red-700 | red-400 | Only "Remove for good" and its confirmation |
 
 **Cobalt means "this is what you are looking at" or "Lumen proposes this".** It
@@ -118,7 +118,8 @@ is Unknown.
 ### Icons
 
 20 px grid, 1.5 stroke, round caps, `currentColor`. Icons appear only where they
-carry meaning: state marks, close, disclosure chevron, check, warning, copy. The
+carry meaning: state marks, close, disclosure chevron, check, warning, error (a
+filled circle, so an error never reads as a warning), copy. The
 navigation is text only. The sparkle (AI), shield and gauge are removed, as are the
 nine unused icons. AI review is labelled with words ("AI review"), never a symbol.
 

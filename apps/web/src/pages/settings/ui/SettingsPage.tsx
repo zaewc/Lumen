@@ -75,7 +75,7 @@ function OpenSettingsButton() {
         {m.settings.permissions.open}
       </button>
       {opening.isError && (
-        <p role="alert" className="mt-2 text-[13px] text-amber-700 dark:text-amber-300">
+        <p role="alert" className="mt-2 text-[13px] text-attention">
           {m.settings.permissions.openFailed}
         </p>
       )}

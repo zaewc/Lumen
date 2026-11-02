@@ -19,7 +19,7 @@ function Stat({
     <div className="min-w-0">
       <dt className="text-[12px] text-ink-2">{label}</dt>
       <dd
-        className={`mt-1 text-figure tabular-nums ${warn ? "text-amber-700 dark:text-amber-400" : "text-ink"} font-medium`}
+        className={`mt-1 text-figure tabular-nums ${warn ? "text-attention" : "text-ink"} font-medium`}
       >
         {value}
       </dd>
