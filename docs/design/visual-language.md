@@ -169,8 +169,9 @@ the same proportions. Disk figures and candidate figures stay separate quantitie
 Selecting a group region zooms the map into it (all → kind → tool) and narrows the
 list below to that section; a breadcrumb above the map ("All assessed / Developer /
 Xcode") steps back out. Selecting an item region opens the inspector, like selecting
-its row. The DecisionMap stays as the map's legend and keeps its role as the status
-filter; the map applies the same filter by lowering regions outside it. Zoom is view
+its row. The DecisionMap sits above the map as its legend and is the one status
+filter, with "All" as its first choice; the map applies the same filter by lowering
+regions outside it. Zoom is view
 state only: no new filter parameter, no new data.
 
 ### Evidence lens: Explore while inspecting
@@ -237,8 +238,9 @@ Rule counts are not confidence: the stack never shows "3 of 4" or a meter.
 - **Storage:** disk strip with the measure (available space), the last assessment's
   DecisionMap, the Quarantine row.
 - **Explore:** unchanged steps; the results step gains the map above the list. The
-  DecisionMap under the map keeps its totals and filter but not its bar, and list rows
-  show sizes without bars: both would repeat the map.
+  DecisionMap above the map keeps its totals and is the one status filter ("All" first,
+  the glossary tip beside its legend) but not its bar, and list rows show sizes without
+  bars: both would repeat the map.
 - **Quarantine:** the same table; rows show the Held or Needs attention mark and the
   time held as text. Restore is a quiet button; "Remove for good…" is quiet `ink-2`
   text that turns red only in its confirmation row.

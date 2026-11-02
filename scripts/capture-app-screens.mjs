@@ -166,7 +166,8 @@ try {
       await until("document.querySelectorAll('[data-row]').length === 14");
       await capture("clean-up", locale, theme);
 
-      await click("document.querySelectorAll('fieldset label')[1]");
+      await click(`[...document.querySelectorAll('fieldset label')].find(element =>
+        /Needs review|검토 필요/.test(element.textContent))`);
       await until("document.querySelectorAll('[data-row]').length === 3");
       await click("[...document.querySelectorAll('[data-row]')].find(element => element.textContent.includes('OldEditor'))");
       await until("document.querySelector('dialog[open]')?.textContent.includes('OldEditor')");

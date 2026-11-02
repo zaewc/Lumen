@@ -139,7 +139,7 @@ export function LastScan() {
           summary={summary}
           selected={null}
           onSelect={(status) => {
-            void navigate({ to: "/clean", search: { show: status } });
+            void navigate({ to: "/clean", search: status === null ? {} : { show: status } });
           }}
         />
       )}

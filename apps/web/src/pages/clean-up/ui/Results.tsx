@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { type CandidateSummary, DecisionMap } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, userAgent } from "@/shared/lib";
-import { buttonClass, InfoTip, Notice } from "@/shared/ui";
+import { InfoTip, Notice } from "@/shared/ui";
 import { closingSummary } from "../model/closing";
 import { coverageOf } from "../model/coverage";
 import { type Filter, shows } from "../model/filter";
@@ -39,9 +39,10 @@ function CoverageNotice({ scan }: { readonly scan: ScanView }) {
 }
 
 /**
- * What a scan found: how much can be freed, then every item in sections by
- * group, filtered by status (items with their own command apart from those
- * to review). A row opens its details in a sheet.
+ * What a scan found: how much can be freed, the legend that is the one
+ * status filter, the map, then every item in sections by group (items with
+ * their own command apart from those to review). A row opens its details in
+ * a sheet.
  */
 export function Results({
   scan,
@@ -76,31 +77,16 @@ export function Results({
   return (
     <>
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div>
-            <StepHeading focus={focus} className="text-section text-ink tabular-nums">
-              {m.workspace.assessment(candidates.length)}
-            </StepHeading>
-            <p className="mt-1 text-[13px] text-ink-2">
-              {proposed.items.length > 0
-                ? m.results.canFree(formatBytes(proposed.bytes))
-                : m.results.nothingTitle}
-              {proposed.items.length > 0 && ` · ${m.common.items(proposed.items.length)}`}
-            </p>
-          </div>
-          {candidates.length > 0 && (
-            <div className="flex max-w-full flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onFilterChange("all")}
-                aria-pressed={filter === "all"}
-                className={buttonClass(filter === "all" ? "secondary" : "quiet", "sm")}
-              >
-                {m.results.filters.all}
-              </button>
-              <InfoTip term="verdicts" />
-            </div>
-          )}
+        <div>
+          <StepHeading focus={focus} className="text-section text-ink tabular-nums">
+            {m.workspace.assessment(candidates.length)}
+          </StepHeading>
+          <p className="mt-1 text-[13px] text-ink-2">
+            {proposed.items.length > 0
+              ? m.results.canFree(formatBytes(proposed.bytes))
+              : m.results.nothingTitle}
+            {proposed.items.length > 0 && ` · ${m.common.items(proposed.items.length)}`}
+          </p>
         </div>
         {proposed.items.length === 0 && <p className="text-ink-2">{m.results.nothing}</p>}
         {closing !== null && (
@@ -117,6 +103,14 @@ export function Results({
       </div>
       {candidates.length > 0 && (
         <>
+          <DecisionMap
+            summary={summary}
+            selected={filter === "all" ? null : filter}
+            onSelect={(status) => onFilterChange(status ?? "all")}
+            withAll
+            accessory={<InfoTip term="verdicts" />}
+            track={false}
+          />
           <Topography
             groups={groups}
             unread={unreadEntries(scan.roots)}
@@ -125,12 +119,6 @@ export function Results({
             filter={filter}
             lens={lens}
             onOpen={setOpen}
-          />
-          <DecisionMap
-            summary={summary}
-            selected={filter === "all" ? null : filter}
-            onSelect={onFilterChange}
-            track={false}
           />
           <CandidateList sections={sections} onOpen={setOpen} lens={lens} />
         </>
