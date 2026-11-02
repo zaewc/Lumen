@@ -38,6 +38,7 @@ export const en = {
     scanDisk: "Scan disk",
     scanning: "Scanning…",
     scanAgain: "Scan again",
+    scanOther: "Scan other folders",
     items: (n: number) => items(n),
   },
   overview: {
@@ -80,9 +81,8 @@ export const en = {
   },
   start: {
     title: "See what's on your disk",
-    promise: "Scan the whole disk, or only some folders. Lumen asks before it moves anything.",
-    wholeDiskHint:
-      "A scan only reads, and takes a few minutes. Your computer may ask you to allow access to some folders.",
+    promise: "A scan only reads, and takes a few minutes. Lumen asks before it moves anything.",
+    wholeDiskHint: "Your computer may ask you to allow access to some folders.",
     chooseFolders: "Scan only some folders",
     foldersLabel: "Folders to scan, one per line",
     foldersEmpty: "Enter at least one folder.",
@@ -343,7 +343,6 @@ export const en = {
     reclaimable: "Space you can free",
     atLeast: (size: string) => `at least ${size}`,
     complete: "Lumen read everything.",
-    scanOther: "Scan other folders",
     incomplete: (denied: string, failed: string, notScanned: string) =>
       `Lumen could not read everything: ${count(denied)} denied, ${count(failed)} failed, ${count(notScanned)} not scanned.`,
   },

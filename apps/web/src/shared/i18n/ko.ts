@@ -45,6 +45,7 @@ export const ko = {
     scanDisk: "디스크 검사",
     scanning: "검사하는 중…",
     scanAgain: "다시 검사",
+    scanOther: "다른 폴더 검사",
     items: (n: number) => items(n),
   },
   overview: {
@@ -87,9 +88,8 @@ export const ko = {
   },
   start: {
     title: "디스크에 무엇이 있는지 살펴봐요",
-    promise: "디스크 전체나 원하는 폴더만 검사할 수 있어요. 무엇이든 옮기기 전에 먼저 물어볼게요.",
-    wholeDiskHint:
-      "검사는 읽기만 하고, 몇 분 걸려요. 일부 폴더는 컴퓨터가 접근을 허용할지 물어볼 수 있어요.",
+    promise: "검사는 읽기만 하고, 몇 분 걸려요. 무엇이든 옮기기 전에 먼저 물어볼게요.",
+    wholeDiskHint: "일부 폴더는 컴퓨터가 접근을 허용할지 물어볼 수 있어요.",
     chooseFolders: "일부 폴더만 검사",
     foldersLabel: "검사할 폴더(한 줄에 하나씩)",
     foldersEmpty: "폴더를 하나 이상 입력해 주세요.",
@@ -351,7 +351,6 @@ export const ko = {
     reclaimable: "확보할 수 있는 공간",
     atLeast: (size: string) => `최소 ${size}`,
     complete: "모두 읽었어요.",
-    scanOther: "다른 폴더 검사",
     incomplete: (denied: string, failed: string, notScanned: string) =>
       `일부를 읽지 못했어요(접근 거부 ${count(denied)}, 실패 ${count(failed)}, 검사 안 함 ${count(notScanned)}).`,
   },

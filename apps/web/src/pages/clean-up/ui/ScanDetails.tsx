@@ -1,8 +1,7 @@
 import type { RootView, ScanView } from "@lumen/api-client";
-import { useScanSession } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
-import { buttonClass, Disclosure } from "@/shared/ui";
+import { Disclosure } from "@/shared/ui";
 
 /** One scanned folder: its sizes and whether all of it was read. */
 function RootDetails({ root }: { readonly root: RootView }) {
@@ -32,16 +31,9 @@ function RootDetails({ root }: { readonly root: RootView }) {
   );
 }
 
-/** Per-folder numbers, for those who want them, and the way to scan other folders; closed by default. */
-export function ScanDetails({
-  scan,
-  onStartOver,
-}: {
-  readonly scan: ScanView;
-  readonly onStartOver: () => void;
-}) {
+/** Per-folder numbers, for those who want them; closed by default. */
+export function ScanDetails({ scan }: { readonly scan: ScanView }) {
   const { m } = useI18n();
-  const session = useScanSession();
   return (
     <div>
       <Disclosure summary={<span className="text-ink-2">{m.details.title}</span>}>
@@ -51,14 +43,6 @@ export function ScanDetails({
             <RootDetails key={root.root} root={root} />
           ))}
         </ul>
-        <button
-          type="button"
-          onClick={onStartOver}
-          disabled={session.cleaning}
-          className={`${buttonClass("quiet", "sm")} -ml-2`}
-        >
-          {m.details.scanOther}
-        </button>
       </Disclosure>
     </div>
   );

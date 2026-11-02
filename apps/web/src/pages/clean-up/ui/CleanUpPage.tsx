@@ -18,8 +18,9 @@ import { StepHeading } from "./StepHeading";
  * what it proposes to quarantine after one explicit confirmation (ADR-0034).
  * Nothing is deleted here; everything moved can be restored. The scan
  * belongs to the session, so it goes on while another page is open. The
- * toolbar holds each step's action; ⌘R (Ctrl+R) scans again once there is
- * something to scan again.
+ * toolbar holds each step's actions: once there is something to scan again,
+ * "Scan other folders" goes back to the start and "Scan again" (⌘R, Ctrl+R)
+ * scans the same folders.
  */
 export function CleanUpPage() {
   const { m } = useI18n();
@@ -59,15 +60,25 @@ export function CleanUpPage() {
   useShortcut("r", rescan, canRescan && !session.cleaning);
 
   const scanAgain = (
-    <button
-      type="button"
-      onClick={rescan}
-      disabled={session.cleaning}
-      {...shortcutProps(m.common.scanAgain, "r")}
-      className={buttonClass("secondary")}
-    >
-      {m.common.scanAgain}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={startOver}
+        disabled={session.cleaning}
+        className={buttonClass("plain")}
+      >
+        {m.common.scanOther}
+      </button>
+      <button
+        type="button"
+        onClick={rescan}
+        disabled={session.cleaning}
+        {...shortcutProps(m.common.scanAgain, "r")}
+        className={buttonClass("secondary")}
+      >
+        {m.common.scanAgain}
+      </button>
+    </>
   );
 
   const actions = (): ReactNode => {
@@ -148,7 +159,6 @@ export function CleanUpPage() {
                   replace: true,
                 });
               }}
-              onStartOver={startOver}
               focus={acted}
             />
             {cleanUp.dialog}

@@ -51,7 +51,6 @@ export function Results({
   summary,
   filter,
   onFilterChange,
-  onStartOver,
   focus,
 }: {
   readonly scan: ScanView;
@@ -59,8 +58,6 @@ export function Results({
   readonly summary: CandidateSummary;
   readonly filter: Filter;
   readonly onFilterChange: (filter: Filter) => void;
-  /** Back to the start, to scan other folders. */
-  readonly onStartOver: () => void;
   readonly focus: boolean;
 }) {
   const { m } = useI18n();
@@ -125,7 +122,7 @@ export function Results({
           <CandidateList sections={sections} onOpen={setOpen} lens={lens} />
         </>
       )}
-      <ScanDetails scan={scan} onStartOver={onStartOver} />
+      <ScanDetails scan={scan} />
       <CandidateSheet candidate={open} lens={lens} onClose={() => setOpen(null)} />
     </>
   );
