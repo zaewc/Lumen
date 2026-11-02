@@ -13,6 +13,7 @@ import { sectionsOf } from "../model/sections";
 import { candidatesIn, topographyOf, trailTo, unreadEntries } from "../model/topography";
 import { CandidateList } from "./CandidateList";
 import { CandidateSheet } from "./CandidateSheet";
+import { FlowStage } from "./FlowStage";
 import { ScanDetails } from "./ScanDetails";
 import { StepHeading } from "./StepHeading";
 import { Topography } from "./Topography";
@@ -75,6 +76,7 @@ export function Results({
   const lens = useMemo(() => (open === null ? null : lensOf(open, candidates)), [open, candidates]);
   return (
     <>
+      <FlowStage step="results" />
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div>

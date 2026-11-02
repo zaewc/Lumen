@@ -63,9 +63,10 @@ or report. Unconfirmed plans are local to their view and never run automatically
 AI setting writes share their pending/error status across views, without copying
 typed API keys into the session-operation cache.
 
-The scan, evidence and decision stages appear in the start, progress, confirmation
-and completion views. They describe actual workflow states and never imply a scan
-percentage. Settings and held-item rows use the same readable type and spacing.
+The person's steps (scan, see results, clean up) appear in the start, progress,
+results and completion views; the confirmation dialog leaves them out. The engine's
+evidence and decision stages are named inside the progress view instead. Steps describe
+actual workflow states and never imply a scan percentage (UX review, 2026-11-02). Settings and held-item rows use the same readable type and spacing.
 Assessment observers report actual indexed-entry, candidate and description counts
 within named stages. Each known total supports its own percentage; inventory and
 graph work remain indeterminate. Stage counts are advisory and never affect policy.

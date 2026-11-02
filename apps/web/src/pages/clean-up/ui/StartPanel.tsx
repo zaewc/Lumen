@@ -38,7 +38,7 @@ export function StartPanel({
   };
   return (
     <section className="space-y-7">
-      <FlowStage phase="ready" />
+      <FlowStage step="scan" />
       <div className="max-w-2xl space-y-3">
         <StepHeading focus={focus} className="text-section text-ink">
           {m.start.title}

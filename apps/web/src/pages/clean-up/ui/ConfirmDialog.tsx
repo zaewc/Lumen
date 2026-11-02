@@ -3,7 +3,6 @@ import { type RefObject, useId, useRef } from "react";
 import { formatDateTime, useI18n } from "@/shared/i18n";
 import { formatBytes, sumBytes } from "@/shared/lib";
 import { buttonClass, CheckIcon, Dialog, Disclosure, ErrorNotice } from "@/shared/ui";
-import { FlowStage } from "./FlowStage";
 
 /**
  * Asks before moving a plan's items to quarantine. Pressing "Move to
@@ -44,9 +43,6 @@ export function ConfirmDialog({
       returnFocus={returnFocus}
     >
       <div className="flex max-h-[calc(100dvh-5rem)] flex-col">
-        <div className="mb-5 shrink-0">
-          <FlowStage phase={busy ? "done" : "decision"} />
-        </div>
         <h2 id={title} className="shrink-0 text-title text-ink">
           {empty ? m.confirm.nothingLeft : m.confirm.title(plan.items.length, size)}
         </h2>

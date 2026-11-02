@@ -22,7 +22,7 @@ export function DonePanel({
   return (
     <>
       <section className="space-y-6">
-        <FlowStage phase="done" />
+        <FlowStage step="cleanUp" />
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             {moved > 0 && <DecisionMark status="quarantine" />}

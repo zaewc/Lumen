@@ -47,15 +47,7 @@ export function ProgressPanel({
   const none = "–";
   return (
     <section className="space-y-7">
-      <FlowStage
-        phase={
-          !deciding
-            ? "scan"
-            : assessmentProgress?.stage === "deciding" || assessmentProgress?.stage === "describing"
-              ? "decision"
-              : "evidence"
-        }
-      />
+      <FlowStage step="scan" />
       <div role="status" className="space-y-1">
         <StepHeading focus={focus} className="text-section text-ink">
           {deciding ? m.scanning.deciding : m.scanning.title}
