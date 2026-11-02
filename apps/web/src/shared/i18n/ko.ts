@@ -69,6 +69,7 @@ export const ko = {
       quarantine: "격리함",
       atLeast: (size: string) => `최소 ${size}`,
       found: (n: string) => `${n}개 읽었어요`,
+      openExplore: "탐색 열기",
       showProgress: "진행 상황 보기",
       cleaned: (n: number, size: string) => `${items(n)}(${size})를 격리함으로 옮겼어요.`,
       none: "아직 검사하지 않았어요. 디스크를 검사하면 어떤 항목이 있는지와 판단 근거를 보여 줘요.",

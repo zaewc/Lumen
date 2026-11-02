@@ -62,6 +62,7 @@ export const en = {
       quarantine: "In Quarantine",
       atLeast: (size: string) => `at least ${size}`,
       found: (n: string) => `${n} read`,
+      openExplore: "Open Explore",
       showProgress: "Show progress",
       cleaned: (n: number, size: string) => `${items(n)} (${size}) moved to Quarantine.`,
       none: "No scan yet. Scan your disk to explore its contents and the evidence behind each decision.",

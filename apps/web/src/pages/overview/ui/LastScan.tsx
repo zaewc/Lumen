@@ -10,6 +10,7 @@ import {
 import { countFormat, useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { ChevronIcon, Notice } from "@/shared/ui";
+import { assessmentFailed } from "../model/lastScan";
 
 /** A row of the summary: the whole row is a link to the details. */
 const ROW =
@@ -105,7 +106,13 @@ export function LastScan() {
   const summary = session.candidates === null ? null : summarize(session.candidates);
   const report = session.report;
   const anyHeld = inQuarantine(held.data ?? []).length > 0;
+  const decideFailed = assessmentFailed(session);
   const s = m.overview.session;
+  const details = (
+    <Link to="/clean" className="text-accent-ink hover:underline">
+      {s.openExplore}
+    </Link>
+  );
   return (
     <section aria-labelledby={title} className="space-y-2">
       <h2 id={title} className="text-section text-ink">
@@ -114,7 +121,16 @@ export function LastScan() {
       {running && <Running />}
       {!running && session.scanError !== null && (
         <Notice tone="warning">
-          <p>{m.start.failed}</p>
+          <p>
+            {m.start.failed} {details}
+          </p>
+        </Notice>
+      )}
+      {decideFailed && (
+        <Notice tone="warning">
+          <p>
+            {m.scanning.failed} {details}
+          </p>
         </Notice>
       )}
       {!running && report !== null && (
@@ -127,9 +143,11 @@ export function LastScan() {
           </p>
         </Notice>
       )}
-      {!running && summary === null && report === null && session.scanError === null && (
-        <p className="text-ink-2">{s.none}</p>
-      )}
+      {!running &&
+        summary === null &&
+        report === null &&
+        session.scanError === null &&
+        !decideFailed && <p className="text-ink-2">{s.none}</p>}
       {summary !== null && !running && (
         <DecisionMap
           summary={summary}
