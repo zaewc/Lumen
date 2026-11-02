@@ -51,7 +51,7 @@ describe("selecting held items", () => {
       { action: "restore", outcome: restored },
       { action: "restore", outcome: restored },
     ]);
-    expect(all).toEqual({ action: "restore", total: 2, well: 2, stopped: null });
+    expect(all).toEqual({ action: "restore", total: 2, well: 2, unverified: 0, stopped: null });
     expect(bulkText(en, all)).toBe("Restored 2 items.");
     expect(bulkText(ko, all)).toBe("항목 2개를 복원했어요.");
     const partly = bulkResult("finalize", [
@@ -65,6 +65,31 @@ describe("selecting held items", () => {
     expect(bulkText(en, partly)).toBe("Removed 2 of 3 items for good. Lumen removed nothing else.");
   });
 
+  it("counts an item restored but unlike its record as out of Quarantine", () => {
+    const verified = { kind: "restored", parent_replaced: false, verified: true } as const;
+    const unlike = { kind: "restored", parent_replaced: false, verified: false } as const;
+    const taken = { kind: "not_restored", reason: "name_taken" } as const;
+    const result = bulkResult("restore", [
+      { action: "restore", outcome: verified },
+      { action: "restore", outcome: unlike },
+      { action: "restore", outcome: taken },
+    ]);
+    expect(result).toMatchObject({ total: 3, well: 1, unverified: 1 });
+    expect(bulkText(en, result)).toBe(
+      "Restored 2 of 3 items. The rest are still in Quarantine. 1 restored item does not exactly match its record, so check it.",
+    );
+    expect(bulkText(ko, result)).toBe(
+      "항목 3개 중 2개를 복원했어요. 나머지는 격리함에 그대로 있어요. 복원한 항목 1개는 기록과 정확히 같지 않아요. 내용을 확인해 주세요.",
+    );
+    const allBack = bulkResult("restore", [
+      { action: "restore", outcome: unlike },
+      { action: "restore", outcome: unlike },
+    ]);
+    expect(bulkText(en, allBack)).toBe(
+      "Restored 2 items. 2 restored items do not exactly match their record, so check them.",
+    );
+  });
+
   it("says what was already removed when an error stopped the run", () => {
     const removed = { action: "finalize", outcome: { kind: "finalized" } } as const;
     const error = { message: "another command is still running" };
@@ -74,6 +99,7 @@ describe("selecting held items", () => {
       action: "finalize",
       total: 10,
       well: 3,
+      unverified: 0,
       stopped: { error, untried: 6 },
     });
     expect(bulkText(en, stopped)).toBe(

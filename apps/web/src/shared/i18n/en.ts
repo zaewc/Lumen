@@ -432,6 +432,10 @@ export const en = {
         ]
           .filter((sentence) => sentence !== null)
           .join(" "),
+      unverified: (n: number) =>
+        n === 1
+          ? "1 restored item does not exactly match its record, so check it."
+          : `${count(n)} restored items do not exactly match their record, so check them.`,
       removedStopped: (well: number, total: number, untried: number) =>
         [
           `Removed ${count(well)} of ${items(total)} for good, then an error stopped Lumen.`,

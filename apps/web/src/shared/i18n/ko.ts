@@ -437,6 +437,8 @@ export const ko = {
         ]
           .filter((sentence) => sentence !== null)
           .join(" "),
+      unverified: (n: number) =>
+        `복원한 ${items(n)}는 기록과 정확히 같지 않아요. 내용을 확인해 주세요.`,
       removedStopped: (well: number, total: number, untried: number) =>
         [
           `${items(total)} 중 ${count(well)}개를 영구 삭제하고, 오류가 생겨서 멈췄어요.`,

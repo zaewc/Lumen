@@ -59,6 +59,8 @@ export interface BulkResult {
   readonly total: number;
   /** Items that came out as asked (restored and verified, or removed). */
   readonly well: number;
+  /** Items put back where they were that do not exactly match their record. */
+  readonly unverified: number;
   /** The error that stopped the run early, after `well` items were already done. */
   readonly stopped: Stopped | null;
 }
@@ -70,18 +72,32 @@ export function bulkResult(
   stopped: Stopped | null = null,
 ): BulkResult {
   const unfinished = stopped === null ? 0 : stopped.untried + 1;
-  return { action, total: done.length + unfinished, well: done.filter(doneWell).length, stopped };
+  const unverified = done.filter(
+    (d) => d.action === "restore" && d.outcome.kind === "restored" && !d.outcome.verified,
+  ).length;
+  return {
+    action,
+    total: done.length + unfinished,
+    well: done.filter(doneWell).length,
+    unverified,
+    stopped,
+  };
 }
 
 /** The result in words. */
 export function bulkText(m: Messages, result: BulkResult): string {
   const text = m.quarantine.selection;
-  const { well, total, stopped } = result;
+  const { well, unverified, total, stopped } = result;
   switch (result.action) {
-    case "restore":
-      return stopped === null
-        ? text.restored(well, total)
-        : text.restoredStopped(well, total, stopped.untried);
+    case "restore": {
+      // An unverified item is no longer in Quarantine: it counts as restored.
+      const back = well + unverified;
+      const said =
+        stopped === null
+          ? text.restored(back, total)
+          : text.restoredStopped(back, total, stopped.untried);
+      return unverified === 0 ? said : `${said} ${text.unverified(unverified)}`;
+    }
     case "finalize":
       return stopped === null
         ? text.removed(well, total)
