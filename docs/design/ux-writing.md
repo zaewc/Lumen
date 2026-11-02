@@ -21,6 +21,8 @@ to a tool that decides about people's files. It complements
 
 1. **Predictable hint:** can the user tell what happens next? Buttons name their result
    ("격리함으로 옮기기", not "확인"); a trailing "…" means a confirmation follows.
+   A link to another place names that place ("탐색 열기", "격리함 열기"), and a
+   place's name is not reused for something else on another screen.
 2. **Weed cutting:** remove words that change nothing ("앞으로", "현재", "해당", "모든"
    when not needed).
 3. **Remove empty sentences:** never repeat the title in the description; never add a
@@ -72,7 +74,11 @@ Use these and only these, in both languages.
 
 | Korean | English | Meaning |
 | --- | --- | --- |
+| 저장 공간 | Storage | The place: the disk and the last scan at a glance |
+| 탐색 | Explore | The place where a scan runs, its items are explained and cleaned up |
 | 검사 | Scan | Read-only look at the disk |
+| 읽은 항목 | Entries read | Every file and folder a scan read; a progress count only |
+| 살펴본 항목 | Assessed items | The items the policy decided about; never "찾은 항목" |
 | 정리 제안 | Proposed | The policy proposes quarantine |
 | 명령으로 정리 | Clean up with its own command (status: Own command) | Only the tool's reviewed command should remove it; Lumen can run it after the user confirms the full command and that removal cannot be undone ([ADR-0049](../decisions/0049-run-tool-commands-on-request.md)) |
 | 검토 필요 | Needs review | The user should look before anything moves |

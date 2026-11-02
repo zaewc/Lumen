@@ -60,7 +60,7 @@ export const en = {
       review: "Needs review",
       quarantine: "In Quarantine",
       atLeast: (size: string) => `at least ${size}`,
-      found: (n: string) => `${n} found`,
+      found: (n: string) => `${n} read`,
       showProgress: "Show progress",
       cleaned: (n: number, size: string) => `${items(n)} (${size}) moved to Quarantine.`,
       none: "No scan yet. Scan your disk to explore its contents and the evidence behind each decision.",
@@ -68,7 +68,7 @@ export const en = {
   },
   workspace: {
     available: "Available space",
-    assessed: "Items in this scan · by size",
+    assessed: "Assessed items · by size",
     assessment: (n: number) => `${items(n)} assessed`,
     unknownOrigin: "No origin information",
     workflow: "From scan to decision",
@@ -153,7 +153,7 @@ export const en = {
     processed: (done: string, total: string) => `${done} of ${total} items checked`,
     readOnly: "Lumen only reads and changes nothing.",
     progress: "Scan progress",
-    items: "Items found",
+    items: "Entries read",
     unreadable: "Unreadable folders",
     reading: "Reading",
     readSoFar: (size: string) => `Read so far: ${size}`,
@@ -161,8 +161,8 @@ export const en = {
   },
   results: {
     map: {
-      label: "Map of the items in this scan, by size",
-      all: "All items",
+      label: "Map of the assessed items, by size",
+      all: "All kinds",
       smaller: (n: number) => `${count(n)} smaller items`,
       notRead: "Not read",
       notReadYet: "Not read yet",
@@ -401,7 +401,7 @@ export const en = {
     loadFailed: "Lumen could not load Quarantine.",
     empty: "Quarantine is empty",
     emptyHint: "Items you clean up wait here, so you can restore them if you change your mind.",
-    goCleanUp: "Explore storage",
+    goCleanUp: "Open Explore",
     interrupted: (n: number) =>
       `A clean-up stopped partway, and Lumen cannot tell where ${n === 1 ? "this item is" : `these ${count(n)} items are`}. Lumen did not remove ${n === 1 ? "it" : "them"}. Check where ${n === 1 ? "it was" : "they were"}:`,
     selection: {

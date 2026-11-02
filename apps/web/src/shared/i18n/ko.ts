@@ -67,7 +67,7 @@ export const ko = {
       review: "검토 필요",
       quarantine: "격리함",
       atLeast: (size: string) => `최소 ${size}`,
-      found: (n: string) => `${n}개 찾았어요`,
+      found: (n: string) => `${n}개 읽었어요`,
       showProgress: "진행 상황 보기",
       cleaned: (n: number, size: string) => `${items(n)}(${size})를 격리함으로 옮겼어요.`,
       none: "아직 검사하지 않았어요. 디스크를 검사하면 어떤 항목이 있는지와 판단 근거를 보여 줘요.",
@@ -75,7 +75,7 @@ export const ko = {
   },
   workspace: {
     available: "사용할 수 있는 공간",
-    assessed: "이번 검사에서 찾은 항목 · 크기 기준",
+    assessed: "이번 검사에서 살펴본 항목 · 크기 기준",
     assessment: (n: number) => `${items(n)}를 살펴봤어요`,
     unknownOrigin: "출처 정보가 없어요",
     workflow: "검사부터 판단까지",
@@ -86,7 +86,7 @@ export const ko = {
     quitHeld: "Lumen이 항목을 옮기거나 지우고 있어요. 끝나면 닫을 수 있어요.",
   },
   start: {
-    title: "저장 공간을 살펴봐요",
+    title: "디스크에 무엇이 있는지 살펴봐요",
     promise: "디스크 전체나 원하는 폴더만 검사할 수 있어요. 무엇이든 옮기기 전에 먼저 물어볼게요.",
     wholeDiskHint:
       "검사는 읽기만 하고, 몇 분 걸려요. 일부 폴더는 컴퓨터가 접근을 허용할지 물어볼 수 있어요.",
@@ -159,16 +159,16 @@ export const ko = {
     processed: (done: string, total: string) => `${total}개 중 ${done}개 확인`,
     readOnly: "읽기만 하고, 아무것도 바꾸지 않아요.",
     progress: "검사 진행 상황",
-    items: "찾은 항목",
+    items: "읽은 항목",
     unreadable: "읽지 못한 폴더",
     reading: "읽는 중",
     readSoFar: (size: string) => `지금까지 읽은 크기 ${size}`,
-    failed: "찾은 항목을 판단하지 못했어요. 파일은 모두 그대로 있어요.",
+    failed: "검사한 항목을 판단하지 못했어요. 파일은 모두 그대로 있어요.",
   },
   results: {
     map: {
-      label: "이번 검사에서 찾은 항목 지도, 크기 기준",
-      all: "전체 항목",
+      label: "이번 검사에서 살펴본 항목 지도, 크기 기준",
+      all: "모든 종류",
       smaller: (n: number) => `작은 항목 ${count(n)}개`,
       notRead: "읽지 못함",
       notReadYet: "아직 읽지 않음",
@@ -209,13 +209,13 @@ export const ko = {
     },
     listHint: "위아래 화살표 키로 항목 사이를 이동할 수 있어요.",
     emptyFilter: "이 상태인 항목이 없어요.",
-    partial: "검사가 중간에 멈췄어요. 그때까지 찾은 항목만 보여 드려요.",
+    partial: "검사가 중간에 멈췄어요. 그때까지 읽은 부분만 살펴봤어요.",
     whenClosed: (size: string, ...apps: string[]) =>
       apps.length === 0
         ? `사용 중인 앱을 종료하고 다시 검사하면 ${size}를 더 정리할 수 있어요.`
         : `${appList(apps)} 앱을 종료하고 다시 검사하면 ${size}를 더 정리할 수 있어요.`,
     outOfSpace:
-      "디스크 공간이 거의 없어서 검사를 멈췄어요(Lumen은 늘 2 GB를 비워 둬요). 그때까지 찾은 항목만 보여 드려요. 공간을 조금 비운 뒤 다시 검사해 주세요.",
+      "디스크 공간이 거의 없어서 검사를 멈췄어요(Lumen은 늘 2 GB를 비워 둬요). 그때까지 읽은 부분만 살펴봤어요. 공간을 조금 비운 뒤 다시 검사해 주세요.",
   },
   action: {
     cleanUp: "정리하기…",
@@ -407,7 +407,7 @@ export const ko = {
     loadFailed: "격리함을 불러오지 못했어요.",
     empty: "격리함이 비어 있어요",
     emptyHint: "정리한 항목은 여기서 기다려요. 마음이 바뀌면 복원할 수 있어요.",
-    goCleanUp: "저장 공간 살펴보기",
+    goCleanUp: "탐색 열기",
     interrupted: (n: number) =>
       `정리가 중간에 멈춰서 ${items(n)}가 어디 있는지 알 수 없어요. Lumen은 삭제하지 않았어요. 원래 있던 곳을 확인해 주세요.`,
     selection: {
