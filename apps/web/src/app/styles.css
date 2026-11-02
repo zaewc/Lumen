@@ -472,13 +472,14 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 3px;
   border-radius: 4px;
-  font-size: 8px;
+  /* The metadata size: nothing on screen is set below 12 px (visual-language.md). */
+  font-size: 12px;
   line-height: 1;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-weight: 600;
   color: var(--lm-ink-2);
   background: var(--lm-fill);
   border: 1px solid var(--lm-line-strong);

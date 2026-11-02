@@ -151,7 +151,7 @@ export function CandidateSheet({
                     <span className="flex h-5 items-center">
                       <CertaintyDot certainty={line.certainty} />
                     </span>
-                    <span className="text-[11px] leading-[20px] font-medium tracking-[0.06em] text-ink-3 uppercase">
+                    <span className="text-[12px] leading-[20px] font-medium tracking-[0.04em] text-ink-3 uppercase">
                       {m.detail.sources[line.source]}
                     </span>
                     <span className={`tabular-nums ${INK[line.certainty]}`}>
