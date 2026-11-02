@@ -477,7 +477,7 @@ mod tests {
         let text = serde_json::to_string_pretty(&recording.cassette)?;
         let replay = ReplayJudge::new(Cassette::parse(&text)?);
         for case in dataset.cases() {
-            let answer = block_on(replay.judge(&case.request));
+            let answer = block_on(replay.judge(&case.request)).result;
             if case.request.item_ref.as_str() == refused || case.request.item_ref.as_str() == odd {
                 assert_eq!(answer, Err(JudgeError::Malformed));
             } else {

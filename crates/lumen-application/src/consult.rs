@@ -67,7 +67,7 @@ pub async fn decide(
     let requested_at = clock.now();
     let answer = judge.judge(request).await;
     let latency_ms = millis(requested_at, clock.now());
-    let (decision, validation, judgment) = match answer {
+    let (decision, validation, judgment) = match answer.result {
         Ok(judgment) => {
             input.jev = Some(judgment.clone());
             (evaluate(&input)?, TraceValidation::Accepted, Some(judgment))
@@ -85,7 +85,7 @@ pub async fn decide(
         output_schema,
         evidence_hash: input.evidence_hash,
         request_hash: request.hash(),
-        response_hash: None,
+        response_hash: answer.response_hash,
         validation,
         judgment,
         calibrated_precision_bp: None,

@@ -236,6 +236,36 @@ fn errors_leave_the_decision_unchanged_and_are_traced() {
 }
 
 #[test]
+fn the_trace_keeps_the_hash_of_the_body_as_received() {
+    let item = || ItemRef::new("c_1").unwrap_or_else(|_| unreachable!());
+    let body = br#"{"assessment":"likely_needed"}"#;
+    let accepted = MockJudge::new(Some(descriptor())).answer_received(
+        item(),
+        body,
+        Ok(judgment(Assessment::LikelyNeeded)),
+    );
+    let rejected = MockJudge::new(Some(descriptor())).answer_received(
+        item(),
+        body,
+        Err(JudgeError::Rejected(JudgmentRejection::UnknownEvidence)),
+    );
+    for judge in [accepted, rejected] {
+        let trace = run(&judge, input(false))
+            .trace
+            .unwrap_or_else(|| unreachable!("consulted"));
+        assert_eq!(trace.response_hash, Some(lumen_domain::response_hash(body)));
+    }
+    // No body arrived, so there is nothing to hash.
+    let unavailable = run(
+        &scripted(Err(JudgeError::Unavailable("offline"))),
+        input(false),
+    )
+    .trace
+    .unwrap_or_else(|| unreachable!("consulted"));
+    assert_eq!(unavailable.response_hash, None);
+}
+
+#[test]
 fn a_removable_judgment_changes_nothing() {
     let consulted = run(
         &scripted(Ok(judgment(Assessment::LikelyRemovable))),

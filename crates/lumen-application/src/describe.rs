@@ -111,10 +111,10 @@ pub async fn describe_with_progress(
         let answer = describer.describe(&jev_request).await;
         let latency_ms = millis(requested_at, clock.now());
         let stop = matches!(
-            answer,
+            answer.result,
             Err(JudgeError::Unavailable(_) | JudgeError::Disabled)
         );
-        let (validation, note) = match answer {
+        let (validation, note) = match answer.result {
             Ok(note) => (TraceValidation::Accepted, Some(note)),
             Err(JudgeError::Rejected(reason)) => (TraceValidation::Rejected(reason), None),
             Err(_) => (TraceValidation::Unavailable, None),
@@ -128,7 +128,7 @@ pub async fn describe_with_progress(
             output_schema: output_schema.clone(),
             evidence_hash: item.input.evidence_hash,
             request_hash: jev_request.hash(),
-            response_hash: None,
+            response_hash: answer.response_hash,
             validation,
             judgment: None,
             calibrated_precision_bp: None,
@@ -153,24 +153,28 @@ mod tests {
     use lumen_domain::{
         AccessState, Basis, CandidateSummary, Category, CleanupMechanism, CoverageSummary,
         EntryKind, EntryTimes, Evidence, EvidenceHash, FileId, FileIdentity, FilesystemEntry,
-        ItemKind, ItemRef, JudgeDescriptor, JudgmentConfidence, ModelId, Platform, Protection,
-        Provenance, RawPath, ReclaimEstimate, SizeFacts, SizeFlags, SourceName, Subject, Timestamp,
-        UntrustedText, VolumeId,
+        ItemKind, ItemRef, JudgeDescriptor, JudgmentConfidence, ModelId, PayloadHash, Platform,
+        Protection, Provenance, RawPath, ReclaimEstimate, SizeFacts, SizeFlags, SourceName,
+        Subject, Timestamp, UntrustedText, VolumeId,
     };
     use lumen_policy::{Context, KnowledgeClass, Observed, evaluate, explain};
 
     use super::*;
-    use crate::ports::{NoopJudge, NoteFuture};
+    use crate::ports::{Answer, NoopJudge, NoteFuture};
 
     /// Answers every request with `answers` in turn (the last one repeats),
     /// and records the item references asked about.
     struct Fake {
-        answers: Vec<Result<ItemNote, JudgeError>>,
+        answers: Vec<Answer<ItemNote>>,
         asked: Mutex<Vec<String>>,
     }
 
     impl Fake {
         fn new(answers: Vec<Result<ItemNote, JudgeError>>) -> Self {
+            Self::received(answers.into_iter().map(Answer::from).collect())
+        }
+
+        fn received(answers: Vec<Answer<ItemNote>>) -> Self {
             Self {
                 answers,
                 asked: Mutex::new(Vec::new()),
@@ -205,7 +209,7 @@ mod tests {
                 .get(asked.len())
                 .or(self.answers.last())
                 .cloned()
-                .unwrap_or(Err(JudgeError::Malformed));
+                .unwrap_or_else(|| Err(JudgeError::Malformed).into());
             asked.push(request.item_ref.as_str().to_owned());
             Box::pin(std::future::ready(answer))
         }
@@ -484,6 +488,39 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn the_trace_keeps_the_hash_of_the_body_as_received() {
+        let accepted = br#"{"kind":"cache"}"#;
+        let rejected = br#"{"kind":"rm -rf"}"#;
+        let describer = Fake::received(vec![
+            Answer::received(accepted, Ok(note(ItemKind::Cache))),
+            Answer::received(rejected, Err(JudgeError::Malformed)),
+            Err(JudgeError::NoAnswer("refused")).into(),
+        ]);
+        let mut assessed: Vec<Assessed> = (1..=3)
+            .map(|n| {
+                item(
+                    n,
+                    LARGE + u64::try_from(10 - n).unwrap_or(0),
+                    Shape::Unknown,
+                )
+            })
+            .collect();
+        ready(describe(&describer, &Epoch, &mut assessed, &request));
+        let hashes: Vec<Option<PayloadHash>> = assessed
+            .iter()
+            .map(|a| a.note_trace.as_ref().and_then(|t| t.response_hash))
+            .collect();
+        assert_eq!(
+            hashes,
+            [
+                Some(lumen_domain::response_hash(accepted)),
+                Some(lumen_domain::response_hash(rejected)),
+                None
+            ]
+        );
     }
 
     #[test]
