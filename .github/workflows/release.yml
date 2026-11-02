@@ -56,10 +56,13 @@ jobs:
       run:
         shell: bash
     steps:
+      # Blocked on Linux only. A step's `if` does not stop the action's pre
+      # step, which would block Windows with this Linux allow-list (no
+      # certificate revocation hosts, so TLS to crates.io fails there); other
+      # systems audit instead, as release.md says.
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
-        if: runner.os == 'Linux'
         with:
-          egress-policy: block
+          egress-policy: ${{ runner.os == 'Linux' && 'block' || 'audit' }}
           allowed-endpoints: >
             github.com:443
             api.github.com:443
@@ -153,10 +156,13 @@ jobs:
       # 0.2.0 run reached, from its log: the Ubuntu mirror and Microsoft's
       # package repository, the toolchains and registries, the AppImage tools
       # Tauri downloads from GitHub releases, and the artifact upload.
+      # Blocked on Linux only. A step's `if` does not stop the action's pre
+      # step, which would block Windows with this Linux allow-list (no
+      # certificate revocation hosts, so TLS to crates.io fails there); other
+      # systems audit instead, as release.md says.
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
-        if: runner.os == 'Linux'
         with:
-          egress-policy: block
+          egress-policy: ${{ runner.os == 'Linux' && 'block' || 'audit' }}
           allowed-endpoints: >
             github.com:443
             api.github.com:443
