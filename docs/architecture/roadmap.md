@@ -311,7 +311,7 @@ and the performance spike that gates mobile UI work (ADR-0007).
 | 12.6 | `perf: record benchmark baselines` | the scan, policy and grouping benchmarks in `performance.md`, and a manual workflow that runs them on CI hardware for comparison |
 | 12.7a | `build(release): build release artifacts on tags` | a tag-triggered workflow: the CLI for macOS (arm64), Windows and Linux (x86_64), with SHA-256 checksums, a CycloneDX SBOM per target and build-provenance attestations, published as a draft release (docs/operations/release.md) |
 | 12.7b | `build(release): bundle the desktop app` | unsigned desktop bundles (universal `.dmg`, per-user NSIS installer, `.deb`/`.AppImage`) and their SBOMs added to the same release, with icons for every platform |
-| 12.8 | `build(release): sign and notarize` | macOS Developer ID, Hardened Runtime and notarization, and Windows Azure Artifact Signing (ADR-0006), once the owner provides the accounts as protected-environment secrets |
+| 12.8 | `build(release): sign and notarize` | macOS Developer ID, Hardened Runtime and notarization in a separate `macos-sign` job ([ADR-0055](../decisions/0055-sign-and-notarize-the-macos-app-in-its-own-job.md)); takes effect once the owner sets the `APPLE_*` secrets. Still open: the macOS CLI archive, and Windows, where Azure Artifact Signing does not accept individuals outside the US and Canada (an HSM-backed OV certificate instead, ADR-0006) |
 
 ## Phase 13: First use
 
@@ -363,7 +363,7 @@ Open:
 | 13.a | Quarantine on other drives ([ADR-0046](../decisions/0046-quarantine-on-other-drives-of-a-single-user-pc.md), owner decision 2026-10-27): on a single-user Windows PC, the user's own items on a local fixed NTFS/ReFS drive go into `X:\$LumenQuarantine.<SID>\` on that drive. Done 2026-10-28 in five steps: volume classification and the profile list (#469), the policy rule `eligible.in-use-partial-single-user` (#470), a store per volume in the Windows executor (#471), quarantine offered only on store volumes (#473), the app wiring and finalize under the same condition (#474), and readable failure reasons with a hint for a disconnected drive. macOS unchanged | done; first check on a real Windows PC with a second drive |
 | 13.d | The attest and release jobs stay on egress `audit` (owner, 2026-10-27): they run only on tags, so a pull request cannot test an allow-list, and a wrong one would cost a release. Every other release job blocks egress, the Linux desktop job since #465 | done |
 | 13.e | release-please for versioning (ADR-0026) | dropped: versions are raised on `develop` and every push to `main` releases (ADR-0054) |
-| 13.g | Signing and notarization (12.8), the first tagged release, mobile device measurements (11.16d) | the owner |
+| 13.g | Signing and notarization (12.8: the `APPLE_*` secrets for macOS, a Windows signing identity), the first tagged release, mobile device measurements (11.16d) | the owner |
 
 ## Phase 14: AI you can leave on
 

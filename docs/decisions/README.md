@@ -14,7 +14,7 @@ recommended option.
 | [0003](0003-rust-workspace-and-toolchain.md) | Use a flat Cargo workspace on Rust 2024 with a pinned toolchain | Accepted |
 | [0004](0004-desktop-shell-tauri.md) | Use Tauri 2 as the desktop shell with the core in the host process | Accepted |
 | [0005](0005-process-topology-and-privilege.md) | Run user-scope only in v1; add an agent and a privileged helper later | Accepted |
-| [0006](0006-desktop-distribution-and-signing.md) | Distribute desktop builds outside the app stores, signed and notarized | Proposed |
+| [0006](0006-desktop-distribution-and-signing.md) | Distribute desktop builds outside the app stores, signed and notarized | Proposed (macOS part carried out by 0055) |
 | [0007](0007-mobile-expo-native-modules-uniffi.md) | Build mobile with Expo, native Expo Modules, and the Rust core via UniFFI | Accepted |
 | [0008](0008-capability-model-and-coverage.md) | Model platform capabilities and scan coverage explicitly | Accepted |
 | [0009](0009-frontend-vite-react-spa.md) | Build the UI as one Vite + React SPA with Feature-Sliced Design | Accepted |
@@ -46,7 +46,7 @@ recommended option.
 | [0035](0035-show-tool-commands-never-run-them.md) | Show tools' own cleanup commands; never run them | Superseded by [0049](0049-run-tool-commands-on-request.md) |
 | [0036](0036-jeb-on-the-school-ai-hub.md) | Use Jeb on the school AI Hub as the default judge | Accepted |
 | [0037](0037-keep-ai-review-on-once-turned-on.md) | Keep AI review on once the user turns it on | Superseded in part by [0047](0047-ai-review-on-by-default.md) |
-| [0038](0038-unsigned-beta-from-a-project-website.md) | Ship an unsigned beta from a project website | Accepted |
+| [0038](0038-unsigned-beta-from-a-project-website.md) | Ship an unsigned beta from a project website | Accepted (macOS amended by 0055) |
 | [0039](0039-ask-for-review-only-where-a-person-can-act.md) | Ask for review only where a person can act | Accepted |
 | [0040](0040-decide-known-artifacts-inside-app-state-on-their-own.md) | Decide known artifacts inside an app's state on their own | Accepted |
 | [0041](0041-ai-describes-what-review-items-are.md) | AI describes what review items are | Accepted |
@@ -63,3 +63,4 @@ recommended option.
 | [0052](0052-restrained-navigation-without-glass.md) | Restrained navigation and opaque surfaces, without glass | Accepted |
 | [0053](0053-show-the-evidence-behind-each-candidate.md) | Show the evidence behind each candidate | Accepted |
 | [0054](0054-release-on-every-push-to-main.md) | Release on every push to main, developing on develop | Accepted |
+| [0055](0055-sign-and-notarize-the-macos-app-in-its-own-job.md) | Sign and notarize the macOS app in its own job | Accepted |

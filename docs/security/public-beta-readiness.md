@@ -168,6 +168,13 @@ whether that approval or abuse limits are in place.
 distribution. Confirm written authorization and quotas for the embedded
 service key; otherwise omit it from public builds.
 
+**Progress (2026-11-03):** the macOS app and disk image are signed with the
+Developer ID, the Hardened Runtime on, and notarized, in a job of their own
+(ADR-0055); a release fails without the `APPLE_*` secrets. Windows installers
+stay unsigned by the owner's choice until a signing identity exists (Azure
+Artifact Signing does not accept individuals in Korea). The embedded Jeb key is
+unchanged.
+
 ## P2 — Close before or shortly after beta, with owners and dates
 
 - **FS-3:** Directory candidates can contain protected locations, credentials

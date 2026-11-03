@@ -25,11 +25,12 @@ Each archive holds the binary, `LICENSE` and `README.md`. Every file listed in
 `SHA256SUMS` carries a signed SLSA build-provenance attestation, which ties it to the
 workflow run, commit and tag that built it.
 
-The installers are not **code-signed** yet, so macOS Gatekeeper and Windows SmartScreen
-warn about these files. Updater artifacts are signed separately (ADR-0048). The
-macOS app is only ad-hoc signed, so Apple silicon will run it, but
-Gatekeeper still blocks it until it is allowed in System Settings › Privacy &
-Security. Signing and notarization are roadmap 12.8.
+The macOS app and its disk image are signed with the Developer ID and notarized by
+Apple ([ADR-0055](../decisions/0055-sign-and-notarize-the-macos-app-in-its-own-job.md);
+see [Signing the macOS app](#signing-the-macos-app)), so Gatekeeper opens them without
+a warning. The Windows and Linux installers and the CLI archives are not
+**code-signed** yet: Windows SmartScreen warns about an unknown publisher. Updater
+artifacts are signed separately (ADR-0048).
 
 ## Cutting a release
 
@@ -49,7 +50,8 @@ Work lands on `develop`; `main` holds what is released
    files are signed, the SBOMs, checksums and `latest.json` are written and attested.
    Builds require `JEB_API_KEY` from the `release` environment; the separate `sign`
    job requires `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
-   from it, and no build ever receives them.
+   from it, and the `macos-sign` job the five `APPLE_*` secrets below. No build ever
+   receives them.
 4. The release job then checks every file against `SHA256SUMS`, and that
    `latest.json` names the version, attached files, and signatures equal to their
    `.sig` files that each name `version:<version>` in their trusted comment (the
@@ -92,6 +94,57 @@ Anyone who can merge into `main` (set 2026-11-02, ADR-0054):
   tags. Creating one is not restricted: the release job creates it with the workflow
   token, a tag starts nothing, and a tag created early only makes the push skip that
   version.
+
+## Signing the macOS app
+
+The `macos-sign` job runs [`scripts/sign-macos.sh`](../../scripts/sign-macos.sh) on the
+desktop job's ad-hoc build: every executable and then the app are signed with the
+Developer ID and the Hardened Runtime, Apple notarizes the app, the ticket is stapled,
+the app replaces the one in Tauri's disk image, and the disk image is signed,
+notarized and stapled too. The updater archive is made from the same signed app. If
+Apple rejects either submission the job prints Apple's log and nothing is released.
+
+### Setting up the Apple secrets (once)
+
+The Account Holder of the Apple Developer Program membership does this on a Mac:
+
+1. Make a **Developer ID Application** certificate: Xcode › Settings › Accounts ›
+   Manage Certificates › + › Developer ID Application. It lands in the login keychain
+   with its private key.
+2. Export only that certificate: generate its password by command (a hidden prompt
+   mangled typed passwords on the owner's terminal, see the updater key below), then
+   in Keychain Access › My Certificates select "Developer ID Application: …" alone,
+   choose Export…, save as `DeveloperID.p12` and paste the password.
+
+   ```sh
+   pw=$(openssl rand -hex 24); printf %s "$pw" | pbcopy
+   ```
+
+3. Make an App Store Connect API key for notarization: App Store Connect › Users and
+   Access › Integrations › App Store Connect API › Team Keys, role **Developer**.
+   Download `AuthKey_<Key ID>.p8` (Apple offers it once) and note the Key ID and the
+   Issuer ID shown above the list.
+4. Put all five into the `release` environment, in the same shell as step 2:
+
+   ```sh
+   base64 -i DeveloperID.p12 | gh secret set APPLE_CERTIFICATE --env release --repo zaewc/Lumen
+   printf %s "$pw" | gh secret set APPLE_CERTIFICATE_PASSWORD --env release --repo zaewc/Lumen
+   gh secret set APPLE_API_KEY_ID --env release --repo zaewc/Lumen --body '<Key ID>'
+   gh secret set APPLE_API_ISSUER --env release --repo zaewc/Lumen --body '<Issuer ID>'
+   gh secret set APPLE_API_PRIVATE_KEY --env release --repo zaewc/Lumen < 'AuthKey_<Key ID>.p8'
+   ```
+
+5. Keep `DeveloperID.p12`, its password and the `.p8` file in the password manager,
+   then delete the local copies.
+
+The first signed release replaces copies that were signed ad hoc; macOS treats the
+signed app as a different app, so its release notes must say that Full Disk Access
+has to be granted once more after updating. Later updates keep it.
+
+A leaked certificate lets anyone sign software as the owner: revoke it at
+developer.apple.com › Certificates, make a new one and replace both certificate
+secrets. Apps already notarized stay valid. Revoke a leaked API key in App Store
+Connect and replace the three `APPLE_API_*` secrets.
 
 ## Rotating the updater key
 

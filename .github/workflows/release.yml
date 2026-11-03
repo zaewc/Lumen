@@ -4,9 +4,10 @@ name: release
 # platform, with CycloneDX SBOMs, SHA-256 checksums and build-provenance
 # attestations. A push to main whose version has no `v` tag yet builds,
 # checks and publishes that release, and creates its tag (ADR-0054); a push
-# whose version is already released builds nothing. Builds are unsigned until
-# signing lands (roadmap 12.8). Pull requests that change this workflow run the
-# builds as a dry run; nothing is attested or published from them.
+# whose version is already released builds nothing. The macOS app is signed
+# with the Developer ID and notarized (ADR-0055); the Windows and Linux
+# installers are not code-signed yet. Pull requests that change this workflow
+# run the builds as a dry run; nothing is attested or published from them.
 #
 # Release runs compile Lumen's built-in Jeb key (ADR-0042) into the CLI and the
 # desktop app: the secret `JEB_API_KEY` of the `release` environment, given
@@ -16,7 +17,8 @@ name: release
 # The in-app updater's key (ADR-0048) never reaches a build: the sign job
 # signs the built files on its own runner, with egress blocked, and runs only
 # the Tauri CLI while the key is set. Pull request runs sign with a throwaway
-# key to exercise the same steps.
+# key to exercise the same steps. The Developer ID never reaches a build
+# either: the macos-sign job signs and notarizes the built app on its own.
 on:
   push:
     branches: [main]
@@ -151,8 +153,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # The desktop app, unsigned until roadmap 12.8: a universal macOS disk
-  # image, a per-user Windows installer, and Linux .deb and AppImage packages.
+  # The desktop app: a universal macOS disk image (ad-hoc signed here, for the
+  # macos-sign job), a per-user Windows installer, and Linux .deb and
+  # AppImage packages.
   desktop:
     name: desktop (${{ matrix.target }})
     strategy:
@@ -273,9 +276,52 @@ jobs:
               -czf "dist/Lumen_${version}_universal.app.tar.gz" Lumen.app
           fi
           ls -l dist
+      # The macOS files go to the macos-sign job, which publishes them signed
+      # under the dist- name; only that job's copy is released.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: dist-desktop-${{ matrix.target }}
+          name: ${{ runner.os == 'macOS' && 'unsigned' || 'dist' }}-desktop-${{ matrix.target }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Signs the macOS app with the Developer ID and the Hardened Runtime and has
+  # Apple notarize it and its disk image (ADR-0055), apart from the build, so
+  # the certificate and the notary key never share a job with dependency build
+  # scripts or the web build. Only scripts/sign-macos.sh and Apple's tools run
+  # while they are set. macOS runners cannot block egress, so it is audited.
+  # Pull request runs sign ad hoc and skip notarization, with no environment.
+  macos-sign:
+    name: sign and notarize (macOS)
+    needs: [version, desktop]
+    if: needs.version.outputs.build == 'true'
+    runs-on: macos-26
+    environment: ${{ github.event_name == 'push' && 'release' || '' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: unsigned-desktop-universal-apple-darwin
+          path: unsigned
+      - name: Sign and notarize
+        env:
+          LUMEN_SIGN_DRY_RUN: ${{ github.event_name == 'push' && '0' || '1' }}
+          APPLE_CERTIFICATE: ${{ github.event_name == 'push' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ github.event_name == 'push' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_API_KEY_ID: ${{ github.event_name == 'push' && secrets.APPLE_API_KEY_ID || '' }}
+          APPLE_API_ISSUER: ${{ github.event_name == 'push' && secrets.APPLE_API_ISSUER || '' }}
+          APPLE_API_PRIVATE_KEY: ${{ github.event_name == 'push' && secrets.APPLE_API_PRIVATE_KEY || '' }}
+        run: scripts/sign-macos.sh unsigned dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-desktop-universal-apple-darwin
           path: dist/
           if-no-files-found: error
           retention-days: 7
@@ -287,7 +333,7 @@ jobs:
   # Pull request runs sign with a throwaway key and no environment.
   sign:
     name: sign updater files
-    needs: [version, desktop]
+    needs: [version, desktop, macos-sign]
     if: needs.version.outputs.build == 'true'
     runs-on: ubuntu-24.04
     environment: ${{ github.event_name == 'push' && 'release' || '' }}
@@ -432,7 +478,7 @@ jobs:
 
   attest:
     name: attest
-    needs: [version, build, desktop, sign, sbom]
+    needs: [version, build, desktop, macos-sign, sign, sbom]
     if: github.event_name == 'push' && needs.version.outputs.build == 'true'
     runs-on: ubuntu-24.04
     # Only first-party actions run with the signing token; no repository code.
