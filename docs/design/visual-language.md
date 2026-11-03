@@ -191,7 +191,10 @@ items related to it **by data the interface has**:
 
 Related regions get a 1 px cobalt outline outside their edge (a proposal already has a
 cobalt edge inside), the inspected one 2 px inside. Items related only by kind stay
-as they are, without an outline, so the close relations stand out. The inspector
+as they are, without an outline, so the close relations stand out. The list marks
+only the inspected row (2 px inside, on `accent-soft`); related rows keep full
+strength while the rest are lowered, so one open item never looks like many
+selected ones (#640). The inspector
 names each relation in words ("1 other item from Xcode · 3.1 GB"). Only relations
 the API provides are drawn; none is inferred from paths or names.
 

@@ -57,13 +57,12 @@ function Row({
         type="button"
         data-row={index}
         data-inspected={mark === "inspected"}
-        data-related={mark === "related"}
         aria-haspopup="dialog"
         tabIndex={active ? 0 : -1}
         aria-describedby={active ? hint : undefined}
         onClick={() => onOpen(candidate)}
         onKeyDown={(event) => onMove(event, index)}
-        className={`${GRID} w-full items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill data-[inspected=true]:bg-accent-soft data-[related=true]:outline-1 data-[related=true]:-outline-offset-1 data-[related=true]:outline-accent focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
+        className={`${GRID} w-full items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill data-[inspected=true]:bg-accent-soft data-[inspected=true]:outline-2 data-[inspected=true]:-outline-offset-2 data-[inspected=true]:outline-accent focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
       >
         <span
           title={candidate.path}
