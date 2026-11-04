@@ -21,6 +21,31 @@ pub enum LocationError {
     /// `%LOCALAPPDATA%` is unset or not absolute.
     #[error("the local application data folder is unknown")]
     NoLocalAppData,
+    /// The current user's Windows SID cannot be read.
+    #[error("the current user's SID is unknown")]
+    NoUserSid,
+}
+
+/// All current-user store paths to exclude, even on Windows drives no longer
+/// eligible for new quarantine operations. No stores are opened or created.
+///
+/// # Errors
+/// A [`LocationError`] if the user's store locations cannot be determined.
+pub fn scan_exclusion_paths() -> Result<Vec<PathBuf>, LocationError> {
+    let paths = stores()?.paths();
+    #[cfg(windows)]
+    let paths = {
+        let mut paths = paths;
+        let sid =
+            lumen_platform_windows::current_user_sid().map_err(|_| LocationError::NoUserSid)?;
+        paths.extend(
+            lumen_platform_windows::volumes::mounted()
+                .into_iter()
+                .map(|volume| PathBuf::from(volume.root).join(format!("$LumenQuarantine.{sid}"))),
+        );
+        paths
+    };
+    Ok(paths)
 }
 
 /// Where quarantine stores live (ADR-0015): `~/Library/Application Support`
@@ -74,6 +99,27 @@ pub struct Stores {
 }
 
 impl Stores {
+    /// Every store path, including stores on other Windows volumes.
+    pub fn paths(&self) -> Vec<PathBuf> {
+        self.locations
+            .iter()
+            .map(|(base, names)| {
+                let mut path = base.clone();
+                for name in names {
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::ffi::OsStringExt as _;
+                        path.push(std::ffi::OsString::from_vec(name.clone()));
+                    }
+                    // Store components are fixed ASCII names or a Windows SID.
+                    #[cfg(windows)]
+                    path.push(String::from_utf8_lossy(name).as_ref());
+                }
+                path
+            })
+            .collect()
+    }
+
     /// An executor using every location: an item goes into the store on its
     /// own volume.
     pub fn executor(&self) -> Option<Executor> {

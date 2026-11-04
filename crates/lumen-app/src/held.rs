@@ -261,6 +261,7 @@ fn list_with(
                     HeldError::Privileged(PrivilegeError::Token(_)) => "process_token",
                     HeldError::Location(LocationError::NoHome) => "no_home",
                     HeldError::Location(LocationError::NoLocalAppData) => "no_local_app_data",
+                    HeldError::Location(LocationError::NoUserSid) => "no_user_sid",
                     HeldError::UnknownOperation(_) => "unknown_operation",
                     HeldError::Store(_) => "store",
                     HeldError::Journal(_) => "journal",
@@ -698,6 +699,7 @@ mod interrupted {
         let before = store.operations()?;
         for (failure, reason) in [
             (HeldError::Location(LocationError::NoHome), "no_home"),
+            (HeldError::Location(LocationError::NoUserSid), "no_user_sid"),
             (
                 HeldError::Location(LocationError::NoLocalAppData),
                 "no_local_app_data",

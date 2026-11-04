@@ -96,7 +96,7 @@ fn listing_state(outcome: DirOutcome) -> AccessState {
 
 fn skip_state(reason: &SkipReason) -> Option<AccessState> {
     match reason {
-        SkipReason::MountPoint => Some(AccessState::NotScanned),
+        SkipReason::MountPoint | SkipReason::Excluded => Some(AccessState::NotScanned),
         SkipReason::Enumerate(EnumerateError::Unobservable { access, .. }) => Some(*access),
         // An alias is listed under another path, and a root that is a plain file
         // has no directories to cover: neither is a gap.
