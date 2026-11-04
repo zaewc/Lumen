@@ -113,7 +113,9 @@ incomplete subtree are lower bounds.
   A file without it counts as sharing blocks, so as reclaiming nothing exactly.
 - Windows directory records have no link count, so listings report a lower bound;
   `CandidateVerifier` reads the exact link count, compressed size and filesystem
-  (exact only on NTFS and FAT, never for deduplicated or ReFS files).
+  (exact only on NTFS and FAT, never for deduplicated or ReFS files). Assessment and
+  confirmation re-read up to 100,000 files below each Windows candidate this way
+  before estimating it ([ADR-0017, 2026-11-04 amendment](../decisions/0017-scan-engine-and-size-accounting.md#amendment-windows-candidates-are-measured-by-handle-when-assessed-2026-11-04)).
 - Proof: aggregator tests; `verification_reads_exact_link_counts_on_ntfs`;
   `verification_measures_compressed_files`.
 

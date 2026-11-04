@@ -8,6 +8,7 @@ function candidate(id: string, path: string, bytes: string): CandidateView {
     path,
     verdict: "quarantine",
     reclaimable_bytes: bytes,
+    reclaimable_exact: true,
     reasons: [],
     tool_command: null,
     group: { kind: "app_cache", source: null },

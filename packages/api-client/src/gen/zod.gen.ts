@@ -585,6 +585,7 @@ export const zCandidateView = z.object({
   path: z.string(),
   reasons: z.array(zReasonView),
   reclaimable_bytes: z.string(),
+  reclaimable_exact: z.boolean(),
   relations: zRelationsView,
   times: zTimesView,
   tool_command: zToolCommandView.nullable(),

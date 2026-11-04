@@ -8,6 +8,7 @@ import { commandLine } from "../lib/command";
 import { moveIndex } from "../lib/keys";
 import { type Lens, type LensMark, lensMark } from "../model/lens";
 import type { KindSection, SourceGroup } from "../model/sections";
+import { CandidateSize } from "./CandidateSize";
 import { StatusText } from "./Status";
 
 /**
@@ -71,7 +72,7 @@ function Row({
           {baseName(candidate.path)}
         </span>
         <span className="col-start-2 row-start-1 justify-self-end text-right tabular-nums text-ink @xl:col-start-4">
-          <Bytes value={candidate.reclaimable_bytes} />
+          <CandidateSize candidate={candidate} />
         </span>
         <span
           title={location}

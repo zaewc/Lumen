@@ -52,7 +52,12 @@ Work lands on `develop`; `main` holds what is released
    job requires `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
    from it, and the `macos-sign` job the five `APPLE_*` secrets below. No build ever
    receives them.
-4. The release job then checks every file against `SHA256SUMS`, and that
+4. The attestation job collects only `dist-*` artifacts, including the final,
+   signed and notarized macOS files, then writes `SHA256SUMS` from those files.
+   The release job downloads that same `dist-*` set and the separate `checksums`
+   artifact; it deliberately excludes the `unsigned-desktop-*` intermediates,
+   whose macOS filenames overlap the signed files. It then checks every file
+   against `SHA256SUMS`, and that
    `latest.json` names the version, attached files, and signatures equal to their
    `.sig` files that each name `version:<version>` in their trusted comment (the
    updater requires it, `requireSignedVersion`). Only if all of that holds does it

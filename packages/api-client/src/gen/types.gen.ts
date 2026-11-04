@@ -146,6 +146,11 @@ export type CandidateView = {
    */
   reclaimable_bytes: string;
   /**
+   * Whether `reclaimable_bytes` is exact rather than a lower bound (a
+   * listing could not rule out shared blocks, ADR-0017).
+   */
+  reclaimable_exact: boolean;
+  /**
    * The relationships in its decision's evidence bundle, nearest first
    * and bounded (ADR-0053).
    */

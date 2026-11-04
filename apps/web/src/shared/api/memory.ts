@@ -170,6 +170,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/Library/Developer/Xcode/DerivedData`,
     verdict: "quarantine",
     reclaimable_bytes: "4200000000",
+    reclaimable_exact: true,
     reasons: [regenerable],
     tool_command: null,
     group: { kind: "developer", source: "Xcode" },
@@ -184,6 +185,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/Library/Developer/CoreSimulator/Devices`,
     verdict: "review",
     reclaimable_bytes: "3100000000",
+    reclaimable_exact: true,
     reasons: [
       {
         rule: "classify.devkb-tool-action",
@@ -209,6 +211,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/Library/pnpm/store`,
     verdict: "review",
     reclaimable_bytes: "5200000000",
+    reclaimable_exact: true,
     reasons: [
       {
         rule: "classify.devkb-tool-action",
@@ -234,6 +237,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/.gradle/caches`,
     verdict: "quarantine",
     reclaimable_bytes: "2600000000",
+    reclaimable_exact: true,
     reasons: [regenerable],
     tool_command: null,
     group: { kind: "developer", source: "Gradle" },
@@ -248,6 +252,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/.npm/_cacache`,
     verdict: "quarantine",
     reclaimable_bytes: "1800000000",
+    reclaimable_exact: true,
     reasons: [regenerable],
     tool_command: null,
     group: { kind: "developer", source: "npm" },
@@ -262,6 +267,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/Library/Caches/go-build`,
     verdict: "keep",
     reclaimable_bytes: "890000000",
+    reclaimable_exact: true,
     reasons: [
       {
         rule: "classify.devkb-self-managed",
@@ -281,6 +287,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/Library/Caches/com.spotify.client`,
     verdict: "quarantine",
     reclaimable_bytes: "1300000000",
+    reclaimable_exact: true,
     reasons: [
       {
         rule: "classify.app-cache",
@@ -300,6 +307,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/Library/Application Support/discord/Cache`,
     verdict: "keep",
     reclaimable_bytes: "1100000000",
+    reclaimable_exact: true,
     reasons: [{ rule: "protect.in-use", text: "Kept: a running process is using it." }],
     tool_command: null,
     group: { kind: "app_cache", source: "com.hnc.Discord" },
@@ -314,6 +322,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/Library/Caches/Google/Chrome`,
     verdict: "review",
     reclaimable_bytes: "760000000",
+    reclaimable_exact: true,
     reasons: [
       {
         rule: "classify.app-cache",
@@ -334,6 +343,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/Library/Application Support/Slack`,
     verdict: "keep",
     reclaimable_bytes: "980000000",
+    reclaimable_exact: true,
     reasons: [
       {
         rule: "classify.app-state",
@@ -353,6 +363,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/Library/Application Support/OldEditor`,
     verdict: "review",
     reclaimable_bytes: "420000000",
+    reclaimable_exact: true,
     reasons: [
       {
         rule: "classify.orphan",
@@ -375,6 +386,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/Library/HTTPStorages/com.tinyspeck.slackmacgap`,
     verdict: "keep",
     reclaimable_bytes: "380928",
+    reclaimable_exact: true,
     reasons: [{ rule: "default.keep-small", text: "Kept: too small to be worth reviewing." }],
     tool_command: null,
     group: { kind: "other", source: null },
@@ -389,6 +401,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/Downloads/Installers`,
     verdict: "review",
     reclaimable_bytes: "2300000000",
+    reclaimable_exact: true,
     reasons: [{ rule: "default.review", text: "Review: Lumen does not recognise this item." }],
     tool_command: null,
     group: { kind: "other", source: null },
@@ -406,6 +419,7 @@ const candidates: readonly CandidateView[] = [
     path: `${HOME}/Library/Mobile Documents/com~apple~CloudDocs`,
     verdict: "keep",
     reclaimable_bytes: "0",
+    reclaimable_exact: true,
     reasons: [
       {
         rule: "protect.cloud-backed",

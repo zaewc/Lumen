@@ -115,6 +115,37 @@ The decision itself (native batch enumerators run as synchronous directory tasks
 `tokio::fs`) is unchanged. Adding Tokio or `rayon` later needs its own change with the
 dependency reasoning `AGENTS.md` asks for.
 
+### Amendment: Windows candidates are measured by handle when assessed (2026-11-04)
+
+A Windows directory record has no hard-link count, so the Windows enumerator marks
+every listed file `may_share_blocks`, and its reclaim estimate is a lower bound of
+zero (`SizeFacts::whole_file_reclaim`). `CandidateVerifier` was meant to make it
+exact, but nothing called it while assessing, and it re-reads only the object it is
+given: a directory candidate kept the listing's figures for everything below it.
+Every Windows directory candidate therefore reported 0 B, and `eligible.frees-nothing`
+kept it, so on Windows Lumen proposed nothing (reproduced 2026-11-04: a 2 MB
+`node_modules` beside `package-lock.json` was `KEEP`, "removing it would free no
+space").
+
+Decision: when a candidate's part of the scan is read for a decision, at assessment
+and again at confirmation, the Windows composition root re-reads the files below it
+through `CandidateVerifier` before the estimate is made
+(`lumen_application::measure`). A verified file replaces its listed size facts only
+when it is still the same object of the same kind; otherwise the listing's figures
+stay. Cloud placeholders and dataless files are never opened (they free nothing
+anyway), and nothing is opened for data. At most 100,000 files are re-read per
+candidate; the rest keep the listing's lower bound, so the estimate never
+over-promises and stays marked inexact.
+
+The verified facts are exact only where the verifier says so: NTFS or FAT, not
+deduplicated, and a compressed size read for compressed or sparse files. A file with
+another link outside the candidate still frees nothing (pnpm stores link into
+`node_modules` with hard links on Windows), and ReFS keeps the lower bound. The
+`eligible.frees-nothing` gate is unchanged ([research 24](../research/24-space-recovery-experiment.md)).
+macOS already measures `PRIVATESIZE` in the listing and is not re-read; the portable
+`std::fs` adapter cannot rule out clone sharing even by handle, so Linux keeps its
+lower bound.
+
 ### Consequences
 
 - Good: near-native scan speed with correct reclaim math.

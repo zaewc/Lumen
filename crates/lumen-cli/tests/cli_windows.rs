@@ -62,6 +62,94 @@ fn scans_a_tree_and_records_a_snapshot() -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
+/// What `eligible.frees-nothing` says when it fires.
+const FREES_NOTHING: &str = "Kept: removing it would free no space.";
+
+/// The reclaim and reasons of the one candidate an assessment of `root`
+/// finds. Verdicts are not compared: under CI's elevated token new files
+/// belong to Administrators, so the in-use gate keeps what the person's own
+/// session would propose (ADR-0030).
+fn assess_one(
+    dir: &std::path::Path,
+    root: &std::path::Path,
+) -> Result<(u64, Vec<String>), Box<dyn std::error::Error>> {
+    let db = dir.join("index.db");
+    let scan = lumen(&[
+        "scan".as_ref(),
+        root.as_os_str(),
+        "--db".as_ref(),
+        db.as_os_str(),
+    ])?;
+    assert!(
+        scan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&scan.stderr)
+    );
+    let out = lumen(&[
+        "assess".as_ref(),
+        "--db".as_ref(),
+        db.as_os_str(),
+        "--json".as_ref(),
+    ])?;
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&out.stdout)?;
+    let candidates = report["candidates"].as_array().ok_or("no candidates")?;
+    assert_eq!(candidates.len(), 1, "{report}");
+    let bytes = candidates[0]["reclaimable_bytes"]
+        .as_u64()
+        .ok_or("no bytes")?;
+    let reasons = candidates[0]["reasons"]
+        .as_array()
+        .ok_or("no reasons")?
+        .iter()
+        .filter_map(|reason| reason.as_str().map(str::to_owned))
+        .collect();
+    Ok((bytes, reasons))
+}
+
+fn project(root: &std::path::Path) -> Result<std::path::PathBuf, std::io::Error> {
+    let package = root.join("node_modules").join("x");
+    std::fs::create_dir_all(&package)?;
+    std::fs::write(root.join("package.json"), "{}")?;
+    std::fs::write(root.join("package-lock.json"), "{}")?;
+    let payload = package.join("payload.bin");
+    std::fs::write(&payload, vec![7; 2_000_000])?;
+    Ok(payload)
+}
+
+/// Directory records carry no link count, so a listing alone frees nothing
+/// for certain; assessment re-reads the files below a candidate by handle
+/// (ADR-0017, 2026-11-04 amendment).
+#[test]
+fn candidates_are_measured_by_handle() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    let root = dir.path().join("app");
+    project(&root)?;
+    let (bytes, reasons) = assess_one(dir.path(), &root)?;
+    assert!(bytes >= 2_000_000, "{bytes}");
+    assert!(!reasons.iter().any(|r| r == FREES_NOTHING), "{reasons:?}");
+    Ok(())
+}
+
+/// A file with another link outside the candidate frees nothing when the
+/// candidate is removed (a pnpm store links into `node_modules`).
+#[test]
+fn a_file_linked_from_outside_frees_nothing() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    let root = dir.path().join("app");
+    let payload = project(&root)?;
+    std::fs::hard_link(&payload, root.join("store.bin"))?;
+    // Only the size: under an elevated token the in-use protection ends the
+    // evaluation before `eligible.frees-nothing` can fire.
+    let (bytes, _) = assess_one(dir.path(), &root)?;
+    assert_eq!(bytes, 0);
+    Ok(())
+}
+
 #[test]
 fn a_missing_path_is_an_incomplete_scan_not_an_empty_one() -> Result<(), Box<dyn std::error::Error>>
 {

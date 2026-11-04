@@ -94,6 +94,15 @@ fn reclaim(assessed: &Assessed) -> ByteCount {
         .map_or(ByteCount::ZERO, |o| o.reclaim.reclaimable_now)
 }
 
+/// Whether [`reclaim`] is exact; without an observation it is not known.
+fn reclaim_exact(assessed: &Assessed) -> bool {
+    assessed
+        .input
+        .observed
+        .as_ref()
+        .is_some_and(|o| o.reclaim.exact)
+}
+
 /// A request to scan the given roots, read-only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -228,6 +237,9 @@ pub struct CandidateView {
     pub verdict: VerdictView,
     /// What removing it would free now, in bytes.
     pub reclaimable_bytes: String,
+    /// Whether `reclaimable_bytes` is exact rather than a lower bound (a
+    /// listing could not rule out shared blocks, ADR-0017).
+    pub reclaimable_exact: bool,
     /// Why: one reason per policy rule that fired, in the policy's order.
     pub reasons: Vec<ReasonView>,
     /// The cleanup command of the developer tool that owns it, if the tool
@@ -518,6 +530,7 @@ impl From<&Assessed> for CandidateView {
             path: assessed.candidate.path.display(),
             verdict: assessed.decision.verdict().into(),
             reclaimable_bytes: bytes(reclaim(assessed)),
+            reclaimable_exact: reclaim_exact(assessed),
             reasons,
             tool_command: tool_action(assessed).map(ToolCommandView::from),
             group: lumen_app::assess::group(assessed).into(),

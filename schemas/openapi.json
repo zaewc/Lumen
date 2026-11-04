@@ -7,7 +7,7 @@
       "name": "Apache-2.0",
       "identifier": "Apache-2.0"
     },
-    "version": "0.9.3"
+    "version": "0.9.4"
   },
   "paths": {},
   "components": {
@@ -193,6 +193,7 @@
           "path",
           "verdict",
           "reclaimable_bytes",
+          "reclaimable_exact",
           "reasons",
           "tool_command",
           "group",
@@ -254,6 +255,10 @@
           "reclaimable_bytes": {
             "type": "string",
             "description": "What removing it would free now, in bytes."
+          },
+          "reclaimable_exact": {
+            "type": "boolean",
+            "description": "Whether `reclaimable_bytes` is exact rather than a lower bound (a\nlisting could not rule out shared blocks, ADR-0017)."
           },
           "relations": {
             "$ref": "#/components/schemas/RelationsView",

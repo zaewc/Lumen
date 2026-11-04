@@ -10,9 +10,10 @@ import {
   useI18n,
 } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
-import { Bytes, CloseIcon, Dialog } from "@/shared/ui";
+import { CloseIcon, Dialog } from "@/shared/ui";
 import type { Lens, LensLine } from "../model/lens";
 import { type EvidenceLine, evidenceStack } from "../model/stack";
+import { CandidateSize } from "./CandidateSize";
 import { StatusText } from "./Status";
 import { ToolCommand } from "./ToolCommand";
 
@@ -137,7 +138,7 @@ export function CandidateSheet({
             <div>
               <p className="text-[12px] text-ink-3">{m.detail.size}</p>
               <p className="mt-1 text-measure text-ink tabular-nums">
-                <Bytes value={candidate.reclaimable_bytes} />
+                <CandidateSize candidate={candidate} />
               </p>
               <p className="sr-only">{m.detail.location}</p>
               <code className="mt-2 block font-mono text-[12px] leading-relaxed break-all text-ink-2 select-all">

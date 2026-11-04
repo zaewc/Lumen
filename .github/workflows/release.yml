@@ -555,8 +555,16 @@ jobs:
           egress-policy: audit
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          pattern: dist-*
           path: dist
           merge-multiple: true
+      # Match the attested artifact set exactly. In particular, do not download
+      # unsigned-desktop-* here: it contains same-named macOS files that would
+      # overwrite the signed and notarized files during a merged download.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: checksums
+          path: dist
       # Nobody reviews a draft before it goes out (ADR-0054), so the checks the
       # owner made by hand run here: every file matches its checksum, and the
       # updater manifest names this version, attached files and their exact

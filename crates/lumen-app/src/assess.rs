@@ -315,6 +315,30 @@ impl Subtree {
     }
 }
 
+/// Re-reads the files below a Windows candidate by handle, so its estimate
+/// counts what removing it frees instead of the listing's zero lower bound
+/// (ADR-0017, 2026-11-04 amendment).
+#[cfg(windows)]
+fn measure(subtree: &mut Subtree) {
+    let measured = lumen_application::measure::measure(
+        &mut subtree.entries,
+        &lumen_platform_windows::HandleEnumerator,
+        lumen_application::measure::LIMIT,
+    );
+    tracing::debug!(
+        verified = measured.verified,
+        unconfirmed = measured.unconfirmed,
+        skipped = measured.skipped,
+        "candidate measured"
+    );
+}
+
+/// Other platforms' listings already carry what they can know: macOS
+/// measures `PRIVATESIZE`, and the portable adapter cannot rule out clone
+/// sharing even by handle.
+#[cfg(not(windows))]
+fn measure(_subtree: &mut Subtree) {}
+
 /// Everything an assessment of the latest completed scan decides from; reused
 /// to re-decide planned items at confirmation (roadmap 10.14).
 #[derive(Debug)]
@@ -349,6 +373,12 @@ impl Assessment {
     ///
     /// [`AssessError::Store`] if `index.db` cannot be read.
     pub fn subtree(&self, path: &RawPath) -> Result<Subtree, AssessError> {
+        let mut subtree = self.read_subtree(path)?;
+        measure(&mut subtree);
+        Ok(subtree)
+    }
+
+    fn read_subtree(&self, path: &RawPath) -> Result<Subtree, AssessError> {
         // The store returns whole segments (`/a/b`, not `/a/bc`); the filter
         // keeps that a property of this function, not of the store's layout.
         let within = |p: &RawPath| p == path || below(p, path);
@@ -380,8 +410,9 @@ impl Assessment {
         path: &RawPath,
         nested: &[&RawPath],
     ) -> Result<Subtree, AssessError> {
-        let mut subtree = self.subtree(path)?;
+        let mut subtree = self.read_subtree(path)?;
         subtree.carve(nested);
+        measure(&mut subtree);
         Ok(subtree)
     }
 

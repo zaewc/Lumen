@@ -21,6 +21,7 @@ pub mod describe;
 pub mod finalize;
 pub mod gather;
 pub mod large;
+pub mod measure;
 pub mod observe;
 pub mod ports;
 pub mod profiles;

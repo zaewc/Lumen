@@ -8,6 +8,7 @@ function candidate(path: string, verdict: CandidateView["verdict"], bytes: strin
     path,
     verdict,
     reclaimable_bytes: bytes,
+    reclaimable_exact: true,
     reasons: [],
     tool_command: null,
     group: { kind: "other", source: null },

@@ -14,6 +14,7 @@ function candidate(extra: Partial<CandidateView> = {}): CandidateView {
     path: "/Users/ana/Library/Application Support/OldEditor",
     verdict: "review",
     reclaimable_bytes: "1",
+    reclaimable_exact: true,
     reasons: [],
     tool_command: null,
     group: { kind: "app_data", source: "com.example.OldEditor" },

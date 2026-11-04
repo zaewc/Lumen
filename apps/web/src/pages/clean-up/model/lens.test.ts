@@ -13,6 +13,7 @@ function candidate(
     path,
     verdict: "review",
     reclaimable_bytes: bytes,
+    reclaimable_exact: true,
     reasons: [],
     tool_command: null,
     group,
