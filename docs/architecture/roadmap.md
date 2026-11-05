@@ -134,6 +134,7 @@ call yet:
 | 6.15n | `feat(devkb): recognize npx executable caches` | npm's `_npx`, separately from `_cacache`; explicit `npm cache npx rm --force` with a dry-run argument vector, configured-root guards, no project package removal ([research 25](../research/25-npx-cache.md)). |
 | 6.16 | `feat(devkb): match entries against scanned entries` | resolve entry locations per platform and environment; `KnowledgeBaseMatch` evidence |
 | 6.16a | `feat(devkb): discover project build caches` | Next.js `.next/cache` beside a scanned regular `package.json`; preserve build output and source files. Project markers exclude directories, symlinks and reparse points ([research 21](../research/21-project-build-caches.md)). |
+| 6.16b | `feat(devkb): identify Angular's persistent build cache` | Directory `.angular/cache` beside a scanned regular `angular.json`, all desktop platforms; source/output and custom cache paths excluded ([rule inventory](../research/35-safe-cleanup-rule-inventory.md)). |
 | 6.17 | `docs(graph): document evidence graph` | `docs/architecture/evidence-graph.md` |
 
 ## Phase 7: Policy (complete)

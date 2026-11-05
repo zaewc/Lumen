@@ -1,0 +1,20 @@
+{
+  "id": "angular-build-cache",
+  "tool": "Angular CLI",
+  "locations": [
+    {
+      "platforms": ["macos", "windows", "linux"],
+      "root": { "kind": "project" },
+      "kind": "directory",
+      "path": ".angular/cache",
+      "markers": ["angular.json"]
+    }
+  ],
+  "safety_class": "regenerable",
+  "regeneration": { "effort": "minutes", "network": false },
+  "sources": [
+    "https://angular.dev/cli/cache",
+    "https://angular.dev/reference/configs/workspace-config"
+  ],
+  "last_verified": "2026-11-05"
+}

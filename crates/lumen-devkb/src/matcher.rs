@@ -1867,6 +1867,88 @@ mod tests {
     }
 
     #[test]
+    fn angular_matches_only_a_marked_workspaces_default_cache() {
+        let kb = builtin();
+        for platform in [Platform::Macos, Platform::Linux, Platform::Windows] {
+            let path = |tail: &str| {
+                if platform == Platform::Windows {
+                    windows(&format!(r"C:\src\{tail}").replace('/', "\\"))
+                } else {
+                    unix(&format!("/src/{tail}"))
+                }
+            };
+            let cache = object(path("app/.angular/cache"), EntryKind::Directory, 1);
+            let marker = object(path("app/angular.json"), EntryKind::File, 2);
+            let scanned = [
+                cache.clone(),
+                marker,
+                object(path("app/.angular"), EntryKind::Directory, 3),
+                object(path("app/dist"), EntryKind::Directory, 4),
+                object(path("app/src"), EntryKind::Directory, 5),
+                object(path("app/.angular/cache/data"), EntryKind::Directory, 6),
+                object(path("app/.angular/cache-copy"), EntryKind::Directory, 7),
+                object(path("other/.angular/cache"), EntryKind::Directory, 8),
+                object(
+                    path("app/.angular/cache/nested/angular.json"),
+                    EntryKind::File,
+                    9,
+                ),
+                object(
+                    path("app/.angular/cache/nested/.angular/cache"),
+                    EntryKind::Directory,
+                    10,
+                ),
+            ];
+            let environment = env(platform);
+            let found = kb.matches(&environment, &scanned, Timestamp::UNIX_EPOCH);
+            assert_eq!(found.len(), 1, "{platform:?}");
+            assert_eq!(
+                found[0].subject,
+                Subject::File {
+                    identity: cache.identity().clone()
+                }
+            );
+            assert!(matches!(&found[0].fact,
+                Fact::KnowledgeBaseMatch { entry } if entry.as_str() == "angular-build-cache"));
+            assert_eq!(
+                chunked(kb, &environment, &[&scanned[..1], &scanned[1..]]),
+                found
+            );
+            for kind in [
+                EntryKind::Directory,
+                EntryKind::Symlink,
+                EntryKind::OtherReparsePoint,
+            ] {
+                let marker = object(path("app/angular.json"), kind, 11);
+                assert_eq!(
+                    kb.matches(
+                        &environment,
+                        &[cache.clone(), marker],
+                        Timestamp::UNIX_EPOCH
+                    ),
+                    []
+                );
+            }
+            for kind in [
+                EntryKind::File,
+                EntryKind::Symlink,
+                EntryKind::Junction,
+                EntryKind::OtherReparsePoint,
+            ] {
+                let cache = object(path("app/.angular/cache"), kind, 12);
+                assert_eq!(
+                    kb.matches(
+                        &environment,
+                        &[cache, scanned[1].clone()],
+                        Timestamp::UNIX_EPOCH
+                    ),
+                    []
+                );
+            }
+        }
+    }
+
+    #[test]
     fn nextjs_matches_only_a_projects_build_cache() {
         let builtin = builtin();
         for platform in [Platform::Macos, Platform::Linux, Platform::Windows] {
