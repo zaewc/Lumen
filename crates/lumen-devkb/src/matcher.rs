@@ -560,6 +560,46 @@ mod tests {
     }
 
     #[test]
+    fn xcode_archives_are_identified_for_review_never_as_a_cache()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let path = "/Users/ana/Library/Developer/Xcode/Archives";
+        assert_eq!(
+            builtin_ids(&env(Platform::Macos), &[dir(path, 1)]),
+            ["xcode-archives"]
+        );
+        for platform in [Platform::Linux, Platform::Windows] {
+            assert_eq!(
+                builtin_ids(&env(platform), &[dir(path, 1)]),
+                Vec::<String>::new()
+            );
+        }
+        for kind in [EntryKind::File, EntryKind::Symlink, EntryKind::Special] {
+            assert_eq!(
+                builtin_ids(&env(Platform::Macos), &[object(unix(path), kind, 1)]),
+                Vec::<String>::new()
+            );
+        }
+        for other in [
+            format!("{path}-copy"),
+            format!("{path}/2026-11-04"),
+            "/Users/bob/Library/Developer/Xcode/Archives".into(),
+        ] {
+            assert_eq!(
+                builtin_ids(&env(Platform::Macos), &[dir(&other, 1)]),
+                Vec::<String>::new()
+            );
+        }
+        let kb = builtin();
+        let entry = kb.get("xcode-archives").ok_or("archive entry")?;
+        assert_eq!(entry.safety_class, crate::SafetyClass::NotRegenerable);
+        assert!(
+            entry.official_action.is_none(),
+            "archives have no blanket cleanup action"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn platforms_links_and_unset_roots_never_match() {
         let link = object(unix("/Users/ana/.cache/sample"), EntryKind::Symlink, 1);
         assert_eq!(matched(&env(Platform::Macos), &[link]).len(), 0, "links");

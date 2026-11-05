@@ -1,0 +1,19 @@
+{
+  "id": "xcode-archives",
+  "tool": "Xcode",
+  "locations": [
+    {
+      "platforms": ["macos"],
+      "root": { "kind": "home" },
+      "path": "Library/Developer/Xcode/Archives",
+      "kind": "directory"
+    }
+  ],
+  "safety_class": "not_regenerable",
+  "regeneration": { "effort": "impossible", "network": false },
+  "sources": [
+    "https://help.apple.com/xcode/mac/current/en.lproj/deva52afe8a4.html",
+    "https://developer.apple.com/documentation/xcode/building-your-app-to-include-debugging-information"
+  ],
+  "last_verified": "2026-11-04"
+}

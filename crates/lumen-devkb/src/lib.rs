@@ -187,6 +187,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/vscode-squirrel-update-staging.json"),
     ),
     (
+        "xcode-archives.json",
+        include_str!("../entries/xcode-archives.json"),
+    ),
+    (
         "xcode-derived-data.json",
         include_str!("../entries/xcode-derived-data.json"),
     ),
