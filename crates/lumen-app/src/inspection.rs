@@ -25,6 +25,9 @@ pub enum InspectionError {
     /// The installed tool uses an unsupported or malformed output format.
     #[error("unsupported tool output: {0}")]
     Format(&'static str),
+    /// The tool's state changed between reads; nothing partial is reported.
+    #[error("{0} changed during inspection")]
+    Changed(&'static str),
     /// The adapter is not available on this OS.
     #[error("this inventory is not supported on this platform")]
     Unsupported,

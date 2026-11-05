@@ -25,3 +25,34 @@ before changing files behind it.
 describe Xcode Settings > Components and Window > Devices and Simulators. The
 inventory prints those workflows and their documentation link. This read-only
 preview grants no deletion permission and does not change KEEP/REVIEW precedence.
+
+## Docker
+
+Verified 2026-11-06. `lumen inspect docker [--json]` uses only the Docker CLI;
+it never reads Docker's internal storage (`/var/lib/docker`, Docker Desktop's VM
+disk image or volume mount points). The queries, in order, are `docker --version`,
+`docker context show`, `docker context inspect <name> --format '{{json
+.Endpoints.docker.Host}}'`, then `--context <name> info --format '{{json
+.SecurityOptions}}'` and `--context <name> system df --format json` (twice).
+When `DOCKER_HOST` is set and `DOCKER_CONTEXT` is not, Docker's own precedence
+selects the host, so the queries pin `--host` instead. Pinning keeps every
+answer from the same daemon; a context or host value starting with `-` is
+rejected because it would be parsed as an option.
+
+[`docker system df`](https://docs.docker.com/reference/cli/docker/system/df/)
+reports Images, Containers, Local Volumes and Build Cache, each with a total,
+active count, size and reclaimable estimate. All four rows are required; a
+missing, duplicated or unknown row, or an active count above its total, fails as
+an unsupported format. The two reads must agree and the context must be unchanged
+afterwards, otherwise the inventory reports that Docker changed and asks for
+another run. Sizes keep Docker's own units and wording; they describe the
+selected daemon (possibly remote or inside a VM), not local free space.
+[`SecurityOptions`](https://docs.docker.com/engine/security/rootless/) containing
+`name=rootless` is reported as rootless; absent options are unknown.
+
+Docker's reclaimable figure counts unused resources. Stopped containers and
+unused volumes can hold the only copy of data, so every category is marked for
+review and no `prune` command is offered or run. A stopped daemon, a permission
+error or a timeout is an error, never an empty inventory. Cleanup through
+Docker's own commands with explicit confirmation remains a separate change for
+#706.
