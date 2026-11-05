@@ -11,6 +11,7 @@
 //! lumen finalize --db <FILE> --expired
 //! lumen jev key set|clear|status [--openrouter]
 //! lumen ai on|off|status --db <FILE>
+//! lumen inspect xcode [--json]
 //! ```
 //!
 //! `assess` decides the latest completed scan in the database and reports each
@@ -46,6 +47,7 @@ use std::process::ExitCode;
 mod assess;
 #[cfg(any(unix, windows))]
 mod held;
+mod inspect;
 #[cfg(any(unix, windows))]
 mod jev;
 mod jev_service;
@@ -58,7 +60,7 @@ mod quarantine;
 #[cfg(any(unix, windows))]
 mod report;
 
-const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)";
+const USAGE: &str = "usage: lumen inspect xcode [--json]   (read-only runtime inventory)\n       lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -98,6 +100,7 @@ enum AiAction {
 
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
+    Inspect(inspect::Args),
     Scan(ScanArgs),
     Assess(AssessArgs),
     Plan(PlanArgs),
@@ -254,6 +257,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
     match iter.next().map(String::as_str) {
         Some("scan") => {}
         Some("assess") => return parse_assess(iter.as_slice()),
+        Some("inspect") => return inspect::parse(iter.as_slice()).map(Command::Inspect),
         Some("plan") => return parse_plan(iter.as_slice()),
         Some("ai") => return parse_ai(iter.as_slice()),
         Some("quarantine") => return parse_quarantine(iter.as_slice()),
@@ -322,7 +326,7 @@ fn database(command: &Command) -> Option<&std::path::Path> {
         Command::Quarantine(args) => Some(&args.db),
         Command::List(db) | Command::FinalizeExpired(db) | Command::Ai(_, db) => Some(db),
         Command::Restore(args) | Command::Finalize(args) => Some(&args.db),
-        Command::JevKey(..) | Command::Help => None,
+        Command::JevKey(..) | Command::Inspect(_) | Command::Help => None,
     }
 }
 
@@ -352,6 +356,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Ok(Command::Scan(scan)) => report(run(&scan)),
+        Ok(Command::Inspect(args)) => report(inspect::run(&args)),
         Ok(Command::List(db)) => report(run_held(HeldAction::List, &db, None)),
         Ok(Command::JevKey(action, service)) => report(run_jev_key(action, service)),
         Ok(Command::Ai(action, db)) => report(run_ai(action, &db)),

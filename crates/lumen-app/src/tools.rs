@@ -99,7 +99,7 @@ pub enum ToolError {
 /// Directories the user's terminal searches: the login shell's `PATH` on
 /// Unix (an app started from the Dock or Finder has a much shorter one),
 /// then this process's own `PATH`, then the usual install locations.
-fn search_dirs(home: &Path) -> Vec<PathBuf> {
+pub(crate) fn search_dirs(home: &Path) -> Vec<PathBuf> {
     let mut dirs = Vec::new();
     #[cfg(unix)]
     if let Some(path) = login_shell_path() {
@@ -310,6 +310,24 @@ pub fn run_program(
     limit: Duration,
 ) -> Result<ToolRun, ToolError> {
     run_command(process(program, args, dir), program, limit)
+}
+
+/// Fixed read-only queries use stable, uncoloured output and do not trigger
+/// Homebrew updates or analytics. They never run during a filesystem scan.
+pub(crate) fn inspect_program(
+    program: &Path,
+    args: &[String],
+    dir: &Path,
+    limit: Duration,
+) -> Result<ToolRun, ToolError> {
+    let mut command = process(program, args, dir);
+    command.envs([
+        ("LC_ALL", "C"),
+        ("NO_COLOR", "1"),
+        ("HOMEBREW_NO_AUTO_UPDATE", "1"),
+        ("HOMEBREW_NO_ANALYTICS", "1"),
+    ]);
+    run_command(command, program, limit)
 }
 
 fn process(program: &Path, args: &[String], dir: &Path) -> Command {

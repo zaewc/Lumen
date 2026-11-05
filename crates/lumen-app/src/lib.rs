@@ -9,6 +9,7 @@ pub mod ai;
 pub mod assess;
 #[cfg(any(unix, windows))]
 pub mod held;
+mod inspection;
 mod knowledge;
 pub mod plan;
 mod probes;
@@ -24,6 +25,7 @@ pub mod space_change;
 pub mod store;
 pub mod system;
 pub mod tools;
+pub mod xcode;
 
 pub use assess::{AssessError, Assessment, assess, block_on, prepare, with_probes};
 pub use plan::{NotChoosable, PlanError, Planned, plan};
