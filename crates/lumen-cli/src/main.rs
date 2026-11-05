@@ -11,7 +11,7 @@
 //! lumen finalize --db <FILE> --expired
 //! lumen jev key set|clear|status [--openrouter]
 //! lumen ai on|off|status --db <FILE>
-//! lumen inspect xcode|docker [--json]
+//! lumen inspect xcode|docker|packages [--json]
 //! ```
 //!
 //! `assess` decides the latest completed scan in the database and reports each
@@ -60,7 +60,7 @@ mod quarantine;
 #[cfg(any(unix, windows))]
 mod report;
 
-const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)\n       lumen inspect xcode|docker [--json]   (read-only tool storage inventory)";
+const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)\n       lumen inspect xcode|docker|packages [--json]   (read-only tool storage inventory)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]

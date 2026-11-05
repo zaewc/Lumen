@@ -12,6 +12,7 @@ pub mod docker;
 pub mod held;
 mod inspection;
 mod knowledge;
+pub mod packages;
 pub mod plan;
 mod probes;
 #[cfg(any(unix, windows))]

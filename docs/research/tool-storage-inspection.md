@@ -58,3 +58,30 @@ review and no `prune` command is offered or run. A stopped daemon, a permission
 error or a timeout is an error, never an empty inventory. Cleanup through
 Docker's own commands with explicit confirmation remains a separate change for
 #706.
+
+## Package managers
+
+Verified 2026-11-06. `lumen inspect packages [--json]` asks Homebrew, npm and
+pnpm where their caches are: `brew --cache`, `npm config get cache` and
+`pnpm store path`, each after `--version`. The knowledge base already recognizes
+the default locations and holds each tool's own cleanup command (ADR-0049); the
+tools themselves know a configured location the defaults miss (`HOMEBREW_CACHE`,
+an `.npmrc` `cache`, pnpm's `store-dir`). Queries run in the home folder, so a
+project's configuration does not leak in.
+
+The program is found the way the cleanup command would find it: the login
+shell's `PATH` first (ADR-0049). On the development machine that selected npm
+11.4.1 and pnpm 10.33.0 (store `v10`), while an interactive shell with a version
+manager reported npm 10.8.2 and pnpm 12.11.2 (store `v11`). Reporting the
+program Lumen would actually run is the point; the difference is expected.
+
+Each answer must be a single line without control characters, the version must
+contain a digit, and the location must be absolute. Anything else, a failed or
+timed-out query, or a full output buffer, makes that tool's location unknown; a
+missing program is "not installed". One tool's failure never hides the others.
+npm's cache is refetched when needed. pnpm's store is a shared,
+content-addressable store that projects hard-link into
+([pnpm store](https://pnpm.io/cli/store)); it is labelled a shared store, and
+only `pnpm store prune`, which keeps packages still referenced, should clear it.
+Gradle has no command that reports its caches and cleans them itself
+(`self_managed` in the knowledge base), so it is not queried.
