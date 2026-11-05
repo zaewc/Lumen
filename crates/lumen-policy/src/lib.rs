@@ -44,6 +44,7 @@ use lumen_domain::{
 
 pub use classify::KnowledgeClass;
 pub use explain::explain;
+pub use locations::protected_location;
 pub use rules::ids;
 
 /// The policy version recorded with every decision. A change that can alter
