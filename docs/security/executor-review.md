@@ -4,6 +4,9 @@ Every change to `crates/lumen-fs-exec` (the only code allowed to move or delete 
 files) is reviewed against this list. A "no" blocks the merge until it is fixed or the
 exception is recorded in an ADR.
 
+Test commands, reproducibility and platform gaps are recorded in the
+[cleanup regression matrix](cleanup-regressions.md).
+
 ## Acting on the right object
 
 - [ ] Every object is reached by handle from a verified root, one name at a time, never
