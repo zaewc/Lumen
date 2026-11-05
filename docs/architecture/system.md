@@ -467,6 +467,15 @@ the schema cannot express:
 
 ### 12.3 Duplicates
 
+`lumen_application::duplicates` implements the bounded, cancellable grouping use
+case independently of metadata scanning. It collapses file identities before
+head/tail/full fingerprints and verifies members again before publishing groups.
+Groups are always `REVIEW`, including identical backups. Their logical redundancy
+does not promise physical savings: hard links are reported separately and clone or
+shared-block facts remain attached to each member. Inputs exceeding 100,000 entries
+or 32 MiB of path payload are rejected before reading. Readers must prevent link
+following and hydration; no content or fingerprint is sent to AI or telemetry.
+
 See [ADR-0019](../decisions/0019-staged-duplicate-detection.md). Exact duplicates are
 found in stages ending in a BLAKE3 content ID. Near-duplicates are `REVIEW` only.
 

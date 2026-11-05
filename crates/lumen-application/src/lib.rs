@@ -18,6 +18,7 @@ pub mod collect;
 pub mod confirm;
 pub mod consult;
 pub mod describe;
+pub mod duplicates;
 pub mod finalize;
 pub mod gather;
 pub mod large;
