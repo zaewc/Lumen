@@ -528,7 +528,7 @@ export const zhCN: Messages = {
   },
   reviewReasons: {
     unknownOwner: "无法确认它属于哪个应用或工具。",
-    sharedResource: "它与其他文件共享存储空间，或在此项目之外还有链接。",
+    sharedResource: "它可能与其他文件共享存储空间，或在此项目之外还有链接。",
     staleEvidence: "部分依据已过时，请重新扫描后再决定。",
     uncertainSize: "永久删除后能释放多少空间尚不确定。",
   },

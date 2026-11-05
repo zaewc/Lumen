@@ -545,7 +545,8 @@ export const ko = {
   },
   reviewReasons: {
     unknownOwner: "어떤 앱이나 도구가 만든 항목인지 확인하지 못했어요.",
-    sharedResource: "다른 파일과 저장 공간을 공유하거나 이 항목 밖에도 연결된 이름이 있어요.",
+    sharedResource:
+      "다른 파일과 저장 공간을 공유하거나 이 항목 밖에도 연결된 이름이 있을 수 있어요.",
     staleEvidence: "확인한 근거가 오래됐어요. 다시 검사한 뒤 판단해 주세요.",
     uncertainSize: "영구 삭제한 뒤 확보할 수 있는 공간이 확실하지 않아요.",
   },

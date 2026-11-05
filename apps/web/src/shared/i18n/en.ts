@@ -546,7 +546,7 @@ export const en = {
   },
   reviewReasons: {
     unknownOwner: "No app or tool was identified as its owner.",
-    sharedResource: "It shares storage with other files or has links outside this item.",
+    sharedResource: "It may share storage with other files or have links outside this item.",
     staleEvidence: "Some evidence is out of date. Scan again before deciding.",
     uncertainSize: "The space that removal would free is uncertain.",
   },

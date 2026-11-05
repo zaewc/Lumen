@@ -556,7 +556,8 @@ export const es: Messages = {
   },
   reviewReasons: {
     unknownOwner: "No se ha identificado qué aplicación o herramienta lo creó.",
-    sharedResource: "Comparte espacio con otros archivos o tiene enlaces fuera de este elemento.",
+    sharedResource:
+      "Puede compartir espacio con otros archivos o tener enlaces fuera de este elemento.",
     staleEvidence: "Parte de la evidencia está desactualizada. Vuelve a analizar antes de decidir.",
     uncertainSize: "No se sabe con certeza cuánto espacio liberaría su eliminación definitiva.",
   },

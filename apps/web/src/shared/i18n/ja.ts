@@ -541,7 +541,8 @@ export const ja: Messages = {
   },
   reviewReasons: {
     unknownOwner: "どのアプリやツールの項目か確認できませんでした。",
-    sharedResource: "ほかのファイルと領域を共有しているか、この項目の外にもリンクがあります。",
+    sharedResource:
+      "ほかのファイルと領域を共有しているか、この項目の外にもリンクがある可能性があります。",
     staleEvidence: "確認した根拠が古くなっています。もう一度スキャンしてから判断してください。",
     uncertainSize: "完全に削除したあとに空く領域は確かではありません。",
   },
