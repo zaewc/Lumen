@@ -476,6 +476,14 @@ shared-block facts remain attached to each member. Inputs exceeding 100,000 entr
 or 32 MiB of path payload are rejected before reading. Readers must prevent link
 following and hydration; no content or fingerprint is sent to AI or telemetry.
 
+On macOS, `lumen_platform_macos::DuplicateReader` supplies the fingerprints: it
+opens with `O_NOFOLLOW_ANY` and dataless materialization off, attests the handle's
+identity, size, modification and change times before and after reading, and hashes
+4 KiB head and tail samples and then the whole file with BLAKE3 through a 64 KiB
+buffer. The samples use BLAKE3 rather than ADR-0019's XXH3, which avoids a second
+hash dependency; only the full hash establishes equality either way. A file with a
+resource fork never matches its scanned size and is skipped.
+
 See [ADR-0019](../decisions/0019-staged-duplicate-detection.md). Exact duplicates are
 found in stages ending in a BLAKE3 content ID. Near-duplicates are `REVIEW` only.
 

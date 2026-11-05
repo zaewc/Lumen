@@ -18,6 +18,8 @@ mod backup;
 mod bulk;
 #[cfg(target_os = "macos")]
 mod cf;
+#[cfg(target_os = "macos")]
+pub mod duplicates;
 pub mod entry;
 pub mod events;
 #[cfg(target_os = "macos")]
@@ -39,6 +41,8 @@ pub use apps::AppInventory;
 pub use backup::{BackupExclusionError, exclude_from_backup};
 #[cfg(target_os = "macos")]
 pub use bulk::BulkEnumerator;
+#[cfg(target_os = "macos")]
+pub use duplicates::DuplicateReader;
 #[cfg(target_os = "macos")]
 pub use feed::FsEventsFeed;
 #[cfg(target_os = "macos")]

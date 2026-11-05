@@ -14,6 +14,7 @@ lumen-domain.workspace = true
 thiserror.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
+blake3.workspace = true
 dispatch2.workspace = true
 libc.workspace = true
 objc2-core-foundation = { workspace = true, features = [

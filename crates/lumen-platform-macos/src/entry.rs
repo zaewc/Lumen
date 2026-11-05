@@ -25,14 +25,14 @@ const VDIR: u32 = 2;
 const VLNK: u32 = 5;
 
 // BSD file flags (`sys/stat.h`).
-const UF_IMMUTABLE: u32 = 0x0000_0002;
+pub(crate) const UF_IMMUTABLE: u32 = 0x0000_0002;
 const UF_COMPRESSED: u32 = 0x0000_0020;
 const UF_HIDDEN: u32 = 0x0000_8000;
-const SF_IMMUTABLE: u32 = 0x0002_0000;
-const SF_RESTRICTED: u32 = 0x0008_0000;
-const SF_NOUNLINK: u32 = 0x0010_0000;
+pub(crate) const SF_IMMUTABLE: u32 = 0x0002_0000;
+pub(crate) const SF_RESTRICTED: u32 = 0x0008_0000;
+pub(crate) const SF_NOUNLINK: u32 = 0x0010_0000;
 const SF_FIRMLINK: u32 = 0x0080_0000;
-const SF_DATALESS: u32 = 0x4000_0000;
+pub(crate) const SF_DATALESS: u32 = 0x4000_0000;
 
 // `ATTR_CMNEXT_EXT_FLAGS` bits (`sys/stat.h`).
 const EF_MAY_SHARE_BLOCKS: u64 = 0x01;
