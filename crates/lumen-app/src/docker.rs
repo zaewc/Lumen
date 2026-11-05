@@ -12,7 +12,7 @@ pub struct Inventory {
     pub schema_version: u32,
     /// Docker client version, for interpreting changing tool output.
     pub client_version: String,
-    /// Context name, or the explicit `DOCKER_HOST` override.
+    /// Context Docker selected, after its `DOCKER_HOST` / `DOCKER_CONTEXT` precedence.
     pub context: String,
     /// Effective daemon endpoint; may be remote.
     pub endpoint: String,
@@ -137,43 +137,19 @@ fn context(commands: &mut impl Commands) -> Result<(String, String), InspectionE
 /// [`InspectionError`] for unavailable tools/daemons, malformed output, or
 /// resources/context that change while the inventory is being read.
 pub fn inspect() -> Result<Inventory, InspectionError> {
-    let host = if std::env::var_os("DOCKER_CONTEXT").is_some_and(|value| !value.is_empty()) {
-        None
-    } else {
-        std::env::var("DOCKER_HOST")
-            .ok()
-            .filter(|value| !value.is_empty())
-    };
-    inspect_with(&mut Program::find("docker")?, host.as_deref())
+    inspect_with(&mut Program::find("docker")?)
 }
 
-fn inspect_with(
-    commands: &mut impl Commands,
-    host: Option<&str>,
-) -> Result<Inventory, InspectionError> {
+fn inspect_with(commands: &mut impl Commands) -> Result<Inventory, InspectionError> {
     let version = commands.query(&["--version"])?;
     let version = version.trim();
     if !version.starts_with("Docker version ") {
         return Err(InspectionError::Format("Docker client version"));
     }
-    let (name, endpoint) = match host {
-        Some(host) if host.starts_with('-') => return Err(InspectionError::Format("DOCKER_HOST")),
-        Some(host) => ("DOCKER_HOST override".into(), host.into()),
-        None => context(commands)?,
-    };
-    let selector = vec![
-        if host.is_some() {
-            "--host"
-        } else {
-            "--context"
-        }
-        .into(),
-        if host.is_some() {
-            endpoint.clone()
-        } else {
-            name.clone()
-        },
-    ];
+    // `context show` applies Docker's own DOCKER_HOST / DOCKER_CONTEXT precedence;
+    // pinning its answer keeps every later query on the same daemon.
+    let (name, endpoint) = context(commands)?;
+    let selector = vec!["--context".to_owned(), name.clone()];
     let security = query(
         commands,
         &selector,
@@ -185,7 +161,7 @@ fn inspect_with(
     let args = ["system", "df", "--format", "json"];
     let categories = rows(&query(commands, &selector, &args)?)?;
     if categories != rows(&query(commands, &selector, &args)?)?
-        || (host.is_none() && (name.clone(), endpoint.clone()) != context(commands)?)
+        || (name.clone(), endpoint.clone()) != context(commands)?
     {
         return Err(InspectionError::Changed("Docker context or resource usage"));
     }
@@ -235,7 +211,7 @@ mod tests {
 
     #[test]
     fn inventories_all_categories_in_the_pinned_rootless_context() -> Result<(), InspectionError> {
-        let result = inspect_with(&mut fake, None)?;
+        let result = inspect_with(&mut fake)?;
         assert_eq!(result.rootless, Some(true));
         assert_eq!(result.categories.len(), 4);
         assert!(result.categories.iter().all(|row| row.review_required));
@@ -254,10 +230,7 @@ mod tests {
             assert!(rows(&output).is_err());
         }
         assert!(matches!(
-            inspect_with(
-                &mut |_: &[&str]| Err(InspectionError::Failed(Some(13))),
-                None
-            ),
+            inspect_with(&mut |_: &[&str]| Err(InspectionError::Failed(Some(13)))),
             Err(InspectionError::Failed(Some(13)))
         ));
     }
@@ -271,8 +244,7 @@ mod tests {
                 fake(args)
             }
         };
-        assert!(inspect_with(&mut dashed, None).is_err());
-        assert!(inspect_with(&mut fake, Some("-H")).is_err());
+        assert!(inspect_with(&mut dashed).is_err());
         let mut no_daemon = |args: &[&str]| {
             if args.contains(&"info") {
                 Err(InspectionError::Failed(Some(1)))
@@ -281,7 +253,7 @@ mod tests {
             }
         };
         assert!(matches!(
-            inspect_with(&mut no_daemon, None),
+            inspect_with(&mut no_daemon),
             Err(InspectionError::Failed(Some(1)))
         ));
     }
@@ -301,7 +273,7 @@ mod tests {
             })
         };
         assert!(matches!(
-            inspect_with(&mut changing, None),
+            inspect_with(&mut changing),
             Err(InspectionError::Changed(_))
         ));
         let mut reads = 0;
@@ -315,6 +287,6 @@ mod tests {
                 fake(args)
             }
         };
-        assert!(inspect_with(&mut changing, None).is_err());
+        assert!(inspect_with(&mut changing).is_err());
     }
 }

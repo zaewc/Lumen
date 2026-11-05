@@ -34,10 +34,12 @@ disk image or volume mount points). The queries, in order, are `docker --version
 `docker context show`, `docker context inspect <name> --format '{{json
 .Endpoints.docker.Host}}'`, then `--context <name> info --format '{{json
 .SecurityOptions}}'` and `--context <name> system df --format json` (twice).
-When `DOCKER_HOST` is set and `DOCKER_CONTEXT` is not, Docker's own precedence
-selects the host, so the queries pin `--host` instead. Pinning keeps every
-answer from the same daemon; a context or host value starting with `-` is
-rejected because it would be parsed as an option.
+`docker context show` already applies Docker's precedence (a set `DOCKER_HOST`
+wins over `DOCKER_CONTEXT` and reports `default`, whose endpoint is that host;
+checked locally with Docker 28.2.2), so Lumen reads no Docker environment itself
+and pins `--context <name>` for every later query. Pinning keeps every answer
+from the same daemon; a context name starting with `-` is rejected because it
+would be parsed as an option.
 
 [`docker system df`](https://docs.docker.com/reference/cli/docker/system/df/)
 reports Images, Containers, Local Volumes and Build Cache, each with a total,
