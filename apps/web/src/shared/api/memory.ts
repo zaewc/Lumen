@@ -399,6 +399,7 @@ const candidates: readonly CandidateView[] = [
   {
     id: fileId(13),
     path: `${HOME}/Downloads/Installers`,
+    review_reasons: { schema: "review-reasons/1", codes: ["unknown_owner"] },
     verdict: "review",
     reclaimable_bytes: "2300000000",
     reclaimable_exact: true,

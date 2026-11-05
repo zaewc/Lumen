@@ -526,6 +526,12 @@ export const zhCN: Messages = {
       body: "隔离区是安全的暂存位置。清理时，项目会移到这里而不是被删除；在永久移除之前，你可以将其恢复到原处。隔离区中的项目仍会占用磁盘空间。",
     },
   },
+  reviewReasons: {
+    unknownOwner: "无法确认它属于哪个应用或工具。",
+    sharedResource: "它与其他文件共享存储空间，或在此项目之外还有链接。",
+    staleEvidence: "部分依据已过时，请重新扫描后再决定。",
+    uncertainSize: "永久删除后能释放多少空间尚不确定。",
+  },
   reasons: {
     location: (name: string) => `保留：此项目位于受保护的位置（${name}）。`,
     rules: {

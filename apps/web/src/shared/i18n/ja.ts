@@ -539,6 +539,12 @@ export const ja: Messages = {
       body: "隔離は項目を安全に保管する場所です。整理では削除せずにここへ移動し、完全に削除するまでは元の場所に復元できます。隔離中もディスク容量を使用します。",
     },
   },
+  reviewReasons: {
+    unknownOwner: "どのアプリやツールの項目か確認できませんでした。",
+    sharedResource: "ほかのファイルと領域を共有しているか、この項目の外にもリンクがあります。",
+    staleEvidence: "確認した根拠が古くなっています。もう一度スキャンしてから判断してください。",
+    uncertainSize: "完全に削除したあとに空く領域は確かではありません。",
+  },
   reasons: {
     location: (name: string) => `維持：保護された場所（${name}）にあります。`,
     rules: {

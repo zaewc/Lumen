@@ -554,6 +554,12 @@ export const es: Messages = {
       body: "Cuarentena es un lugar seguro donde guardar elementos. Al limpiar, se mueven allí en vez de eliminarse, y puedes restaurarlos en su ubicación original hasta que los elimines definitivamente. Hasta entonces, los elementos en Cuarentena siguen ocupando espacio en disco.",
     },
   },
+  reviewReasons: {
+    unknownOwner: "No se ha identificado qué aplicación o herramienta lo creó.",
+    sharedResource: "Comparte espacio con otros archivos o tiene enlaces fuera de este elemento.",
+    staleEvidence: "Parte de la evidencia está desactualizada. Vuelve a analizar antes de decidir.",
+    uncertainSize: "No se sabe con certeza cuánto espacio liberaría su eliminación definitiva.",
+  },
   reasons: {
     location: (name: string) => `Se conserva: está en una ubicación protegida (${name}).`,
     rules: {

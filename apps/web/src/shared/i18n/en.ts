@@ -544,6 +544,12 @@ export const en = {
       body: "Quarantine is a safe holding place. Cleaning up moves items there instead of deleting them, and you can restore them where they were until you remove them for good. Items in Quarantine still use disk space until then.",
     },
   },
+  reviewReasons: {
+    unknownOwner: "No app or tool was identified as its owner.",
+    sharedResource: "It shares storage with other files or has links outside this item.",
+    staleEvidence: "Some evidence is out of date. Scan again before deciding.",
+    uncertainSize: "The space that removal would free is uncertain.",
+  },
   reasons: {
     location: (name: string) => `Kept: it is in a protected location (${name}).`,
     rules: {

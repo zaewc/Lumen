@@ -1,4 +1,11 @@
-import { aiNoteText, formatDateTime, type Locale, type Messages, reasonText } from "@/shared/i18n";
+import {
+  aiNoteText,
+  formatDateTime,
+  type Locale,
+  type Messages,
+  reasonText,
+  reviewReasonText,
+} from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import type { LensLine } from "../model/lens";
 import type { EvidenceLine } from "../model/stack";
@@ -37,6 +44,8 @@ export function lineText(m: Messages, locale: Locale, line: EvidenceLine): strin
   switch (line.type) {
     case "reason":
       return reasonText(m, line.reason);
+    case "review_reason":
+      return reviewReasonText(m, line.code);
     case "owner":
       return m.detail.owner(line.app, line.present);
     case "in_use":

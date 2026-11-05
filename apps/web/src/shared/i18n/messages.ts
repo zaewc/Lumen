@@ -30,6 +30,22 @@ export function reasonText(messages: Messages, reason: ReasonView): string {
   return rule === undefined ? reason.text : messages.reasons.rules[rule];
 }
 
+/** Newer category codes retain a localized, cautious explanation. */
+export function reviewReasonText(m: Messages, code: string): string {
+  switch (code) {
+    case "unknown_owner":
+      return m.reviewReasons.unknownOwner;
+    case "shared_resource":
+      return m.reviewReasons.sharedResource;
+    case "stale_evidence":
+      return m.reviewReasons.staleEvidence;
+    case "uncertain_reclaimable_size":
+      return m.reviewReasons.uncertainSize;
+    default:
+      return m.reasons.rules["default.review"];
+  }
+}
+
 /**
  * An AI note on a review item (ADR-0041), labelled as AI: only the closed
  * kind and confidence from the API, never model text.

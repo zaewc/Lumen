@@ -155,6 +155,7 @@ export type CandidateView = {
    * and bounded (ADR-0053).
    */
   relations: RelationsView;
+  review_reasons?: ReviewReasonsView | null;
   /**
    * Its modification and access times as the decision saw them, each
    * saying how far it can be relied on (ADR-0053).
@@ -732,6 +733,21 @@ export type RestoreView =
   | {
       kind: "not_restorable";
     };
+
+/**
+ * Machine-readable uncertainty; unknown future codes remain displayable through
+ * the decision's localized fired-rule explanations and supporting facts.
+ */
+export type ReviewReasonsView = {
+  /**
+   * Stable `snake_case` categories. Strings preserve forward compatibility.
+   */
+  codes: Array<string>;
+  /**
+   * `review-reasons/1` for this contract.
+   */
+  schema: string;
+};
 
 /**
  * What a scan found below one root.

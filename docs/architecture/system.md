@@ -310,6 +310,16 @@ Every `Recommendation` answers, from evidence (or states "unknown" with the reas
 Explanations are generated from templates, never from AI free text. A Jev rationale,
 if present, is shown separately and labelled as AI-generated.
 
+REVIEW candidates also expose a `review-reasons/1` descriptor: stable typed
+categories for unknown ownership, shared resources, possible user data, uncertain
+space, tool-required cleanup and AI caution. Every REVIEW has a category; KEEP and
+QUARANTINE have none. These categories are derived after evaluation, never fed back
+into policy or plans. Fired rules and localized explanations, with their supporting
+facts, remain the explanation shown to people. The view accepts future category
+strings so an older UI can retain its existing rule-text fallback. `active_process`
+and `stale_evidence` are reserved descriptive codes, emitted only when the relevant
+evidence supports them; active use still invokes the existing KEEP protection.
+
 An item kept only because a running process uses it (`protect.in-use`) also says what
 quitting would allow ([ADR-0039, 2026-10-31 amendment](../decisions/0039-ask-for-review-only-where-a-person-can-act.md#amendment-say-which-apps-to-quit-2026-10-31)):
 assessment evaluates its input once more, by the policy alone, with the fresh in-use

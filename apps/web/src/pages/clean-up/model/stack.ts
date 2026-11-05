@@ -20,6 +20,7 @@ export type EvidenceLine = {
   readonly certainty: Certainty;
 } & (
   | { readonly type: "reason"; readonly reason: ReasonView }
+  | { readonly type: "review_reason"; readonly code: string }
   | {
       readonly type: "owner";
       readonly app: string;
@@ -63,19 +64,31 @@ export function evidenceStack(
   candidate: CandidateView,
   related: readonly LensLine[],
 ): EvidenceLine[] {
-  const lines: EvidenceLine[] = candidate.reasons.map((reason) => ({
-    type: "reason",
-    reason,
-    source:
-      reason.rule === "jev.demote"
-        ? "ai"
-        : reason.rule.startsWith(LOCATION_RULE_PREFIX)
-          ? "location"
-          : "rule",
-    certainty: certaintyOfRule(reason.rule),
-  }));
+  const review =
+    candidate.verdict === "review"
+      ? [...new Set(candidate.review_reasons?.codes ?? [])].filter(
+          (code) =>
+            !["active_process", "possible_user_data", "tool_required", "ai_caution"].includes(code),
+        )
+      : [];
+  const lines: EvidenceLine[] = candidate.reasons
+    .filter((reason) => reason.rule !== "default.review" || review.length === 0)
+    .map((reason) => ({
+      type: "reason",
+      reason,
+      source:
+        reason.rule === "jev.demote"
+          ? "ai"
+          : reason.rule.startsWith(LOCATION_RULE_PREFIX)
+            ? "location"
+            : "rule",
+      certainty: certaintyOfRule(reason.rule),
+    }));
 
   const facts = candidate.facts.map((record) => record.fact);
+  for (const code of review) {
+    lines.push({ type: "review_reason", code, source: "rule", certainty: "unknown" });
+  }
   for (const fact of facts) {
     if (fact.type !== "owning_application") continue;
     const answer = facts.find((f) => f.type === "application_present" && f.app === fact.app);

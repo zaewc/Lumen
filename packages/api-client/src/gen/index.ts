@@ -40,6 +40,7 @@ export type {
   RemovedView,
   RestoreOutcomeView,
   RestoreView,
+  ReviewReasonsView,
   RootView,
   ScanProgressView,
   ScanRequest,

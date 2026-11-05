@@ -40,6 +40,7 @@ mod path;
 mod plan;
 mod quarantine;
 mod relationship;
+mod review;
 mod size;
 mod text;
 mod time;
@@ -96,6 +97,7 @@ pub use quarantine::{
     ItemLocation, QuarantineEvent, QuarantineFailure, QuarantineState, TransitionError,
 };
 pub use relationship::{RelationKind, Relationship, RelationshipError, SubjectType};
+pub use review::{REVIEW_REASONS_SCHEMA, ReviewReason};
 pub use size::{ByteCount, CloneId, ReclaimEstimate, SizeFacts, SizeFlags};
 pub use text::{UntrustedText, UntrustedTextTooLong};
 pub use time::{Timestamp, TimestampError};

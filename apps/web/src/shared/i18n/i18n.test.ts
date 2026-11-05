@@ -4,7 +4,7 @@ import { en, type GlossaryTerm, type Messages } from "./en";
 import { countFormat, formatDateTime } from "./format";
 import { ko } from "./ko";
 import { detectLocale, LOCALE_NAMES, LOCALES, parseLocale } from "./locale";
-import { aiNoteText, MESSAGES, reasonText } from "./messages";
+import { aiNoteText, MESSAGES, reasonText, reviewReasonText } from "./messages";
 import { RULE_IDS } from "./rules";
 import { storedLocale, storeLocale } from "./storage";
 
@@ -20,6 +20,21 @@ function shape(value: unknown, path = ""): string[] {
 }
 
 describe("catalogs", () => {
+  it("localizes review uncertainty and keeps unknown future codes cautious", () => {
+    for (const locale of LOCALES) {
+      for (const code of [
+        "unknown_owner",
+        "shared_resource",
+        "stale_evidence",
+        "uncertain_reclaimable_size",
+      ]) {
+        expect(reviewReasonText(MESSAGES[locale], code)).not.toBe("");
+      }
+      expect(reviewReasonText(MESSAGES[locale], "future")).toBe(
+        MESSAGES[locale].reasons.rules["default.review"],
+      );
+    }
+  });
   it("say what AI review thinks an item is, labelled as AI", () => {
     expect(aiNoteText(en, { kind: "cache", confidence: "low" })).toBe(
       "AI: likely a cache (low confidence)",

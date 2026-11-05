@@ -34,6 +34,7 @@ or a malicious peer cannot introduce a value the rules forbid.
 | `evidence` | `Evidence`, `EvidenceId`, `Subject`, `Fact`, `Basis`, `Provenance` | Immutable, content-addressed |
 | `relationship` | `Relationship`, `RelationKind`, `SubjectType` | Typed, evidence-backed edges |
 | `decision` | `Verdict`, `Risk`, `RuleId`, `FiredRule`, `PolicyStage`, `JevEffect`, `PolicyDecision` | Policy contract |
+| `review` | `ReviewReason` | Descriptive uncertainty categories; never an action authorization |
 | `candidate` | `CleanupCandidate`, `CleanupAction`, `Category`, `Confidence` | What users review |
 | `quarantine` | `QuarantineState`, `QuarantineEvent`, `ItemLocation` | Reversibility lifecycle |
 | `lifecycle` | `ScanState`, `PlanState`, `Confirmation` | Scan and plan lifecycles |

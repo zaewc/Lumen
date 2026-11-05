@@ -242,6 +242,10 @@ pub struct CandidateView {
     pub reclaimable_exact: bool,
     /// Why: one reason per policy rule that fired, in the policy's order.
     pub reasons: Vec<ReasonView>,
+    /// Versioned descriptive review categories, never permission to change a
+    /// verdict. Optional on input for compatibility with older hosts.
+    #[serde(default)]
+    pub review_reasons: Option<ReviewReasonsView>,
     /// The cleanup command of the developer tool that owns it, if the tool
     /// has one: displayed in full and run by entry ID after desktop confirmation.
     #[schema(required = true)]
@@ -512,6 +516,87 @@ pub struct ReasonView {
     pub text: String,
 }
 
+/// Machine-readable uncertainty; unknown future codes remain displayable through
+/// the decision's localized fired-rule explanations and supporting facts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ReviewReasonsView {
+    /// `review-reasons/1` for this contract.
+    pub schema: String,
+    /// Stable `snake_case` categories. Strings preserve forward compatibility.
+    pub codes: Vec<String>,
+}
+
+fn review_reasons(assessed: &Assessed) -> Option<ReviewReasonsView> {
+    let reasons = lumen_application::review::reasons(assessed);
+    if reasons.is_empty() {
+        return None;
+    }
+    Some(ReviewReasonsView {
+        schema: lumen_domain::REVIEW_REASONS_SCHEMA.to_owned(),
+        codes: reasons
+            .into_iter()
+            .map(|reason| reason.as_str().to_owned())
+            .collect(),
+    })
+}
+
+#[cfg(test)]
+mod review_tests {
+    use super::*;
+    use lumen_domain::{AccessState, EntryKind, ReclaimEstimate};
+
+    #[test]
+    fn review_categories_preserve_the_decision_and_expose_unknowns()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut assessed = fixture::assessed(EntryKind::Directory, AccessState::Readable, vec![]);
+        let before = assessed.decision.clone();
+        let view = CandidateView::from(&assessed);
+        let reasons = view.review_reasons.ok_or("missing review reasons")?;
+        assert_eq!(reasons.schema, "review-reasons/1");
+        assert_eq!(
+            reasons.codes,
+            ["unknown_owner", "uncertain_reclaimable_size"]
+        );
+        assessed.input.observed = Some(lumen_policy::Observed {
+            entry: assessed.candidate.clone(),
+            complete: true,
+            reclaim: ReclaimEstimate {
+                partially_linked_files: 1,
+                exact: false,
+                ..ReclaimEstimate::default()
+            },
+        });
+        assert!(
+            review_reasons(&assessed)
+                .ok_or("missing review reasons")?
+                .codes
+                .contains(&"shared_resource".to_owned())
+        );
+        assert_eq!(
+            assessed.decision, before,
+            "describing never reevaluates policy"
+        );
+        assessed.decision = lumen_domain::PolicyDecision::new(
+            Verdict::Keep,
+            before.policy_version(),
+            before.evidence_hash(),
+            before.fired_rules().iter().cloned(),
+            before.risk().clone(),
+            before.jev_effect(),
+        )?;
+        assert_eq!(review_reasons(&assessed), None);
+        Ok(())
+    }
+
+    #[test]
+    fn future_codes_round_trip_for_existing_ui_rule_fallback() -> Result<(), serde_json::Error> {
+        let json = serde_json::json!({ "schema": "review-reasons/2", "codes": ["future_reason"] });
+        let view: ReviewReasonsView = serde_json::from_value(json.clone())?;
+        assert_eq!(serde_json::to_value(view)?, json);
+        Ok(())
+    }
+}
+
 impl From<&Assessed> for CandidateView {
     fn from(assessed: &Assessed) -> Self {
         // `explain` renders one sentence per fired rule, in the same order.
@@ -532,6 +617,7 @@ impl From<&Assessed> for CandidateView {
             reclaimable_bytes: bytes(reclaim(assessed)),
             reclaimable_exact: reclaim_exact(assessed),
             reasons,
+            review_reasons: review_reasons(assessed),
             tool_command: tool_action(assessed).map(ToolCommandView::from),
             group: lumen_app::assess::group(assessed).into(),
             ai_note: assessed

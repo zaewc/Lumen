@@ -264,6 +264,17 @@
             "$ref": "#/components/schemas/RelationsView",
             "description": "The relationships in its decision's evidence bundle, nearest first\nand bounded (ADR-0053)."
           },
+          "review_reasons": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ReviewReasonsView",
+                "description": "Versioned descriptive review categories, never permission to change a\nverdict. Optional on input for compatibility with older hosts."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "times": {
             "$ref": "#/components/schemas/TimesView",
             "description": "Its modification and access times as the decision saw them, each\nsaying how far it can be relied on (ADR-0053)."
@@ -1380,6 +1391,27 @@
           }
         ],
         "description": "What a restore did."
+      },
+      "ReviewReasonsView": {
+        "type": "object",
+        "description": "Machine-readable uncertainty; unknown future codes remain displayable through\nthe decision's localized fired-rule explanations and supporting facts.",
+        "required": [
+          "schema",
+          "codes"
+        ],
+        "properties": {
+          "codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Stable `snake_case` categories. Strings preserve forward compatibility."
+          },
+          "schema": {
+            "type": "string",
+            "description": "`review-reasons/1` for this contract."
+          }
+        }
       },
       "RootView": {
         "type": "object",

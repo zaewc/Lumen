@@ -381,6 +381,15 @@ export const zRestoreOutcomeView = z.object({
 });
 
 /**
+ * Machine-readable uncertainty; unknown future codes remain displayable through
+ * the decision's localized fired-rule explanations and supporting facts.
+ */
+export const zReviewReasonsView = z.object({
+  codes: z.array(z.string()),
+  schema: z.string(),
+});
+
+/**
  * What a scan found below one root.
  */
 export const zRootView = z.object({
@@ -587,6 +596,7 @@ export const zCandidateView = z.object({
   reclaimable_bytes: z.string(),
   reclaimable_exact: z.boolean(),
   relations: zRelationsView,
+  review_reasons: zReviewReasonsView.nullish(),
   times: zTimesView,
   tool_command: zToolCommandView.nullable(),
   verdict: zVerdictView,

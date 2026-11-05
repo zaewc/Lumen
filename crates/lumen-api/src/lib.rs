@@ -34,6 +34,7 @@ use utoipa::OpenApi;
         views::ToolRunView,
         views::SpaceChangeView,
         views::ReasonView,
+        views::ReviewReasonsView,
         views::ToolCommandView,
         views::AiNoteView,
         views::FreeWhenClosedView,
@@ -114,7 +115,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 50);
+        assert_eq!(schemas, 51);
     }
 
     #[test]
