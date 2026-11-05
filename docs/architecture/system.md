@@ -484,6 +484,14 @@ buffer. The samples use BLAKE3 rather than ADR-0019's XXH3, which avoids a secon
 hash dependency; only the full hash establishes equality either way. A file with a
 resource fork never matches its scanned size and is skipped.
 
+`lumen duplicates <PATH>... [--json]` (`lumen_app::duplicates::find`) runs both
+on folders the user names, never the whole disk by default. It lists them afresh
+from their real paths, skips quarantine stores like a scan, and leaves every file
+in a protected location unread (`lumen_policy::protected_location`, which fails
+closed when the location data or home is unknown). It prints paths and sizes for
+review; digests never leave the process, and nothing is chosen or removed. Other
+platforms report that the analysis is unsupported rather than finding nothing.
+
 See [ADR-0019](../decisions/0019-staged-duplicate-detection.md). Exact duplicates are
 found in stages ending in a BLAKE3 content ID. Near-duplicates are `REVIEW` only.
 

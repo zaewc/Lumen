@@ -173,7 +173,7 @@ pub fn raw_path(path: &Path) -> Result<RawPath, PathError> {
 
 /// The roots as absolute raw paths, without resolving symlinks: a symlinked
 /// root is reported as a link, never followed.
-fn absolute_roots(roots: &[PathBuf]) -> Result<Vec<RawPath>, ScanError> {
+pub(crate) fn absolute_roots(roots: &[PathBuf]) -> Result<Vec<RawPath>, ScanError> {
     roots
         .iter()
         .map(|root| {
@@ -192,7 +192,10 @@ fn absolute_roots(roots: &[PathBuf]) -> Result<Vec<RawPath>, ScanError> {
 /// Resolve only exclusion comparisons, never the paths given to traversal.
 /// Identities cover store aliases; canonical root comparisons cover a directly
 /// selected descendant, including paths with `..` or alternate casing.
-fn excluding_stores(roots: &[PathBuf], stores: &[PathBuf]) -> Result<ScanConfig, ScanError> {
+pub(crate) fn excluding_stores(
+    roots: &[PathBuf],
+    stores: &[PathBuf],
+) -> Result<ScanConfig, ScanError> {
     let mut config = ScanConfig::default();
     let mut paths = Vec::new();
     for store in stores {

@@ -8,6 +8,7 @@
 pub mod ai;
 pub mod assess;
 pub mod docker;
+pub mod duplicates;
 #[cfg(any(unix, windows))]
 pub mod held;
 mod inspection;

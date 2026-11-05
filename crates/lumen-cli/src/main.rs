@@ -12,6 +12,7 @@
 //! lumen jev key set|clear|status [--openrouter]
 //! lumen ai on|off|status --db <FILE>
 //! lumen inspect xcode|docker|packages [--json]
+//! lumen duplicates <PATH>... [--json]
 //! ```
 //!
 //! `assess` decides the latest completed scan in the database and reports each
@@ -45,6 +46,7 @@ use std::process::ExitCode;
 
 #[cfg(any(unix, windows))]
 mod assess;
+mod duplicates;
 #[cfg(any(unix, windows))]
 mod held;
 mod inspect;
@@ -60,7 +62,7 @@ mod quarantine;
 #[cfg(any(unix, windows))]
 mod report;
 
-const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)\n       lumen inspect xcode|docker|packages [--json]   (read-only tool storage inventory)";
+const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)\n       lumen inspect xcode|docker|packages [--json]   (read-only tool storage inventory)\n       lumen duplicates <PATH>... [--json]   (identical copies in chosen folders, for review)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -101,6 +103,7 @@ enum AiAction {
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
     Inspect(inspect::Args),
+    Duplicates(duplicates::Args),
     Scan(ScanArgs),
     Assess(AssessArgs),
     Plan(PlanArgs),
@@ -258,6 +261,9 @@ fn parse(args: &[String]) -> Result<Command, String> {
         Some("scan") => {}
         Some("assess") => return parse_assess(iter.as_slice()),
         Some("inspect") => return inspect::parse(iter.as_slice()).map(Command::Inspect),
+        Some("duplicates") => {
+            return duplicates::parse(iter.as_slice()).map(Command::Duplicates);
+        }
         Some("plan") => return parse_plan(iter.as_slice()),
         Some("ai") => return parse_ai(iter.as_slice()),
         Some("quarantine") => return parse_quarantine(iter.as_slice()),
@@ -326,7 +332,7 @@ fn database(command: &Command) -> Option<&std::path::Path> {
         Command::Quarantine(args) => Some(&args.db),
         Command::List(db) | Command::FinalizeExpired(db) | Command::Ai(_, db) => Some(db),
         Command::Restore(args) | Command::Finalize(args) => Some(&args.db),
-        Command::JevKey(..) | Command::Inspect(_) | Command::Help => None,
+        Command::JevKey(..) | Command::Inspect(_) | Command::Duplicates(_) | Command::Help => None,
     }
 }
 
@@ -357,6 +363,7 @@ fn main() -> ExitCode {
         }
         Ok(Command::Scan(scan)) => report(run(&scan)),
         Ok(Command::Inspect(args)) => report(inspect::run(&args)),
+        Ok(Command::Duplicates(args)) => report(duplicates::run(&args)),
         Ok(Command::List(db)) => report(run_held(HeldAction::List, &db, None)),
         Ok(Command::JevKey(action, service)) => report(run_jev_key(action, service)),
         Ok(Command::Ai(action, db)) => report(run_ai(action, &db)),
