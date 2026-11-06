@@ -327,6 +327,23 @@ export const es: Messages = {
         "La herramienta correspondiente debería limpiarlo. Lumen solo ejecuta el comando si se lo pides.",
       quarantine: "Lumen propone moverlo a Cuarentena. Desde allí puedes restaurarlo.",
     },
+    recheck: {
+      unknown: "Cuando Lumen decidió, no sabía:",
+      gaps: {
+        in_use: "si alguna app lo está usando",
+        unread: "todo lo que contiene",
+        stale: "cómo está ahora",
+        owner: "a qué app pertenece y si esa app está instalada",
+      },
+      action: "Comprobar de nuevo",
+      checking: "Comprobando…",
+      note: "Comprobar solo lee. No se mueve nada.",
+      settled: "No hay nada que comprobar: esta decisión no depende de nada que Lumen no supiera.",
+      changed: "Cambió después del escaneo, así que Lumen no volvió a decidir. Escanea de nuevo.",
+      still: (status: string) => `Comprobado de nuevo · sigue como ${status}`,
+      now: (before: string, after: string) => `Comprobado de nuevo · ${before} → ${after}`,
+      failed: "Lumen no pudo comprobarlo de nuevo.",
+    },
     lens: {
       tool: (n: number, tool: string, size: string) => `${others(n)} de ${tool} · ${size}`,
       processes: (n: number, size: string, ...apps: string[]) =>

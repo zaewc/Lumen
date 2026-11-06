@@ -318,6 +318,23 @@ export const en = {
       command: "Its own tool should clean this up. Lumen runs the command only if you ask.",
       quarantine: "Lumen proposes moving this to Quarantine. You can restore it from there.",
     },
+    recheck: {
+      unknown: "When Lumen decided, it did not know:",
+      gaps: {
+        in_use: "whether an app is using it",
+        unread: "everything inside it",
+        stale: "how it is now",
+        owner: "which app it belongs to and whether that app is installed",
+      },
+      action: "Check again",
+      checking: "Checking…",
+      note: "Checking only reads. Nothing is moved.",
+      settled: "Nothing to check: this decision does not depend on anything Lumen did not know.",
+      changed: "It changed since the scan, so Lumen did not decide again. Scan again.",
+      still: (status: string) => `Checked again · still ${status}`,
+      now: (before: string, after: string) => `Checked again · ${before} → ${after}`,
+      failed: "Lumen could not check it again.",
+    },
     lens: {
       tool: (n: number, tool: string, size: string) => `${others(n)} from ${tool} · ${size}`,
       processes: (n: number, size: string, ...apps: string[]) =>

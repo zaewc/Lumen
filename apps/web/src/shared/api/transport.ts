@@ -13,6 +13,8 @@ import type {
   HeldItemView,
   PlanView,
   QuarantineReportView,
+  ReassessRequest,
+  ReassessView,
   RestoreOutcomeView,
   ScanProgressView,
   ScanRequest,
@@ -98,4 +100,10 @@ export interface LumenTransport {
   ): Promise<CompareOutcomeView>;
   /** Stops the running comparison, which then ends as `cancelled`. */
   cancelComparison?(): Promise<void>;
+  /**
+   * Checks items of the latest assessment again with fresh read-only
+   * evidence (ADR-0058), by ID; none: every item with something unknown.
+   * Moves nothing. Only where the host keeps the assessment (the desktop app).
+   */
+  reassess?(request: ReassessRequest): Promise<ReassessView>;
 }

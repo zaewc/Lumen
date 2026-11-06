@@ -306,6 +306,23 @@ export const zhCN: Messages = {
       command: "应由对应工具自行清理。只有在你要求时，Lumen 才会运行命令。",
       quarantine: "Lumen 建议将此项目移至隔离区。之后可以从隔离区恢复。",
     },
+    recheck: {
+      unknown: "Lumen 判断时不知道：",
+      gaps: {
+        in_use: "是否有应用在使用它",
+        unread: "其中的全部内容",
+        stale: "它现在的状态",
+        owner: "它属于哪个应用，以及该应用是否已安装",
+      },
+      action: "重新检查",
+      checking: "正在检查…",
+      note: "检查只读取，不会移动任何内容。",
+      settled: "没有需要检查的：这个判断不依赖 Lumen 不知道的信息。",
+      changed: "扫描后它已改变，因此 Lumen 没有重新判断。请重新扫描。",
+      still: (status: string) => `已重新检查 · 仍为${status}`,
+      now: (before: string, after: string) => `已重新检查 · ${before} → ${after}`,
+      failed: "无法重新检查。",
+    },
     lens: {
       tool: (n: number, tool: string, size: string) => `${tool} 的另外 ${items(n)} · ${size}`,
       processes: (n: number, size: string, ...apps: string[]) =>

@@ -320,6 +320,23 @@ export const ko = {
       command: "이 항목의 도구가 직접 정리해야 해요. 요청할 때만 명령을 실행해요.",
       quarantine: "격리함으로 옮기자고 제안해요. 격리함에서 되돌릴 수 있어요.",
     },
+    recheck: {
+      unknown: "판단할 때 Lumen이 몰랐던 것:",
+      gaps: {
+        in_use: "앱이 쓰고 있는지",
+        unread: "안에 무엇이 있는지 전부",
+        stale: "지금은 어떤지",
+        owner: "어느 앱의 것인지, 그 앱이 설치돼 있는지",
+      },
+      action: "다시 확인하기",
+      checking: "확인하는 중…",
+      note: "확인은 읽기만 해요. 아무것도 옮기지 않아요.",
+      settled: "다시 확인할 것이 없어요. 이 판단은 Lumen이 몰랐던 것에 기대지 않아요.",
+      changed: "검사 뒤에 바뀌어서 다시 판단하지 않았어요. 다시 검사해 주세요.",
+      still: (status: string) => `다시 확인했어요 · ${status} 그대로예요`,
+      now: (before: string, after: string) => `다시 확인했어요 · ${before} → ${after}`,
+      failed: "다시 확인하지 못했어요.",
+    },
     lens: {
       tool: (n: number, tool: string, size: string) =>
         `${tool}의 다른 항목 ${count(n)}개 · ${size}`,

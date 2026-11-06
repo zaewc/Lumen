@@ -8,6 +8,7 @@ import { lineText } from "../lib/evidence";
 import type { Lens } from "../model/lens";
 import { evidenceStack } from "../model/stack";
 import { CandidateSize } from "./CandidateSize";
+import { CheckAgain } from "./CheckAgain";
 import { StatusText } from "./Status";
 import { ToolCommand } from "./ToolCommand";
 
@@ -124,6 +125,7 @@ export function CandidateSheet({
                 )}
               </div>
             </section>
+            <CheckAgain key={candidate.path} candidate={candidate} />
             {candidate.tool_command !== null && <ToolCommand command={candidate.tool_command} />}
           </div>
         </div>

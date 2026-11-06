@@ -313,6 +313,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "app_cache", source: "com.hnc.Discord" },
     ai_note: null,
     free_when_closed: { processes: ["Discord"] },
+    rechecks: ["in_use"],
     times: folderTimes("2026-10-16T08:57:40Z", "2026-10-16T08:57:40Z"),
     facts: [devkb("discord-chromium-caches"), ...scanned({ inUse: true })],
     relations: noneRecorded,
@@ -754,6 +755,54 @@ export function memoryTransport({
     cancelComparison: async () => {
       comparing.stopped = true;
       await wait(0);
+    },
+    reassess: async ({ ids }) => {
+      await wait(pace);
+      const chosen =
+        ids.length === 0 ? candidates.filter((c) => (c.rechecks ?? []).length > 0) : [];
+      for (const id of ids) {
+        const found = candidates.filter((c) => c.id === id);
+        if (found.length === 0) {
+          return Promise.reject(
+            new Error("that item is not in the latest assessment; assess again"),
+          );
+        }
+        chosen.push(...found);
+      }
+      return {
+        cancelled: false,
+        items: chosen.map((candidate) => {
+          const gaps = candidate.rechecks ?? [];
+          if (gaps.length === 0) {
+            return {
+              id: candidate.id,
+              before: candidate.verdict,
+              gaps,
+              outcome: { kind: "settled" },
+            };
+          }
+          // The demo's Discord has been closed since the assessment.
+          const now: CandidateView = {
+            ...candidate,
+            verdict: "quarantine",
+            reasons: [
+              {
+                rule: "classify.app-cache",
+                text: "Quarantine proposed: it is an application's cache, which the application re-creates.",
+              },
+            ],
+            free_when_closed: null,
+            rechecks: [],
+            facts: [devkb("discord-chromium-caches"), ...scanned()],
+          };
+          return {
+            id: candidate.id,
+            before: candidate.verdict,
+            gaps,
+            outcome: { kind: "decided", candidate: now, added_facts: "2" },
+          };
+        }),
+      };
     },
     setAiKey: async (key) => {
       await wait(pace);

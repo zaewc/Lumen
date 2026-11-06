@@ -316,6 +316,23 @@ export const ja: Messages = {
       command: "専用ツールで整理してください。依頼された場合にのみ、Lumenがコマンドを実行します。",
       quarantine: "隔離への移動を提案しています。隔離から復元できます。",
     },
+    recheck: {
+      unknown: "判断したとき Lumen が知らなかったこと:",
+      gaps: {
+        in_use: "アプリが使っているか",
+        unread: "中身のすべて",
+        stale: "今どうなっているか",
+        owner: "どのアプリのものか、そのアプリがインストールされているか",
+      },
+      action: "再確認する",
+      checking: "確認しています…",
+      note: "確認は読み取りだけです。何も移動しません。",
+      settled: "確認することはありません。この判断は Lumen が知らなかったことに左右されません。",
+      changed: "スキャン後に変わったため、判断し直していません。もう一度スキャンしてください。",
+      still: (status: string) => `再確認しました · ${status}のまま`,
+      now: (before: string, after: string) => `再確認しました · ${before} → ${after}`,
+      failed: "再確認できませんでした。",
+    },
     lens: {
       tool: (n: number, tool: string, size: string) => `${tool}由来の${others(n)} · ${size}`,
       processes: (n: number, size: string, ...apps: string[]) =>

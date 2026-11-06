@@ -12,7 +12,9 @@ import {
   zHeldItemView,
   zPlanView,
   zQuarantineReportView,
+  zReassessedItemView,
   zReassessGapView,
+  zReassessView,
   zRestoreOutcomeView,
   zReviewReasonsView,
   zScanProgressView,
@@ -22,6 +24,7 @@ import {
   zUpdateView,
 } from "@lumen/api-client";
 import { Channel, type InvokeArgs, invoke } from "@tauri-apps/api/core";
+import { z } from "zod";
 import { hostError } from "./host-error";
 import type { LumenTransport } from "./transport";
 
@@ -32,6 +35,21 @@ const zCompatibleCandidate = zCandidateView.extend({
   rechecks: zReassessGapView.array().nullable().default(null),
 });
 const zCompatiblePlan = zPlanView.extend({ items: zCompatibleCandidate.array() });
+const zCompatibleReassess = zReassessView.extend({
+  items: zReassessedItemView
+    .extend({
+      outcome: z.union([
+        z.object({ kind: z.literal("settled") }),
+        z.object({ kind: z.literal("changed") }),
+        z.object({
+          kind: z.literal("decided"),
+          candidate: zCompatibleCandidate,
+          added_facts: z.string(),
+        }),
+      ]),
+    })
+    .array(),
+});
 
 /** `invoke`, with a rejection turned into an `Error` that carries the host's message. */
 async function call(command: string, args?: InvokeArgs): Promise<unknown> {
@@ -96,6 +114,7 @@ export function tauriTransport(): LumenTransport {
     cancelComparison: async () => {
       await call("cancel_comparison");
     },
+    reassess: async (request) => zCompatibleReassess.parse(await call("reassess", { request })),
     setAiReview: async (enabled) => zAiSettingsView.parse(await call("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await call("set_ai_key", { key })),
   };
