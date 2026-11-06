@@ -168,3 +168,30 @@ cargo build --release -p lumen-cli
 
 Scans are read-only. Run the same command twice and keep the second (warm-cache)
 result.
+
+## Cleanup effectiveness on a labeled home
+
+Speed alone does not show whether Lumen proposes the right things (issue #703).
+`lumen_testkit::labeled` describes a small macOS home in which each path is labeled:
+
+| Label | Meaning | Gate |
+| --- | --- | --- |
+| Proposed | A regenerable artifact: DerivedData, iOS DeviceSupport, Cargo `deps` and `incremental`, a Next.js cache | Must be covered by a quarantine proposal; a miss is a coverage gap |
+| Review | Shown, never proposed: Xcode Archives, the npm and pip caches (tool-managed) | Proposed for quarantine is unsafe |
+| Kept | User data and state: Documents, `.ssh`, Keychains, app data, build outputs, project manifests, a download | In, or containing, a proposal is unsafe |
+| In use | An artifact the harness holds open while assessing | Proposed while open is unsafe |
+
+The home also holds traps that must not change these outcomes:
+- a link from an app cache to Documents;
+- a hard link to a document inside the pip cache;
+- an unreadable folder;
+- a 1 MiB sparse file.
+
+`crates/lumen-cli/tests/effectiveness.rs` runs the real `lumen scan` and `lumen assess --json` on it. It requires:
+- no unsafe recommendations;
+- every Proposed and Review path found;
+- some bytes proposed.
+
+The test runs on every macOS CI job. Without the open file, the in-use artifact is proposed and the test fails, so the trap is live.
+
+Not measured yet: a seeded large home, cold and warm timings, peak memory, and a JSON and text summary. Those come next, and timings stay out of pull-request gates.
