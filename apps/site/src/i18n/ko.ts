@@ -14,19 +14,36 @@ export const ko: Messages = {
   hero: {
     // The product line stays in English in every language (owner, 2026-10-28).
     headline: ["Storage intelligence", "for every device."],
-    lead: "무엇을 남기고 무엇을 비울지, AI가 함께 살펴봐요.",
+    lead: "디스크를 채운 파일을 찾아 안전하게 공간을 비워 주는 무료 앱이에요. 정리한 파일은 바로 지우지 않고 격리함에 옮겨 둬서 되돌릴 수 있어요.",
     download: "릴리스 보기",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   showcase: {
     main: "예시 데이터를 보여 주는 Lumen 탐색 화면. 판단별 용량 구성과 개발 도구·앱 캐시의 정리 제안 9.9 GB를 보여 주고, 도구가 직접 정리해야 하는 항목은 명령과 함께 보여 줘요.",
   },
+  howTo: {
+    title: "사용 방법",
+    steps: [
+      {
+        title: "내려받아 열기",
+        text: "아래에서 내 컴퓨터에 맞는 파일을 받아 설치해요. 처음 열 때 한 번만 허용해 주면 돼요.",
+      },
+      {
+        title: "디스크 검사",
+        text: "‘디스크 검사’를 누르면 무엇이 공간을 차지하는지 보여 주고 항목마다 판단해요. 검사는 아무것도 바꾸지 않아요.",
+      },
+      {
+        title: "정리 제안만 정리하기",
+        text: "‘정리 제안’ 항목을 확인하고 ‘정리하기’를 눌러요. Lumen이 격리함으로 옮기고, 필요하면 격리함에서 복원할 수 있어요.",
+      },
+    ],
+  },
   features: {
     title: "Lumen이 하는 일",
     items: [
       {
         title: "무엇이 공간을 차지하는지 찾아요",
-        text: "Xcode 빌드 데이터와 Gradle 캐시부터 앱 캐시, 오래된 설치 파일까지 찾아요. 검사할 때 파일은 하나도 열지 않아요.",
+        text: "앱 캐시, 오래된 설치 파일, 개발 도구가 남긴 빌드 데이터까지 찾아요. 검사할 때 파일은 하나도 열지 않아요.",
       },
       {
         title: "판단마다 이유를 보여 줘요",
@@ -38,7 +55,7 @@ export const ko: Messages = {
       },
       {
         title: "확인한 뒤에만 정리해요",
-        text: "파일은 격리함으로 옮겨 복원할 수 있어요. pnpm 저장소나 Xcode 시뮬레이터는 도구의 정리 명령을 확인한 뒤 실행해요. 도구 명령으로 지운 내용은 되돌릴 수 없어요.",
+        text: "파일은 격리함으로 옮겨 복원할 수 있어요. 개발 도구의 저장소처럼 그 도구만 정리해야 하는 항목은 도구의 명령을 확인한 뒤에만 실행해요. 도구 명령으로 지운 내용은 되돌릴 수 없어요.",
       },
     ],
   },
@@ -63,7 +80,7 @@ export const ko: Messages = {
       "에서 받을 수 있어요.",
     ],
     checking: "릴리스를 확인하고 있어요…",
-    thisComputer: "<-- 너가 다운받아야 할거",
+    thisComputer: "이 컴퓨터용",
     installer: "설치 프로그램",
     requirements: {
       mac: "macOS 13 이상 · Apple silicon, Intel",

@@ -15,6 +15,12 @@ export type Inline =
 
 export type Rich = readonly Inline[];
 
+/** One step of using Lumen. */
+export interface Step {
+  readonly title: string;
+  readonly text: string;
+}
+
 export interface Messages {
   readonly lang: Locale;
   readonly language: string;
@@ -34,6 +40,11 @@ export interface Messages {
   /** The app capture (sample data), with what it shows. */
   readonly showcase: {
     readonly main: string;
+  };
+  /** How to use Lumen, in three steps, with the app's own button names. */
+  readonly howTo: {
+    readonly title: string;
+    readonly steps: readonly [Step, Step, Step];
   };
   /** What Lumen does, as short claims the app backs up. */
   readonly features: {

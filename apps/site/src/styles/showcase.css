@@ -49,6 +49,53 @@
   padding: 0 var(--gutter) 40px;
 }
 
+/* Three numbered steps, in the same type and alignment as the list below. */
+.steps {
+  max-width: calc(1064px + 2 * var(--gutter));
+  margin: 0 auto;
+  padding: 48px var(--gutter) 16px;
+}
+
+.steps h2 {
+  margin: 0 0 32px;
+  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+}
+
+.steps ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px 40px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  counter-increment: step;
+}
+
+.steps h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.steps h3::before {
+  content: counter(step) ". ";
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.steps p {
+  margin: 8px 0 0;
+  color: var(--ink-2);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
 .features {
   max-width: calc(1064px + 2 * var(--gutter));
   margin: 0 auto;
@@ -82,8 +129,13 @@
 }
 
 @media (max-width: 760px) {
-  .features dl {
+  .features dl,
+  .steps ol {
     grid-template-columns: 1fr;
+  }
+
+  .steps {
+    padding: 32px var(--gutter) 8px;
   }
 
   .features {

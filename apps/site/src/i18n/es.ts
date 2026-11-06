@@ -12,19 +12,36 @@ export const es: Messages = {
   nav: { label: "Sitio", docs: "Documentación" },
   hero: {
     headline: ["Storage intelligence", "for every device."],
-    lead: "Qué conservar y qué quitar: la IA te ayuda a decidir.",
+    lead: "Una app gratuita que encuentra lo que llena tu disco y libera espacio de forma segura. Los archivos que limpias van primero a Cuarentena, así que puedes recuperarlos.",
     download: "Ver versiones",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   showcase: {
     main: "Página Explorar de Lumen con datos de ejemplo: espacio por decisión, 9,9 GB propuestos entre herramientas de desarrollo y cachés de aplicaciones, y comandos para que cada herramienta limpie sus propios elementos.",
   },
+  howTo: {
+    title: "Cómo usarla",
+    steps: [
+      {
+        title: "Descarga y abre",
+        text: "Elige abajo el archivo para tu ordenador e instálalo. La primera vez que abras Lumen, tu ordenador te pedirá que lo permitas una sola vez.",
+      },
+      {
+        title: "Analiza el disco",
+        text: "Pulsa Analizar disco. Lumen muestra qué ocupa espacio y decide sobre cada elemento. El análisis no cambia nada.",
+      },
+      {
+        title: "Limpia lo propuesto",
+        text: "Revisa los elementos marcados como Propuesto y pulsa Limpiar. Lumen los mueve a Cuarentena, desde donde puedes restaurarlos.",
+      },
+    ],
+  },
   features: {
     title: "Qué hace Lumen",
     items: [
       {
         title: "Encuentra qué ocupa espacio",
-        text: "Desde datos de compilación de Xcode y cachés de Gradle hasta cachés de aplicaciones e instaladores antiguos. El análisis nunca abre archivos.",
+        text: "Cachés de aplicaciones, instaladores antiguos y los datos de compilación que dejan las herramientas de desarrollo. El análisis nunca abre archivos.",
       },
       {
         title: "Explica cada decisión",
@@ -36,7 +53,7 @@ export const es: Messages = {
       },
       {
         title: "Limpia solo cuando lo confirmas",
-        text: "Los archivos se mueven a Cuarentena, donde puedes restaurarlos. Para el almacén de pnpm o los simuladores de Xcode, revisa y ejecuta el comando de limpieza de la propia herramienta. Esos comandos eliminan datos directamente y no se pueden deshacer.",
+        text: "Los archivos se mueven a Cuarentena, donde puedes restaurarlos. Algunos elementos, como el almacenamiento de una herramienta de desarrollo, solo debe limpiarlos su propia herramienta: Lumen ejecuta su comando solo después de que lo revises. Esos comandos eliminan datos directamente y no se pueden deshacer.",
       },
     ],
   },
@@ -61,7 +78,7 @@ export const es: Messages = {
       ".",
     ],
     checking: "Comprobando versiones…",
-    thisComputer: "<-- Tienes que descargar",
+    thisComputer: "Para este ordenador",
     installer: "Instalador",
     requirements: {
       mac: "macOS 13 o posterior · Apple silicon e Intel",
