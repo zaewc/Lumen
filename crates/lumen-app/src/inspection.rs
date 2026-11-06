@@ -43,6 +43,16 @@ pub(crate) struct Program {
 }
 
 impl Program {
+    /// A system program at its fixed absolute `path`, never one found on the
+    /// user's search path.
+    pub(crate) fn system(path: &str) -> Result<Self, InspectionError> {
+        let home = std::env::home_dir().ok_or(ToolError::NoHome)?;
+        Ok(Self {
+            path: PathBuf::from(path),
+            home,
+        })
+    }
+
     pub(crate) fn find(name: &str) -> Result<Self, InspectionError> {
         let home = std::env::home_dir().ok_or(ToolError::NoHome)?;
         let path = tools::find_in(name, &tools::search_dirs(&home))

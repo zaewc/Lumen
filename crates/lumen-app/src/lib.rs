@@ -29,6 +29,7 @@ pub mod space_change;
 pub mod store;
 pub mod system;
 pub mod tools;
+pub mod usage;
 pub mod xcode;
 
 pub use assess::{AssessError, Assessment, assess, block_on, prepare, with_probes};

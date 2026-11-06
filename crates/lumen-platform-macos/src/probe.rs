@@ -441,6 +441,41 @@ impl std::fmt::Debug for ProcessSnapshot {
     }
 }
 
+impl ProcessSnapshot {
+    /// Whether a process runs an executable inside the application bundle at
+    /// `bundle` (ADR-0059): `Some(true)` when a visible one does,
+    /// `Some(false)` only when every process was visible and none does, and
+    /// `None` when that cannot be known.
+    #[must_use]
+    pub fn running(&self, bundle: &RawPath) -> Option<bool> {
+        if bundle.flavor() != PathFlavor::Unix {
+            return None;
+        }
+        let mut prefix = bundle.as_bytes().to_vec();
+        if !prefix.ends_with(b"/") {
+            prefix.push(b'/');
+        }
+        let processes = self.processes.as_ref()?;
+        let mut hidden = false;
+        for process in processes {
+            match process {
+                Observed::Visible(visible) => {
+                    if visible
+                        .exe
+                        .as_ref()
+                        .is_some_and(|(path, _)| path.starts_with(&prefix))
+                    {
+                        return Some(true);
+                    }
+                }
+                Observed::Hidden => hidden = true,
+                Observed::Gone => {}
+            }
+        }
+        (!hidden).then_some(false)
+    }
+}
+
 impl InUseProbe for ProcessSnapshot {
     fn probe(&self, path: &RawPath, expected: &FileIdentity) -> InUse {
         let target = match target(path, expected) {
@@ -515,6 +550,23 @@ mod tests {
                 );
             }
         }
+        Ok(())
+    }
+
+    #[test]
+    fn this_test_runs_under_its_own_folder_and_nothing_else_is_claimed()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let exe = std::fs::canonicalize(std::env::current_exe()?)?;
+        let folder = exe.parent().ok_or("the test has a folder")?;
+        let raw = |path: &Path| RawPath::from_unix_bytes(path.as_os_str().as_bytes().to_vec());
+        let snapshot = ProcessProbe.snapshot();
+        assert_eq!(snapshot.running(&raw(folder)?), Some(true));
+        let elsewhere = tempfile::tempdir()?;
+        assert_ne!(
+            snapshot.running(&raw(elsewhere.path())?),
+            Some(true),
+            "nothing runs from an empty folder"
+        );
         Ok(())
     }
 
