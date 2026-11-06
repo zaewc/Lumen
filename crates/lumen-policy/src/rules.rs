@@ -26,6 +26,21 @@ pub mod ids {
     pub const CLASSIFY_DEVKB_TOOL_ACTION: &str = "classify.devkb-tool-action";
     /// Leaves an item for review because it cannot be regenerated (ADR-0051).
     pub const CLASSIFY_DEVKB_NOT_REGENERABLE: &str = "classify.devkb-not-regenerable";
+    /// Keeps an item when not every process could be checked and the partial
+    /// answer is not accepted (ADR-0030).
+    pub const PROTECT_IN_USE_PARTIAL: &str = "protect.in-use-partial";
+    /// Keeps an item nobody checked for use.
+    pub const PROTECT_IN_USE_UNKNOWN: &str = "protect.in-use-unknown";
+    /// Keeps an item the scan did not observe.
+    pub const PROTECT_NOT_OBSERVED: &str = "protect.not-observed";
+    /// Keeps an item part of which could not be read.
+    pub const PROTECT_INCOMPLETE_SCAN: &str = "protect.incomplete-scan";
+    /// Leaves an item for review because its application appears uninstalled.
+    pub const CLASSIFY_ORPHAN: &str = "classify.orphan";
+    /// Leaves an unrecognised item large enough to matter for review (ADR-0039).
+    pub const DEFAULT_REVIEW: &str = "default.review";
+    /// AI review advised caution (ADR-0020).
+    pub const JEV_DEMOTE: &str = "jev.demote";
 }
 
 /// Every rule the policy evaluates.
@@ -61,22 +76,22 @@ pub(crate) const RULES: &[Rule] = &[
         check: in_use,
     },
     Rule {
-        id: "protect.in-use-partial",
+        id: ids::PROTECT_IN_USE_PARTIAL,
         stage: PolicyStage::HardProtection,
         check: in_use_partial,
     },
     Rule {
-        id: "protect.in-use-unknown",
+        id: ids::PROTECT_IN_USE_UNKNOWN,
         stage: PolicyStage::HardProtection,
         check: in_use_unknown,
     },
     Rule {
-        id: "protect.not-observed",
+        id: ids::PROTECT_NOT_OBSERVED,
         stage: PolicyStage::HardProtection,
         check: not_observed,
     },
     Rule {
-        id: "protect.incomplete-scan",
+        id: ids::PROTECT_INCOMPLETE_SCAN,
         stage: PolicyStage::HardProtection,
         check: incomplete_scan,
     },
@@ -151,7 +166,7 @@ pub(crate) const RULES: &[Rule] = &[
         check: crate::classify::app_state,
     },
     Rule {
-        id: "classify.orphan",
+        id: ids::CLASSIFY_ORPHAN,
         stage: PolicyStage::Classification,
         check: crate::classify::orphan,
     },

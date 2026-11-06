@@ -27,6 +27,7 @@ pub mod observe;
 pub mod ports;
 pub mod profiles;
 pub mod quarantine;
+pub mod reassess;
 pub mod reconcile;
 pub mod restore;
 pub mod review;

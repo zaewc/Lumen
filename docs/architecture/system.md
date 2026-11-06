@@ -292,6 +292,22 @@ out, fully listed, and never inside, around or equal to another candidate
 unrecognised item: `default.review`, or `KEEP` when a protection fires. They are never
 proposed for quarantine.
 
+Some verdicts rest on what Lumen did not know at assessment time, and a person can
+ask for those items to be checked again
+([ADR-0058](../decisions/0058-reassess-chosen-items-with-fresh-read-only-evidence.md)).
+`lumen_application::reassess::gaps` maps fired rules to the gaps a read-only check may
+answer:
+- in use, partly visible or unknown → asked live again;
+- not read, or not observed → its subtree listed again;
+- an old observation → observed again;
+- `default.review` or `classify.orphan` → the inventories read again.
+
+Every other rule is a decision, and anything AI review changed is never re-decided.
+`reassess` decides the item again with the unchanged policy and no judge, only while
+its path still names the scanned object. It records the earlier verdict and rules and
+the evidence the new decision added. `reassess_all` takes at most 500 items and stops
+when cancelled.
+
 ## 9. Explainability
 
 Every `Recommendation` answers, from evidence (or states "unknown" with the reason):

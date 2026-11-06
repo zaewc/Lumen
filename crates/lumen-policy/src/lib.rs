@@ -152,12 +152,12 @@ pub(crate) struct Rule {
 
 /// Fired when no classification rule recognises the item and it is not known
 /// to be small.
-const DEFAULT_REVIEW: &str = "default.review";
+const DEFAULT_REVIEW: &str = ids::DEFAULT_REVIEW;
 /// Fired when no classification rule recognises the item and it is smaller
 /// than [`REVIEW_MIN_BYTES`].
 const DEFAULT_KEEP_SMALL: &str = "default.keep-small";
 /// Fired when Jev evidence demotes a quarantine proposal.
-const JEV_DEMOTE: &str = "jev.demote";
+const JEV_DEMOTE: &str = ids::JEV_DEMOTE;
 
 /// Whether a judgment calls for more caution than a quarantine proposal.
 fn jev_cautions(judgment: &Judgment) -> bool {
