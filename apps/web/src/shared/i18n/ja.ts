@@ -64,6 +64,30 @@ export const ja: Messages = {
       cleaned: (n: number, size: string) => `${items(n)}（${size}）を隔離に移動しました。`,
       none: "まだスキャンしていません。ディスクをスキャンして、内容と判断の根拠を確認しましょう。",
     },
+    tools: {
+      title: "開発ツール",
+      intro:
+        "Xcode、Docker、パッケージマネージャーに、使っている容量を問い合わせます。Lumen は回答を読むだけです。",
+      check: "開発ツールを確認",
+      checking: "確認中…",
+      checkAgain: "もう一度確認",
+      loadFailed: "開発ツールに問い合わせできませんでした。",
+      notInstalled: "インストールされていません",
+      unsupported: "このコンピュータでは確認できません",
+      unavailable: "確認できませんでした",
+      none: "報告された項目はありません",
+      inUse: (detail: string) => `使用中 ${detail}`,
+      reclaimable: (size: string) => `Docker の見積もりでは ${size} が未使用`,
+      cache: "キャッシュ",
+      sharedStore: "共有ストア",
+      ownCommand: "専用コマンド",
+      xcodeManage: "ランタイムは Xcode › Settings › Components で管理します。",
+      dockerManage:
+        "停止したコンテナや未使用のボリュームにも必要なデータがあるかもしれません。Lumen は prune を実行しません。",
+      sharedStoreNote:
+        "プロジェクトはこのストアにリンクしています。専用コマンドは使用中のパッケージを残します。",
+      cacheNote: "必要に応じて再ダウンロードされます。",
+    },
   },
   workspace: {
     available: "空き容量",

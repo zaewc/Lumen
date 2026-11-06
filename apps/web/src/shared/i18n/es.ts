@@ -62,6 +62,30 @@ export const es: Messages = {
       cleaned: (n: number, size: string) => `${items(n)} (${size}) se movieron a Cuarentena.`,
       none: "Todavía no se ha analizado nada. Analiza el disco para explorar su contenido y las pruebas que respaldan cada decisión.",
     },
+    tools: {
+      title: "Herramientas de desarrollo",
+      intro:
+        "Pregunta a Xcode, Docker y los gestores de paquetes cuánto espacio ocupan. Lumen solo lee sus respuestas.",
+      check: "Consultar herramientas",
+      checking: "Consultando…",
+      checkAgain: "Consultar de nuevo",
+      loadFailed: "Lumen no pudo consultar las herramientas de desarrollo.",
+      notInstalled: "No instalado",
+      unsupported: "No disponible en este equipo",
+      unavailable: "No se pudo consultar",
+      none: "No informó de nada",
+      inUse: (detail: string) => `${detail} en uso`,
+      reclaimable: (size: string) => `Docker calcula ${size} sin usar`,
+      cache: "Caché",
+      sharedStore: "Almacén compartido",
+      ownCommand: "Comando propio",
+      xcodeManage: "Gestiona los runtimes en Xcode › Settings › Components.",
+      dockerManage:
+        "Los contenedores detenidos y los volúmenes sin usar pueden guardar datos que necesitas. Lumen no ejecuta prune.",
+      sharedStoreNote:
+        "Los proyectos enlazan a este almacén. Su comando propio conserva lo que aún usan.",
+      cacheNote: "Se vuelve a descargar cuando hace falta.",
+    },
   },
   workspace: {
     available: "Espacio disponible",

@@ -4,6 +4,7 @@ import { useI18n } from "@/shared/i18n";
 import { buttonClass, Page } from "@/shared/ui";
 import { DiskUsage } from "./DiskUsage";
 import { LastScan } from "./LastScan";
+import { ToolStorage } from "./ToolStorage";
 
 /** The page's one action: scan the disk (disabled, saying so, while a scan runs). */
 function ScanAction() {
@@ -32,13 +33,17 @@ function ScanAction() {
   );
 }
 
-/** The first page: how full the disk is, what the last scan found, and the button to scan. */
+/**
+ * The first page: how full the disk is, what the last scan found, the button to
+ * scan, and, on request, what developer tools report about their own storage.
+ */
 export function OverviewPage() {
   const { m } = useI18n();
   return (
     <Page title={m.overview.title} actions={<ScanAction />}>
       <DiskUsage />
       <LastScan />
+      <ToolStorage />
     </Page>
   );
 }

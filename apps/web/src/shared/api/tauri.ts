@@ -15,6 +15,7 @@ import {
   zScanProgressView,
   zScanView,
   zToolRunView,
+  zToolStorageView,
   zUpdateView,
 } from "@lumen/api-client";
 import { Channel, type InvokeArgs, invoke } from "@tauri-apps/api/core";
@@ -79,6 +80,7 @@ export function tauriTransport(): LumenTransport {
       await call("install_update");
     },
     runToolCommand: async (entry) => zToolRunView.parse(await call("run_tool_command", { entry })),
+    toolStorage: async () => zToolStorageView.array().parse(await call("tool_storage")),
     setAiReview: async (enabled) => zAiSettingsView.parse(await call("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await call("set_ai_key", { key })),
   };

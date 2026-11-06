@@ -70,6 +70,30 @@ export const ko = {
       cleaned: (n: number, size: string) => `${items(n)}(${size})를 격리함으로 옮겼어요.`,
       none: "아직 검사하지 않았어요. 디스크를 검사하면 어떤 항목이 있는지와 판단 근거를 보여 줘요.",
     },
+    tools: {
+      title: "개발 도구",
+      intro:
+        "Xcode, Docker, 패키지 관리자에게 저장 공간을 얼마나 쓰는지 물어봐요. Lumen은 답을 읽기만 해요.",
+      check: "개발 도구 확인하기",
+      checking: "확인하는 중…",
+      checkAgain: "다시 확인하기",
+      loadFailed: "개발 도구에 물어보지 못했어요.",
+      notInstalled: "설치돼 있지 않아요",
+      unsupported: "이 컴퓨터에서는 확인할 수 없어요",
+      unavailable: "확인하지 못했어요",
+      none: "알려 준 항목이 없어요",
+      inUse: (detail: string) => `사용 중 ${detail}`,
+      reclaimable: (size: string) => `Docker는 ${size}를 쓰지 않는다고 봐요`,
+      cache: "캐시",
+      sharedStore: "공유 저장소",
+      ownCommand: "명령으로 정리",
+      xcodeManage: "런타임은 Xcode › Settings › Components에서 관리해요.",
+      dockerManage:
+        "멈춘 컨테이너와 쓰지 않는 볼륨에도 필요한 데이터가 있을 수 있어요. Lumen은 prune을 실행하지 않아요.",
+      sharedStoreNote:
+        "프로젝트들이 이 저장소를 연결해 써요. 이 도구의 명령은 아직 쓰는 패키지를 남겨요.",
+      cacheNote: "필요하면 다시 내려받아요.",
+    },
   },
   workspace: {
     available: "사용할 수 있는 공간",

@@ -16,6 +16,7 @@ import type {
   ScanRequest,
   ScanView,
   ToolRunView,
+  ToolStorageView,
   UpdateView,
 } from "@lumen/api-client";
 import type { Theme } from "@/shared/theme";
@@ -78,4 +79,10 @@ export interface LumenTransport {
    * Only where the host can run it (the desktop app).
    */
   runToolCommand?(entry: string): Promise<ToolRunView>;
+  /**
+   * What Xcode, Docker and the package managers report about their own
+   * storage; read-only queries the host runs only when asked. Only where the
+   * host can run them (the desktop app).
+   */
+  toolStorage?(): Promise<readonly ToolStorageView[]>;
 }

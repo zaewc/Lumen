@@ -645,6 +645,71 @@ export function memoryTransport({
         space_changes: null,
       };
     },
+    toolStorage: async () => {
+      await wait(pace * 2);
+      const location = (name: string) => ({
+        name,
+        detail: null,
+        bytes: null,
+        reported_size: null,
+        reported_reclaimable: null,
+      });
+      return [
+        {
+          tool: "xcode",
+          state: { kind: "found" },
+          version: null,
+          scope: null,
+          items: [
+            {
+              name: "26.1 (23B86)",
+              detail: "Ready",
+              bytes: "8724152320",
+              reported_size: null,
+              reported_reclaimable: null,
+            },
+          ],
+          command: null,
+          shared_store: false,
+        },
+        {
+          tool: "docker",
+          state: { kind: "unavailable", reason: "the inventory command failed (exit status 1)" },
+          version: null,
+          scope: null,
+          items: [],
+          command: null,
+          shared_store: false,
+        },
+        {
+          tool: "homebrew",
+          state: { kind: "found" },
+          version: "Homebrew 7.0.12",
+          scope: null,
+          items: [location("/Users/demo/Library/Caches/Homebrew")],
+          command: "brew cleanup --prune=all --scrub",
+          shared_store: false,
+        },
+        {
+          tool: "npm",
+          state: { kind: "not_installed" },
+          version: null,
+          scope: null,
+          items: [],
+          command: "npm cache clean --force",
+          shared_store: false,
+        },
+        {
+          tool: "pnpm",
+          state: { kind: "found" },
+          version: "10.33.0",
+          scope: null,
+          items: [location("/Users/demo/Library/pnpm/store/v10")],
+          command: "pnpm store prune",
+          shared_store: true,
+        },
+      ];
+    },
     setAiKey: async (key) => {
       await wait(pace);
       if (!isApiKey(key)) {
