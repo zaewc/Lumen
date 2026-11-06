@@ -600,6 +600,68 @@ mod tests {
     }
 
     #[test]
+    fn each_xcode_category_matches_only_its_own_folders_on_macos()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let home = "/Users/ana/Library/Developer";
+        // (entry, a folder it covers, a look-alike outside it, its safety class)
+        let categories = [
+            (
+                "xcode-derived-data",
+                format!("{home}/Xcode/DerivedData/App-abc123"),
+                format!("{home}/Xcode/DerivedData-old/App-abc123"),
+                crate::SafetyClass::Regenerable,
+            ),
+            (
+                "xcode-ios-device-support",
+                format!("{home}/Xcode/iOS DeviceSupport/iPhone15,2 18.1 (22B83)"),
+                format!("{home}/Xcode/watchOS DeviceSupport/Watch7,1 11.1 (22R5)"),
+                crate::SafetyClass::Regenerable,
+            ),
+            (
+                "xcode-simulator-devices",
+                format!("{home}/CoreSimulator/Devices"),
+                format!("{home}/CoreSimulator/Devices-copy"),
+                crate::SafetyClass::ToolAction,
+            ),
+        ];
+        let kb = builtin();
+        for (id, path, outside, class) in &categories {
+            assert_eq!(builtin_ids(&env(Platform::Macos), &[dir(path, 1)]), [*id]);
+            for platform in [Platform::Linux, Platform::Windows] {
+                assert!(
+                    builtin_ids(&env(platform), &[dir(path, 1)]).is_empty(),
+                    "{id}"
+                );
+            }
+            // A link is never followed into the category, and a file is not it.
+            for kind in [EntryKind::File, EntryKind::Symlink, EntryKind::Special] {
+                let found = builtin_ids(&env(Platform::Macos), &[object(unix(path), kind, 1)]);
+                assert!(found.is_empty(), "{id} as {kind:?}");
+            }
+            let other_user = path.replace("/Users/ana/", "/Users/bob/");
+            let inside = format!("{path}/Build/Intermediates.noindex");
+            for other in [other_user, inside, outside.clone()] {
+                assert!(
+                    !builtin_ids(&env(Platform::Macos), &[dir(&other, 1)])
+                        .contains(&(*id).to_owned()),
+                    "{id} at {other}"
+                );
+            }
+            let entry = kb.get(id).ok_or("xcode entry")?;
+            assert_eq!(entry.safety_class, *class, "{id}");
+        }
+        // The DerivedData folder itself is Xcode's, not a cache to move whole.
+        assert_eq!(
+            builtin_ids(
+                &env(Platform::Macos),
+                &[dir(&format!("{home}/Xcode/DerivedData"), 1)]
+            ),
+            Vec::<String>::new()
+        );
+        Ok(())
+    }
+
+    #[test]
     fn platforms_links_and_unset_roots_never_match() {
         let link = object(unix("/Users/ana/.cache/sample"), EntryKind::Symlink, 1);
         assert_eq!(matched(&env(Platform::Macos), &[link]).len(), 0, "links");

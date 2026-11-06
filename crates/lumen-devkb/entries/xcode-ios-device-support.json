@@ -5,7 +5,8 @@
     {
       "platforms": ["macos"],
       "root": { "kind": "home" },
-      "path": "Library/Developer/Xcode/iOS DeviceSupport/*"
+      "path": "Library/Developer/Xcode/iOS DeviceSupport/*",
+      "kind": "directory"
     }
   ],
   "safety_class": "regenerable",

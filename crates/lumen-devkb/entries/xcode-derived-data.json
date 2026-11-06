@@ -5,7 +5,8 @@
     {
       "platforms": ["macos"],
       "root": { "kind": "home" },
-      "path": "Library/Developer/Xcode/DerivedData/*"
+      "path": "Library/Developer/Xcode/DerivedData/*",
+      "kind": "directory"
     }
   ],
   "safety_class": "regenerable",
