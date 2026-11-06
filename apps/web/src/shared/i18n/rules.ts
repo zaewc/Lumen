@@ -10,6 +10,7 @@ export const RULE_IDS = [
   "protect.system-file",
   "protect.cloud-backed",
   "protect.in-use",
+  "protect.app-running",
   "protect.in-use-partial",
   "protect.in-use-unknown",
   "protect.not-observed",

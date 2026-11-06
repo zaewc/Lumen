@@ -431,6 +431,27 @@ proptest! {
         prop_assert!(with_jev <= without_jev, "{:?} vs {:?}", with_jev, without_jev);
     }
 
+    /// ADR-0059: when an application was last opened and when a project last
+    /// changed are shown, never decided on, so inactivity never promotes; and
+    /// a running owner only ever adds caution.
+    #[test]
+    fn usage_never_lowers_caution(input in policy_input(), at in 0_i64..4_000_000_000, running in any::<bool>()) {
+        let app = AppId {
+            scheme: AppIdScheme::BundleId,
+            value: UntrustedText::new("com.example.app"),
+        };
+        let when = Timestamp::from_unix(at, 0).unwrap_or_else(|_| unreachable!());
+        let before = decide(&input)?.verdict();
+        let mut dated = input.clone();
+        dated.evidence.push(evidence(Fact::ApplicationLastOpened { app: app.clone(), at: when }));
+        dated.evidence.push(evidence(Fact::ProjectActivity(when)));
+        prop_assert_eq!(decide(&dated)?.verdict(), before, "dates change nothing");
+        let mut run = input.clone();
+        run.evidence.push(evidence(Fact::ApplicationRunning { app, running }));
+        let after = decide(&run)?.verdict();
+        prop_assert!(after <= before, "{:?} vs {:?}", after, before);
+    }
+
     #[test]
     fn a_smaller_item_is_never_decided_less_cautiously(input in policy_input(), shrink in 0_u32..64) {
         let mut smaller = input.clone();

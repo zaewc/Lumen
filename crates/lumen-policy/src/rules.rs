@@ -41,6 +41,8 @@ pub mod ids {
     pub const DEFAULT_REVIEW: &str = "default.review";
     /// AI review advised caution (ADR-0020).
     pub const JEV_DEMOTE: &str = "jev.demote";
+    /// Keeps an item whose owning application is running (ADR-0059).
+    pub const PROTECT_APP_RUNNING: &str = "protect.app-running";
 }
 
 /// Every rule the policy evaluates.
@@ -74,6 +76,11 @@ pub(crate) const RULES: &[Rule] = &[
         id: ids::PROTECT_IN_USE,
         stage: PolicyStage::HardProtection,
         check: in_use,
+    },
+    Rule {
+        id: ids::PROTECT_APP_RUNNING,
+        stage: PolicyStage::HardProtection,
+        check: app_running,
     },
     Rule {
         id: ids::PROTECT_IN_USE_PARTIAL,
@@ -227,6 +234,32 @@ fn cloud_backed(input: &PolicyInput) -> Option<Finding> {
 /// A process uses the item.
 fn in_use(input: &PolicyInput) -> Option<Finding> {
     keep_if(about(input, |f| *f == Fact::InUse(true)), RiskFactor::InUse)
+}
+
+/// The application that owns the item is running (ADR-0059): its cache may be
+/// in use soon even when no file in it is open now. Kept as an item in use
+/// is; the person can quit the application and scan again.
+fn app_running(input: &PolicyInput) -> Option<Finding> {
+    let owners: Vec<(&lumen_domain::AppId, EvidenceId)> = input
+        .evidence
+        .iter()
+        .filter(|e| e.subject == input.subject)
+        .filter_map(|e| match &e.fact {
+            Fact::OwningApplication(app) => Some((app, e.id())),
+            _ => None,
+        })
+        .collect();
+    let mut evidence = BTreeSet::new();
+    for (owner, owned) in owners {
+        for record in &input.evidence {
+            if matches!(&record.fact, Fact::ApplicationRunning { app, running: true } if app == owner)
+            {
+                evidence.insert(owned);
+                evidence.insert(record.id());
+            }
+        }
+    }
+    keep_if(evidence, RiskFactor::InUse)
 }
 
 fn complete_no(input: &PolicyInput) -> bool {
@@ -743,6 +776,77 @@ mod tests {
             .first()
             .ok_or_else(|| PolicyError::RuleId("none".into()))?;
         assert_eq!(rule.evidence, BTreeSet::from([used.id()]));
+        Ok(())
+    }
+
+    #[test]
+    fn a_running_owner_keeps_its_cache_and_usage_dates_change_nothing() -> Result<(), PolicyError> {
+        let app = lumen_domain::AppId {
+            scheme: lumen_domain::AppIdScheme::BundleId,
+            value: lumen_domain::UntrustedText::new("com.example.chat"),
+        };
+        let about_app = |f: Fact| Evidence {
+            subject: Subject::Application { id: app.clone() },
+            fact: f,
+            basis: Basis::Observed,
+            provenance: Provenance {
+                source: SourceName::new("test").unwrap_or_else(|_| unreachable!()),
+                observed_at: Timestamp::UNIX_EPOCH,
+            },
+        };
+        let cache = || {
+            vec![
+                fact(file(1), Fact::InUse(false)),
+                fact(file(1), Fact::OwningApplication(app.clone())),
+                fact(
+                    file(1),
+                    Fact::AppDataLocation {
+                        kind: lumen_domain::AppDataKind::Caches,
+                    },
+                ),
+            ]
+        };
+        let proposed = evaluate(&crate::testing::input(cache()))?;
+        assert_eq!(proposed.verdict(), Verdict::Quarantine);
+
+        let mut running = cache();
+        running.push(about_app(Fact::ApplicationRunning {
+            app: app.clone(),
+            running: true,
+        }));
+        let kept = evaluate(&crate::testing::input(running))?;
+        assert_eq!(kept.verdict(), Verdict::Keep);
+        assert_eq!(fired(&kept), [ids::PROTECT_APP_RUNNING]);
+
+        // Another app running, a "not running" answer, and old or recent
+        // usage dates change nothing.
+        let other = lumen_domain::AppId {
+            scheme: lumen_domain::AppIdScheme::BundleId,
+            value: lumen_domain::UntrustedText::new("com.example.other"),
+        };
+        for extra in [
+            about_app(Fact::ApplicationRunning {
+                app: other,
+                running: true,
+            }),
+            about_app(Fact::ApplicationRunning {
+                app: app.clone(),
+                running: false,
+            }),
+            about_app(Fact::ApplicationLastOpened {
+                app: app.clone(),
+                at: Timestamp::UNIX_EPOCH,
+            }),
+            fact(file(1), Fact::ProjectActivity(Timestamp::UNIX_EPOCH)),
+        ] {
+            let mut facts = cache();
+            facts.push(extra.clone());
+            assert_eq!(
+                evaluate(&crate::testing::input(facts))?.verdict(),
+                Verdict::Quarantine,
+                "{extra:?}"
+            );
+        }
         Ok(())
     }
 }

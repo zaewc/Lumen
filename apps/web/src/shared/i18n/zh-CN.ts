@@ -613,6 +613,7 @@ export const zhCN: Messages = {
       "protect.cloud-backed":
         "保留：此项目与云服务同步，在此处移除可能会导致它在所有位置都被删除。",
       "protect.in-use": "保留：正在运行的应用正在使用此项目。",
+      "protect.app-running": "保留：此项目所属的应用正在运行。退出该应用后重新扫描即可清理。",
       "protect.in-use-partial": "保留：Lumen 可见的应用都未使用此项目，但 Lumen 无法检查所有应用。",
       "protect.in-use-unknown": "保留：Lumen 尚未检查是否有程序正在使用此项目。",
       "protect.not-observed": "保留：扫描尚未观察到此项目。",

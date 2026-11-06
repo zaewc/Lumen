@@ -631,6 +631,8 @@ export const ja: Messages = {
       "protect.cloud-backed":
         "維持：クラウドサービスと同期されています。ここで削除すると、ほかの場所からも削除される可能性があります。",
       "protect.in-use": "維持：実行中のアプリが使用しています。",
+      "protect.app-running":
+        "維持：この項目のアプリが実行中です。アプリを終了してからもう一度スキャンすると整理できます。",
       "protect.in-use-partial":
         "維持：確認できるアプリは使用していませんが、すべてのアプリを確認できませんでした。",
       "protect.in-use-unknown": "維持：使用中かどうかを確認していません。",

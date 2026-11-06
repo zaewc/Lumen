@@ -292,6 +292,15 @@ out, fully listed, and never inside, around or equal to another candidate
 unrecognised item: `default.review`, or `KEEP` when a protection fires. They are never
 proposed for quarantine.
 
+Application usage counts only towards caution
+([ADR-0059](../decisions/0059-use-application-usage-as-cautious-evidence.md)):
+- an item whose owning application is running is kept (`protect.app-running`);
+- application data whose owner any source finds installed is not orphaned;
+- when an application was last opened (`ApplicationLastOpened`) and when a project
+  last changed (`ProjectActivity`) are shown and never decided on.
+
+None of these facts is sent to AI review.
+
 Some verdicts rest on what Lumen did not know at assessment time, and a person can
 ask for those items to be checked again
 ([ADR-0058](../decisions/0058-reassess-chosen-items-with-fresh-read-only-evidence.md)).

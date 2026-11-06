@@ -507,6 +507,85 @@
             "fact",
             "value"
           ]
+        },
+        {
+          "description": "Whether this application is running (ADR-0059), matched by its\nexecutable. `false` only when every process was visible; otherwise only\n`true` is ever recorded.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "application_running"
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "app": {
+                  "description": "The application.",
+                  "$ref": "#/$defs/AppId"
+                },
+                "running": {
+                  "description": "Whether a process runs it.",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "app",
+                "running"
+              ]
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "When the platform last recorded this application being opened\n(ADR-0059; macOS: `LaunchServices` launches only). Shown, never decided\non: an old date is not proof the application is unused.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "application_last_opened"
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "app": {
+                  "description": "The application.",
+                  "$ref": "#/$defs/AppId"
+                },
+                "at": {
+                  "description": "When it was last opened, as the platform records it.",
+                  "$ref": "#/$defs/Timestamp"
+                }
+              },
+              "required": [
+                "app",
+                "at"
+              ]
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "When the project the subject belongs to last changed: the newest\nmodification time of its marker files (ADR-0059). Shown, never decided\non.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "project_activity"
+            },
+            "value": {
+              "$ref": "#/$defs/Timestamp"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
         }
       ]
     },

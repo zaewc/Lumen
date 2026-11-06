@@ -164,7 +164,10 @@ fn evidence_item(evidence: &Evidence, now: Timestamp) -> Option<RequestEvidence>
             EvidenceKind::Signature,
             text(serde_json::to_value(signature.check).ok()?.as_str()?),
         ),
-        // Protection inputs never reach Jev, and unknown facts are not sent.
+        // Protection inputs never reach Jev, unknown facts are not sent, and how
+        // a person uses their apps and projects stays on the device
+        // (`ApplicationRunning`, `ApplicationLastOpened`, `ProjectActivity`:
+        // ADR-0059).
         _ => return None,
     };
     Some(made)
@@ -392,6 +395,34 @@ mod tests {
                 (EvidenceKind::ActiveProcessReference, "false"),
             ],
             "protection facts, other apps and other files are not sent"
+        );
+        let usage = [
+            record(file(1), Fact::OwningApplication(app())),
+            record(
+                Subject::Application { id: app() },
+                Fact::ApplicationRunning {
+                    app: app(),
+                    running: true,
+                },
+            ),
+            record(
+                Subject::Application { id: app() },
+                Fact::ApplicationLastOpened {
+                    app: app(),
+                    at: Timestamp::UNIX_EPOCH,
+                },
+            ),
+            record(file(1), Fact::ProjectActivity(Timestamp::UNIX_EPOCH)),
+        ];
+        let kinds: Vec<EvidenceKind> = build_with(&usage, true, true)?
+            .evidence
+            .iter()
+            .map(|e| e.kind)
+            .collect();
+        assert_eq!(
+            kinds,
+            [EvidenceKind::OwningApplication],
+            "how apps and projects are used stays on the device (ADR-0059)"
         );
         assert_eq!(
             request.coverage.notes,

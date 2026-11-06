@@ -636,6 +636,8 @@ export const en = {
       "protect.cloud-backed":
         "Kept: it is synced with a cloud service, so removing it here could remove it everywhere.",
       "protect.in-use": "Kept: a running app is using it.",
+      "protect.app-running":
+        "Kept: the app it belongs to is running. Quit the app, then scan again to clean this up.",
       "protect.in-use-partial":
         "Kept: no app Lumen can see uses it, but Lumen could not check every app.",
       "protect.in-use-unknown": "Kept: Lumen has not checked whether anything uses it.",

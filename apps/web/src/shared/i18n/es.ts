@@ -655,6 +655,8 @@ export const es: Messages = {
       "protect.cloud-backed":
         "Se conserva: está sincronizado con un servicio en la nube, así que quitarlo aquí podría eliminarlo en todas partes.",
       "protect.in-use": "Se conserva: una aplicación en ejecución lo está usando.",
+      "protect.app-running":
+        "Se conserva: la aplicación a la que pertenece está en ejecución. Ciérrala y vuelve a analizar para limpiarlo.",
       "protect.in-use-partial":
         "Se conserva: ninguna aplicación visible para Lumen lo usa, pero Lumen no pudo comprobar todas las aplicaciones.",
       "protect.in-use-unknown": "Se conserva: Lumen no ha comprobado si algo lo está usando.",

@@ -634,6 +634,8 @@ export const ko = {
       "protect.cloud-backed":
         "유지: 클라우드 서비스와 동기화돼 있어서, 여기서 지우면 모든 기기에서 지워질 수 있어요.",
       "protect.in-use": "유지: 실행 중인 프로그램이 쓰고 있어요.",
+      "protect.app-running":
+        "유지: 이 항목의 앱이 실행 중이에요. 앱을 끄고 다시 검사하면 정리할 수 있어요.",
       "protect.in-use-partial":
         "유지: Lumen이 확인한 프로그램 중에는 쓰는 곳이 없지만, 모든 프로그램을 확인하지는 못했어요.",
       "protect.in-use-unknown": "유지: 사용 중인지 아직 확인하지 않았어요.",
