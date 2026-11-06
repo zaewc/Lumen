@@ -45,7 +45,7 @@ Readings:
 | Benchmark | Median time | Notes |
 | --- | --- | --- |
 | `policy/decide quarantine candidate` | 8.8 µs | one regenerable cache through every stage to `QUARANTINE`; about 110,000 decisions/s |
-| `cluster/group 5k x 768` | 33 ms | 5,000 feature prints (1,000 originals with 4 near-copies each), all pairs on 12 cores with early exit |
+| `cluster/group 5k x 768` | 33 ms | 5,000 feature prints (1,000 originals with 4 near-copies each), all pairs on 12 cores with early exit; superseded by the clustering section below |
 
 Readings:
 
@@ -53,6 +53,45 @@ Readings:
   candidates takes about 90 ms.
 - Grouping 5,000 photos is far below the time to compute their feature prints on a
   phone (ADR-0007's spike measures both).
+
+## Clustering (#778, 2026-11-06, same machine)
+
+`cargo bench -p lumen-cluster` runs two benchmarks, both on deterministic vectors
+(`benches/data`):
+- `cluster` measures time with Criterion: 100 to 20,000 vectors; sparse (nothing
+  alike), mixed (originals with four near-copies) and dense (all alike); 128, 768 and
+  2,048 elements; and one worker against all 12.
+- `memory` measures each call's peak heap above its input, with a counting allocator.
+
+The threshold is 0.5 throughout. Near-copies differ by ±0.005 per element.
+
+| Time | Median |
+| --- | --- |
+| mixed × 768: 100 / 1,000 / 5,000 / 10,000 / 20,000 | 0.15 / 1.8 / 30 / 146 / 657 ms |
+| 5,000 × 768: sparse / mixed / dense | 29 / 29 / 265 ms |
+| 5,000 mixed: 128 / 768 / 2,048 elements | 23 / 30 / 33 ms |
+| one worker / all: 100 | 0.14 / 0.15 ms |
+| one worker / all: 1,000 | 7.0 / 1.4 ms |
+| one worker / all: 5,000 | 188 / 31 ms |
+
+| Peak memory above the input (× 128) | Peak | Time |
+| --- | --- | --- |
+| sparse 20,000 | 0.6 MiB | 0.33 s |
+| mixed 20,000 | 1.1 MiB | 0.35 s |
+| dense 5,000 | 235 MiB | 0.10 s |
+| dense 10,000 | 938 MiB | 0.42 s |
+| dense 20,000 | 3,751 MiB | 2.2 s |
+
+Readings:
+
+- Every matching pair is kept in memory until the end. The peak therefore grows with
+  the square of a dense set: 20,000 identical photos take 3.7 GiB, which a phone
+  cannot spare (#779).
+- At 100 vectors, all workers are slower than one: starting threads costs more than
+  the comparisons (#781).
+- Elements beyond 128 add little, because a pair stops summing as soon as it exceeds
+  the threshold. Dense sets compare every element of every pair, so they are about
+  9× slower than sparse ones at the same size (#782, #783).
 
 ## CI hardware
 

@@ -123,6 +123,21 @@ fn close_pairs(
 /// A [`ClusterError`] for too many vectors, mismatched lengths, values that
 /// are not finite, or a failed comparison thread.
 pub fn group(vectors: &[&[f32]], threshold: f32) -> Result<Vec<usize>, ClusterError> {
+    let workers = thread::available_parallelism().unwrap_or(NonZeroUsize::MIN);
+    group_with_workers(vectors, threshold, workers)
+}
+
+/// [`group`] on `workers` threads (one: on the calling thread's scope alone),
+/// for measuring and testing; the groups are the same for any number.
+///
+/// # Errors
+///
+/// As [`group`].
+pub fn group_with_workers(
+    vectors: &[&[f32]],
+    threshold: f32,
+    workers: NonZeroUsize,
+) -> Result<Vec<usize>, ClusterError> {
     if vectors.len() > MAX_VECTORS {
         return Err(ClusterError::TooMany(vectors.len()));
     }
@@ -147,7 +162,7 @@ pub fn group(vectors: &[&[f32]], threshold: f32) -> Result<Vec<usize>, ClusterEr
     }
     let limit = threshold * threshold;
     let n = vectors.len();
-    let workers = thread::available_parallelism().map_or(1, NonZeroUsize::get);
+    let workers = workers.get();
     // Row i compares with n - i - 1 others; interleaving rows across workers
     // evens out the triangle.
     let pairs: Vec<Vec<(usize, usize)>> = thread::scope(|scope| {
@@ -210,6 +225,22 @@ mod tests {
         assert_eq!(group(&refs(&a), 5.0), Ok(vec![0, 0]));
         let reversed: Vec<Vec<f32>> = a.iter().rev().cloned().collect();
         assert_eq!(group(&refs(&reversed), 5.0), Ok(vec![0, 0]));
+    }
+
+    #[test]
+    fn any_number_of_workers_finds_the_same_groups() -> Result<(), ClusterError> {
+        // Points along a line, every third one a step too far: chains of three.
+        let vectors: Vec<Vec<f32>> = (0..300_u16)
+            .map(|i| vec![f32::from(i) + f32::from(i / 3) * 10.0, 0.0])
+            .collect();
+        let one = group_with_workers(&refs(&vectors), 1.0, NonZeroUsize::MIN)?;
+        for workers in [2, 3, 7, 64] {
+            let many = NonZeroUsize::new(workers).ok_or(ClusterError::Worker)?;
+            assert_eq!(group_with_workers(&refs(&vectors), 1.0, many)?, one);
+        }
+        assert_eq!(group(&refs(&vectors), 1.0)?, one);
+        assert_eq!(one[..6], [0, 0, 0, 3, 3, 3]);
+        Ok(())
     }
 
     #[test]
