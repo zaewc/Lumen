@@ -74,6 +74,11 @@ use utoipa::OpenApi;
         views::ToolStateView,
         views::ToolStorageItemView,
         views::ToolStorageView,
+        views::CompareStageView,
+        views::CompareProgressView,
+        views::DuplicateGroupView,
+        views::DuplicatesView,
+        views::CompareOutcomeView,
     ))
 )]
 pub struct ApiDoc;
@@ -119,7 +124,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 55);
+        assert_eq!(schemas, 60);
     }
 
     #[test]

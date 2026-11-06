@@ -24,12 +24,16 @@ use lumen_domain::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+mod duplicates;
 mod facts;
 #[cfg(test)]
 mod fixture;
 mod relations;
 mod times;
 
+pub use duplicates::{
+    CompareOutcomeView, CompareProgressView, CompareStageView, DuplicateGroupView, DuplicatesView,
+};
 pub use facts::{AppDataKindView, BasisView, FactKindView, FactView};
 pub use relations::{MAX_RELATIONS, NodeView, RelationKindView, RelationView, RelationsView};
 pub use times::{TimeView, TimesView};

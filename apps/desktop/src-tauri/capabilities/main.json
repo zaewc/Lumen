@@ -20,6 +20,7 @@
     "allow-check-update",
     "allow-install-update",
     "allow-run-tool-command",
-    "allow-tool-storage"
+    "allow-tool-storage",
+    "allow-compare-folders"
   ]
 }

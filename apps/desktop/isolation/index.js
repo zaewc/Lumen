@@ -22,6 +22,7 @@ const allowed = new Set([
   "install_update",
   "run_tool_command",
   "tool_storage",
+  "compare_folders",
 ]);
 
 window.__TAURI_ISOLATION_HOOK__ = (payload) => {

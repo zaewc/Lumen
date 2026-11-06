@@ -492,6 +492,9 @@ closed when the location data or home is unknown). It prints paths and sizes for
 review; digests never leave the process, and nothing is chosen or removed. Other
 platforms report that the analysis is unsupported rather than finding nothing.
 
+In the desktop app, `compare_folders` takes no path: the host opens the system
+folder dialog and compares only the folders the person picks (ADR-0057).
+
 See [ADR-0019](../decisions/0019-staged-duplicate-detection.md). Exact duplicates are
 found in stages ending in a BLAKE3 content ID. Near-duplicates are `REVIEW` only.
 

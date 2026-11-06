@@ -76,6 +76,19 @@ export const zBasisView = z.union([
 export const zChooserView = z.enum(["policy", "person"]);
 
 /**
+ * Which comparison step is running.
+ */
+export const zCompareStageView = z.enum(["head", "tail", "full"]);
+
+/**
+ * A running comparison's step and how many files it has read.
+ */
+export const zCompareProgressView = z.object({
+  files_read: z.string(),
+  stage: zCompareStageView,
+});
+
+/**
  * How sure AI review was.
  */
 export const zConfidenceView = z.enum(["low", "medium", "high"]);
@@ -87,6 +100,46 @@ export const zDiskView = z.object({
   available_bytes: z.string(),
   total_bytes: z.string(),
 });
+
+/**
+ * Files with the same contents, for a person to review.
+ */
+export const zDuplicateGroupView = z.object({
+  bytes_each: z.string(),
+  paths: z.array(z.string()),
+});
+
+/**
+ * What a comparison found and what it could not cover.
+ */
+export const zDuplicatesView = z.object({
+  folders: z.array(z.string()),
+  groups: z.array(zDuplicateGroupView),
+  hard_links: z.array(z.array(z.string())),
+  incomplete: z.boolean(),
+  protected: z.string(),
+  skipped: z.string(),
+});
+
+/**
+ * How a comparison ended.
+ */
+export const zCompareOutcomeView = z.union([
+  z.object({
+    kind: z.enum(["nothing_chosen"]),
+  }),
+  z.object({
+    kind: z.enum(["unsupported"]),
+  }),
+  z.object({
+    kind: z.enum(["too_many"]),
+    limit: z.string(),
+  }),
+  z.object({
+    kind: z.enum(["compared"]),
+    report: zDuplicatesView,
+  }),
+]);
 
 /**
  * A request to execute a plan: its ID and, as the confirmation, its full

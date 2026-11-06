@@ -304,6 +304,108 @@
           "person"
         ]
       },
+      "CompareOutcomeView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "The person closed the dialog; nothing was read.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "nothing_chosen"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "This platform cannot read contents to compare yet.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unsupported"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The folders hold more files than one comparison covers.",
+            "required": [
+              "limit",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "too_many"
+                ]
+              },
+              "limit": {
+                "type": "string",
+                "description": "The most files one comparison covers."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The comparison finished.",
+            "required": [
+              "report",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "compared"
+                ]
+              },
+              "report": {
+                "$ref": "#/components/schemas/DuplicatesView",
+                "description": "What it found."
+              }
+            }
+          }
+        ],
+        "description": "How a comparison ended."
+      },
+      "CompareProgressView": {
+        "type": "object",
+        "description": "A running comparison's step and how many files it has read.",
+        "required": [
+          "stage",
+          "files_read"
+        ],
+        "properties": {
+          "files_read": {
+            "type": "string",
+            "description": "Files read so far."
+          },
+          "stage": {
+            "$ref": "#/components/schemas/CompareStageView",
+            "description": "The step."
+          }
+        }
+      },
+      "CompareStageView": {
+        "type": "string",
+        "description": "Which comparison step is running.",
+        "enum": [
+          "head",
+          "tail",
+          "full"
+        ]
+      },
       "ConfidenceView": {
         "type": "string",
         "description": "How sure AI review was.",
@@ -328,6 +430,77 @@
           "total_bytes": {
             "type": "string",
             "description": "The volume's size, in bytes."
+          }
+        }
+      },
+      "DuplicateGroupView": {
+        "type": "object",
+        "description": "Files with the same contents, for a person to review.",
+        "required": [
+          "bytes_each",
+          "paths"
+        ],
+        "properties": {
+          "bytes_each": {
+            "type": "string",
+            "description": "The size of each copy, in bytes."
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Where each copy is."
+          }
+        }
+      },
+      "DuplicatesView": {
+        "type": "object",
+        "description": "What a comparison found and what it could not cover.",
+        "required": [
+          "folders",
+          "groups",
+          "hard_links",
+          "skipped",
+          "protected",
+          "incomplete"
+        ],
+        "properties": {
+          "folders": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The folders the person chose."
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DuplicateGroupView"
+            },
+            "description": "Identical copies, the largest extra copies first. Copies can share\nblocks (APFS clones), so this is not space removing one would free."
+          },
+          "hard_links": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Names of one file (hard links): not copies, and removing one frees nothing."
+          },
+          "incomplete": {
+            "type": "boolean",
+            "description": "Some folders could not be listed completely; files there were not compared."
+          },
+          "protected": {
+            "type": "string",
+            "description": "Files left unread in protected locations."
+          },
+          "skipped": {
+            "type": "string",
+            "description": "Files not compared: changed, unreadable, cloud-only or protected by the system."
           }
         }
       },

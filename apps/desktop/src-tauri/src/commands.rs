@@ -3,7 +3,8 @@
 //!
 //! Reads return view models. Mutations name a plan (with its full hash as the
 //! confirmation) or an operation; no command accepts a path to act on. Scans
-//! take roots, but only read. Every command runs on a blocking thread so the
+//! take roots, but only read. Comparing copies reads contents, so it takes no
+//! roots: the host asks the person in a dialog (ADR-0057). Every command runs on a blocking thread so the
 //! webview never waits on the filesystem.
 //!
 //! AI review (ADR-0037) is a setting next to the database: the UI can read
@@ -14,9 +15,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use lumen_api::views::{
-    AiSettingsView, AssessProgressView, CandidateView, DiskView, ExecuteRequest,
-    FinalizeOutcomeView, HeldItemView, PlanView, QuarantineReportView, RestoreOutcomeView,
-    ScanProgressView, ScanRequest, ScanView, ToolRunView, ToolStorageView,
+    AiSettingsView, AssessProgressView, CandidateView, CompareOutcomeView, CompareProgressView,
+    DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, PlanView, QuarantineReportView,
+    RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView, ToolRunView, ToolStorageView,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -449,6 +450,64 @@ pub(crate) async fn tool_storage() -> Result<Vec<ToolStorageView>, CommandError>
         Ok(ToolStorageView::all(&xcode, &docker, &packages))
     })
     .await
+}
+
+/// Asks which folders to compare in the system's folder dialog, over the
+/// window, then finds identical copies in them (ADR-0057). Takes no path: only
+/// what the person picks is read, and nothing is chosen, moved or removed.
+/// Where contents cannot be read yet, says so without asking.
+#[tauri::command]
+pub(crate) async fn compare_folders<R: tauri::Runtime>(
+    window: tauri::WebviewWindow<R>,
+    progress: Channel<CompareProgressView>,
+) -> Result<CompareOutcomeView, CommandError> {
+    if !lumen_app::duplicates::available() {
+        return Ok(CompareOutcomeView::Unsupported);
+    }
+    let Some(folders) = choose_folders(&window).await else {
+        return Ok(CompareOutcomeView::NothingChosen);
+    };
+    blocking(move || {
+        let mut listening = true;
+        let mut last: Option<(lumen_app::duplicates::HashStage, std::time::Instant)> = None;
+        let found =
+            lumen_app::duplicates::find(&folders, &CancelToken::new(), &mut |stage, done| {
+                let now = std::time::Instant::now();
+                let due = last.is_none_or(|(seen, at)| {
+                    seen != stage || now.duration_since(at) >= PROGRESS_EVERY
+                });
+                if listening && due {
+                    last = Some((stage, now));
+                    listening = progress.send(CompareProgressView::new(stage, done)).is_ok();
+                }
+            });
+        CompareOutcomeView::new(&folders, found).map_err(CommandError::new)
+    })
+    .await
+}
+
+/// The folders the person picks, as a sheet over `window`; `None` if they
+/// pick none.
+#[cfg(target_os = "macos")]
+async fn choose_folders<R: tauri::Runtime>(
+    window: &tauri::WebviewWindow<R>,
+) -> Option<Vec<PathBuf>> {
+    let chosen = rfd::AsyncFileDialog::new()
+        .set_parent(window)
+        .set_can_create_directories(false)
+        .pick_folders()
+        .await?;
+    let folders: Vec<PathBuf> = chosen
+        .iter()
+        .map(|folder| folder.path().to_path_buf())
+        .collect();
+    (!folders.is_empty()).then_some(folders)
+}
+
+/// No dialog where contents cannot be compared yet.
+#[cfg(not(target_os = "macos"))]
+async fn choose_folders<R: tauri::Runtime>(_: &tauri::WebviewWindow<R>) -> Option<Vec<PathBuf>> {
+    None
 }
 
 /// System Settings › Privacy & Security › Full Disk Access (verified on

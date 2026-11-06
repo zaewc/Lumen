@@ -174,6 +174,50 @@ export type CandidateView = {
 export type ChooserView = "policy" | "person";
 
 /**
+ * How a comparison ended.
+ */
+export type CompareOutcomeView =
+  | {
+      kind: "nothing_chosen";
+    }
+  | {
+      kind: "unsupported";
+    }
+  | {
+      kind: "too_many";
+      /**
+       * The most files one comparison covers.
+       */
+      limit: string;
+    }
+  | {
+      kind: "compared";
+      /**
+       * What it found.
+       */
+      report: DuplicatesView;
+    };
+
+/**
+ * A running comparison's step and how many files it has read.
+ */
+export type CompareProgressView = {
+  /**
+   * Files read so far.
+   */
+  files_read: string;
+  /**
+   * The step.
+   */
+  stage: CompareStageView;
+};
+
+/**
+ * Which comparison step is running.
+ */
+export type CompareStageView = "head" | "tail" | "full";
+
+/**
  * How sure AI review was.
  */
 export type ConfidenceView = "low" | "medium" | "high";
@@ -190,6 +234,51 @@ export type DiskView = {
    * The volume's size, in bytes.
    */
   total_bytes: string;
+};
+
+/**
+ * Files with the same contents, for a person to review.
+ */
+export type DuplicateGroupView = {
+  /**
+   * The size of each copy, in bytes.
+   */
+  bytes_each: string;
+  /**
+   * Where each copy is.
+   */
+  paths: Array<string>;
+};
+
+/**
+ * What a comparison found and what it could not cover.
+ */
+export type DuplicatesView = {
+  /**
+   * The folders the person chose.
+   */
+  folders: Array<string>;
+  /**
+   * Identical copies, the largest extra copies first. Copies can share
+   * blocks (APFS clones), so this is not space removing one would free.
+   */
+  groups: Array<DuplicateGroupView>;
+  /**
+   * Names of one file (hard links): not copies, and removing one frees nothing.
+   */
+  hard_links: Array<Array<string>>;
+  /**
+   * Some folders could not be listed completely; files there were not compared.
+   */
+  incomplete: boolean;
+  /**
+   * Files left unread in protected locations.
+   */
+  protected: string;
+  /**
+   * Files not compared: changed, unreadable, cloud-only or protected by the system.
+   */
+  skipped: string;
 };
 
 /**

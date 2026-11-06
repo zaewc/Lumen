@@ -46,6 +46,13 @@ pub struct Duplicates {
     pub incomplete: bool,
 }
 
+/// Whether this platform can read contents to compare; elsewhere [`find`]
+/// says [`DuplicatesError::Unsupported`].
+#[must_use]
+pub const fn available() -> bool {
+    cfg!(target_os = "macos")
+}
+
 /// Find exact duplicates below `roots`, reporting each attempted fingerprint.
 ///
 /// Roots are resolved to their real paths first: contents are opened with no
@@ -60,7 +67,7 @@ pub fn find(
     cancel: &CancelToken,
     progress: &mut dyn FnMut(HashStage, usize),
 ) -> Result<Duplicates, DuplicatesError> {
-    if !cfg!(target_os = "macos") {
+    if !available() {
         return Err(DuplicatesError::Unsupported);
     }
     let roots = roots
