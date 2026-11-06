@@ -1,6 +1,6 @@
 # ADR-0059: Use application usage only as cautious, explained evidence
 
-- Status: Proposed
+- Status: Accepted (owner confirmation, 2026-11-06)
 - Date: 2026-11-06
 - Refines: [ADR-0014](0014-deterministic-safety-policy-engine.md) (the policy decides),
   [ADR-0039](0039-ask-for-review-only-where-a-person-can-act.md) (orphaned app data),
