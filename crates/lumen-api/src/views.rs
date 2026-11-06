@@ -255,6 +255,11 @@ pub struct CandidateView {
     /// verdict. Optional on input for compatibility with older hosts.
     #[serde(default)]
     pub review_reasons: Option<ReviewReasonsView>,
+    /// What Lumen did not know when it decided, which "Check again" would ask
+    /// (ADR-0058); empty when the verdict rests on decisions only. Optional
+    /// on input for compatibility with older hosts.
+    #[serde(default)]
+    pub rechecks: Option<Vec<ReassessGapView>>,
     /// The cleanup command of the developer tool that owns it, if the tool
     /// has one: displayed in full and run by entry ID after desktop confirmation.
     #[schema(required = true)]
@@ -627,6 +632,12 @@ impl From<&Assessed> for CandidateView {
             reclaimable_exact: reclaim_exact(assessed),
             reasons,
             review_reasons: review_reasons(assessed),
+            rechecks: Some(
+                lumen_application::reassess::gaps(assessed)
+                    .into_iter()
+                    .map(ReassessGapView::from)
+                    .collect(),
+            ),
             tool_command: tool_action(assessed).map(ToolCommandView::from),
             group: lumen_app::assess::group(assessed).into(),
             ai_note: assessed

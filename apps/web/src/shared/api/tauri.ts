@@ -12,6 +12,7 @@ import {
   zHeldItemView,
   zPlanView,
   zQuarantineReportView,
+  zReassessGapView,
   zRestoreOutcomeView,
   zReviewReasonsView,
   zScanProgressView,
@@ -24,10 +25,11 @@ import { Channel, type InvokeArgs, invoke } from "@tauri-apps/api/core";
 import { hostError } from "./host-error";
 import type { LumenTransport } from "./transport";
 
-// Older hosts omit this additive descriptor. Normalize it at the boundary so
-// Zod's optional output also satisfies exactOptionalPropertyTypes.
+// Older hosts omit these additive descriptors. Normalize them at the boundary
+// so Zod's optional output also satisfies exactOptionalPropertyTypes.
 const zCompatibleCandidate = zCandidateView.extend({
   review_reasons: zReviewReasonsView.nullable().default(null),
+  rechecks: zReassessGapView.array().nullable().default(null),
 });
 const zCompatiblePlan = zPlanView.extend({ items: zCompatibleCandidate.array() });
 

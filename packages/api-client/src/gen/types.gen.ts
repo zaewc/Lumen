@@ -142,6 +142,12 @@ export type CandidateView = {
    */
   reasons: Array<ReasonView>;
   /**
+   * What Lumen did not know when it decided, which "Check again" would ask
+   * (ADR-0058); empty when the verdict rests on decisions only. Optional
+   * on input for compatibility with older hosts.
+   */
+  rechecks?: Array<ReassessGapView> | null;
+  /**
    * What removing it would free now, in bytes.
    */
   reclaimable_bytes: string;

@@ -184,6 +184,11 @@ mod tests {
             unreachable!("decided");
         };
         assert_eq!(candidate.id, candidate_id(&earlier));
+        assert_eq!(
+            candidate.rechecks,
+            Some(vec![ReassessGapView::Owner]),
+            "an unrecognised item can be checked for its owner"
+        );
         assert_eq!(added_facts, "0");
         assert_eq!(view.items[2].before, VerdictView::Review);
     }

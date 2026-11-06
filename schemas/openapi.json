@@ -252,6 +252,16 @@
             },
             "description": "Why: one reason per policy rule that fired, in the policy's order."
           },
+          "rechecks": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ReassessGapView"
+            },
+            "description": "What Lumen did not know when it decided, which \"Check again\" would ask\n(ADR-0058); empty when the verdict rests on decisions only. Optional\non input for compatibility with older hosts."
+          },
           "reclaimable_bytes": {
             "type": "string",
             "description": "What removing it would free now, in bytes."

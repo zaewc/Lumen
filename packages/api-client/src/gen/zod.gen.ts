@@ -710,6 +710,7 @@ export const zCandidateView = z.object({
   id: z.string(),
   path: z.string(),
   reasons: z.array(zReasonView),
+  rechecks: z.array(zReassessGapView).nullish(),
   reclaimable_bytes: z.string(),
   reclaimable_exact: z.boolean(),
   relations: zRelationsView,
