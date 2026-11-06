@@ -506,8 +506,10 @@ async fn choose_folders<R: tauri::Runtime>(
 
 /// No dialog where contents cannot be compared yet.
 #[cfg(not(target_os = "macos"))]
-async fn choose_folders<R: tauri::Runtime>(_: &tauri::WebviewWindow<R>) -> Option<Vec<PathBuf>> {
-    None
+fn choose_folders<R: tauri::Runtime>(
+    _: &tauri::WebviewWindow<R>,
+) -> std::future::Ready<Option<Vec<PathBuf>>> {
+    std::future::ready(None)
 }
 
 /// System Settings › Privacy & Security › Full Disk Access (verified on
