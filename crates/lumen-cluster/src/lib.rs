@@ -98,21 +98,13 @@ fn within(a: &[f32], b: &[f32], limit: f32) -> bool {
     true
 }
 
-/// Every pair `(i, j)`, `i < j`, with `i` in `rows`, that is within `limit`.
-fn close_pairs(
-    vectors: &[&[f32]],
-    rows: std::ops::Range<usize>,
-    limit: f32,
-) -> Vec<(usize, usize)> {
-    let mut pairs = Vec::new();
-    for i in rows {
-        for j in (i + 1)..vectors.len() {
-            if within(vectors[i], vectors[j], limit) {
-                pairs.push((i, j));
-            }
+/// Joins every pair `(row, j)`, `j > row`, that is within `limit` in `sets`.
+fn join_row(vectors: &[&[f32]], row: usize, limit: f32, sets: &mut Sets) {
+    for j in (row + 1)..vectors.len() {
+        if within(vectors[row], vectors[j], limit) {
+            sets.union(row, j);
         }
     }
-    pairs
 }
 
 /// The group of each vector: the smallest index in its group, so equal
@@ -164,18 +156,21 @@ pub fn group_with_workers(
     let n = vectors.len();
     let workers = workers.get();
     // Row i compares with n - i - 1 others; interleaving rows across workers
-    // evens out the triangle.
-    let pairs: Vec<Vec<(usize, usize)>> = thread::scope(|scope| {
+    // evens out the triangle. Each worker joins what it finds in its own sets
+    // as it goes, so memory stays at two indices per vector per worker however
+    // many pairs match (#779); a list of every matching pair would grow with
+    // the square of a set of near-identical photos.
+    let found: Vec<Sets> = thread::scope(|scope| {
         let handles: Vec<_> = (0..workers)
             .map(|w| {
                 scope.spawn(move || {
-                    let mut found = Vec::new();
+                    let mut sets = Sets::new(n);
                     let mut row = w;
                     while row < n {
-                        found.extend(close_pairs(vectors, row..row + 1, limit));
+                        join_row(vectors, row, limit, &mut sets);
                         row += workers;
                     }
-                    found
+                    sets
                 })
             })
             .collect();
@@ -185,9 +180,17 @@ pub fn group_with_workers(
             .map(|handle| handle.join().map_err(|_| ClusterError::Worker))
             .collect::<Result<_, _>>()
     })?;
+    // The groups are the connected components of every worker's pairs
+    // together, which joining each vector to its root in every worker's sets
+    // reproduces, in any order.
     let mut sets = Sets::new(n);
-    for (i, j) in pairs.into_iter().flatten() {
-        sets.union(i, j);
+    for mut worker in found {
+        for i in 0..n {
+            let root = worker.find(i);
+            if root != i {
+                sets.union(i, root);
+            }
+        }
     }
     // The smallest member of each set names the group.
     let mut smallest = vec![usize::MAX; n];
@@ -240,6 +243,55 @@ mod tests {
         }
         assert_eq!(group(&refs(&vectors), 1.0)?, one);
         assert_eq!(one[..6], [0, 0, 0, 3, 3, 3]);
+        Ok(())
+    }
+
+    /// Plain connected components over every pair, the definition `group`
+    /// must meet whatever it does to save memory or time.
+    fn reference(vectors: &[Vec<f32>], threshold: f32) -> Vec<usize> {
+        let n = vectors.len();
+        let mut sets = Sets::new(n);
+        for i in 0..n {
+            for j in (i + 1)..n {
+                let distance: f32 = vectors[i]
+                    .iter()
+                    .zip(&vectors[j])
+                    .map(|(x, y)| (x - y) * (x - y))
+                    .sum();
+                if distance <= threshold * threshold {
+                    sets.union(i, j);
+                }
+            }
+        }
+        let mut smallest = vec![usize::MAX; n];
+        for i in 0..n {
+            let root = sets.find(i);
+            smallest[root] = smallest[root].min(i);
+        }
+        (0..n).map(|i| smallest[sets.find(i)]).collect()
+    }
+
+    #[test]
+    fn groups_match_plain_connected_components() -> Result<(), ClusterError> {
+        let mut state = 0x9E37_79B9_7F4A_7C15_u64;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            f32::from(u16::try_from(state >> 48).unwrap_or_default()) / 65_536.0
+        };
+        let vectors: Vec<Vec<f32>> = (0..240).map(|_| (0..3).map(|_| next()).collect()).collect();
+        for threshold in [0.0, 0.05, 0.12, 0.3, 2.0] {
+            let expected = reference(&vectors, threshold);
+            for workers in [1, 2, 5, 16] {
+                let workers = NonZeroUsize::new(workers).ok_or(ClusterError::Worker)?;
+                assert_eq!(
+                    group_with_workers(&refs(&vectors), threshold, workers)?,
+                    expected,
+                    "threshold {threshold}, {workers} workers"
+                );
+            }
+        }
         Ok(())
     }
 
