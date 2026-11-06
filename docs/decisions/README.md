@@ -66,3 +66,4 @@ recommended option.
 | [0055](0055-sign-and-notarize-the-macos-app-in-its-own-job.md) | Sign and notarize the macOS app in its own job | Accepted |
 | [0056](0056-enforce-agent-rules-mechanically.md) | Enforce the agent operating rules mechanically | Accepted |
 | [0057](0057-host-chooses-folders-to-compare.md) | The host asks which folders to compare for identical copies | Accepted |
+| [0058](0058-reassess-chosen-items-with-fresh-read-only-evidence.md) | Reassess chosen items with fresh read-only evidence | Proposed |
