@@ -29,6 +29,7 @@ pub mod space_change;
 pub mod store;
 pub mod system;
 pub mod tools;
+#[cfg(target_os = "macos")]
 pub mod usage;
 pub mod xcode;
 

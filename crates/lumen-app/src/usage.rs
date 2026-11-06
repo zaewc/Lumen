@@ -19,7 +19,6 @@ use crate::inspection::{Commands, InspectionError};
 /// # Errors
 ///
 /// The query failed, timed out, or printed something unexpected.
-#[cfg(target_os = "macos")]
 pub fn last_opened(bundle: &Path) -> Result<Option<Timestamp>, InspectionError> {
     last_opened_with(
         &mut crate::inspection::Program::system("/usr/bin/mdls")?,
@@ -34,7 +33,6 @@ pub fn last_opened(bundle: &Path) -> Result<Option<Timestamp>, InspectionError> 
 /// # Errors
 ///
 /// The identifier is not a plain bundle identifier, or the query failed.
-#[cfg(target_os = "macos")]
 pub fn found_installed(bundle_id: &str) -> Result<Vec<PathBuf>, InspectionError> {
     found_with(
         &mut crate::inspection::Program::system("/usr/bin/mdfind")?,

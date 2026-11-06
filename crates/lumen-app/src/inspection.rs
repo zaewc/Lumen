@@ -45,6 +45,7 @@ pub(crate) struct Program {
 impl Program {
     /// A system program at its fixed absolute `path`, never one found on the
     /// user's search path.
+    #[cfg(target_os = "macos")]
     pub(crate) fn system(path: &str) -> Result<Self, InspectionError> {
         let home = std::env::home_dir().ok_or(ToolError::NoHome)?;
         Ok(Self {
