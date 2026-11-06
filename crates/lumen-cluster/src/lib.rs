@@ -92,6 +92,31 @@ const SEQUENTIAL_CHUNKS: u64 = 8_192;
 /// Elements summed at a time before checking whether a pair is too far apart.
 const CHUNK: usize = 64;
 
+/// Partial sums kept apart within a chunk. Each lane adds its own elements in
+/// order, so the compiler can add lanes with vector instructions (NEON, SSE,
+/// AVX) where one running sum would chain every addition after the last
+/// (#782). The order is fixed, so the result is the same on every run.
+const LANES: usize = 16;
+
+/// The sum of squared differences of one chunk of `a` and `b`.
+fn chunk_distance(a: &[f32], b: &[f32]) -> f32 {
+    let (whole_a, rest_a) = a.as_chunks::<LANES>();
+    let (whole_b, rest_b) = b.as_chunks::<LANES>();
+    let mut lanes = [0.0_f32; LANES];
+    for (xs, ys) in whole_a.iter().zip(whole_b) {
+        for ((lane, x), y) in lanes.iter_mut().zip(xs).zip(ys) {
+            let d = x - y;
+            *lane += d * d;
+        }
+    }
+    let rest: f32 = rest_a
+        .iter()
+        .zip(rest_b)
+        .map(|(x, y)| (x - y) * (x - y))
+        .sum();
+    lanes.iter().sum::<f32>() + rest
+}
+
 /// Whether `a` and `b` are at most `limit` apart, where `limit` is the
 /// squared threshold, and how many chunks were summed; stops as soon as the
 /// partial sum exceeds it.
@@ -100,11 +125,7 @@ fn within(a: &[f32], b: &[f32], limit: f32) -> (bool, u64) {
     let mut chunks = 0;
     for (chunk_a, chunk_b) in a.chunks(CHUNK).zip(b.chunks(CHUNK)) {
         chunks += 1;
-        sum += chunk_a
-            .iter()
-            .zip(chunk_b)
-            .map(|(x, y)| (x - y) * (x - y))
-            .sum::<f32>();
+        sum += chunk_distance(chunk_a, chunk_b);
         if sum > limit {
             return (false, chunks);
         }
@@ -341,6 +362,45 @@ mod tests {
                     );
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// Distances exactly at the threshold group, and a hair beyond do not,
+    /// whatever length splits elements between lanes, a lane's tail and
+    /// chunks (#782). Differences of one make every sum exact.
+    #[test]
+    fn the_threshold_is_exact_across_lane_and_chunk_boundaries() -> Result<(), ClusterError> {
+        for (dims, threshold) in [
+            (1_usize, 1.0_f32),
+            (4, 2.0),
+            (16, 4.0),
+            (64, 8.0),
+            (81, 9.0),
+            (100, 10.0),
+            (144, 12.0),
+        ] {
+            let pair = vec![vec![0.0; dims], vec![1.0; dims]];
+            assert_eq!(
+                group(&refs(&pair), threshold)?,
+                [0, 0],
+                "{dims} at {threshold}"
+            );
+            let below = threshold - threshold * f32::EPSILON * 4.0;
+            assert_eq!(
+                group(&refs(&pair), below)?,
+                [0, 1],
+                "{dims} below {threshold}"
+            );
+        }
+        // Lengths that leave a tail in every lane and chunk split.
+        for dims in [15, 17, 63, 65, 129] {
+            let pair = vec![vec![0.0; dims], vec![0.5; dims]];
+            let exact = f32::from(u16::try_from(dims).unwrap_or(u16::MAX)) * 0.25;
+            assert_eq!(
+                group(&refs(&pair), exact.sqrt())?,
+                reference(&pair, exact.sqrt())
+            );
         }
         Ok(())
     }

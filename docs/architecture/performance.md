@@ -116,7 +116,18 @@ Readings:
   Between 200 and 300 vectors, the first row on the calling thread adds about 20 µs.
 - Elements beyond 128 add little, because a pair stops summing as soon as it exceeds
   the threshold. Dense sets compare every element of every pair, so they are about
-  9× slower than sparse ones at the same size (#782, #783).
+  9× slower than sparse ones at the same size (#783).
+- A pair's distance was summed one element at a time, so each addition waited for the
+  last and the compiler could not use vector instructions. Since #782, each chunk is
+  summed in 16 independent lanes, which the compiler turns into vector code without
+  `unsafe` or a new dependency. The threshold check is unchanged: still once per
+  chunk, and still exact. Median, 5,000 vectors unless noted:
+
+  | Case | Before | After |
+  | --- | ---: | ---: |
+  | sparse / mixed / dense × 768 | 26 / 27 / 223 ms | 16 / 15 / 106 ms |
+  | mixed × 128 / 768 / 2,048 | 18.9 / 27.1 / 28.4 ms | 9.2 / 14.1 / 26.3 ms |
+  | mixed × 768, one worker / all | 196 / 27.7 ms | 102 / 15.8 ms |
 
 ## CI hardware
 
