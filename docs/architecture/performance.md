@@ -194,4 +194,32 @@ The home also holds traps that must not change these outcomes:
 
 The test runs on every macOS CI job. Without the open file, the in-use artifact is proposed and the test fails, so the trap is live.
 
-Not measured yet: a seeded large home, cold and warm timings, peak memory, and a JSON and text summary. Those come next, and timings stay out of pull-request gates.
+### Seeded homes: `just effectiveness`
+
+`cargo xtask effectiveness [--projects N] [--seed S] [--out FILE]` adds `N`
+generated projects to the labeled home (`seeded_macos_home`). Each project has a
+Rust project, a web project, an Xcode build and a document, with file sizes from 1
+to 16 KiB drawn from the seed, so the same arguments always build the same home.
+
+The command:
+1. builds `lumen` in release mode;
+2. runs `scan` twice, first and then warm, and `assess --json` with `HOME` set to
+   the fixture;
+3. writes JSON and a summary: timings, each run's own peak resident memory (from
+   `wait4`, so the build is not counted), and the score;
+4. fails on any unsafe recommendation.
+
+The first scan is only as cold as the OS file cache allows; the tool never purges it.
+
+Baseline on the machine above, 2026-11-06, seed 1, macOS temporary directory (APFS):
+
+| Projects | Files | First scan | Warm scan | Assess | Peak RSS scan / assess | Proposed found | Unsafe |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 200 | 1,820 | 571 ms | 70 ms | 13.7 s | 21 / 42 MiB | 805 / 805 | 0 |
+| 1,000 | 9,020 | 637 ms | 398 ms | 106.5 s | 33 / 114 MiB | 4,005 / 4,005 | 0 |
+
+Scanning stays fast, but assessing grows faster than the number of candidates: 5×
+the candidates took 7.8× as long (about 17 ms, then 27 ms, per candidate). The
+per-candidate checks, such as the in-use probe that walks every process's open
+files, are the first place to look. These numbers are baselines, not targets; the
+issue rules out setting targets before measuring.

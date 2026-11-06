@@ -23,7 +23,7 @@ fn a_labeled_home_gets_no_unsafe_proposal_and_every_artifact_is_found()
         .labels
         .iter()
         .filter(|label| label.expect == Expect::InUse)
-        .map(|label| std::fs::File::open(home.join(label.path)))
+        .map(|label| std::fs::File::open(home.join(&label.path)))
         .collect::<Result<Vec<_>, _>>()?;
     let run = |args: &[&std::ffi::OsStr]| {
         Command::new(env!("CARGO_BIN_EXE_lumen"))
@@ -68,15 +68,19 @@ fn a_labeled_home_gets_no_unsafe_proposal_and_every_artifact_is_found()
     let result = score(home, &labeled.labels, &candidates);
     assert_eq!(
         result.unsafe_recommendations,
-        Vec::<&str>::new(),
+        Vec::<String>::new(),
         "{candidates:#?}"
     );
     assert_eq!(
         result.proposed_missed,
-        Vec::<&str>::new(),
+        Vec::<String>::new(),
         "{candidates:#?}"
     );
-    assert_eq!(result.review_missed, Vec::<&str>::new(), "{candidates:#?}");
+    assert_eq!(
+        result.review_missed,
+        Vec::<String>::new(),
+        "{candidates:#?}"
+    );
     assert!(result.proposed_bytes > 0);
     Ok(())
 }

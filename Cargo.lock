@@ -6292,9 +6292,11 @@ dependencies = [
 name = "xtask"
 version = "0.9.4"
 dependencies = [
+ "libc",
  "lumen-api",
  "lumen-devkb",
  "lumen-domain",
+ "lumen-testkit",
  "schemars 1.2.2",
  "serde_json",
 ]

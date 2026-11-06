@@ -30,6 +30,11 @@ lint:
 bench:
     cargo bench --workspace --locked
 
+# Cleanup effectiveness on a seeded labeled home (issue #703): timings, peak
+# memory and the score against the labels. macOS; not part of `check`.
+effectiveness *args:
+    cargo xtask effectiveness {{args}}
+
 # Run unit, integration and doc tests.
 test:
     cargo nextest run --workspace --locked --no-tests=warn

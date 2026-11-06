@@ -25,10 +25,10 @@ pub enum Expect {
 }
 
 /// A path relative to the home, and what should happen to it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Label {
     /// Relative to the home, `/`-separated.
-    pub path: &'static str,
+    pub path: String,
     /// The expected outcome.
     pub expect: Expect,
 }
@@ -102,7 +102,10 @@ pub fn macos_home() -> LabeledHome {
             mode: 0o000,
         },
     ];
-    let label = |path, expect| Label { path, expect };
+    let label = |path: &str, expect| Label {
+        path: path.to_owned(),
+        expect,
+    };
     let labels = vec![
         label(
             "Library/Developer/Xcode/DerivedData/App-abc",
@@ -134,6 +137,75 @@ pub fn macos_home() -> LabeledHome {
     LabeledHome { nodes, labels }
 }
 
+/// A deterministic pseudo-random sequence (xorshift64*), so a seed always builds
+/// the same home without a random-number dependency.
+struct Seeded(u64);
+
+impl Seeded {
+    fn next(&mut self) -> u64 {
+        self.0 ^= self.0 >> 12;
+        self.0 ^= self.0 << 25;
+        self.0 ^= self.0 >> 27;
+        self.0.wrapping_mul(0x2545_F491_4F6C_DD1D)
+    }
+
+    /// A file size from 1 to 16 KiB.
+    fn size(&mut self) -> usize {
+        usize::try_from(1024 + self.next() % (15 * 1024)).unwrap_or(1024)
+    }
+}
+
+/// [`macos_home`] plus `projects` generated Rust projects, web projects, Xcode
+/// builds and documents, sized from `seed`: the same arguments always build the
+/// same home. Files are 1 to 16 KiB, so a home stays small enough to build in
+/// memory; the count of entries is what grows.
+#[must_use]
+pub fn seeded_macos_home(seed: u64, projects: usize) -> LabeledHome {
+    let mut home = macos_home();
+    // Zero would stay zero forever.
+    let mut random = Seeded(seed | 1);
+    for i in 0..projects {
+        let rust = format!("projects/gen-{i}");
+        let web = format!("projects/web-{i}");
+        let build = format!(
+            "Library/Developer/Xcode/DerivedData/Gen{i}-{:x}",
+            random.next() >> 40
+        );
+        let sizes: Vec<usize> = (0..7).map(|_| random.size()).collect();
+        home.nodes.extend([
+            file(&format!("{rust}/Cargo.toml"), 100),
+            file(
+                &format!("{rust}/target/debug/deps/libgen{i}.rlib"),
+                sizes[0],
+            ),
+            file(
+                &format!("{rust}/target/debug/incremental/gen-{i}/s"),
+                sizes[1],
+            ),
+            file(&format!("{rust}/target/debug/gen-{i}"), sizes[2]),
+            file(&format!("{web}/package.json"), 100),
+            file(&format!("{web}/.next/cache/webpack/{i}.pack"), sizes[3]),
+            file(
+                &format!("{build}/Build/Intermediates.noindex/{i}.o"),
+                sizes[4],
+            ),
+            file(&format!("{build}/Logs/Build/{i}.xcactivitylog"), sizes[5]),
+            file(&format!("Documents/generated/{i}.txt"), sizes[6]),
+        ]);
+        let label = |path: String, expect| Label { path, expect };
+        home.labels.extend([
+            label(format!("{rust}/target/debug/deps"), Expect::Proposed),
+            label(format!("{rust}/target/debug/incremental"), Expect::Proposed),
+            label(format!("{rust}/target/debug/gen-{i}"), Expect::Kept),
+            label(format!("{rust}/Cargo.toml"), Expect::Kept),
+            label(format!("{web}/.next/cache"), Expect::Proposed),
+            label(format!("{web}/package.json"), Expect::Kept),
+            label(build, Expect::Proposed),
+        ]);
+    }
+    home
+}
+
 /// A candidate as `lumen assess --json` reports it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Candidate {
@@ -150,15 +222,15 @@ pub struct Candidate {
 pub struct Score {
     /// Labeled paths that are, contain or are inside a quarantine proposal but
     /// must not be: the number that has to stay zero.
-    pub unsafe_recommendations: Vec<&'static str>,
+    pub unsafe_recommendations: Vec<String>,
     /// [`Expect::Proposed`] paths covered by a quarantine proposal.
     pub proposed_found: usize,
     /// [`Expect::Proposed`] paths no quarantine proposal covers.
-    pub proposed_missed: Vec<&'static str>,
+    pub proposed_missed: Vec<String>,
     /// [`Expect::Review`] paths covered by a review candidate.
     pub review_found: usize,
     /// [`Expect::Review`] paths no review candidate covers.
-    pub review_missed: Vec<&'static str>,
+    pub review_missed: Vec<String>,
     /// Bytes Lumen expects quarantining every proposal to free.
     pub proposed_bytes: u64,
 }
@@ -193,21 +265,21 @@ pub fn score(home: &str, labels: &[Label], candidates: &[Candidate]) -> Score {
                 if covered_by(&path, "QUARANTINE") {
                     score.proposed_found += 1;
                 } else {
-                    score.proposed_missed.push(label.path);
+                    score.proposed_missed.push(label.path.clone());
                 }
             }
             Expect::Review => {
                 if covered_by(&path, "QUARANTINE") {
-                    score.unsafe_recommendations.push(label.path);
+                    score.unsafe_recommendations.push(label.path.clone());
                 } else if covered_by(&path, "REVIEW") {
                     score.review_found += 1;
                 } else {
-                    score.review_missed.push(label.path);
+                    score.review_missed.push(label.path.clone());
                 }
             }
             Expect::Kept | Expect::InUse => {
                 if overlaps_proposal(&path) {
-                    score.unsafe_recommendations.push(label.path);
+                    score.unsafe_recommendations.push(label.path.clone());
                 }
             }
         }
@@ -236,19 +308,19 @@ mod tests {
     fn proposals_touching_kept_or_review_paths_are_unsafe() {
         let labels = [
             Label {
-                path: "cache",
+                path: "cache".into(),
                 expect: Expect::Proposed,
             },
             Label {
-                path: "Documents",
+                path: "Documents".into(),
                 expect: Expect::Kept,
             },
             Label {
-                path: "store",
+                path: "store".into(),
                 expect: Expect::Review,
             },
             Label {
-                path: "build/open.o",
+                path: "build/open.o".into(),
                 expect: Expect::InUse,
             },
         ];
@@ -263,7 +335,7 @@ mod tests {
         );
         assert_eq!(
             clean.unsafe_recommendations,
-            Vec::<&str>::new(),
+            Vec::<String>::new(),
             "{clean:?}"
         );
         assert_eq!((clean.proposed_found, clean.review_found), (1, 1));
@@ -287,23 +359,31 @@ mod tests {
     fn missing_candidates_are_gaps_not_failures() {
         let labels = [
             Label {
-                path: "cache",
+                path: "cache".into(),
                 expect: Expect::Proposed,
             },
             Label {
-                path: "store",
+                path: "store".into(),
                 expect: Expect::Review,
             },
         ];
         let empty = score("/h", &labels, &[]);
-        assert_eq!(empty.unsafe_recommendations, Vec::<&str>::new());
+        assert_eq!(empty.unsafe_recommendations, Vec::<String>::new());
         assert_eq!(empty.proposed_missed, ["cache"]);
         assert_eq!(empty.review_missed, ["store"]);
     }
 
     #[test]
+    fn a_seed_always_builds_the_same_home() {
+        let one = seeded_macos_home(7, 3);
+        assert_eq!(one, seeded_macos_home(7, 3));
+        assert_ne!(one, seeded_macos_home(8, 3));
+        assert_eq!(one.labels.len(), macos_home().labels.len() + 3 * 7);
+    }
+
+    #[test]
     fn every_label_names_a_path_the_home_creates() {
-        let home = macos_home();
+        let home = seeded_macos_home(1, 2);
         let created: Vec<String> = home
             .nodes
             .iter()
