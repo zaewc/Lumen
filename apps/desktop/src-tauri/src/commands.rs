@@ -464,7 +464,7 @@ pub(crate) async fn tool_storage() -> Result<Vec<ToolStorageView>, CommandError>
 
 /// Whether this build can show the folder dialog (ADR-0057). Without it,
 /// comparing is unsupported here even where the core can read contents.
-const DIALOG: bool = cfg!(target_os = "macos");
+const DIALOG: bool = cfg!(any(target_os = "macos", windows));
 
 /// The comparison slot while a comparison runs; emptied when it ends,
 /// however it ends.
@@ -550,9 +550,9 @@ pub(crate) fn cancel_comparison(core: State<'_, Core>) {
     }
 }
 
-/// The folders the person picks, as a sheet over `window`; `None` if they
-/// pick none.
-#[cfg(target_os = "macos")]
+/// The folders the person picks, in a dialog owned by `window` (a sheet on
+/// macOS); `None` if they pick none.
+#[cfg(any(target_os = "macos", windows))]
 async fn choose_folders<R: tauri::Runtime>(
     window: &tauri::WebviewWindow<R>,
 ) -> Option<Vec<PathBuf>> {
@@ -569,7 +569,7 @@ async fn choose_folders<R: tauri::Runtime>(
 }
 
 /// No dialog where contents cannot be compared yet.
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", windows)))]
 fn choose_folders<R: tauri::Runtime>(
     _: &tauri::WebviewWindow<R>,
 ) -> std::future::Ready<Option<Vec<PathBuf>>> {

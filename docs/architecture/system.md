@@ -505,8 +505,9 @@ scanner adds it itself. Linux reports that the analysis is unsupported rather th
 finding nothing.
 
 In the desktop app, `compare_folders` takes no path: the host opens the system
-folder dialog and compares only the folders the person picks (ADR-0057). The
-dialog is wired on macOS so far; elsewhere the app says comparing is unsupported.
+folder dialog and compares only the folders the person picks (ADR-0057). It
+shows the dialog on macOS and Windows; on Linux the app says comparing is
+unsupported.
 
 See [ADR-0019](../decisions/0019-staged-duplicate-detection.md). Exact duplicates are
 found in stages ending in a BLAKE3 content ID. Near-duplicates are `REVIEW` only.
