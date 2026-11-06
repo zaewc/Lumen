@@ -59,10 +59,11 @@ mod plan;
 mod progress;
 #[cfg(any(unix, windows))]
 mod quarantine;
+mod reassess;
 #[cfg(any(unix, windows))]
 mod report;
 
-const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)\n       lumen inspect xcode|docker|packages [--json]   (read-only tool storage inventory)\n       lumen duplicates <PATH>... [--json]   (identical copies in chosen folders, for review)";
+const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)\n       lumen inspect xcode|docker|packages [--json]   (read-only tool storage inventory)\n       lumen duplicates <PATH>... [--json]   (identical copies in chosen folders, for review)\n       lumen reassess --db <FILE> [--choose <PATH>]... [--json]   (check items again with fresh read-only evidence)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -103,6 +104,7 @@ enum AiAction {
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
     Inspect(inspect::Args),
+    Reassess(reassess::Args),
     Duplicates(duplicates::Args),
     Scan(ScanArgs),
     Assess(AssessArgs),
@@ -265,6 +267,7 @@ fn parse(args: &[String]) -> Result<Command, String> {
             return duplicates::parse(iter.as_slice()).map(Command::Duplicates);
         }
         Some("plan") => return parse_plan(iter.as_slice()),
+        Some("reassess") => return reassess::parse(iter.as_slice()).map(Command::Reassess),
         Some("ai") => return parse_ai(iter.as_slice()),
         Some("quarantine") => return parse_quarantine(iter.as_slice()),
         Some("list") => {
@@ -329,6 +332,7 @@ fn database(command: &Command) -> Option<&std::path::Path> {
         Command::Scan(args) => args.db.as_deref(),
         Command::Assess(args) => Some(&args.db),
         Command::Plan(args) => Some(&args.db),
+        Command::Reassess(args) => Some(&args.db),
         Command::Quarantine(args) => Some(&args.db),
         Command::List(db) | Command::FinalizeExpired(db) | Command::Ai(_, db) => Some(db),
         Command::Restore(args) | Command::Finalize(args) => Some(&args.db),
@@ -378,6 +382,7 @@ fn main() -> ExitCode {
         }
         Ok(Command::Quarantine(args)) => report(run_quarantine(&args)),
         Ok(Command::Plan(args)) => report(run_plan(&args)),
+        Ok(Command::Reassess(args)) => report(run_reassess(&args)),
         Ok(Command::Assess(assess)) => report(run_assess(&assess)),
         Err(message) => {
             eprintln!("error: {message}\n{USAGE}");
@@ -503,6 +508,54 @@ fn run_assess(args: &AssessArgs) -> Result<(), Box<dyn Error>> {
         print!("{}", assess::to_text(&assessed));
     }
     Ok(())
+}
+
+/// Assesses as `lumen assess` does, then checks the chosen items, or every
+/// item with something unknown, again (ADR-0058).
+#[cfg(any(unix, windows))]
+fn run_reassess(args: &reassess::Args) -> Result<(), Box<dyn Error>> {
+    let chosen = args
+        .chosen
+        .iter()
+        .map(|path| {
+            let absolute = std::path::absolute(path)?;
+            lumen_app::raw_path(&absolute).map_err(|e| format!("{}: {e}", path.display()).into())
+        })
+        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+    let assessed = with_judge(
+        AiChoice::Setting,
+        &args.db,
+        |judge, describer| {
+            Ok(lumen_app::assess(
+                &args.db,
+                &lumen_app::SystemClock,
+                judge,
+                describer,
+            )?)
+        },
+        Vec::as_slice,
+    )?;
+    let before = reassess::select(assessed, &chosen)?;
+    let result = lumen_app::reassess::reassess(
+        &args.db,
+        &before,
+        &lumen_app::SystemClock,
+        &lumen_application::CancelToken::new(),
+    )?;
+    if args.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&reassess::to_json(&before, &result))?
+        );
+    } else {
+        print!("{}", reassess::to_text(&before, &result));
+    }
+    Ok(())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn run_reassess(_args: &reassess::Args) -> Result<(), Box<dyn Error>> {
+    Err("reassessment is not supported on this platform".into())
 }
 
 #[cfg(not(any(unix, windows)))]
