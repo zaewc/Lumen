@@ -343,6 +343,18 @@ export const zReasonView = z.object({
 });
 
 /**
+ * Something the earlier assessment did not know.
+ */
+export const zReassessGapView = z.enum(["in_use", "unread", "stale", "owner"]);
+
+/**
+ * Which items to check again.
+ */
+export const zReassessRequest = z.object({
+  ids: z.array(z.string()),
+});
+
+/**
  * The kind of a relationship, read `from <kind> to`.
  */
 export const zRelationKindView = z.enum([
@@ -715,4 +727,39 @@ export const zPlanView = z.object({
   hash: z.string(),
   items: z.array(zCandidateView),
   plan: z.string(),
+});
+
+/**
+ * How checking one item again ended.
+ */
+export const zReassessOutcomeView = z.union([
+  z.object({
+    kind: z.enum(["settled"]),
+  }),
+  z.object({
+    kind: z.enum(["changed"]),
+  }),
+  z.object({
+    added_facts: z.string(),
+    candidate: zCandidateView,
+    kind: z.enum(["decided"]),
+  }),
+]);
+
+/**
+ * One item checked again.
+ */
+export const zReassessedItemView = z.object({
+  before: zVerdictView,
+  gaps: z.array(zReassessGapView),
+  id: z.string(),
+  outcome: zReassessOutcomeView,
+});
+
+/**
+ * Items checked again, in order.
+ */
+export const zReassessView = z.object({
+  cancelled: z.boolean(),
+  items: z.array(zReassessedItemView),
 });

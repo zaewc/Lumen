@@ -24,6 +24,7 @@ const allowed = new Set([
   "tool_storage",
   "compare_folders",
   "cancel_comparison",
+  "reassess",
 ]);
 
 window.__TAURI_ISOLATION_HOOK__ = (payload) => {

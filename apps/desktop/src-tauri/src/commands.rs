@@ -17,7 +17,8 @@ use std::sync::Arc;
 use lumen_api::views::{
     AiSettingsView, AssessProgressView, CandidateView, CompareOutcomeView, CompareProgressView,
     DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, PlanView, QuarantineReportView,
-    RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView, ToolRunView, ToolStorageView,
+    ReassessRequest, ReassessView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
+    ToolRunView, ToolStorageView, candidate_id,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -48,6 +49,9 @@ pub(crate) struct Core {
     >,
     /// Held while a tool's command runs: one at a time.
     pub(crate) tool_running: Arc<std::sync::Mutex<()>>,
+    /// The latest assessment, as shown: what `reassess` checks again and
+    /// updates (ADR-0058).
+    pub(crate) assessed: std::sync::Mutex<Vec<Assessed>>,
     /// The running comparison of copies, if any: one at a time, and what
     /// `cancel_comparison` stops.
     pub(crate) comparison: Arc<std::sync::Mutex<Option<CancelToken>>>,
@@ -74,6 +78,10 @@ impl std::fmt::Debug for Core {
                     .map(|entries| entries.len()),
             )
             .field("tool_running", &self.tool_running.try_lock().is_err())
+            .field(
+                "assessed",
+                &self.assessed.try_lock().ok().map(|assessed| assessed.len()),
+            )
             .field(
                 "comparison",
                 &self
@@ -340,23 +348,102 @@ pub(crate) async fn assess(
             Vec::as_slice,
         )?;
         let views: Vec<_> = assessed.iter().map(CandidateView::from).collect();
-        let mut entries = std::collections::BTreeMap::<_, Vec<_>>::new();
-        for (view, assessed) in views.iter().zip(&assessed) {
-            if let Some(command) = &view.tool_command {
-                entries.entry(command.entry.clone()).or_default().push((
-                    assessed.candidate.path.clone(),
-                    assessed.candidate.identity().volume.clone(),
-                ));
-            }
-        }
-        Ok((views, entries))
+        Ok((views, assessed))
     })
     .await?;
     *core
         .tool_entries
         .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = tool_entries(&entries);
+    *core
+        .assessed
+        .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = entries;
     Ok(views)
+}
+
+/// The knowledge-base entries with a tool command among `assessed`, with
+/// their items: the only commands the page may run (ADR-0049).
+fn tool_entries(
+    assessed: &[Assessed],
+) -> std::collections::BTreeMap<String, Vec<(lumen_domain::RawPath, lumen_domain::VolumeId)>> {
+    let mut entries = std::collections::BTreeMap::<_, Vec<_>>::new();
+    for item in assessed {
+        if let Some(guidance) = lumen_app::assess::tool_action(item) {
+            entries.entry(guidance.entry).or_default().push((
+                item.candidate.path.clone(),
+                item.candidate.identity().volume.clone(),
+            ));
+        }
+    }
+    entries
+}
+
+/// Checks items of the latest assessment again with fresh read-only evidence
+/// (ADR-0058), by ID; none: every item kept or reviewed because of something
+/// Lumen did not know. Moves nothing. Items decided again replace their
+/// earlier assessment, so later checks and tool commands see them; planning
+/// assesses again from the scan itself.
+#[tauri::command]
+pub(crate) async fn reassess(
+    core: State<'_, Core>,
+    request: ReassessRequest,
+) -> Result<ReassessView, CommandError> {
+    let chosen: Vec<Assessed> = {
+        let latest = core
+            .assessed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if request.ids.is_empty() {
+            latest
+                .iter()
+                .filter(|item| !lumen_application::reassess::gaps(item).is_empty())
+                .cloned()
+                .collect()
+        } else {
+            let mut chosen = Vec::new();
+            for id in &request.ids {
+                let before = chosen.len();
+                chosen.extend(
+                    latest
+                        .iter()
+                        .filter(|item| candidate_id(item) == *id)
+                        .cloned(),
+                );
+                if chosen.len() == before {
+                    return Err(CommandError::new(
+                        "that item is not in the latest assessment; assess again",
+                    ));
+                }
+            }
+            chosen
+        }
+    };
+    let db = core.db.clone();
+    let (view, chosen, result) = blocking(move || {
+        let result = lumen_app::reassess::reassess(&db, &chosen, &SystemClock, &CancelToken::new())
+            .map_err(CommandError::new)?;
+        Ok((ReassessView::new(&chosen, &result), chosen, result))
+    })
+    .await?;
+    let mut latest = core
+        .assessed
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    for (earlier, item) in chosen.iter().zip(&result.items) {
+        if let lumen_app::reassess::Outcome::Decided { after, .. } = &item.outcome
+            && let Some(slot) = latest
+                .iter_mut()
+                .find(|slot| slot.candidate.path == earlier.candidate.path)
+        {
+            *slot = (**after).clone();
+        }
+    }
+    *core
+        .tool_entries
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = tool_entries(&latest);
+    Ok(view)
 }
 
 /// Runs the cleanup command of knowledge-base entry `entry` (ADR-0049), only

@@ -1413,6 +1413,144 @@
           }
         }
       },
+      "ReassessGapView": {
+        "type": "string",
+        "description": "Something the earlier assessment did not know.",
+        "enum": [
+          "in_use",
+          "unread",
+          "stale",
+          "owner"
+        ]
+      },
+      "ReassessOutcomeView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Its verdict does not rest on anything unknown; nothing was checked.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "settled"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It changed since the scan, so it was not decided again: scan again.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Decided again from fresh evidence.",
+            "required": [
+              "candidate",
+              "added_facts",
+              "kind"
+            ],
+            "properties": {
+              "added_facts": {
+                "type": "string",
+                "description": "How many facts the checks added."
+              },
+              "candidate": {
+                "$ref": "#/components/schemas/CandidateView",
+                "description": "The item as decided now."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "decided"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "How checking one item again ended."
+      },
+      "ReassessRequest": {
+        "type": "object",
+        "description": "Which items to check again.",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Items of the latest assessment, by [`CandidateView::id`]. Empty: every\nitem kept or reviewed because of something Lumen did not know."
+          }
+        }
+      },
+      "ReassessView": {
+        "type": "object",
+        "description": "Items checked again, in order.",
+        "required": [
+          "items",
+          "cancelled"
+        ],
+        "properties": {
+          "cancelled": {
+            "type": "boolean",
+            "description": "The run stopped early; later items were not checked."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReassessedItemView"
+            },
+            "description": "Every item checked before the run ended."
+          }
+        }
+      },
+      "ReassessedItemView": {
+        "type": "object",
+        "description": "One item checked again.",
+        "required": [
+          "id",
+          "before",
+          "gaps",
+          "outcome"
+        ],
+        "properties": {
+          "before": {
+            "$ref": "#/components/schemas/VerdictView",
+            "description": "Its earlier verdict."
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReassessGapView"
+            },
+            "description": "What was unknown."
+          },
+          "id": {
+            "type": "string",
+            "description": "Its ID, as in the assessment."
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/ReassessOutcomeView",
+            "description": "How it ended."
+          }
+        }
+      },
       "RelationKindView": {
         "type": "string",
         "description": "The kind of a relationship, read `from <kind> to`.",

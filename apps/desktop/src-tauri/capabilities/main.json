@@ -22,6 +22,7 @@
     "allow-run-tool-command",
     "allow-tool-storage",
     "allow-compare-folders",
-    "allow-cancel-comparison"
+    "allow-cancel-comparison",
+    "allow-reassess"
   ]
 }

@@ -28,6 +28,7 @@ mod duplicates;
 mod facts;
 #[cfg(test)]
 mod fixture;
+mod reassess;
 mod relations;
 mod times;
 
@@ -35,6 +36,10 @@ pub use duplicates::{
     CompareOutcomeView, CompareProgressView, CompareStageView, DuplicateGroupView, DuplicatesView,
 };
 pub use facts::{AppDataKindView, BasisView, FactKindView, FactView};
+pub use reassess::{
+    ReassessGapView, ReassessOutcomeView, ReassessRequest, ReassessView, ReassessedItemView,
+    candidate_id,
+};
 pub use relations::{MAX_RELATIONS, NodeView, RelationKindView, RelationView, RelationsView};
 pub use times::{TimeView, TimesView};
 
