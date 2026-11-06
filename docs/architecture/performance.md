@@ -98,8 +98,22 @@ Readings:
 
   Timings are otherwise unchanged within noise; dense at 5,000 × 768 went from 265 ms
   to 246 ms.
-- At 100 vectors, all workers are slower than one: starting threads costs more than
-  the comparisons (#781).
+- At 100 vectors, all workers were slower than one: starting threads cost more than
+  the comparisons. Since #781, a call compares the first row on its own thread and
+  uses what that cost per pair to estimate the rest. Below about 8,000 chunk
+  comparisons (about 150 µs), it finishes there. Otherwise every core takes rows one
+  at a time, longest first, and one worker never starts a thread. Mixed × 768, median:
+
+  | Vectors | One worker, before → after | All workers, before → after |
+  | ---: | ---: | ---: |
+  | 100 | 0.13 → 0.11 ms | 0.15 → 0.11 ms (stays on one thread) |
+  | 200 | 0.37 → 0.35 ms | 0.19 → 0.22 ms |
+  | 300 | 0.74 → 0.72 ms | 0.27 → 0.30 ms |
+  | 500 | 1.87 → 1.84 ms | 0.49 → 0.47 ms |
+  | 1,000 | 7.0 → 6.9 ms | 1.42 → 1.26 ms |
+  | 5,000 | 187 → 184 ms | 30.9 → 26.1 ms |
+
+  Between 200 and 300 vectors, the first row on the calling thread adds about 20 µs.
 - Elements beyond 128 add little, because a pair stops summing as soon as it exceeds
   the threshold. Dense sets compare every element of every pair, so they are about
   9× slower than sparse ones at the same size (#782, #783).

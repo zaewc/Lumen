@@ -62,11 +62,12 @@ fn dimensions(c: &mut Criterion) {
     group.finish();
 }
 
-/// One worker against every core, from 100 to 5,000 mixed vectors.
+/// One worker against every core, from 100 to 5,000 mixed vectors, finely
+/// around where threads start to pay (#781).
 fn workers(c: &mut Criterion) {
     let mut group = c.benchmark_group("workers");
     group.sample_size(10);
-    for count in [100, 1_000, 5_000] {
+    for count in [100, 200, 300, 500, 1_000, 5_000] {
         let data = vectors(Kind::Mixed, count, 768);
         for (name, workers) in [("one", NonZeroUsize::MIN), ("all", all_workers())] {
             group.bench_with_input(BenchmarkId::new(name, count), &data, |b, data| {

@@ -11,11 +11,13 @@
 //! anything on their own (ADR-0019), and thresholds need a labelled
 //! evaluation set before they ship.
 //!
-//! The comparison is all-pairs, bounded by [`MAX_VECTORS`], split across the
-//! available cores with scoped threads, and stops summing a pair as soon as it
-//! exceeds the threshold.
+//! The comparison is all-pairs, bounded by [`MAX_VECTORS`], and stops summing a
+//! pair as soon as it exceeds the threshold. Small inputs are compared on the
+//! calling thread; larger ones on the available cores, which take rows as
+//! they finish (#781).
 
 use std::num::NonZeroUsize;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 
 /// The most vectors one call groups: all-pairs work grows with the square.
@@ -81,30 +83,93 @@ impl Sets {
     }
 }
 
+/// Below this many estimated chunk comparisons, every pair is compared on the
+/// calling thread: starting threads costs more (#781). It is about 150 µs of
+/// mixed comparisons on an M4 Pro, where one thread overtakes all twelve
+/// between 100 and 200 vectors of 768 elements.
+const SEQUENTIAL_CHUNKS: u64 = 8_192;
+
+/// Elements summed at a time before checking whether a pair is too far apart.
+const CHUNK: usize = 64;
+
 /// Whether `a` and `b` are at most `limit` apart, where `limit` is the
-/// squared threshold; stops as soon as the partial sum exceeds it.
-fn within(a: &[f32], b: &[f32], limit: f32) -> bool {
+/// squared threshold, and how many chunks were summed; stops as soon as the
+/// partial sum exceeds it.
+fn within(a: &[f32], b: &[f32], limit: f32) -> (bool, u64) {
     let mut sum = 0.0_f32;
-    for (chunk_a, chunk_b) in a.chunks(64).zip(b.chunks(64)) {
+    let mut chunks = 0;
+    for (chunk_a, chunk_b) in a.chunks(CHUNK).zip(b.chunks(CHUNK)) {
+        chunks += 1;
         sum += chunk_a
             .iter()
             .zip(chunk_b)
             .map(|(x, y)| (x - y) * (x - y))
             .sum::<f32>();
         if sum > limit {
-            return false;
+            return (false, chunks);
         }
     }
-    true
+    (true, chunks)
 }
 
-/// Joins every pair `(row, j)`, `j > row`, that is within `limit` in `sets`.
-fn join_row(vectors: &[&[f32]], row: usize, limit: f32, sets: &mut Sets) {
+/// Joins every pair `(row, j)`, `j > row`, that is within `limit` in `sets`;
+/// how many chunks that summed.
+fn join_row(vectors: &[&[f32]], row: usize, limit: f32, sets: &mut Sets) -> u64 {
+    let mut chunks = 0;
     for j in (row + 1)..vectors.len() {
-        if within(vectors[row], vectors[j], limit) {
+        let (close, summed) = within(vectors[row], vectors[j], limit);
+        chunks += summed;
+        if close {
             sets.union(row, j);
         }
     }
+    chunks
+}
+
+/// Each worker's sets after joining every row's pairs. The first row is
+/// compared on the calling thread; what it cost per pair estimates the rest,
+/// and a small rest stays there too. Otherwise `workers` threads take the
+/// remaining rows one at a time, longest first, so a row that stops early
+/// never leaves a thread idle while another has more to do.
+fn join_all(vectors: &[&[f32]], limit: f32, workers: usize) -> Result<Vec<Sets>, ClusterError> {
+    let n = vectors.len();
+    let mut first = Sets::new(n);
+    let first_pairs = u64::try_from(n - 1).unwrap_or(u64::MAX);
+    let first_chunks = join_row(vectors, 0, limit, &mut first);
+    let all_pairs = first_pairs.saturating_mul(u64::try_from(n).unwrap_or(u64::MAX)) / 2;
+    let rest = all_pairs - first_pairs;
+    let estimated = rest.saturating_mul(first_chunks) / first_pairs.max(1);
+    if workers == 1 || estimated <= SEQUENTIAL_CHUNKS {
+        for row in 1..n {
+            join_row(vectors, row, limit, &mut first);
+        }
+        return Ok(vec![first]);
+    }
+    let next = AtomicUsize::new(1);
+    let mut found: Vec<Sets> = thread::scope(|scope| {
+        let handles: Vec<_> = (0..workers)
+            .map(|_| {
+                scope.spawn(|| {
+                    let mut sets = Sets::new(n);
+                    loop {
+                        let row = next.fetch_add(1, Ordering::Relaxed);
+                        if row >= n {
+                            break;
+                        }
+                        join_row(vectors, row, limit, &mut sets);
+                    }
+                    sets
+                })
+            })
+            .collect();
+        // A failed worker would silently drop pairs: refuse instead.
+        handles
+            .into_iter()
+            .map(|handle| handle.join().map_err(|_| ClusterError::Worker))
+            .collect::<Result<_, _>>()
+    })?;
+    found.push(first);
+    Ok(found)
 }
 
 /// The group of each vector: the smallest index in its group, so equal
@@ -155,31 +220,11 @@ pub fn group_with_workers(
     let limit = threshold * threshold;
     let n = vectors.len();
     let workers = workers.get();
-    // Row i compares with n - i - 1 others; interleaving rows across workers
-    // evens out the triangle. Each worker joins what it finds in its own sets
-    // as it goes, so memory stays at two indices per vector per worker however
-    // many pairs match (#779); a list of every matching pair would grow with
-    // the square of a set of near-identical photos.
-    let found: Vec<Sets> = thread::scope(|scope| {
-        let handles: Vec<_> = (0..workers)
-            .map(|w| {
-                scope.spawn(move || {
-                    let mut sets = Sets::new(n);
-                    let mut row = w;
-                    while row < n {
-                        join_row(vectors, row, limit, &mut sets);
-                        row += workers;
-                    }
-                    sets
-                })
-            })
-            .collect();
-        // A failed worker would silently drop pairs: refuse instead.
-        handles
-            .into_iter()
-            .map(|handle| handle.join().map_err(|_| ClusterError::Worker))
-            .collect::<Result<_, _>>()
-    })?;
+    // Each worker joins what it finds in its own sets as it goes, so memory
+    // stays at two indices per vector per worker however many pairs match
+    // (#779); a list of every matching pair would grow with the square of a
+    // set of near-identical photos.
+    let found = join_all(vectors, limit, workers)?;
     // The groups are the connected components of every worker's pairs
     // together, which joining each vector to its root in every worker's sets
     // reproduces, in any order.
@@ -281,15 +326,20 @@ mod tests {
             f32::from(u16::try_from(state >> 48).unwrap_or_default()) / 65_536.0
         };
         let vectors: Vec<Vec<f32>> = (0..240).map(|_| (0..3).map(|_| next()).collect()).collect();
-        for threshold in [0.0, 0.05, 0.12, 0.3, 2.0] {
-            let expected = reference(&vectors, threshold);
-            for workers in [1, 2, 5, 16] {
-                let workers = NonZeroUsize::new(workers).ok_or(ClusterError::Worker)?;
-                assert_eq!(
-                    group_with_workers(&refs(&vectors), threshold, workers)?,
-                    expected,
-                    "threshold {threshold}, {workers} workers"
-                );
+        // 60 vectors stay on the calling thread whatever the worker count;
+        // 240 take the threads (#781).
+        for count in [2, 60, 240] {
+            let vectors = &vectors[..count];
+            for threshold in [0.0, 0.05, 0.12, 0.3, 2.0] {
+                let expected = reference(vectors, threshold);
+                for workers in [1, 2, 5, 16] {
+                    let workers = NonZeroUsize::new(workers).ok_or(ClusterError::Worker)?;
+                    assert_eq!(
+                        group_with_workers(&refs(vectors), threshold, workers)?,
+                        expected,
+                        "{count} vectors, threshold {threshold}, {workers} workers"
+                    );
+                }
             }
         }
         Ok(())
