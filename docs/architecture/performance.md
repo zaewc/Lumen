@@ -116,7 +116,7 @@ Readings:
   Between 200 and 300 vectors, the first row on the calling thread adds about 20 µs.
 - Elements beyond 128 add little, because a pair stops summing as soon as it exceeds
   the threshold. Dense sets compare every element of every pair, so they are about
-  9× slower than sparse ones at the same size (#783).
+  9× slower than sparse ones at the same size; see #783 below.
 - A pair's distance was summed one element at a time, so each addition waited for the
   last and the compiler could not use vector instructions. Since #782, each chunk is
   summed in 16 independent lanes, which the compiler turns into vector code without
@@ -128,6 +128,22 @@ Readings:
   | sparse / mixed / dense × 768 | 26 / 27 / 223 ms | 16 / 15 / 106 ms |
   | mixed × 128 / 768 / 2,048 | 18.9 / 27.1 / 28.4 ms | 9.2 / 14.1 / 26.3 ms |
   | mixed × 768, one worker / all | 196 / 27.7 ms | 102 / 15.8 ms |
+- A set of near-copies compared every pair of its members, though once two members
+  are in one group, the distance between them cannot change any group. Since #783, a
+  worker skips a pair it has already joined, so a set of n near-copies costs about n
+  comparisons instead of n²/2. The groups are the same. The sequential cutoff rose
+  from 8,192 to 24,576 chunk comparisons, because a chunk now costs about half as
+  much; all twelve threads still overtake one between 200 and 300 vectors. Median:
+
+  | Case | Before | After |
+  | --- | ---: | ---: |
+  | dense 5,000 × 768 | 130 ms | 3.5 ms |
+  | mixed × 768: 100 / 5,000 / 20,000 | 0.065 / 15.7 / 454 ms | 0.058 / 15.3 / 395 ms |
+  | sparse 5,000 × 768 | 18.0 ms | 15.4 ms |
+
+  Other cases moved within ±12%, about the spread between two runs of the same code
+  on this machine. Peak memory is unchanged; in the memory benchmark, dense 20,000 ×
+  128 now takes 0.02 s.
 
 ## CI hardware
 

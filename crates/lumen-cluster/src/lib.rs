@@ -85,9 +85,10 @@ impl Sets {
 
 /// Below this many estimated chunk comparisons, every pair is compared on the
 /// calling thread: starting threads costs more (#781). It is about 150 µs of
-/// mixed comparisons on an M4 Pro, where one thread overtakes all twelve
-/// between 100 and 200 vectors of 768 elements.
-const SEQUENTIAL_CHUNKS: u64 = 8_192;
+/// mixed comparisons on an M4 Pro, where all twelve threads overtake one
+/// between 200 and 300 vectors of 768 elements (with #782's lanes and #783's
+/// pruning; before them a chunk cost about twice as much).
+const SEQUENTIAL_CHUNKS: u64 = 24_576;
 
 /// Elements summed at a time before checking whether a pair is too far apart.
 const CHUNK: usize = 64;
@@ -134,14 +135,21 @@ fn within(a: &[f32], b: &[f32], limit: f32) -> (bool, u64) {
 }
 
 /// Joins every pair `(row, j)`, `j > row`, that is within `limit` in `sets`;
-/// how many chunks that summed.
+/// how many chunks that summed. A pair already in one set is not compared:
+/// its edge could not change any group (#783), which makes sets of near-copies
+/// cost about one comparison per member instead of one per pair.
 fn join_row(vectors: &[&[f32]], row: usize, limit: f32, sets: &mut Sets) -> u64 {
     let mut chunks = 0;
+    let mut root = sets.find(row);
     for j in (row + 1)..vectors.len() {
+        if sets.find(j) == root {
+            continue;
+        }
         let (close, summed) = within(vectors[row], vectors[j], limit);
         chunks += summed;
         if close {
             sets.union(row, j);
+            root = sets.find(row);
         }
     }
     chunks
