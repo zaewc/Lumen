@@ -42,7 +42,7 @@ use lumen_policy::{Context, KnowledgeClass, PolicyError, PolicyInput, evaluate, 
 
 use crate::collect::{in_use_evidence, ownership_evidence};
 use crate::consult::{Consulted, decide};
-use crate::gather::Gathered;
+use crate::gather::{EvidenceIndex, Gathered};
 use crate::observe::{below, observed};
 use crate::ports::{Clock, DirOutcome, InUse, InUseProbe, JudgeModel, OwnershipProbe};
 
@@ -146,6 +146,8 @@ pub struct Sources<'a> {
     pub graph: &'a Graph,
     /// The scan's gathered evidence.
     pub gathered: &'a Gathered,
+    /// `gathered`'s evidence indexed by subject and ID ([`EvidenceIndex::new`]).
+    pub index: &'a EvidenceIndex,
     /// Every scanned entry.
     pub scanned: &'a [FilesystemEntry],
     /// Every directory listing outcome.
@@ -186,23 +188,25 @@ fn assembled(
         reached.insert(relationship.from());
         reached.insert(relationship.to());
     }
-    let mut records: BTreeMap<EvidenceId, &Evidence> = sources
-        .gathered
-        .evidence
+    let mut records: BTreeMap<EvidenceId, &Evidence> = reached
         .iter()
-        .chain(fresh)
-        .filter(|record| reached.contains(&record.subject))
-        .map(|record| (record.id(), record))
+        .flat_map(|reached| sources.index.about(sources.gathered, reached))
         .collect();
+    records.extend(
+        fresh
+            .iter()
+            .filter(|record| reached.contains(&record.subject))
+            .map(|record| (record.id(), record)),
+    );
     let bundle = EvidenceBundle::new(
         subject.clone(),
         around.relationships().iter().cloned(),
         records.keys().copied().collect::<Vec<_>>(),
     );
     // Evidence the relationships cite is part of the bundle too.
-    for record in &sources.gathered.evidence {
-        if bundle.evidence().contains(&record.id()) {
-            records.entry(record.id()).or_insert(record);
+    for id in bundle.evidence() {
+        if let Some(record) = sources.index.get(sources.gathered, id) {
+            records.entry(*id).or_insert(record);
         }
     }
     let mut context = sources.context.clone();
@@ -621,6 +625,7 @@ mod tests {
             let sources = Sources {
                 graph: &graph,
                 gathered: &gathered,
+                index: &EvidenceIndex::new(&gathered),
                 scanned: &scanned,
                 listings: &[],
                 context: &ctx,
@@ -648,6 +653,7 @@ mod tests {
         let sources = Sources {
             graph: &graph,
             gathered: &gathered,
+            index: &EvidenceIndex::new(&gathered),
             scanned: &scanned,
             listings: &[],
             context: &ctx,
@@ -730,6 +736,7 @@ mod tests {
         let sources = Sources {
             graph: &graph,
             gathered: &gathered,
+            index: &EvidenceIndex::new(&gathered),
             scanned: &scanned,
             listings: &listings,
             context: &ctx,
@@ -994,6 +1001,7 @@ mod tests {
         let sources = Sources {
             graph: &graph,
             gathered: &gathered,
+            index: &EvidenceIndex::new(&gathered),
             scanned: &scanned,
             listings: &[],
             context: &ctx,

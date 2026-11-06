@@ -485,6 +485,7 @@ mod tests {
         let sources = Sources {
             graph: &graph,
             gathered: &gathered,
+            index: &crate::gather::EvidenceIndex::new(&gathered),
             scanned: &scanned,
             listings: &[],
             context: &context,

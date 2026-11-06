@@ -35,6 +35,55 @@ pub struct Gathered {
     pub relationships: Vec<Relationship>,
 }
 
+/// [`Gathered`] evidence indexed by subject and by ID, built once per
+/// assessment: assembling a candidate's input then looks its records up
+/// instead of hashing every gathered record again, which made assessing grow
+/// with candidates × evidence (#766). Positions refer to the `Gathered` it was
+/// built from.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct EvidenceIndex {
+    ids: Vec<EvidenceId>,
+    by_subject: BTreeMap<Subject, Vec<usize>>,
+    by_id: BTreeMap<EvidenceId, usize>,
+}
+
+impl EvidenceIndex {
+    /// Indexes `gathered`'s evidence.
+    #[must_use]
+    pub fn new(gathered: &Gathered) -> Self {
+        let mut index = Self::default();
+        for (at, record) in gathered.evidence.iter().enumerate() {
+            let id = record.id();
+            index.ids.push(id);
+            index
+                .by_subject
+                .entry(record.subject.clone())
+                .or_default()
+                .push(at);
+            index.by_id.insert(id, at);
+        }
+        index
+    }
+
+    /// The records about `subject`, with their IDs.
+    pub(crate) fn about<'a>(
+        &'a self,
+        gathered: &'a Gathered,
+        subject: &Subject,
+    ) -> impl Iterator<Item = (EvidenceId, &'a Evidence)> {
+        self.by_subject
+            .get(subject)
+            .into_iter()
+            .flatten()
+            .filter_map(|&at| Some((*self.ids.get(at)?, gathered.evidence.get(at)?)))
+    }
+
+    /// The record with `id`, if gathered.
+    pub(crate) fn get<'a>(&self, gathered: &'a Gathered, id: &EvidenceId) -> Option<&'a Evidence> {
+        gathered.evidence.get(*self.by_id.get(id)?)
+    }
+}
+
 /// Combines the producers' `evidence` and `relationships` with the scan's own
 /// facts about `entries` (cloud-backed and holding a browser profile as
 /// `domains`, built from the whole scan, says), observed when the scan finished (`scanned_at`), and
@@ -226,6 +275,37 @@ mod tests {
             .collect::<BTreeSet<EvidenceId>>()
         };
         assert_eq!(ids(at(2)), ids(at(3)));
+    }
+
+    #[test]
+    fn the_index_finds_every_record_by_subject_and_id() {
+        let inventory = summarize(&[]);
+        let entries: Vec<FilesystemEntry> = (1..=20).map(entry).collect();
+        let gathered = gather(
+            &entries,
+            &ScanDomains::new(),
+            &inventory,
+            [owned(3), owned(7), owned(11)],
+            [],
+            at(1),
+            at(2),
+        );
+        let index = EvidenceIndex::new(&gathered);
+        assert_ne!(gathered.evidence.len(), 0);
+        for record in &gathered.evidence {
+            assert_eq!(index.get(&gathered, &record.id()), Some(record));
+            let about: Vec<_> = index.about(&gathered, &record.subject).collect();
+            assert!(about.contains(&(record.id(), record)), "{record:?}");
+            assert!(
+                about
+                    .iter()
+                    .all(|(_, other)| other.subject == record.subject)
+            );
+        }
+        let elsewhere = Subject::File {
+            identity: entry(99).identity().clone(),
+        };
+        assert_eq!(index.about(&gathered, &elsewhere).count(), 0);
     }
 
     #[test]

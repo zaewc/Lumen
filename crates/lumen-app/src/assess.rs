@@ -352,6 +352,8 @@ pub struct Assessment {
     pub entries: Vec<lumen_domain::FilesystemEntry>,
     /// Gathered evidence and relationships.
     pub gathered: lumen_application::gather::Gathered,
+    /// `gathered`'s evidence indexed once for every candidate (#766).
+    pub index: lumen_application::gather::EvidenceIndex,
     /// The graph loaded back from `index.db`.
     pub graph: lumen_graph::Graph,
     /// The machine.
@@ -423,6 +425,7 @@ impl Assessment {
         Sources {
             graph: &self.graph,
             gathered: &self.gathered,
+            index: &self.index,
             scanned: &subtree.entries,
             listings: &subtree.listings,
             context: &self.context,
@@ -657,6 +660,7 @@ fn prepare_with_progress(
     Ok(Assessment {
         roots,
         entries: found.entries,
+        index: lumen_application::gather::EvidenceIndex::new(&gathered),
         gathered,
         graph,
         context,
@@ -1586,9 +1590,11 @@ mod tests {
             single_user: false,
         };
         let knowledge = KnowledgeBase::builtin()?.knowledge();
+        let index = lumen_application::gather::EvidenceIndex::new(gathered);
         let sources = Sources {
             graph: &graph,
             gathered,
+            index: &index,
             scanned: entries,
             listings: &listings,
             context: &context,
