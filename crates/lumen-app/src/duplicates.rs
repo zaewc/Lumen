@@ -166,10 +166,12 @@ fn context() -> Context {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "macos")]
     use lumen_testkit::{Fixture, Node};
 
     use super::*;
 
+    #[cfg(target_os = "macos")]
     fn file(path: &str, contents: &[u8]) -> Node {
         Node::File {
             path: path.into(),
