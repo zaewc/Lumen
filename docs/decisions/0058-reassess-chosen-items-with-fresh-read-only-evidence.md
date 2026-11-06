@@ -1,6 +1,6 @@
 # ADR-0058: Reassess chosen items with fresh read-only evidence
 
-- Status: Proposed
+- Status: Accepted (owner confirmation, 2026-11-06)
 - Date: 2026-11-06
 - Refines: [ADR-0014](0014-deterministic-safety-policy-engine.md) (the policy decides),
   [ADR-0030](0030-partial-in-use-visibility.md) (in-use answers),
