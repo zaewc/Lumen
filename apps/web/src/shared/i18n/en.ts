@@ -82,7 +82,7 @@ export const en = {
       ownCommand: "Own command",
       xcodeManage: "Manage runtimes in Xcode › Settings › Components.",
       dockerManage:
-        "Stopped containers and unused volumes can hold data you need. Lumen does not run prune.",
+        "Docker's unused count includes volumes and stopped containers, which can hold data you need. Its cleanup runs only from Explore, after you confirm the full command, and keeps volumes.",
       sharedStoreNote: "Projects link to this store. Its own command keeps what they still use.",
       cacheNote: "Downloaded again when needed.",
     },

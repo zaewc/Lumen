@@ -83,7 +83,7 @@ export const ja: Messages = {
       ownCommand: "専用コマンド",
       xcodeManage: "ランタイムは Xcode › Settings › Components で管理します。",
       dockerManage:
-        "停止したコンテナや未使用のボリュームにも必要なデータがあるかもしれません。Lumen は prune を実行しません。",
+        "Docker が未使用とみなす量にはボリュームや停止したコンテナも含まれ、必要なデータがあるかもしれません。Docker の整理は「探索」で完全なコマンドを確認したあとにだけ実行し、ボリュームは残します。",
       sharedStoreNote:
         "プロジェクトはこのストアにリンクしています。専用コマンドは使用中のパッケージを残します。",
       cacheNote: "必要に応じて再ダウンロードされます。",

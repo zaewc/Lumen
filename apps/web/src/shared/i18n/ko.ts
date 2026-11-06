@@ -89,7 +89,7 @@ export const ko = {
       ownCommand: "명령으로 정리",
       xcodeManage: "런타임은 Xcode › Settings › Components에서 관리해요.",
       dockerManage:
-        "멈춘 컨테이너와 쓰지 않는 볼륨에도 필요한 데이터가 있을 수 있어요. Lumen은 prune을 실행하지 않아요.",
+        "Docker가 쓰지 않는다고 보는 공간에는 볼륨과 멈춘 컨테이너도 들어 있어서, 필요한 데이터가 있을 수 있어요. Docker 정리는 탐색에서 전체 명령을 확인한 뒤에만 실행하고, 볼륨은 남겨요.",
       sharedStoreNote:
         "프로젝트들이 이 저장소를 연결해 써요. 이 도구의 명령은 아직 쓰는 패키지를 남겨요.",
       cacheNote: "필요하면 다시 내려받아요.",

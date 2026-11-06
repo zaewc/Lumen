@@ -81,7 +81,7 @@ export const es: Messages = {
       ownCommand: "Comando propio",
       xcodeManage: "Gestiona los runtimes en Xcode › Settings › Components.",
       dockerManage:
-        "Los contenedores detenidos y los volúmenes sin usar pueden guardar datos que necesitas. Lumen no ejecuta prune.",
+        "Lo que Docker cuenta como sin usar incluye volúmenes y contenedores detenidos, que pueden guardar datos que necesitas. Su limpieza solo se ejecuta desde Explorar, después de que confirmes el comando completo, y conserva los volúmenes.",
       sharedStoreNote:
         "Los proyectos enlazan a este almacén. Su comando propio conserva lo que aún usan.",
       cacheNote: "Se vuelve a descargar cuando hace falta.",

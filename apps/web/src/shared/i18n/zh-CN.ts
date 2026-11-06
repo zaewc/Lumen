@@ -78,7 +78,8 @@ export const zhCN: Messages = {
       sharedStore: "共享存储",
       ownCommand: "专用命令",
       xcodeManage: "在 Xcode › Settings › Components 中管理运行时。",
-      dockerManage: "已停止的容器和未使用的卷中也可能有你需要的数据。Lumen 不会运行 prune。",
+      dockerManage:
+        "Docker 认为未使用的空间包括卷和已停止的容器，其中可能有你需要的数据。Docker 清理只会在“探索”中确认完整命令后运行，并保留卷。",
       sharedStoreNote: "项目会链接到此存储。它的专用命令会保留仍在使用的包。",
       cacheNote: "需要时会重新下载。",
     },
