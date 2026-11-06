@@ -16,7 +16,7 @@ use std::sync::Arc;
 use lumen_api::views::{
     AiSettingsView, AssessProgressView, CandidateView, DiskView, ExecuteRequest,
     FinalizeOutcomeView, HeldItemView, PlanView, QuarantineReportView, RestoreOutcomeView,
-    ScanProgressView, ScanRequest, ScanView, ToolRunView,
+    ScanProgressView, ScanRequest, ScanView, ToolRunView, ToolStorageView,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -427,6 +427,26 @@ pub(crate) async fn disk() -> Result<DiskView, CommandError> {
         lumen_app::space::volume(&home)
             .map(DiskView::from)
             .map_err(CommandError::new)
+    })
+    .await
+}
+
+/// What Xcode, Docker and the package managers report about their own
+/// storage: read-only queries with fixed arguments, run at the same time so a
+/// slow tool (each is bounded to 30 seconds) does not hold up the others.
+#[tauri::command]
+pub(crate) async fn tool_storage() -> Result<Vec<ToolStorageView>, CommandError> {
+    blocking(move || {
+        let (xcode, docker, packages) = std::thread::scope(|scope| {
+            let xcode = scope.spawn(lumen_app::xcode::inspect);
+            let docker = scope.spawn(lumen_app::docker::inspect);
+            let packages = lumen_app::packages::inspect();
+            (xcode.join(), docker.join(), packages)
+        });
+        let (Ok(xcode), Ok(docker)) = (xcode, docker) else {
+            return Err(CommandError::new("a tool inspection stopped unexpectedly"));
+        };
+        Ok(ToolStorageView::all(&xcode, &docker, &packages))
     })
     .await
 }

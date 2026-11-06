@@ -50,7 +50,11 @@ export type {
   TimesView,
   TimeView,
   ToolCommandView,
+  ToolKindView,
   ToolRunView,
+  ToolStateView,
+  ToolStorageItemView,
+  ToolStorageView,
   UpdateView,
   VerdictView,
 } from "./types.gen";

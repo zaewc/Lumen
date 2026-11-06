@@ -970,6 +970,11 @@ export type ToolCommandView = {
 };
 
 /**
+ * A developer tool whose own storage report the desktop shows (#705, #706, #712).
+ */
+export type ToolKindView = "xcode" | "docker" | "homebrew" | "npm" | "pnpm";
+
+/**
  * How running a tool's command ended (ADR-0049).
  */
 export type ToolRunView = {
@@ -993,6 +998,89 @@ export type ToolRunView = {
    * It ran past the time limit and was stopped.
    */
   timed_out: boolean;
+};
+
+/**
+ * Whether the tool answered. Anything but `found` means unknown, never empty.
+ */
+export type ToolStateView =
+  | {
+      kind: "found";
+    }
+  | {
+      kind: "not_installed";
+    }
+  | {
+      kind: "unsupported";
+    }
+  | {
+      kind: "unavailable";
+      /**
+       * Why, in the core's words, for display.
+       */
+      reason: string;
+    };
+
+/**
+ * One thing a tool reports, in the tool's own words and units.
+ */
+export type ToolStorageItemView = {
+  /**
+   * An exact size in bytes, when the tool gives one.
+   */
+  bytes: string | null;
+  /**
+   * The tool's state or counts for it, if any.
+   */
+  detail: string | null;
+  /**
+   * What it is: a runtime, a Docker category, or a location.
+   */
+  name: string;
+  /**
+   * What the tool itself estimates it could free; not a Lumen promise.
+   */
+  reported_reclaimable: string | null;
+  /**
+   * A size as the tool wrote it (Docker), when it gives no byte count.
+   */
+  reported_size: string | null;
+};
+
+/**
+ * What one developer tool reports about its storage. Read only on request;
+ * nothing here removes anything.
+ */
+export type ToolStorageView = {
+  /**
+   * The tool's own cleanup command, literally; it runs only through the
+   * confirmed flow (ADR-0049).
+   */
+  command: string | null;
+  /**
+   * What it reported.
+   */
+  items: Array<ToolStorageItemView>;
+  /**
+   * Which installation or daemon answered (Docker's context and endpoint).
+   */
+  scope: string | null;
+  /**
+   * The location is a store projects link into (pnpm), not a cache.
+   */
+  shared_store: boolean;
+  /**
+   * Whether it answered.
+   */
+  state: ToolStateView;
+  /**
+   * The tool.
+   */
+  tool: ToolKindView;
+  /**
+   * Its version, as it prints it.
+   */
+  version: string | null;
 };
 
 /**

@@ -1151,3 +1151,237 @@ impl AiSettingsView {
         }
     }
 }
+
+/// A developer tool whose own storage report the desktop shows (#705, #706, #712).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolKindView {
+    /// Xcode's simulator runtimes, through `simctl`.
+    Xcode,
+    /// Docker's images, containers, volumes and build cache.
+    Docker,
+    /// Homebrew's download cache.
+    Homebrew,
+    /// npm's package cache.
+    Npm,
+    /// pnpm's shared package store.
+    Pnpm,
+}
+
+/// Whether the tool answered. Anything but `found` means unknown, never empty.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ToolStateView {
+    /// The tool answered completely.
+    Found,
+    /// The program is not installed where the user's terminal would find it.
+    NotInstalled,
+    /// This platform has no such tool or adapter.
+    Unsupported,
+    /// The tool could not answer completely.
+    Unavailable {
+        /// Why, in the core's words, for display.
+        reason: String,
+    },
+}
+
+/// One thing a tool reports, in the tool's own words and units.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ToolStorageItemView {
+    /// What it is: a runtime, a Docker category, or a location.
+    pub name: String,
+    /// The tool's state or counts for it, if any.
+    #[schema(required = true)]
+    pub detail: Option<String>,
+    /// An exact size in bytes, when the tool gives one.
+    #[schema(required = true)]
+    pub bytes: Option<String>,
+    /// A size as the tool wrote it (Docker), when it gives no byte count.
+    #[schema(required = true)]
+    pub reported_size: Option<String>,
+    /// What the tool itself estimates it could free; not a Lumen promise.
+    #[schema(required = true)]
+    pub reported_reclaimable: Option<String>,
+}
+
+/// What one developer tool reports about its storage. Read only on request;
+/// nothing here removes anything.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ToolStorageView {
+    /// The tool.
+    pub tool: ToolKindView,
+    /// Whether it answered.
+    pub state: ToolStateView,
+    /// Its version, as it prints it.
+    #[schema(required = true)]
+    pub version: Option<String>,
+    /// Which installation or daemon answered (Docker's context and endpoint).
+    #[schema(required = true)]
+    pub scope: Option<String>,
+    /// What it reported.
+    pub items: Vec<ToolStorageItemView>,
+    /// The tool's own cleanup command, literally; it runs only through the
+    /// confirmed flow (ADR-0049).
+    #[schema(required = true)]
+    pub command: Option<String>,
+    /// The location is a store projects link into (pnpm), not a cache.
+    pub shared_store: bool,
+}
+
+impl ToolStorageView {
+    const fn empty(tool: ToolKindView, state: ToolStateView) -> Self {
+        Self {
+            tool,
+            state,
+            version: None,
+            scope: None,
+            items: Vec::new(),
+            command: None,
+            shared_store: false,
+        }
+    }
+
+    fn failed(tool: ToolKindView, error: &lumen_app::xcode::InspectionError) -> Self {
+        use lumen_app::tools::ToolError;
+        use lumen_app::xcode::InspectionError;
+        let state = match error {
+            InspectionError::Tool(ToolError::NotFound(_)) => ToolStateView::NotInstalled,
+            InspectionError::Unsupported => ToolStateView::Unsupported,
+            other => ToolStateView::Unavailable {
+                reason: other.to_string(),
+            },
+        };
+        Self::empty(tool, state)
+    }
+
+    /// Every tool's report, in a fixed order.
+    pub fn all(
+        xcode: &Result<lumen_app::xcode::Inventory, lumen_app::xcode::InspectionError>,
+        docker: &Result<lumen_app::docker::Inventory, lumen_app::xcode::InspectionError>,
+        packages: &lumen_app::packages::Inventory,
+    ) -> Vec<Self> {
+        let mut views = vec![
+            match xcode {
+                Ok(inventory) => Self {
+                    items: inventory
+                        .runtimes
+                        .iter()
+                        .map(|runtime| ToolStorageItemView {
+                            name: format!("{} ({})", runtime.version, runtime.build),
+                            detail: Some(runtime.state.clone()),
+                            bytes: runtime.reported_image_bytes.clone(),
+                            reported_size: None,
+                            reported_reclaimable: None,
+                        })
+                        .collect(),
+                    ..Self::empty(ToolKindView::Xcode, ToolStateView::Found)
+                },
+                Err(error) => Self::failed(ToolKindView::Xcode, error),
+            },
+            match docker {
+                Ok(inventory) => Self {
+                    version: Some(inventory.client_version.clone()),
+                    scope: Some(format!("{} ({})", inventory.context, inventory.endpoint)),
+                    items: inventory
+                        .categories
+                        .iter()
+                        .map(|usage| ToolStorageItemView {
+                            name: usage.kind.clone(),
+                            detail: Some(format!("{}/{}", usage.active, usage.total)),
+                            bytes: None,
+                            reported_size: Some(usage.reported_size.clone()),
+                            reported_reclaimable: Some(usage.reported_reclaimable.clone()),
+                        })
+                        .collect(),
+                    ..Self::empty(ToolKindView::Docker, ToolStateView::Found)
+                },
+                Err(error) => Self::failed(ToolKindView::Docker, error),
+            },
+        ];
+        views.extend(packages.tools.iter().map(Self::package));
+        views
+    }
+
+    fn package(tool: &lumen_app::packages::Tool) -> Self {
+        use lumen_app::packages::{Status, StoreKind};
+        let kind = match tool.name {
+            "Homebrew" => ToolKindView::Homebrew,
+            "npm" => ToolKindView::Npm,
+            _ => ToolKindView::Pnpm,
+        };
+        let (state, version, items) = match &tool.status {
+            Status::Found { version, location } => (
+                ToolStateView::Found,
+                Some(version.clone()),
+                vec![ToolStorageItemView {
+                    name: location.clone(),
+                    detail: None,
+                    bytes: None,
+                    reported_size: None,
+                    reported_reclaimable: None,
+                }],
+            ),
+            Status::NotInstalled => (ToolStateView::NotInstalled, None, Vec::new()),
+            Status::Unavailable { reason } => (
+                ToolStateView::Unavailable {
+                    reason: reason.clone(),
+                },
+                None,
+                Vec::new(),
+            ),
+        };
+        Self {
+            version,
+            items,
+            command: tool.cleanup.clone(),
+            shared_store: tool.kind == StoreKind::SharedStore,
+            ..Self::empty(kind, state)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tool_storage_tests {
+    use super::*;
+    use lumen_app::packages::{Inventory as Packages, Status, StoreKind, Tool};
+    use lumen_app::tools::ToolError;
+    use lumen_app::xcode::InspectionError;
+
+    #[test]
+    fn missing_unsupported_and_failed_tools_are_unknown_never_empty() {
+        let packages = Packages {
+            schema_version: 1,
+            tools: vec![Tool {
+                name: "pnpm",
+                kind: StoreKind::SharedStore,
+                entry: "pnpm-store",
+                cleanup: Some("pnpm store prune".into()),
+                status: Status::Found {
+                    version: "10.33.0".into(),
+                    location: "/Users/a/Library/pnpm/store/v10".into(),
+                },
+            }],
+            limitation: "",
+        };
+        let views = ToolStorageView::all(
+            &Err(InspectionError::Unsupported),
+            &Err(InspectionError::Tool(ToolError::NotFound("docker".into()))),
+            &packages,
+        );
+        assert_eq!(views[0].state, ToolStateView::Unsupported);
+        assert_eq!(views[1].state, ToolStateView::NotInstalled);
+        assert!(views[0].items.is_empty() && views[1].items.is_empty());
+        assert_eq!(views[2].tool, ToolKindView::Pnpm);
+        assert!(views[2].shared_store);
+        assert_eq!(views[2].command.as_deref(), Some("pnpm store prune"));
+        let timed_out = ToolStorageView::all(
+            &Err(InspectionError::Timeout),
+            &Err(InspectionError::Timeout),
+            &packages,
+        );
+        assert!(matches!(
+            timed_out[0].state,
+            ToolStateView::Unavailable { .. }
+        ));
+    }
+}

@@ -554,6 +554,11 @@ export const zToolCommandView = z.object({
 });
 
 /**
+ * A developer tool whose own storage report the desktop shows (#705, #706, #712).
+ */
+export const zToolKindView = z.enum(["xcode", "docker", "homebrew", "npm", "pnpm"]);
+
+/**
  * How running a tool's command ended (ADR-0049).
  */
 export const zToolRunView = z.object({
@@ -566,6 +571,50 @@ export const zToolRunView = z.object({
   space_changes: z.array(zSpaceChangeView).nullable(),
   success: z.boolean(),
   timed_out: z.boolean(),
+});
+
+/**
+ * Whether the tool answered. Anything but `found` means unknown, never empty.
+ */
+export const zToolStateView = z.union([
+  z.object({
+    kind: z.enum(["found"]),
+  }),
+  z.object({
+    kind: z.enum(["not_installed"]),
+  }),
+  z.object({
+    kind: z.enum(["unsupported"]),
+  }),
+  z.object({
+    kind: z.enum(["unavailable"]),
+    reason: z.string(),
+  }),
+]);
+
+/**
+ * One thing a tool reports, in the tool's own words and units.
+ */
+export const zToolStorageItemView = z.object({
+  bytes: z.string().nullable(),
+  detail: z.string().nullable(),
+  name: z.string(),
+  reported_reclaimable: z.string().nullable(),
+  reported_size: z.string().nullable(),
+});
+
+/**
+ * What one developer tool reports about its storage. Read only on request;
+ * nothing here removes anything.
+ */
+export const zToolStorageView = z.object({
+  command: z.string().nullable(),
+  items: z.array(zToolStorageItemView),
+  scope: z.string().nullable(),
+  shared_store: z.boolean(),
+  state: zToolStateView,
+  tool: zToolKindView,
+  version: z.string().nullable(),
 });
 
 /**

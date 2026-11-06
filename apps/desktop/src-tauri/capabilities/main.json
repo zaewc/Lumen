@@ -19,6 +19,7 @@
     "allow-set-theme",
     "allow-check-update",
     "allow-install-update",
-    "allow-run-tool-command"
+    "allow-run-tool-command",
+    "allow-tool-storage"
   ]
 }

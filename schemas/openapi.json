@@ -1741,6 +1741,17 @@
           }
         }
       },
+      "ToolKindView": {
+        "type": "string",
+        "description": "A developer tool whose own storage report the desktop shows (#705, #706, #712).",
+        "enum": [
+          "xcode",
+          "docker",
+          "homebrew",
+          "npm",
+          "pnpm"
+        ]
+      },
       "ToolRunView": {
         "type": "object",
         "description": "How running a tool's command ended (ADR-0049).",
@@ -1781,6 +1792,176 @@
           "timed_out": {
             "type": "boolean",
             "description": "It ran past the time limit and was stopped."
+          }
+        }
+      },
+      "ToolStateView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "The tool answered completely.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "found"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The program is not installed where the user's terminal would find it.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_installed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "This platform has no such tool or adapter.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unsupported"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The tool could not answer completely.",
+            "required": [
+              "reason",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unavailable"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "description": "Why, in the core's words, for display."
+              }
+            }
+          }
+        ],
+        "description": "Whether the tool answered. Anything but `found` means unknown, never empty."
+      },
+      "ToolStorageItemView": {
+        "type": "object",
+        "description": "One thing a tool reports, in the tool's own words and units.",
+        "required": [
+          "name",
+          "detail",
+          "bytes",
+          "reported_size",
+          "reported_reclaimable"
+        ],
+        "properties": {
+          "bytes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "An exact size in bytes, when the tool gives one."
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The tool's state or counts for it, if any."
+          },
+          "name": {
+            "type": "string",
+            "description": "What it is: a runtime, a Docker category, or a location."
+          },
+          "reported_reclaimable": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the tool itself estimates it could free; not a Lumen promise."
+          },
+          "reported_size": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A size as the tool wrote it (Docker), when it gives no byte count."
+          }
+        }
+      },
+      "ToolStorageView": {
+        "type": "object",
+        "description": "What one developer tool reports about its storage. Read only on request;\nnothing here removes anything.",
+        "required": [
+          "tool",
+          "state",
+          "version",
+          "scope",
+          "items",
+          "command",
+          "shared_store"
+        ],
+        "properties": {
+          "command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The tool's own cleanup command, literally; it runs only through the\nconfirmed flow (ADR-0049)."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolStorageItemView"
+            },
+            "description": "What it reported."
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Which installation or daemon answered (Docker's context and endpoint)."
+          },
+          "shared_store": {
+            "type": "boolean",
+            "description": "The location is a store projects link into (pnpm), not a cache."
+          },
+          "state": {
+            "$ref": "#/components/schemas/ToolStateView",
+            "description": "Whether it answered."
+          },
+          "tool": {
+            "$ref": "#/components/schemas/ToolKindView",
+            "description": "The tool."
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its version, as it prints it."
           }
         }
       },

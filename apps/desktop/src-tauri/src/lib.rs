@@ -135,6 +135,7 @@ pub fn app<R: Runtime>(
             commands::set_ai_review,
             commands::set_ai_key,
             commands::run_tool_command,
+            commands::tool_storage,
             update::check_update,
             update::install_update,
         ])

@@ -134,6 +134,7 @@ Assumptions:
 | Elevation of privilege | A tool command runs with administrator rights | The desktop host refuses privileged execution; programs are resolved to absolute executable paths from the user's search directories, as in their terminal (ADR-0049) |
 | Tampering | The page supplies an arbitrary command | The page names a knowledge-base entry matched by the latest assessment; the host looks up its reviewed program and literal arguments; no shell, one command at a time, explicit confirmation of irreversible removal, shown by the page; the host takes no confirmation ([FS-1](public-beta-readiness.md#fs-1-webview-only-confirmation-can-authorize-irreversible-actions)) |
 | Tampering | Tool output misparsed into a false success | Success comes from the exit status, never output parsing; output is bounded display text; a new scan measures the resulting space |
+| Tampering, information disclosure | Tool storage inspection (`tool_storage`) is used to run something, or a hostile tool's output spoofs the page | The command takes no input: fixed read-only queries (`xcrun simctl runtime list --json`, `docker … system df`, `brew --cache`, `npm config get cache`, `pnpm store path`), no shell, closed input, 30 s and 8 KiB bounds, Docker pinned to the context it reports; output is validated (complete rows, single-line absolute paths) and escaped as untrusted text, and a failure is shown as unknown, never as empty |
 
 ### TB7: Supply chain and CI
 
