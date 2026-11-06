@@ -190,36 +190,74 @@ fn executable(pid: c_int) -> Option<Vec<u8>> {
     Some(buffer)
 }
 
-fn inspect(pid: c_int, target: &Target) -> Seen {
+/// An object a process uses, as the kernel reports it.
+struct Object {
+    device: u32,
+    inode: u64,
+    path: Vec<u8>,
+}
+
+/// A process's executable: its path and, if it could be read, its device and
+/// inode.
+type Executable = (Vec<u8>, Option<(u32, u64)>);
+
+/// A readable process: who it is and everything it uses.
+struct Visible {
+    process: Process,
+    exe: Option<Executable>,
+    /// The working directory and every open vnode.
+    objects: Vec<Object>,
+}
+
+/// One process as read from the kernel: what it uses, or why it could not be
+/// read.
+enum Observed {
+    /// Its executable, working directory and open files.
+    Visible(Box<Visible>),
+    /// It exited while being read: it uses nothing.
+    Gone,
+    /// Its file descriptors could not be read (another user's process).
+    Hidden,
+}
+
+fn observe(pid: c_int) -> Observed {
     let open = match fds(pid) {
         Ok(open) => open,
-        Err(errno) => return fd_listing_failure(errno),
+        Err(errno) => {
+            return match fd_listing_failure(errno) {
+                Seen::Clean => Observed::Gone,
+                _ => Observed::Hidden,
+            };
+        }
     };
-    let exe = executable(pid);
-    let exe_matches = exe.as_deref().is_some_and(|path| {
-        target
-            .under
-            .as_deref()
-            .is_some_and(|dir| path.starts_with(dir))
-            || std::fs::metadata(Path::new(std::ffi::OsStr::from_bytes(path)))
-                .is_ok_and(|m| low_32(m.dev()) == target.device && m.ino() == target.inode)
+    let exe = executable(pid).map(|path| {
+        let identity = std::fs::metadata(Path::new(std::ffi::OsStr::from_bytes(&path)))
+            .ok()
+            .map(|m| (low_32(m.dev()), m.ino()));
+        (path, identity)
     });
-    let cwd_matches = pid_info::<libc::proc_vnodepathinfo>(pid, libc::PROC_PIDVNODEPATHINFO, 0)
-        .is_some_and(|info| {
-            let vi = info.pvi_cdir.vip_vi.vi_stat;
-            target.matches(vi.vst_dev, vi.vst_ino, &c_path(&info.pvi_cdir.vip_path))
+    let mut objects = Vec::new();
+    if let Some(info) = pid_info::<libc::proc_vnodepathinfo>(pid, libc::PROC_PIDVNODEPATHINFO, 0) {
+        let vi = info.pvi_cdir.vip_vi.vi_stat;
+        objects.push(Object {
+            device: vi.vst_dev,
+            inode: vi.vst_ino,
+            path: c_path(&info.pvi_cdir.vip_path),
         });
-    let fd_matches = open
-        .iter()
-        .filter(|fd| i32::try_from(fd.proc_fdtype).ok() == Some(libc::PROX_FDTYPE_VNODE))
-        .filter_map(|fd| vnode_of(pid, fd.proc_fd))
-        .any(|info| {
-            let st = info.pvip.vip_vi.vi_stat;
-            target.matches(st.vst_dev, st.vst_ino, &c_path(&info.pvip.vip_path))
-        });
-    if !(exe_matches || cwd_matches || fd_matches) {
-        return Seen::Clean;
     }
+    objects.extend(
+        open.iter()
+            .filter(|fd| i32::try_from(fd.proc_fdtype).ok() == Some(libc::PROX_FDTYPE_VNODE))
+            .filter_map(|fd| vnode_of(pid, fd.proc_fd))
+            .map(|info| {
+                let st = info.pvip.vip_vi.vi_stat;
+                Object {
+                    device: st.vst_dev,
+                    inode: st.vst_ino,
+                    path: c_path(&info.pvip.vip_path),
+                }
+            }),
+    );
     let started_at =
         pid_info::<libc::proc_bsdinfo>(pid, libc::PROC_PIDTBSDINFO, 0).and_then(|bsd| {
             let micros = u32::try_from(bsd.pbi_start_tvusec).ok()?;
@@ -229,13 +267,52 @@ fn inspect(pid: c_int, target: &Target) -> Seen {
             )
             .ok()
         });
-    Seen::Uses(Process {
-        pid: u32::try_from(pid).unwrap_or_default(),
-        started_at,
-        executable: exe.and_then(|path| RawPath::from_unix_bytes(path).ok()),
-        executable_identity: None,
-        application: None,
-    })
+    Observed::Visible(Box::new(Visible {
+        process: Process {
+            pid: u32::try_from(pid).unwrap_or_default(),
+            started_at,
+            executable: exe
+                .as_ref()
+                .and_then(|(path, _)| RawPath::from_unix_bytes(path.clone()).ok()),
+            executable_identity: None,
+            application: None,
+        },
+        exe,
+        objects,
+    }))
+}
+
+impl Observed {
+    /// Whether this process uses `target`.
+    fn seen(&self, target: &Target) -> Seen {
+        match self {
+            Self::Gone => Seen::Clean,
+            Self::Hidden => Seen::Hidden,
+            Self::Visible(visible) => {
+                let Visible {
+                    process,
+                    exe,
+                    objects,
+                } = visible.as_ref();
+                let exe_matches = exe.as_ref().is_some_and(|(path, identity)| {
+                    target
+                        .under
+                        .as_deref()
+                        .is_some_and(|dir| path.starts_with(dir))
+                        || *identity == Some((target.device, target.inode))
+                });
+                let uses = exe_matches
+                    || objects
+                        .iter()
+                        .any(|object| target.matches(object.device, object.inode, &object.path));
+                if uses {
+                    Seen::Uses(process.clone())
+                } else {
+                    Seen::Clean
+                }
+            }
+        }
+    }
 }
 
 fn all_pids() -> Option<Vec<c_int>> {
@@ -253,70 +330,127 @@ fn all_pids() -> Option<Vec<c_int>> {
     Some(pids)
 }
 
+/// What to look for at `path`, which must still be `expected`; the answer to
+/// give instead when it cannot be established.
+fn target(path: &RawPath, expected: &FileIdentity) -> Result<Target, InUse> {
+    if path.flavor() != PathFlavor::Unix {
+        return Err(InUse::Unknown {
+            reason: "not a Unix path",
+        });
+    }
+    let native = Path::new(std::ffi::OsStr::from_bytes(path.as_bytes()));
+    let Ok(meta) = std::fs::symlink_metadata(native) else {
+        return Err(InUse::Unknown {
+            reason: "the object cannot be observed",
+        });
+    };
+    // Same identity rule as the enumerators (`MetadataExt::dev` sign-extends).
+    let identity_matches = VolumeId::new(format!("dev:{:x}", meta.dev()))
+        .is_ok_and(|volume| volume == expected.volume)
+        && u128::from(meta.ino()) == expected.file.get();
+    if !identity_matches {
+        return Err(InUse::Unknown {
+            reason: "the object changed since it was observed",
+        });
+    }
+    let under = meta.is_dir().then(|| {
+        std::fs::canonicalize(native).ok().map(|dir| {
+            let mut prefix = dir.as_os_str().as_bytes().to_vec();
+            if !prefix.ends_with(b"/") {
+                prefix.push(b'/');
+            }
+            prefix
+        })
+    });
+    let Some(under) = under.map_or(Some(None), |p| p.map(Some)) else {
+        return Err(InUse::Unknown {
+            reason: "the directory cannot be resolved",
+        });
+    };
+    Ok(Target {
+        device: low_32(meta.dev()),
+        inode: meta.ino(),
+        under,
+    })
+}
+
+/// The answer from what every process revealed.
+fn answer(seen: impl Iterator<Item = Seen>) -> InUse {
+    let mut users = Vec::new();
+    let mut unseen = 0_u32;
+    for one in seen {
+        match one {
+            Seen::Uses(process) => users.push(process),
+            Seen::Clean => {}
+            Seen::Hidden => unseen = unseen.saturating_add(1),
+        }
+    }
+    if !users.is_empty() {
+        InUse::Yes(users)
+    } else if unseen > 0 {
+        InUse::Partial {
+            unseen: Some(unseen),
+        }
+    } else {
+        InUse::No
+    }
+}
+
+/// The process list could not be read: nothing is known.
+const NO_PROCESS_LIST: InUse = InUse::Unknown {
+    reason: "the process list cannot be read",
+};
+
 impl InUseProbe for ProcessProbe {
     fn probe(&self, path: &RawPath, expected: &FileIdentity) -> InUse {
-        if path.flavor() != PathFlavor::Unix {
-            return InUse::Unknown {
-                reason: "not a Unix path",
-            };
-        }
-        let native = Path::new(std::ffi::OsStr::from_bytes(path.as_bytes()));
-        let Ok(meta) = std::fs::symlink_metadata(native) else {
-            return InUse::Unknown {
-                reason: "the object cannot be observed",
-            };
-        };
-        // Same identity rule as the enumerators (`MetadataExt::dev` sign-extends).
-        let identity_matches = VolumeId::new(format!("dev:{:x}", meta.dev()))
-            .is_ok_and(|volume| volume == expected.volume)
-            && u128::from(meta.ino()) == expected.file.get();
-        if !identity_matches {
-            return InUse::Unknown {
-                reason: "the object changed since it was observed",
-            };
-        }
-        let under = meta.is_dir().then(|| {
-            std::fs::canonicalize(native).ok().map(|dir| {
-                let mut prefix = dir.as_os_str().as_bytes().to_vec();
-                if !prefix.ends_with(b"/") {
-                    prefix.push(b'/');
-                }
-                prefix
-            })
-        });
-        let Some(under) = under.map_or(Some(None), |p| p.map(Some)) else {
-            return InUse::Unknown {
-                reason: "the directory cannot be resolved",
-            };
-        };
-        let target = Target {
-            device: low_32(meta.dev()),
-            inode: meta.ino(),
-            under,
+        let target = match target(path, expected) {
+            Ok(target) => target,
+            Err(unknown) => return unknown,
         };
         let Some(pids) = all_pids() else {
-            return InUse::Unknown {
-                reason: "the process list cannot be read",
-            };
+            return NO_PROCESS_LIST;
         };
-        let mut users = Vec::new();
-        let mut unseen = 0_u32;
-        for pid in pids {
-            match inspect(pid, &target) {
-                Seen::Uses(process) => users.push(process),
-                Seen::Clean => {}
-                Seen::Hidden => unseen = unseen.saturating_add(1),
-            }
+        answer(pids.into_iter().map(|pid| observe(pid).seen(&target)))
+    }
+}
+
+impl ProcessProbe {
+    /// Reads every process once, for answering many questions at one moment:
+    /// an assessment's candidates. Its answers describe that moment; moving
+    /// and removing ask the live [`ProcessProbe`] again, item by item.
+    #[must_use]
+    pub fn snapshot(self) -> ProcessSnapshot {
+        ProcessSnapshot {
+            processes: all_pids().map(|pids| pids.into_iter().map(observe).collect()),
         }
-        if !users.is_empty() {
-            InUse::Yes(users)
-        } else if unseen > 0 {
-            InUse::Partial {
-                unseen: Some(unseen),
-            }
-        } else {
-            InUse::No
-        }
+    }
+}
+
+/// The process table read once by [`ProcessProbe::snapshot`]; answers by the
+/// same rules as [`ProcessProbe`].
+pub struct ProcessSnapshot {
+    /// `None` if the process list could not be read.
+    processes: Option<Vec<Observed>>,
+}
+
+impl std::fmt::Debug for ProcessSnapshot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProcessSnapshot")
+            .field("processes", &self.processes.as_ref().map(Vec::len))
+            .finish()
+    }
+}
+
+impl InUseProbe for ProcessSnapshot {
+    fn probe(&self, path: &RawPath, expected: &FileIdentity) -> InUse {
+        let target = match target(path, expected) {
+            Ok(target) => target,
+            Err(unknown) => return unknown,
+        };
+        let Some(processes) = &self.processes else {
+            return NO_PROCESS_LIST;
+        };
+        answer(processes.iter().map(|process| process.seen(&target)))
     }
 }
 
@@ -370,14 +504,37 @@ mod tests {
         let file = dir.path().join("held");
         std::fs::write(&file, b"x")?;
         let _held = std::fs::File::open(&file)?;
-        for target in [file.as_path(), dir.path()] {
-            let (raw, id) = identity(target)?;
-            let answer = ProcessProbe.probe(&raw, &id);
-            assert!(
-                matches!(&answer, InUse::Yes(users) if users.iter().any(|p| p.pid == me())),
-                "{target:?}: {answer:?}"
-            );
+        let snapshot = ProcessProbe.snapshot();
+        for probe in [&ProcessProbe as &dyn InUseProbe, &snapshot] {
+            for target in [file.as_path(), dir.path()] {
+                let (raw, id) = identity(target)?;
+                let answer = probe.probe(&raw, &id);
+                assert!(
+                    matches!(&answer, InUse::Yes(users) if users.iter().any(|p| p.pid == me())),
+                    "{target:?}: {answer:?}"
+                );
+            }
         }
+        Ok(())
+    }
+
+    #[test]
+    fn a_snapshot_answers_for_the_moment_it_was_taken() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("later");
+        std::fs::write(&file, b"x")?;
+        let before = ProcessProbe.snapshot();
+        let _held = std::fs::File::open(&file)?;
+        let (raw, id) = identity(&file)?;
+        assert!(
+            matches!(before.probe(&raw, &id), InUse::No | InUse::Partial { .. }),
+            "opened after the snapshot"
+        );
+        assert!(matches!(ProcessProbe.probe(&raw, &id), InUse::Yes(_)));
+        assert!(matches!(
+            ProcessProbe.snapshot().probe(&raw, &id),
+            InUse::Yes(_)
+        ));
         Ok(())
     }
 
@@ -388,11 +545,15 @@ mod tests {
         let file = dir.path().join("idle");
         std::fs::write(&file, b"x")?;
         let (raw, id) = identity(&file)?;
-        let answer = ProcessProbe.probe(&raw, &id);
-        assert!(
-            matches!(answer, InUse::No | InUse::Partial { .. }),
-            "{answer:?}"
-        );
+        for answer in [
+            ProcessProbe.probe(&raw, &id),
+            ProcessProbe.snapshot().probe(&raw, &id),
+        ] {
+            assert!(
+                matches!(answer, InUse::No | InUse::Partial { .. }),
+                "{answer:?}"
+            );
+        }
         Ok(())
     }
 
@@ -404,6 +565,10 @@ mod tests {
         let (_, a) = identity(&dir.path().join("a"))?;
         let (b, _) = identity(&dir.path().join("b"))?;
         assert!(matches!(ProcessProbe.probe(&b, &a), InUse::Unknown { .. }));
+        assert!(matches!(
+            ProcessProbe.snapshot().probe(&b, &a),
+            InUse::Unknown { .. }
+        ));
         let gone =
             RawPath::from_unix_bytes(dir.path().join("gone").as_os_str().as_bytes().to_vec())?;
         assert!(matches!(

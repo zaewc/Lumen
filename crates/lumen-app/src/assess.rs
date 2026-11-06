@@ -984,32 +984,33 @@ pub fn assess_with_progress(
         counter.set(counter.get().saturating_add(1));
         jev_request(input, counter.get(), assessment.inventories_complete, now)
     };
-    let assessed = with_probes(|probes| -> Result<Vec<Assessed>, AssessError> {
-        let mut assessed = Vec::new();
-        for (index, candidate) in candidates.iter().enumerate() {
-            // Only this candidate's part of the scan is read, and dropped
-            // after its decision; candidates inside it are decided on their
-            // own, so its decision covers the rest.
-            let inner = nested(candidate, &candidates);
-            let subtree = assessment.subtree_without(&candidate.path, &inner)?;
-            let sources = assessment.sources(&subtree);
-            if let Some(decided) = failures.record(
-                block_on(decide_candidate(
-                    candidate, &sources, probes, &judge, clock, &request,
-                )),
-                "assessment",
-            ) {
-                assessed.push(decided);
+    let assessed =
+        crate::probes::with_assessment_probes(|probes| -> Result<Vec<Assessed>, AssessError> {
+            let mut assessed = Vec::new();
+            for (index, candidate) in candidates.iter().enumerate() {
+                // Only this candidate's part of the scan is read, and dropped
+                // after its decision; candidates inside it are decided on their
+                // own, so its decision covers the rest.
+                let inner = nested(candidate, &candidates);
+                let subtree = assessment.subtree_without(&candidate.path, &inner)?;
+                let sources = assessment.sources(&subtree);
+                if let Some(decided) = failures.record(
+                    block_on(decide_candidate(
+                        candidate, &sources, probes, &judge, clock, &request,
+                    )),
+                    "assessment",
+                ) {
+                    assessed.push(decided);
+                }
+                report(
+                    progress,
+                    AssessStage::Deciding,
+                    u64::try_from(index + 1).unwrap_or(u64::MAX),
+                    total,
+                );
             }
-            report(
-                progress,
-                AssessStage::Deciding,
-                u64::try_from(index + 1).unwrap_or(u64::MAX),
-                total,
-            );
-        }
-        Ok(assessed)
-    })??;
+            Ok(assessed)
+        })??;
     let mut assessed = assessed;
     block_on(lumen_application::describe::describe_with_progress(
         describer,

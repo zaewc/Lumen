@@ -50,4 +50,4 @@ pub use keychain::{KeychainStore, SERVICE as KEYCHAIN_SERVICE};
 #[cfg(target_os = "macos")]
 pub use launchd::LaunchdInventory;
 #[cfg(target_os = "macos")]
-pub use probe::ProcessProbe;
+pub use probe::{ProcessProbe, ProcessSnapshot};
