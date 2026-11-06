@@ -218,8 +218,22 @@ Baseline on the machine above, 2026-11-06, seed 1, macOS temporary directory (AP
 | 200 | 1,820 | 571 ms | 70 ms | 13.7 s | 21 / 42 MiB | 805 / 805 | 0 |
 | 1,000 | 9,020 | 637 ms | 398 ms | 106.5 s | 33 / 114 MiB | 4,005 / 4,005 | 0 |
 
-Scanning stays fast, but assessing grows faster than the number of candidates: 5×
-the candidates took 7.8× as long (about 17 ms, then 27 ms, per candidate). The
-per-candidate checks, such as the in-use probe that walks every process's open
-files, are the first place to look. These numbers are baselines, not targets; the
-issue rules out setting targets before measuring.
+Before #766, assessing grew faster than the number of candidates: 5× the
+candidates took 7.8× as long. A `sample` profile showed two costs paid once per
+candidate:
+- re-hashing every gathered evidence record to find the cited ones;
+- re-reading the whole process table from the kernel for the in-use probe.
+
+The evidence is now indexed once per assessment (#767). On macOS the process table
+is read once per assessment and every candidate is answered from it. Quarantine and
+finalize still ask the kernel live, item by item.
+
+With both changes, same machine and seed:
+
+| Projects | Assess before | Evidence index only | Both | Peak RSS assess | Unsafe |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 200 | 13.7 s | 8.3 s | 1.5 s | 51 MiB | 0 |
+| 1,000 | 106.5 s | 39.4 s | 1.7 s | 125 MiB | 0 |
+
+These numbers are baselines, not targets; the issue rules out setting targets
+before measuring.
