@@ -305,6 +305,19 @@ pub struct Subtree {
 }
 
 impl Subtree {
+    /// A subtree listed again now (ADR-0058), without the `nested` paths and
+    /// everything below them, measured as one read from the store is.
+    pub(crate) fn listed(
+        entries: Vec<lumen_domain::FilesystemEntry>,
+        listings: Vec<(RawPath, lumen_application::ports::DirOutcome)>,
+        nested: &[&RawPath],
+    ) -> Self {
+        let mut subtree = Self { entries, listings };
+        subtree.carve(nested);
+        measure(&mut subtree);
+        subtree
+    }
+
     /// Leaves out the `nested` paths and everything below them.
     fn carve(&mut self, nested: &[&RawPath]) {
         if nested.is_empty() {

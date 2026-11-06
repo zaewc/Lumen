@@ -306,7 +306,10 @@ Every other rule is a decision, and anything AI review changed is never re-decid
 `reassess` decides the item again with the unchanged policy and no judge, only while
 its path still names the scanned object. It records the earlier verdict and rules and
 the evidence the new decision added. `reassess_all` takes at most 500 items and stops
-when cancelled.
+when cancelled. `lumen_app::reassess` runs the checks:
+- it loads the scan's evidence again, with the inventories read now;
+- it lists an unread or stale item again from the filesystem, read-only, for at most 30 s, after which the rest stays unlisted and kept;
+- it asks the live in-use probe, never the assessment's snapshot.
 
 ## 9. Explainability
 

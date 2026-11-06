@@ -18,6 +18,7 @@ pub mod plan;
 mod probes;
 #[cfg(any(unix, windows))]
 pub mod quarantine;
+pub mod reassess;
 pub mod roots;
 mod runtime;
 pub mod scan;
