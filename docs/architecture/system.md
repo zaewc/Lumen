@@ -484,16 +484,29 @@ buffer. The samples use BLAKE3 rather than ADR-0019's XXH3, which avoids a secon
 hash dependency; only the full hash establishes equality either way. A file with a
 resource fork never matches its scanned size and is skipped.
 
+On Windows, `lumen_platform_windows::DuplicateReader` does the same with cloud
+placeholders exposed for its thread. It first opens the file for its attributes
+only and refuses reparse points, offline, recall-on-open and recall-on-access
+files, system files and directories, or an object that is not the scanned one.
+Only then does it open the file again with `FILE_READ_DATA`, all share modes and no
+backup semantics, so a file's access checks always apply. It attests that handle's
+volume serial, file ID, size, last-write and change times before and after reading.
+A junction in a parent folder can redirect an open, but the file ID then differs
+and the file is skipped as changed.
+
 `lumen duplicates <PATH>... [--json]` (`lumen_app::duplicates::find`) runs both
 on folders the user names, never the whole disk by default. It lists them afresh
 from their real paths, skips quarantine stores like a scan, and leaves every file
 in a protected location unread (`lumen_policy::protected_location`, which fails
 closed when the location data or home is unknown). It prints paths and sizes for
-review; digests never leave the process, and nothing is chosen or removed. Other
-platforms report that the analysis is unsupported rather than finding nothing.
+review; digests never leave the process, and nothing is chosen or removed. On
+Windows the roots lose `canonicalize`'s `\\?\` prefix for drive paths, as the
+scanner adds it itself. Linux reports that the analysis is unsupported rather than
+finding nothing.
 
 In the desktop app, `compare_folders` takes no path: the host opens the system
-folder dialog and compares only the folders the person picks (ADR-0057).
+folder dialog and compares only the folders the person picks (ADR-0057). The
+dialog is wired on macOS so far; elsewhere the app says comparing is unsupported.
 
 See [ADR-0019](../decisions/0019-staged-duplicate-detection.md). Exact duplicates are
 found in stages ending in a BLAKE3 content ID. Near-duplicates are `REVIEW` only.

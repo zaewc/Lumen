@@ -222,7 +222,7 @@ fn identity_of(handle: &Handle) -> io::Result<(VolumeId, FileIdentity)> {
 }
 
 /// The attributes of an open object, in the shape of a directory record.
-fn describe(handle: &Handle) -> io::Result<(VolumeId, DirRecord)> {
+pub(crate) fn describe(handle: &Handle) -> io::Result<(VolumeId, DirRecord)> {
     let (volume, identity) = identity_of(handle)?;
     let basic = sys::basic(handle)?;
     let standard = sys::standard(handle)?;

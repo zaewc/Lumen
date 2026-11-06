@@ -14,6 +14,8 @@ lumen-domain.workspace = true
 thiserror.workspace = true
 
 [target.'cfg(windows)'.dependencies]
+# Content IDs for duplicate analysis (ADR-0019), as on macOS.
+blake3.workspace = true
 windows-sys = { workspace = true, features = [
   "Wdk_Storage_FileSystem",
   "Win32_Foundation",

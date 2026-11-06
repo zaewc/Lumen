@@ -4,10 +4,13 @@
 //! module.
 //!
 //! Every object is opened with `FILE_FLAG_OPEN_REPARSE_POINT` (a link, junction
-//! or placeholder is opened itself, never followed), `FILE_FLAG_BACKUP_SEMANTICS`
-//! (required for directories), all share modes (Lumen never blocks other
-//! programs), and no data access rights: only `FILE_LIST_DIRECTORY` or
-//! `FILE_READ_ATTRIBUTES`, plus `SYNCHRONIZE`.
+//! or placeholder is opened itself, never followed) and all share modes (Lumen
+//! never blocks other programs). Directories and attributes are opened with
+//! `FILE_FLAG_BACKUP_SEMANTICS` (required for directories) and no data access
+//! rights: only `FILE_LIST_DIRECTORY` or `FILE_READ_ATTRIBUTES`, plus
+//! `SYNCHRONIZE`. The one exception is [`Access::Read`], for duplicate analysis
+//! of files the user chose (ADR-0019): `FILE_READ_DATA`, and without backup
+//! semantics, so it never bypasses a file's access checks.
 
 #![allow(unsafe_code)]
 
@@ -16,7 +19,8 @@ use std::mem::{MaybeUninit, size_of};
 
 use windows_sys::Wdk::Storage::FileSystem::RtlSetThreadPlaceholderCompatibilityMode;
 use windows_sys::Win32::Foundation::{
-    CloseHandle, ERROR_NO_MORE_FILES, HANDLE, INVALID_HANDLE_VALUE, LocalFree, WAIT_TIMEOUT,
+    CloseHandle, ERROR_HANDLE_EOF, ERROR_NO_MORE_FILES, HANDLE, INVALID_HANDLE_VALUE, LocalFree,
+    WAIT_TIMEOUT,
 };
 use windows_sys::Win32::Security::Authorization::{GetSecurityInfo, SE_FILE_OBJECT};
 use windows_sys::Win32::Security::{
@@ -25,14 +29,15 @@ use windows_sys::Win32::Security::{
 };
 use windows_sys::Win32::Storage::FileSystem::{
     CreateFileW, FILE_ATTRIBUTE_TAG_INFO, FILE_BASIC_INFO, FILE_COMPRESSION_INFO,
-    FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_FLAG_OVERLAPPED, FILE_ID_INFO,
-    FILE_INFO_BY_HANDLE_CLASS, FILE_LIST_DIRECTORY, FILE_NOTIFY_CHANGE_ATTRIBUTES,
-    FILE_NOTIFY_CHANGE_CREATION, FILE_NOTIFY_CHANGE_DIR_NAME, FILE_NOTIFY_CHANGE_FILE_NAME,
-    FILE_NOTIFY_CHANGE_LAST_WRITE, FILE_NOTIFY_CHANGE_SECURITY, FILE_NOTIFY_CHANGE_SIZE,
-    FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO,
-    FileAttributeTagInfo, FileBasicInfo, FileCompressionInfo, FileIdExtdDirectoryInfo, FileIdInfo,
-    FileStandardInfo, GetFileInformationByHandleEx, GetVolumeInformationByHandleW, OPEN_EXISTING,
-    READ_CONTROL, ReadDirectoryChangesW, SYNCHRONIZE,
+    FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_FLAG_OVERLAPPED,
+    FILE_FLAG_SEQUENTIAL_SCAN, FILE_ID_INFO, FILE_INFO_BY_HANDLE_CLASS, FILE_LIST_DIRECTORY,
+    FILE_NOTIFY_CHANGE_ATTRIBUTES, FILE_NOTIFY_CHANGE_CREATION, FILE_NOTIFY_CHANGE_DIR_NAME,
+    FILE_NOTIFY_CHANGE_FILE_NAME, FILE_NOTIFY_CHANGE_LAST_WRITE, FILE_NOTIFY_CHANGE_SECURITY,
+    FILE_NOTIFY_CHANGE_SIZE, FILE_READ_ATTRIBUTES, FILE_READ_DATA, FILE_SHARE_DELETE,
+    FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_STANDARD_INFO, FileAttributeTagInfo, FileBasicInfo,
+    FileCompressionInfo, FileIdExtdDirectoryInfo, FileIdInfo, FileStandardInfo,
+    GetFileInformationByHandleEx, GetVolumeInformationByHandleW, OPEN_EXISTING, READ_CONTROL,
+    ReadDirectoryChangesW, ReadFile, SYNCHRONIZE,
 };
 use windows_sys::Win32::System::IO::{
     CancelIoEx, GetOverlappedResult, GetOverlappedResultEx, OVERLAPPED,
@@ -73,6 +78,8 @@ pub(crate) enum Access {
     Watch,
     /// Read the object's attributes and owner.
     Owner,
+    /// Read a file's contents, for duplicate analysis only.
+    Read,
 }
 
 /// Opens the object at `path` itself (never a link target).
@@ -83,11 +90,27 @@ pub(crate) enum Access {
 pub(crate) fn open(path: &[u16], access: Access) -> io::Result<Handle> {
     let path = nul_terminated(&verbatim(path))
         .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidInput))?;
-    let (rights, overlapped) = match access {
-        Access::List => (FILE_LIST_DIRECTORY | SYNCHRONIZE, 0),
-        Access::Attributes => (FILE_READ_ATTRIBUTES | SYNCHRONIZE, 0),
-        Access::Owner => (FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE, 0),
-        Access::Watch => (FILE_LIST_DIRECTORY, FILE_FLAG_OVERLAPPED),
+    let (rights, flags) = match access {
+        Access::List => (
+            FILE_LIST_DIRECTORY | SYNCHRONIZE,
+            FILE_FLAG_BACKUP_SEMANTICS,
+        ),
+        Access::Attributes => (
+            FILE_READ_ATTRIBUTES | SYNCHRONIZE,
+            FILE_FLAG_BACKUP_SEMANTICS,
+        ),
+        Access::Owner => (
+            FILE_READ_ATTRIBUTES | READ_CONTROL | SYNCHRONIZE,
+            FILE_FLAG_BACKUP_SEMANTICS,
+        ),
+        Access::Watch => (
+            FILE_LIST_DIRECTORY,
+            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
+        ),
+        Access::Read => (
+            FILE_READ_DATA | FILE_READ_ATTRIBUTES | SYNCHRONIZE,
+            FILE_FLAG_SEQUENTIAL_SCAN,
+        ),
     };
     // SAFETY: invariant: `path` is a NUL-terminated UTF-16 string that outlives
     // the call; the security attributes and template are null, which the API
@@ -100,7 +123,7 @@ pub(crate) fn open(path: &[u16], access: Access) -> io::Result<Handle> {
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             std::ptr::null(),
             OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT | overlapped,
+            FILE_FLAG_OPEN_REPARSE_POINT | flags,
             std::ptr::null_mut(),
         )
     };
@@ -108,6 +131,43 @@ pub(crate) fn open(path: &[u16], access: Access) -> io::Result<Handle> {
         Err(io::Error::last_os_error())
     } else {
         Ok(Handle(handle))
+    }
+}
+
+/// Reads into `buffer` from `offset` in the file open on `handle`
+/// ([`Access::Read`], synchronous); returns the bytes read, 0 at end of file.
+///
+/// # Errors
+///
+/// Returns the OS error.
+pub(crate) fn read_at(handle: &Handle, offset: u64, buffer: &mut [u8]) -> io::Result<usize> {
+    let wanted = u32::try_from(buffer.len()).unwrap_or(u32::MAX);
+    let mut position = OVERLAPPED::default();
+    position.Anonymous.Anonymous.Offset = u32::try_from(offset & 0xFFFF_FFFF).unwrap_or_default();
+    position.Anonymous.Anonymous.OffsetHigh = u32::try_from(offset >> 32).unwrap_or_default();
+    let mut read = 0u32;
+    // SAFETY: invariant: `buffer` is writable for `wanted` bytes and `read` and
+    // `position` outlive the call. Why unsafe: FFI call writing through raw
+    // pointers. Why it holds: the handle is synchronous (opened without
+    // `FILE_FLAG_OVERLAPPED`), so `ReadFile` completes before returning and keeps
+    // no pointer; `wanted` is at most `buffer.len()`.
+    let ok = unsafe {
+        ReadFile(
+            handle.0,
+            buffer.as_mut_ptr(),
+            wanted,
+            &raw mut read,
+            &raw mut position,
+        )
+    };
+    if ok != 0 {
+        return usize::try_from(read).map_err(io::Error::other);
+    }
+    let error = io::Error::last_os_error();
+    if error.raw_os_error() == i32::try_from(ERROR_HANDLE_EOF).ok() {
+        Ok(0)
+    } else {
+        Err(error)
     }
 }
 

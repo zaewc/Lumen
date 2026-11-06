@@ -12,6 +12,8 @@ pub mod cleanup;
 #[cfg(windows)]
 mod credentials;
 pub mod dirinfo;
+#[cfg(windows)]
+mod duplicates;
 pub mod entry;
 #[cfg(windows)]
 mod handle;
@@ -33,6 +35,8 @@ pub mod winpath;
 
 #[cfg(windows)]
 pub use credentials::{CredentialStore, TARGET_PREFIX as CREDENTIAL_PREFIX};
+#[cfg(windows)]
+pub use duplicates::DuplicateReader;
 #[cfg(windows)]
 pub use handle::HandleEnumerator;
 #[cfg(windows)]

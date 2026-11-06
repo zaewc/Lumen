@@ -50,7 +50,7 @@ pub struct Duplicates {
 /// says [`DuplicatesError::Unsupported`].
 #[must_use]
 pub const fn available() -> bool {
-    cfg!(target_os = "macos")
+    cfg!(any(target_os = "macos", windows))
 }
 
 /// Find exact duplicates below `roots`, reporting each attempted fingerprint.
@@ -73,10 +73,12 @@ pub fn find(
     let roots = roots
         .iter()
         .map(|root| {
-            std::fs::canonicalize(root).map_err(|source| ScanError::Root {
-                root: root.clone(),
-                source,
-            })
+            std::fs::canonicalize(root)
+                .map(plain)
+                .map_err(|source| ScanError::Root {
+                    root: root.clone(),
+                    source,
+                })
         })
         .collect::<Result<Vec<_>, _>>()?;
     let stores = crate::store::scan_exclusion_paths().map_err(ScanError::from)?;
@@ -142,13 +144,50 @@ fn read(
     )?)
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(windows)]
+fn read(
+    entries: &[FilesystemEntry],
+    cancel: &CancelToken,
+    progress: &mut dyn FnMut(HashStage, usize),
+) -> Result<DuplicateReport, DuplicatesError> {
+    let reader = lumen_platform_windows::DuplicateReader;
+    Ok(lumen_application::duplicates::detect(
+        entries, &reader, cancel, progress,
+    )?)
+}
+
+#[cfg(not(any(target_os = "macos", windows)))]
 fn read(
     _: &[FilesystemEntry],
     _: &CancelToken,
     _: &mut dyn FnMut(HashStage, usize),
 ) -> Result<DuplicateReport, DuplicatesError> {
     Err(DuplicatesError::Unsupported)
+}
+
+/// `canonicalize` returns `\\?\C:\…` on Windows; the scanner adds that prefix
+/// itself, so a drive path is kept as people write it. Other paths, and every
+/// path elsewhere, are unchanged.
+#[cfg(windows)]
+fn plain(path: PathBuf) -> PathBuf {
+    use std::os::windows::ffi::{OsStrExt as _, OsStringExt as _};
+    let wide: Vec<u16> = path.as_os_str().encode_wide().collect();
+    let prefix: Vec<u16> = r"\\?\".encode_utf16().collect();
+    let verbatim_drive = wide.len() >= 7
+        && wide.starts_with(&prefix)
+        && matches!(wide[4], 0x41..=0x5A | 0x61..=0x7A)
+        && wide[5] == u16::from(b':')
+        && wide[6] == u16::from(b'\\');
+    if verbatim_drive {
+        PathBuf::from(std::ffi::OsString::from_wide(&wide[4..]))
+    } else {
+        path
+    }
+}
+
+#[cfg(not(windows))]
+const fn plain(path: PathBuf) -> PathBuf {
+    path
 }
 
 /// Only the roots protected locations are relative to; nothing here acts.
@@ -231,7 +270,27 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
+    #[test]
+    fn drive_paths_lose_only_the_verbatim_prefix() {
+        assert_eq!(
+            plain(PathBuf::from(r"\\?\C:\Users\ana")),
+            PathBuf::from(r"C:\Users\ana")
+        );
+        for kept in [r"\\?\UNC\srv\share", r"C:\Users\ana", r"\\?\Volume{x}\"] {
+            assert_eq!(plain(PathBuf::from(kept)), PathBuf::from(kept));
+        }
+        assert!(matches!(
+            find(
+                &[PathBuf::from(r"C:\no\such\folder")],
+                &CancelToken::new(),
+                &mut |_, _| {}
+            ),
+            Err(DuplicatesError::Scan(_))
+        ));
+    }
+
+    #[cfg(not(any(target_os = "macos", windows)))]
     #[test]
     fn other_platforms_say_unsupported_instead_of_finding_nothing() {
         assert!(matches!(

@@ -462,6 +462,10 @@ pub(crate) async fn tool_storage() -> Result<Vec<ToolStorageView>, CommandError>
     .await
 }
 
+/// Whether this build can show the folder dialog (ADR-0057). Without it,
+/// comparing is unsupported here even where the core can read contents.
+const DIALOG: bool = cfg!(target_os = "macos");
+
 /// The comparison slot while a comparison runs; emptied when it ends,
 /// however it ends.
 struct Comparing(Arc<std::sync::Mutex<Option<CancelToken>>>);
@@ -503,7 +507,7 @@ pub(crate) async fn compare_folders<R: tauri::Runtime>(
     window: tauri::WebviewWindow<R>,
     progress: Channel<CompareProgressView>,
 ) -> Result<CompareOutcomeView, CommandError> {
-    if !lumen_app::duplicates::available() {
+    if !DIALOG || !lumen_app::duplicates::available() {
         return Ok(CompareOutcomeView::Unsupported);
     }
     let cancel = CancelToken::new();

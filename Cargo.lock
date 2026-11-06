@@ -2581,6 +2581,7 @@ dependencies = [
 name = "lumen-platform-windows"
 version = "0.9.4"
 dependencies = [
+ "blake3",
  "lumen-application",
  "lumen-domain",
  "lumen-scan",
