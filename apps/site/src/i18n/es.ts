@@ -12,7 +12,7 @@ export const es: Messages = {
   nav: { label: "Sitio", docs: "Documentación" },
   hero: {
     headline: ["Storage intelligence", "for every device."],
-    lead: "Una app gratuita que encuentra lo que llena tu disco y libera espacio de forma segura. Los archivos que limpias van primero a Cuarentena, así que puedes recuperarlos.",
+    lead: "Una app gratuita que encuentra lo que llena tu disco y, con la IA revisando una segunda vez, libera espacio de forma segura. Los archivos que limpias van primero a Cuarentena, así que puedes recuperarlos.",
     download: "Ver versiones",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },

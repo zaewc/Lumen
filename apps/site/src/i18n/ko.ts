@@ -14,7 +14,7 @@ export const ko: Messages = {
   hero: {
     // The product line stays in English in every language (owner, 2026-10-28).
     headline: ["Storage intelligence", "for every device."],
-    lead: "디스크를 채운 파일을 찾아 안전하게 공간을 비워 주는 무료 앱이에요. 정리한 파일은 바로 지우지 않고 격리함에 옮겨 둬서 되돌릴 수 있어요.",
+    lead: "디스크를 채운 파일을 찾고, 지워도 되는지 AI가 함께 살펴 안전하게 공간을 비워 주는 무료 앱이에요. 정리한 파일은 바로 지우지 않고 격리함에 옮겨 둬서 되돌릴 수 있어요.",
     download: "릴리스 보기",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },

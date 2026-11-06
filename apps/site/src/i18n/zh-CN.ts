@@ -11,7 +11,7 @@ export const zhCN: Messages = {
   nav: { label: "网站", docs: "文档" },
   hero: {
     headline: ["Storage intelligence", "for every device."],
-    lead: "一款免费应用，找出占满磁盘的文件，安全地腾出空间。清理的文件不会立即删除，而是先移到隔离区，可以恢复。",
+    lead: "一款免费应用，找出占满磁盘的文件，由 AI 一起检查能否删除，安全地腾出空间。清理的文件不会立即删除，而是先移到隔离区，可以恢复。",
     download: "查看发行版本",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },

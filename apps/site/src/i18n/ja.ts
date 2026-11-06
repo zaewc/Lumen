@@ -12,7 +12,7 @@ export const ja: Messages = {
   nav: { label: "サイト", docs: "ドキュメント" },
   hero: {
     headline: ["Storage intelligence", "for every device."],
-    lead: "ディスクを占めているファイルを見つけ、安全に空き容量を増やす無料アプリです。整理したファイルはすぐには消さず隔離に移すので、元に戻せます。",
+    lead: "ディスクを占めているファイルを見つけ、消してよいかを AI と一緒に確かめながら、安全に空き容量を増やす無料アプリです。整理したファイルはすぐには消さず隔離に移すので、元に戻せます。",
     download: "リリースを見る",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },

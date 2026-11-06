@@ -13,7 +13,7 @@ export const en: Messages = {
   nav: { label: "Site", docs: "Docs" },
   hero: {
     headline: ["Storage intelligence", "for every device."],
-    lead: "A free app that finds what fills your disk and frees up space safely. Cleaned-up files go to Quarantine first, so you can put them back.",
+    lead: "A free app that finds what fills your disk and, with AI taking a second look, frees up space safely. Cleaned-up files go to Quarantine first, so you can put them back.",
     download: "View releases",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
