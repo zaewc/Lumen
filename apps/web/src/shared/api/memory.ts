@@ -710,6 +710,43 @@ export function memoryTransport({
         },
       ];
     },
+    compareFolders: async (onProgress) => {
+      for (const [stage, read] of [
+        ["head", "120"],
+        ["tail", "18"],
+        ["full", "9"],
+      ] as const) {
+        await wait(pace);
+        onProgress?.({ stage, files_read: read });
+      }
+      return {
+        kind: "compared",
+        report: {
+          folders: ["/Users/demo/Downloads", "/Users/demo/Pictures"],
+          groups: [
+            {
+              bytes_each: "734003200",
+              paths: [
+                "/Users/demo/Downloads/Ubuntu 26.04.iso",
+                "/Users/demo/Downloads/old/Ubuntu 26.04.iso",
+              ],
+            },
+            {
+              bytes_each: "4194304",
+              paths: [
+                "/Users/demo/Pictures/Trip/IMG_2041.HEIC",
+                "/Users/demo/Pictures/Trip copy/IMG_2041.HEIC",
+                "/Users/demo/Downloads/IMG_2041.HEIC",
+              ],
+            },
+          ],
+          hard_links: [["/Users/demo/Pictures/cover.jpg", "/Users/demo/Pictures/Album/cover.jpg"]],
+          skipped: "2",
+          protected: "0",
+          incomplete: false,
+        },
+      };
+    },
     setAiKey: async (key) => {
       await wait(pace);
       if (!isApiKey(key)) {

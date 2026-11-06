@@ -5,6 +5,8 @@ import {
   zAiSettingsView,
   zAssessProgressView,
   zCandidateView,
+  zCompareOutcomeView,
+  zCompareProgressView,
   zDiskView,
   zFinalizeOutcomeView,
   zHeldItemView,
@@ -81,6 +83,14 @@ export function tauriTransport(): LumenTransport {
     },
     runToolCommand: async (entry) => zToolRunView.parse(await call("run_tool_command", { entry })),
     toolStorage: async () => zToolStorageView.array().parse(await call("tool_storage")),
+    compareFolders: async (onProgress) => {
+      const progress = new Channel<unknown>();
+      progress.onmessage = (message) => {
+        const parsed = zCompareProgressView.safeParse(message);
+        if (parsed.success) onProgress?.(parsed.data);
+      };
+      return zCompareOutcomeView.parse(await call("compare_folders", { progress }));
+    },
     setAiReview: async (enabled) => zAiSettingsView.parse(await call("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await call("set_ai_key", { key })),
   };

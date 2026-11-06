@@ -82,6 +82,35 @@ export const zhCN: Messages = {
       sharedStoreNote: "项目会链接到此存储。它的专用命令会保留仍在使用的包。",
       cacheNote: "需要时会重新下载。",
     },
+    copies: {
+      title: "相同的文件",
+      intro:
+        "选择文件夹后，Lumen 会比较其中的文件，找出内容相同的文件。Lumen 只读取你选择的文件夹中的文件。",
+      choose: "选择要比较的文件夹…",
+      chooseAgain: "比较其他文件夹…",
+      comparing: "正在比较…",
+      stage: {
+        head: "正在比较大小相同的文件的开头",
+        tail: "正在比较仍然相同的文件的结尾",
+        full: "正在完整比较仍然相同的文件",
+      },
+      filesRead: (n: string) => `已读取 ${count(n)} 个文件`,
+      folders: "已比较的文件夹",
+      group: (n: number, size: string) => `${count(n)} 个副本 · 每个 ${size}`,
+      none: "在能够比较的文件中，没有内容相同的文件。",
+      more: (n: number) => `另有 ${count(n)} 组较小的文件未显示。`,
+      hardLinks: (n: number) =>
+        `${count(n)} 个文件有多个名称（硬链接）。它们各是一个文件，不是副本。`,
+      skipped: (n: number) =>
+        `${count(n)} 个文件未比较：它们已更改、无法读取、仅在云端，或受系统保护。`,
+      protectedFiles: (n: number) => `受保护位置中的 ${count(n)} 个文件未读取。`,
+      incomplete: "部分文件夹未能完整读取，其中的文件未比较。",
+      unsupported: "这台电脑暂时还不能比较文件。",
+      tooMany: (limit: string) => `这些文件夹中的文件超过 ${count(limit)} 个。请选择更小的文件夹。`,
+      failed: "Lumen 无法比较这些文件夹。",
+      advice:
+        "副本可能是你想保留的备份。Lumen 不会选择或删除任何副本。删除一个副本释放的空间可能小于它的大小。",
+    },
   },
   workspace: {
     available: "可用空间",

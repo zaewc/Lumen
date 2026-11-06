@@ -3,6 +3,7 @@ import { useScanSession } from "@/entities/scan-session";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, Page } from "@/shared/ui";
 import { DiskUsage } from "./DiskUsage";
+import { Duplicates } from "./Duplicates";
 import { LastScan } from "./LastScan";
 import { ToolStorage } from "./ToolStorage";
 
@@ -35,7 +36,8 @@ function ScanAction() {
 
 /**
  * The first page: how full the disk is, what the last scan found, the button to
- * scan, and, on request, what developer tools report about their own storage.
+ * scan, and, on request, what developer tools report about their own storage
+ * and identical copies in folders the person picks.
  */
 export function OverviewPage() {
   const { m } = useI18n();
@@ -44,6 +46,7 @@ export function OverviewPage() {
       <DiskUsage />
       <LastScan />
       <ToolStorage />
+      <Duplicates />
     </Page>
   );
 }

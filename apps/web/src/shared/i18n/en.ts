@@ -86,6 +86,39 @@ export const en = {
       sharedStoreNote: "Projects link to this store. Its own command keeps what they still use.",
       cacheNote: "Downloaded again when needed.",
     },
+    copies: {
+      title: "Identical copies",
+      intro:
+        "Choose folders, and Lumen compares their files to find ones with the same contents. Lumen reads files only in the folders you choose.",
+      choose: "Choose folders to compare…",
+      chooseAgain: "Compare other folders…",
+      comparing: "Comparing…",
+      stage: {
+        head: "Comparing the start of files of the same size",
+        tail: "Comparing the end of files that still match",
+        full: "Comparing whole files that still match",
+      },
+      filesRead: (n: string) => `${count(n)} ${n === "1" ? "file" : "files"} read`,
+      folders: "Folders compared",
+      group: (n: number, size: string) => `${count(n)} copies · ${size} each`,
+      none: "No identical copies among the files Lumen could compare.",
+      more: (n: number) => `${count(n)} smaller ${n === 1 ? "group is" : "groups are"} not shown.`,
+      hardLinks: (n: number) =>
+        n === 1
+          ? "1 file has more than one name (hard links). It is one file, not copies."
+          : `${count(n)} files have more than one name (hard links). Each is one file, not copies.`,
+      skipped: (n: number) =>
+        `${count(n)} ${n === 1 ? "file was" : "files were"} not compared: changed, unreadable, only in the cloud, or protected by the system.`,
+      protectedFiles: (n: number) =>
+        `${count(n)} ${n === 1 ? "file" : "files"} in protected locations left unread.`,
+      incomplete: "Some folders could not be read completely. Files there were not compared.",
+      unsupported: "Comparing files is not available on this computer yet.",
+      tooMany: (limit: string) =>
+        `These folders hold more than ${count(limit)} files. Choose smaller folders.`,
+      failed: "Lumen could not compare these folders.",
+      advice:
+        "Copies can be backups you want to keep. Lumen does not choose or remove any. Removing a copy can free less space than its size.",
+    },
   },
   workspace: {
     available: "Available space",

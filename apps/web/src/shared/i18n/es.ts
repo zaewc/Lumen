@@ -86,6 +86,45 @@ export const es: Messages = {
         "Los proyectos enlazan a este almacén. Su comando propio conserva lo que aún usan.",
       cacheNote: "Se vuelve a descargar cuando hace falta.",
     },
+    copies: {
+      title: "Copias idénticas",
+      intro:
+        "Elige carpetas y Lumen compara sus archivos para encontrar los que tienen el mismo contenido. Lumen solo lee archivos de las carpetas que elijas.",
+      choose: "Elegir carpetas para comparar…",
+      chooseAgain: "Comparar otras carpetas…",
+      comparing: "Comparando…",
+      stage: {
+        head: "Comparando el inicio de los archivos del mismo tamaño",
+        tail: "Comparando el final de los archivos que aún coinciden",
+        full: "Comparando completos los archivos que aún coinciden",
+      },
+      filesRead: (n: string) => `${count(n)} ${n === "1" ? "archivo leído" : "archivos leídos"}`,
+      folders: "Carpetas comparadas",
+      group: (n: number, size: string) => `${count(n)} copias · ${size} cada una`,
+      none: "No hay copias idénticas entre los archivos que Lumen pudo comparar.",
+      more: (n: number) =>
+        n === 1
+          ? "1 grupo más pequeño no se muestra."
+          : `${count(n)} grupos más pequeños no se muestran.`,
+      hardLinks: (n: number) =>
+        n === 1
+          ? "1 archivo tiene varios nombres (enlaces duros). Es un solo archivo, no copias."
+          : `${count(n)} archivos tienen varios nombres (enlaces duros). Cada uno es un solo archivo, no copias.`,
+      skipped: (n: number) =>
+        `${count(n)} ${n === 1 ? "archivo sin comparar" : "archivos sin comparar"}: cambiaron, no se pudieron leer, solo están en la nube o los protege el sistema.`,
+      protectedFiles: (n: number) =>
+        n === 1
+          ? "1 archivo en una ubicación protegida no se leyó."
+          : `${count(n)} archivos en ubicaciones protegidas no se leyeron.`,
+      incomplete:
+        "Algunas carpetas no se pudieron leer por completo. Sus archivos no se compararon.",
+      unsupported: "Comparar archivos aún no está disponible en este ordenador.",
+      tooMany: (limit: string) =>
+        `Estas carpetas tienen más de ${count(limit)} archivos. Elige carpetas más pequeñas.`,
+      failed: "Lumen no pudo comparar estas carpetas.",
+      advice:
+        "Las copias pueden ser copias de seguridad que quieres conservar. Lumen no elige ni elimina ninguna. Eliminar una copia puede liberar menos espacio que su tamaño.",
+    },
   },
   workspace: {
     available: "Espacio disponible",

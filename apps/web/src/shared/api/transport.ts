@@ -5,6 +5,8 @@ import type {
   AiSettingsView,
   AssessProgressView,
   CandidateView,
+  CompareOutcomeView,
+  CompareProgressView,
   DiskView,
   ExecuteRequest,
   FinalizeOutcomeView,
@@ -85,4 +87,13 @@ export interface LumenTransport {
    * host can run them (the desktop app).
    */
   toolStorage?(): Promise<readonly ToolStorageView[]>;
+  /**
+   * Asks the person which folders to compare, in the system's own dialog,
+   * then finds identical copies there (ADR-0057). Takes no path: the host
+   * reads only what the person picks. Only where the host can show the
+   * dialog (the desktop app).
+   */
+  compareFolders?(
+    onProgress?: (progress: CompareProgressView) => void,
+  ): Promise<CompareOutcomeView>;
 }
