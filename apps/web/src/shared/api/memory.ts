@@ -517,6 +517,7 @@ export function memoryTransport({
     : { chosen: false, enabled: false, consented_at: null, key: "none", key_source: null };
   let held: readonly HeldItemView[] = initiallyHeld;
   let moves = 0;
+  let comparing = { stopped: false };
   const take = (operation: string): HeldItemView | undefined => {
     const item = held.find((h) => h.operation === operation);
     held = held.filter((h) => h.operation !== operation);
@@ -711,12 +712,15 @@ export function memoryTransport({
       ];
     },
     compareFolders: async (onProgress) => {
+      const run = { stopped: false };
+      comparing = run;
       for (const [stage, read] of [
         ["head", "120"],
         ["tail", "18"],
         ["full", "9"],
       ] as const) {
         await wait(pace);
+        if (run.stopped) return { kind: "cancelled" };
         onProgress?.({ stage, files_read: read });
       }
       return {
@@ -746,6 +750,10 @@ export function memoryTransport({
           incomplete: false,
         },
       };
+    },
+    cancelComparison: async () => {
+      comparing.stopped = true;
+      await wait(0);
     },
     setAiKey: async (key) => {
       await wait(pace);

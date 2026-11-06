@@ -137,6 +137,7 @@ pub fn app<R: Runtime>(
             commands::run_tool_command,
             commands::tool_storage,
             commands::compare_folders,
+            commands::cancel_comparison,
             update::check_update,
             update::install_update,
         ])
@@ -166,6 +167,7 @@ pub fn app<R: Runtime>(
                 builtin,
                 tool_entries: std::sync::Mutex::default(),
                 tool_running: Arc::default(),
+                comparison: Arc::default(),
                 settled,
                 activity: Arc::default(),
             });

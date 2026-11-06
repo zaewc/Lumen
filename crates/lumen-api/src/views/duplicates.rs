@@ -85,6 +85,9 @@ pub enum CompareOutcomeView {
         /// The most files one comparison covers.
         limit: String,
     },
+    /// The person stopped the comparison; no groups are shown, since a stopped
+    /// comparison proves nothing about the files it did not finish.
+    Cancelled,
     /// The comparison finished.
     Compared {
         /// What it found.
@@ -117,6 +120,9 @@ impl CompareOutcomeView {
             Err(other) => return Err(other),
         };
         let report = &found.report;
+        if report.cancelled {
+            return Ok(Self::Cancelled);
+        }
         let mut groups: Vec<_> = report.groups.iter().collect();
         groups.sort_by_key(|group| std::cmp::Reverse(group.logical_redundancy()));
         Ok(Self::Compared {
@@ -137,7 +143,7 @@ impl CompareOutcomeView {
                 hard_links: report.hard_links.iter().map(|links| paths(links)).collect(),
                 skipped: report.skipped.len().to_string(),
                 protected: found.protected.to_string(),
-                incomplete: found.incomplete || report.cancelled,
+                incomplete: found.incomplete,
             },
         })
     }
@@ -220,7 +226,7 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_and_too_many_are_outcomes_not_empty_reports() {
+    fn unsupported_too_many_and_cancelled_are_outcomes_not_empty_reports() {
         let folders = [PathBuf::from("/chosen")];
         assert_eq!(
             CompareOutcomeView::new(&folders, Err(DuplicatesError::Unsupported)).ok(),
@@ -240,9 +246,9 @@ mod tests {
             protected: 0,
             incomplete: false,
         };
-        assert!(matches!(
-            CompareOutcomeView::new(&folders, Ok(cancelled)),
-            Ok(CompareOutcomeView::Compared { report }) if report.incomplete
-        ));
+        assert_eq!(
+            CompareOutcomeView::new(&folders, Ok(cancelled)).ok(),
+            Some(CompareOutcomeView::Cancelled)
+        );
     }
 }

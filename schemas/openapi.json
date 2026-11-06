@@ -358,6 +358,21 @@
           },
           {
             "type": "object",
+            "description": "The person stopped the comparison; no groups are shown, since a stopped\ncomparison proves nothing about the files it did not finish.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "cancelled"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "The comparison finished.",
             "required": [
               "report",

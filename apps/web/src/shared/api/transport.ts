@@ -96,4 +96,6 @@ export interface LumenTransport {
   compareFolders?(
     onProgress?: (progress: CompareProgressView) => void,
   ): Promise<CompareOutcomeView>;
+  /** Stops the running comparison, which then ends as `cancelled`. */
+  cancelComparison?(): Promise<void>;
 }

@@ -82,6 +82,8 @@ function Outcome({ outcome }: { readonly outcome: CompareOutcomeView }) {
       return <p className="text-[13px] text-ink-2">{t.unsupported}</p>;
     case "too_many":
       return <p className="text-[13px] text-ink-2">{t.tooMany(outcome.limit)}</p>;
+    case "cancelled":
+      return <p className="text-[13px] text-ink-2">{t.stopped}</p>;
     case "compared":
       return <Report report={outcome.report} />;
     default: {
@@ -98,32 +100,54 @@ function Outcome({ outcome }: { readonly outcome: CompareOutcomeView }) {
  */
 export function Duplicates() {
   const { m } = useI18n();
-  const compare = useTransport().compareFolders;
+  const transport = useTransport();
+  const compare = transport.compareFolders;
+  const stop = transport.cancelComparison;
   const title = useId();
   const [progress, setProgress] = useState<CompareProgressView | null>(null);
+  const [stopping, setStopping] = useState(false);
   const run = useMutation({
     mutationFn: (ask: NonNullable<typeof compare>) => ask(setProgress),
-    onSettled: () => setProgress(null),
+    onSettled: () => {
+      setProgress(null);
+      setStopping(false);
+    },
   });
   if (compare === undefined) return null;
   const t = m.overview.copies;
-  const compared = run.data !== undefined && run.data.kind !== "nothing_chosen";
+  const answered = run.data !== undefined && run.data.kind !== "nothing_chosen";
+  const compared = run.data?.kind === "compared";
   return (
     <section aria-labelledby={title} aria-busy={run.isPending} className="space-y-3 pt-8">
       <div className="flex items-baseline justify-between gap-3">
         <h2 id={title} className="text-section text-ink">
           {t.title}
         </h2>
-        <button
-          type="button"
-          disabled={run.isPending}
-          onClick={() => run.mutate(compare)}
-          className={buttonClass("secondary", "sm")}
-        >
-          {run.isPending ? t.comparing : compared ? t.chooseAgain : t.choose}
-        </button>
+        <div className="flex gap-2">
+          {run.isPending && stop !== undefined && (
+            <button
+              type="button"
+              disabled={stopping}
+              onClick={() => {
+                setStopping(true);
+                void stop();
+              }}
+              className={buttonClass("secondary", "sm")}
+            >
+              {stopping ? t.stopping : t.stop}
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={run.isPending}
+            onClick={() => run.mutate(compare)}
+            className={buttonClass("secondary", "sm")}
+          >
+            {run.isPending ? t.comparing : compared ? t.chooseAgain : t.choose}
+          </button>
+        </div>
       </div>
-      {!compared && !run.isPending && !run.isError && (
+      {!answered && !run.isPending && !run.isError && (
         <p className="text-[13px] text-ink-2">{t.intro}</p>
       )}
       {progress !== null && (

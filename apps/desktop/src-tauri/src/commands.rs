@@ -48,6 +48,9 @@ pub(crate) struct Core {
     >,
     /// Held while a tool's command runs: one at a time.
     pub(crate) tool_running: Arc<std::sync::Mutex<()>>,
+    /// The running comparison of copies, if any: one at a time, and what
+    /// `cancel_comparison` stops.
+    pub(crate) comparison: Arc<std::sync::Mutex<Option<CancelToken>>>,
     /// Startup's reconciliation (UX-3): run once, when the app starts, and
     /// waited for before the held items are first listed.
     pub(crate) settled: Arc<std::sync::Once>,
@@ -71,6 +74,13 @@ impl std::fmt::Debug for Core {
                     .map(|entries| entries.len()),
             )
             .field("tool_running", &self.tool_running.try_lock().is_err())
+            .field(
+                "comparison",
+                &self
+                    .comparison
+                    .try_lock()
+                    .map_or(true, |running| running.is_some()),
+            )
             .field("settled", &self.settled.is_completed())
             .field("activity", &self.activity)
             .finish()
@@ -452,38 +462,88 @@ pub(crate) async fn tool_storage() -> Result<Vec<ToolStorageView>, CommandError>
     .await
 }
 
+/// The comparison slot while a comparison runs; emptied when it ends,
+/// however it ends.
+struct Comparing(Arc<std::sync::Mutex<Option<CancelToken>>>);
+
+impl Comparing {
+    /// Takes the slot with `cancel`, unless another comparison holds it.
+    fn start(
+        slot: &Arc<std::sync::Mutex<Option<CancelToken>>>,
+        cancel: &CancelToken,
+    ) -> Result<Self, CommandError> {
+        let mut running = slot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if running.is_some() {
+            return Err(CommandError::new("another comparison is still running"));
+        }
+        *running = Some(cancel.clone());
+        Ok(Self(Arc::clone(slot)))
+    }
+}
+
+impl Drop for Comparing {
+    fn drop(&mut self) {
+        *self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    }
+}
+
 /// Asks which folders to compare in the system's folder dialog, over the
 /// window, then finds identical copies in them (ADR-0057). Takes no path: only
 /// what the person picks is read, and nothing is chosen, moved or removed.
-/// Where contents cannot be read yet, says so without asking.
+/// Where contents cannot be read yet, says so without asking. One comparison
+/// at a time; `cancel_comparison` stops it.
 #[tauri::command]
 pub(crate) async fn compare_folders<R: tauri::Runtime>(
+    core: State<'_, Core>,
     window: tauri::WebviewWindow<R>,
     progress: Channel<CompareProgressView>,
 ) -> Result<CompareOutcomeView, CommandError> {
     if !lumen_app::duplicates::available() {
         return Ok(CompareOutcomeView::Unsupported);
     }
+    let cancel = CancelToken::new();
+    let _running = Comparing::start(&core.comparison, &cancel)?;
     let Some(folders) = choose_folders(&window).await else {
         return Ok(CompareOutcomeView::NothingChosen);
     };
     blocking(move || {
         let mut listening = true;
         let mut last: Option<(lumen_app::duplicates::HashStage, std::time::Instant)> = None;
-        let found =
-            lumen_app::duplicates::find(&folders, &CancelToken::new(), &mut |stage, done| {
-                let now = std::time::Instant::now();
-                let due = last.is_none_or(|(seen, at)| {
-                    seen != stage || now.duration_since(at) >= PROGRESS_EVERY
-                });
-                if listening && due {
-                    last = Some((stage, now));
-                    listening = progress.send(CompareProgressView::new(stage, done)).is_ok();
-                }
-            });
+        let found = lumen_app::duplicates::find(&folders, &cancel, &mut |stage, done| {
+            let now = std::time::Instant::now();
+            let due = last
+                .is_none_or(|(seen, at)| seen != stage || now.duration_since(at) >= PROGRESS_EVERY);
+            if listening && due {
+                last = Some((stage, now));
+                listening = progress.send(CompareProgressView::new(stage, done)).is_ok();
+            }
+        });
         CompareOutcomeView::new(&folders, found).map_err(CommandError::new)
     })
     .await
+}
+
+/// Stops the running comparison, if any; it then ends as cancelled and shows
+/// no groups. Reads and changes nothing else.
+#[tauri::command]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Tauri hands a command its state by value"
+)]
+pub(crate) fn cancel_comparison(core: State<'_, Core>) {
+    if let Some(cancel) = core
+        .comparison
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .as_ref()
+    {
+        cancel.cancel();
+    }
 }
 
 /// The folders the person picks, as a sheet over `window`; `None` if they
@@ -728,6 +788,29 @@ mod tests {
     use lumen_scan::ScanProgress;
 
     use super::*;
+
+    #[test]
+    fn one_comparison_runs_at_a_time_and_its_slot_empties_when_it_ends() {
+        let slot = Arc::default();
+        let cancel = CancelToken::new();
+        let running = Comparing::start(&slot, &cancel).unwrap_or_else(|e| unreachable!("{e}"));
+        assert!(Comparing::start(&slot, &CancelToken::new()).is_err());
+        if let Some(held) = slot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+        {
+            held.cancel();
+        }
+        assert!(cancel.is_cancelled(), "the slot holds the running token");
+        drop(running);
+        assert!(
+            slot.lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .is_none()
+        );
+        assert!(Comparing::start(&slot, &CancelToken::new()).is_ok());
+    }
 
     #[test]
     fn updates_and_item_actions_wait_for_each_other() {

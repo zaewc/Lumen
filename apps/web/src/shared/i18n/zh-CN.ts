@@ -88,6 +88,9 @@ export const zhCN: Messages = {
         "选择文件夹后，Lumen 会比较其中的文件，找出内容相同的文件。Lumen 只读取你选择的文件夹中的文件。",
       choose: "选择要比较的文件夹…",
       chooseAgain: "比较其他文件夹…",
+      stop: "停止",
+      stopping: "正在停止…",
+      stopped: "已停止比较。不会显示这次比较的结果。",
       comparing: "正在比较…",
       stage: {
         head: "正在比较大小相同的文件的开头",

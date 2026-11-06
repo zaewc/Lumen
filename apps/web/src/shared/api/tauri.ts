@@ -91,6 +91,9 @@ export function tauriTransport(): LumenTransport {
       };
       return zCompareOutcomeView.parse(await call("compare_folders", { progress }));
     },
+    cancelComparison: async () => {
+      await call("cancel_comparison");
+    },
     setAiReview: async (enabled) => zAiSettingsView.parse(await call("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await call("set_ai_key", { key })),
   };

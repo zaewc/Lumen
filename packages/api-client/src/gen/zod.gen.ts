@@ -136,6 +136,9 @@ export const zCompareOutcomeView = z.union([
     limit: z.string(),
   }),
   z.object({
+    kind: z.enum(["cancelled"]),
+  }),
+  z.object({
     kind: z.enum(["compared"]),
     report: zDuplicatesView,
   }),

@@ -92,6 +92,9 @@ export const en = {
         "Choose folders, and Lumen compares their files to find ones with the same contents. Lumen reads files only in the folders you choose.",
       choose: "Choose folders to compare…",
       chooseAgain: "Compare other folders…",
+      stop: "Stop",
+      stopping: "Stopping…",
+      stopped: "Stopped. Nothing from that comparison is shown.",
       comparing: "Comparing…",
       stage: {
         head: "Comparing the start of files of the same size",

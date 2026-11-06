@@ -191,6 +191,9 @@ export type CompareOutcomeView =
       limit: string;
     }
   | {
+      kind: "cancelled";
+    }
+  | {
       kind: "compared";
       /**
        * What it found.

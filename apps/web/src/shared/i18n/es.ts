@@ -92,6 +92,9 @@ export const es: Messages = {
         "Elige carpetas y Lumen compara sus archivos para encontrar los que tienen el mismo contenido. Lumen solo lee archivos de las carpetas que elijas.",
       choose: "Elegir carpetas para comparar…",
       chooseAgain: "Comparar otras carpetas…",
+      stop: "Detener",
+      stopping: "Deteniendo…",
+      stopped: "Comparación detenida. No se muestra nada de esa comparación.",
       comparing: "Comparando…",
       stage: {
         head: "Comparando el inicio de los archivos del mismo tamaño",
