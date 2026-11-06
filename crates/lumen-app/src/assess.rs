@@ -199,6 +199,28 @@ fn platform_contributions(
     contributions
 }
 
+/// Every installed application's identifiers with each of its bundles.
+#[cfg(target_os = "macos")]
+fn app_locations(inventory: &PlatformInventory) -> Vec<(lumen_domain::AppId, RawPath)> {
+    inventory
+        .apps
+        .iter()
+        .flat_map(|app| {
+            app.ids.iter().flat_map(move |id| {
+                app.install_locations
+                    .iter()
+                    .map(move |location| (id.clone(), location.clone()))
+            })
+        })
+        .collect()
+}
+
+/// No platform but macOS says where its applications are yet.
+#[cfg(not(target_os = "macos"))]
+fn app_locations(_inventory: &PlatformInventory) -> Vec<(lumen_domain::AppId, RawPath)> {
+    Vec::new()
+}
+
 #[cfg(windows)]
 fn platform_inventory() -> PlatformInventory {
     use lumen_application::CancelToken;
@@ -378,6 +400,9 @@ pub struct Assessment {
     /// The volumes with a quarantine store, or `None` for every volume
     /// ([`crate::Stores::volumes`], ADR-0046).
     pub store_volumes: Option<BTreeSet<lumen_domain::VolumeId>>,
+    /// Where each installed application is, for asking whether it runs
+    /// (ADR-0059); empty where the platform does not say.
+    pub apps: Vec<(lumen_domain::AppId, RawPath)>,
     store: IndexStore,
     scan: ScanId,
 }
@@ -608,6 +633,7 @@ fn prepare_with_progress(
     let platform = platform();
     let home = home();
     let platform_inventory = platform_inventory();
+    let apps = app_locations(&platform_inventory);
     let inventory: Inventory = summarize(&platform_inventory.reports);
     let inventories_complete = !platform_inventory.reports.is_empty()
         && platform_inventory
@@ -680,6 +706,7 @@ fn prepare_with_progress(
         knowledge: kb.knowledge(),
         inventories_complete,
         store_volumes: stores.and_then(|s| s.volumes),
+        apps,
         store,
         scan,
     })
@@ -997,8 +1024,9 @@ pub fn assess_with_progress(
         counter.set(counter.get().saturating_add(1));
         jev_request(input, counter.get(), assessment.inventories_complete, now)
     };
-    let assessed =
-        crate::probes::with_assessment_probes(|probes| -> Result<Vec<Assessed>, AssessError> {
+    let assessed = crate::probes::with_assessment_probes(
+        &assessment.apps,
+        |probes| -> Result<Vec<Assessed>, AssessError> {
             let mut assessed = Vec::new();
             for (index, candidate) in candidates.iter().enumerate() {
                 // Only this candidate's part of the scan is read, and dropped
@@ -1023,7 +1051,8 @@ pub fn assess_with_progress(
                 );
             }
             Ok(assessed)
-        })??;
+        },
+    )??;
     let mut assessed = assessed;
     block_on(lumen_application::describe::describe_with_progress(
         describer,

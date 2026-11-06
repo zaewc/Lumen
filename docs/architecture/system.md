@@ -294,7 +294,10 @@ proposed for quarantine.
 
 Application usage counts only towards caution
 ([ADR-0059](../decisions/0059-use-application-usage-as-cautious-evidence.md)):
-- an item whose owning application is running is kept (`protect.app-running`);
+- an item whose owning application is running is kept (`protect.app-running`). On
+  macOS, an application runs when a process's executable lies inside one of its
+  bundles. That is read from the assessment's one read of the process table, and read
+  again when a plan is confirmed or an item is checked again;
 - application data whose owner any source finds installed is not orphaned;
 - when an application was last opened (`ApplicationLastOpened`) and when a project
   last changed (`ProjectActivity`) are shown and never decided on.
@@ -306,7 +309,8 @@ ask for those items to be checked again
 ([ADR-0058](../decisions/0058-reassess-chosen-items-with-fresh-read-only-evidence.md)).
 `lumen_application::reassess::gaps` maps fired rules to the gaps a read-only check may
 answer:
-- in use, partly visible or unknown → asked live again;
+- in use, partly visible or unknown, or kept because its application runs → asked
+  live again;
 - not read, or not observed → its subtree listed again;
 - an old observation → observed again;
 - `default.review` or `classify.orphan` → the inventories read again.

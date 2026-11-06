@@ -61,9 +61,10 @@ fn gaps_for<'a>(rules: impl IntoIterator<Item = &'a str>, stale: bool) -> BTreeS
     let mut gaps = BTreeSet::new();
     for rule in rules {
         let gap = match rule {
-            ids::PROTECT_IN_USE | ids::PROTECT_IN_USE_PARTIAL | ids::PROTECT_IN_USE_UNKNOWN => {
-                Gap::InUse
-            }
+            ids::PROTECT_IN_USE
+            | ids::PROTECT_IN_USE_PARTIAL
+            | ids::PROTECT_IN_USE_UNKNOWN
+            | ids::PROTECT_APP_RUNNING => Gap::InUse,
             ids::PROTECT_INCOMPLETE_SCAN | ids::PROTECT_NOT_OBSERVED => Gap::Unread,
             ids::DEFAULT_REVIEW | ids::CLASSIFY_ORPHAN => Gap::Owner,
             ids::JEV_DEMOTE => return BTreeSet::new(),
@@ -464,6 +465,10 @@ mod tests {
             in_use_source: &source,
             ownership: &Owner,
             ownership_source: &source,
+
+            running: &crate::ports::NoRunningProbe,
+
+            running_source: &source,
         };
         ready(decide_candidate(
             &world.scanned[0],
@@ -484,6 +489,10 @@ mod tests {
             in_use_source: &source,
             ownership: &Owner,
             ownership_source: &source,
+
+            running: &crate::ports::NoRunningProbe,
+
+            running_source: &source,
         };
         ready(reassess(
             before,
@@ -515,6 +524,65 @@ mod tests {
         assert_eq!(evaluate(&after.input).ok().as_ref(), Some(&after.decision));
     }
 
+    /// Answers whether the cache's application runs.
+    struct Running(Option<bool>);
+
+    impl crate::ports::RunningProbe for Running {
+        fn running(&self, _: &AppId) -> Option<bool> {
+            self.0
+        }
+    }
+
+    #[test]
+    fn a_cache_kept_while_its_app_runs_is_proposed_once_the_app_quits() {
+        let world = world();
+        let source = SourceName::new("test").unwrap_or_else(|_| unreachable!());
+        let decide = |running: Option<bool>| {
+            let probe = Probe(InUse::No);
+            let app = Running(running);
+            let probes = Probes {
+                in_use: &probe,
+                in_use_source: &source,
+                ownership: &Owner,
+                ownership_source: &source,
+                running: &app,
+                running_source: &source,
+            };
+            ready(decide_candidate(
+                &world.scanned[0],
+                &world.sources(),
+                &probes,
+                &NoopJudge,
+                &Epoch(1),
+                &|_| None,
+            ))
+            .unwrap_or_else(|e| unreachable!("{e}"))
+        };
+        let running = decide(Some(true));
+        assert_eq!(running.decision.verdict(), Verdict::Keep);
+        let rules: Vec<&str> = running
+            .decision
+            .fired_rules()
+            .iter()
+            .map(|fired| fired.rule.as_str())
+            .collect();
+        assert_eq!(rules, [ids::PROTECT_APP_RUNNING]);
+        assert_eq!(gaps(&running), BTreeSet::from([Gap::InUse]));
+        for quit in [Some(false), None] {
+            let after = decide(quit);
+            assert_eq!(after.decision.verdict(), Verdict::Quarantine, "{quit:?}");
+            assert_eq!(
+                after
+                    .input
+                    .evidence
+                    .iter()
+                    .any(|e| matches!(e.fact, Fact::ApplicationRunning { .. })),
+                quit.is_some(),
+                "an unknown answer states nothing"
+            );
+        }
+    }
+
     #[test]
     fn a_check_that_cannot_answer_adds_no_negative() {
         let world = world();
@@ -541,6 +609,10 @@ mod tests {
             in_use_source: &source,
             ownership: &Owner,
             ownership_source: &source,
+
+            running: &crate::ports::NoRunningProbe,
+
+            running_source: &source,
         };
         let replaced = entry(
             "/Users/t/Library/Caches/com.example.present",
@@ -624,6 +696,10 @@ mod tests {
             in_use_source: &source,
             ownership: &Owner,
             ownership_source: &source,
+
+            running: &crate::ports::NoRunningProbe,
+
+            running_source: &source,
         };
         let job = Job {
             before: &before,

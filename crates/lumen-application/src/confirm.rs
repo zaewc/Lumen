@@ -497,6 +497,10 @@ mod tests {
             in_use_source: &source,
             ownership: &Mine,
             ownership_source: &source,
+
+            running: &crate::ports::NoRunningProbe,
+
+            running_source: &source,
         };
         let roots = [raw("/root")];
         let verifier = Verifier(case.present);

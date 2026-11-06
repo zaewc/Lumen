@@ -7,9 +7,9 @@ use std::ops::ControlFlow;
 use std::pin::Pin;
 
 use lumen_domain::{
-    AccessState, Application, FileIdentity, FilesystemEntry, ItemLocation, ItemNote, JevRequest,
-    JudgeDescriptor, Judgment, JudgmentRejection, OperationId, Package, PayloadHash, PlanId,
-    Process, QuarantineEvent, QuarantineFailure, QuarantineState, RawPath, ScanId, Service,
+    AccessState, AppId, Application, FileIdentity, FilesystemEntry, ItemLocation, ItemNote,
+    JevRequest, JudgeDescriptor, Judgment, JudgmentRejection, OperationId, Package, PayloadHash,
+    PlanId, Process, QuarantineEvent, QuarantineFailure, QuarantineState, RawPath, ScanId, Service,
     SnapshotId, SourceName, SourceStatus, Timestamp, UnixOwnership, VolumeId,
 };
 
@@ -348,6 +348,25 @@ pub trait OwnershipProbe: Send + Sync {
     /// current user; `None` if that cannot be established (missing, replaced or
     /// unreadable), never a guess.
     fn owned_by_current_user(&self, path: &RawPath, expected: &FileIdentity) -> Option<bool>;
+}
+
+/// Whether an application is running (ADR-0059): its own processes, not
+/// whether it holds an item open.
+pub trait RunningProbe: Send + Sync {
+    /// `Some(true)` when a visible process runs `app`; `Some(false)` only when
+    /// every process was visible and none does; `None` when that cannot be
+    /// known, including when the application's location is unknown.
+    fn running(&self, app: &AppId) -> Option<bool>;
+}
+
+/// A [`RunningProbe`] for platforms without one: it never knows.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NoRunningProbe;
+
+impl RunningProbe for NoRunningProbe {
+    fn running(&self, _app: &AppId) -> Option<bool> {
+        None
+    }
 }
 
 /// Lumen's only path to moving user files (ADR-0015, ADR-0016), implemented

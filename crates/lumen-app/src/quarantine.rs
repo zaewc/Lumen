@@ -24,7 +24,8 @@ use lumen_store_sqlite::{
     IndexStore, LedgerJournal, LedgerStore, StoreError, StoredPlan, open_index, open_ledger,
 };
 
-use crate::assess::{AssessError, block_on, prepare, with_probes};
+use crate::assess::{AssessError, block_on, prepare};
+use crate::probes::with_decision_probes;
 use crate::store::{LocationError, PrivilegeError, lock_ledger, refuse_privileged, stores};
 
 /// How long a plan may wait for its confirmation (ADR-0034).
@@ -274,7 +275,7 @@ pub fn quarantine(
     #[cfg(windows)]
     let verifier = lumen_platform_windows::HandleEnumerator;
     index.apply_plan_event(plan, PlanEvent::Start)?;
-    let items = with_probes(|probes| -> Result<Vec<ItemReport>, QuarantineError> {
+    let items = with_decision_probes(&assessment.apps, |probes| -> Result<_, QuarantineError> {
         let mut items = Vec::new();
         for (item, planned) in stored.plan.items().iter().zip(&stored.decisions) {
             // Each item is decided again from its own part of the scan.

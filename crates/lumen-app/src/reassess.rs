@@ -6,8 +6,9 @@
 //! installed. An item with an unread part or an old observation is listed
 //! again from the filesystem, read-only and for at most [`CHECK_LIMIT`]; a
 //! listing cut short leaves the rest unlisted, which the policy keeps. Every
-//! item is asked live whether a process uses it ([`with_probes`], never the
-//! assessment's snapshot). Nothing here changes the filesystem.
+//! item is asked live whether a process uses it and whether its application
+//! runs, never from the assessment's snapshot. Nothing here changes the
+//! filesystem.
 
 use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
@@ -22,7 +23,7 @@ use lumen_domain::{FilesystemEntry, RawPath};
 use lumen_policy::PolicyError;
 use lumen_scan::{ScanItem, scan as run_scan};
 
-use crate::assess::{AssessError, Subtree, block_on, prepare, with_probes};
+use crate::assess::{AssessError, Subtree, block_on, prepare};
 use crate::scan::{ScanError, enumerator, excluding_stores};
 
 /// How long listing one item again may take.
@@ -70,43 +71,46 @@ pub fn reassess(
     let assessment = prepare(db, clock)?;
     let candidates = select(&assessment.gathered, &assessment.entries);
     let stores = crate::store::scan_exclusion_paths().map_err(ScanError::from)?;
-    with_probes(|probes| -> Result<Reassessment, ReassessError> {
-        let mut items = Vec::with_capacity(chosen.len());
-        for before in chosen {
-            if cancel.is_cancelled() {
-                return Ok(Reassessment {
-                    items,
-                    cancelled: true,
-                });
+    crate::probes::with_decision_probes(
+        &assessment.apps,
+        |probes| -> Result<Reassessment, ReassessError> {
+            let mut items = Vec::with_capacity(chosen.len());
+            for before in chosen {
+                if cancel.is_cancelled() {
+                    return Ok(Reassessment {
+                        items,
+                        cancelled: true,
+                    });
+                }
+                let gaps = gaps(before);
+                let path = &before.candidate.path;
+                let inner = nested(&before.candidate, &candidates);
+                let (subtree, current) = if gaps.is_empty() {
+                    // Settled: nothing is read.
+                    (Subtree::default(), None)
+                } else if gaps.contains(&Gap::Unread) || gaps.contains(&Gap::Stale) {
+                    listed_again(path, &inner, &stores, cancel)?
+                } else {
+                    (
+                        assessment.subtree_without(path, &inner)?,
+                        enumerator().stat(path).ok(),
+                    )
+                };
+                let sources = assessment.sources(&subtree);
+                items.push(block_on(lumen_application::reassess::reassess(
+                    before,
+                    current.as_ref(),
+                    &sources,
+                    probes,
+                    clock,
+                ))?);
             }
-            let gaps = gaps(before);
-            let path = &before.candidate.path;
-            let inner = nested(&before.candidate, &candidates);
-            let (subtree, current) = if gaps.is_empty() {
-                // Settled: nothing is read.
-                (Subtree::default(), None)
-            } else if gaps.contains(&Gap::Unread) || gaps.contains(&Gap::Stale) {
-                listed_again(path, &inner, &stores, cancel)?
-            } else {
-                (
-                    assessment.subtree_without(path, &inner)?,
-                    enumerator().stat(path).ok(),
-                )
-            };
-            let sources = assessment.sources(&subtree);
-            items.push(block_on(lumen_application::reassess::reassess(
-                before,
-                current.as_ref(),
-                &sources,
-                probes,
-                clock,
-            ))?);
-        }
-        Ok(Reassessment {
-            items,
-            cancelled: false,
-        })
-    })?
+            Ok(Reassessment {
+                items,
+                cancelled: false,
+            })
+        },
+    )?
 }
 
 /// Everything at and below `path` except `nested`, listed now without
