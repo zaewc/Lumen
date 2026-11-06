@@ -84,9 +84,20 @@ The threshold is 0.5 throughout. Near-copies differ by ±0.005 per element.
 
 Readings:
 
-- Every matching pair is kept in memory until the end. The peak therefore grows with
-  the square of a dense set: 20,000 identical photos take 3.7 GiB, which a phone
-  cannot spare (#779).
+- Every matching pair was kept in memory until the end. The peak therefore grew with
+  the square of a dense set: 20,000 identical photos took 3.7 GiB, which a phone
+  cannot spare. Since #779, each worker joins pairs into its own disjoint sets as it
+  finds them, and the sets are merged at the end. The peak is now two indices per
+  vector per worker, and the groups are unchanged:
+
+  | Peak memory above the input (× 128) | Before | After | Time after |
+  | --- | --- | --- | --- |
+  | sparse 20,000 | 0.6 MiB | 4.0 MiB | 0.37 s |
+  | mixed 20,000 | 1.1 MiB | 4.0 MiB | 0.33 s |
+  | dense 20,000 | 3,751 MiB | 4.0 MiB | 0.61 s (was 2.2 s) |
+
+  Timings are otherwise unchanged within noise; dense at 5,000 × 768 went from 265 ms
+  to 246 ms.
 - At 100 vectors, all workers are slower than one: starting threads costs more than
   the comparisons (#781).
 - Elements beyond 128 add little, because a pair stops summing as soon as it exceeds
