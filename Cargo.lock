@@ -2391,6 +2391,7 @@ dependencies = [
  "lumen-fs-exec",
  "lumen-graph",
  "lumen-jev",
+ "lumen-platform-linux",
  "lumen-platform-macos",
  "lumen-platform-windows",
  "lumen-policy",
@@ -2555,6 +2556,18 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "lumen-platform-linux"
+version = "0.9.4"
+dependencies = [
+ "blake3",
+ "lumen-application",
+ "lumen-domain",
+ "lumen-scan",
+ "lumen-testkit",
+ "rustix",
 ]
 
 [[package]]

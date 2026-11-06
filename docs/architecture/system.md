@@ -494,6 +494,14 @@ volume serial, file ID, size, last-write and change times before and after readi
 A junction in a parent folder can redirect an open, but the file ID then differs
 and the file is skipped as changed.
 
+On Linux, `lumen_platform_linux::DuplicateReader` reads what
+`lumen_scan::StdFsEnumerator` listed. It opens with `openat2` and
+`RESOLVE_NO_SYMLINKS | RESOLVE_NO_MAGICLINKS`, so a link in any component is
+refused; a kernel without `openat2` (before 5.6, or filtered) reads nothing. Files
+on FUSE filesystems, where cloud-drive clients mount and a read can download, are
+never read. The descriptor's `st_dev`, `st_ino`, size, modification and change
+times are attested before and after reading, as on macOS.
+
 `lumen duplicates <PATH>... [--json]` (`lumen_app::duplicates::find`) runs both
 on folders the user names, never the whole disk by default. It lists them afresh
 from their real paths, skips quarantine stores like a scan, and leaves every file
@@ -501,8 +509,8 @@ in a protected location unread (`lumen_policy::protected_location`, which fails
 closed when the location data or home is unknown). It prints paths and sizes for
 review; digests never leave the process, and nothing is chosen or removed. On
 Windows the roots lose `canonicalize`'s `\\?\` prefix for drive paths, as the
-scanner adds it itself. Linux reports that the analysis is unsupported rather than
-finding nothing.
+scanner adds it itself. Other platforms report that the analysis is unsupported
+rather than finding nothing.
 
 In the desktop app, `compare_folders` takes no path: the host opens the system
 folder dialog and compares only the folders the person picks (ADR-0057). It

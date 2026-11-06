@@ -47,9 +47,10 @@ as AppKit requires; on Windows, the shell's folder dialog owned by the window. I
 linked on macOS and Windows only, without default features, and adds no other crate:
 Tauri already depends on its AppKit (`objc2`) and Win32 (`windows-sys`) bindings.
 
-On platforms without a content reader (Linux for now), the command says so without
-opening a dialog, instead of reporting that nothing was found. When a reader lands
-there, the same crate covers GTK through bindings Tauri already links.
+Where the host shows no dialog (Linux for now, although the core can read there),
+the command says comparing is unsupported without opening one, instead of reporting
+that nothing was found. The same crate covers GTK through bindings Tauri already
+links.
 
 Option 2 lets a compromised page choose what Lumen reads. Option 3 adds a plugin and
 gives the webview a file-system capability, which the desktop rules forbid.

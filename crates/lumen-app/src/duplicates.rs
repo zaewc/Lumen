@@ -50,7 +50,7 @@ pub struct Duplicates {
 /// says [`DuplicatesError::Unsupported`].
 #[must_use]
 pub const fn available() -> bool {
-    cfg!(any(target_os = "macos", windows))
+    cfg!(any(target_os = "macos", windows, target_os = "linux"))
 }
 
 /// Find exact duplicates below `roots`, reporting each attempted fingerprint.
@@ -156,7 +156,19 @@ fn read(
     )?)
 }
 
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(target_os = "linux")]
+fn read(
+    entries: &[FilesystemEntry],
+    cancel: &CancelToken,
+    progress: &mut dyn FnMut(HashStage, usize),
+) -> Result<DuplicateReport, DuplicatesError> {
+    let reader = lumen_platform_linux::DuplicateReader;
+    Ok(lumen_application::duplicates::detect(
+        entries, &reader, cancel, progress,
+    )?)
+}
+
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
 fn read(
     _: &[FilesystemEntry],
     _: &CancelToken,
@@ -212,12 +224,12 @@ fn context() -> Context {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     use lumen_testkit::{Fixture, Node};
 
     use super::*;
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     fn file(path: &str, contents: &[u8]) -> Node {
         Node::File {
             path: path.into(),
@@ -225,7 +237,7 @@ mod tests {
         }
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn copies_below_a_symlinked_root_are_grouped_for_review()
     -> Result<(), Box<dyn std::error::Error>> {
@@ -238,7 +250,8 @@ mod tests {
                 existing: "photos/a.jpg".into(),
             },
         ])?;
-        // The temporary directory is below `/var`, a symlink to `/private/var`.
+        // On macOS the temporary directory is below `/var`, a symlink to
+        // `/private/var`.
         let found = find(
             &[fx.root().to_path_buf()],
             &CancelToken::new(),
@@ -251,7 +264,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn cancellation_and_missing_roots_report_nothing() -> Result<(), Box<dyn std::error::Error>> {
         let fx = Fixture::build(&[file("a", &[1; 10]), file("b", &[1; 10])])?;
@@ -290,7 +303,7 @@ mod tests {
         ));
     }
 
-    #[cfg(not(any(target_os = "macos", windows)))]
+    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
     #[test]
     fn other_platforms_say_unsupported_instead_of_finding_nothing() {
         assert!(matches!(

@@ -176,7 +176,7 @@ needed, and why the invariant holds. All other crates forbid or deny `unsafe`.
 | --- | --- |
 | `lumen-platform-macos/src/sys.rs` | `getattrlistbulk`, `getattrlistat`, `getattrlist`; `getiopolicy_np`/`setiopolicy_np` |
 | `lumen-platform-macos/src/feed.rs` | `FSEvents` stream lifecycle, event-store UUID, callback arrays |
-| `lumen-platform-windows/src/sys.rs` | `CreateFileW`, `CloseHandle`, `GetFileInformationByHandleEx`, `GetVolumeInformationByHandleW`, thread placeholder mode, overlapped `ReadDirectoryChangesW` |
+| `lumen-platform-windows/src/sys.rs` | `CreateFileW`, `CloseHandle`, `GetFileInformationByHandleEx`, `GetVolumeInformationByHandleW`, thread placeholder mode, overlapped `ReadDirectoryChangesW`, positioned `ReadFile` (duplicate analysis only) |
 
 Asynchronous I/O (`Watch`) keeps its buffer and `OVERLAPPED` at fixed heap
 addresses and cancels and drains a pending read before freeing them. The `FSEvents`

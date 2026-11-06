@@ -25,6 +25,7 @@ lumen-fs-exec = { path = "crates/lumen-fs-exec" }
 lumen-graph = { path = "crates/lumen-graph" }
 lumen-jev = { path = "crates/lumen-jev" }
 lumen-jev-eval = { path = "crates/lumen-jev-eval" }
+lumen-platform-linux = { path = "crates/lumen-platform-linux" }
 lumen-platform-macos = { path = "crates/lumen-platform-macos" }
 lumen-platform-windows = { path = "crates/lumen-platform-windows" }
 lumen-policy = { path = "crates/lumen-policy" }
