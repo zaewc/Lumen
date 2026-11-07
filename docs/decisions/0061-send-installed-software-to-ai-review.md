@@ -61,9 +61,13 @@ it comes with.
    - the privacy line in Settings.
 
    Each must say that installed software names, publishers and versions are sent
-   while AI review is on. People who turned AI review on before that release see a
-   one-time notice on the Apps page, with the off switch beside it. Nothing from the
-   list is sent before that notice has been shown.
+   while AI review is on. The release notes of the version that starts sending say
+   so too.
+
+   Consent given before that release extends to the software list without a new
+   question or notice (owner decision, 2026-11-07). Someone who turned AI review on
+   earlier starts sending it after updating. The updated descriptions and the
+   release notes are how they learn this, and the off switch stops it.
 5. **What the answer may do.** The explanation is evidence and description only
    (ADR-0020).
    - It never selects software to remove, a mechanism, or an argument.
@@ -83,7 +87,12 @@ it comes with.
 - Bad: while AI review is on, the names and versions of installed software leave the
   device. They describe a person's tools, interests and sometimes employer.
   - The chosen AI service and, for Jeb, its operator may keep them.
-  - Disclosure, the one-time notice and the off switch are the mitigations.
+  - The updated descriptions, the release notes and the off switch are the
+    mitigations.
+  - Consent given before the change is extended without asking again. People who
+    do not read the release notes or Settings start sending their software list
+    without being told in the app. The owner accepted this to avoid interrupting
+    them.
   - The data sent is limited to identity fields; nothing else is sent.
 - Neutral: on-demand explanation remains possible later as a narrower mode if people
   prefer it.
@@ -93,5 +102,8 @@ it comes with.
 - Owner decisions, 2026-11-07:
   - send automatically while AI review is on, not on demand;
   - small-scale Jeb evaluation runs allowed (one or two runs over a few dozen
-    fictional software entries).
+    fictional software entries);
+  - existing consent extends to the software list, with no in-app notice. An
+    earlier draft required a one-time notice before anything was sent; the owner
+    chose not to have one.
 - ADR-0060 rule 9 otherwise stands: no usage signals in requests, no telemetry.
