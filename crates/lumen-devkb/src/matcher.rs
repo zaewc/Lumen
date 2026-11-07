@@ -12,9 +12,13 @@
 //!   through `contains` edges);
 //! - only regular files and directories match: links and reparse points are other
 //!   objects (ADR-0017);
-//! - names compare without case on macOS and Windows, whose default volumes are
-//!   case-insensitive, and exactly elsewhere; a name that is not valid UTF-8
-//!   always compares byte for byte, never through a lossy conversion;
+//! - names compare without case only on a volume the platform reported as
+//!   case-insensitive ([`Environment::volumes`]), and exactly on any other,
+//!   whatever the operating system (#790): a case-sensitive APFS volume keeps
+//!   `Build` and `build` apart. The scanned object's own volume decides, for
+//!   its whole path and the location it is compared with. A name that is not
+//!   valid UTF-8 always compares byte for byte, never through a lossy
+//!   conversion;
 //! - a project location matches only if one of its markers was scanned as a file:
 //!   an unscanned marker is unknown, so no evidence is produced;
 //! - a matched project location also gets `ProjectActivity`: the newest
@@ -31,8 +35,8 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use lumen_domain::{
-    Basis, EntryKind, Evidence, Fact, FilesystemEntry, PathFlavor, Platform, Provenance, RawPath,
-    SourceName, Subject, Timestamp,
+    Basis, CaseSensitivity, EntryKind, Evidence, Fact, FilesystemEntry, PathFlavor, Platform,
+    Provenance, RawPath, SourceName, Subject, Timestamp, VolumeId,
 };
 
 use crate::{ArtifactKind, Entry, KnowledgeBase, Location, Root};
@@ -55,6 +59,30 @@ pub struct Environment {
     pub roaming_app_data: Option<RawPath>,
     /// Environment variables that name directories, by exact name.
     pub vars: Vec<(String, RawPath)>,
+    /// How names compare on each volume, as the platform reported it. Names on
+    /// a volume that is missing here, reported as unknown, or reported more
+    /// than once with different answers compare exactly: folding where the
+    /// filesystem does not could match a different folder.
+    pub volumes: Vec<(VolumeId, CaseSensitivity)>,
+}
+
+impl Environment {
+    /// The volumes whose every report says names compare without case.
+    fn insensitive_volumes(&self) -> HashSet<VolumeId> {
+        let sensitive: HashSet<&VolumeId> = self
+            .volumes
+            .iter()
+            .filter(|(_, case)| *case != CaseSensitivity::Insensitive)
+            .map(|(volume, _)| volume)
+            .collect();
+        self.volumes
+            .iter()
+            .filter(|(volume, case)| {
+                *case == CaseSensitivity::Insensitive && !sensitive.contains(volume)
+            })
+            .map(|(volume, _)| volume.clone())
+            .collect()
+    }
 }
 
 /// One path component as bytes, folded for comparison when it is valid UTF-8.
@@ -68,13 +96,6 @@ type Component = Vec<u8>;
 
 /// The pattern component that matches any one name.
 const WILDCARD: &[u8] = b"*";
-
-fn case_insensitive(platform: Platform) -> bool {
-    matches!(
-        platform,
-        Platform::Macos | Platform::Windows | Platform::Ios
-    )
-}
 
 /// The non-empty components of a path, unfolded.
 fn raw_components(path: &RawPath) -> impl DoubleEndedIterator<Item = &[u8]> {
@@ -96,25 +117,23 @@ fn component(part: &[u8], fold: bool) -> Component {
     }
 }
 
-/// The non-empty components of a path, folded for `platform`.
-fn components(path: &RawPath, platform: Platform) -> Vec<Component> {
-    let fold = case_insensitive(platform);
+/// The non-empty components of a path, folded when `fold` is set.
+fn components(path: &RawPath, fold: bool) -> Vec<Component> {
     raw_components(path)
         .map(|part| component(part, fold))
         .collect()
 }
 
 /// The last of [`components`], without folding the rest.
-fn last_component(path: &RawPath, platform: Platform) -> Option<Component> {
+fn last_component(path: &RawPath, fold: bool) -> Option<Component> {
     raw_components(path)
         .next_back()
-        .map(|part| component(part, case_insensitive(platform)))
+        .map(|part| component(part, fold))
 }
 
-/// A location's pattern relative to its root, folded for `platform`; `*` stays
-/// a wildcard.
-fn pattern(path: &str, platform: Platform) -> Vec<Component> {
-    let fold = case_insensitive(platform);
+/// A location's pattern relative to its root, folded when `fold` is set; `*`
+/// stays a wildcard.
+fn pattern(path: &str, fold: bool) -> Vec<Component> {
     path.split('/')
         .filter(|part| !part.is_empty())
         .map(|part| component(part.as_bytes(), fold))
@@ -134,15 +153,35 @@ fn contains(names: &[Component], pattern: &[Component]) -> bool {
     !pattern.is_empty() && names.windows(pattern.len()).any(|run| fits(run, pattern))
 }
 
-/// A location resolved against the environment.
+/// A resolved location's names, compared exactly or folded.
 #[derive(Debug)]
-struct Resolved<'kb> {
-    entry: &'kb Entry,
+struct Shape {
     /// The absolute root, or `None` for a project location.
     root: Option<Vec<Component>>,
     pattern: Vec<Component>,
     markers: Vec<Vec<Component>>,
+}
+
+impl Shape {
+    fn new(root: Option<&RawPath>, location: &Location, fold: bool) -> Self {
+        Self {
+            root: root.map(|r| components(r, fold)),
+            pattern: pattern(&location.path, fold),
+            markers: location.markers.iter().map(|m| pattern(m, fold)).collect(),
+        }
+    }
+}
+
+/// A location resolved against the environment.
+#[derive(Debug)]
+struct Resolved<'kb> {
+    entry: &'kb Entry,
     kind: Option<ArtifactKind>,
+    /// Compared with names on a volume that keeps case apart, or on one whose
+    /// behaviour is unknown.
+    exact: Shape,
+    /// Compared with names on a case-insensitive volume, folded the same way.
+    folded: Shape,
 }
 
 fn resolve<'kb>(
@@ -167,18 +206,21 @@ fn resolve<'kb>(
     };
     Some(Resolved {
         entry,
-        root: root.map(|r| components(r, env.platform)),
-        pattern: pattern(&location.path, env.platform),
         kind: location.kind,
-        markers: location
-            .markers
-            .iter()
-            .map(|m| pattern(m, env.platform))
-            .collect(),
+        exact: Shape::new(root, location, false),
+        folded: Shape::new(root, location, true),
     })
 }
 
 impl Resolved<'_> {
+    /// The shape to compare names with: folded only for a case-insensitive
+    /// volume, whose names are folded too.
+    const fn shape(&self, fold: bool) -> &Shape {
+        if fold { &self.folded } else { &self.exact }
+    }
+}
+
+impl Shape {
     fn matches(&self, names: &[Component], scanned: &MarkerTimes) -> bool {
         if let Some(root) = &self.root {
             return names.len() == root.len() + self.pattern.len()
@@ -229,8 +271,9 @@ type MarkerTimes = HashMap<Vec<Component>, Option<Timestamp>>;
 /// [`Matcher::add_markers`] from any number of scan chunks.
 ///
 /// Only paths whose last name is one of the matcher's marker names are kept,
-/// so the set stays small however large the scan is. Paths are folded for the
-/// matcher's platform: use a set only with the [`Matcher`] that filled it.
+/// so the set stays small however large the scan is. Paths are folded for
+/// their volumes as the matcher's environment reported them: use a set only
+/// with the [`Matcher`] that filled it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Markers {
     paths: MarkerTimes,
@@ -276,7 +319,8 @@ impl Markers {
 /// for the whole scan.
 #[derive(Debug)]
 pub struct Matcher<'kb> {
-    platform: Platform,
+    /// Volumes whose names compare without case; all others compare exactly.
+    insensitive: HashSet<VolumeId>,
     resolved: Vec<Resolved<'kb>>,
     /// The last names of all markers: the only paths a marker set keeps.
     marker_names: HashSet<Component>,
@@ -299,10 +343,11 @@ impl KnowledgeBase {
             .collect();
         let marker_names = resolved
             .iter()
-            .flat_map(|r| r.markers.iter().filter_map(|m| m.last().cloned()))
+            .flat_map(|r| [&r.exact, &r.folded])
+            .flat_map(|shape| shape.markers.iter().filter_map(|m| m.last().cloned()))
             .collect();
         Matcher {
-            platform: env.platform,
+            insensitive: env.insensitive_volumes(),
             resolved,
             marker_names,
         }
@@ -324,15 +369,21 @@ impl KnowledgeBase {
         matcher.evidence(scanned, &matcher.paths(scanned), &markers, observed_at)
     }
 
-    /// Whether entry `id`'s own command acts on `path`, an object that matched
-    /// the entry in `env`. A tool uses the folder its variable names instead
+    /// Whether entry `id`'s own command acts on `path`, an object on `volume`
+    /// that matched the entry in `env`. A tool uses the folder its variable names instead
     /// of its default one, so while any of the entry's variables is in `env`
     /// only their locations count, and only if they name one folder: which
     /// one the tool picks is otherwise unknown. An old default folder beside
     /// a configured one still matches the entry; its command just does not
     /// clear it.
     #[must_use]
-    pub fn command_acts_on(&self, env: &Environment, id: &str, path: &RawPath) -> bool {
+    pub fn command_acts_on(
+        &self,
+        env: &Environment,
+        id: &str,
+        path: &RawPath,
+        volume: &VolumeId,
+    ) -> bool {
         let Some(entry) = self.get(id) else {
             return false;
         };
@@ -342,20 +393,28 @@ impl KnowledgeBase {
             .filter(|l| matches!(l.root, Root::EnvVar { .. }))
             .filter_map(|l| resolve(entry, l, env))
             .collect();
+        let fold = env.insensitive_volumes().contains(volume);
         let folders: BTreeSet<Vec<Component>> = configured
             .iter()
-            .map(|r| [r.root.as_deref().unwrap_or_default(), r.pattern.as_slice()].concat())
+            .map(|r| r.shape(fold))
+            .map(|s| [s.root.as_deref().unwrap_or_default(), s.pattern.as_slice()].concat())
             .collect();
-        let names = components(path, env.platform);
+        let names = components(path, fold);
         configured.is_empty()
             || (folders.len() == 1
                 && configured
                     .iter()
-                    .any(|r| r.matches(&names, &HashMap::new())))
+                    .any(|r| r.shape(fold).matches(&names, &HashMap::new())))
     }
 }
 
 impl Matcher<'_> {
+    /// Whether `entry`'s names compare without case: only on a volume
+    /// reported as case-insensitive.
+    fn folds(&self, entry: &FilesystemEntry) -> bool {
+        self.insensitive.contains(&entry.identity().volume)
+    }
+
     /// Pass 1: adds the marker paths among `chunk` to `markers`.
     pub fn add_markers(&self, chunk: &[FilesystemEntry], markers: &mut Markers) {
         // Only a file whose last name is a marker's is kept, so only those
@@ -365,10 +424,13 @@ impl Matcher<'_> {
                 .iter()
                 .filter(|entry| {
                     entry.kind == EntryKind::File
-                        && last_component(&entry.path, self.platform)
+                        && last_component(&entry.path, self.folds(entry))
                             .is_some_and(|name| self.marker_names.contains(&name))
                 })
-                .map(|entry| (components(&entry.path, self.platform), entry.times.modified)),
+                .map(|entry| {
+                    let names = components(&entry.path, self.folds(entry));
+                    (names, entry.times.modified)
+                }),
         );
     }
 
@@ -390,7 +452,7 @@ impl Matcher<'_> {
     fn paths(&self, scanned: &[FilesystemEntry]) -> Vec<Vec<Component>> {
         scanned
             .iter()
-            .map(|e| components(&e.path, self.platform))
+            .map(|e| components(&e.path, self.folds(e)))
             .collect()
     }
 
@@ -409,11 +471,12 @@ impl Matcher<'_> {
             if !matches!(object.kind, EntryKind::File | EntryKind::Directory) {
                 continue;
             }
+            let fold = self.folds(object);
             let matched: Vec<&Resolved<'_>> = self
                 .resolved
                 .iter()
                 .filter(|r| r.kind.is_none_or(|kind| kind.matches(object.kind)))
-                .filter(|r| r.matches(names, &markers.paths))
+                .filter(|r| r.shape(fold).matches(names, &markers.paths))
                 .collect();
             let ids: BTreeSet<&str> = matched.iter().map(|r| r.entry.id.as_str()).collect();
             let facts = ids
@@ -423,7 +486,7 @@ impl Matcher<'_> {
                 .chain(
                     matched
                         .iter()
-                        .filter_map(|r| r.activity(names, &markers.paths))
+                        .filter_map(|r| r.shape(fold).activity(names, &markers.paths))
                         .max()
                         .map(Fact::ProjectActivity),
                 );
@@ -506,7 +569,7 @@ mod tests {
             kind,
             size: SizeFacts {
                 identity: FileIdentity {
-                    volume: VolumeId::new("v").unwrap_or_else(|_| unreachable!()),
+                    volume: volume(),
                     file: FileId::new(ino),
                 },
                 logical: ByteCount::ZERO,
@@ -526,13 +589,30 @@ mod tests {
         object(unix(path), EntryKind::Directory, ino)
     }
 
+    /// The volume every test entry is on.
+    fn volume() -> VolumeId {
+        VolumeId::new("v").unwrap_or_else(|_| unreachable!())
+    }
+
+    /// An environment whose one volume compares names as `platform`'s default
+    /// volume does: without case on macOS, iOS and Windows.
     fn env(platform: Platform) -> Environment {
+        let case = match platform {
+            Platform::Macos | Platform::Ios | Platform::Windows => CaseSensitivity::Insensitive,
+            _ => CaseSensitivity::Sensitive,
+        };
+        on(platform, &[case])
+    }
+
+    /// An environment where the test volume was reported as each of `cases`.
+    fn on(platform: Platform, cases: &[CaseSensitivity]) -> Environment {
         Environment {
             platform,
             home: Some(unix("/Users/ana")),
             local_app_data: None,
             roaming_app_data: None,
             vars: Vec::new(),
+            volumes: cases.iter().map(|case| (volume(), *case)).collect(),
         }
     }
 
@@ -592,10 +672,52 @@ mod tests {
     }
 
     #[test]
-    fn case_folds_only_where_the_platform_does() {
+    fn case_folds_only_where_the_volume_does() {
+        use CaseSensitivity::{Insensitive, Sensitive, Unknown};
         let scanned = [dir("/Users/ana/.CACHE/Sample", 1)];
-        assert_eq!(matched(&env(Platform::Macos), &scanned).len(), 1);
-        assert_eq!(matched(&env(Platform::Linux), &scanned).len(), 0);
+        for platform in [Platform::Macos, Platform::Linux] {
+            assert_eq!(matched(&on(platform, &[Insensitive]), &scanned).len(), 1);
+            // A case-sensitive volume keeps `.CACHE` apart from `.cache`, even
+            // on macOS (#790); so does one that is unknown, unreported, or
+            // reported both ways.
+            for cases in [&[Sensitive][..], &[Unknown], &[], &[Insensitive, Sensitive]] {
+                assert!(
+                    matched(&on(platform, cases), &scanned).is_empty(),
+                    "{platform:?} {cases:?}"
+                );
+            }
+        }
+        // The exact name still matches on every volume.
+        let exact = [dir("/Users/ana/.cache/sample", 1)];
+        assert_eq!(matched(&on(Platform::Macos, &[Sensitive]), &exact).len(), 1);
+    }
+
+    #[test]
+    fn project_markers_compare_as_their_volume_does() {
+        use CaseSensitivity::{Insensitive, Sensitive};
+        let scanned = [
+            dir("/src/app/target", 1),
+            object(unix("/src/app/CARGO.TOML"), EntryKind::File, 2),
+        ];
+        assert_eq!(
+            matched(&on(Platform::Macos, &[Insensitive]), &scanned),
+            [(1, "sample-build".to_owned())]
+        );
+        assert!(matched(&on(Platform::Macos, &[Sensitive]), &scanned).is_empty());
+    }
+
+    #[test]
+    fn a_tools_command_follows_the_volume_of_its_folder() {
+        use CaseSensitivity::{Insensitive, Sensitive};
+        let configured = |case| {
+            let mut environment = on(Platform::Macos, &[case]);
+            environment.vars = vec![("SAMPLE_CACHE".to_owned(), unix("/data/Cache"))];
+            environment
+        };
+        let path = unix("/data/cache");
+        let acts = |case| kb().command_acts_on(&configured(case), "sample-cache", &path, &volume());
+        assert!(acts(Insensitive));
+        assert!(!acts(Sensitive));
     }
 
     fn unix_bytes(path: &[u8]) -> RawPath {
@@ -1527,7 +1649,7 @@ mod tests {
             builtin_ids(&mac, &[poetry("/cache/repositories", 1)]),
             ["poetry-repository-cache"]
         );
-        assert!(builtin.command_acts_on(&mac, "poetry-repository-cache", &default));
+        assert!(builtin.command_acts_on(&mac, "poetry-repository-cache", &default, &volume()));
         assert_eq!(
             builtin_ids(
                 &mac,
@@ -1550,8 +1672,13 @@ mod tests {
             builtin_ids(&custom, &[dir("/custom/poetry/cache/repositories", 1)]),
             ["poetry-repository-cache"]
         );
-        assert!(builtin.command_acts_on(&custom, "poetry-repository-cache", &configured));
-        assert!(!builtin.command_acts_on(&custom, "poetry-repository-cache", &default));
+        assert!(builtin.command_acts_on(
+            &custom,
+            "poetry-repository-cache",
+            &configured,
+            &volume()
+        ));
+        assert!(!builtin.command_acts_on(&custom, "poetry-repository-cache", &default, &volume()));
         let mut linux = env(Platform::Linux);
         linux.vars = vec![("XDG_CACHE_HOME".to_owned(), unix("/xdg"))];
         assert_eq!(
@@ -1644,7 +1771,7 @@ mod tests {
             builtin_ids(&mac, &[dir("/Users/ana/Library/Caches/dotslash", 1)]),
             ["dotslash-cache"]
         );
-        assert!(builtin.command_acts_on(&mac, "dotslash-cache", &default));
+        assert!(builtin.command_acts_on(&mac, "dotslash-cache", &default, &volume()));
         assert_eq!(
             builtin_ids(
                 &mac,
@@ -1667,8 +1794,8 @@ mod tests {
             builtin_ids(&mac, &[dir("/custom/ds", 1)]),
             ["dotslash-cache"]
         );
-        assert!(builtin.command_acts_on(&mac, "dotslash-cache", &unix("/custom/ds")));
-        assert!(!builtin.command_acts_on(&mac, "dotslash-cache", &default));
+        assert!(builtin.command_acts_on(&mac, "dotslash-cache", &unix("/custom/ds"), &volume()));
+        assert!(!builtin.command_acts_on(&mac, "dotslash-cache", &default, &volume()));
         let mut linux = env(Platform::Linux);
         linux.vars = vec![("XDG_CACHE_HOME".to_owned(), unix("/xdg"))];
         assert_eq!(
@@ -1795,7 +1922,7 @@ mod tests {
                     identity: scanned[0].identity().clone()
                 }
             );
-            assert!(kb.command_acts_on(&environment, "npm-npx-cache", &target));
+            assert!(kb.command_acts_on(&environment, "npm-npx-cache", &target, &volume()));
             for kind in [
                 EntryKind::File,
                 EntryKind::Symlink,
@@ -1815,15 +1942,20 @@ mod tests {
                     npx_matches(&environment, std::slice::from_ref(&configured)).len(),
                     1
                 );
-                assert!(kb.command_acts_on(&environment, "npm-npx-cache", &custom_target));
-                assert!(!kb.command_acts_on(&environment, "npm-npx-cache", &target));
+                assert!(kb.command_acts_on(
+                    &environment,
+                    "npm-npx-cache",
+                    &custom_target,
+                    &volume()
+                ));
+                assert!(!kb.command_acts_on(&environment, "npm-npx-cache", &target, &volume()));
             }
             environment.vars = vec![
                 ("npm_config_cache".into(), parse(base)),
                 ("NPM_CONFIG_CACHE".into(), parse(custom)),
             ];
-            assert!(!kb.command_acts_on(&environment, "npm-npx-cache", &target));
-            assert!(!kb.command_acts_on(&environment, "npm-npx-cache", &custom_target));
+            assert!(!kb.command_acts_on(&environment, "npm-npx-cache", &target, &volume()));
+            assert!(!kb.command_acts_on(&environment, "npm-npx-cache", &custom_target, &volume()));
         }
     }
 

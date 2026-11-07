@@ -20,8 +20,9 @@ use lumen_application::observe::below;
 use lumen_application::ports::{Clock, InventoryReport, JudgeError, JudgeFuture, JudgeModel};
 use lumen_devkb::{Environment, KnowledgeBase, Markers, Root};
 use lumen_domain::{
-    CleanupMechanism, Evidence, Fact, JevRequest, JudgeDescriptor, Platform, PlatformCapabilities,
-    RawPath, Relationship, ScanId, SourceName, SourceNameError, Subject,
+    CaseSensitivity, CleanupMechanism, Evidence, Fact, JevRequest, JudgeDescriptor, Platform,
+    PlatformCapabilities, RawPath, Relationship, ScanId, SourceName, SourceNameError, Subject,
+    VolumeId,
 };
 use lumen_policy::Context;
 use lumen_store_sqlite::{IndexStore, StoreError, open_index};
@@ -101,14 +102,39 @@ fn cache_vars(
 }
 
 /// Where the knowledge base's locations are, from this process's
-/// environment: the one a tool's own command inherits when it runs.
-fn environment(kb: &KnowledgeBase, platform: Platform) -> Environment {
+/// environment: the one a tool's own command inherits when it runs. Names
+/// compare without case only on `volumes` reported as case-insensitive.
+fn environment(
+    kb: &KnowledgeBase,
+    platform: Platform,
+    volumes: Vec<(VolumeId, CaseSensitivity)>,
+) -> Environment {
     Environment {
         platform,
         home: home(),
         local_app_data: env_path("LOCALAPPDATA"),
         roaming_app_data: env_path("APPDATA"),
         vars: cache_vars(kb, platform, env_path),
+        volumes,
+    }
+}
+
+/// How names compare on each mounted volume, as the platform reports it now
+/// (#790). Read once per assessment: a device number can name another volume
+/// after a remount. Linux reports none, so its names compare exactly.
+fn volume_cases() -> Vec<(VolumeId, CaseSensitivity)> {
+    #[cfg(target_os = "macos")]
+    {
+        lumen_platform_macos::volumes::case_sensitivity()
+    }
+    #[cfg(windows)]
+    {
+        use lumen_platform_windows::volumes;
+        volumes::case_sensitivity(&volumes::mounted())
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        Vec::new()
     }
 }
 
@@ -721,7 +747,7 @@ fn prepare_with_progress(
             .iter()
             .all(|r| r.status == lumen_domain::SourceStatus::Complete);
     let kb = KnowledgeBase::builtin()?;
-    let env = environment(&kb, platform);
+    let env = environment(&kb, platform, volume_cases());
     // The scan's facts and what is derived from them alone are dated by the
     // scan, so assessing it again records nothing new.
     let scanned_at = store.scan_finished_at(scan)?.unwrap_or(now);
@@ -809,8 +835,16 @@ pub fn tool_action(assessed: &Assessed) -> Option<ToolGuidance> {
     };
     let env = std::cell::OnceCell::new();
     tool_guidance(kb, &subject, &assessed.input.evidence, |entry| {
-        let env = env.get_or_init(|| environment(kb, platform()));
-        kb.command_acts_on(env, &entry.id, &assessed.candidate.path)
+        // Without volume reports, names compare exactly: probing every
+        // volume for each item costs more than the case difference it would
+        // allow, and an inexact folder only withholds the command.
+        let env = env.get_or_init(|| environment(kb, platform(), Vec::new()));
+        kb.command_acts_on(
+            env,
+            &entry.id,
+            &assessed.candidate.path,
+            &assessed.candidate.identity().volume,
+        )
     })
 }
 
@@ -1400,6 +1434,7 @@ mod tests {
         assert_eq!(vars.len(), 3);
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
@@ -1437,6 +1472,7 @@ mod tests {
         let vars = cache_vars(&kb, Platform::Linux, |_| None);
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
@@ -1471,6 +1507,7 @@ mod tests {
         let assess = |set: &[(&str, &str)]| {
             let env = Environment {
                 platform: Platform::Linux,
+                volumes: Vec::new(),
                 home: RawPath::from_unix_bytes("/home/ana").ok(),
                 local_app_data: None,
                 roaming_app_data: None,
@@ -1494,7 +1531,7 @@ mod tests {
                     identified.push(id);
                 }
                 if tool_guidance(&kb, &subject, &evidence, |entry| {
-                    kb.command_acts_on(&env, &entry.id, &item.path)
+                    kb.command_acts_on(&env, &entry.id, &item.path, &item.identity().volume)
                 })
                 .is_some_and(|guidance| guidance.args == ["cache", "prune"])
                 {
@@ -1549,6 +1586,7 @@ mod tests {
         let kb = KnowledgeBase::builtin()?;
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
@@ -1627,6 +1665,7 @@ mod tests {
         let kb = KnowledgeBase::builtin()?;
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
@@ -1703,6 +1742,7 @@ mod tests {
         let kb = KnowledgeBase::builtin()?;
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
@@ -1905,6 +1945,7 @@ mod tests {
         let kb = KnowledgeBase::builtin()?;
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
@@ -1991,6 +2032,7 @@ mod tests {
         let kb = KnowledgeBase::builtin()?;
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
