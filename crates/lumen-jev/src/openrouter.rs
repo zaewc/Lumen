@@ -241,6 +241,25 @@ impl JevJudge {
         self.post(&body)
     }
 
+    /// Sends the software request for `request` once
+    /// ([`software::software_body_for`], `jev-software/1`) and returns the
+    /// answer body exactly as the server sent it, before any validation;
+    /// [`SoftwareExplainer::explain_software`] validates it with
+    /// [`software::software_note_for`]. For recording evaluation cassettes
+    /// (`lumen-jev-eval record-software`). Blocks the calling thread for up to
+    /// 30 s.
+    ///
+    /// # Errors
+    ///
+    /// An [`AskError`] if no answer arrived (unreachable, timed out, or an
+    /// HTTP error status).
+    pub fn ask_software(&self, request: &SoftwareRequest) -> Result<String, AskError> {
+        let body = software::software_body_for(request, self.provider)
+            .map_err(|_| AskError::new(None, "the request could not be built"))?
+            .to_string();
+        self.post(&body)
+    }
+
     /// Sends `request` once to the AI Hub's chat model with prompt
     /// `chat-decisions/1` ([`chat::request_body`], ADR-0045) and returns the
     /// answer body exactly as the server sent it; [`chat::judgment_for`]
@@ -351,10 +370,7 @@ impl JevJudge {
     /// The software note validated from the answer, hashed like
     /// [`Self::judge_blocking`]'s.
     fn explain_software_blocking(&self, request: &SoftwareRequest) -> Answer<SoftwareNote> {
-        let answer = software::software_body_for(request, self.provider)
-            .map_err(|_| AskError::new(None, "the request could not be built"))
-            .and_then(|body| self.post(&body.to_string()));
-        match answer {
+        match self.ask_software(request) {
             Ok(answer) => Answer::received(
                 answer.as_bytes(),
                 software::software_note_for(&answer, self.provider).map(|(note, _snapshot)| note),

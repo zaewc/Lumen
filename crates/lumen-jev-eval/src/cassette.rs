@@ -178,7 +178,7 @@ impl ReplayJudge {
 
 /// The Decisions provider `judge` names, or `None` for a judge answering
 /// `jev.judgment/1` text.
-fn decisions_provider(judge: &JudgeDescriptor) -> Option<Provider> {
+pub(crate) fn decisions_provider(judge: &JudgeDescriptor) -> Option<Provider> {
     [Provider::Jeb, Provider::OpenRouter]
         .into_iter()
         .find(|p| judge.provider.as_str() == p.source())

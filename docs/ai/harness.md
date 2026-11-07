@@ -39,6 +39,13 @@ fixture definition ─▶ build fixture tree (tempdir) ─▶ scan (real lumen-s
   `JevJudge::ask` (the transport `judge` itself uses, before validation), or with
   `FmHelper` from Apple's on-device model (provider `apple.fm`, validated by
   `lumen_jev::foundation`, ADR-0044).
+- `jev.software-cassette/1` (`lumen_jev_eval::SoftwareCassette`): recorded raw answers
+  to the software questions (`jev-software/1`, ADR-0061), keyed by
+  `SoftwareRequest::hash`, from a Decisions judge (`gsm.jeb` or `openrouter.typesafe`)
+  only; any other judge or prompt is refused. It is a separate schema, so neither
+  kind of cassette can be replayed as the other. `SoftwareReplay` (a
+  `SoftwareExplainer`) validates each answer with `lumen_jev::software::software_note_for`,
+  as the app does; `record_software` fetches them with `JevJudge::ask_software`.
 - Mock mode: `lumen_testkit::MockJudge`.
 - `jev.case/1` (`lumen_jev_eval::Case`) and `run`: grades each case (correct, acceptable,
   wrong, critical false positive, rejected, no answer) and reports the critical FPR
@@ -113,6 +120,27 @@ requests).
   are sent, then everything is written, in dataset order, to the new `--out` file. The
   earlier file must come from the same judge, model and prompt (checked before
   anything is sent); with `--split`, give the same split again.
+
+### Software notes
+
+```text
+lumen-jev-eval record-software --dataset software-2026.11.0 --out <FILE> [--ai ai] [--resume <FILE>]
+lumen-jev-eval run-software    --dataset software-2026.11.0 --cassette <FILE> [--ai ai] [--json]
+```
+
+`record-software` asks Jeb the software questions (`jev-software/1`) about every case
+of a software dataset ([datasets](datasets.md)) and writes a `jev.software-cassette/1`.
+It works like `record`: the same key from the secret store, the same pacing and
+retries, nothing overwritten, `--resume` for an interrupted run, and the same exit
+codes. It checks its input (dataset, output file and folder, resumed cassette) before
+it reads the key. `--split`, `--prompt`, `--judge` and `--helper` are refused: the
+judge is Jeb and the prompt `jev-software/1`. The exact command the owner runs is in
+[evaluation](evaluation.md#software-notes).
+
+`run-software` replays the cassette with no network and reports accuracy, `unknown`
+answers, injection flags and failures ([evaluation](evaluation.md#software-notes)). It
+exits 0 when there is no failure, 1 when there is one, and 2 for bad input. CI does not
+replay software cassettes yet: none is committed.
 
 ### Recording the AI Hub's chat model
 

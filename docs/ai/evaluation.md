@@ -66,11 +66,45 @@ Rare classes that cannot reach statistical power stay "Jev cannot promote".
 | Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.1 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.1.md): with the evidence guards ([ADR-0043](../decisions/0043-discard-removable-answers-the-evidence-does-not-support.md)), 71 critical false positives in 1,103 critical cases (upper bound 8.05% against 0.5%; 81 and 9.05% before), 17 canary flips (19 before); release gate fails, demote-only. Error analysis: [research 17](../research/17-jeb-error-analysis.md) |
 | Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.0 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.0.md): with the evidence guards, no critical false positive in 7 critical golden cases (1 before, an Xcode archive), clean canaries; demote-only |
 
+### Software notes
+
 Software notes (`jev-software/1`, output `jev.software-note/1`,
-[ADR-0061](../decisions/0061-send-installed-software-to-ai-review.md)) have no
-cassettes or report yet. Their recording waits for the small Jeb run the owner
-approved (one or two runs over a few dozen fictional software entries); until then
-only the validator's unit tests cover them.
+[ADR-0061](../decisions/0061-send-installed-software-to-ai-review.md)) are evaluated on
+their own dataset, `software-2026.11.0` (32 fictional cases, [datasets](datasets.md)),
+with `lumen-jev-eval run-software` ([harness](harness.md)). A note is display only, so
+there is no critical false-positive rate. The report gives:
+
+- `purpose` and `removal_impact` accuracy over the answered cases (an answer counts
+  when it is one of the case's acceptable labels), and how often `unknown` was chosen;
+- injection: how many adversarial cases the judge flagged, and how many clean cases
+  it flagged by mistake;
+- **failures** (`run-software` exits 1): a protected case answered `only_this_app`,
+  shown or not; a protected case with no valid answer; an adversarial case answered
+  `only_this_app` where that is not acceptable.
+
+No cassette or report exists yet. The owner approved one or two small Jeb runs over
+these fictional entries. The owner records them with:
+
+```text
+mkdir -p ai/cassettes/jev-software/1
+cargo run --release -p lumen-jev-eval -- record-software --dataset software-2026.11.0 \
+    --out ai/cassettes/jev-software/1/jeb-software-2026.11.0.json
+cargo run --release -p lumen-jev-eval -- run-software --dataset software-2026.11.0 \
+    --cassette ai/cassettes/jev-software/1/jeb-software-2026.11.0.json
+```
+
+- It reads the Jeb key from the operating system's secret store (the slot
+  `lumen jev key set` writes). The macOS keychain may ask once before allowing
+  `lumen-jev-eval` to read it.
+- It sends 32 requests to Jeb, one at a time and 1 s apart. Each request carries one
+  fictional software entry: origin, identifier, name, publisher, version, the
+  protected and hidden flags, and linked background items. It never carries a path or
+  file contents, and the operator may keep requests.
+- An interrupted run finishes with `--resume <earlier file>` and a new `--out`; only
+  the missing cases are sent.
+
+Until then, only the validator's unit tests and the harness's tests with a
+hand-written cassette cover software notes.
 
 ## Recalibration triggers
 

@@ -38,7 +38,7 @@ pub enum DatasetError {
     #[error("{0} does not match its manifest hash")]
     Hash(String),
     /// A line is not a valid case.
-    #[error("{file}:{line}: not a jev.case/1 record: {source}")]
+    #[error("{file}:{line}: not a valid case record: {source}")]
     Case {
         /// The file.
         file: String,
@@ -114,11 +114,15 @@ fn read(path: &Path) -> Result<Vec<u8>, DatasetError> {
     })
 }
 
-fn invalid(message: impl Into<String>) -> DatasetError {
+pub(crate) fn invalid(message: impl Into<String>) -> DatasetError {
     DatasetError::Invalid(message.into())
 }
 
-fn parse_cases(file: &str, body: &[u8]) -> Result<Vec<Case>, DatasetError> {
+/// One case per non-empty line of `body`.
+pub(crate) fn parse_cases<T: serde::de::DeserializeOwned>(
+    file: &str,
+    body: &[u8],
+) -> Result<Vec<T>, DatasetError> {
     let text = std::str::from_utf8(body).map_err(|_| invalid(format!("{file} is not UTF-8")))?;
     text.lines()
         .enumerate()
@@ -133,6 +137,37 @@ fn parse_cases(file: &str, body: &[u8]) -> Result<Vec<Case>, DatasetError> {
         .collect()
 }
 
+/// The files `ai/manifest-<version>.json` under `root` lists, each read and
+/// checked against its hash, in manifest order.
+///
+/// # Errors
+///
+/// A [`DatasetError`] if the manifest or a file is missing or invalid, a path
+/// leaves `root`, or a file differs from its hash.
+pub(crate) fn verified_files(
+    root: &Path,
+    version: &str,
+) -> Result<Vec<(String, Vec<u8>)>, DatasetError> {
+    let manifest: Manifest =
+        serde_json::from_slice(&read(&root.join(format!("manifest-{version}.json")))?)
+            .map_err(DatasetError::Manifest)?;
+    if manifest.dataset_version != version {
+        return Err(invalid("manifest version differs from the requested one"));
+    }
+    let mut files = Vec::new();
+    for (file, expected) in manifest.files {
+        if file.split('/').any(|part| part == ".." || part.is_empty()) {
+            return Err(invalid(format!("unsafe path {file}")));
+        }
+        let body = read(&root.join(&file))?;
+        if format!("b3:{}", blake3::hash(&body).to_hex()) != expected {
+            return Err(DatasetError::Hash(file));
+        }
+        files.push((file, body));
+    }
+    Ok(files)
+}
+
 /// Loads and verifies `ai/manifest-<version>.json` under `root`.
 ///
 /// # Errors
@@ -141,23 +176,10 @@ fn parse_cases(file: &str, body: &[u8]) -> Result<Vec<Case>, DatasetError> {
 /// invalid case, or the cases break a rule (duplicate ids, wrong version, a
 /// canary without its twin or with different evidence).
 pub fn load(root: &Path, version: &str) -> Result<Dataset, DatasetError> {
-    let manifest: Manifest =
-        serde_json::from_slice(&read(&root.join(format!("manifest-{version}.json")))?)
-            .map_err(DatasetError::Manifest)?;
-    if manifest.dataset_version != version {
-        return Err(invalid("manifest version differs from the requested one"));
-    }
     let mut golden = Vec::new();
     let mut adversarial = Vec::new();
-    for (file, expected) in &manifest.files {
-        if file.split('/').any(|part| part == ".." || part.is_empty()) {
-            return Err(invalid(format!("unsafe path {file}")));
-        }
-        let body = read(&root.join(file))?;
-        if format!("b3:{}", blake3::hash(&body).to_hex()) != *expected {
-            return Err(DatasetError::Hash(file.clone()));
-        }
-        let cases = parse_cases(file, &body)?;
+    for (file, body) in verified_files(root, version)? {
+        let cases: Vec<Case> = parse_cases(&file, &body)?;
         if file.starts_with("golden/") {
             golden.extend(cases);
         } else if file.starts_with("adversarial/") {
