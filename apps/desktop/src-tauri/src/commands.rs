@@ -18,7 +18,7 @@ use lumen_api::views::{
     AiSettingsView, AssessProgressView, CandidateView, CompareOutcomeView, CompareProgressView,
     DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, PlanView, QuarantineReportView,
     ReassessRequest, ReassessView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
-    ToolRunView, ToolStorageView, candidate_id,
+    SoftwareView, ToolRunView, ToolStorageView, candidate_id,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -545,6 +545,18 @@ pub(crate) async fn tool_storage() -> Result<Vec<ToolStorageView>, CommandError>
             return Err(CommandError::new("a tool inspection stopped unexpectedly"));
         };
         Ok(ToolStorageView::all(&xcode, &docker, &packages))
+    })
+    .await
+}
+
+/// The installed software list (ADR-0060): every inventory the platform keeps
+/// of installed applications and packages, read on request. Read only:
+/// nothing is removed, and the list never leaves the device.
+#[tauri::command]
+pub(crate) async fn software() -> Result<SoftwareView, CommandError> {
+    blocking(move || {
+        let reports = lumen_app::software::inventory(&CancelToken::new());
+        Ok(SoftwareView::from_reports(&reports))
     })
     .await
 }

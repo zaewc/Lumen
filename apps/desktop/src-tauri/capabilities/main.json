@@ -21,6 +21,7 @@
     "allow-install-update",
     "allow-run-tool-command",
     "allow-tool-storage",
+    "allow-software",
     "allow-compare-folders",
     "allow-cancel-comparison",
     "allow-reassess"

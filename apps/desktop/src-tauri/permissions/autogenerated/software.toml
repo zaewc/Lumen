@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-software"
+description = "Enables the software command without any pre-configured scope."
+commands.allow = ["software"]
+
+[[permission]]
+identifier = "deny-software"
+description = "Denies the software command without any pre-configured scope."
+commands.deny = ["software"]

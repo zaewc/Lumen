@@ -20,6 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "install_update",
         "run_tool_command",
         "tool_storage",
+        "software",
         "compare_folders",
         "cancel_comparison",
         "reassess",

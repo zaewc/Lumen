@@ -19,6 +19,7 @@ import type {
   ScanProgressView,
   ScanRequest,
   ScanView,
+  SoftwareView,
   ToolRunView,
   ToolStorageView,
   UpdateView,
@@ -89,6 +90,12 @@ export interface LumenTransport {
    * host can run them (the desktop app).
    */
   toolStorage?(): Promise<readonly ToolStorageView[]>;
+  /**
+   * The installed software list: every inventory the platform keeps of
+   * installed applications and packages, read on request (ADR-0060). Read
+   * only. Only where the host can read them (the desktop app).
+   */
+  software?(): Promise<SoftwareView>;
   /**
    * Asks the person which folders to compare, in the system's own dialog,
    * then finds identical copies there (ADR-0057). Takes no path: the host

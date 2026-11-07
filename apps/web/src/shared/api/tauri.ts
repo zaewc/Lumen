@@ -19,6 +19,7 @@ import {
   zReviewReasonsView,
   zScanProgressView,
   zScanView,
+  zSoftwareView,
   zToolRunView,
   zToolStorageView,
   zUpdateView,
@@ -103,6 +104,7 @@ export function tauriTransport(): LumenTransport {
     },
     runToolCommand: async (entry) => zToolRunView.parse(await call("run_tool_command", { entry })),
     toolStorage: async () => zToolStorageView.array().parse(await call("tool_storage")),
+    software: async () => zSoftwareView.parse(await call("software")),
     compareFolders: async (onProgress) => {
       const progress = new Channel<unknown>();
       progress.onmessage = (message) => {

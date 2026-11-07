@@ -8,6 +8,7 @@ import type {
   ItemReportView,
   PlanView,
   ScanView,
+  SoftwareItemView,
 } from "@lumen/api-client";
 import { isApiKey, sumBytes } from "@/shared/lib";
 import type { LumenTransport } from "./transport";
@@ -663,6 +664,60 @@ export function memoryTransport({
         timed_out: false,
         output: "Removed 1,284 packages\n",
         space_changes: null,
+      };
+    },
+    software: async () => {
+      await wait(pace * 2);
+      const row = (
+        origin: SoftwareItemView["origin"],
+        id: string,
+        name: string | null,
+        version: string | null,
+        extra: Partial<SoftwareItemView> = {},
+      ): SoftwareItemView => ({
+        key: `${origin}:${id}`,
+        origin,
+        id,
+        name,
+        version,
+        vendor: null,
+        location: null,
+        protected: false,
+        hidden: false,
+        explicit: null,
+        ...extra,
+      });
+      return {
+        items: [
+          row("homebrew", "act", null, "0.2.79", {
+            location: "/opt/homebrew/Cellar/act",
+            explicit: true,
+          }),
+          row("mac_app", "com.apple.calculator", "Calculator", "11.0", {
+            location: "/System/Applications/Calculator.app",
+            protected: true,
+          }),
+          row("homebrew_cask", "docker", null, "4.30.0", {
+            location: "/opt/homebrew/Caskroom/docker",
+            explicit: true,
+          }),
+          row("mac_installer", "com.example.driver.pkg", null, "2.4.1", { location: "/" }),
+          row("mac_app", "com.example.OldEditor", "OldEditor", "3.2", {
+            location: "/Applications/OldEditor.app",
+          }),
+          row("homebrew", "openssl@3", null, "3.5.0", {
+            location: "/opt/homebrew/Cellar/openssl@3",
+            explicit: false,
+          }),
+          row("mac_app", "com.spotify.client", "Spotify", "1.2.48", {
+            location: "/Applications/Spotify.app",
+          }),
+        ],
+        sources: [
+          { source: "macos.applications", state: "complete", count: 4 },
+          { source: "macos.package-receipts", state: "complete", count: 1 },
+          { source: "macos.homebrew", state: "complete", count: 3 },
+        ],
       };
     },
     toolStorage: async () => {
