@@ -22,6 +22,7 @@ rustix.workspace = true
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 lumen-scan.workspace = true
 lumen-testkit.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

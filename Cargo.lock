@@ -2568,6 +2568,7 @@ dependencies = [
  "lumen-scan",
  "lumen-testkit",
  "rustix",
+ "tempfile",
 ]
 
 [[package]]
