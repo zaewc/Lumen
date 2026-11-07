@@ -1,4 +1,4 @@
-# 36. Software inspection and removal: Hoax Eliminator and native mechanisms
+# 36. Software inspection and removal: Hoax Eliminator, Universal Windows Debloater and native mechanisms
 
 - Date: 2026-11-07
 - Issue: #805 (part of #804)
@@ -67,6 +67,50 @@ returns or breaks. What Lumen does differently: no shell or batch file; no blank
 administrator rights; one exact target per confirmation; a preview of the mechanism
 and its effects; verification instead of a claim; and evidence for every statement,
 including "security software" status, which is protected rather than targeted.
+
+## Universal Windows Debloater
+
+Added 2026-11-07 at the owner's request as a second reference. Sources: the project page
+<https://samueljayasingh.github.io/Universal-Windows-Debloater/> (last edited
+2023-06-27) and its repository
+<https://github.com/samueljayasingh/Universal-Windows-Debloater> (MIT, last push
+2023-06-26). The script was read as text from the repository; it was not run.
+
+| Question | Finding | Status |
+| --- | --- | --- |
+| What | A PowerShell script for Windows 10 and 11: removes preinstalled apps, disables telemetry, Bing search and Cortana, and hides interface suggestions and Explorer entries | verified (page) |
+| How it runs | `Run.bat` (elevates through UAC) with a default or custom menu, or the `.ps1` as administrator after `Set-ExecutionPolicy Unrestricted -Force`; switches such as `-RemoveApps` for unattended use | verified (page) |
+| What it removes | Apps named in a list inside the script (`Microsoft.BingWeather`, `Microsoft.Todos`, `Spotify`, `king.com.CandyCrushSaga`, …); another list is kept (`Microsoft.WindowsCalculator`, `Microsoft.Windows.Photos`, `Microsoft.WindowsStore`, …) | verified (page, script) |
+| Removal mechanism | `Get-AppxPackage -Name $app -AllUsers \| Remove-AppxPackage`, then `Remove-ProvisionedAppxPackage -Online -AllUsers` for provisioned packages that match `-like $app`: every user's copy and the copy new accounts would get | verified (script lines 111 and 113) |
+| Settings changes | `reg import` of `.reg` files from its `Regfiles` folder; matching files revert them | verified (script line 126, page) |
+| Restore point or backup | none in the script | verified (script) |
+| Undo for apps | reinstall from the Microsoft Store; the page says the Store itself and the Xbox speech-to-text overlay cannot be reinstalled that way | verified (page) |
+| Services, scheduled tasks, Edge, Defender | not mentioned on the page | **unknown** |
+| License | MIT | verified (repository) |
+
+What Lumen takes as product concepts:
+- a curated list of preinstalled consumer apps, each with a stated reason, beside an
+  explicit keep list (the Store, Calculator, Photos);
+- a default selection the person can change one item at a time;
+- for each app, telling the person where it can be reinstalled from (here, the Microsoft
+  Store) and which apps cannot be reinstalled at all.
+
+What Lumen does not do, by its rules:
+- **Every user and new accounts.** Removing for all users and deleting provisioned
+  packages needs administrator rights and affects other people's accounts. ADR-0060
+  (owner decision) runs only what the user's own rights allow: MSIX removal for the
+  current user.
+- **Name patterns.** Wildcard name matching (`-like`) can hit packages that only look
+  alike. Lumen removes by exact package family name from the inventory.
+- **System settings.** Telemetry, search, Explorer and context-menu changes alter how
+  Windows behaves, not what is stored. They are outside a storage app's purpose and
+  are not reversible by Lumen's quarantine.
+- **Execution policy.** Lumen never asks anyone to lower PowerShell's execution policy
+  and runs no script.
+
+Although the MIT license would allow reusing the script's app lists with attribution,
+Lumen's list needs a cited reason per entry (ADR-0021, ADR-0060). The script's names
+are at most a starting point to research, not entries to copy.
 
 ## Discovery by platform
 
