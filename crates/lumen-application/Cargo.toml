@@ -9,6 +9,8 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+# Binding an uninstall preview to the facts it showed (ADR-0062).
+blake3.workspace = true
 lumen-domain.workspace = true
 # Evidence bundles for assessment (roadmap 10.8); IO-free.
 lumen-graph.workspace = true

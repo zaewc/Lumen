@@ -2664,6 +2664,333 @@
           }
         }
       },
+      "UninstallAppView": {
+        "type": "object",
+        "description": "The application a preview is about, as observed now.",
+        "required": [
+          "key",
+          "name",
+          "bundle_id",
+          "version",
+          "path",
+          "size_bytes",
+          "size_complete",
+          "notes"
+        ],
+        "properties": {
+          "bundle_id": {
+            "type": "string",
+            "description": "Its bundle identifier; display-escaped."
+          },
+          "key": {
+            "type": "string",
+            "description": "The software list's key, as given."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its display name, if it has one; display-escaped."
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UninstallNoteView"
+            },
+            "description": "What happens to it and its data."
+          },
+          "path": {
+            "type": "string",
+            "description": "Where it is, for showing only; display-escaped."
+          },
+          "size_bytes": {
+            "type": "string",
+            "description": "What removing it for good would free, in bytes."
+          },
+          "size_complete": {
+            "type": "boolean",
+            "description": "Every folder inside it was listed; otherwise the size is a lower\nbound."
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its version, if recorded; display-escaped."
+          }
+        }
+      },
+      "UninstallNoteView": {
+        "type": "string",
+        "description": "What happens to the app and its data when it is uninstalled this way.",
+        "enum": [
+          "goes_to_quarantine",
+          "library_data_stays"
+        ]
+      },
+      "UninstallOutcomeView": {
+        "type": "object",
+        "description": "An executed uninstall preview.",
+        "required": [
+          "preview",
+          "path",
+          "size_bytes",
+          "resolved",
+          "result",
+          "warnings"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Where the app was, for showing only; display-escaped."
+          },
+          "preview": {
+            "type": "string",
+            "description": "The preview."
+          },
+          "resolved": {
+            "type": "string",
+            "description": "Interrupted operations from earlier runs that were resolved first."
+          },
+          "result": {
+            "$ref": "#/components/schemas/UninstallResultView",
+            "description": "What happened."
+          },
+          "size_bytes": {
+            "type": "string",
+            "description": "What removing it for good frees, as previewed, in bytes."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Problems that did not stop it."
+          }
+        }
+      },
+      "UninstallPreviewView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "It may be uninstalled: confirm `hash` to move it into Quarantine.",
+            "required": [
+              "preview",
+              "hash",
+              "created_at",
+              "app",
+              "kind"
+            ],
+            "properties": {
+              "app": {
+                "$ref": "#/components/schemas/UninstallAppView",
+                "description": "The application."
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When it was made; it expires 24 hours later."
+              },
+              "hash": {
+                "type": "string",
+                "description": "Its full hash: the confirmation."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "ready"
+                ]
+              },
+              "preview": {
+                "type": "string",
+                "description": "The preview's ID, for `uninstall`."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It cannot be uninstalled this way; nothing was stored.",
+            "required": [
+              "app",
+              "reasons",
+              "kind"
+            ],
+            "properties": {
+              "app": {
+                "$ref": "#/components/schemas/UninstallAppView",
+                "description": "The application."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "refused"
+                ]
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/UninstallReasonView"
+                },
+                "description": "Every reason, at least one."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "No installed application has that key now: list the software again.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_found"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "More than one application has that key, so which one is meant is\nunknown: uninstall it in Finder.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "ambiguous"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Uninstalling into quarantine is only for macOS applications.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unsupported"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What uninstalling an application into quarantine would do."
+      },
+      "UninstallReasonView": {
+        "type": "string",
+        "description": "Why an application cannot be uninstalled into quarantine. Each `*_unknown`\nreason is a check Lumen could not answer, which never counts as passing.",
+        "enum": [
+          "not_in_applications",
+          "protected",
+          "not_a_bundle",
+          "owner_unknown",
+          "not_owned_by_user",
+          "services_unknown",
+          "service_linked",
+          "helpers_unknown",
+          "has_helpers",
+          "running_unknown",
+          "running",
+          "store_unknown",
+          "no_store_on_volume"
+        ]
+      },
+      "UninstallResultView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "It is in Quarantine, restorable.",
+            "required": [
+              "operation",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "quarantined"
+                ]
+              },
+              "operation": {
+                "type": "string",
+                "description": "The operation, for restoring or removing it for good."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Checked again right before the move, it may not go now; it was not\nmoved.",
+            "required": [
+              "reasons",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "refused"
+                ]
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/UninstallReasonView"
+                },
+                "description": "Every reason, at least one."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It is not what the preview showed; it was not moved. Preview again.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The move failed.",
+            "required": [
+              "reason",
+              "left",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              },
+              "left": {
+                "$ref": "#/components/schemas/LocationView",
+                "description": "Where the app is."
+              },
+              "reason": {
+                "$ref": "#/components/schemas/FailureView",
+                "description": "Why."
+              }
+            }
+          }
+        ],
+        "description": "What became of the application."
+      },
       "UpdateView": {
         "type": "object",
         "description": "The app's version and whether a newer one is published (ADR-0048).",

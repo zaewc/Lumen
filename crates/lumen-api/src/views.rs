@@ -32,6 +32,7 @@ mod reassess;
 mod relations;
 mod software;
 mod times;
+mod uninstall;
 
 pub use duplicates::{
     CompareOutcomeView, CompareProgressView, CompareStageView, DuplicateGroupView, DuplicatesView,
@@ -48,6 +49,10 @@ pub use software::{
     SoftwareSourceStateView, SoftwareSourceView, SoftwareView, software_key, software_subjects,
 };
 pub use times::{TimeView, TimesView};
+pub use uninstall::{
+    UninstallAppView, UninstallNoteView, UninstallOutcomeView, UninstallPreviewView,
+    UninstallReasonView, UninstallResultView,
+};
 
 fn bytes(count: ByteCount) -> String {
     count.get().to_string()

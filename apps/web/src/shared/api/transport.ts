@@ -22,6 +22,8 @@ import type {
   SoftwareView,
   ToolRunView,
   ToolStorageView,
+  UninstallOutcomeView,
+  UninstallPreviewView,
   UpdateView,
 } from "@lumen/api-client";
 import type { Theme } from "@/shared/theme";
@@ -121,4 +123,17 @@ export interface LumenTransport {
    * Moves nothing. Only where the host keeps the assessment (the desktop app).
    */
   reassess?(request: ReassessRequest): Promise<ReassessView>;
+  /**
+   * Previews uninstalling the macOS app the software list shows under `key`
+   * (ADR-0062): ready to confirm by its hash, or every reason it cannot go to
+   * Quarantine. Reads only; moves nothing. Only where the host can read the
+   * list (the desktop app); off macOS it answers `unsupported`.
+   */
+  uninstallPreview?(key: string): Promise<UninstallPreviewView>;
+  /**
+   * Moves the app of one preview into Quarantine, confirmed by the preview's
+   * full hash; names the preview, never a path. The host checks the app again
+   * right before the move. Restorable until removed for good.
+   */
+  uninstall?(preview: string, confirmation: string): Promise<UninstallOutcomeView>;
 }

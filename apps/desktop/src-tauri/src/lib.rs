@@ -141,6 +141,8 @@ pub fn app<R: Runtime>(
             commands::compare_folders,
             commands::cancel_comparison,
             commands::reassess,
+            commands::uninstall_preview,
+            commands::uninstall,
             update::check_update,
             update::install_update,
         ])

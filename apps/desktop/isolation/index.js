@@ -27,6 +27,8 @@ const allowed = new Set([
   "compare_folders",
   "cancel_comparison",
   "reassess",
+  "uninstall_preview",
+  "uninstall",
 ]);
 
 window.__TAURI_ISOLATION_HOOK__ = (payload) => {

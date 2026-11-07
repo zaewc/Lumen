@@ -25,6 +25,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "compare_folders",
         "cancel_comparison",
         "reassess",
+        "uninstall_preview",
+        "uninstall",
     ];
     tauri_build::try_build(
         tauri_build::Attributes::new()

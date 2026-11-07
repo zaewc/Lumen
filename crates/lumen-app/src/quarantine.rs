@@ -53,6 +53,10 @@ pub enum QuarantineError {
     /// The plan was confirmed or executed before.
     #[error("plan {0} was already confirmed or executed; make a new plan")]
     AlreadyConfirmed(PlanId),
+    /// The plan uninstalls an application (ADR-0062); it is executed only as
+    /// an uninstall.
+    #[error("plan {0} uninstalls an application, it is not a cleanup plan; nothing was moved")]
+    NotACleanup(PlanId),
     /// The index database or the ledger failed.
     #[error("the database failed: {0}")]
     Store(#[from] StoreError),
@@ -119,7 +123,7 @@ pub struct QuarantineReport {
 }
 
 /// This installation's device ID, kept next to the database.
-fn device(db: &Path, ids: &dyn IdGenerator) -> Result<DeviceId, QuarantineError> {
+pub(crate) fn device(db: &Path, ids: &dyn IdGenerator) -> Result<DeviceId, QuarantineError> {
     let path = db.with_file_name("device-id");
     match std::fs::read_to_string(&path) {
         Ok(text) => {
@@ -151,7 +155,10 @@ fn device(db: &Path, ids: &dyn IdGenerator) -> Result<DeviceId, QuarantineError>
 /// Windows the executor opens the store when it first moves an item, created
 /// private and not content-indexed (ADR-0033).
 #[cfg(unix)]
-fn prepare_store(base: &Path, names: &[Vec<u8>]) -> Result<Vec<String>, QuarantineError> {
+pub(crate) fn prepare_store(
+    base: &Path,
+    names: &[Vec<u8>],
+) -> Result<Vec<String>, QuarantineError> {
     use std::os::unix::fs::MetadataExt as _;
 
     use lumen_fs_exec::open_store;
@@ -200,15 +207,15 @@ fn age_secs(now: Timestamp, then: Timestamp) -> i64 {
     now.unix_seconds().saturating_sub(then.unix_seconds())
 }
 
-/// The stored plan, if it may be executed now with `confirm` (ADR-0034): not
-/// privileged, the full hash matches, at most 24 hours old.
-fn checked_plan(
+/// The stored plan, if it may be executed now with `confirm` (ADR-0034): the
+/// full hash matches, and it is at most 24 hours old. The caller refuses a
+/// privileged process first.
+pub(crate) fn checked_plan(
     index: &IndexStore,
     plan: PlanId,
     confirm: &str,
     now: Timestamp,
 ) -> Result<StoredPlan, QuarantineError> {
-    refuse_privileged()?;
     let stored = index
         .plan(plan)?
         .ok_or(QuarantineError::UnknownPlan(plan))?;
@@ -221,8 +228,25 @@ fn checked_plan(
     Ok(stored)
 }
 
+/// [`checked_plan`] for a cleanup: refused for a privileged process and for
+/// an uninstall plan (ADR-0062).
+fn checked_cleanup(
+    index: &IndexStore,
+    plan: PlanId,
+    confirm: &str,
+    now: Timestamp,
+) -> Result<StoredPlan, QuarantineError> {
+    refuse_privileged()?;
+    let stored = checked_plan(index, plan, confirm, now)?;
+    if lumen_application::uninstall::any_uninstall(&stored.decisions) {
+        return Err(QuarantineError::NotACleanup(plan));
+    }
+    Ok(stored)
+}
+
 /// Executes plan `plan` from `db`, confirmed on `surface` by `confirm` (its
-/// full hash).
+/// full hash). An uninstall plan is refused: it runs only through
+/// [`crate::uninstall::uninstall`].
 ///
 /// # Errors
 ///
@@ -240,7 +264,7 @@ pub fn quarantine(
 ) -> Result<QuarantineReport, QuarantineError> {
     let now = clock.now();
     let mut index = IndexStore::new(open_index(db)?);
-    let stored = checked_plan(&index, plan, confirm, now)?;
+    let stored = checked_cleanup(&index, plan, confirm, now)?;
     // Held until the plan finishes; another cleanup in progress is waited for.
     let _lock = lock_ledger(db, true).map_err(QuarantineError::Lock)?;
     let confirmation = Confirmation {

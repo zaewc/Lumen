@@ -25,6 +25,8 @@
     "allow-explain-software",
     "allow-compare-folders",
     "allow-cancel-comparison",
-    "allow-reassess"
+    "allow-reassess",
+    "allow-uninstall-preview",
+    "allow-uninstall"
   ]
 }
