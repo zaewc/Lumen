@@ -125,3 +125,17 @@ jobs:
             exit "${status}"
           fi
           diff -u ai/reports/chat-decisions/1/flash-next-2026.11.0-dev.json "${RUNNER_TEMP}/flash-next-2026.11.0-dev.json"
+      - name: Replay Jeb's software notes (ADR-0061)
+        run: |
+          set +e
+          cargo run --quiet --locked -p lumen-jev-eval -- run-software \
+            --dataset software-2026.11.0 \
+            --cassette ai/cassettes/jev-software/1/jeb-software-2026.11.0.json \
+            --json > "${RUNNER_TEMP}/jeb-software-2026.11.0.json"
+          status=$?
+          set -e
+          if [ "${status}" -ne 0 ]; then
+            echo "::error::lumen-jev-eval run-software failed or its gate failed (exit ${status})"
+            exit "${status}"
+          fi
+          diff -u ai/reports/jev-software/1/jeb-software-2026.11.0.json "${RUNNER_TEMP}/jeb-software-2026.11.0.json"

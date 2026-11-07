@@ -218,6 +218,11 @@ impl SoftwareRequest {
         self.origin
     }
 
+    /// Whether the platform marks the software protected.
+    pub const fn protected(&self) -> bool {
+        self.protected
+    }
+
     /// The listed background items.
     pub fn services(&self) -> &[SoftwareService] {
         &self.services
@@ -339,6 +344,31 @@ impl SoftwareNote {
     pub const fn shown(&self) -> bool {
         !self.injection_suspected
     }
+
+    /// The note with a removal impact that contradicts what is known set to
+    /// [`RemovalImpact::Unknown`], like the judgment guards (ADR-0043):
+    /// "only this app" is never said of software the platform marks
+    /// protected, nor of software whose own purpose means other things rely
+    /// on it (security or banking, a system component or driver, a runtime or
+    /// library). The model's answer can never make removal look harmless
+    /// there.
+    #[must_use]
+    pub const fn guarded(self, protected: bool) -> Self {
+        let relied_on = matches!(
+            self.purpose,
+            SoftwarePurpose::SecurityOrBanking
+                | SoftwarePurpose::SystemOrDriver
+                | SoftwarePurpose::RuntimeOrLibrary
+        );
+        if matches!(self.removal_impact, RemovalImpact::OnlyThisApp) && (protected || relied_on) {
+            Self {
+                removal_impact: RemovalImpact::Unknown,
+                ..self
+            }
+        } else {
+            self
+        }
+    }
 }
 
 #[cfg(test)]
@@ -438,5 +468,41 @@ mod tests {
         other.version = Some("2.0");
         assert_ne!(request.hash(), SoftwareRequest::new(other)?.hash());
         Ok(())
+    }
+
+    #[test]
+    fn only_this_app_is_never_kept_where_others_rely_on_the_software() {
+        let note = |purpose| SoftwareNote {
+            purpose,
+            removal_impact: RemovalImpact::OnlyThisApp,
+            confidence: JudgmentConfidence::High,
+            injection_suspected: false,
+        };
+        let media = note(SoftwarePurpose::Media);
+        assert_eq!(
+            media.guarded(false),
+            media,
+            "an ordinary app keeps its answer"
+        );
+        assert_eq!(
+            media.guarded(true).removal_impact,
+            RemovalImpact::Unknown,
+            "protected"
+        );
+        for purpose in [
+            SoftwarePurpose::SecurityOrBanking,
+            SoftwarePurpose::SystemOrDriver,
+            SoftwarePurpose::RuntimeOrLibrary,
+        ] {
+            assert_eq!(
+                note(purpose).guarded(false).removal_impact,
+                RemovalImpact::Unknown
+            );
+        }
+        let other = SoftwareNote {
+            removal_impact: RemovalImpact::SystemFunction,
+            ..note(SoftwarePurpose::SystemOrDriver)
+        };
+        assert_eq!(other.guarded(true), other, "other answers are kept");
     }
 }

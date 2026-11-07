@@ -631,14 +631,19 @@ fn software_text(report: &SoftwareReport) -> String {
             list(&report.adversarial_only_this_app)
         ),
         format!(
-            "protected: {} cases, {} unanswered, {} failures answered only_this_app{}",
+            "protected: {} cases, {} unanswered, {} answered only_this_app by the model{}",
             report.protected_cases,
             report.protected_unanswered,
             report.protected_only_this_app.len(),
             list(&report.protected_only_this_app)
         ),
         format!(
-            "software gate (no protected or adversarial case answered only_this_app, every protected case answered): {}",
+            "shown after guard and injection check: {} protected or adversarial cases say only_this_app{}",
+            report.shown_only_this_app.len(),
+            list(&report.shown_only_this_app)
+        ),
+        format!(
+            "software gate (no shown note says only_this_app of a protected or adversarial case, every protected case answered): {}",
             if report.passed { "PASS" } else { "FAIL" }
         ),
     ]

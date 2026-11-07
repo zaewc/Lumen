@@ -266,24 +266,36 @@ fn run_software(cassette: &Path) -> Output {
 }
 
 #[test]
-fn run_software_fails_when_a_protected_case_is_only_this_app() {
+fn run_software_reports_the_model_and_gates_what_is_shown() {
     let fx = Fixture::build(&[]).unwrap_or_else(|e| unreachable!("{e}"));
     let right = run_software(&software_cassette(&fx, "right.json", None));
     let text = String::from_utf8_lossy(&right.stdout);
     assert!(right.status.success(), "{text}");
-    assert!(text.contains("0 failures answered only_this_app"), "{text}");
+    assert!(
+        text.contains("0 answered only_this_app by the model"),
+        "{text}"
+    );
     assert!(text.contains("software gate"), "{text}");
     assert!(text.contains(": PASS"), "{text}");
 
+    // A model that says "only this app" of every protected case is reported,
+    // but the guard turns those answers into unknown before anyone sees them.
     let reckless = run_software(&software_cassette(
         &fx,
         "reckless.json",
         Some("only_this_app"),
     ));
     let text = String::from_utf8_lossy(&reckless.stdout);
-    assert_eq!(reckless.status.code(), Some(1), "{text}");
-    assert!(text.contains("8 failures answered only_this_app"), "{text}");
-    assert!(text.contains(": FAIL"), "{text}");
+    assert!(reckless.status.success(), "{text}");
+    assert!(
+        text.contains("8 answered only_this_app by the model"),
+        "{text}"
+    );
+    assert!(
+        text.contains("0 protected or adversarial cases say only_this_app"),
+        "{text}"
+    );
+    assert!(text.contains(": PASS"), "{text}");
 
     // A judgment cassette is bad input for `run-software`.
     let judgments = cassette(&fx, "judgments.json", "likely_needed", "owner_app_present");

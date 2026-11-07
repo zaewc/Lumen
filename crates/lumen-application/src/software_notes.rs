@@ -96,7 +96,11 @@ pub async fn explain<K: Clone>(
             Err(JudgeError::Unavailable(_) | JudgeError::Disabled)
         );
         let (validation, note) = match answer.result {
-            Ok(note) => (TraceValidation::Accepted, Some(note)),
+            // Answers that contradict what is known become unknown (guard).
+            Ok(note) => (
+                TraceValidation::Accepted,
+                Some(note.guarded(subject.request.protected())),
+            ),
             Err(JudgeError::Rejected(reason)) => (TraceValidation::Rejected(reason), None),
             Err(_) => (TraceValidation::Unavailable, None),
         };
