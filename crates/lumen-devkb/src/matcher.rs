@@ -681,8 +681,9 @@ mod tests {
             // on macOS (#790); so does one that is unknown, unreported, or
             // reported both ways.
             for cases in [&[Sensitive][..], &[Unknown], &[], &[Insensitive, Sensitive]] {
-                assert!(
-                    matched(&on(platform, cases), &scanned).is_empty(),
+                assert_eq!(
+                    matched(&on(platform, cases), &scanned).len(),
+                    0,
                     "{platform:?} {cases:?}"
                 );
             }
@@ -703,7 +704,10 @@ mod tests {
             matched(&on(Platform::Macos, &[Insensitive]), &scanned),
             [(1, "sample-build".to_owned())]
         );
-        assert!(matched(&on(Platform::Macos, &[Sensitive]), &scanned).is_empty());
+        assert_eq!(
+            matched(&on(Platform::Macos, &[Sensitive]), &scanned).len(),
+            0
+        );
     }
 
     #[test]
