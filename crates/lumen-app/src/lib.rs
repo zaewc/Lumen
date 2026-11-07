@@ -23,6 +23,7 @@ pub mod roots;
 mod runtime;
 pub mod scan;
 pub mod software;
+pub mod software_notes;
 pub mod space;
 #[cfg(any(unix, windows))]
 pub mod space_change;

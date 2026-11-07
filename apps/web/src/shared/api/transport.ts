@@ -97,6 +97,14 @@ export interface LumenTransport {
    */
   software?(): Promise<SoftwareView>;
   /**
+   * The installed software list after AI review explains software it has not
+   * explained yet (ADR-0061): sends identity fields (origin, identifier, name,
+   * publisher, version, linked background items) only while AI review is on,
+   * at most 40 per call; otherwise the list with notes already on the device.
+   * Only where the host can read the list (the desktop app).
+   */
+  explainSoftware?(): Promise<SoftwareView>;
+  /**
    * Asks the person which folders to compare, in the system's own dialog,
    * then finds identical copies there (ADR-0057). Takes no path: the host
    * reads only what the person picks. Only where the host can show the

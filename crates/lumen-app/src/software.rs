@@ -2,7 +2,8 @@
 //! keeps of installed applications and packages, and of the background items
 //! that may belong to them (step 2), read on request. Nothing is
 //! changed, nothing is run except the read-only queries the sources document
-//! (RPM's `rpm -qa`), and nothing leaves the device.
+//! (RPM's `rpm -qa`), and nothing leaves the device from here; AI review's
+//! notes on the list are [`crate::software_notes`] (ADR-0061).
 
 use lumen_application::CancelToken;
 use lumen_application::ports::InventoryReport;

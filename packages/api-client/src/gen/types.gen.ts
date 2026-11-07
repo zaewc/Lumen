@@ -915,6 +915,18 @@ export type RelationsView = {
 };
 
 /**
+ * What AI review says removing a piece of software could affect besides
+ * itself (ADR-0061): a description, never a statement that removal is safe.
+ */
+export type RemovalImpactView =
+  | "only_this_app"
+  | "other_software_depends"
+  | "stops_background_activity"
+  | "security_or_access"
+  | "system_function"
+  | "unknown";
+
+/**
  * How much a failed removal took.
  */
 export type RemovedView = "nothing" | "partly" | "item";
@@ -1134,6 +1146,7 @@ export type SkipView =
  * One application or package.
  */
 export type SoftwareItemView = {
+  ai_note: SoftwareNoteView | null;
   /**
    * Whether it was installed on request rather than as another package's
    * dependency; `None` where the record does not say.
@@ -1183,6 +1196,25 @@ export type SoftwareItemView = {
 };
 
 /**
+ * An AI note on a piece of software: closed choices and a confidence, never
+ * model text. Display only (ADR-0061).
+ */
+export type SoftwareNoteView = {
+  /**
+   * How sure AI review was.
+   */
+  confidence: ConfidenceView;
+  /**
+   * What it is most likely for.
+   */
+  purpose: SoftwarePurposeView;
+  /**
+   * What removing it could most likely affect.
+   */
+  removal_impact: RemovalImpactView;
+};
+
+/**
  * Which inventory recorded a piece of software, and so how it is identified.
  */
 export type SoftwareOriginView =
@@ -1198,6 +1230,24 @@ export type SoftwareOriginView =
   | "flatpak"
   | "snap"
   | "other";
+
+/**
+ * What AI review says a piece of software is mainly for (ADR-0061).
+ */
+export type SoftwarePurposeView =
+  | "web_browser"
+  | "communication"
+  | "media"
+  | "office_or_productivity"
+  | "development_tool"
+  | "design_or_creative"
+  | "game"
+  | "security_or_banking"
+  | "system_or_driver"
+  | "cloud_sync_or_backup"
+  | "utility"
+  | "runtime_or_library"
+  | "unknown";
 
 /**
  * How completely one inventory was read.

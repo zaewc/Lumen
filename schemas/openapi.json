@@ -1738,6 +1738,18 @@
           }
         }
       },
+      "RemovalImpactView": {
+        "type": "string",
+        "description": "What AI review says removing a piece of software could affect besides\nitself (ADR-0061): a description, never a statement that removal is safe.",
+        "enum": [
+          "only_this_app",
+          "other_software_depends",
+          "stops_background_activity",
+          "security_or_access",
+          "system_function",
+          "unknown"
+        ]
+      },
       "RemovedView": {
         "type": "string",
         "description": "How much a failed removal took.",
@@ -2068,9 +2080,21 @@
           "protected",
           "hidden",
           "explicit",
-          "services"
+          "services",
+          "ai_note"
         ],
         "properties": {
+          "ai_note": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SoftwareNoteView",
+                "description": "What AI review said about it, when it may be shown (ADR-0061)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "explicit": {
             "type": [
               "boolean",
@@ -2135,6 +2159,29 @@
           }
         }
       },
+      "SoftwareNoteView": {
+        "type": "object",
+        "description": "An AI note on a piece of software: closed choices and a confidence, never\nmodel text. Display only (ADR-0061).",
+        "required": [
+          "purpose",
+          "removal_impact",
+          "confidence"
+        ],
+        "properties": {
+          "confidence": {
+            "$ref": "#/components/schemas/ConfidenceView",
+            "description": "How sure AI review was."
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/SoftwarePurposeView",
+            "description": "What it is most likely for."
+          },
+          "removal_impact": {
+            "$ref": "#/components/schemas/RemovalImpactView",
+            "description": "What removing it could most likely affect."
+          }
+        }
+      },
       "SoftwareOriginView": {
         "type": "string",
         "description": "Which inventory recorded a piece of software, and so how it is identified.",
@@ -2151,6 +2198,25 @@
           "flatpak",
           "snap",
           "other"
+        ]
+      },
+      "SoftwarePurposeView": {
+        "type": "string",
+        "description": "What AI review says a piece of software is mainly for (ADR-0061).",
+        "enum": [
+          "web_browser",
+          "communication",
+          "media",
+          "office_or_productivity",
+          "development_tool",
+          "design_or_creative",
+          "game",
+          "security_or_banking",
+          "system_or_driver",
+          "cloud_sync_or_backup",
+          "utility",
+          "runtime_or_library",
+          "unknown"
         ]
       },
       "SoftwareSourceStateView": {

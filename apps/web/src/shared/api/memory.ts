@@ -9,11 +9,89 @@ import type {
   PlanView,
   ScanView,
   SoftwareItemView,
+  SoftwareView,
 } from "@lumen/api-client";
 import { isApiKey, sumBytes } from "@/shared/lib";
 import type { LumenTransport } from "./transport";
 
 const HOME = "/Users/ana";
+
+// The sample software list; `explained` adds the notes AI review would
+// have given for software it had not explained yet (ADR-0061).
+function softwareList(explained: boolean): SoftwareView {
+  const row = (
+    origin: SoftwareItemView["origin"],
+    id: string,
+    name: string | null,
+    version: string | null,
+    extra: Partial<SoftwareItemView> = {},
+  ): SoftwareItemView => ({
+    key: `${origin}:${id}`,
+    origin,
+    id,
+    name,
+    version,
+    vendor: null,
+    location: null,
+    protected: false,
+    hidden: false,
+    explicit: null,
+    services: [],
+    ai_note: null,
+    ...extra,
+  });
+  return {
+    items: [
+      row("homebrew", "act", null, "0.2.79", {
+        location: "/opt/homebrew/Cellar/act",
+        explicit: true,
+      }),
+      row("mac_app", "com.apple.calculator", "Calculator", "11.0", {
+        location: "/System/Applications/Calculator.app",
+        protected: true,
+      }),
+      row("homebrew_cask", "docker", null, "4.30.0", {
+        location: "/opt/homebrew/Caskroom/docker",
+        explicit: true,
+      }),
+      row("mac_installer", "com.example.driver.pkg", null, "2.4.1", { location: "/" }),
+      row("mac_app", "com.example.OldEditor", "OldEditor", "3.2", {
+        location: "/Applications/OldEditor.app",
+        services: [
+          {
+            kind: "launch_agent",
+            label: "com.example.OldEditor.updater",
+            scope: "user",
+            method: "program_inside_application",
+            verified: true,
+            ambiguous: false,
+          },
+        ],
+      }),
+      row("homebrew", "openssl@3", null, "3.5.0", {
+        location: "/opt/homebrew/Cellar/openssl@3",
+        explicit: false,
+        ai_note: {
+          purpose: "runtime_or_library",
+          removal_impact: "other_software_depends",
+          confidence: "high",
+        },
+      }),
+      row("mac_app", "com.spotify.client", "Spotify", "1.2.48", {
+        location: "/Applications/Spotify.app",
+        ai_note: explained
+          ? { purpose: "media", removal_impact: "only_this_app", confidence: "medium" }
+          : null,
+      }),
+    ],
+    sources: [
+      { source: "macos.applications", state: "complete", count: 4 },
+      { source: "macos.package-receipts", state: "complete", count: 1 },
+      { source: "macos.homebrew", state: "complete", count: 3 },
+      { source: "macos.launchd-plists", state: "complete", count: 1 },
+    ],
+  };
+}
 
 const scanView: ScanView = {
   scan: "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a1",
@@ -668,69 +746,11 @@ export function memoryTransport({
     },
     software: async () => {
       await wait(pace * 2);
-      const row = (
-        origin: SoftwareItemView["origin"],
-        id: string,
-        name: string | null,
-        version: string | null,
-        extra: Partial<SoftwareItemView> = {},
-      ): SoftwareItemView => ({
-        key: `${origin}:${id}`,
-        origin,
-        id,
-        name,
-        version,
-        vendor: null,
-        location: null,
-        protected: false,
-        hidden: false,
-        explicit: null,
-        services: [],
-        ...extra,
-      });
-      return {
-        items: [
-          row("homebrew", "act", null, "0.2.79", {
-            location: "/opt/homebrew/Cellar/act",
-            explicit: true,
-          }),
-          row("mac_app", "com.apple.calculator", "Calculator", "11.0", {
-            location: "/System/Applications/Calculator.app",
-            protected: true,
-          }),
-          row("homebrew_cask", "docker", null, "4.30.0", {
-            location: "/opt/homebrew/Caskroom/docker",
-            explicit: true,
-          }),
-          row("mac_installer", "com.example.driver.pkg", null, "2.4.1", { location: "/" }),
-          row("mac_app", "com.example.OldEditor", "OldEditor", "3.2", {
-            location: "/Applications/OldEditor.app",
-            services: [
-              {
-                kind: "launch_agent",
-                label: "com.example.OldEditor.updater",
-                scope: "user",
-                method: "program_inside_application",
-                verified: true,
-                ambiguous: false,
-              },
-            ],
-          }),
-          row("homebrew", "openssl@3", null, "3.5.0", {
-            location: "/opt/homebrew/Cellar/openssl@3",
-            explicit: false,
-          }),
-          row("mac_app", "com.spotify.client", "Spotify", "1.2.48", {
-            location: "/Applications/Spotify.app",
-          }),
-        ],
-        sources: [
-          { source: "macos.applications", state: "complete", count: 4 },
-          { source: "macos.package-receipts", state: "complete", count: 1 },
-          { source: "macos.homebrew", state: "complete", count: 3 },
-          { source: "macos.launchd-plists", state: "complete", count: 1 },
-        ],
-      };
+      return softwareList(false);
+    },
+    explainSoftware: async () => {
+      await wait(pace * 4);
+      return softwareList(true);
     },
     toolStorage: async () => {
       await wait(pace * 2);
