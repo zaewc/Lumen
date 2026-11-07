@@ -145,6 +145,7 @@ export function evidenceStack(
 
   // Usage dates are shown, never decided on, and say only what the platform
   // recorded: not every launch, and only the project's marker files (ADR-0059).
+  // The app's dates come before the project's, whatever order the facts are in.
   for (const fact of facts) {
     if (fact.type === "application_last_opened") {
       lines.push({
@@ -154,7 +155,10 @@ export function evidenceStack(
         source: "time",
         certainty: "partial",
       });
-    } else if (fact.type === "project_activity") {
+    }
+  }
+  for (const fact of facts) {
+    if (fact.type === "project_activity") {
       lines.push({ type: "project_activity", at: fact.at, source: "time", certainty: "partial" });
     }
   }
