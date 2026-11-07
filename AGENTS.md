@@ -45,25 +45,56 @@ files you will touch, trace dependencies, inspect tests, then change.
 3. **Plan the smallest change** that is one logical unit. If it would exceed about
    400 changed lines of non-generated code, or mixes concerns: **stop and split**.
 4. **Implement** on a branch named `<type>/<short-slug>` from an up-to-date `develop`.
-5. **Verify what CI does not.** CI checks every PR: format, clippy, all tests on
+5. **Verify proportionally.** CI checks every PR: format, clippy, all tests on
    Linux, macOS and Windows, doc tests, MSRV, the Android and iOS builds,
    cargo-deny and OSV-Scanner, schema drift, crate layering and doc links
    (`cargo xtask lint`), the Jev cassette replay, and the JavaScript workspace's
-   Biome, typecheck, tests and builds. Agents do not run these locally, neither
-   `just check` nor parts of it: push, open the PR and let CI report. Locally, run
-   only what CI does not:
+   Biome, typecheck, tests and builds. Locally, run targeted tests and required
+   checks for the changed behavior; do not run the full `just check` or duplicate
+   broad CI suites. Also run what CI does not:
    - code generation whose output is committed (`just gen`);
    - benchmarks before and after a performance change;
    - the app itself, to see a UI change;
    - anything that needs hardware, an OS or a service CI lacks.
-   When CI fails, fix the root cause; never weaken a check. When you repeat the same
-   local check across PRs, propose adding it to CI.
+   Do not rely on CI alone for compile errors, clear regressions or security-critical
+   behavior. When CI fails, fix the root cause; never weaken a check. Do not declare
+   work complete until required CI checks pass.
 6. **Commit** one Conventional Commit (`type(scope): summary`).
 7. **PR:** `gh pr create` with the template sections (Summary, Why, Changes, Tests,
    Security, Risks, Follow-up).
 8. **CI green → merge** into `develop` (`gh pr merge --squash --delete-branch`), then
    `git checkout develop && git pull --ff-only`.
 9. **Continue** with the next atomic change.
+
+## Parallel Execution & Efficiency
+
+**Optimize for minimum wall-clock time and efficient token usage without compromising correctness or safety.**
+
+- Before starting, map task dependencies and identify independent investigation,
+  implementation, test-writing and review work. Run independent work in parallel
+  when it shortens the critical path. Use agents for independent substantial
+  work when available and worthwhile. For substantial tasks, start with 2–4
+  independent work streams and adjust to task size and environment; do not
+  parallelize simple work or split tasks merely to use more agents.
+- When using agents, assign each a bounded objective, clear completion criteria
+  and exclusive file ownership. Prefer separate Git worktrees for independent
+  code changes; avoid concurrent edits to the same files and integrate changes
+  deliberately to prevent conflicts and rework.
+- Keep context and token use lean: share only the relevant files, constraints and
+  expected output; avoid repeated searches, reads, investigations, test runs and
+  duplicate agent work. Choose sequential work when coordination or context cost
+  outweighs parallelism.
+- Run focused local tests and essential checks once per relevant change. Let CI
+  handle broad suites, Clippy, formatting and cross-platform builds. While CI or
+  agents are running, continue independent work; inspect failures promptly and
+  fix only their root cause. Confirm all required CI checks pass before declaring
+  completion or merging.
+- Separate independent changes into separate PRs where practical and run their
+  CI concurrently. Before merging, check dependencies, conflicts and that the
+  branch is current; follow this repository's branch protection and merge rules.
+- Never trade away required tests or security checks for speed. Scale verification
+  to the change's risk, and use sequential execution whenever parallel work could
+  reduce correctness or safety. Preserve Lumen's data-safety rules above all.
 
 Releasing ([ADR-0054](docs/decisions/0054-release-on-every-push-to-main.md)): every
 push to `main` publishes the version it names to every installed copy, with no
