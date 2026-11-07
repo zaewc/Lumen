@@ -76,7 +76,7 @@ pub use id::{
 };
 pub use inventory::{
     AppId, AppIdScheme, Application, CodeSignature, Package, PackageManager, Process, Service,
-    ServiceKind, ServiceScope, SignatureCheck,
+    ServiceKind, ServiceScope, SignatureCheck, UninstallRecord,
 };
 pub use jev::{
     CandidateSummary, CoverageNote, CoverageSummary, EvidenceKind, JEV_REQUEST_SCHEMA, JevRequest,

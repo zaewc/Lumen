@@ -361,6 +361,7 @@ mod tests {
                     signature: None,
                     install_locations: Vec::new(),
                     sources: BTreeSet::new(),
+                    uninstall: None,
                 })
                 .collect(),
             services: Vec::new(),

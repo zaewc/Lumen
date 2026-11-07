@@ -1249,6 +1249,7 @@ mod tests {
                 b"/System/Applications/Calculator.app".to_vec(),
             )?],
             sources: BTreeSet::new(),
+            uninstall: None,
         };
         let owned = |app: AppId| Evidence {
             subject: Subject::Application { id: app.clone() },

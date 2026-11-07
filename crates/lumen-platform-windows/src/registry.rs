@@ -8,8 +8,8 @@ use windows_sys::Win32::Foundation::{
     ERROR_FILE_NOT_FOUND, ERROR_MORE_DATA, ERROR_NO_MORE_ITEMS, ERROR_SUCCESS,
 };
 use windows_sys::Win32::System::Registry::{
-    HKEY, KEY_READ, REG_SAM_FLAGS, RRF_NOEXPAND, RRF_RT_REG_EXPAND_SZ, RRF_RT_REG_SZ, RegCloseKey,
-    RegEnumKeyExW, RegEnumValueW, RegGetValueW, RegOpenKeyExW,
+    HKEY, KEY_READ, REG_SAM_FLAGS, RRF_NOEXPAND, RRF_RT_REG_DWORD, RRF_RT_REG_EXPAND_SZ,
+    RRF_RT_REG_SZ, RegCloseKey, RegEnumKeyExW, RegEnumValueW, RegGetValueW, RegOpenKeyExW,
 };
 
 use crate::winpath::nul_terminated;
@@ -171,5 +171,31 @@ impl Key {
                 _ => return None,
             }
         }
+    }
+
+    /// A `REG_DWORD` value of `subkey`, or `None` if it is missing, another
+    /// type, or unreadable.
+    pub(crate) fn dword(&self, subkey: &str, value: &str) -> Option<u32> {
+        let subkey = wide(subkey)?;
+        let value = wide(value)?;
+        let mut data = 0_u32;
+        let mut bytes = u32::try_from(size_of::<u32>()).ok()?;
+        // SAFETY: invariant: the API writes at most `bytes` (4) bytes into
+        // `data` and the size back into `bytes`; the type out-pointer may be
+        // null. Why unsafe: FFI writing through raw pointers. Why it holds:
+        // `RRF_RT_REG_DWORD` only accepts a 4-byte value, `bytes` is the size
+        // of `data`, and all pointers are to locals.
+        let status = unsafe {
+            RegGetValueW(
+                self.0,
+                subkey.as_ptr(),
+                value.as_ptr(),
+                RRF_RT_REG_DWORD,
+                std::ptr::null_mut(),
+                (&raw mut data).cast(),
+                &raw mut bytes,
+            )
+        };
+        (status == ERROR_SUCCESS).then_some(data)
     }
 }

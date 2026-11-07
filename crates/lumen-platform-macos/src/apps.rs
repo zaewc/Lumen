@@ -127,6 +127,7 @@ fn application(path: &Path) -> Option<Application> {
         signature: Some(verify_signature(&url)),
         install_locations: vec![location],
         sources: BTreeSet::from([source()]),
+        uninstall: None,
     })
 }
 

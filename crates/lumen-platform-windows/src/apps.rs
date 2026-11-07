@@ -4,7 +4,9 @@
 
 use std::collections::BTreeSet;
 
-use lumen_domain::{AppId, AppIdScheme, Application, RawPath, SourceName, UntrustedText};
+use lumen_domain::{
+    AppId, AppIdScheme, Application, RawPath, SourceName, UninstallRecord, UntrustedText,
+};
 
 /// One `...\CurrentVersion\Uninstall\<key>` entry, as read.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -19,6 +21,44 @@ pub struct UninstallEntry {
     pub publisher: Option<String>,
     /// `InstallLocation`.
     pub install_location: Option<String>,
+    /// `UninstallString`.
+    pub uninstall_string: Option<String>,
+    /// `QuietUninstallString`.
+    pub quiet_uninstall_string: Option<String>,
+    /// `WindowsInstaller` (a `REG_DWORD`).
+    pub windows_installer: Option<u32>,
+    /// `SystemComponent` (a `REG_DWORD`).
+    pub system_component: Option<u32>,
+    /// `NoRemove` (a `REG_DWORD`).
+    pub no_remove: Option<u32>,
+    /// `ParentKeyName`.
+    pub parent_key_name: Option<String>,
+}
+
+/// Whether `key` has the form of a Windows Installer product code:
+/// `{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}` in hexadecimal.
+fn is_product_code(key: &str) -> bool {
+    let Some(inner) = key.strip_prefix('{').and_then(|k| k.strip_suffix('}')) else {
+        return false;
+    };
+    let groups: Vec<&str> = inner.split('-').collect();
+    groups.iter().map(|g| g.len()).eq([8, 4, 4, 4, 12])
+        && groups
+            .iter()
+            .all(|g| g.bytes().all(|b| b.is_ascii_hexdigit()))
+}
+
+/// What the entry records about removing its application. A flag that is
+/// missing reads as unset, as Windows reads it.
+fn uninstall_record(entry: &UninstallEntry) -> UninstallRecord {
+    UninstallRecord {
+        windows_installer: entry.windows_installer == Some(1),
+        command: present(entry.uninstall_string.as_ref()),
+        quiet_command: present(entry.quiet_uninstall_string.as_ref()),
+        hidden: entry.system_component == Some(1),
+        no_remove: entry.no_remove == Some(1),
+        parent: present(entry.parent_key_name.as_ref()),
+    }
 }
 
 fn present(value: Option<&String>) -> Option<UntrustedText> {
@@ -55,11 +95,20 @@ pub fn to_application(entry: &UninstallEntry, source: &SourceName) -> Option<App
     if entry.key.is_empty() {
         return None;
     }
-    Some(Application {
-        ids: BTreeSet::from([AppId {
-            scheme: AppIdScheme::UninstallKey,
+    let uninstall = uninstall_record(entry);
+    let mut ids = BTreeSet::from([AppId {
+        scheme: AppIdScheme::UninstallKey,
+        value: UntrustedText::new(entry.key.clone()),
+    }]);
+    // A Windows Installer entry is keyed by its product code (ADR-0060).
+    if uninstall.windows_installer && is_product_code(&entry.key) {
+        ids.insert(AppId {
+            scheme: AppIdScheme::MsiProductCode,
             value: UntrustedText::new(entry.key.clone()),
-        }]),
+        });
+    }
+    Some(Application {
+        ids,
         name: Some(name),
         version: present(entry.version.as_ref()),
         vendor: present(entry.publisher.as_ref()),
@@ -71,6 +120,7 @@ pub fn to_application(entry: &UninstallEntry, source: &SourceName) -> Option<App
             .into_iter()
             .collect(),
         sources: BTreeSet::from([source.clone()]),
+        uninstall: Some(uninstall),
     })
 }
 
@@ -89,6 +139,7 @@ mod tests {
             version: Some(" 1.2.3 ".into()),
             publisher: Some("Example Corp".into()),
             install_location: location.map(Into::into),
+            ..UninstallEntry::default()
         }
     }
 
@@ -129,6 +180,63 @@ mod tests {
         assert!(to_application(&entry("KB123", None, None), &source()).is_none());
         assert!(to_application(&entry("KB123", Some("   "), None), &source()).is_none());
         assert!(to_application(&entry("", Some("Example"), None), &source()).is_none());
+    }
+
+    #[test]
+    fn uninstall_metadata_is_kept_as_untrusted_text() {
+        let code = "{11111111-2222-3333-4444-555555555555}";
+        let command = format!("MsiExec.exe /X{code}");
+        let mut msi = entry(code, Some("Example"), None);
+        msi.windows_installer = Some(1);
+        msi.uninstall_string = Some(command.clone());
+        msi.system_component = Some(0);
+        let app = to_application(&msi, &source()).unwrap_or_else(|| unreachable!());
+        assert!(app.has_id(&AppId {
+            scheme: AppIdScheme::MsiProductCode,
+            value: UntrustedText::new(code),
+        }));
+        let record = app.uninstall.unwrap_or_else(|| unreachable!());
+        assert!(record.windows_installer && !record.hidden && !record.no_remove);
+        assert_eq!(record.command.map(|c| c.raw().to_owned()), Some(command));
+        assert_eq!(record.quiet_command, None);
+
+        let mut exe = entry("Example", Some("Example"), None);
+        exe.uninstall_string = Some(r#""C:\Program Files\Example\unins000.exe""#.into());
+        exe.quiet_uninstall_string = Some("   ".into());
+        exe.system_component = Some(1);
+        exe.no_remove = Some(1);
+        exe.parent_key_name = Some("Parent".into());
+        let app = to_application(&exe, &source()).unwrap_or_else(|| unreachable!());
+        assert!(
+            app.ids
+                .iter()
+                .all(|id| id.scheme == AppIdScheme::UninstallKey)
+        );
+        let record = app.uninstall.unwrap_or_else(|| unreachable!());
+        assert!(!record.windows_installer && record.hidden && record.no_remove);
+        assert_eq!(record.quiet_command, None);
+        assert_eq!(
+            record.parent.map(|p| p.raw().to_owned()).as_deref(),
+            Some("Parent")
+        );
+    }
+
+    #[test]
+    fn only_guid_keys_of_installer_entries_are_product_codes() {
+        for (key, expected) in [
+            ("{11111111-2222-3333-4444-555555555555}", true),
+            ("{abcdefab-cdef-abcd-efab-cdefabcdefab}", true),
+            ("{1111-2222}", false),
+            ("11111111-2222-3333-4444-555555555555", false),
+            ("{1111111G-2222-3333-4444-555555555555}", false),
+            ("Example", false),
+        ] {
+            assert_eq!(is_product_code(key), expected, "{key}");
+        }
+        // An entry not marked as Windows Installer is never keyed by product code.
+        let key = "{11111111-2222-3333-4444-555555555555}";
+        let app = to_application(&entry(key, Some("n"), None), &source());
+        assert!(app.is_some_and(|a| a.ids.len() == 1));
     }
 
     #[test]
