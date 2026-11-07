@@ -812,6 +812,78 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Whether an application that owns it is running (ADR-0059). `false`\nonly when every process was visible.",
+            "required": [
+              "app",
+              "running",
+              "type"
+            ],
+            "properties": {
+              "app": {
+                "type": "string",
+                "description": "The application's identifier."
+              },
+              "running": {
+                "type": "boolean",
+                "description": "Whether a process runs it."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "application_running"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "When the platform last recorded an application that owns it being\nopened (ADR-0059). Shown, never decided on: an old date is not proof\nthe application is unused.",
+            "required": [
+              "app",
+              "at",
+              "type"
+            ],
+            "properties": {
+              "app": {
+                "type": "string",
+                "description": "The application's identifier."
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When it was last opened."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "application_last_opened"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "When the project it belongs to last changed: the newest modification\ntime of the project's marker files (ADR-0059). Shown, never decided on.",
+            "required": [
+              "at",
+              "type"
+            ],
+            "properties": {
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the project last changed."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "project_activity"
+                ]
+              }
+            }
           }
         ],
         "description": "One fact, typed. Untrusted text is escaped for display."

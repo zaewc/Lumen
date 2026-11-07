@@ -209,6 +209,20 @@ export const zFactKindView = z.union([
     owned: z.boolean(),
     type: z.enum(["owned_by_current_user"]),
   }),
+  z.object({
+    app: z.string(),
+    running: z.boolean(),
+    type: z.enum(["application_running"]),
+  }),
+  z.object({
+    app: z.string(),
+    at: z.iso.datetime(),
+    type: z.enum(["application_last_opened"]),
+  }),
+  z.object({
+    at: z.iso.datetime(),
+    type: z.enum(["project_activity"]),
+  }),
 ]);
 
 /**

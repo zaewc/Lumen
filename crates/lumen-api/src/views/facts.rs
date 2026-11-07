@@ -101,6 +101,31 @@ pub enum FactKindView {
         /// Whether it does.
         owned: bool,
     },
+    /// Whether an application that owns it is running (ADR-0059). `false`
+    /// only when every process was visible.
+    ApplicationRunning {
+        /// The application's identifier.
+        app: String,
+        /// Whether a process runs it.
+        running: bool,
+    },
+    /// When the platform last recorded an application that owns it being
+    /// opened (ADR-0059). Shown, never decided on: an old date is not proof
+    /// the application is unused.
+    ApplicationLastOpened {
+        /// The application's identifier.
+        app: String,
+        /// When it was last opened.
+        #[schema(value_type = String, format = DateTime)]
+        at: Timestamp,
+    },
+    /// When the project it belongs to last changed: the newest modification
+    /// time of the project's marker files (ADR-0059). Shown, never decided on.
+    ProjectActivity {
+        /// When the project last changed.
+        #[schema(value_type = String, format = DateTime)]
+        at: Timestamp,
+    },
 }
 
 /// How a fact was established.
@@ -185,6 +210,15 @@ fn fact_kind(fact: &Fact) -> Option<FactKindView> {
             unseen: unseen.map(|count| count.to_string()),
         },
         Fact::OwnedByCurrentUser(owned) => FactKindView::OwnedByCurrentUser { owned: *owned },
+        Fact::ApplicationRunning { app: id, running } => FactKindView::ApplicationRunning {
+            app: app(id),
+            running: *running,
+        },
+        Fact::ApplicationLastOpened { app: id, at } => FactKindView::ApplicationLastOpened {
+            app: app(id),
+            at: *at,
+        },
+        Fact::ProjectActivity(at) => FactKindView::ProjectActivity { at: *at },
         _ => return None,
     })
 }
@@ -204,8 +238,9 @@ fn fact_view(record: &Evidence) -> Option<FactView> {
 }
 
 /// The facts about `assessed`'s candidate in its bundle, and whether each
-/// application that owns it is installed, in the bundle's order. Facts about
-/// other subjects belong to their own views.
+/// application that owns it is installed, is running and when it was last
+/// opened, in the bundle's order. Facts about other subjects belong to their
+/// own views.
 pub(super) fn facts(assessed: &Assessed) -> Vec<FactView> {
     let candidate = Subject::File {
         identity: assessed.candidate.identity().clone(),
@@ -223,8 +258,12 @@ pub(super) fn facts(assessed: &Assessed) -> Vec<FactView> {
         .iter()
         .filter(|record| {
             record.subject == candidate
-                || matches!(record.fact, Fact::ApplicationPresent { .. })
-                    && owners.contains(&record.subject)
+                || matches!(
+                    record.fact,
+                    Fact::ApplicationPresent { .. }
+                        | Fact::ApplicationRunning { .. }
+                        | Fact::ApplicationLastOpened { .. }
+                ) && owners.contains(&record.subject)
         })
         .filter_map(fact_view)
         .collect()
@@ -318,6 +357,76 @@ mod tests {
                 "source": "lumen.scan",
                 "observed_at": "1970-01-01T00:00:20Z",
             })
+        );
+    }
+
+    #[test]
+    fn usage_facts_are_the_candidates_and_its_owners() {
+        let owner = app_id("com.example.app");
+        let other = app_id("com.example.other");
+        let seen = assessed(
+            EntryKind::Directory,
+            AccessState::Readable,
+            vec![
+                record(file(1), Fact::OwningApplication(owner.clone()), 10),
+                record(file(1), Fact::ProjectActivity(at(300)), 10),
+                record(
+                    Subject::Application { id: owner.clone() },
+                    Fact::ApplicationRunning {
+                        app: owner.clone(),
+                        running: true,
+                    },
+                    30,
+                ),
+                record(
+                    Subject::Application { id: owner.clone() },
+                    Fact::ApplicationLastOpened {
+                        app: owner,
+                        at: at(200),
+                    },
+                    30,
+                ),
+                record(
+                    Subject::Application { id: other.clone() },
+                    Fact::ApplicationRunning {
+                        app: other,
+                        running: false,
+                    },
+                    30,
+                ),
+            ],
+        );
+        let shown = facts(&seen);
+        let kinds: Vec<&FactKindView> = shown.iter().map(|fact| &fact.fact).collect();
+        assert_eq!(
+            kinds,
+            [
+                &FactKindView::OwningApplication {
+                    app: "com.example.app".to_owned()
+                },
+                &FactKindView::ProjectActivity { at: at(300) },
+                &FactKindView::ApplicationRunning {
+                    app: "com.example.app".to_owned(),
+                    running: true
+                },
+                &FactKindView::ApplicationLastOpened {
+                    app: "com.example.app".to_owned(),
+                    at: at(200)
+                },
+            ],
+            "an application that does not own it is left out"
+        );
+        assert_eq!(
+            serde_json::to_value(&shown[3].fact).unwrap_or_default(),
+            serde_json::json!({
+                "type": "application_last_opened",
+                "app": "com.example.app",
+                "at": "1970-01-01T00:03:20Z",
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(&shown[1].fact).unwrap_or_default(),
+            serde_json::json!({"type": "project_activity", "at": "1970-01-01T00:05:00Z"})
         );
     }
 }

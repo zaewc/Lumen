@@ -409,6 +409,35 @@ export type FactKindView =
        */
       owned: boolean;
       type: "owned_by_current_user";
+    }
+  | {
+      /**
+       * The application's identifier.
+       */
+      app: string;
+      /**
+       * Whether a process runs it.
+       */
+      running: boolean;
+      type: "application_running";
+    }
+  | {
+      /**
+       * The application's identifier.
+       */
+      app: string;
+      /**
+       * When it was last opened.
+       */
+      at: string;
+      type: "application_last_opened";
+    }
+  | {
+      /**
+       * When the project last changed.
+       */
+      at: string;
+      type: "project_activity";
     };
 
 /**
