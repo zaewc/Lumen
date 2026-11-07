@@ -307,6 +307,12 @@ export const ru: Messages = {
       present === null
         ? `Принадлежит приложению ${app}. Неизвестно, установлено ли оно.`
         : `Принадлежит приложению ${app}, которое ${present ? "установлено" : "не установлено"}.`,
+    appRunning: (app: string, running: boolean) =>
+      running ? `${app} запущено.` : `${app} не запущено.`,
+    appOpened: (app: string, date: string) =>
+      `${app} в последний раз открывали ${date}; система может записывать не каждый запуск.`,
+    projectChanged: (date: string) =>
+      `Файлы проекта в последний раз менялись ${date}; учитываются только файлы вроде манифеста и lock-файла.`,
     inUse: (inUse: boolean): string =>
       inUse ? "Элемент открыт в приложении." : "Ни одно приложение не открыло этот элемент.",
     unseen: (unseen: number | null) =>

@@ -293,6 +293,12 @@ export const en = {
       present === null
         ? `Belongs to ${app}. Whether it is installed is unknown.`
         : `Belongs to ${app}, which is ${present ? "installed" : "not installed"}.`,
+    appRunning: (app: string, running: boolean) =>
+      running ? `${app} is running.` : `${app} is not running.`,
+    appOpened: (app: string, date: string) =>
+      `${app} was last opened ${date}; the system may not record every launch.`,
+    projectChanged: (date: string) =>
+      `Its project's files last changed ${date}; only files like the manifest and lockfile count.`,
     inUse: (inUse: boolean): string => (inUse ? "An app has it open." : "No app has it open."),
     unseen: (unseen: number | null) =>
       unseen === null

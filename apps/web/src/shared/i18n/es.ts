@@ -300,6 +300,12 @@ export const es: Messages = {
       present === null
         ? `Pertenece a ${app}. Se desconoce si está instalada.`
         : `Pertenece a ${app}, que ${present ? "está instalada" : "no está instalada"}.`,
+    appRunning: (app: string, running: boolean) =>
+      running ? `${app} se está ejecutando.` : `${app} no se está ejecutando.`,
+    appOpened: (app: string, date: string) =>
+      `${app} se abrió por última vez el ${date}; es posible que el sistema no registre todos los inicios.`,
+    projectChanged: (date: string) =>
+      `Los archivos del proyecto cambiaron por última vez el ${date}; solo cuentan archivos como el manifiesto y el archivo de bloqueo.`,
     inUse: (inUse: boolean): string =>
       inUse ? "Una aplicación lo tiene abierto." : "Ninguna aplicación lo tiene abierto.",
     unseen: (unseen: number | null) =>

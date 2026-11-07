@@ -295,6 +295,12 @@ export const ko = {
       present === null
         ? `${app}의 항목이에요. 앱이 설치되어 있는지는 알 수 없어요.`
         : `${app}의 항목이에요. 앱이 설치되어 ${present ? "있어요" : "있지 않아요"}.`,
+    appRunning: (app: string, running: boolean) =>
+      running ? `${app} 앱이 실행 중이에요.` : `${app} 앱이 실행 중이 아니에요.`,
+    appOpened: (app: string, date: string) =>
+      `${app} 앱을 ${date}에 마지막으로 열었어요. 시스템이 모든 실행을 기록하지는 않아요.`,
+    projectChanged: (date: string) =>
+      `프로젝트 파일이 ${date}에 마지막으로 바뀌었어요. 매니페스트나 잠금 파일 같은 파일만 봐요.`,
     inUse: (inUse: boolean) => (inUse ? "앱이 열어 두고 있어요." : "열어 둔 앱이 없어요."),
     unseen: (unseen: number | null) =>
       unseen === null

@@ -29,6 +29,19 @@ describe("lineText", () => {
     expect(text({ ...owner, present: null })).toBe(
       "Belongs to Spotify. Whether it is installed is unknown.",
     );
+    const running = { type: "app_running", app: "Spotify", source: "process" } as const;
+    expect(text({ ...running, running: true, certainty: "resolved" })).toBe("Spotify is running.");
+    expect(text({ ...running, running: false, certainty: "resolved" })).toBe(
+      "Spotify is not running.",
+    );
+    expect(
+      text({ type: "app_opened", app: "Spotify", at: AT, source: "time", certainty: "partial" }),
+    ).toBe(
+      `Spotify was last opened ${formatDateTime("en", AT)}; the system may not record every launch.`,
+    );
+    expect(text({ type: "project_activity", at: AT, source: "time", certainty: "partial" })).toBe(
+      `Its project's files last changed ${formatDateTime("en", AT)}; only files like the manifest and lockfile count.`,
+    );
     const inUse = { type: "in_use", source: "process", certainty: "resolved" } as const;
     expect(text({ ...inUse, inUse: true })).toBe("An app has it open.");
     expect(text({ ...inUse, inUse: false })).toBe("No app has it open.");

@@ -113,7 +113,11 @@ function devkb(entry: string): Fact {
   return seen({ type: "knowledge_base_match", entry }, "devkb");
 }
 
-/** An application's data folder, named after it, and whether it is installed. */
+/**
+ * An application's data folder, named after it, and whether it is installed;
+ * an installed one is not running and was last opened two days before the
+ * assessment (ADR-0059: shown, never decided on).
+ */
 function appData(
   app: string,
   kind: "caches" | "application_support" | "web_data",
@@ -123,14 +127,28 @@ function appData(
   return [
     seen({ type: "owning_application", app }, source),
     seen({ type: "app_data_location", kind }, source),
-    installed
-      ? seen({ type: "application_present", app, present: true }, "macos.applications", ASSESSED)
-      : {
-          fact: { type: "application_present", app, present: false },
-          basis: { kind: "absence", searched: ["macos.applications"] },
-          source: "lumen.inventory",
-          observed_at: ASSESSED,
-        },
+    ...(installed
+      ? [
+          seen({ type: "application_present", app, present: true }, "macos.applications", ASSESSED),
+          seen(
+            { type: "application_running", app, running: false },
+            "macos.process-probe",
+            ASSESSED,
+          ),
+          seen(
+            { type: "application_last_opened", app, at: "2026-10-27T09:12:00Z" },
+            "macos.launchservices",
+            ASSESSED,
+          ),
+        ]
+      : [
+          {
+            fact: { type: "application_present", app, present: false },
+            basis: { kind: "absence", searched: ["macos.applications"] },
+            source: "lumen.inventory",
+            observed_at: ASSESSED,
+          } satisfies Fact,
+        ]),
   ];
 }
 

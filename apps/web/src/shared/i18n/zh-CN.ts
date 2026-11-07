@@ -284,6 +284,11 @@ export const zhCN: Messages = {
       present === null
         ? `属于 ${app}。是否已安装尚不清楚。`
         : `属于 ${app}，该应用${present ? "已安装" : "未安装"}。`,
+    appRunning: (app: string, running: boolean) =>
+      running ? `${app} 正在运行。` : `${app} 未在运行。`,
+    appOpened: (app: string, date: string) =>
+      `${app} 上次打开于 ${date}；系统可能不会记录每次启动。`,
+    projectChanged: (date: string) => `项目文件上次更改于 ${date}；只看清单和锁定文件这类文件。`,
     inUse: (inUse: boolean): string =>
       inUse ? "有应用正在使用此项目。" : "没有应用正在使用此项目。",
     unseen: (unseen: number | null) =>

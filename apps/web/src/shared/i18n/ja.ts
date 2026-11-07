@@ -290,6 +290,12 @@ export const ja: Messages = {
       present === null
         ? `${app}に属します。インストールされているかは不明です。`
         : `${app}に属します。${present ? "インストールされています" : "インストールされていません"}。`,
+    appRunning: (app: string, running: boolean) =>
+      running ? `${app}は実行中です。` : `${app}は実行されていません。`,
+    appOpened: (app: string, date: string) =>
+      `${app}の最終起動：${date}。システムがすべての起動を記録するとは限りません。`,
+    projectChanged: (date: string) =>
+      `プロジェクトのファイルの最終変更日：${date}。マニフェストやロックファイルなどのファイルだけを見ています。`,
     inUse: (inUse: boolean): string =>
       inUse ? "アプリが使用中です。" : "使用中のアプリはありません。",
     unseen: (unseen: number | null) =>

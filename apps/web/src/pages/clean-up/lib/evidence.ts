@@ -48,12 +48,18 @@ export function lineText(m: Messages, locale: Locale, line: EvidenceLine): strin
       return reviewReasonText(m, line.code);
     case "owner":
       return m.detail.owner(line.app, line.present);
+    case "app_running":
+      return m.detail.appRunning(line.app, line.running);
     case "in_use":
       return m.detail.inUse(line.inUse);
     case "unseen":
       return m.detail.unseen(line.unseen === null ? null : Number(line.unseen));
     case "time":
       return timeText(m, locale, line);
+    case "app_opened":
+      return m.detail.appOpened(line.app, formatDateTime(locale, line.at));
+    case "project_activity":
+      return m.detail.projectChanged(formatDateTime(locale, line.at));
     case "related":
       return relationText(m, line.line);
     case "unrelated":

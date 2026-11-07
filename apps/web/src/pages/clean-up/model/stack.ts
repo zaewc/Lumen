@@ -27,6 +27,8 @@ export type EvidenceLine = {
       /** Whether it is installed; `null` when nothing answered. */
       readonly present: boolean | null;
     }
+  /** Whether an app that owns it is running (ADR-0059). */
+  | { readonly type: "app_running"; readonly app: string; readonly running: boolean }
   | { readonly type: "in_use"; readonly inUse: boolean }
   /** No visible process has it open; `unseen` processes could not be checked. */
   | { readonly type: "unseen"; readonly unseen: string | null }
@@ -36,6 +38,10 @@ export type EvidenceLine = {
       readonly time: TimeView;
       readonly folder: boolean;
     }
+  /** When the system last recorded an owning app being opened (ADR-0059). */
+  | { readonly type: "app_opened"; readonly app: string; readonly at: string }
+  /** When its project's marker files last changed (ADR-0059). */
+  | { readonly type: "project_activity"; readonly at: string }
   | { readonly type: "related"; readonly line: LensLine }
   /** Nothing recorded links it to another item: not "unrelated". */
   | { readonly type: "unrelated" }
@@ -56,7 +62,8 @@ function timeCertainty(time: TimeView): Certainty {
 
 /**
  * The evidence behind `candidate`'s decision, in reading order: the rules
- * that fired, who owns it, whether it is in use, its times, what it is
+ * that fired, who owns it, whether the owner runs and it is in use, its
+ * times, when the owner was last opened and its project changed, what it is
  * related to (`related`, from the lens), and AI review's note. Only what the
  * API reports; a question nothing answered is Unknown, never "no" (ADR-0053).
  */
@@ -102,7 +109,15 @@ export function evidenceStack(
     });
   }
   for (const fact of facts) {
-    if (fact.type === "in_use") {
+    if (fact.type === "application_running") {
+      lines.push({
+        type: "app_running",
+        app: fact.app,
+        running: fact.running,
+        source: "process",
+        certainty: "resolved",
+      });
+    } else if (fact.type === "in_use") {
       lines.push({ type: "in_use", inUse: fact.in_use, source: "process", certainty: "resolved" });
     } else if (fact.type === "not_in_use_by_visible_processes") {
       const unseen = fact.unseen === null || fact.unseen === "0" ? null : fact.unseen;
@@ -126,6 +141,22 @@ export function evidenceStack(
       source: "time",
       certainty: timeCertainty(time),
     });
+  }
+
+  // Usage dates are shown, never decided on, and say only what the platform
+  // recorded: not every launch, and only the project's marker files (ADR-0059).
+  for (const fact of facts) {
+    if (fact.type === "application_last_opened") {
+      lines.push({
+        type: "app_opened",
+        app: fact.app,
+        at: fact.at,
+        source: "time",
+        certainty: "partial",
+      });
+    } else if (fact.type === "project_activity") {
+      lines.push({ type: "project_activity", at: fact.at, source: "time", certainty: "partial" });
+    }
   }
 
   for (const line of related) {
