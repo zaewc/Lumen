@@ -295,8 +295,6 @@ export const fr: Messages = {
       unseen === null
         ? "Aucune application visible ne l'a ouvert."
         : `Aucune application visible ne l'a ouvert ; ${count(unseen)} processus n'ont pas pu être vérifiés.`,
-    projectChanged: (date) =>
-      `Les fichiers de son projet ont été modifiés pour la dernière fois le ${date} ; seuls les fichiers comme le manifeste et le fichier de verrouillage sont pris en compte.`,
     changed: (date, folder) =>
       folder
         ? `L'entrée du dossier a été modifiée pour la dernière fois le ${date} ; son contenu a pu changer depuis.`
