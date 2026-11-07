@@ -13,7 +13,8 @@
 //! - only regular files and directories match: links and reparse points are other
 //!   objects (ADR-0017);
 //! - names compare without case on macOS and Windows, whose default volumes are
-//!   case-insensitive, and exactly elsewhere;
+//!   case-insensitive, and exactly elsewhere; a name that is not valid UTF-8
+//!   always compares byte for byte, never through a lossy conversion;
 //! - a project location matches only if one of its markers was scanned as a file:
 //!   an unscanned marker is unknown, so no evidence is produced;
 //! - a matched project location also gets `ProjectActivity`: the newest
@@ -56,8 +57,17 @@ pub struct Environment {
     pub vars: Vec<(String, RawPath)>,
 }
 
-/// One path component, folded for comparison.
-type Component = String;
+/// One path component as bytes, folded for comparison when it is valid UTF-8.
+///
+/// A name that is not valid UTF-8 (raw Unix bytes, or a Windows name with an
+/// unpaired surrogate in its WTF-8) keeps its exact bytes: a lossy conversion
+/// would turn distinct names into the same replacement character (#791). A
+/// folded name is always valid UTF-8 and a kept one never is, so the two
+/// cannot meet.
+type Component = Vec<u8>;
+
+/// The pattern component that matches any one name.
+const WILDCARD: &[u8] = b"*";
 
 fn case_insensitive(platform: Platform) -> bool {
     matches!(
@@ -77,13 +87,12 @@ fn raw_components(path: &RawPath) -> impl DoubleEndedIterator<Item = &[u8]> {
         .filter(|part| !part.is_empty())
 }
 
-/// One path component, folded for comparison when `fold` is set.
+/// One path component, folded for comparison when `fold` is set and it is
+/// valid UTF-8; otherwise its exact bytes, so it matches only itself.
 fn component(part: &[u8], fold: bool) -> Component {
-    let text = String::from_utf8_lossy(part);
-    if fold {
-        text.to_lowercase()
-    } else {
-        text.into_owned()
+    match std::str::from_utf8(part) {
+        Ok(text) if fold => text.to_lowercase().into_bytes(),
+        _ => part.to_vec(),
     }
 }
 
@@ -108,18 +117,16 @@ fn pattern(path: &str, platform: Platform) -> Vec<Component> {
     let fold = case_insensitive(platform);
     path.split('/')
         .filter(|part| !part.is_empty())
-        .map(|part| {
-            if fold {
-                part.to_lowercase()
-            } else {
-                part.to_owned()
-            }
-        })
+        .map(|part| component(part.as_bytes(), fold))
         .collect()
 }
 
 fn fits(names: &[Component], pattern: &[Component]) -> bool {
-    names.len() == pattern.len() && names.iter().zip(pattern).all(|(n, p)| p == "*" || n == p)
+    names.len() == pattern.len()
+        && names
+            .iter()
+            .zip(pattern)
+            .all(|(n, p)| p.as_slice() == WILDCARD || n == p)
 }
 
 /// Whether `pattern` occurs in `names` as consecutive components.
@@ -589,6 +596,53 @@ mod tests {
         let scanned = [dir("/Users/ana/.CACHE/Sample", 1)];
         assert_eq!(matched(&env(Platform::Macos), &scanned).len(), 1);
         assert_eq!(matched(&env(Platform::Linux), &scanned).len(), 0);
+    }
+
+    fn unix_bytes(path: &[u8]) -> RawPath {
+        RawPath::from_unix_bytes(path.to_vec()).unwrap_or_else(|_| unreachable!())
+    }
+
+    #[test]
+    fn names_that_are_not_utf8_keep_their_bytes() {
+        // A lossy conversion reads 0xFF and 0xFE both as U+FFFD, which made a
+        // marker in one folder qualify a project in another (#791).
+        let found = matched(
+            &env(Platform::Macos),
+            &[
+                object(unix_bytes(b"/src/\xFF/target"), EntryKind::Directory, 1),
+                object(unix_bytes(b"/src/\xFE/Cargo.toml"), EntryKind::File, 2),
+                object(unix_bytes(b"/src/\xFE/target"), EntryKind::Directory, 3),
+            ],
+        );
+        assert_eq!(found, [(3, "sample-build".to_owned())]);
+
+        for fold in [false, true] {
+            assert_ne!(component(b"\xFF", fold), component(b"\xFE", fold));
+            assert_ne!(
+                component(b"\xFF", fold),
+                component("\u{FFFD}".as_bytes(), fold)
+            );
+        }
+        // Folding applies to valid names only; others match only themselves.
+        assert_eq!(component(b"Cache\xFF", true), b"Cache\xFF");
+        assert_eq!(component("Caché".as_bytes(), true), "caché".as_bytes());
+    }
+
+    #[test]
+    fn windows_names_with_unpaired_surrogates_keep_their_identity() {
+        let lone = |unit: u16| {
+            let mut wide: Vec<u16> = r"C:\Users\".encode_utf16().collect();
+            wide.push(unit);
+            RawPath::from_windows_wide(&wide).unwrap_or_else(|_| unreachable!())
+        };
+        assert_ne!(
+            components(&lone(0xD800), Platform::Windows),
+            components(&lone(0xD801), Platform::Windows)
+        );
+        assert_eq!(
+            components(&windows(r"C:\Users\ANA"), Platform::Windows),
+            components(&windows(r"c:\users\ana"), Platform::Windows)
+        );
     }
 
     #[test]
