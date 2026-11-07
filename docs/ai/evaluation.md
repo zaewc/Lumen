@@ -66,6 +66,12 @@ Rare classes that cannot reach statistical power stay "Jev cannot promote".
 | Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.1 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.1.md): with the evidence guards ([ADR-0043](../decisions/0043-discard-removable-answers-the-evidence-does-not-support.md)), 71 critical false positives in 1,103 critical cases (upper bound 8.05% against 0.5%; 81 and 9.05% before), 17 canary flips (19 before); release gate fails, demote-only. Error analysis: [research 17](../research/17-jeb-error-analysis.md) |
 | Jeb (`gsm.jeb`, `jev-decisions/1`) | 2026.10.0 | [report](../../ai/reports/jev-decisions/1/jeb-2026.10.0.md): with the evidence guards, no critical false positive in 7 critical golden cases (1 before, an Xcode archive), clean canaries; demote-only |
 
+Software notes (`jev-software/1`, output `jev.software-note/1`,
+[ADR-0061](../decisions/0061-send-installed-software-to-ai-review.md)) have no
+cassettes or report yet. Their recording waits for the small Jeb run the owner
+approved (one or two runs over a few dozen fictional software entries); until then
+only the validator's unit tests cover them.
+
 ## Recalibration triggers
 
 - A new model ID or model version, including OS-bundled on-device model updates.

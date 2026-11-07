@@ -18,6 +18,11 @@
 //! probabilities, so every answer is reported at `medium` confidence: a wrong
 //! removable answer always counts as a critical false positive. No transport
 //! lives here; nothing in the app asks this judge yet.
+//!
+//! The helper answers only the judgment questions. It does not explain
+//! installed software (`jev-software/1`, ADR-0061): nothing here implements
+//! `SoftwareExplainer`, so the on-device judge yields no software note rather
+//! than a guess without probabilities.
 
 use std::collections::BTreeSet;
 

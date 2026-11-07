@@ -10,7 +10,8 @@ use lumen_domain::{
     AccessState, AppId, Application, FileIdentity, FilesystemEntry, ItemLocation, ItemNote,
     JevRequest, JudgeDescriptor, Judgment, JudgmentRejection, OperationId, Package, PayloadHash,
     PlanId, Process, QuarantineEvent, QuarantineFailure, QuarantineState, RawPath, ScanId, Service,
-    SnapshotId, SourceName, SourceStatus, Timestamp, UnixOwnership, VolumeId,
+    SnapshotId, SoftwareNote, SoftwareRequest, SourceName, SourceStatus, Timestamp, UnixOwnership,
+    VolumeId,
 };
 
 use crate::CancelToken;
@@ -730,6 +731,33 @@ impl Describer for NoopJudge {
     }
 }
 
+/// A software explanation in flight.
+pub type SoftwareNoteFuture<'a> = Pin<Box<dyn Future<Output = Answer<SoftwareNote>> + Send + 'a>>;
+
+/// The optional AI explainer of installed software (ADR-0061): says what an
+/// application or package is mainly for and what removing it could affect, as
+/// a note for people. A note is never an input to the policy, a plan or the
+/// executor, and never says software is safe to remove. Adapters own transport
+/// and validation; callers treat any error as "no note".
+pub trait SoftwareExplainer: Send + Sync {
+    /// Which judge explains, with the software prompt's version, or `None`
+    /// when AI review is off.
+    fn descriptor(&self) -> Option<JudgeDescriptor>;
+
+    /// Explains one installed application or package.
+    fn explain_software<'a>(&'a self, request: &'a SoftwareRequest) -> SoftwareNoteFuture<'a>;
+}
+
+impl SoftwareExplainer for NoopJudge {
+    fn descriptor(&self) -> Option<JudgeDescriptor> {
+        None
+    }
+
+    fn explain_software<'a>(&'a self, _request: &'a SoftwareRequest) -> SoftwareNoteFuture<'a> {
+        Box::pin(std::future::ready(Err(JudgeError::Disabled).into()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -750,6 +778,7 @@ mod tests {
         assert_dyn_send_sync::<dyn InUseProbe>();
         assert_dyn_send_sync::<dyn JudgeModel>();
         assert_dyn_send_sync::<dyn Describer>();
+        assert_dyn_send_sync::<dyn SoftwareExplainer>();
         assert_dyn_send_sync::<dyn SecretStore>();
         assert_dyn_send_sync::<dyn QuarantineExecutor>();
         assert_dyn_send::<dyn QuarantineJournal>();

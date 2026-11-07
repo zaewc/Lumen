@@ -8,7 +8,8 @@
 //! validated answer passes the evidence guards ([`guard`], ADR-0043), which
 //! discard removable answers the request's evidence does not support. It
 //! also asks what kind of item a review item is, as a note for people
-//! (ADR-0041). The HTTPS transport is [`openrouter`]. [`foundation`] checks
+//! (ADR-0041), and explains installed software ([`software`], ADR-0061).
+//! The HTTPS transport is [`openrouter`]. [`foundation`] checks
 //! answers from Apple's on-device model, and [`chat`] answers from the AI Hub's
 //! chat model, both for evaluation only (ADR-0044, ADR-0045).
 
@@ -21,3 +22,4 @@ pub mod guard;
 pub mod openrouter;
 pub mod request;
 pub mod response;
+pub mod software;

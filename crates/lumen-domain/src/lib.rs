@@ -32,6 +32,7 @@ mod evidence;
 mod id;
 mod inventory;
 mod jev;
+mod jev_software;
 mod judgment;
 mod lifecycle;
 mod manifest;
@@ -81,6 +82,10 @@ pub use inventory::{
 pub use jev::{
     CandidateSummary, CoverageNote, CoverageSummary, EvidenceKind, JEV_REQUEST_SCHEMA, JevRequest,
     RequestEvidence, UntrustedField, response_hash,
+};
+pub use jev_software::{
+    JEV_SOFTWARE_REQUEST_SCHEMA, RemovalImpact, SoftwareFacts, SoftwareField, SoftwareNote,
+    SoftwareOrigin, SoftwarePurpose, SoftwareRequest, SoftwareService,
 };
 pub use judgment::{
     Assessment, ItemKind, ItemNote, ItemRef, JevTrace, JudgeDescriptor, Judgment,

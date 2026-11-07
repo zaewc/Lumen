@@ -8,8 +8,9 @@
 //! [`JudgeError`], so the decision proceeds without Jev. [`JevJudge::ask`]
 //! returns the answer exactly as received, before validation, for recording
 //! evaluation cassettes (docs/ai/harness.md). The same judge also describes
-//! items left for review ([`Describer`], ADR-0041), with the description
-//! questions and their own prompt version.
+//! items left for review ([`Describer`], ADR-0041) and explains installed
+//! software ([`SoftwareExplainer`], ADR-0061), each with its own questions and
+//! prompt version.
 //!
 //! The request runs on its own thread: the HTTP client blocks, and Lumen's ports
 //! are runtime-agnostic futures. The API key is the user's own; it is never
@@ -24,16 +25,19 @@ use std::thread;
 use std::time::Duration;
 
 use lumen_application::ports::{
-    Answer, Describer, JudgeError, JudgeFuture, JudgeModel, NoteFuture,
+    Answer, Describer, JudgeError, JudgeFuture, JudgeModel, NoteFuture, SoftwareExplainer,
+    SoftwareNoteFuture,
 };
 use lumen_domain::{
-    ItemNote, JevRequest, JudgeDescriptor, Judgment, ModelId, PromptVersion, SourceName,
+    ItemNote, JevRequest, JudgeDescriptor, Judgment, ModelId, PromptVersion, SoftwareNote,
+    SoftwareRequest, SourceName,
 };
 use ureq::Agent;
 use ureq::tls::{RootCerts, TlsConfig, TlsProvider};
 
 use crate::chat;
 use crate::decisions::{self, DESCRIBE_PROMPT_VERSION, Prompt, Provider};
+use crate::software::{self, SOFTWARE_PROMPT_VERSION};
 
 /// Longest wait for one answer.
 const TIMEOUT: Duration = Duration::from_secs(30);
@@ -114,6 +118,7 @@ pub struct JevJudge {
     agent: Agent,
     descriptor: JudgeDescriptor,
     describer: JudgeDescriptor,
+    explainer: JudgeDescriptor,
 }
 
 fn descriptor(provider: Provider, prompt: &str) -> Result<JudgeDescriptor, SetupError> {
@@ -190,6 +195,7 @@ impl JevJudge {
             agent,
             descriptor: descriptor(provider, Prompt::V1.version())?,
             describer: descriptor(provider, DESCRIBE_PROMPT_VERSION)?,
+            explainer: descriptor(provider, SOFTWARE_PROMPT_VERSION)?,
         })
     }
 
@@ -342,11 +348,26 @@ impl JevJudge {
         }
     }
 
+    /// The software note validated from the answer, hashed like
+    /// [`Self::judge_blocking`]'s.
+    fn explain_software_blocking(&self, request: &SoftwareRequest) -> Answer<SoftwareNote> {
+        let answer = software::software_body_for(request, self.provider)
+            .map_err(|_| AskError::new(None, "the request could not be built"))
+            .and_then(|body| self.post(&body.to_string()));
+        match answer {
+            Ok(answer) => Answer::received(
+                answer.as_bytes(),
+                software::software_note_for(&answer, self.provider).map(|(note, _snapshot)| note),
+            ),
+            Err(error) => Err(error.into()).into(),
+        }
+    }
+
     /// Runs `work` with a copy of this judge on its own thread, as a future.
-    fn on_thread<'a, T: Send + 'static>(
+    fn on_thread<'a, R: Clone + Send + 'static, T: Send + 'static>(
         &self,
-        request: &JevRequest,
-        work: fn(&Self, &JevRequest) -> Answer<T>,
+        request: &R,
+        work: fn(&Self, &R) -> Answer<T>,
     ) -> Pin<Box<dyn Future<Output = Answer<T>> + Send + 'a>> {
         let slot = Arc::new(Mutex::new(Slot {
             value: None,
@@ -362,6 +383,7 @@ impl JevJudge {
                 agent: self.agent.clone(),
                 descriptor: self.descriptor.clone(),
                 describer: self.describer.clone(),
+                explainer: self.explainer.clone(),
             };
             let request = request.clone();
             move || {
@@ -417,6 +439,16 @@ impl Describer for JevJudge {
 
     fn describe<'a>(&'a self, request: &'a JevRequest) -> NoteFuture<'a> {
         self.on_thread(request, Self::describe_blocking)
+    }
+}
+
+impl SoftwareExplainer for JevJudge {
+    fn descriptor(&self) -> Option<JudgeDescriptor> {
+        Some(self.explainer.clone())
+    }
+
+    fn explain_software<'a>(&'a self, request: &'a SoftwareRequest) -> SoftwareNoteFuture<'a> {
+        self.on_thread(request, Self::explain_software_blocking)
     }
 }
 
@@ -704,6 +736,9 @@ mod tests {
         let describer = Describer::descriptor(&judge).unwrap_or_else(|| unreachable!());
         assert_eq!(describer.model.as_str(), MODEL);
         assert_eq!(describer.prompt_version.to_string(), "jev-describe/1");
+        let explainer = SoftwareExplainer::descriptor(&judge).unwrap_or_else(|| unreachable!());
+        assert_eq!(explainer.model.as_str(), MODEL);
+        assert_eq!(explainer.prompt_version.to_string(), "jev-software/1");
         assert_eq!(judge.prompt(), Prompt::V1);
     }
 
@@ -771,6 +806,62 @@ mod tests {
             Answer::from(Err(JudgeError::Unavailable(
                 "OpenRouter rate limit reached"
             )))
+        );
+    }
+
+    #[test]
+    fn a_software_explanation_round_trips_over_http() {
+        let software = SoftwareRequest::new(lumen_domain::SoftwareFacts {
+            origin: lumen_domain::SoftwareOrigin::Homebrew,
+            id: "node",
+            name: None,
+            publisher: None,
+            version: Some("22.11.0"),
+            protected: false,
+            hidden: false,
+            services: Vec::new(),
+        })
+        .unwrap_or_else(|e| unreachable!("{e}"));
+        let reply = json!({
+            "answers": {
+                "purpose": {"type": "choice", "choice": "runtime_or_library",
+                    "probabilities": {"runtime_or_library": 0.92, "development_tool": 0.08}},
+                "removal_impact": {"type": "choice", "choice": "other_software_depends",
+                    "probabilities": {"other_software_depends": 0.91, "unknown": 0.09}},
+                "injection": {"type": "noul", "noul": 0.01},
+            },
+            "model": "typesafe/jev-1.13",
+            "usage": {"input_tokens": 300, "output_tokens": 0},
+        })
+        .to_string();
+        let (endpoint, received) = serve(200, reply.clone());
+        let explained = block(judge_with(endpoint).explain_software(&software));
+        assert_eq!(
+            explained.response_hash,
+            Some(lumen_domain::response_hash(reply.as_bytes()))
+        );
+        assert_eq!(
+            explained.result,
+            Ok(SoftwareNote {
+                purpose: lumen_domain::SoftwarePurpose::RuntimeOrLibrary,
+                removal_impact: lumen_domain::RemovalImpact::OtherSoftwareDepends,
+                confidence: lumen_domain::JudgmentConfidence::High,
+                injection_suspected: false,
+            })
+        );
+        let seen = received
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        let body: serde_json::Value =
+            serde_json::from_str(&seen.body).unwrap_or_else(|e| unreachable!("{e}"));
+        let expected = software::software_body_for(&software, Provider::OpenRouter)
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(body, expected);
+
+        let (endpoint, _received) = serve(200, "{\"summary\": \"remove it\"}".to_owned());
+        assert_eq!(
+            block(judge_with(endpoint).explain_software(&software)).result,
+            Err(JudgeError::Malformed)
         );
     }
 }

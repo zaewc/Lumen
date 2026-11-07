@@ -40,6 +40,7 @@ or a malicious peer cannot introduce a value the rules forbid.
 | `lifecycle` | `ScanState`, `PlanState`, `Confirmation` | Scan and plan lifecycles |
 | `plan` | `CleanupPlan`, `PlannedItem`, `Chooser` | What a confirmation authorizes, and who chose each item ([ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md)) |
 | `judgment` | `Judgment`, `ReasonCode`, `JudgeDescriptor`, `JevTrace` | Jev model contract |
+| `jev_software` | `SoftwareRequest`, `SoftwareNote`, `SoftwarePurpose`, `RemovalImpact` | Installed software for AI review: identity metadata only, display-only note ([ADR-0061](../decisions/0061-send-installed-software-to-ai-review.md)) |
 | `schema` | JSON Schema helpers | See [Contracts](#contracts) |
 
 ## Invariants
