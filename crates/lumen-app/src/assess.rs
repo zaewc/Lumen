@@ -191,12 +191,92 @@ fn platform_contributions(
             contributions.evidence.push(link.location);
             contributions.relationships.push(link.relationship);
         }
+        let usage = usage_evidence(&inventory.apps, &contributions.evidence, now);
+        contributions.evidence.extend(usage);
         // Derived from the scan alone, so dated by it.
         contributions
             .evidence
             .extend(markers.web_profiles.evidence(home, entries, scanned_at));
     }
     contributions
+}
+
+/// The most owning applications one gathering asks Spotlight about.
+#[cfg(target_os = "macos")]
+const MAX_USAGE_APPS: usize = 200;
+
+/// What Spotlight says about the applications that own something in
+/// `evidence` (ADR-0059), and nothing about any other: when an installed one
+/// was last opened, and whether one no inventory lists is installed on some
+/// indexed volume. A question Spotlight cannot answer adds nothing.
+#[cfg(target_os = "macos")]
+fn usage_evidence(
+    apps: &[lumen_domain::Application],
+    evidence: &[Evidence],
+    now: lumen_domain::Timestamp,
+) -> Vec<Evidence> {
+    use lumen_domain::{AppIdScheme, Basis, Fact, Provenance, Subject};
+    use std::os::unix::ffi::OsStrExt as _;
+    let owners: BTreeSet<&lumen_domain::AppId> = evidence
+        .iter()
+        .filter_map(|record| match &record.fact {
+            Fact::OwningApplication(app) => Some(app),
+            _ => None,
+        })
+        .collect();
+    let record = |app: &lumen_domain::AppId, fact: Fact, source: &str| {
+        Some(Evidence {
+            subject: Subject::Application { id: app.clone() },
+            fact,
+            basis: Basis::Observed,
+            provenance: Provenance {
+                source: SourceName::new(source).ok()?,
+                observed_at: now,
+            },
+        })
+    };
+    let mut found = Vec::new();
+    for owner in owners.into_iter().take(MAX_USAGE_APPS) {
+        let bundles: Vec<&RawPath> = apps
+            .iter()
+            .filter(|app| app.ids.contains(owner))
+            .flat_map(|app| &app.install_locations)
+            .collect();
+        if bundles.is_empty() {
+            let present = owner.scheme == AppIdScheme::BundleId
+                && crate::usage::found_installed(owner.value.raw())
+                    .is_ok_and(|paths| !paths.is_empty());
+            if present {
+                found.extend(record(
+                    owner,
+                    Fact::ApplicationPresent {
+                        app: owner.clone(),
+                        present: true,
+                    },
+                    "macos.spotlight",
+                ));
+            }
+            continue;
+        }
+        let opened = bundles
+            .iter()
+            .filter_map(|bundle| {
+                let path = Path::new(std::ffi::OsStr::from_bytes(bundle.as_bytes()));
+                lumen_platform_macos::metadata::last_opened(path)
+            })
+            .max();
+        if let Some(at) = opened {
+            found.extend(record(
+                owner,
+                Fact::ApplicationLastOpened {
+                    app: owner.clone(),
+                    at,
+                },
+                "macos.launchservices",
+            ));
+        }
+    }
+    found
 }
 
 /// Every installed application's identifiers with each of its bundles.
@@ -1110,6 +1190,60 @@ mod tests {
     use lumen_policy::{Observed, PolicyInput};
 
     use super::*;
+
+    /// Usage facts are only about owning applications, never say an
+    /// application is missing, and nothing comes of an owner Spotlight
+    /// cannot be asked about (ADR-0059).
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn usage_is_only_about_owners_and_never_a_negative() -> Result<(), Box<dyn std::error::Error>> {
+        use lumen_domain::{
+            AppId, AppIdScheme, Application, Basis, Fact, Provenance, Subject, UntrustedText,
+        };
+        let id = |value: &str| AppId {
+            scheme: AppIdScheme::BundleId,
+            value: UntrustedText::new(value),
+        };
+        let calculator = id("com.apple.calculator");
+        let app = Application {
+            ids: BTreeSet::from([calculator.clone()]),
+            name: None,
+            version: None,
+            vendor: None,
+            signature: None,
+            install_locations: vec![RawPath::from_unix_bytes(
+                b"/System/Applications/Calculator.app".to_vec(),
+            )?],
+            sources: BTreeSet::new(),
+        };
+        let owned = |app: AppId| Evidence {
+            subject: Subject::Application { id: app.clone() },
+            fact: Fact::OwningApplication(app),
+            basis: Basis::Observed,
+            provenance: Provenance {
+                source: SourceName::new("test").unwrap_or_else(|_| unreachable!()),
+                observed_at: Timestamp::UNIX_EPOCH,
+            },
+        };
+        let evidence = [
+            owned(calculator.clone()),
+            // Not installed and not a plain bundle identifier: never asked.
+            owned(id("com.x\" || kMDItemFSName == \"*")),
+        ];
+        let now = Timestamp::UNIX_EPOCH;
+        for record in usage_evidence(&[app], &evidence, now) {
+            assert!(
+                matches!(&record.subject, Subject::Application { id } if *id == calculator),
+                "{record:?}"
+            );
+            assert!(
+                matches!(record.fact, Fact::ApplicationLastOpened { .. }),
+                "{record:?}"
+            );
+        }
+        assert_eq!(usage_evidence(&[], &[], now), Vec::new());
+        Ok(())
+    }
 
     #[test]
     fn failed_decisions_are_counted_without_offering_an_item() {

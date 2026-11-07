@@ -21,6 +21,7 @@ objc2-core-foundation = { workspace = true, features = [
   "CFArray",
   "CFBundle",
   "CFData",
+  "CFDate",
   "CFDictionary",
   "CFError",
   "CFNumber",
@@ -29,7 +30,7 @@ objc2-core-foundation = { workspace = true, features = [
   "CFURL",
   "CFUUID",
 ] }
-objc2-core-services = { workspace = true, features = ["FSEvents", "dispatch2", "libc"] }
+objc2-core-services = { workspace = true, features = ["FSEvents", "MDItem", "Metadata", "dispatch2", "libc"] }
 objc2-security = { workspace = true, features = ["CSCommon", "SecBase", "SecCode", "SecItem", "SecStaticCode"] }
 
 [dev-dependencies]
