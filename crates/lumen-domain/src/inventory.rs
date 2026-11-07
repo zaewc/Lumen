@@ -239,8 +239,10 @@ pub struct Service {
 pub enum PackageManager {
     /// macOS Installer receipt (`pkgutil`).
     MacInstaller,
-    /// Homebrew.
+    /// Homebrew formulae.
     Homebrew,
+    /// Homebrew casks, which share names with formulae.
+    HomebrewCask,
     /// Windows Installer (MSI).
     Msi,
     /// MSIX/AppX.

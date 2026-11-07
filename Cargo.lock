@@ -2586,6 +2586,7 @@ dependencies = [
  "objc2-core-services",
  "objc2-security",
  "proptest",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.21",
 ]

@@ -25,6 +25,8 @@ pub mod events;
 #[cfg(target_os = "macos")]
 mod feed;
 #[cfg(target_os = "macos")]
+mod homebrew;
+#[cfg(target_os = "macos")]
 mod keychain;
 #[cfg(target_os = "macos")]
 mod launchd;
@@ -51,6 +53,8 @@ pub use bulk::BulkEnumerator;
 pub use duplicates::DuplicateReader;
 #[cfg(target_os = "macos")]
 pub use feed::FsEventsFeed;
+#[cfg(target_os = "macos")]
+pub use homebrew::HomebrewInventory;
 #[cfg(target_os = "macos")]
 pub use keychain::{KeychainStore, SERVICE as KEYCHAIN_SERVICE};
 #[cfg(target_os = "macos")]

@@ -17,6 +17,8 @@ thiserror.workspace = true
 blake3.workspace = true
 dispatch2.workspace = true
 libc.workspace = true
+# Homebrew's install receipts are JSON (#806); already a workspace dependency.
+serde_json.workspace = true
 objc2-core-foundation = { workspace = true, features = [
   "CFArray",
   "CFBundle",
