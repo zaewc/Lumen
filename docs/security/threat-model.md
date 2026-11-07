@@ -208,6 +208,16 @@ GOAL: a file the user needs is permanently lost because of Lumen
   writing) neither block restoring it nor stop its removal. A directory whose
   finalization stopped part way can be restored with only what remains. Either way the
   restore is reported as not matching its record, so the user is asked to check it.
+- A device number (`st_dev`) names a volume only while it stays mounted: macOS and
+  Linux assign it at mount time, so after a restart or an update no store may be on a
+  record's device, and its items would be stuck (2026-11-07). The Unix executor then
+  opens the store on the base's current device, with its usual privacy checks, and
+  accepts the item held there under its operation's name only if `check_held` matches
+  it with the device number changed. A held directory is thereby re-identified by its
+  name, inode and kind in the private store; every identity in the record is
+  renumbered together, since a quarantined item never leaves its volume, and the
+  original parent's identity is still checked on restore. Windows records volume
+  serial numbers, which do not change on remount.
 - Cloud sync folders are recognised from the scan's placeholder and sync-root flags
   and from the providers' documented default folders. A folder synced only through
   iCloud Desktop & Documents, or a Windows sync root moved away from its default,

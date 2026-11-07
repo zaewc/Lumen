@@ -64,6 +64,21 @@ fn unpair((dev, ino): (u64, u64)) -> UnixIdentity {
 }
 
 impl Prepared {
+    /// This record with its volume's device number changed to `device`;
+    /// `None` unless every identity in it is on one device, as `verify`
+    /// guarantees for a record it prepared.
+    fn renumbered(&self, device: u64) -> Option<Self> {
+        let recorded = self.identity.0;
+        if self.root_identity.0 != recorded || self.parent_identity.0 != recorded {
+            return None;
+        }
+        let mut renumbered = self.clone();
+        renumbered.root_identity.0 = device;
+        renumbered.parent_identity.0 = device;
+        renumbered.identity.0 = device;
+        Some(renumbered)
+    }
+
     fn plan(&self) -> PlanItem {
         PlanItem {
             root: PathBuf::from(OsStr::from_bytes(&self.root)),
@@ -106,6 +121,44 @@ impl Executor {
     fn store(&self, volume: u64) -> Option<Store> {
         let names: Vec<&[u8]> = self.store_names.iter().map(Vec::as_slice).collect();
         open_store(&self.store_base, &names, volume).ok()
+    }
+
+    /// The store on the volume the store base is on now.
+    fn current_store(&self) -> Option<(Store, u64)> {
+        // The device number in the form every record carries it (`identity`).
+        let device = identity(&rustix::fs::stat(&self.store_base).ok()?).dev;
+        Some((self.store(device)?, device))
+    }
+
+    /// The store for `prepared`'s volume: the one on its recorded device, or,
+    /// if there is none, the one on the device the store base is on now.
+    fn store_for(&self, prepared: &Prepared) -> Option<Store> {
+        self.store(prepared.identity.0)
+            .or_else(|| self.current_store().map(|(store, _)| store))
+    }
+
+    /// The store holding `prepared`'s item under `name`, and the plan to act
+    /// on it with.
+    ///
+    /// A device number names a volume only while it stays mounted: macOS and
+    /// Linux assign `st_dev` when a volume is mounted, so a restart or an
+    /// update can renumber the volume the store and its items are on, and no
+    /// store is then on the recorded device. In that case the store on the
+    /// base's current device is opened, with the same checks as always, and
+    /// the item held there under its operation's name is accepted only if
+    /// `check_held` matches it with the device number changed to that one. A
+    /// quarantined item never leaves the store's volume, so every identity in
+    /// the record is renumbered together, and each later check (the original
+    /// parent's identity included) runs unchanged on the new number.
+    fn held_store(&self, prepared: &Prepared, name: &[u8]) -> Option<(Store, PlanItem)> {
+        if let Some(store) = self.store(prepared.identity.0) {
+            return Some((store, prepared.plan()));
+        }
+        let (store, device) = self.current_store()?;
+        let plan = prepared.renumbered(device)?.plan();
+        let stat = statat(store.handle(), name, AtFlags::SYMLINK_NOFOLLOW).ok()?;
+        check_held(&stat, &plan.expected).ok()?;
+        Some((store, plan))
     }
 }
 
@@ -228,14 +281,13 @@ impl QuarantineExecutor for Executor {
         let Some(prepared) = parse(item) else {
             return Located::Unknown;
         };
-        let plan = prepared.plan();
-        if verify(&plan).is_ok() {
+        if verify(&prepared.plan()).is_ok() {
             return Located::AtSource;
         }
-        let Some(store) = self.store(plan.expected.identity.dev) else {
+        let name = operation.to_string();
+        let Some((store, plan)) = self.held_store(&prepared, name.as_bytes()) else {
             return Located::Unknown;
         };
-        let name = operation.to_string();
         match statat(store.handle(), name.as_bytes(), AtFlags::SYMLINK_NOFOLLOW) {
             Ok(stat) if check_held(&stat, &plan.expected).is_ok() => Located::InStore,
             _ => Located::Unknown,
@@ -251,9 +303,11 @@ impl QuarantineExecutor for Executor {
             reason: NotRestored::Failed,
             left: ItemLocation::Quarantine,
         };
-        let plan = parse(item).ok_or(in_store)?.plan();
-        let store = self.store(plan.expected.identity.dev).ok_or(in_store)?;
+        let prepared = parse(item).ok_or(in_store)?;
         let name = operation.to_string();
+        let (store, plan) = self
+            .held_store(&prepared, name.as_bytes())
+            .ok_or(in_store)?;
         restore(&store, name.as_bytes(), &plan)
             .map(|restored| RestoredItem {
                 parent_replaced: restored.parent_replaced,
@@ -274,11 +328,11 @@ impl QuarantineExecutor for Executor {
     }
 
     fn finalize(&self, item: &PreparedItem, operation: OperationId) -> Result<(), Removal> {
-        let plan = parse(item).ok_or(Removal::Nothing)?.plan();
-        let store = self
-            .store(plan.expected.identity.dev)
-            .ok_or(Removal::Nothing)?;
+        let prepared = parse(item).ok_or(Removal::Nothing)?;
         let name = operation.to_string();
+        let (store, plan) = self
+            .held_store(&prepared, name.as_bytes())
+            .ok_or(Removal::Nothing)?;
         finalize(&store, name.as_bytes(), &plan.expected).map_err(|error| match error.removed() {
             Removed::Nothing => Removal::Nothing,
             Removed::Partly => Removal::Partly,
@@ -295,14 +349,14 @@ impl QuarantineExecutor for Executor {
         let Some(prepared) = parse(item) else {
             return false;
         };
-        self.store(prepared.plan().expected.identity.dev)
+        self.store_for(&prepared)
             .is_some_and(|store| forget(&store, operation.to_string().as_bytes()).is_ok())
     }
 
     fn held(&self, item: &PreparedItem, operation: OperationId) -> Option<(RawPath, FileIdentity)> {
-        let plan = parse(item)?.plan();
-        let store = self.store(plan.expected.identity.dev)?;
+        let prepared = parse(item)?;
         let name = operation.to_string();
+        let (store, plan) = self.held_store(&prepared, name.as_bytes())?;
         let stat = statat(store.handle(), name.as_bytes(), AtFlags::SYMLINK_NOFOLLOW).ok()?;
         check_held(&stat, &plan.expected).ok()?;
         let mut path = self.store_base.clone();
@@ -510,6 +564,96 @@ mod tests {
             Err(Removal::Nothing),
             "finalizing twice removes nothing"
         );
+    }
+
+    /// `prepared` as it reads after its volume was renumbered: every device
+    /// number moved by `by`, and the item's inode moved by `inode_by`.
+    fn renumbered(prepared: &PreparedItem, by: u64, inode_by: u64) -> PreparedItem {
+        let mut record: serde_json::Value =
+            serde_json::from_slice(&prepared.0).unwrap_or_else(|e| unreachable!("{e}"));
+        for field in ["root_identity", "parent_identity", "identity"] {
+            let dev = record[field][0].as_u64().unwrap_or_else(|| unreachable!());
+            record[field][0] = (dev ^ by).into();
+        }
+        let ino = record["identity"][1]
+            .as_u64()
+            .unwrap_or_else(|| unreachable!());
+        record["identity"][1] = (ino + inode_by).into();
+        PreparedItem(serde_json::to_vec(&record).unwrap_or_default())
+    }
+
+    #[test]
+    fn an_item_on_a_renumbered_volume_is_found_restored_and_finalized() {
+        let (_fx, root, executor) = setup();
+        let prepared = executor
+            .prepare(&raw(&root), &relative())
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(executor.quarantine(&prepared, op(7), b"{}"), Ok(()));
+        // The volume was mounted again under another device number.
+        let moved = renumbered(&prepared, 0x40, 0);
+        assert_eq!(executor.locate(&moved, op(7)), Located::InStore);
+        assert!(executor.held(&moved, op(7)).is_some());
+        assert_eq!(
+            executor.restore(&moved, op(7)),
+            Ok(RestoredItem {
+                parent_replaced: false,
+                matches_record: true
+            })
+        );
+        assert_eq!(
+            std::fs::read(root.join("cache/app/data.bin")).unwrap_or_default(),
+            b"0123456789"
+        );
+        assert!(executor.forget(&moved, op(7)), "restored: forgotten");
+
+        let prepared = executor
+            .prepare(&raw(&root), &relative())
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(executor.quarantine(&prepared, op(8), b"{}"), Ok(()));
+        let moved = renumbered(&prepared, 0x40, 0);
+        assert_eq!(executor.finalize(&moved, op(8)), Ok(()));
+        let left = std::fs::read_dir(root.join("Quarantine"))
+            .unwrap_or_else(|e| unreachable!("{e}"))
+            .count();
+        assert_eq!(left, 0, "item and sidecar are gone");
+    }
+
+    #[test]
+    fn a_renumbered_record_that_does_not_match_the_held_item_is_refused() {
+        let (_fx, root, executor) = setup();
+        let prepared = executor
+            .prepare(&raw(&root), &relative())
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(executor.quarantine(&prepared, op(9), b"{}"), Ok(()));
+        let stored = root.join("Quarantine").join(op(9).to_string());
+        // Another device number and another inode: not this item.
+        let other = renumbered(&prepared, 0x40, 1);
+        assert_eq!(executor.locate(&other, op(9)), Located::Unknown);
+        assert_eq!(executor.held(&other, op(9)), None);
+        assert_eq!(
+            executor.restore(&other, op(9)),
+            Err(RestoreFailure {
+                reason: NotRestored::Failed,
+                left: ItemLocation::Quarantine
+            })
+        );
+        assert_eq!(executor.finalize(&other, op(9)), Err(Removal::Nothing));
+        assert!(stored.exists(), "nothing moved or removed");
+
+        // A record whose identities are not all on one device is not renumbered.
+        let mut mixed: serde_json::Value =
+            serde_json::from_slice(&prepared.0).unwrap_or_else(|e| unreachable!("{e}"));
+        let dev = mixed["root_identity"][0]
+            .as_u64()
+            .unwrap_or_else(|| unreachable!());
+        mixed["root_identity"][0] = (dev ^ 0x80).into();
+        mixed["parent_identity"][0] = (dev ^ 0x40).into();
+        mixed["identity"][0] = (dev ^ 0x40).into();
+        let mixed = PreparedItem(serde_json::to_vec(&mixed).unwrap_or_default());
+        assert_eq!(executor.locate(&mixed, op(9)), Located::Unknown);
+        assert_eq!(executor.finalize(&mixed, op(9)), Err(Removal::Nothing));
+        assert!(stored.exists(), "nothing moved or removed");
+        assert_eq!(executor.locate(&prepared, op(9)), Located::InStore);
     }
 
     #[test]
