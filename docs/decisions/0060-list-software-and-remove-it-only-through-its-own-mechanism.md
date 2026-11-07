@@ -1,7 +1,8 @@
 # ADR-0060: List installed software, and remove it only through its own mechanism
 
 - Status: Accepted (owner confirmation, 2026-11-07); rule 9 superseded in part by
-  [ADR-0061](0061-send-installed-software-to-ai-review.md)
+  [ADR-0061](0061-send-installed-software-to-ai-review.md); on macOS, rule 2's move to the Trash is
+  replaced by [ADR-0062](0062-uninstall-macos-apps-into-quarantine.md)
 - Date: 2026-11-07
 - Refines: [ADR-0005](0005-process-topology-and-privilege.md) (user scope
   first), [ADR-0020](0020-jev-evidence-only-judge.md) (AI is evidence),
