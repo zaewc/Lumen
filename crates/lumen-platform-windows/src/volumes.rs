@@ -1,5 +1,5 @@
-//! Which volumes may hold a quarantine store, and whether this PC is
-//! single-user (ADR-0046).
+//! Which volumes may hold a quarantine store, whether this PC is single-user
+//! (ADR-0046), and how names compare on each volume ([`case_sensitivity`]).
 //!
 //! A volume gets a store only if it is a local fixed drive that is not
 //! removable and not on a USB, IEEE 1394, SD or MMC bus (USB disks also report
@@ -7,6 +7,10 @@
 //! with a volume serial number no other mounted volume shares. The decisions
 //! are plain functions over the facts, tested on every platform; on Windows,
 //! [`mounted`] gathers the facts and [`single_user_pc`] reads the profile list.
+
+use lumen_domain::{CaseSensitivity, VolumeId};
+
+use crate::entry::volume_id;
 
 /// What `GetDriveTypeW` reports for a root.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -144,6 +148,32 @@ pub fn store_volumes(facts: &[VolumeFacts]) -> Vec<StoreVolume> {
         .collect()
 }
 
+/// Filesystems whose names Win32 looks up without case.
+const CASE_INSENSITIVE: [&str; 5] = ["NTFS", "ReFS", "FAT", "FAT32", "exFAT"];
+
+/// How names compare on each of `facts`' volumes (#790), by the ID scanned
+/// entries carry. Win32 looks names up without case on NTFS, `ReFS`, FAT and
+/// exFAT; a volume without a serial number or with any other filesystem is
+/// left out, and a volume left out compares names exactly.
+///
+/// NTFS can also mark single directories case-sensitive (for WSL). That
+/// per-directory flag is not read: such a directory still counts as
+/// insensitive.
+pub fn case_sensitivity(facts: &[VolumeFacts]) -> Vec<(VolumeId, CaseSensitivity)> {
+    facts
+        .iter()
+        .filter(|f| {
+            f.filesystem.as_deref().is_some_and(|name| {
+                CASE_INSENSITIVE
+                    .iter()
+                    .any(|known| name.eq_ignore_ascii_case(known))
+            })
+        })
+        .filter_map(|f| volume_id(f.serial?).ok())
+        .map(|volume| (volume, CaseSensitivity::Insensitive))
+        .collect()
+}
+
 /// Whether `sid` names a user account that can have a profile: a local or
 /// domain account (`S-1-5-21-…`) or a Microsoft Entra account (`S-1-12-1-…`),
 /// not a system or service account.
@@ -233,6 +263,36 @@ mod tests {
             flags: Some(FILE_PERSISTENT_ACLS | 0x0000_0002),
             serial: Some(serial),
         }
+    }
+
+    #[test]
+    fn names_compare_without_case_only_on_known_filesystems() {
+        let mut facts = vec![
+            drive(r"C:\", 1),
+            drive(r"D:\", 2),
+            drive(r"E:\", 3),
+            drive(r"F:\", 4),
+        ];
+        facts[1].filesystem = Some("exfat".into());
+        facts[2].filesystem = Some("UDF".into());
+        facts[3].serial = None;
+        let found: Vec<_> = case_sensitivity(&facts)
+            .into_iter()
+            .map(|(id, case)| (id.as_str().to_owned(), case))
+            .collect();
+        assert_eq!(
+            found,
+            [
+                (
+                    "vsn:0000000000000001".to_owned(),
+                    CaseSensitivity::Insensitive
+                ),
+                (
+                    "vsn:0000000000000002".to_owned(),
+                    CaseSensitivity::Insensitive
+                ),
+            ]
+        );
     }
 
     type Change = Box<dyn Fn(&mut VolumeFacts)>;

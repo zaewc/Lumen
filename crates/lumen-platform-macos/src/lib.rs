@@ -35,6 +35,8 @@ mod probe;
 pub mod support;
 #[cfg(target_os = "macos")]
 mod sys;
+#[cfg(target_os = "macos")]
+pub mod volumes;
 pub mod web_profile;
 
 #[cfg(target_os = "macos")]

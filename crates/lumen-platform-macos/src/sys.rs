@@ -1,7 +1,9 @@
 //! The only `unsafe` code in the macOS adapter: three `getattrlist`-family system
-//! calls that fill a caller-owned buffer, and the I/O policy calls behind
-//! [`NoMaterialization`]. Everything the system calls return is parsed by the
-//! safe, bounds-checked [`attrbuf`](crate::attrbuf) module.
+//! calls that fill a caller-owned buffer, the I/O policy calls behind
+//! [`NoMaterialization`], and the mounted-filesystem list and case-sensitivity
+//! query behind [`volumes`](crate::volumes). Everything the `getattrlist`
+//! calls return is parsed by the safe, bounds-checked
+//! [`attrbuf`](crate::attrbuf) module.
 //!
 //! All calls request `FSOPT_ATTR_CMN_EXTENDED` (the fork group carries
 //! `ATTR_CMNEXT_*`) and never `FSOPT_PACK_INVAL_ATTRS` (ADR-0028's research note).
@@ -9,7 +11,7 @@
 
 #![allow(unsafe_code)]
 
-use std::ffi::{CStr, c_int, c_ulong};
+use std::ffi::{CStr, CString, c_int, c_ulong};
 use std::fs::File;
 use std::io;
 use std::os::fd::AsRawFd as _;
@@ -193,6 +195,53 @@ pub(crate) fn lookup(path: &CStr, set: AttributeSet, buffer: &mut [u8]) -> io::R
         }
     })
     .map(drop)
+}
+
+/// The mount points of every locally stored mounted filesystem, from
+/// `getfsstat(MNT_NOWAIT)`: what the kernel has cached, without waiting on any
+/// filesystem. Network filesystems are left out, so nothing asked of them later
+/// can hang.
+pub(crate) fn local_mount_points() -> io::Result<Vec<CString>> {
+    // SAFETY: invariant: a null buffer of size 0 only asks for the count. Why
+    // unsafe: FFI call. Why it holds: nothing is written.
+    let count = unsafe { libc::getfsstat(std::ptr::null_mut(), 0, libc::MNT_NOWAIT) };
+    let count = usize::try_from(count).map_err(|_| io::Error::last_os_error())?;
+    // Room for a few volumes mounted between the two calls; any more are
+    // missed, and a missed volume's names compare exactly.
+    let capacity = count.saturating_add(8);
+    // SAFETY: invariant: an all-zero `statfs` is a valid value. Why unsafe:
+    // `zeroed`. Why it holds: the struct holds only integers and byte arrays.
+    let mut buffer: Vec<libc::statfs> = vec![unsafe { std::mem::zeroed() }; capacity];
+    let bytes = c_int::try_from(capacity.saturating_mul(size_of::<libc::statfs>()))
+        .map_err(|_| io::Error::other("too many mounted filesystems"))?;
+    // SAFETY: invariant: the kernel writes at most `bytes` bytes into `buffer`.
+    // Why unsafe: FFI call with a raw pointer. Why it holds: `bytes` is the
+    // size of `buffer` in bytes, and `buffer` is exclusively borrowed for the call.
+    let filled = unsafe { libc::getfsstat(buffer.as_mut_ptr(), bytes, libc::MNT_NOWAIT) };
+    let filled = usize::try_from(filled).map_err(|_| io::Error::last_os_error())?;
+    let local = libc::MNT_LOCAL.cast_unsigned();
+    Ok(buffer
+        .iter()
+        .take(filled)
+        .filter(|fs| fs.f_flags & local != 0)
+        .filter_map(|fs| {
+            let name: Vec<u8> = fs.f_mntonname.iter().map(|c| c.cast_unsigned()).collect();
+            CStr::from_bytes_until_nul(&name).ok().map(CStr::to_owned)
+        })
+        .collect())
+}
+
+/// `pathconf(path, _PC_CASE_SENSITIVE)`: `Some(true)` if names on the volume
+/// holding `path` are case-sensitive, `Some(false)` if not, `None` if the
+/// filesystem does not say.
+pub(crate) fn case_sensitive(path: &CStr) -> Option<bool> {
+    // SAFETY: invariant: `path` is NUL-terminated and outlives the call. Why
+    // unsafe: FFI call. Why it holds: it is a `&CStr`, and nothing is written.
+    match unsafe { libc::pathconf(path.as_ptr(), libc::_PC_CASE_SENSITIVE) } {
+        0 => Some(false),
+        1 => Some(true),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
