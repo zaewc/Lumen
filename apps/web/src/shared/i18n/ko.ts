@@ -158,7 +158,7 @@ export const ko = {
     offIntro:
       "Lumen이 정리를 제안한 항목을 AI가 한 번 더 살펴보고, 검토할 항목이 무엇인지 알려 줘요. AI는 Lumen을 더 신중하게 만들 수만 있어요.",
     onIntro: (key: string) =>
-      `켜져 있어요(${key}). 정리를 제안한 항목과 검토할 항목 최대 20개의 정보를 파일 내용은 빼고 보내요. AI는 Lumen을 더 신중하게 만들 수만 있어요. 언제든 끌 수 있어요.`,
+      `켜져 있어요(${key}). 정리를 제안한 항목과 검토할 항목 최대 20개의 정보를 파일 내용은 빼고 보내요. AI는 Lumen을 더 신중하게 만들 수만 있어요. 언제든 끌 수 있어요. 설치된 앱의 이름, 게시자, 버전도 경로 없이 보내요.`,
     keyInUse: {
       builtin: (service: string) => `${service}, Lumen 기본 키`,
       stored: (service: string) => `${service}, 내 키`,
@@ -172,7 +172,7 @@ export const ko = {
     changeFailed: "AI 검토 설정을 바꾸지 못했어요.",
     consent: {
       title: "AI 검토를 켤까요?",
-      what: "정리를 제안한 항목과 검토할 항목 중 큰 순서로 최대 20개의 경로(홈 폴더는 ~로 표시), 크기, 경과 기간, 판단 근거를 보내요. 파일 내용은 보내지 않아요.",
+      what: "정리를 제안한 항목과 검토할 항목 중 큰 순서로 최대 20개의 경로(홈 폴더는 ~로 표시), 크기, 경과 기간, 판단 근거를 보내요. 파일 내용은 보내지 않아요. 앱 화면을 위해 설치된 앱의 이름, 게시자, 버전과 연결된 백그라운드 항목도 경로 없이 보내요.",
       whereJeb:
         "API 키와 함께 학교의 Jeb 서버(jeb.https.gsmsv.site)로 보내요. 서버 운영자가 요청을 보관할 수 있어요.",
       whereJebBuiltin:
@@ -574,6 +574,36 @@ export const ko = {
     partial: (names: string) => `일부 목록은 다 읽지 못해서 빠진 앱이 있을 수 있어요: ${names}.`,
     readOnly:
       "이 목록은 컴퓨터에서 읽었고 컴퓨터 밖으로 나가지 않아요. 여기서는 아무것도 지우지 않아요.",
+    readOnlyAi:
+      "AI 검토가 켜져 있는 동안에는 이 앱들의 이름, 게시자, 버전을 경로 없이 AI 검토로 보내요. 여기서는 아무것도 지우지 않아요.",
+    ai: {
+      explaining: "AI 검토가 앱을 설명하고 있어요…",
+      note: (purpose: string, confidence: string, impact: string) =>
+        `AI: ${purpose}일 가능성이 높아요(${confidence}). ${impact}`,
+      purposes: {
+        web_browser: "웹 브라우저",
+        communication: "소통 앱",
+        media: "미디어 앱",
+        office_or_productivity: "사무·생산성 앱",
+        development_tool: "개발 도구",
+        design_or_creative: "디자인·창작 앱",
+        game: "게임",
+        security_or_banking: "보안·뱅킹 프로그램",
+        system_or_driver: "시스템 구성 요소나 드라이버",
+        cloud_sync_or_backup: "클라우드 동기화·백업 앱",
+        utility: "유틸리티",
+        runtime_or_library: "런타임이나 라이브러리",
+        unknown: "알 수 없는 항목",
+      },
+      impacts: {
+        only_this_app: "지우면 이 앱에만 영향이 있을 가능성이 높아요.",
+        other_software_depends: "다른 프로그램이 이 항목에 의존할 가능성이 높아요.",
+        stops_background_activity: "지우면 이 앱의 백그라운드 작업이 멈출 가능성이 높아요.",
+        security_or_access: "지우면 보안, 뱅킹, 로그인이 동작하지 않을 수 있어요.",
+        system_function: "지우면 시스템 기능이 동작하지 않을 수 있어요.",
+        unknown: "지웠을 때 어떤 영향이 있을지는 알 수 없었어요.",
+      },
+    },
     origins: {
       mac_app: "앱",
       mac_installer: "설치 패키지",
@@ -621,7 +651,7 @@ export const ko = {
       version: "버전",
       local: "이 기기에서만",
       localBody:
-        "검사 결과, 판단, 격리함은 모두 이 컴퓨터에만 있어요. 파일 내용은 어디에도 보내지 않아요. AI 검토가 켜져 있는 동안에는 경로나 크기 같은 정보만 보내요.",
+        "검사 결과, 판단, 격리함은 모두 이 컴퓨터에만 있어요. 파일 내용은 어디에도 보내지 않아요. AI 검토가 켜져 있는 동안에는 경로나 크기 같은 정보와 설치된 앱의 이름, 게시자, 버전만 보내요.",
       update: {
         title: "업데이트",
         checking: "새 버전을 확인하는 중…",

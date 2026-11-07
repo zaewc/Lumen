@@ -1,4 +1,10 @@
-import type { ConfidenceView, ItemKindView, SoftwareOriginView } from "@lumen/api-client";
+import type {
+  ConfidenceView,
+  ItemKindView,
+  RemovalImpactView,
+  SoftwareOriginView,
+  SoftwarePurposeView,
+} from "@lumen/api-client";
 import { countFormat } from "./format";
 import type { RuleId } from "./rules";
 
@@ -153,7 +159,7 @@ export const en = {
     offIntro:
       "An AI model takes a second look at what Lumen proposes to clean up, and says what items to review likely are. It can only make Lumen more careful.",
     onIntro: (key: string) =>
-      `On, with ${key}. Lumen sends the details of each proposed item and of up to 20 items to review, never their contents. It can only make Lumen more careful. You can turn it off at any time.`,
+      `On, with ${key}. Lumen sends the details of each proposed item and of up to 20 items to review, never their contents. It can only make Lumen more careful. You can turn it off at any time. It also sends the names, publishers and versions of installed apps, without paths.`,
     keyInUse: {
       builtin: (service: string) => `${service} (built-in key)`,
       stored: (service: string) => `${service} (your key)`,
@@ -167,7 +173,7 @@ export const en = {
     changeFailed: "Lumen could not change the AI review setting.",
     consent: {
       title: "Turn on AI review?",
-      what: "For each proposed item, and for up to 20 of the largest items to review, Lumen sends its path (with your home folder shown as ~), size, age and the evidence behind the decision. File contents are never sent.",
+      what: "For each proposed item, and for up to 20 of the largest items to review, Lumen sends its path (with your home folder shown as ~), size, age and the evidence behind the decision. File contents are never sent. For the Apps page, it also sends the names, publishers and versions of installed apps and the background items linked to them, without paths.",
       whereJeb:
         "Lumen sends it with your API key to your school's Jeb server (jeb.https.gsmsv.site). The server's operator may keep the requests.",
       whereJebBuiltin:
@@ -576,6 +582,36 @@ export const en = {
       `Some lists were read only in part, so apps may be missing: ${names}.`,
     readOnly:
       "This list is read from your computer and stays on it. Nothing here removes anything.",
+    readOnlyAi:
+      "While AI review is on, the names, publishers and versions of these apps are sent to it, without paths. Nothing here removes anything.",
+    ai: {
+      explaining: "AI review is explaining the apps…",
+      note: (purpose: string, confidence: string, impact: string) =>
+        `AI: likely ${purpose} (${confidence}). ${impact}`,
+      purposes: {
+        web_browser: "a web browser",
+        communication: "a communication app",
+        media: "a media app",
+        office_or_productivity: "an office or productivity app",
+        development_tool: "a developer tool",
+        design_or_creative: "a design or creative app",
+        game: "a game",
+        security_or_banking: "security or banking software",
+        system_or_driver: "a system component or driver",
+        cloud_sync_or_backup: "a cloud sync or backup app",
+        utility: "a utility",
+        runtime_or_library: "a runtime or library",
+        unknown: "something it could not tell",
+      } satisfies { readonly [P in SoftwarePurposeView]: string },
+      impacts: {
+        only_this_app: "Removing it likely affects only this app.",
+        other_software_depends: "Other software likely depends on it.",
+        stops_background_activity: "Removing it likely stops its background activity.",
+        security_or_access: "Removing it may stop security, banking or sign-in from working.",
+        system_function: "Removing it may stop a system feature from working.",
+        unknown: "It could not tell what removing it would affect.",
+      } satisfies { readonly [I in RemovalImpactView]: string },
+    },
     origins: {
       mac_app: "App",
       mac_installer: "Installer package",
@@ -623,7 +659,7 @@ export const en = {
       version: "Version",
       local: "On this device",
       localBody:
-        "Scans, decisions and Quarantine stay on this computer. File contents are never sent anywhere. While AI review is on, it sends only details such as paths and sizes.",
+        "Scans, decisions and Quarantine stay on this computer. File contents are never sent anywhere. While AI review is on, it sends only details such as paths and sizes, and the names, publishers and versions of installed apps.",
       update: {
         title: "Updates",
         checking: "Checking for a new version…",

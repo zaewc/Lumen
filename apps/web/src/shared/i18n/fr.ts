@@ -155,7 +155,7 @@ export const fr: Messages = {
     offIntro:
       "Un modèle d'IA examine les éléments que Lumen propose de nettoyer et indique ce que pourraient être ceux à examiner. Il ne peut que rendre Lumen plus prudent.",
     onIntro: (key) =>
-      `Activée avec ${key}. Lumen envoie les détails de chaque élément proposé et de jusqu'à 20 éléments à examiner, jamais leur contenu. L'IA ne peut que rendre Lumen plus prudent. Vous pouvez la désactiver à tout moment.`,
+      `Activée avec ${key}. Lumen envoie les détails de chaque élément proposé et de jusqu'à 20 éléments à examiner, jamais leur contenu. L'IA ne peut que rendre Lumen plus prudent. Vous pouvez la désactiver à tout moment. Elle envoie aussi le nom, l'éditeur et la version des apps installées, sans chemin.`,
     keyInUse: {
       builtin: (service) => `${service} (clé intégrée)`,
       stored: (service) => `${service} (votre clé)`,
@@ -166,7 +166,7 @@ export const fr: Messages = {
     changeFailed: "Lumen n'a pas pu modifier le réglage de l'analyse par IA.",
     consent: {
       title: "Activer l'analyse par IA ?",
-      what: "Pour chaque élément proposé et jusqu'à 20 des éléments à examiner les plus volumineux, Lumen envoie son chemin (votre dossier personnel apparaît sous la forme ~), sa taille, son ancienneté et les éléments qui justifient la décision. Le contenu des fichiers n'est jamais envoyé.",
+      what: "Pour chaque élément proposé et jusqu'à 20 des éléments à examiner les plus volumineux, Lumen envoie son chemin (votre dossier personnel apparaît sous la forme ~), sa taille, son ancienneté et les éléments qui justifient la décision. Le contenu des fichiers n'est jamais envoyé. Pour la page Apps, Lumen envoie aussi le nom, l'éditeur et la version des apps installées et les éléments d'arrière-plan qui leur sont liés, sans chemin.",
       whereJeb:
         "Lumen envoie ces informations avec votre clé API au serveur Jeb de votre établissement (jeb.https.gsmsv.site). Son exploitant peut conserver les requêtes.",
       whereJebBuiltin:
@@ -570,6 +570,37 @@ export const fr: Messages = {
     partial: (names: string) =>
       `Certaines listes n'ont été lues qu'en partie, des apps peuvent donc manquer : ${names}.`,
     readOnly: "Cette liste est lue sur votre ordinateur et y reste. Rien n'est supprimé ici.",
+    readOnlyAi:
+      "Tant que l'analyse par IA est activée, le nom, l'éditeur et la version de ces apps lui sont envoyés, sans chemin. Rien n'est supprimé ici.",
+    ai: {
+      explaining: "L'analyse par IA décrit les apps…",
+      note: (purpose: string, confidence: string, impact: string) =>
+        `IA : probablement ${purpose} (${confidence}). ${impact}`,
+      purposes: {
+        web_browser: "un navigateur web",
+        communication: "une app de communication",
+        media: "une app multimédia",
+        office_or_productivity: "une app de bureautique ou de productivité",
+        development_tool: "un outil de développement",
+        design_or_creative: "une app de design ou de création",
+        game: "un jeu",
+        security_or_banking: "un logiciel de sécurité ou bancaire",
+        system_or_driver: "un composant système ou un pilote",
+        cloud_sync_or_backup: "une app de synchronisation cloud ou de sauvegarde",
+        utility: "un utilitaire",
+        runtime_or_library: "un environnement d'exécution ou une bibliothèque",
+        unknown: "quelque chose qu'elle n'a pas pu déterminer",
+      },
+      impacts: {
+        only_this_app: "La supprimer n'affecte probablement que cette app.",
+        other_software_depends: "D'autres logiciels en dépendent probablement.",
+        stops_background_activity: "La supprimer arrête probablement son activité en arrière-plan.",
+        security_or_access:
+          "La supprimer peut empêcher la sécurité, la banque ou la connexion de fonctionner.",
+        system_function: "La supprimer peut empêcher une fonction du système de fonctionner.",
+        unknown: "Elle n'a pas pu déterminer ce que la suppression affecterait.",
+      },
+    },
     origins: {
       mac_app: "App",
       mac_installer: "Paquet d'installation",
@@ -619,7 +650,7 @@ export const fr: Messages = {
       version: "Version",
       local: "Sur cet appareil",
       localBody:
-        "Les analyses, décisions et éléments en quarantaine restent sur cet ordinateur. Le contenu des fichiers n'est jamais envoyé. Lorsque l'analyse par IA est activée, seuls des détails comme les chemins et les tailles sont transmis.",
+        "Les analyses, décisions et éléments en quarantaine restent sur cet ordinateur. Le contenu des fichiers n'est jamais envoyé. Lorsque l'analyse par IA est activée, seuls des détails comme les chemins et les tailles sont transmis. Le nom, l'éditeur et la version des apps installées sont aussi transmis.",
       update: {
         title: "Mises à jour",
         checking: "Recherche d'une nouvelle version…",

@@ -146,7 +146,7 @@ export const zhCN: Messages = {
     offIntro:
       "AI 模型会再次检查 Lumen 建议清理的内容，并说明待检查项目可能是什么。它只能让 Lumen 的判断更加谨慎。",
     onIntro: (key: string) =>
-      `已开启，使用 ${key}。Lumen 会发送每个建议处理项目以及最多 20 个待检查项目的详细信息，绝不会发送其内容。AI 只能让 Lumen 的判断更加谨慎。你可以随时关闭此功能。`,
+      `已开启，使用 ${key}。Lumen 会发送每个建议处理项目以及最多 20 个待检查项目的详细信息，绝不会发送其内容。AI 只能让 Lumen 的判断更加谨慎。你可以随时关闭此功能。 还会发送已安装应用的名称、发布者和版本，不含路径。`,
     keyInUse: {
       builtin: (service: string) => `${service}（内置密钥）`,
       stored: (service: string) => `${service}（你的密钥）`,
@@ -160,7 +160,7 @@ export const zhCN: Messages = {
     changeFailed: "Lumen 无法更改 AI 检查设置。",
     consent: {
       title: "开启 AI 检查？",
-      what: "对于每个建议处理项目以及最多 20 个体积最大的待检查项目，Lumen 会发送其路径（主文件夹会显示为 ~）、大小、存放时间以及决策依据。绝不会发送文件内容。",
+      what: "对于每个建议处理项目以及最多 20 个体积最大的待检查项目，Lumen 会发送其路径（主文件夹会显示为 ~）、大小、存放时间以及决策依据。绝不会发送文件内容。 为了应用页面，还会发送已安装应用的名称、发布者、版本及与其关联的后台项目，不含路径。",
       whereJeb:
         "Lumen 会使用你的 API 密钥将这些信息发送到你学校的 Jeb 服务器（jeb.https.gsmsv.site）。服务器运营者可能会保留请求。",
       whereJebBuiltin:
@@ -553,6 +553,36 @@ export const zhCN: Messages = {
     protectedTip: "Lumen 绝不会删除此项。",
     partial: (names: string) => `部分列表未能完整读取，可能缺少一些应用：${names}。`,
     readOnly: "此列表从你的电脑读取，不会离开电脑。这里不会删除任何内容。",
+    readOnlyAi:
+      "开启 AI 检查时，这些应用的名称、发布者和版本会发送给 AI 检查，不含路径。这里不会删除任何内容。",
+    ai: {
+      explaining: "AI 检查正在说明这些应用…",
+      note: (purpose: string, confidence: string, impact: string) =>
+        `AI：很可能是${purpose}（${confidence}）。${impact}`,
+      purposes: {
+        web_browser: "网页浏览器",
+        communication: "通讯应用",
+        media: "媒体应用",
+        office_or_productivity: "办公或效率应用",
+        development_tool: "开发工具",
+        design_or_creative: "设计或创意应用",
+        game: "游戏",
+        security_or_banking: "安全或银行软件",
+        system_or_driver: "系统组件或驱动程序",
+        cloud_sync_or_backup: "云同步或备份应用",
+        utility: "实用工具",
+        runtime_or_library: "运行时或库",
+        unknown: "无法判断的项目",
+      },
+      impacts: {
+        only_this_app: "删除后很可能只影响这个应用。",
+        other_software_depends: "其他软件很可能依赖它。",
+        stops_background_activity: "删除后其后台活动很可能会停止。",
+        security_or_access: "删除后安全、银行或登录功能可能无法正常工作。",
+        system_function: "删除后某项系统功能可能无法正常工作。",
+        unknown: "无法判断删除它会有什么影响。",
+      },
+    },
     origins: {
       mac_app: "应用",
       mac_installer: "安装包",
@@ -599,7 +629,7 @@ export const zhCN: Messages = {
       version: "版本",
       local: "此设备上的数据",
       localBody:
-        "扫描、决策和隔离区内容都保留在此电脑上。文件内容绝不会发送到任何地方。开启 AI 检查时，只会发送路径和大小等详细信息。",
+        "扫描、决策和隔离区内容都保留在此电脑上。文件内容绝不会发送到任何地方。开启 AI 检查时，只会发送路径和大小等详细信息。 还会发送已安装应用的名称、发布者和版本。",
       update: {
         title: "更新",
         checking: "正在检查新版本…",

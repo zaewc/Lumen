@@ -1,6 +1,7 @@
 import type { SoftwareItemView } from "@lumen/api-client";
 import { useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
+import { useAiSettings } from "@/entities/ai-review";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice, Notice, Page } from "@/shared/ui";
@@ -23,6 +24,15 @@ function AppRow({ item }: { readonly item: SoftwareItemView }) {
         {item.location !== null && (
           <p className="truncate font-mono text-[11px] text-ink-3">{item.location}</p>
         )}
+        {item.ai_note !== null && (
+          <p className="text-[12px] text-ink-2">
+            {a.ai.note(
+              a.ai.purposes[item.ai_note.purpose],
+              m.aiNote.confidence[item.ai_note.confidence],
+              a.ai.impacts[item.ai_note.removal_impact],
+            )}
+          </p>
+        )}
       </div>
       {item.protected && (
         <span title={a.protectedTip} className="shrink-0 text-[12px] text-ink-2">
@@ -42,7 +52,10 @@ function AppRow({ item }: { readonly item: SoftwareItemView }) {
 export function AppsPage() {
   const { m } = useI18n();
   const a = m.apps;
-  const ask = useTransport().software;
+  const transport = useTransport();
+  const ask = transport.software;
+  const explain = transport.explainSoftware;
+  const aiOn = useAiSettings().data?.enabled === true;
   const searchId = useId();
   const [query, setQuery] = useState("");
   const [all, setAll] = useState(false);
@@ -52,25 +65,37 @@ export function AppsPage() {
     enabled: ask !== undefined,
     retry: false,
   });
-  const items = software.data?.items ?? [];
+  // While AI review is on, explain what has no note yet once the list is in
+  // (ADR-0061); the list shows first and the notes fill in when they come.
+  const explained = useQuery({
+    queryKey: ["software", "explained"],
+    queryFn: () => (explain === undefined ? Promise.reject(new Error("unsupported")) : explain()),
+    enabled: explain !== undefined && aiOn && software.isSuccess,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const list = explained.data ?? software.data;
+  const items = list?.items ?? [];
   const shown = visible(items, { query, all });
-  const missing = partial(software.data?.sources ?? []);
+  const missing = partial(list?.sources ?? []);
   const hiddenCount = tucked(items);
 
   return (
     <Page
       title={a.title}
       accessory={
-        software.data !== undefined && (
-          <span className="tabular-nums">{m.common.items(items.length)}</span>
-        )
+        list !== undefined && <span className="tabular-nums">{m.common.items(items.length)}</span>
       }
       actions={
         ask !== undefined && (
           <button
             type="button"
             disabled={software.isFetching}
-            onClick={() => void software.refetch()}
+            onClick={() =>
+              void software.refetch().then(() => {
+                if (explain !== undefined && aiOn) void explained.refetch();
+              })
+            }
             className={buttonClass("secondary", "sm")}
           >
             {software.isFetching ? a.reading : a.readAgain}
@@ -87,8 +112,13 @@ export function AppsPage() {
           {a.reading}
         </p>
       )}
-      {software.data !== undefined && (
+      {list !== undefined && (
         <div className="space-y-4">
+          {explained.isFetching && (
+            <p role="status" className="text-[12px] text-ink-2">
+              {a.ai.explaining}
+            </p>
+          )}
           {missing.length > 0 && (
             <Notice tone="warning">
               <p>{a.partial(missing.join(", "))}</p>
@@ -122,7 +152,7 @@ export function AppsPage() {
               ))}
             </ul>
           )}
-          <p className="text-[12px] text-ink-3">{a.readOnly}</p>
+          <p className="text-[12px] text-ink-3">{aiOn ? a.readOnlyAi : a.readOnly}</p>
         </div>
       )}
     </Page>
