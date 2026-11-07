@@ -75,12 +75,12 @@ table() {
 
 for crate in "${selected[@]}"; do
   echo "::group::$crate (base)"
-  if ! (cd "$base/tree" && cargo bench --locked -p "$crate" --benches -- --save-baseline base); then
+  if ! (cd "$base/tree" && cargo bench --locked -p "$crate" --bench '*' -- --save-baseline base); then
     echo "The base did not run benchmarks for $crate; see above. Changes are shown without a base."
   fi
   echo "::endgroup::"
   echo "::group::$crate (this pull request)"
-  cargo bench --locked -p "$crate" --benches -- --baseline-lenient base | tee "$base/$crate.log"
+  cargo bench --locked -p "$crate" --bench '*' -- --baseline-lenient base | tee "$base/$crate.log"
   echo "::endgroup::"
   {
     echo "### $crate"
