@@ -22,8 +22,8 @@ import { type Activity, headerActivity, type Place } from "../model/activity";
 const ITEM =
   "relative flex h-12 items-center justify-center gap-2 px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-[current=page]:text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-transparent hover:after:bg-line-strong aria-[current=page]:after:bg-accent motion-reduce:transition-none min-[960px]:h-14";
 
-/** The app's places, in the sidebar's order; ⌘1–⌘4 (Ctrl+1–4) open them. */
-const PLACES: readonly Place[] = ["/", "/clean", "/quarantine", "/settings"];
+/** The app's places, in the sidebar's order; ⌘1–⌘5 (Ctrl+1–5) open them. */
+const PLACES: readonly Place[] = ["/", "/clean", "/quarantine", "/apps", "/settings"];
 
 /** The shortcut key of a place: its position in the sidebar. */
 function placeKey(place: Place): string {
@@ -156,6 +156,7 @@ export function Sidebar() {
   usePlaceShortcut("/");
   usePlaceShortcut("/clean");
   usePlaceShortcut("/quarantine");
+  usePlaceShortcut("/apps");
   usePlaceShortcut("/settings");
   const places: readonly PlaceItem[] = [
     { to: "/", label: m.nav.overview },
@@ -167,6 +168,7 @@ export function Sidebar() {
         ? { badge: { text: countFormat(locale)(count), label: m.nav.held(count) } }
         : {}),
     },
+    { to: "/apps", label: m.nav.apps },
     { to: "/settings", label: m.nav.settings },
   ];
   return (

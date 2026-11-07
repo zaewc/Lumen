@@ -1,4 +1,4 @@
-import type { ConfidenceView, ItemKindView } from "@lumen/api-client";
+import type { ConfidenceView, ItemKindView, SoftwareOriginView } from "@lumen/api-client";
 import { countFormat } from "./format";
 import type { RuleId } from "./rules";
 
@@ -26,6 +26,7 @@ export const en = {
     overview: "Storage",
     cleanUp: "Explore",
     quarantine: "Quarantine",
+    apps: "Apps",
     settings: "Settings",
     held: (n: number) => `${items(n)} in Quarantine`,
   },
@@ -559,6 +560,36 @@ export const en = {
     maybeInUse:
       "It may be in use, or Lumen cannot check that, so Lumen removed nothing. Close the apps that use it and try again.",
     notFinalizable: "You can only restore this item.",
+  },
+  apps: {
+    title: "Apps",
+    desktopOnly: "Lumen lists installed apps in the desktop app.",
+    reading: "Reading installed apps…",
+    readAgain: "Read again",
+    loadFailed: "Lumen couldn't read the installed apps.",
+    search: "Search apps",
+    showAll: (n: number) => `Show dependencies and hidden items (${n})`,
+    none: "No apps match.",
+    protected: "Part of the system",
+    protectedTip: "Lumen never removes this.",
+    partial: (names: string) =>
+      `Some lists were read only in part, so apps may be missing: ${names}.`,
+    readOnly:
+      "This list is read from your computer and stays on it. Nothing here removes anything.",
+    origins: {
+      mac_app: "App",
+      mac_installer: "Installer package",
+      homebrew: "Homebrew",
+      homebrew_cask: "Homebrew cask",
+      windows_program: "Program",
+      msix: "Store package",
+      dpkg: "dpkg",
+      rpm: "RPM",
+      pacman: "pacman",
+      flatpak: "Flatpak",
+      snap: "Snap",
+      other: "Other",
+    } satisfies { readonly [O in SoftwareOriginView]: string },
   },
   settings: {
     title: "Settings",
