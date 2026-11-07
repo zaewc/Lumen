@@ -126,7 +126,10 @@ In another terminal, start an isolated Chrome instance (macOS for the platform f
 ```
 
 Then run `node scripts/capture-app-screens.mjs`. `LUMEN_CAPTURE_ORIGIN` and
-`LUMEN_CAPTURE_CDP` can override those loopback URLs. The script changes only the
+`LUMEN_CAPTURE_CDP` can override those loopback URLs. With `LUMEN_CAPTURE_OUT` set to a
+folder, it writes the 16 PNGs there and leaves the committed captures alone; the
+`web-screens` workflow does this for every pull request that changes the web UI and
+keeps the result as an artifact. The script changes only the
 served fixture bootstrap to enable sample AI notes; it does not edit the app's source
 or rendered DOM, invoke the native host, access a keychain or contact an AI service.
 It checks the bootstrap shape, chooses AI review through the first-launch screen
