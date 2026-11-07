@@ -1,6 +1,6 @@
 # ADR-0060: List installed software, and remove it only through its own mechanism
 
-- Status: Proposed (awaiting owner decision)
+- Status: Accepted (owner confirmation, 2026-11-07)
 - Date: 2026-11-07
 - Refines: [ADR-0005](0005-process-topology-and-privilege.md) (user scope
   first), [ADR-0020](0020-jev-evidence-only-judge.md) (AI is evidence),
@@ -45,7 +45,7 @@ How should Lumen list software, and when, how and through what may it remove som
 
 ## Decision outcome
 
-Proposed: **option 2**, introduced in stages, with these rules.
+Chosen: **option 2**, introduced in stages, with these rules.
 
 1. **Identity.** Software is identified by its platform-native ID and inventory source:
    - a bundle ID, an MSI product code, an MSIX package family name, an Uninstall key,
@@ -118,7 +118,7 @@ Proposed: **option 2**, introduced in stages, with these rules.
   exists. Removal can never be undone, unlike quarantine.
 - Neutral: Hoax Eliminator's targets (banking security modules) count as security
   software under rule 4. Lumen shows them with evidence and does not remove them. This
-  is a deliberate difference that the owner may revisit.
+  is a deliberate difference, confirmed by the owner.
 
 ### Implementation plan (one PR each)
 
@@ -134,9 +134,9 @@ Proposed: **option 2**, introduced in stages, with these rules.
 
 ## More information
 
-- Questions for the owner:
-  - Should security software stay unremovable (rule 4), or be removable after an
-    extra warning?
-  - Is a privileged helper in scope for this epic?
+- Owner decisions, 2026-11-07:
+  - Security software stays list-only (rule 4), with no extra-warning removal.
+  - No privileged helper in this epic: only removals that work with the user's own
+    rights are run. A helper needs its own ADR.
 - Hoax Eliminator publishes no license or terms; nothing from it is reused
   (research 36).
