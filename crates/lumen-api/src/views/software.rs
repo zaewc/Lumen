@@ -4,15 +4,25 @@
 //! each is shown under the software it is linked to by evidence (ADR-0060 step
 //! 2, [`lumen_application::software_links`]). Read only; nothing here removes
 //! anything.
+//!
+//! While AI review is on, the same rows are what AI review may explain
+//! (ADR-0061): [`software_subjects`] builds each one's request from the raw
+//! inventory records, with identity fields only, and [`SoftwareView::with_notes`]
+//! shows the cached notes that may be shown.
 
+use lumen_app::software_notes::{NoteCache, SoftwareKey};
 use lumen_application::ports::InventoryReport;
 use lumen_application::software_links::{LinkMethod, link_services};
+use lumen_application::software_notes::SoftwareSubject;
 use lumen_domain::{
-    AppIdScheme, Application, Package, PackageManager, Service, ServiceKind, ServiceScope,
-    SourceStatus,
+    AppIdScheme, Application, JudgmentConfidence, Package, PackageManager, RemovalImpact, Service,
+    ServiceKind, ServiceScope, SoftwareFacts, SoftwareNote, SoftwareOrigin, SoftwarePurpose,
+    SoftwareRequest, SoftwareService, SourceStatus,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+use super::ConfidenceView;
 
 /// Which inventory recorded a piece of software, and so how it is identified.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
@@ -127,6 +137,106 @@ pub struct LinkedServiceView {
     pub ambiguous: bool,
 }
 
+/// What AI review says a piece of software is mainly for (ADR-0061).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SoftwarePurposeView {
+    /// A web browser.
+    WebBrowser,
+    /// Messaging, email or calls.
+    Communication,
+    /// Music, video or photos.
+    Media,
+    /// Documents, notes or other office work.
+    OfficeOrProductivity,
+    /// A developer tool.
+    DevelopmentTool,
+    /// Design or other creative work.
+    DesignOrCreative,
+    /// A game or game launcher.
+    Game,
+    /// Security, banking or identity.
+    SecurityOrBanking,
+    /// Part of the system, a driver or hardware support.
+    SystemOrDriver,
+    /// Cloud storage, sync or backup.
+    CloudSyncOrBackup,
+    /// A utility for managing the computer.
+    Utility,
+    /// A runtime or library other software uses.
+    RuntimeOrLibrary,
+    /// AI review could not tell.
+    Unknown,
+}
+
+/// What AI review says removing a piece of software could affect besides
+/// itself (ADR-0061): a description, never a statement that removal is safe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RemovalImpactView {
+    /// Mainly its own features.
+    OnlyThisApp,
+    /// Other software may depend on it.
+    OtherSoftwareDepends,
+    /// Its background items would stop.
+    StopsBackgroundActivity,
+    /// Security, banking or sign-in may stop working.
+    SecurityOrAccess,
+    /// An operating-system feature may stop working.
+    SystemFunction,
+    /// AI review could not tell.
+    Unknown,
+}
+
+/// An AI note on a piece of software: closed choices and a confidence, never
+/// model text. Display only (ADR-0061).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct SoftwareNoteView {
+    /// What it is most likely for.
+    pub purpose: SoftwarePurposeView,
+    /// What removing it could most likely affect.
+    pub removal_impact: RemovalImpactView,
+    /// How sure AI review was.
+    pub confidence: ConfidenceView,
+}
+
+impl From<SoftwareNote> for SoftwareNoteView {
+    fn from(note: SoftwareNote) -> Self {
+        Self {
+            purpose: match note.purpose {
+                SoftwarePurpose::WebBrowser => SoftwarePurposeView::WebBrowser,
+                SoftwarePurpose::Communication => SoftwarePurposeView::Communication,
+                SoftwarePurpose::Media => SoftwarePurposeView::Media,
+                SoftwarePurpose::OfficeOrProductivity => SoftwarePurposeView::OfficeOrProductivity,
+                SoftwarePurpose::DevelopmentTool => SoftwarePurposeView::DevelopmentTool,
+                SoftwarePurpose::DesignOrCreative => SoftwarePurposeView::DesignOrCreative,
+                SoftwarePurpose::Game => SoftwarePurposeView::Game,
+                SoftwarePurpose::SecurityOrBanking => SoftwarePurposeView::SecurityOrBanking,
+                SoftwarePurpose::SystemOrDriver => SoftwarePurposeView::SystemOrDriver,
+                SoftwarePurpose::CloudSyncOrBackup => SoftwarePurposeView::CloudSyncOrBackup,
+                SoftwarePurpose::Utility => SoftwarePurposeView::Utility,
+                SoftwarePurpose::RuntimeOrLibrary => SoftwarePurposeView::RuntimeOrLibrary,
+                SoftwarePurpose::Unknown => SoftwarePurposeView::Unknown,
+            },
+            removal_impact: match note.removal_impact {
+                RemovalImpact::OnlyThisApp => RemovalImpactView::OnlyThisApp,
+                RemovalImpact::OtherSoftwareDepends => RemovalImpactView::OtherSoftwareDepends,
+                RemovalImpact::StopsBackgroundActivity => {
+                    RemovalImpactView::StopsBackgroundActivity
+                }
+                RemovalImpact::SecurityOrAccess => RemovalImpactView::SecurityOrAccess,
+                RemovalImpact::SystemFunction => RemovalImpactView::SystemFunction,
+                RemovalImpact::Unknown => RemovalImpactView::Unknown,
+            },
+            confidence: match note.confidence {
+                JudgmentConfidence::Low => ConfidenceView::Low,
+                JudgmentConfidence::Medium => ConfidenceView::Medium,
+                JudgmentConfidence::High => ConfidenceView::High,
+            },
+        }
+    }
+}
+
 /// One application or package.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct SoftwareItemView {
@@ -159,6 +269,9 @@ pub struct SoftwareItemView {
     pub explicit: Option<bool>,
     /// Background items linked to it, verified first.
     pub services: Vec<LinkedServiceView>,
+    /// What AI review said about it, when it may be shown (ADR-0061).
+    #[schema(required = true)]
+    pub ai_note: Option<SoftwareNoteView>,
 }
 
 /// The installed software list.
@@ -230,10 +343,32 @@ const fn origin(manager: PackageManager) -> SoftwareOriginView {
     }
 }
 
-fn package(package: &Package) -> SoftwareItemView {
+/// The raw identity fields a row's AI request is built from (ADR-0061 rule
+/// 2): no path, user name, usage signal or size.
+#[derive(Debug, Clone)]
+struct Raw {
+    id: String,
+    name: Option<String>,
+    publisher: Option<String>,
+    version: Option<String>,
+    services: Vec<SoftwareService>,
+}
+
+fn raw(text: Option<&lumen_domain::UntrustedText>) -> Option<String> {
+    text.map(|t| t.raw().to_owned())
+}
+
+fn package(package: &Package) -> (SoftwareItemView, Raw) {
     let origin = origin(package.manager);
     let id = package.id.display();
-    SoftwareItemView {
+    let raw = Raw {
+        id: package.id.raw().to_owned(),
+        name: None,
+        publisher: None,
+        version: raw(package.version.as_ref()),
+        services: Vec::new(),
+    };
+    let view = SoftwareItemView {
         key: format!("{origin:?}:{id}"),
         origin,
         name: None,
@@ -250,13 +385,15 @@ fn package(package: &Package) -> SoftwareItemView {
         hidden: false,
         explicit: package.explicit,
         services: Vec::new(),
+        ai_note: None,
         id,
-    }
+    };
+    (view, raw)
 }
 
 /// The identifier an application is listed by: its product code for a
 /// Windows Installer program, else the first identifier it has.
-fn application(app: &Application) -> Option<SoftwareItemView> {
+fn application(app: &Application) -> Option<(SoftwareItemView, Raw)> {
     let pick = |scheme| app.ids.iter().find(|id| id.scheme == scheme);
     let (origin, id) = [
         (AppIdScheme::BundleId, SoftwareOriginView::MacApp),
@@ -271,7 +408,9 @@ fn application(app: &Application) -> Option<SoftwareItemView> {
         (AppIdScheme::MsixFamily, SoftwareOriginView::Msix),
     ]
     .into_iter()
-    .find_map(|(scheme, origin)| pick(scheme).map(|id| (origin, id.value.display())))?;
+    .find_map(|(scheme, origin)| pick(scheme).map(|id| (origin, &id.value)))?;
+    let raw_id = id.raw().to_owned();
+    let id = id.display();
     let location = app.install_locations.first();
     // macOS's own applications live in /System/Applications (and the Safari
     // cryptex), which the system volume's protection keeps read-only.
@@ -280,7 +419,14 @@ fn application(app: &Application) -> Option<SoftwareItemView> {
         bytes.starts_with(b"/System/") || bytes.starts_with(b"/Library/Apple/")
     });
     let record = app.uninstall.as_ref();
-    Some(SoftwareItemView {
+    let raw = Raw {
+        id: raw_id,
+        name: raw(app.name.as_ref()),
+        publisher: raw(app.vendor.as_ref()),
+        version: raw(app.version.as_ref()),
+        services: Vec::new(),
+    };
+    let view = SoftwareItemView {
         key: format!("{origin:?}:{id}"),
         origin,
         name: app.name.as_ref().map(lumen_domain::UntrustedText::display),
@@ -297,8 +443,116 @@ fn application(app: &Application) -> Option<SoftwareItemView> {
         hidden: record.is_some_and(|r| r.hidden),
         explicit: None,
         services: Vec::new(),
+        ai_note: None,
         id,
-    })
+    };
+    Some((view, raw))
+}
+
+/// The domain's name for a row's origin.
+const fn software_origin(origin: SoftwareOriginView) -> SoftwareOrigin {
+    match origin {
+        SoftwareOriginView::MacApp => SoftwareOrigin::MacApp,
+        SoftwareOriginView::MacInstaller => SoftwareOrigin::MacInstaller,
+        SoftwareOriginView::Homebrew => SoftwareOrigin::Homebrew,
+        SoftwareOriginView::HomebrewCask => SoftwareOrigin::HomebrewCask,
+        SoftwareOriginView::WindowsProgram => SoftwareOrigin::WindowsProgram,
+        SoftwareOriginView::Msix => SoftwareOrigin::Msix,
+        SoftwareOriginView::Dpkg => SoftwareOrigin::Dpkg,
+        SoftwareOriginView::Rpm => SoftwareOrigin::Rpm,
+        SoftwareOriginView::Pacman => SoftwareOrigin::Pacman,
+        SoftwareOriginView::Flatpak => SoftwareOrigin::Flatpak,
+        SoftwareOriginView::Snap => SoftwareOrigin::Snap,
+        SoftwareOriginView::Other => SoftwareOrigin::Other,
+    }
+}
+
+/// The cache key of a row: its origin, identifier and version as listed.
+#[must_use]
+pub fn software_key(item: &SoftwareItemView) -> SoftwareKey {
+    SoftwareKey {
+        origin: software_origin(item.origin),
+        id: item.id.clone(),
+        version: item.version.clone(),
+    }
+}
+
+/// What AI review may be asked about each row of the list from `reports`
+/// (ADR-0061), in the list's order: identity fields only, never a path.
+/// Rows the list shows by default (installed on request or not known
+/// otherwise, and not hidden) are preferred.
+#[must_use]
+pub fn software_subjects(reports: &[InventoryReport]) -> Vec<SoftwareSubject<SoftwareKey>> {
+    rows(reports)
+        .into_iter()
+        .filter_map(|(item, raw)| {
+            let request = SoftwareRequest::new(SoftwareFacts {
+                origin: software_origin(item.origin),
+                id: &raw.id,
+                name: raw.name.as_deref(),
+                publisher: raw.publisher.as_deref(),
+                version: raw.version.as_deref(),
+                protected: item.protected,
+                hidden: item.hidden,
+                services: raw.services,
+            })
+            .ok()?;
+            Some(SoftwareSubject {
+                key: software_key(&item),
+                request,
+                preferred: item.explicit != Some(false) && !item.hidden,
+            })
+        })
+        .collect()
+}
+
+/// Every row with its raw identity fields, one per key (the first source
+/// that reported it), each background item under the rows it is linked to,
+/// sorted by name (then key).
+fn rows(reports: &[InventoryReport]) -> Vec<(SoftwareItemView, Raw)> {
+    let mut items: Vec<(SoftwareItemView, Raw)> = Vec::new();
+    for report in reports {
+        let rows = report
+            .applications
+            .iter()
+            .filter_map(application)
+            .chain(report.packages.iter().map(package));
+        for row in rows {
+            if !items.iter().any(|(item, _)| item.key == row.0.key) {
+                items.push(row);
+            }
+        }
+    }
+    let apps: Vec<&Application> = reports.iter().flat_map(|r| &r.applications).collect();
+    let services: Vec<&Service> = reports.iter().flat_map(|r| &r.services).collect();
+    for link in link_services(&apps, &services) {
+        let Some(key) = application(apps[link.application]).map(|(row, _)| row.key) else {
+            continue;
+        };
+        let service = services[link.service];
+        let view = linked(service, link.method, link.verified(), link.ambiguous);
+        if let Some((item, raw)) = items.iter_mut().find(|(item, _)| item.key == key)
+            && !item.services.contains(&view)
+        {
+            item.services.push(view);
+            raw.services.push(SoftwareService::new(
+                service.kind,
+                service.label.raw(),
+                link.verified(),
+            ));
+        }
+    }
+    for (item, _) in &mut items {
+        item.services
+            .sort_by_key(|s| (!s.verified, s.label.clone()));
+    }
+    items.sort_by_cached_key(|(item, _)| {
+        (
+            item.name.as_deref().unwrap_or(&item.id).to_lowercase(),
+            item.key.clone(),
+        )
+    });
+    items
 }
 
 impl SoftwareView {
@@ -308,55 +562,30 @@ impl SoftwareView {
     /// the rows it is linked to.
     #[must_use]
     pub fn from_reports(reports: &[InventoryReport]) -> Self {
-        let mut items: Vec<SoftwareItemView> = Vec::new();
-        let mut sources = Vec::new();
-        for report in reports {
-            let rows: Vec<SoftwareItemView> = report
-                .applications
-                .iter()
-                .filter_map(application)
-                .chain(report.packages.iter().map(package))
-                .collect();
-            sources.push(SoftwareSourceView {
-                source: report.source.as_str().to_owned(),
-                state: state(report.status),
-                count: u32::try_from(rows.len() + report.services.len()).unwrap_or(u32::MAX),
-            });
-            for row in rows {
-                if !items.iter().any(|item| item.key == row.key) {
-                    items.push(row);
+        let sources = reports
+            .iter()
+            .map(|report| {
+                let rows = report.applications.iter().filter_map(application).count()
+                    + report.packages.len();
+                SoftwareSourceView {
+                    source: report.source.as_str().to_owned(),
+                    state: state(report.status),
+                    count: u32::try_from(rows + report.services.len()).unwrap_or(u32::MAX),
                 }
-            }
-        }
-        let apps: Vec<&Application> = reports.iter().flat_map(|r| &r.applications).collect();
-        let services: Vec<&Service> = reports.iter().flat_map(|r| &r.services).collect();
-        for link in link_services(&apps, &services) {
-            let Some(key) = application(apps[link.application]).map(|row| row.key) else {
-                continue;
-            };
-            let view = linked(
-                services[link.service],
-                link.method,
-                link.verified(),
-                link.ambiguous,
-            );
-            if let Some(item) = items.iter_mut().find(|item| item.key == key)
-                && !item.services.contains(&view)
-            {
-                item.services.push(view);
-            }
-        }
-        for item in &mut items {
-            item.services
-                .sort_by_key(|s| (!s.verified, s.label.clone()));
-        }
-        items.sort_by_cached_key(|item| {
-            (
-                item.name.as_deref().unwrap_or(&item.id).to_lowercase(),
-                item.key.clone(),
-            )
-        });
+            })
+            .collect();
+        let items = rows(reports).into_iter().map(|(item, _)| item).collect();
         Self { items, sources }
+    }
+
+    /// The list with each row's cached AI note, when one may be shown
+    /// (ADR-0061).
+    #[must_use]
+    pub fn with_notes(mut self, notes: &NoteCache) -> Self {
+        for item in &mut self.items {
+            item.ai_note = notes.shown(&software_key(item)).map(SoftwareNoteView::from);
+        }
+        self
     }
 }
 
@@ -569,5 +798,115 @@ mod tests {
         snap.packages = vec![package(PackageManager::Snap, "evil\u{202e}txt", false)];
         let view = SoftwareView::from_reports(&[snap]);
         assert!(!view.items[0].id.contains('\u{202e}'));
+    }
+
+    #[test]
+    fn requests_carry_identity_fields_only() -> Result<(), Box<dyn std::error::Error>> {
+        let mut apps = report("macos.applications", SourceStatus::Complete);
+        let mut zed = app(
+            AppIdScheme::BundleId,
+            "com.example.Zed",
+            "Zed",
+            "/Users/alice/Applications/Zed.app",
+        );
+        zed.vendor = Some(UntrustedText::new("Example\u{202e} Inc."));
+        apps.applications = vec![zed];
+        let mut launchd = report("macos.launchd", SourceStatus::Complete);
+        launchd.services = (0..10)
+            .map(|i| {
+                agent(
+                    &format!("com.example.Zed.helper{i}"),
+                    Some(&format!("/Users/alice/Applications/Zed.app/Contents/h{i}")),
+                )
+            })
+            .collect();
+        let mut brew = report("macos.homebrew", SourceStatus::Complete);
+        brew.packages = vec![package(PackageManager::Homebrew, "openssl@3", false)];
+        brew.packages[0].explicit = Some(false);
+        brew.packages[0].install_root = Some(RawPath::from_unix_bytes(
+            b"/Users/alice/homebrew/Cellar/openssl@3".to_vec(),
+        )?);
+        let subjects = software_subjects(&[apps, launchd, brew]);
+        let keys: Vec<_> = subjects
+            .iter()
+            .map(|s| (s.key.id.as_str(), s.key.version.as_deref(), s.preferred))
+            .collect();
+        assert_eq!(
+            keys,
+            [
+                ("openssl@3", Some("2.0"), false),
+                ("com.example.Zed", Some("1.0"), true)
+            ],
+            "the list's order; a dependency is not preferred"
+        );
+        let zed = serde_json::to_value(&subjects[1].request)?;
+        assert_eq!(zed["services"].as_array().map(Vec::len), Some(8));
+        assert_eq!(zed["services_truncated"], true);
+        assert_eq!(zed["services"][0]["verified"], true);
+        assert_eq!(
+            zed["untrusted_strings"]["publisher"]["text"], "Example\u{202e} Inc.",
+            "raw text, labelled untrusted"
+        );
+        for subject in &subjects {
+            let text = serde_json::to_string(&subject.request)?;
+            assert!(!text.contains("/Users"), "no path is sent: {text}");
+            assert!(!text.contains("alice"), "no user name is sent: {text}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn only_notes_that_may_be_shown_are_listed() -> Result<(), Box<dyn std::error::Error>> {
+        use lumen_domain::{JudgeDescriptor, ModelId};
+        let mut brew = report("macos.homebrew", SourceStatus::Complete);
+        brew.packages = vec![
+            package(PackageManager::Homebrew, "node", false),
+            package(PackageManager::Homebrew, "evil", false),
+            package(PackageManager::Homebrew, "new", false),
+        ];
+        let view = SoftwareView::from_reports(&[brew]);
+        assert!(view.items.iter().all(|i| i.ai_note.is_none()));
+        let judge = JudgeDescriptor {
+            provider: SourceName::new("fake")?,
+            model: ModelId::new("fake-1")?,
+            model_version: None,
+            prompt_version: "jev-software/1".parse()?,
+        };
+        let note = |injection_suspected| SoftwareNote {
+            purpose: SoftwarePurpose::RuntimeOrLibrary,
+            removal_impact: RemovalImpact::OtherSoftwareDepends,
+            confidence: JudgmentConfidence::High,
+            injection_suspected,
+        };
+        let key = |id: &str| SoftwareKey {
+            origin: SoftwareOrigin::Homebrew,
+            id: id.to_owned(),
+            version: Some("2.0".to_owned()),
+        };
+        let mut cache = NoteCache::default();
+        cache.insert(key("node"), &judge, note(false));
+        cache.insert(key("evil"), &judge, note(true));
+        let view = view.with_notes(&cache);
+        let notes: Vec<_> = view
+            .items
+            .iter()
+            .map(|i| (i.id.as_str(), serde_json::to_value(i.ai_note).ok()))
+            .collect();
+        assert_eq!(
+            notes,
+            [
+                ("evil", Some(serde_json::Value::Null)),
+                ("new", Some(serde_json::Value::Null)),
+                (
+                    "node",
+                    Some(serde_json::json!({
+                        "purpose": "runtime_or_library",
+                        "removal_impact": "other_software_depends",
+                        "confidence": "high",
+                    }))
+                ),
+            ]
+        );
+        Ok(())
     }
 }

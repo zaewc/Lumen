@@ -22,6 +22,7 @@
     "allow-run-tool-command",
     "allow-tool-storage",
     "allow-software",
+    "allow-explain-software",
     "allow-compare-folders",
     "allow-cancel-comparison",
     "allow-reassess"

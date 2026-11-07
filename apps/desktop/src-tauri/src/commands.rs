@@ -550,13 +550,40 @@ pub(crate) async fn tool_storage() -> Result<Vec<ToolStorageView>, CommandError>
 }
 
 /// The installed software list (ADR-0060): every inventory the platform keeps
-/// of installed applications and packages, read on request. Read only:
-/// nothing is removed, and the list never leaves the device.
+/// of installed applications and packages, read on request, with the AI notes
+/// already cached on the device (ADR-0061). Read only: nothing is removed,
+/// and nothing is sent.
 #[tauri::command]
-pub(crate) async fn software() -> Result<SoftwareView, CommandError> {
+pub(crate) async fn software(core: State<'_, Core>) -> Result<SoftwareView, CommandError> {
+    let db = core.db.clone();
     blocking(move || {
         let reports = lumen_app::software::inventory(&CancelToken::new());
-        Ok(SoftwareView::from_reports(&reports))
+        let notes = lumen_app::software_notes::NoteCache::load(&db);
+        Ok(SoftwareView::from_reports(&reports).with_notes(&notes))
+    })
+    .await
+}
+
+/// The installed software list, after asking AI review about software it has
+/// not explained yet (ADR-0061): only while AI review is on and a key is
+/// available, at most 40 per call, each recorded in the ledger. Otherwise the
+/// list with the notes already cached, and nothing is sent.
+#[tauri::command]
+pub(crate) async fn explain_software(core: State<'_, Core>) -> Result<SoftwareView, CommandError> {
+    let db = core.db.clone();
+    let secrets = core.secrets.clone();
+    let builtin = core.builtin.clone();
+    blocking(move || {
+        let reports = lumen_app::software::inventory(&CancelToken::new());
+        let notes = match lumen_app::ai::active_judge(&db, secrets.as_deref(), builtin.as_ref()) {
+            Some(judge) => {
+                let subjects = lumen_api::views::software_subjects(&reports);
+                lumen_app::software_notes::explain(&db, &judge, &subjects)
+                    .map_err(CommandError::new)?
+            }
+            None => lumen_app::software_notes::NoteCache::load(&db),
+        };
+        Ok(SoftwareView::from_reports(&reports).with_notes(&notes))
     })
     .await
 }

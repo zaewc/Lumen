@@ -23,6 +23,7 @@ const allowed = new Set([
   "run_tool_command",
   "tool_storage",
   "software",
+  "explain_software",
   "compare_folders",
   "cancel_comparison",
   "reassess",

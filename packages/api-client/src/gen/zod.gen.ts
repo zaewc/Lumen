@@ -406,6 +406,19 @@ export const zRelationsView = z.object({
 });
 
 /**
+ * What AI review says removing a piece of software could affect besides
+ * itself (ADR-0061): a description, never a statement that removal is safe.
+ */
+export const zRemovalImpactView = z.enum([
+  "only_this_app",
+  "other_software_depends",
+  "stops_background_activity",
+  "security_or_access",
+  "system_function",
+  "unknown",
+]);
+
+/**
  * How much a failed removal took.
  */
 export const zRemovedView = z.enum(["nothing", "partly", "item"]);
@@ -627,9 +640,39 @@ export const zSoftwareOriginView = z.enum([
 ]);
 
 /**
+ * What AI review says a piece of software is mainly for (ADR-0061).
+ */
+export const zSoftwarePurposeView = z.enum([
+  "web_browser",
+  "communication",
+  "media",
+  "office_or_productivity",
+  "development_tool",
+  "design_or_creative",
+  "game",
+  "security_or_banking",
+  "system_or_driver",
+  "cloud_sync_or_backup",
+  "utility",
+  "runtime_or_library",
+  "unknown",
+]);
+
+/**
+ * An AI note on a piece of software: closed choices and a confidence, never
+ * model text. Display only (ADR-0061).
+ */
+export const zSoftwareNoteView = z.object({
+  confidence: zConfidenceView,
+  purpose: zSoftwarePurposeView,
+  removal_impact: zRemovalImpactView,
+});
+
+/**
  * One application or package.
  */
 export const zSoftwareItemView = z.object({
+  ai_note: zSoftwareNoteView.nullable(),
   explicit: z.boolean().nullable(),
   hidden: z.boolean(),
   id: z.string(),

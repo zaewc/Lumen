@@ -137,6 +137,7 @@ pub fn app<R: Runtime>(
             commands::run_tool_command,
             commands::tool_storage,
             commands::software,
+            commands::explain_software,
             commands::compare_folders,
             commands::cancel_comparison,
             commands::reassess,

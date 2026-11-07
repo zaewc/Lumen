@@ -21,6 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "run_tool_command",
         "tool_storage",
         "software",
+        "explain_software",
         "compare_folders",
         "cancel_comparison",
         "reassess",
