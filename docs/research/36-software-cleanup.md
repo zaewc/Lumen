@@ -89,6 +89,7 @@ Added 2026-11-07 at the owner's request as a second reference. Sources: the proj
 | License | MIT | verified (repository) |
 
 What Lumen takes as product concepts:
+
 - a curated list of preinstalled consumer apps, each with a stated reason, beside an
   explicit keep list (the Store, Calculator, Photos);
 - a default selection the person can change one item at a time;
@@ -96,6 +97,7 @@ What Lumen takes as product concepts:
   Store) and which apps cannot be reinstalled at all.
 
 What Lumen does not do, by its rules:
+
 - **Every user and new accounts.** Removing for all users and deleting provisioned
   packages needs administrator rights and affects other people's accounts. ADR-0060
   (owner decision) runs only what the user's own rights allow: MSIX removal for the
