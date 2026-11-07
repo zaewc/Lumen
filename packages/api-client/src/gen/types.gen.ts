@@ -1494,6 +1494,176 @@ export type ToolStorageView = {
 };
 
 /**
+ * The application a preview is about, as observed now.
+ */
+export type UninstallAppView = {
+  /**
+   * Its bundle identifier; display-escaped.
+   */
+  bundle_id: string;
+  /**
+   * The software list's key, as given.
+   */
+  key: string;
+  /**
+   * Its display name, if it has one; display-escaped.
+   */
+  name: string | null;
+  /**
+   * What happens to it and its data.
+   */
+  notes: Array<UninstallNoteView>;
+  /**
+   * Where it is, for showing only; display-escaped.
+   */
+  path: string;
+  /**
+   * What removing it for good would free, in bytes.
+   */
+  size_bytes: string;
+  /**
+   * Every folder inside it was listed; otherwise the size is a lower
+   * bound.
+   */
+  size_complete: boolean;
+  /**
+   * Its version, if recorded; display-escaped.
+   */
+  version: string | null;
+};
+
+/**
+ * What happens to the app and its data when it is uninstalled this way.
+ */
+export type UninstallNoteView = "goes_to_quarantine" | "library_data_stays";
+
+/**
+ * An executed uninstall preview.
+ */
+export type UninstallOutcomeView = {
+  /**
+   * Where the app was, for showing only; display-escaped.
+   */
+  path: string;
+  /**
+   * The preview.
+   */
+  preview: string;
+  /**
+   * Interrupted operations from earlier runs that were resolved first.
+   */
+  resolved: string;
+  /**
+   * What happened.
+   */
+  result: UninstallResultView;
+  /**
+   * What removing it for good frees, as previewed, in bytes.
+   */
+  size_bytes: string;
+  /**
+   * Problems that did not stop it.
+   */
+  warnings: Array<string>;
+};
+
+/**
+ * What uninstalling an application into quarantine would do.
+ */
+export type UninstallPreviewView =
+  | {
+      /**
+       * The application.
+       */
+      app: UninstallAppView;
+      /**
+       * When it was made; it expires 24 hours later.
+       */
+      created_at: string;
+      /**
+       * Its full hash: the confirmation.
+       */
+      hash: string;
+      kind: "ready";
+      /**
+       * The preview's ID, for `uninstall`.
+       */
+      preview: string;
+    }
+  | {
+      /**
+       * The application.
+       */
+      app: UninstallAppView;
+      kind: "refused";
+      /**
+       * Every reason, at least one.
+       */
+      reasons: Array<UninstallReasonView>;
+    }
+  | {
+      kind: "not_found";
+    }
+  | {
+      kind: "ambiguous";
+    }
+  | {
+      kind: "unsupported";
+    };
+
+/**
+ * Why an application cannot be uninstalled into quarantine. Each `*_unknown`
+ * reason is a check Lumen could not answer, which never counts as passing.
+ */
+export type UninstallReasonView =
+  | "not_in_applications"
+  | "protected"
+  | "not_a_bundle"
+  | "owner_unknown"
+  | "not_owned_by_user"
+  | "services_unknown"
+  | "service_linked"
+  | "helpers_unknown"
+  | "has_helpers"
+  | "running_unknown"
+  | "running"
+  | "store_unknown"
+  | "no_store_on_volume";
+
+/**
+ * What became of the application.
+ */
+export type UninstallResultView =
+  | {
+      kind: "quarantined";
+      /**
+       * The operation, for restoring or removing it for good.
+       */
+      operation: string;
+    }
+  | {
+      kind: "refused";
+      /**
+       * Every reason, at least one.
+       */
+      reasons: Array<UninstallReasonView>;
+    }
+  | {
+      kind: "changed";
+    }
+  | {
+      kind: "failed";
+      /**
+       * Where the app is.
+       */
+      left: LocationView;
+      /**
+       * Why.
+       */
+      reason: FailureView;
+    };
+
+/**
  * The app's version and whether a newer one is published (ADR-0048).
  */
 export type UpdateView = {

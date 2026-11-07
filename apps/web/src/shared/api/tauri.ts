@@ -22,6 +22,8 @@ import {
   zSoftwareView,
   zToolRunView,
   zToolStorageView,
+  zUninstallOutcomeView,
+  zUninstallPreviewView,
   zUpdateView,
 } from "@lumen/api-client";
 import { Channel, type InvokeArgs, invoke } from "@tauri-apps/api/core";
@@ -118,6 +120,10 @@ export function tauriTransport(): LumenTransport {
       await call("cancel_comparison");
     },
     reassess: async (request) => zCompatibleReassess.parse(await call("reassess", { request })),
+    uninstallPreview: async (key) =>
+      zUninstallPreviewView.parse(await call("uninstall_preview", { key })),
+    uninstall: async (preview, confirmation) =>
+      zUninstallOutcomeView.parse(await call("uninstall", { preview, confirmation })),
     setAiReview: async (enabled) => zAiSettingsView.parse(await call("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await call("set_ai_key", { key })),
   };

@@ -842,6 +842,106 @@ export const zToolStorageView = z.object({
 });
 
 /**
+ * What happens to the app and its data when it is uninstalled this way.
+ */
+export const zUninstallNoteView = z.enum(["goes_to_quarantine", "library_data_stays"]);
+
+/**
+ * The application a preview is about, as observed now.
+ */
+export const zUninstallAppView = z.object({
+  bundle_id: z.string(),
+  key: z.string(),
+  name: z.string().nullable(),
+  notes: z.array(zUninstallNoteView),
+  path: z.string(),
+  size_bytes: z.string(),
+  size_complete: z.boolean(),
+  version: z.string().nullable(),
+});
+
+/**
+ * Why an application cannot be uninstalled into quarantine. Each `*_unknown`
+ * reason is a check Lumen could not answer, which never counts as passing.
+ */
+export const zUninstallReasonView = z.enum([
+  "not_in_applications",
+  "protected",
+  "not_a_bundle",
+  "owner_unknown",
+  "not_owned_by_user",
+  "services_unknown",
+  "service_linked",
+  "helpers_unknown",
+  "has_helpers",
+  "running_unknown",
+  "running",
+  "store_unknown",
+  "no_store_on_volume",
+]);
+
+/**
+ * What uninstalling an application into quarantine would do.
+ */
+export const zUninstallPreviewView = z.union([
+  z.object({
+    app: zUninstallAppView,
+    created_at: z.iso.datetime(),
+    hash: z.string(),
+    kind: z.enum(["ready"]),
+    preview: z.string(),
+  }),
+  z.object({
+    app: zUninstallAppView,
+    kind: z.enum(["refused"]),
+    reasons: z.array(zUninstallReasonView),
+  }),
+  z.object({
+    kind: z.enum(["not_found"]),
+  }),
+  z.object({
+    kind: z.enum(["ambiguous"]),
+  }),
+  z.object({
+    kind: z.enum(["unsupported"]),
+  }),
+]);
+
+/**
+ * What became of the application.
+ */
+export const zUninstallResultView = z.union([
+  z.object({
+    kind: z.enum(["quarantined"]),
+    operation: z.string(),
+  }),
+  z.object({
+    kind: z.enum(["refused"]),
+    reasons: z.array(zUninstallReasonView),
+  }),
+  z.object({
+    kind: z.enum(["changed"]),
+  }),
+  z.object({
+    kind: z.enum(["failed"]),
+    left: zLocationView,
+    reason: zFailureView,
+  }),
+]);
+
+/**
+ * An executed uninstall preview.
+ */
+export const zUninstallOutcomeView = z.object({
+  path: z.string(),
+  preview: z.string(),
+  resolved: z.string(),
+  result: zUninstallResultView,
+  size_bytes: z.string(),
+  warnings: z.array(z.string()),
+});
+
+/**
  * The app's version and whether a newer one is published (ADR-0048).
  */
 export const zUpdateView = z.object({

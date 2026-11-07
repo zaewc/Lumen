@@ -77,6 +77,12 @@ export type {
   ToolStateView,
   ToolStorageItemView,
   ToolStorageView,
+  UninstallAppView,
+  UninstallNoteView,
+  UninstallOutcomeView,
+  UninstallPreviewView,
+  UninstallReasonView,
+  UninstallResultView,
   UpdateView,
   VerdictView,
 } from "./types.gen";

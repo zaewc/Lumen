@@ -18,7 +18,8 @@ use lumen_api::views::{
     AiSettingsView, AssessProgressView, CandidateView, CompareOutcomeView, CompareProgressView,
     DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, PlanView, QuarantineReportView,
     ReassessRequest, ReassessView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
-    SoftwareView, ToolRunView, ToolStorageView, candidate_id,
+    SoftwareView, ToolRunView, ToolStorageView, UninstallOutcomeView, UninstallPreviewView,
+    candidate_id,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -843,6 +844,66 @@ pub(crate) async fn execute(
         )
         .map_err(CommandError::new)?;
         Ok(QuarantineReportView::from(&report))
+    })
+    .await
+}
+
+/// The longest software-list key accepted; the list's keys are an origin and
+/// a display-escaped identifier.
+const MAX_SOFTWARE_KEY: usize = 4096;
+
+/// Previews uninstalling the macOS application the software list shows under
+/// `key` (ADR-0062): the app, and either a preview to confirm or why it
+/// cannot be uninstalled into quarantine. Takes the list's key, never a
+/// path; reads only, and stores the preview. Elsewhere it says it is
+/// unsupported.
+#[tauri::command]
+pub(crate) async fn uninstall_preview(
+    core: State<'_, Core>,
+    key: String,
+) -> Result<UninstallPreviewView, CommandError> {
+    if key.len() > MAX_SOFTWARE_KEY {
+        return Err(CommandError::new("not a software key"));
+    }
+    let db = core.db.clone();
+    blocking(move || {
+        UninstallPreviewView::from_result(lumen_app::uninstall::preview(
+            &db,
+            &key,
+            &SystemClock,
+            &UuidV7Ids,
+        ))
+        .map_err(CommandError::new)
+    })
+    .await
+}
+
+/// Uninstalls one app into quarantine: executes the preview `preview`,
+/// confirmed in this app by its full hash (ADR-0062, ADR-0034). The gate is
+/// checked again right before the move.
+#[tauri::command]
+pub(crate) async fn uninstall(
+    core: State<'_, Core>,
+    preview: String,
+    confirmation: String,
+) -> Result<UninstallOutcomeView, CommandError> {
+    let db = core.db.clone();
+    let moving = core.activity.moving()?;
+    blocking(move || {
+        let _moving = moving;
+        let plan: PlanId = preview
+            .parse()
+            .map_err(|_| CommandError::new("not a preview ID"))?;
+        let report = lumen_app::uninstall::uninstall(
+            &db,
+            plan,
+            &confirmation,
+            ConfirmationSurface::DesktopApp,
+            &SystemClock,
+            &UuidV7Ids,
+        )
+        .map_err(CommandError::new)?;
+        Ok(UninstallOutcomeView::from(&report))
     })
     .await
 }

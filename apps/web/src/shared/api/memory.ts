@@ -10,6 +10,8 @@ import type {
   ScanView,
   SoftwareItemView,
   SoftwareView,
+  UninstallAppView,
+  UninstallPreviewView,
 } from "@lumen/api-client";
 import { isApiKey, sumBytes } from "@/shared/lib";
 import type { LumenTransport } from "./transport";
@@ -588,6 +590,38 @@ function wait(ms: number): Promise<void> {
   return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
 }
 
+// The sample uninstall previews (ADR-0062): Spotify may go to Quarantine;
+// Calculator is part of macOS, and OldEditor has a background item.
+function uninstallPreviewOf(key: string, n: number): UninstallPreviewView {
+  const row = softwareList(false).items.find((item) => item.key === key);
+  if (row === undefined || row.origin !== "mac_app") {
+    return { kind: "not_found" };
+  }
+  const app: UninstallAppView = {
+    key,
+    name: row.name,
+    bundle_id: row.id,
+    version: row.version,
+    path: row.location ?? "",
+    size_bytes: "412000000",
+    size_complete: true,
+    notes: ["goes_to_quarantine", "library_data_stays"],
+  };
+  if (row.protected) {
+    return { kind: "refused", app, reasons: ["not_in_applications", "protected"] };
+  }
+  if (row.services.length > 0) {
+    return { kind: "refused", app, reasons: ["service_linked"] };
+  }
+  return {
+    kind: "ready",
+    preview: `0190f0d2-6c1e-7a3b-8c4d-5e6f7081b0${n.toString().padStart(2, "0")}`,
+    hash: `b3:${n.toString(16).padStart(64, "0")}`,
+    created_at: new Date().toISOString(),
+    app,
+  };
+}
+
 /** A held item's operation ID, made up in the same shape as the core's. */
 function operationId(n: number): string {
   return `0190f0d2-6c1e-7a3b-8c4d-5e6f7081a0${n.toString().padStart(2, "0")}`;
@@ -616,6 +650,9 @@ export function memoryTransport({
   let held: readonly HeldItemView[] = initiallyHeld;
   let moves = 0;
   let comparing = { stopped: false };
+  let previewed = 0;
+  // Previews that may still be confirmed, each once.
+  const previews = new Map<string, { hash: string; app: UninstallAppView }>();
   const take = (operation: string): HeldItemView | undefined => {
     const item = held.find((h) => h.operation === operation);
     held = held.filter((h) => h.operation !== operation);
@@ -860,6 +897,51 @@ export function memoryTransport({
     cancelComparison: async () => {
       comparing.stopped = true;
       await wait(0);
+    },
+    uninstallPreview: async (key) => {
+      await wait(pace);
+      previewed += 1;
+      const preview = uninstallPreviewOf(key, previewed);
+      if (preview.kind === "ready") {
+        previews.set(preview.preview, { hash: preview.hash, app: preview.app });
+      }
+      return preview;
+    },
+    uninstall: async (preview, confirmation) => {
+      await wait(pace);
+      const ready = previews.get(preview);
+      if (ready === undefined) {
+        return Promise.reject(
+          new Error(`plan ${preview} was already confirmed or executed; make a new plan`),
+        );
+      }
+      if (ready.hash !== confirmation) {
+        return Promise.reject(
+          new Error(`the confirmation does not match plan ${preview}; nothing was moved`),
+        );
+      }
+      previews.delete(preview);
+      moves += 1;
+      const operation = operationId(moves);
+      held = [
+        ...held,
+        {
+          operation,
+          state: "retained",
+          original: ready.app.path,
+          since: new Date().toISOString(),
+          reclaim_bytes: ready.app.size_bytes,
+          chosen_by: "person",
+        },
+      ];
+      return {
+        preview,
+        path: ready.app.path,
+        size_bytes: ready.app.size_bytes,
+        resolved: "0",
+        result: { kind: "quarantined", operation },
+        warnings: [],
+      };
     },
     reassess: async ({ ids }) => {
       await wait(pace);

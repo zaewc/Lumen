@@ -10,6 +10,8 @@ import {
   zRestoreOutcomeView,
   zScanProgressView,
   zScanView,
+  zUninstallOutcomeView,
+  zUninstallPreviewView,
 } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
 import { memoryTransport } from "./memory";
@@ -150,6 +152,37 @@ describe("memoryTransport", () => {
     expect(on.enabled).toBe(true);
     expect(on.key_source).toBe("builtin");
     expect((await transport.setAiKey("jeb-key")).key_source).toBe("stored");
+  });
+
+  it("uninstalls an eligible app into Quarantine once, by preview and hash (ADR-0062)", async () => {
+    const transport = memoryTransport();
+    const preview = async (key: string) => {
+      const view = await transport.uninstallPreview?.(key);
+      return zUninstallPreviewView.parse(view);
+    };
+    expect((await preview("homebrew:act")).kind).toBe("not_found");
+    const kept = await preview("mac_app:com.example.OldEditor");
+    expect(kept.kind === "refused" ? kept.reasons : []).toEqual(["service_linked"]);
+    const ready = await preview("mac_app:com.spotify.client");
+    if (ready.kind !== "ready") {
+      throw new Error("Spotify may be uninstalled");
+    }
+    expect(ready.app.notes).toEqual(["goes_to_quarantine", "library_data_stays"]);
+    await expect(transport.uninstall?.(ready.preview, "b3:00")).rejects.toThrow("does not match");
+    const outcome = zUninstallOutcomeView.parse(
+      await transport.uninstall?.(ready.preview, ready.hash),
+    );
+    const { result } = outcome;
+    if (result.kind !== "quarantined") {
+      throw new Error("moved into quarantine");
+    }
+    const held = (await transport.held()).map((view) => zHeldItemView.parse(view));
+    const moved = held.find((h) => h.operation === result.operation);
+    expect(moved?.chosen_by).toBe("person");
+    expect(moved?.original).toBe("/Applications/Spotify.app");
+    await expect(transport.uninstall?.(ready.preview, ready.hash)).rejects.toThrow(
+      "already confirmed",
+    );
   });
 
   it("paces the scan for people, reporting growing totals", async () => {
