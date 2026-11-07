@@ -45,10 +45,19 @@ files you will touch, trace dependencies, inspect tests, then change.
 3. **Plan the smallest change** that is one logical unit. If it would exceed about
    400 changed lines of non-generated code, or mixes concerns: **stop and split**.
 4. **Implement** on a branch named `<type>/<short-slug>` from an up-to-date `develop`.
-5. **Verify:** `just check` (format, clippy, tests, cargo-deny, schema drift, crate
-   layering and doc links (`cargo xtask lint`), and the JavaScript workspace's Biome
-   and typecheck). Run relevant integration tests.
-   Fix root causes; never weaken a check.
+5. **Verify what CI does not.** CI checks every PR: format, clippy, all tests on
+   Linux, macOS and Windows, doc tests, MSRV, the Android and iOS builds,
+   cargo-deny and OSV-Scanner, schema drift, crate layering and doc links
+   (`cargo xtask lint`), the Jev cassette replay, and the JavaScript workspace's
+   Biome, typecheck, tests and builds. Agents do not run these locally, neither
+   `just check` nor parts of it: push, open the PR and let CI report. Locally, run
+   only what CI does not:
+   - code generation whose output is committed (`just gen`);
+   - benchmarks before and after a performance change;
+   - the app itself, to see a UI change;
+   - anything that needs hardware, an OS or a service CI lacks.
+   When CI fails, fix the root cause; never weaken a check. When you repeat the same
+   local check across PRs, propose adding it to CI.
 6. **Commit** one Conventional Commit (`type(scope): summary`).
 7. **PR:** `gh pr create` with the template sections (Summary, Why, Changes, Tests,
    Security, Risks, Follow-up).

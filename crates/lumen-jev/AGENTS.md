@@ -24,5 +24,6 @@ consumes a validated judgment and can only become more cautious. See
 2. Re-recording cassettes calls the live judge (Jeb) and spends the school server's
    quota: ask the owner first. Without a recording, CI replays the existing cassettes
    (`.github/workflows/jev-eval.yml`) and its committed reports must not change.
-3. Run `cargo nextest run -p lumen-jev -p lumen-jev-eval` and `just check` (schemas).
+3. CI runs the tests, the schema check and the cassette replay; do not repeat them
+   locally (root `AGENTS.md`, step 5).
 4. Update [`docs/ai/evaluation.md`](../../docs/ai/evaluation.md) with new results.
