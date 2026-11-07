@@ -36,7 +36,7 @@ sont mis en quarantaine, où vous pouvez les restaurer.
 - **Repère ce qui occupe de l’espace**, depuis les données DerivedData de Xcode et les
   caches Gradle jusqu’aux caches d’applications et aux anciens installateurs, sans ouvrir
   de fichier.
-- **Explique chaque décision.** Chaque élément est conservé, laissé à votre examen ou
+- **Explique chaque décision.** Chaque élément est conservé, soumis à votre examen ou
   proposé au nettoyage, avec les preuves disponibles : son origine, la possibilité de
   le recréer et son éventuelle utilisation.
 - **Ne supprime jamais de lui-même.** Le nettoyage place les éléments en quarantaine
