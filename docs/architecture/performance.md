@@ -135,6 +135,12 @@ The `bench` workflow (manual) runs the same benchmarks on GitHub's `ubuntu-24.04
 `macos-26` runners and keeps criterion's reports as artifacts. Shared runners vary,
 so compare runs of the same workflow with each other, never with the numbers above.
 
+A pull request that changes `lumen-cluster`, `lumen-scan` or `lumen-policy` also
+runs `bench-compare`, which benchmarks that crate on the base and on the pull
+request in one job on one runner, and shows each median and change in the job
+summary (`scripts/bench-compare.sh`). It is informational and never required:
+read only changes well beyond the few percent two runs of the same code differ.
+
 ## Real tree: `lumen scan ~/Library`
 
 | Measure | Before streaming aggregation (#131) | After |
