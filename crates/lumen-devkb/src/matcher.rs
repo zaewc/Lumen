@@ -16,6 +16,9 @@
 //!   case-insensitive, and exactly elsewhere;
 //! - a project location matches only if one of its markers was scanned as a file:
 //!   an unscanned marker is unknown, so no evidence is produced;
+//! - a matched project location also gets `ProjectActivity`: the newest
+//!   modification time among its scanned markers (ADR-0059), shown and never
+//!   decided on. Markers without a modification time add none;
 //! - a project location never matches inside another instance of its own path
 //!   (`node_modules/pkg/node_modules`, `target/debug/deps/x/target/debug/deps`):
 //!   a marker there was shipped by a package, not written for a project.
@@ -24,7 +27,7 @@
 //! matches one in chunks with the same result: it gathers the scan's
 //! [`Markers`] in a first pass and matches each chunk against them in a second.
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use lumen_domain::{
     Basis, EntryKind, Evidence, Fact, FilesystemEntry, PathFlavor, Platform, Provenance, RawPath,
@@ -169,7 +172,7 @@ fn resolve<'kb>(
 }
 
 impl Resolved<'_> {
-    fn matches(&self, names: &[Component], scanned: &HashSet<Vec<Component>>) -> bool {
+    fn matches(&self, names: &[Component], scanned: &MarkerTimes) -> bool {
         if let Some(root) = &self.root {
             return names.len() == root.len() + self.pattern.len()
                 && names.starts_with(root)
@@ -189,10 +192,31 @@ impl Resolved<'_> {
             && self.markers.iter().any(|marker| {
                 let mut path = names[..split].to_vec();
                 path.extend_from_slice(marker);
-                scanned.contains(&path)
+                scanned.contains_key(&path)
             })
     }
+
+    /// For a project location that `names` matches, the newest modification
+    /// time among its scanned markers; `None` for any other location, or when
+    /// no marker has a time.
+    fn activity(&self, names: &[Component], scanned: &MarkerTimes) -> Option<Timestamp> {
+        if self.root.is_some() {
+            return None;
+        }
+        let split = names.len().checked_sub(self.pattern.len())?;
+        self.markers
+            .iter()
+            .filter_map(|marker| {
+                let mut path = names[..split].to_vec();
+                path.extend_from_slice(marker);
+                scanned.get(&path).copied().flatten()
+            })
+            .max()
+    }
 }
+
+/// Scanned marker paths, with each marker file's modification time if known.
+type MarkerTimes = HashMap<Vec<Component>, Option<Timestamp>>;
 
 /// Scanned paths that can serve as a project location's marker, gathered by
 /// [`Matcher::add_markers`] from any number of scan chunks.
@@ -202,7 +226,7 @@ impl Resolved<'_> {
 /// matcher's platform: use a set only with the [`Matcher`] that filled it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Markers {
-    paths: HashSet<Vec<Component>>,
+    paths: MarkerTimes,
 }
 
 impl Markers {
@@ -277,9 +301,9 @@ impl KnowledgeBase {
         }
     }
 
-    /// `KnowledgeBaseMatch` evidence for every scanned file or directory that is
-    /// one of this knowledge base's locations in `env`, at most once per object
-    /// and entry, in scan order. Markers are looked up in `scanned` itself; to
+    /// `KnowledgeBaseMatch` evidence (and, for a project, `ProjectActivity`)
+    /// for every scanned file or directory that is one of this knowledge base's
+    /// locations in `env`, at most once per object and entry, in scan order. Markers are looked up in `scanned` itself; to
     /// match a scan in chunks, use [`KnowledgeBase::matcher`].
     pub fn matches(
         &self,
@@ -320,7 +344,7 @@ impl KnowledgeBase {
             || (folders.len() == 1
                 && configured
                     .iter()
-                    .any(|r| r.matches(&names, &HashSet::new())))
+                    .any(|r| r.matches(&names, &HashMap::new())))
     }
 }
 
@@ -337,13 +361,13 @@ impl Matcher<'_> {
                         && last_component(&entry.path, self.platform)
                             .is_some_and(|name| self.marker_names.contains(&name))
                 })
-                .map(|entry| components(&entry.path, self.platform)),
+                .map(|entry| (components(&entry.path, self.platform), entry.times.modified)),
         );
     }
 
-    /// Pass 2: `KnowledgeBaseMatch` evidence for every file or directory in
-    /// `chunk` that is one of the knowledge base's locations, at most once per
-    /// object and entry, in chunk order. `markers` must hold the markers of the
+    /// Pass 2: `KnowledgeBaseMatch` and `ProjectActivity` evidence for every
+    /// file or directory in `chunk` that is one of the knowledge base's
+    /// locations, at most once per object and entry, in chunk order. `markers` must hold the markers of the
     /// whole scan, gathered by this matcher; a marker missing from it is
     /// unknown, so its project location does not match.
     #[must_use]
@@ -378,22 +402,30 @@ impl Matcher<'_> {
             if !matches!(object.kind, EntryKind::File | EntryKind::Directory) {
                 continue;
             }
-            let ids: BTreeSet<&str> = self
+            let matched: Vec<&Resolved<'_>> = self
                 .resolved
                 .iter()
                 .filter(|r| r.kind.is_none_or(|kind| kind.matches(object.kind)))
                 .filter(|r| r.matches(names, &markers.paths))
-                .map(|r| r.entry.id.as_str())
                 .collect();
-            for id in ids {
-                let Ok(entry) = SourceName::new(id) else {
-                    continue;
-                };
+            let ids: BTreeSet<&str> = matched.iter().map(|r| r.entry.id.as_str()).collect();
+            let facts = ids
+                .into_iter()
+                .filter_map(|id| SourceName::new(id).ok())
+                .map(|entry| Fact::KnowledgeBaseMatch { entry })
+                .chain(
+                    matched
+                        .iter()
+                        .filter_map(|r| r.activity(names, &markers.paths))
+                        .max()
+                        .map(Fact::ProjectActivity),
+                );
+            for fact in facts {
                 found.push(Evidence {
                     subject: Subject::File {
                         identity: object.identity().clone(),
                     },
-                    fact: Fact::KnowledgeBaseMatch { entry },
+                    fact,
                     basis: Basis::Observed,
                     provenance: Provenance {
                         source: source.clone(),
@@ -1906,6 +1938,63 @@ mod tests {
             ],
         );
         assert_eq!(found, [(1, "sample-build".to_owned())]);
+    }
+
+    #[test]
+    fn a_matched_project_records_its_newest_marker_time() {
+        const LOCKED: &str = r#"{
+            "id": "locked-build",
+            "tool": "Sample",
+            "locations": [
+                {"platforms": ["linux"], "root": {"kind": "project"}, "path": "target", "markers": ["Cargo.toml", "Cargo.lock"]},
+                {"platforms": ["linux"], "root": {"kind": "home"}, "path": ".cache/locked"}
+            ],
+            "safety_class": "regenerable",
+            "regeneration": {"effort": "minutes", "network": false},
+            "sources": ["https://example.com/docs"],
+            "last_verified": "2026-10-14"
+        }"#;
+        let kb = KnowledgeBase::load(&[("locked-build.json", LOCKED)])
+            .unwrap_or_else(|_| unreachable!());
+        let at = |secs| Timestamp::from_unix(secs, 0).unwrap_or_else(|_| unreachable!());
+        let marker = |path: &str, ino, modified| {
+            let mut entry = object(unix(path), EntryKind::File, ino);
+            entry.times.modified = modified;
+            entry
+        };
+        let scanned = [
+            dir("/src/app/target", 1),
+            marker("/src/app/Cargo.toml", 2, Some(at(100))),
+            marker("/src/app/Cargo.lock", 3, Some(at(300))),
+            dir("/src/old/target", 4),
+            marker("/src/old/Cargo.toml", 5, None),
+            dir("/Users/ana/.cache/locked", 6),
+        ];
+        let activity: Vec<(u128, Timestamp)> = kb
+            .matches(&env(Platform::Linux), &scanned, Timestamp::UNIX_EPOCH)
+            .into_iter()
+            .filter_map(|e| match (e.subject, e.fact) {
+                (Subject::File { identity }, Fact::ProjectActivity(at)) => {
+                    Some((identity.file.get(), at))
+                }
+                _ => None,
+            })
+            .collect();
+        // The newest marker's time; a project whose marker has no time and a
+        // location outside any project get none.
+        assert_eq!(activity, [(1, at(300))]);
+        let (targets, markers) = (&scanned[..1], &scanned[1..]);
+        let linux = env(Platform::Linux);
+        let matcher = kb.matcher(&linux);
+        let mut gathered = Markers::new();
+        matcher.add_markers(markers, &mut gathered);
+        matcher.add_markers(targets, &mut gathered);
+        assert!(
+            matcher
+                .matches(targets, &gathered, Timestamp::UNIX_EPOCH)
+                .iter()
+                .any(|e| e.fact == Fact::ProjectActivity(at(300)))
+        );
     }
 
     #[test]
