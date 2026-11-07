@@ -69,3 +69,4 @@ recommended option.
 | [0058](0058-reassess-chosen-items-with-fresh-read-only-evidence.md) | Reassess chosen items with fresh read-only evidence | Accepted |
 | [0059](0059-use-application-usage-as-cautious-evidence.md) | Use application usage only as cautious, explained evidence | Accepted |
 | [0060](0060-list-software-and-remove-it-only-through-its-own-mechanism.md) | List installed software, and remove it only through its own mechanism | Accepted |
+| [0061](0061-send-installed-software-to-ai-review.md) | While AI review is on, it also explains installed software | Accepted |
