@@ -29,6 +29,13 @@ windows-sys = { workspace = true, features = [
   "Win32_System_Services",
   "Win32_System_Threading",
 ] }
+# MSIX packages through `PackageManager` (#806), a WinRT API that
+# `windows-sys` does not bind; the same version Tauri already uses.
+windows = { workspace = true, features = [
+  "ApplicationModel",
+  "Foundation_Collections",
+  "Management_Deployment",
+] }
 
 [dev-dependencies]
 proptest.workspace = true

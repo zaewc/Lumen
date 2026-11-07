@@ -19,6 +19,7 @@ pub mod entry;
 mod handle;
 #[cfg(windows)]
 mod installed;
+pub mod msix;
 pub mod notify;
 #[cfg(windows)]
 mod registry;
