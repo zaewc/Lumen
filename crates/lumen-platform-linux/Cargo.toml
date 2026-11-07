@@ -1,6 +1,6 @@
 [package]
 name = "lumen-platform-linux"
-description = "Lumen's Linux platform adapter: content reads for duplicate analysis."
+description = "Lumen's Linux platform adapter: content reads for duplicate analysis and installed packages."
 edition.workspace = true
 rust-version.workspace = true
 version.workspace = true

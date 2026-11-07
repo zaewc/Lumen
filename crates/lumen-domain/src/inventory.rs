@@ -249,6 +249,16 @@ pub enum PackageManager {
     Winget,
     /// Android package manager.
     Android,
+    /// Debian's `dpkg` (and `apt` over it).
+    Dpkg,
+    /// RPM (and `dnf` over it).
+    Rpm,
+    /// Arch Linux's `pacman`.
+    Pacman,
+    /// Flatpak.
+    Flatpak,
+    /// Snap.
+    Snap,
 }
 
 /// A package recorded by an installer or package manager.
@@ -262,6 +272,13 @@ pub struct Package {
     pub version: Option<UntrustedText>,
     /// Install root, if the manager reports one.
     pub install_root: Option<RawPath>,
+    /// The manager marks it as part of the base system (dpkg `Essential: yes`
+    /// or `Priority: required`): never removable from Lumen (ADR-0060).
+    /// `false` where the manager has no such mark.
+    pub required: bool,
+    /// Whether it was installed on request rather than as another package's
+    /// dependency; `None` where the manager's record does not say.
+    pub explicit: Option<bool>,
 }
 
 #[cfg(test)]
@@ -345,6 +362,8 @@ mod tests {
             id: UntrustedText::new("com.example.pkg"),
             version: Some(UntrustedText::new("1.2")),
             install_root: None,
+            required: false,
+            explicit: Some(true),
         };
         let json = serde_json::to_string(&package)?;
         assert_eq!(serde_json::from_str::<Package>(&json)?, package);
