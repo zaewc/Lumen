@@ -84,6 +84,11 @@ use utoipa::OpenApi;
         views::ReassessOutcomeView,
         views::ReassessedItemView,
         views::ReassessView,
+        views::SoftwareOriginView,
+        views::SoftwareSourceStateView,
+        views::SoftwareSourceView,
+        views::SoftwareItemView,
+        views::SoftwareView,
     ))
 )]
 pub struct ApiDoc;

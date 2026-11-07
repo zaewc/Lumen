@@ -570,6 +570,65 @@ export const zQuarantineReportView = z.object({
 });
 
 /**
+ * Which inventory recorded a piece of software, and so how it is identified.
+ */
+export const zSoftwareOriginView = z.enum([
+  "mac_app",
+  "mac_installer",
+  "homebrew",
+  "homebrew_cask",
+  "windows_program",
+  "msix",
+  "dpkg",
+  "rpm",
+  "pacman",
+  "flatpak",
+  "snap",
+  "other",
+]);
+
+/**
+ * One application or package.
+ */
+export const zSoftwareItemView = z.object({
+  explicit: z.boolean().nullable(),
+  hidden: z.boolean(),
+  id: z.string(),
+  key: z.string(),
+  location: z.string().nullable(),
+  name: z.string().nullable(),
+  origin: zSoftwareOriginView,
+  protected: z.boolean(),
+  vendor: z.string().nullable(),
+  version: z.string().nullable(),
+});
+
+/**
+ * How completely one inventory was read.
+ */
+export const zSoftwareSourceStateView = z.enum(["complete", "partial", "unavailable"]);
+
+/**
+ * One inventory and how completely it was read.
+ */
+export const zSoftwareSourceView = z.object({
+  count: z
+    .int()
+    .gte(0)
+    .max(2147483647, { error: "Invalid value: Expected int32 to be <= 2147483647" }),
+  source: z.string(),
+  state: zSoftwareSourceStateView,
+});
+
+/**
+ * The installed software list.
+ */
+export const zSoftwareView = z.object({
+  items: z.array(zSoftwareItemView),
+  sources: z.array(zSoftwareSourceView),
+});
+
+/**
  * Observed free space on one volume, not a causal cleanup guarantee.
  */
 export const zSpaceChangeView = z.object({

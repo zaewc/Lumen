@@ -1078,6 +1078,108 @@ export type SkipView =
   | "manifest";
 
 /**
+ * One application or package.
+ */
+export type SoftwareItemView = {
+  /**
+   * Whether it was installed on request rather than as another package's
+   * dependency; `None` where the record does not say.
+   */
+  explicit: boolean | null;
+  /**
+   * The platform's own list hides it (Windows `SystemComponent`).
+   */
+  hidden: boolean;
+  /**
+   * Its native identifier, display-escaped.
+   */
+  id: string;
+  /**
+   * A key unique in the list: the origin and the native identifier.
+   */
+  key: string;
+  /**
+   * Where it is installed, if recorded; display-escaped.
+   */
+  location: string | null;
+  /**
+   * Its display name, if the record has one; display-escaped.
+   */
+  name: string | null;
+  /**
+   * Which inventory recorded it.
+   */
+  origin: SoftwareOriginView;
+  /**
+   * Part of the operating system or marked by its platform as not
+   * removable: never removable from Lumen (ADR-0060).
+   */
+  protected: boolean;
+  /**
+   * Its publisher or vendor, as recorded; display-escaped.
+   */
+  vendor: string | null;
+  /**
+   * Its version, as recorded; display-escaped.
+   */
+  version: string | null;
+};
+
+/**
+ * Which inventory recorded a piece of software, and so how it is identified.
+ */
+export type SoftwareOriginView =
+  | "mac_app"
+  | "mac_installer"
+  | "homebrew"
+  | "homebrew_cask"
+  | "windows_program"
+  | "msix"
+  | "dpkg"
+  | "rpm"
+  | "pacman"
+  | "flatpak"
+  | "snap"
+  | "other";
+
+/**
+ * How completely one inventory was read.
+ */
+export type SoftwareSourceStateView = "complete" | "partial" | "unavailable";
+
+/**
+ * One inventory and how completely it was read.
+ */
+export type SoftwareSourceView = {
+  /**
+   * How many rows it gave.
+   */
+  count: number;
+  /**
+   * The inventory's name, such as `macos.homebrew`.
+   */
+  source: string;
+  /**
+   * How completely it was read.
+   */
+  state: SoftwareSourceStateView;
+};
+
+/**
+ * The installed software list.
+ */
+export type SoftwareView = {
+  /**
+   * Every application and package, by name.
+   */
+  items: Array<SoftwareItemView>;
+  /**
+   * Every inventory read, with how completely.
+   */
+  sources: Array<SoftwareSourceView>;
+};
+
+/**
  * Observed free space on one volume, not a causal cleanup guarantee.
  */
 export type SpaceChangeView = {

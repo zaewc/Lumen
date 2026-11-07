@@ -30,6 +30,7 @@ mod facts;
 mod fixture;
 mod reassess;
 mod relations;
+mod software;
 mod times;
 
 pub use duplicates::{
@@ -41,6 +42,9 @@ pub use reassess::{
     candidate_id,
 };
 pub use relations::{MAX_RELATIONS, NodeView, RelationKindView, RelationView, RelationsView};
+pub use software::{
+    SoftwareItemView, SoftwareOriginView, SoftwareSourceStateView, SoftwareSourceView, SoftwareView,
+};
 pub use times::{TimeView, TimesView};
 
 fn bytes(count: ByteCount) -> String {

@@ -1986,6 +1986,155 @@
           "manifest"
         ]
       },
+      "SoftwareItemView": {
+        "type": "object",
+        "description": "One application or package.",
+        "required": [
+          "key",
+          "origin",
+          "id",
+          "name",
+          "version",
+          "vendor",
+          "location",
+          "protected",
+          "hidden",
+          "explicit"
+        ],
+        "properties": {
+          "explicit": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether it was installed on request rather than as another package's\ndependency; `None` where the record does not say."
+          },
+          "hidden": {
+            "type": "boolean",
+            "description": "The platform's own list hides it (Windows `SystemComponent`)."
+          },
+          "id": {
+            "type": "string",
+            "description": "Its native identifier, display-escaped."
+          },
+          "key": {
+            "type": "string",
+            "description": "A key unique in the list: the origin and the native identifier."
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where it is installed, if recorded; display-escaped."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its display name, if the record has one; display-escaped."
+          },
+          "origin": {
+            "$ref": "#/components/schemas/SoftwareOriginView",
+            "description": "Which inventory recorded it."
+          },
+          "protected": {
+            "type": "boolean",
+            "description": "Part of the operating system or marked by its platform as not\nremovable: never removable from Lumen (ADR-0060)."
+          },
+          "vendor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its publisher or vendor, as recorded; display-escaped."
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its version, as recorded; display-escaped."
+          }
+        }
+      },
+      "SoftwareOriginView": {
+        "type": "string",
+        "description": "Which inventory recorded a piece of software, and so how it is identified.",
+        "enum": [
+          "mac_app",
+          "mac_installer",
+          "homebrew",
+          "homebrew_cask",
+          "windows_program",
+          "msix",
+          "dpkg",
+          "rpm",
+          "pacman",
+          "flatpak",
+          "snap",
+          "other"
+        ]
+      },
+      "SoftwareSourceStateView": {
+        "type": "string",
+        "description": "How completely one inventory was read.",
+        "enum": [
+          "complete",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "SoftwareSourceView": {
+        "type": "object",
+        "description": "One inventory and how completely it was read.",
+        "required": [
+          "source",
+          "state",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many rows it gave.",
+            "minimum": 0
+          },
+          "source": {
+            "type": "string",
+            "description": "The inventory's name, such as `macos.homebrew`."
+          },
+          "state": {
+            "$ref": "#/components/schemas/SoftwareSourceStateView",
+            "description": "How completely it was read."
+          }
+        }
+      },
+      "SoftwareView": {
+        "type": "object",
+        "description": "The installed software list.",
+        "required": [
+          "items",
+          "sources"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SoftwareItemView"
+            },
+            "description": "Every application and package, by name."
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SoftwareSourceView"
+            },
+            "description": "Every inventory read, with how completely."
+          }
+        }
+      },
       "SpaceChangeView": {
         "type": "object",
         "description": "Observed free space on one volume, not a causal cleanup guarantee.",
