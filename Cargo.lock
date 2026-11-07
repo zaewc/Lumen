@@ -2410,6 +2410,7 @@ dependencies = [
 name = "lumen-application"
 version = "0.9.4"
 dependencies = [
+ "blake3",
  "lumen-domain",
  "lumen-graph",
  "lumen-policy",
