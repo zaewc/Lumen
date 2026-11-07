@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import explainSource from "../../../../../crates/lumen-policy/src/explain.rs?raw";
 import { en, type GlossaryTerm, type Messages } from "./en";
 import { countFormat, formatDateTime } from "./format";
+import { fr } from "./fr";
 import { ko } from "./ko";
 import { detectLocale, LOCALE_NAMES, LOCALES, parseLocale } from "./locale";
 import { aiNoteText, MESSAGES, reasonText, reviewReasonText } from "./messages";
@@ -158,7 +159,7 @@ describe("catalogs", () => {
 
 describe("detectLocale", () => {
   it("supports the same languages as the site", () => {
-    expect(LOCALES).toEqual(["ko", "en", "ru", "ja", "zh-CN", "es"]);
+    expect(LOCALES).toEqual(["ko", "en", "ru", "ja", "zh-CN", "es", "fr"]);
     for (const locale of LOCALES) {
       expect(parseLocale(locale)).toBe(locale);
       expect(LOCALE_NAMES[locale]).not.toBe("");
@@ -167,7 +168,7 @@ describe("detectLocale", () => {
 
   it("takes the first supported language the user prefers", () => {
     expect(detectLocale(["ko-KR", "en"])).toBe("ko");
-    expect(detectLocale(["fr", "ko"])).toBe("ko");
+    expect(detectLocale(["fr", "ko"])).toBe("fr");
     expect(detectLocale(["en-US", "ko-KR"])).toBe("en");
     expect(detectLocale(["ru-RU", "ja"])).toBe("ru");
     expect(detectLocale(["zh-CN", "es"])).toBe("zh-CN");
@@ -177,7 +178,8 @@ describe("detectLocale", () => {
     expect(detectLocale(["zh-TW", "es"])).toBe("es");
     expect(detectLocale(["es-MX", "ru"])).toBe("es");
     expect(detectLocale(["ja-JP", "ru"])).toBe("ja");
-    expect(detectLocale(["fr"])).toBe("en");
+    expect(detectLocale(["fr"])).toBe("fr");
+    expect(detectLocale(["fr-FR"])).toBe("fr");
     expect(detectLocale(["kok"])).toBe("en");
     expect(detectLocale([])).toBe("en");
   });
@@ -213,7 +215,9 @@ describe("locale storage", () => {
     expect(storedLocale()).toBe("ko");
     storeLocale("zh-CN");
     expect(storedLocale()).toBe("zh-CN");
-    items.set("lumen.locale", "fr");
+    storeLocale("fr");
+    expect(storedLocale()).toBe("fr");
+    items.set("lumen.locale", "invalid");
     expect(storedLocale()).toBeNull();
   });
 });
@@ -250,6 +254,7 @@ describe("plain words", () => {
     expect(ko.held.days(30)).toBe("30일");
     expect(en.common.items(1)).toBe("1 item");
     expect(ko.common.items(2)).toBe("항목 2개");
+    expect(fr.common.items(2)).toBe("2 éléments");
   });
 });
 

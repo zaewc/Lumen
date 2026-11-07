@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Switch, Text, View } from "react-native";
 import { type Analysis, coreVersion } from "../modules/lumen-core";
 import { type FrameStats, frameStats } from "./frameProbe";
+import { locale, messages } from "./i18n";
 import { TOUCH, type, useColors } from "./theme";
 import { space } from "./ui";
 
@@ -27,24 +28,33 @@ export function Stats({
   return (
     <View style={[styles.panel, { borderColor: c.line }]}>
       <Text style={line}>
-        JS frames/s {stats.frames} · p50 {stats.p50.toFixed(1)} ms · p95 {stats.p95.toFixed(1)} ms ·
-        dropped {(stats.dropped * 100).toFixed(1)}%
+        {messages.jsFramesPerSecond} {stats.frames} · {messages.p50} {stats.p50.toFixed(1)} ms ·{" "}
+        {messages.p95} {stats.p95.toFixed(1)} ms · {messages.dropped}{" "}
+        {(stats.dropped * 100).toFixed(1)}%
       </Text>
       {analysis !== null && (
         <Text style={line}>
-          {analysis.analyzed} analyzed · {analysis.groups.length} groups · prints {analysis.printMs}{" "}
-          ms · grouping {analysis.groupMs} ms
-          {analysis.cancelled ? " · cancelled" : ""}
+          {analysis.analyzed} {messages.analyzed} ·{" "}
+          {messages.groupCount(
+            new Intl.NumberFormat(locale).format(analysis.groups.length),
+            analysis.groups.length,
+          )}{" "}
+          · {messages.prints} {analysis.printMs} ms · {messages.grouping} {analysis.groupMs} ms
+          {analysis.cancelled ? ` · ${messages.cancelled}` : ""}
         </Text>
       )}
-      <Text style={line}>Core {version}</Text>
+      <Text style={line}>
+        {messages.core} {version}
+      </Text>
       <View style={styles.row}>
-        <Text style={[type.footnote, { color: c.ink }]}>Repeat to 50,000</Text>
+        <Text style={[type.footnote, { color: c.ink }]}>
+          {messages.repeatTo(new Intl.NumberFormat(locale).format(50_000))}
+        </Text>
         <Switch
           value={repeat}
           onValueChange={onRepeat}
           trackColor={{ true: c.accent, false: c.fill }}
-          accessibilityLabel="Repeat the library to 50,000 items"
+          accessibilityLabel={messages.repeatAccessibilityLabel}
         />
       </View>
     </View>

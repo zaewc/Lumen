@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { type Analysis, analyze } from "../modules/lumen-core";
 import { count, type Photo, page, requestAccess } from "../modules/lumen-photos";
+import { locale, messages } from "./i18n";
 import { Material } from "./Material";
 import { Stats } from "./Stats";
 import { type, useColors } from "./theme";
@@ -52,13 +53,14 @@ type Item =
 type Show = "all" | "similar";
 
 const SHOW = [
-  { value: "all", label: "All" },
-  { value: "similar", label: "Similar" },
+  { value: "all", label: messages.all },
+  { value: "similar", label: messages.similar },
 ] as const;
 
 const NONE: readonly Photo[] = [];
-const number = new Intl.NumberFormat("en");
-const photos = (n: number) => `${number.format(n)} ${n === 1 ? "photo" : "photos"}`;
+const number = new Intl.NumberFormat(locale);
+const photos = (n: number) =>
+  `${number.format(n)} ${n === 1 ? "photo" : messages.photos.toLowerCase()}`;
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 /** Asks for access, then lists the library, newest first, in native pages. */
@@ -191,7 +193,7 @@ export function ReviewGrid() {
         case "group":
           return (
             <Text style={[type.footnote, styles.group, { color: c.ink2 }]}>
-              {number.format(item.size)} similar photos
+              {number.format(item.size)} {messages.similarPhotos}
             </Text>
           );
       }
@@ -203,7 +205,7 @@ export function ReviewGrid() {
     <Material style={styles.header}>
       <View style={styles.fill}>
         <Text accessibilityRole="header" style={[type.largeTitle, { color: c.ink }]}>
-          Photos
+          {messages.photos}
         </Text>
         {subtitle !== undefined && (
           <Text style={[type.footnote, { color: c.ink2 }]}>{subtitle}</Text>
@@ -218,7 +220,7 @@ export function ReviewGrid() {
       return (
         <View style={styles.fill}>
           {header()}
-          <Message title="Loading photos…" busy={<ActivityIndicator color={c.ink3} />} />
+          <Message title={messages.loadingPhotos} busy={<ActivityIndicator color={c.ink3} />} />
         </View>
       );
     case "denied":
@@ -226,9 +228,11 @@ export function ReviewGrid() {
         <View style={styles.fill}>
           {header()}
           <Message
-            title="Photo access is off"
-            body="To see your photos here, allow Lumen to read your photo library in Settings. Lumen changes nothing without asking you first."
-            action={<Button label="Open Settings" onPress={() => void Linking.openSettings()} />}
+            title={messages.photoAccessOff}
+            body={messages.photoAccessBody}
+            action={
+              <Button label={messages.openSettings} onPress={() => void Linking.openSettings()} />
+            }
           />
         </View>
       );
@@ -237,9 +241,9 @@ export function ReviewGrid() {
         <View style={styles.fill}>
           {header()}
           <Message
-            title="Lumen could not load your photos"
+            title={messages.loadPhotosFailed}
             body={library.message}
-            action={<Button label="Try again" onPress={load} />}
+            action={<Button label={messages.tryAgain} onPress={load} />}
           />
         </View>
       );
@@ -251,24 +255,30 @@ export function ReviewGrid() {
     return (
       <View style={styles.fill}>
         {header()}
-        <Message title="No photos yet" body="Photos you take or save show up here." />
+        <Message title={messages.noPhotos} body={messages.noPhotosBody} />
       </View>
     );
   }
 
-  let subtitle = `${photos(all.length)}${library.limited ? " you selected" : ""}`;
+  let subtitle = `${photos(all.length)}${library.limited ? ` ${messages.selected}` : ""}`;
   if (grouping) {
     const members = items.length - analysis.groups.length;
-    subtitle = `${photos(members)} in ${number.format(analysis.groups.length)} groups`;
+    subtitle = `${photos(members)} · ${messages.groupCount(
+      number.format(analysis.groups.length),
+      analysis.groups.length,
+    )}`;
   } else if (repeat) {
-    subtitle = `${number.format(items.length)} items, repeated from ${photos(all.length)}`;
+    subtitle = messages.repeatFrom(number.format(items.length), photos(all.length));
   }
 
   return (
     <View style={styles.fill}>
       {header(
         subtitle,
-        <TextButton label={stats ? "Hide stats" : "Stats"} onPress={() => setStats((on) => !on)} />,
+        <TextButton
+          label={stats ? messages.hideStats : messages.stats}
+          onPress={() => setStats((on) => !on)}
+        />,
       )}
       {stats && <Stats analysis={analysis} repeat={repeat} onRepeat={setRepeat} />}
       <View style={styles.fill}>
@@ -287,19 +297,19 @@ export function ReviewGrid() {
         />
       </View>
       <Material style={[styles.bar, hairline(c)]}>
-        {similar.state === "idle" && <Button label="Find similar photos" onPress={findSimilar} />}
+        {similar.state === "idle" && <Button label={messages.findSimilar} onPress={findSimilar} />}
         {similar.state === "running" && (
           <View style={styles.status}>
             <ActivityIndicator color={c.accent} />
-            <Text style={[type.body, { color: c.ink }]}>Finding similar photos…</Text>
+            <Text style={[type.body, { color: c.ink }]}>{messages.findingSimilar}</Text>
           </View>
         )}
         {similar.state === "failed" && (
           <>
             <Text style={[type.footnote, { color: c.ink2 }]}>
-              Lumen could not find similar photos: {similar.message}
+              {messages.similarFailed(similar.message)}
             </Text>
-            <Button label="Try again" onPress={findSimilar} />
+            <Button label={messages.tryAgain} onPress={findSimilar} />
           </>
         )}
         {similar.state === "done" && (
@@ -308,7 +318,7 @@ export function ReviewGrid() {
               <Text style={[type.footnote, styles.fill, { color: c.ink2 }]}>
                 {summary(similar.analysis)}
               </Text>
-              <TextButton label="Search again" onPress={findSimilar} />
+              <TextButton label={messages.searchAgain} onPress={findSimilar} />
             </View>
             {similar.analysis.groups.length > 0 && (
               <Segmented options={SHOW} value={show} onChange={setShow} />
@@ -323,12 +333,9 @@ export function ReviewGrid() {
 /** "12 groups of similar photos · 5,000 checked". */
 function summary(analysis: Analysis): string {
   const n = analysis.groups.length;
-  const found =
-    n === 0
-      ? "No similar photos found"
-      : `${number.format(n)} ${n === 1 ? "group" : "groups"} of similar photos`;
-  const stopped = analysis.cancelled ? " · stopped early" : "";
-  return `${found} · ${number.format(analysis.analyzed)} checked${stopped}`;
+  const found = n === 0 ? messages.noSimilarFound : messages.similarGroupCount(number.format(n), n);
+  const stopped = analysis.cancelled ? ` · ${messages.stoppedEarly}` : "";
+  return `${found} · ${number.format(analysis.analyzed)} ${messages.checked}${stopped}`;
 }
 
 const styles = StyleSheet.create({

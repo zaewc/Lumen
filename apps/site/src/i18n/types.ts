@@ -4,7 +4,7 @@
 import type { PlatformId } from "../data/release";
 import type { ClientStrings } from "./client";
 
-export type Locale = "ko" | "en" | "ru" | "ja" | "zh-CN" | "es";
+export type Locale = "ko" | "en" | "ru" | "ja" | "zh-CN" | "es" | "fr";
 
 /** A run of text with a little inline markup, rendered by Rich.astro. */
 export type Inline =

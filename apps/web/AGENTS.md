@@ -13,7 +13,7 @@ dashboard. Feature-Sliced Design: `app` → `pages` → `widgets` → `entities`
   run `just gen`, then `pnpm --filter @lumen/api-client generate`; never edit
   `packages/api-client/src/gen/` by hand.
 - Every user-facing string is in `src/shared/i18n/`, with the same keys in every
-  locale (`en`, `ko`, `ja`, `zh-CN`, `es`, `ru`); the tests fail otherwise. Words and
+  locale (`en`, `ko`, `ja`, `zh-CN`, `es`, `ru`, `fr`); the tests fail otherwise. Words and
   tone follow [`docs/design/ux-writing.md`](../../docs/design/ux-writing.md)
   (Korean: 해요체), and screens follow
   [`docs/design/ui-principles.md`](../../docs/design/ui-principles.md).

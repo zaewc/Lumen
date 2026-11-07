@@ -1,6 +1,7 @@
 import type { AiNoteView, ReasonView } from "@lumen/api-client";
 import { en, type Messages } from "./en";
 import { es } from "./es";
+import { fr } from "./fr";
 import { ja } from "./ja";
 import { ko } from "./ko";
 import type { Locale } from "./locale";
@@ -16,6 +17,7 @@ export const MESSAGES: { readonly [L in Locale]: Messages } = {
   ja,
   "zh-CN": zhCN,
   es,
+  fr,
 };
 
 /**

@@ -31,7 +31,7 @@ export type ClientStrings = Readonly<Record<ClientKey, string>>;
 const clientStrings = z
   .record(z.enum(CLIENT_KEYS), z.string())
   .refine((strings) =>
-    ["ko-KR", "en-US", "ru-RU", "ja-JP", "zh-CN", "es-ES"].includes(strings.dateLocale),
+    ["ko-KR", "en-US", "ru-RU", "ja-JP", "zh-CN", "es-ES", "fr-FR"].includes(strings.dateLocale),
   );
 
 export function parseClientStrings(raw: string | undefined): ClientStrings | null {

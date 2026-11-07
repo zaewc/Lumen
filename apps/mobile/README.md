@@ -33,3 +33,8 @@ The existing photo review layout uses the shared [mobile material rules](../../d
 `modules/lumen-material` supplies the iOS chrome's adaptive UIKit background;
 Android uses an opaque tinted fallback. Rebuild the native app after changing this
 module. The photo grid stays opaque and keeps the existing frame-time probe.
+
+## Interface language
+
+The app follows the device language when it is French; other languages currently
+use English.

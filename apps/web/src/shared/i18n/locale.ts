@@ -1,5 +1,5 @@
 /** The languages the UI is translated into. */
-export const LOCALES = ["ko", "en", "ru", "ja", "zh-CN", "es"] as const;
+export const LOCALES = ["ko", "en", "ru", "ja", "zh-CN", "es", "fr"] as const;
 
 export type Locale = (typeof LOCALES)[number];
 
@@ -11,6 +11,7 @@ export const LOCALE_NAMES: { readonly [L in Locale]: string } = {
   ja: "日本語",
   "zh-CN": "简体中文",
   es: "Español",
+  fr: "Français",
 };
 
 /** A locale named exactly by `value`, or `null`. */
