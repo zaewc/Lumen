@@ -134,7 +134,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 65);
+        assert_eq!(schemas, 70);
     }
 
     #[test]
