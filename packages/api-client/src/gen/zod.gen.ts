@@ -518,6 +518,45 @@ export const zScanView = z.object({
 });
 
 /**
+ * What kind of background item.
+ */
+export const zServiceKindView = z.enum([
+  "launch_agent",
+  "launch_daemon",
+  "login_item",
+  "windows_service",
+  "driver",
+  "scheduled_task",
+  "startup_entry",
+  "other",
+]);
+
+/**
+ * The evidence linking a background item to a piece of software.
+ */
+export const zServiceLinkMethodView = z.enum([
+  "program_inside_application",
+  "label_matches_bundle_id",
+]);
+
+/**
+ * Whether a background item runs for one user or for the whole system.
+ */
+export const zServiceScopeView = z.enum(["user", "system"]);
+
+/**
+ * A background item linked to a piece of software.
+ */
+export const zLinkedServiceView = z.object({
+  ambiguous: z.boolean(),
+  kind: zServiceKindView,
+  label: z.string(),
+  method: zServiceLinkMethodView,
+  scope: zServiceScopeView,
+  verified: z.boolean(),
+});
+
+/**
  * Why a planned item was not moved.
  */
 export const zSkipView = z.enum([
@@ -599,6 +638,7 @@ export const zSoftwareItemView = z.object({
   name: z.string().nullable(),
   origin: zSoftwareOriginView,
   protected: z.boolean(),
+  services: z.array(zLinkedServiceView),
   vendor: z.string().nullable(),
   version: z.string().nullable(),
 });

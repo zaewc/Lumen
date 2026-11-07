@@ -685,6 +685,7 @@ export function memoryTransport({
         protected: false,
         hidden: false,
         explicit: null,
+        services: [],
         ...extra,
       });
       return {
@@ -704,6 +705,16 @@ export function memoryTransport({
           row("mac_installer", "com.example.driver.pkg", null, "2.4.1", { location: "/" }),
           row("mac_app", "com.example.OldEditor", "OldEditor", "3.2", {
             location: "/Applications/OldEditor.app",
+            services: [
+              {
+                kind: "launch_agent",
+                label: "com.example.OldEditor.updater",
+                scope: "user",
+                method: "program_inside_application",
+                verified: true,
+                ambiguous: false,
+              },
+            ],
           }),
           row("homebrew", "openssl@3", null, "3.5.0", {
             location: "/opt/homebrew/Cellar/openssl@3",
@@ -717,6 +728,7 @@ export function memoryTransport({
           { source: "macos.applications", state: "complete", count: 4 },
           { source: "macos.package-receipts", state: "complete", count: 1 },
           { source: "macos.homebrew", state: "complete", count: 3 },
+          { source: "macos.launchd-plists", state: "complete", count: 1 },
         ],
       };
     },

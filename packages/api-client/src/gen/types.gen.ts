@@ -645,6 +645,36 @@ export type ItemResultView =
     };
 
 /**
+ * A background item linked to a piece of software.
+ */
+export type LinkedServiceView = {
+  /**
+   * It matched other software too: this is one candidate, not the owner.
+   */
+  ambiguous: boolean;
+  /**
+   * What kind of item.
+   */
+  kind: ServiceKindView;
+  /**
+   * Its label, service name or entry name; display-escaped.
+   */
+  label: string;
+  /**
+   * The evidence for the link.
+   */
+  method: ServiceLinkMethodView;
+  /**
+   * User or system.
+   */
+  scope: ServiceScopeView;
+  /**
+   * The link is proven: its program lies inside this software and no other.
+   */
+  verified: boolean;
+};
+
+/**
  * Where an item is after a failure.
  */
 export type LocationView = "source" | "quarantine" | "gone";
@@ -1066,6 +1096,29 @@ export type ScanView = {
 };
 
 /**
+ * What kind of background item.
+ */
+export type ServiceKindView =
+  | "launch_agent"
+  | "launch_daemon"
+  | "login_item"
+  | "windows_service"
+  | "driver"
+  | "scheduled_task"
+  | "startup_entry"
+  | "other";
+
+/**
+ * The evidence linking a background item to a piece of software.
+ */
+export type ServiceLinkMethodView = "program_inside_application" | "label_matches_bundle_id";
+
+/**
+ * Whether a background item runs for one user or for the whole system.
+ */
+export type ServiceScopeView = "user" | "system";
+
+/**
  * Why a planned item was not moved.
  */
 export type SkipView =
@@ -1116,6 +1169,10 @@ export type SoftwareItemView = {
    */
   protected: boolean;
   /**
+   * Background items linked to it, verified first.
+   */
+  services: Array<LinkedServiceView>;
+  /**
    * Its publisher or vendor, as recorded; display-escaped.
    */
   vendor: string | null;
@@ -1152,7 +1209,7 @@ export type SoftwareSourceStateView = "complete" | "partial" | "unavailable";
  */
 export type SoftwareSourceView = {
   /**
-   * How many rows it gave.
+   * How many rows, or background items, it gave.
    */
   count: number;
   /**

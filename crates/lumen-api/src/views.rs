@@ -43,7 +43,8 @@ pub use reassess::{
 };
 pub use relations::{MAX_RELATIONS, NodeView, RelationKindView, RelationView, RelationsView};
 pub use software::{
-    SoftwareItemView, SoftwareOriginView, SoftwareSourceStateView, SoftwareSourceView, SoftwareView,
+    LinkedServiceView, ServiceKindView, ServiceLinkMethodView, ServiceScopeView, SoftwareItemView,
+    SoftwareOriginView, SoftwareSourceStateView, SoftwareSourceView, SoftwareView,
 };
 pub use times::{TimeView, TimesView};
 

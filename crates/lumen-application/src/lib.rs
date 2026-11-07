@@ -31,5 +31,6 @@ pub mod reassess;
 pub mod reconcile;
 pub mod restore;
 pub mod review;
+pub mod software_links;
 
 pub use cancel::CancelToken;

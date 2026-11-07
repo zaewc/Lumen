@@ -1,5 +1,6 @@
 //! The installed software list (ADR-0060 step 3): every inventory the platform
-//! keeps of installed applications and packages, read on request. Nothing is
+//! keeps of installed applications and packages, and of the background items
+//! that may belong to them (step 2), read on request. Nothing is
 //! changed, nothing is run except the read-only queries the sources document
 //! (RPM's `rpm -qa`), and nothing leaves the device.
 
@@ -17,20 +18,28 @@ pub fn inventory(cancel: &CancelToken) -> Vec<InventoryReport> {
 #[cfg(target_os = "macos")]
 fn collect(cancel: &CancelToken) -> Vec<InventoryReport> {
     use lumen_application::ports::InventorySource as _;
-    use lumen_platform_macos::{AppInventory, HomebrewInventory, ReceiptInventory};
+    use lumen_platform_macos::{
+        AppInventory, HomebrewInventory, LaunchdInventory, ReceiptInventory,
+    };
     vec![
         AppInventory::new().collect(cancel),
         ReceiptInventory::new().collect(cancel),
         HomebrewInventory::new().collect(cancel),
+        LaunchdInventory::new().collect(cancel),
     ]
 }
 
 #[cfg(windows)]
 fn collect(cancel: &CancelToken) -> Vec<InventoryReport> {
     use lumen_application::ports::InventorySource as _;
-    use lumen_platform_windows::InstalledApps;
     use lumen_platform_windows::msix::MsixInventory;
-    vec![InstalledApps.collect(cancel), MsixInventory.collect(cancel)]
+    use lumen_platform_windows::{InstalledApps, Services, StartupEntries};
+    vec![
+        InstalledApps.collect(cancel),
+        MsixInventory.collect(cancel),
+        Services.collect(cancel),
+        StartupEntries.collect(cancel),
+    ]
 }
 
 #[cfg(target_os = "linux")]

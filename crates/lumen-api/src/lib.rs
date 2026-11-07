@@ -87,6 +87,10 @@ use utoipa::OpenApi;
         views::SoftwareOriginView,
         views::SoftwareSourceStateView,
         views::SoftwareSourceView,
+        views::ServiceKindView,
+        views::ServiceScopeView,
+        views::ServiceLinkMethodView,
+        views::LinkedServiceView,
         views::SoftwareItemView,
         views::SoftwareView,
     ))
@@ -134,7 +138,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 70);
+        assert_eq!(schemas, 74);
     }
 
     #[test]

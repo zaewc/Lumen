@@ -1282,6 +1282,44 @@
         ],
         "description": "What became of one planned item."
       },
+      "LinkedServiceView": {
+        "type": "object",
+        "description": "A background item linked to a piece of software.",
+        "required": [
+          "kind",
+          "label",
+          "scope",
+          "method",
+          "verified",
+          "ambiguous"
+        ],
+        "properties": {
+          "ambiguous": {
+            "type": "boolean",
+            "description": "It matched other software too: this is one candidate, not the owner."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ServiceKindView",
+            "description": "What kind of item."
+          },
+          "label": {
+            "type": "string",
+            "description": "Its label, service name or entry name; display-escaped."
+          },
+          "method": {
+            "$ref": "#/components/schemas/ServiceLinkMethodView",
+            "description": "The evidence for the link."
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ServiceScopeView",
+            "description": "User or system."
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "The link is proven: its program lies inside this software and no other."
+          }
+        }
+      },
       "LocationView": {
         "type": "string",
         "description": "Where an item is after a failure.",
@@ -1973,6 +2011,36 @@
           }
         }
       },
+      "ServiceKindView": {
+        "type": "string",
+        "description": "What kind of background item.",
+        "enum": [
+          "launch_agent",
+          "launch_daemon",
+          "login_item",
+          "windows_service",
+          "driver",
+          "scheduled_task",
+          "startup_entry",
+          "other"
+        ]
+      },
+      "ServiceLinkMethodView": {
+        "type": "string",
+        "description": "The evidence linking a background item to a piece of software.",
+        "enum": [
+          "program_inside_application",
+          "label_matches_bundle_id"
+        ]
+      },
+      "ServiceScopeView": {
+        "type": "string",
+        "description": "Whether a background item runs for one user or for the whole system.",
+        "enum": [
+          "user",
+          "system"
+        ]
+      },
       "SkipView": {
         "type": "string",
         "description": "Why a planned item was not moved.",
@@ -1999,7 +2067,8 @@
           "location",
           "protected",
           "hidden",
-          "explicit"
+          "explicit",
+          "services"
         ],
         "properties": {
           "explicit": {
@@ -2042,6 +2111,13 @@
           "protected": {
             "type": "boolean",
             "description": "Part of the operating system or marked by its platform as not\nremovable: never removable from Lumen (ADR-0060)."
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LinkedServiceView"
+            },
+            "description": "Background items linked to it, verified first."
           },
           "vendor": {
             "type": [
@@ -2098,7 +2174,7 @@
           "count": {
             "type": "integer",
             "format": "int32",
-            "description": "How many rows it gave.",
+            "description": "How many rows, or background items, it gave.",
             "minimum": 0
           },
           "source": {
