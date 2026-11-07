@@ -2,12 +2,13 @@
 //! `lumen_scan::StdFsEnumerator`; this crate adds what that portable enumerator
 //! must not do: reading file contents, for duplicate analysis of folders the
 //! user chose ([`DuplicateReader`], ADR-0019), and the installed packages that
-//! dpkg and pacman record ([`packages`], #806), and Flatpak applications and
-//! snaps (`sandboxed`, Linux only).
+//! dpkg and pacman record ([`packages`], #806), RPM reports ([`rpm`]), and
+//! Flatpak applications and snaps (`sandboxed`, Linux only).
 
 #[cfg(target_os = "linux")]
 mod duplicates;
 pub mod packages;
+pub mod rpm;
 #[cfg(target_os = "linux")]
 mod sandboxed;
 
