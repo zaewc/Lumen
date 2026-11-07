@@ -505,7 +505,7 @@ pub struct Assessment {
     pub inventories_complete: bool,
     /// The volumes with a quarantine store, or `None` for every volume
     /// ([`crate::Stores::volumes`], ADR-0046).
-    pub store_volumes: Option<BTreeSet<lumen_domain::VolumeId>>,
+    pub store_volumes: Option<BTreeSet<VolumeId>>,
     /// Where each installed application is, for asking whether it runs
     /// (ADR-0059); empty where the platform does not say.
     pub apps: Vec<(lumen_domain::AppId, RawPath)>,

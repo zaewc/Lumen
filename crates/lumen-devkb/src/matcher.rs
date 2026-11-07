@@ -758,12 +758,12 @@ mod tests {
             RawPath::from_windows_wide(&wide).unwrap_or_else(|_| unreachable!())
         };
         assert_ne!(
-            components(&lone(0xD800), Platform::Windows),
-            components(&lone(0xD801), Platform::Windows)
+            components(&lone(0xD800), true),
+            components(&lone(0xD801), true)
         );
         assert_eq!(
-            components(&windows(r"C:\Users\ANA"), Platform::Windows),
-            components(&windows(r"c:\users\ana"), Platform::Windows)
+            components(&windows(r"C:\Users\ANA"), true),
+            components(&windows(r"c:\users\ana"), true)
         );
     }
 
