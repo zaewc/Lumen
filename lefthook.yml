@@ -7,7 +7,7 @@ pre-commit:
   commands:
     rustfmt:
       glob: "*.rs"
-      run: cargo fmt --all --check
+      run: bash scripts/format-staged-rust.sh
     biome:
       glob: "{apps,packages}/**/*.{js,jsx,ts,tsx,json,jsonc}"
       run: pnpm exec biome check --no-errors-on-unmatched {staged_files}

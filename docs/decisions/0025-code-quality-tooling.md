@@ -62,7 +62,9 @@ TypeScript:
 
 Git hooks (lefthook):
 
-- pre-commit: format and lint staged files, gitleaks.
+- pre-commit: format and stage staged Rust files, lint staged TypeScript files,
+  gitleaks. Rust files with unstaged changes must be staged or separated before
+  formatting so unrelated work cannot enter the commit.
 - commit-msg: Conventional Commits check.
 - pre-push: clippy and cargo-deny.
 
