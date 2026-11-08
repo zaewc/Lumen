@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/readme/logo.png" width="128" height="128" alt="">
+<img src="docs/assets/readme/thumbnail.webp" width="960" alt="Lumen — 모든 기기의 저장 공간을 똑똑하게 관리해요. 노트북 목업으로 보는 앱 화면.">
 
 # Lumen
 

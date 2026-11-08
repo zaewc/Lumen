@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/readme/logo.png" width="128" height="128" alt="">
+<img src="docs/assets/readme/thumbnail.webp" width="960" alt="Lumen — 适用于各种设备的存储空间管理。笔记本电脑模型中的应用预览。">
 
 # Lumen
 

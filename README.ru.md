@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/readme/logo.png" width="128" height="128" alt="">
+<img src="docs/assets/readme/thumbnail.webp" width="960" alt="Lumen — Умное управление хранилищем на любом устройстве. Приложение на макете ноутбука.">
 
 # Lumen
 
