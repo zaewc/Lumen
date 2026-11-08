@@ -2,7 +2,10 @@
 
 - Status: Accepted (owner confirmation, 2026-11-07); rule 9 superseded in part by
   [ADR-0061](0061-send-installed-software-to-ai-review.md); on macOS, rule 2's move to the Trash is
-  replaced by [ADR-0062](0062-uninstall-macos-apps-into-quarantine.md)
+  replaced by [ADR-0062](0062-uninstall-macos-apps-into-quarantine.md); rule 6 and "no
+  privileged helper in this epic" amended by
+  [ADR-0063](0063-move-other-accounts-apps-through-a-privileged-helper.md) (macOS apps
+  owned by another account)
 - Date: 2026-11-07
 - Refines: [ADR-0005](0005-process-topology-and-privilege.md) (user scope
   first), [ADR-0020](0020-jev-evidence-only-judge.md) (AI is evidence),
