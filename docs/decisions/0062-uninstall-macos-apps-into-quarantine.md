@@ -1,12 +1,14 @@
 # ADR-0062: Uninstall a user-owned macOS app by moving it into quarantine
 
-- Status: Accepted (owner decision, 2026-11-07)
+- Status: Accepted (owner decision, 2026-11-07); rule 1 amended 2026-11-08 (running
+  check, partial in-use answers)
 - Date: 2026-11-07
 - Refines: [ADR-0060](0060-list-software-and-remove-it-only-through-its-own-mechanism.md)
   rule 2 (macOS: quarantine instead of the Trash),
   [ADR-0015](0015-quarantine-and-reversible-cleanup.md) (quarantine),
   [ADR-0034](0034-command-line-plan-confirmation.md) (confirm by hash),
-  [ADR-0051](0051-quarantine-review-items-the-user-chooses.md) (the person chooses)
+  [ADR-0051](0051-quarantine-review-items-the-user-chooses.md) (the person chooses);
+  amends [ADR-0030](0030-partial-in-use-visibility.md) condition 1 for this action
 - Issue: #809
 
 ## Context and problem statement
@@ -38,12 +40,36 @@ way does, and also makes it restorable until it is finalized.
      `Contents/Library/SystemExtensions`. Those helpers are registered with the
      system, and moving only the app would leave them behind and broken. This is
      only directory metadata; no file is read;
-   - it is not running (the process probe, ADR-0059's `ApplicationRunning`);
+   - it is not running: no process, of any user, has its executable inside the
+     bundle. Any process's executable path can be read without privileges
+     (measured 2026-11-07: 569 of 570 processes; the kernel has none), unlike its
+     open files. If one path cannot be read, the answer is unknown. A path the
+     kernel spells differently (letter case, Unicode form) is compared by
+     identity;
    - its volume has a quarantine store, so the move is a same-volume rename
      (ADR-0015).
 
    Any check that fails or cannot be answered refuses the uninstall, with the reason
    shown. Unknown is never "eligible".
+
+   **Partial in-use answers (amended 2026-11-08, owner decision).** Unprivileged,
+   the executor's in-use probe right before the move cannot read other users' open
+   files, so outside home it never answers `No`, and ADR-0030 and ADR-0046 only
+   accept `Partial` under home or on a single-user PC's other drives. For this
+   action, `Partial` also passes when all of these hold:
+   - the running check above answered "not running" for every process, checked
+     again right before the move;
+   - the item is the bundle this rule admits (user-owned, in `/Applications` or
+     `~/Applications`), and the action is the quarantine rename, never
+     finalization (which keeps ADR-0030's conditions where the item is held);
+   - the probe still sees no process using the bundle; a process of any user that
+     runs from inside it counts as using it.
+
+   An app bundle is code: whatever would break is a process running it, and those
+   are all visible by executable path. The processes whose open files stay unseen
+   are system services that read bundles briefly (Spotlight, Launch Services,
+   backup), and a same-volume rename keeps their open descriptors valid. `Yes` and
+   `Unknown` still refuse.
 2. **How.** The bundle goes through the existing executor exactly like a cleanup item:
    - it is prepared by handle from its parent folder, then journaled, renamed
      without replacing into the store, and verified;
@@ -78,3 +104,7 @@ way does, and also makes it restorable until it is finalized.
   why instead of guessing.
 - Neutral: Launch Services may still list a moved app until it next refreshes; a
   restore brings it back as it was.
+- Bad (residual risk): login items kept by Background Task Management are not
+  readable without privileges, and an app started from a translocated copy (a
+  quarantined download run where it was) reports another path. Either can leave a
+  broken item behind; restoring the app fixes it.
