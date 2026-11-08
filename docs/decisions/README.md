@@ -71,4 +71,4 @@ recommended option.
 | [0060](0060-list-software-and-remove-it-only-through-its-own-mechanism.md) | List installed software, and remove it only through its own mechanism | Accepted |
 | [0061](0061-send-installed-software-to-ai-review.md) | While AI review is on, it also explains installed software | Accepted |
 | [0062](0062-uninstall-macos-apps-into-quarantine.md) | Uninstall a user-owned macOS app by moving it into quarantine | Accepted (amended 2026-11-08) |
-| [0063](0063-move-other-accounts-apps-through-a-privileged-helper.md) | Move apps owned by another account into quarantine through a privileged helper | Accepted |
+| [0063](0063-use-administrator-rights-through-an-opt-in-helper.md) | Use administrator rights through an opt-in helper, so permissions never stand in the way | Accepted |

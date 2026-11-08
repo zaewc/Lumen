@@ -2,7 +2,7 @@
 
 - Status: Accepted (owner decision, 2026-11-07); rule 1 amended 2026-11-08 (running
   check, partial in-use answers); the owner check is extended by
-  [ADR-0063](0063-move-other-accounts-apps-through-a-privileged-helper.md) (apps owned
+  [ADR-0063](0063-use-administrator-rights-through-an-opt-in-helper.md) (apps owned
   by another account, through the privileged helper)
 - Date: 2026-11-07
 - Refines: [ADR-0060](0060-list-software-and-remove-it-only-through-its-own-mechanism.md)

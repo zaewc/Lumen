@@ -1,7 +1,7 @@
 # ADR-0005: Run user-scope only in v1; add an agent and a privileged helper later
 
-- Status: Accepted; the opt-in privileged helper is brought forward on macOS for
-  moving apps owned by another account by [ADR-0063](0063-move-other-accounts-apps-through-a-privileged-helper.md)
+- Status: Accepted; the opt-in privileged helper is brought forward on macOS and
+  Windows, for apps and system-scope files the policy allows, by [ADR-0063](0063-use-administrator-rights-through-an-opt-in-helper.md)
 - Date: 2026-10-06
 
 ## Context and problem statement
