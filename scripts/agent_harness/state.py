@@ -106,10 +106,10 @@ def conflicts(worktree):
 
 
 def inspect(worktree, directory):
-    """Retain patches losslessly; re-encode strings with UTF-8/surrogateescape."""
+    """Read and retain the actual diff, even when no agent handoff survived."""
     directory = Path(directory)
     patch = command(["git", "diff", "HEAD", "--binary", "--no-ext-diff", "--no-textconv"], worktree)
     staged = command(["git", "diff", "--cached", "--binary", "--no-ext-diff", "--no-textconv"], worktree)
-    atomic(directory / "diff.json", {"working_patch": patch.decode("utf-8", "surrogateescape"),
-                                      "staged_patch": staged.decode("utf-8", "surrogateescape")})
+    atomic(directory / "diff.json", {"working_patch": patch.decode("utf-8", "replace"),
+                                      "staged_patch": staged.decode("utf-8", "replace")})
     return git(worktree, "status", "--short", "--untracked-files=all")
