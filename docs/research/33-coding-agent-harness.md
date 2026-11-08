@@ -81,3 +81,36 @@ Baseline on 2026-11-03: no broken relative links in the root documents or `docs/
 every ADR listed in the index, the crate graph already follows §5.1, and no IO or
 `#[cfg(target_os)]` in the pure crates. A check can be added without fixing
 anything first.
+
+## Local recovery supervisor (2026-11-08)
+
+Implemented separately from the guard hooks; see
+[usage and recovery boundaries](../operations/agent-recovery.md).
+Python's standard library supplies subprocess supervision, atomic/fsynced records
+and POSIX locks without a new dependency or building the Rust application. An
+in-agent handoff alone loses edits when the agent dies; the chosen supervisor
+reads Git and durable guardian results. App Server would support live usage, but
+adds a protocol lifecycle that V1 does not need.
+
+Official OpenAI documentation confirms `codex exec --json` emits `thread.started`,
+`turn.completed` with usage, errors and item events; edits require
+`--sandbox workspace-write`. `thread/tokenUsage/updated` is an App Server event,
+not an exec CLI mid-turn usage feed. Checked against local CLI
+`0.164.0-alpha.11.1` help and the
+[non-interactive documentation](https://developers.openai.com/codex/noninteractive)
+and [App Server reference](https://developers.openai.com/codex/app-server).
+
+[GitHub CLI](https://cli.github.com/manual/gh_pr_checks) exposes current required
+checks with `--required`. GitHub says checks must pass on the latest SHA and that
+a test merge with status takes precedence over head-commit status; success,
+skipped and neutral are accepted outcomes
+([required-check troubleshooting](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)).
+The implementation additionally correlates concrete check records to target SHA,
+verifies merge parents, rereads head/base, and requires GitHub's clean merge gate.
+
+An actual read-only observation of PR #858 showed Actions checks attached to
+`b15ec28...` while the schemas job checked out `ea50907...` (the test merge).
+According to the [workflow-event reference](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows),
+`pull_request` uses the merge ref by default. The supervisor therefore verifies
+run head/base and checkout-log SHA separately; the status attachment alone does
+not attest to the code tested. Metadata-only jobs record an absent checkout SHA.
