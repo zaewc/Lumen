@@ -672,9 +672,12 @@ mod unix {
             path: planned.path.clone(),
             identity: identity.clone(),
             manifest,
-            // ADR-0030's partial answer is not accepted: the bundle need not
-            // be under the user's home.
-            partial_in_use_accepted: false,
+            // ADR-0062 (amended 2026-11-08): the gate just passed on fresh
+            // evidence, so this is the admitted user-owned bundle and every
+            // process's executable path was read with none inside it. A
+            // partial answer then only leaves other users' open files unseen,
+            // which the rename keeps working. `Yes` and `Unknown` still refuse.
+            partial_in_use_accepted: true,
         };
         Ok(
             match quarantine_item(executor, journal, computer.in_use, &ready)? {
@@ -903,6 +906,24 @@ mod tests {
         }
     }
 
+    /// The live in-use answer right before the move: `Some(false)` is `No`,
+    /// `None` is `Partial`, `Some(true)` is `Yes`.
+    struct Probe(std::sync::Mutex<Option<bool>>);
+
+    impl InUseProbe for Probe {
+        fn probe(&self, _: &RawPath, _: &FileIdentity) -> InUse {
+            match *self
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+            {
+                Some(false) => InUse::No,
+                None => InUse::Partial { unseen: Some(3) },
+                Some(true) => InUse::Yes(Vec::new()),
+            }
+        }
+    }
+
     struct TestClock(AtomicI64);
 
     impl Clock for TestClock {
@@ -973,6 +994,7 @@ mod tests {
         db: PathBuf,
         software: Fake,
         clock: TestClock,
+        in_use: Probe,
     }
 
     impl Env {
@@ -1003,6 +1025,7 @@ mod tests {
                     running: Cell::new(Some(false)),
                 },
                 db: root.join("data/index.db"),
+                in_use: Probe(std::sync::Mutex::new(Some(false))),
                 clock: TestClock(AtomicI64::new(1_800_000_000)),
                 _fixture: fixture,
                 root,
@@ -1030,7 +1053,7 @@ mod tests {
                 folders: vec![self.root.join("Applications")],
                 stores: self.stores(),
                 software: &self.software,
-                in_use: &Free,
+                in_use: &self.in_use,
                 privileged: || Ok(()),
             }
         }
@@ -1362,6 +1385,49 @@ mod tests {
         gone.software.apps.borrow_mut().clear();
         assert_eq!(gone.run(&ready)?.result, UninstallResult::Changed);
         assert!(gone.installed());
+        Ok(())
+    }
+
+    #[test]
+    fn a_partial_in_use_answer_moves_an_app_nothing_runs_from_and_a_user_keeps_it() -> TestResult {
+        // Other users' open files cannot be read: ADR-0062 accepts that once
+        // the gate found no process running from the bundle.
+        let partial = Env::eligible()?;
+        let ready = partial.ready();
+        *partial.in_use.0.lock().unwrap() = None;
+        let report = partial.run(&ready)?;
+        assert!(matches!(report.result, UninstallResult::Quarantined(_)));
+        assert!(!partial.installed());
+
+        // A process seen using the bundle still keeps it where it is.
+        let used = Env::eligible()?;
+        let ready = used.ready();
+        *used.in_use.0.lock().unwrap() = Some(true);
+        let report = used.run(&ready)?;
+        assert!(
+            matches!(
+                report.result,
+                UninstallResult::Failed {
+                    reason: QuarantineFailure::InUse,
+                    left: ItemLocation::Source,
+                }
+            ),
+            "{:?}",
+            report.result
+        );
+        assert!(used.installed());
+
+        // Unknown whether it runs: refused before the probe is asked.
+        let unknown = Env::eligible()?;
+        let ready = unknown.ready();
+        unknown.software.running.set(None);
+        *unknown.in_use.0.lock().unwrap() = None;
+        let report = unknown.run(&ready)?;
+        assert_eq!(
+            report.result,
+            UninstallResult::Refused(vec![Ineligible::RunningUnknown])
+        );
+        assert!(unknown.installed());
         Ok(())
     }
 
