@@ -259,7 +259,9 @@ pub struct Binding<'a> {
     pub path: &'a RawPath,
     /// What it is.
     pub identity: &'a FileIdentity,
-    /// What it frees.
+    /// What it frees. Bound only when [`Self::size_complete`]: an
+    /// incomplete listing (a very large app) measures differently each time,
+    /// and the path and identity still bind the bundle.
     pub reclaim: ReclaimEstimate,
     /// Every folder inside it was listed.
     pub size_complete: bool,
@@ -279,7 +281,7 @@ impl Binding<'_> {
             "version": self.version,
             "path": self.path,
             "identity": self.identity,
-            "reclaim": self.reclaim,
+            "reclaim": self.size_complete.then_some(self.reclaim),
             "size_complete": self.size_complete,
         });
         let bytes = serde_json::to_vec(&value)
