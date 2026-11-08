@@ -246,8 +246,10 @@ mod unix {
     use lumen_application::quarantine::{ConfirmedItem, Outcome, quarantine_item};
     use lumen_application::reconcile::reconcile;
     use lumen_application::software_links::link_services;
-    use lumen_application::uninstall::{Binding, BundleEvidence, decision, gate, is_uninstall};
-    use std::collections::BTreeMap;
+    use lumen_application::uninstall::{
+        Binding, BundleEvidence, GATE_VERSION, decision, gate, is_uninstall,
+    };
+    use std::collections::{BTreeMap, BTreeSet};
 
     use lumen_application::ports::{InUseProbe, InventoryReport, PreparedItem, QuarantineJournal};
     use lumen_application::uninstall::HelperFolder;
@@ -385,6 +387,94 @@ mod unix {
         (reclaim, complete)
     }
 
+    /// Programs whose job is to start other applications (`open -a X.app`).
+    /// Which app a background item running one starts is in its arguments,
+    /// which the inventory does not keep, so such an item may start any app.
+    const LAUNCHERS: [&[u8]; 1] = [b"/usr/bin/open"];
+
+    /// `path` lowercased in ASCII, followed by `/`: a prefix for anything
+    /// inside it, however a case-insensitive volume lets it be spelled.
+    fn folded_prefix(path: &[u8]) -> Vec<u8> {
+        let mut prefix = path.to_ascii_lowercase();
+        if !prefix.ends_with(b"/") {
+            prefix.push(b'/');
+        }
+        prefix
+    }
+
+    /// How many background items may run `app` (ADR-0062), or `None` when
+    /// that cannot be known.
+    ///
+    /// The list's links ([`link_services`]) only ever miss a link, which is
+    /// right for display and wrong for this gate, where a missed link passes.
+    /// So this counts those links and, on top, any item whose program lies
+    /// inside the bundle ignoring letter case, whose program is a link that
+    /// resolves inside it, or whose label starts with the bundle ID ignoring
+    /// case. An item running a launcher ([`LAUNCHERS`]) may start any app, so
+    /// the answer is unknown. Counting too many only refuses.
+    fn linked(
+        apps: &[Application],
+        app: &Application,
+        services: &InventoryReport,
+    ) -> Option<usize> {
+        if services.status != SourceStatus::Complete {
+            return None;
+        }
+        let all: Vec<&_> = apps.iter().collect();
+        let items: Vec<&_> = services.services.iter().collect();
+        let target = apps.iter().position(|a| std::ptr::eq(a, app));
+        let listed: BTreeSet<usize> = link_services(&all, &items)
+            .iter()
+            .filter(|link| Some(link.application) == target)
+            .map(|link| link.service)
+            .collect();
+        let bundles: Vec<Vec<u8>> = app
+            .install_locations
+            .iter()
+            .flat_map(|path| {
+                let canonical = std::fs::canonicalize(native(path))
+                    .ok()
+                    .and_then(|p| raw(&p));
+                [Some(path.clone()), canonical]
+            })
+            .flatten()
+            .map(|path| folded_prefix(path.as_bytes()))
+            .collect();
+        let ids: Vec<String> = bundle_id(app)
+            .map(|id| id.raw().to_ascii_lowercase())
+            .filter(|id| !id.is_empty())
+            .into_iter()
+            .collect();
+        let mut count = 0;
+        for (index, service) in services.services.iter().enumerate() {
+            let program = service.program.as_ref();
+            if program.is_some_and(|p| LAUNCHERS.contains(&p.as_bytes())) {
+                return None;
+            }
+            let inside = |path: &RawPath| {
+                let folded = path.as_bytes().to_ascii_lowercase();
+                bundles.iter().any(|bundle| folded.starts_with(bundle))
+            };
+            let resolved = program
+                .and_then(|p| std::fs::canonicalize(native(p)).ok())
+                .and_then(|p| raw(&p));
+            let label = service.label.raw().to_ascii_lowercase();
+            let named = ids.iter().any(|id| {
+                label
+                    .strip_prefix(id.as_str())
+                    .is_some_and(|rest| rest.is_empty() || rest.starts_with('.'))
+            });
+            if listed.contains(&index)
+                || program.is_some_and(inside)
+                || resolved.as_ref().is_some_and(inside)
+                || named
+            {
+                count += 1;
+            }
+        }
+        Some(count)
+    }
+
     /// The application and the gate's evidence about it, observed now.
     struct Observed {
         app: UninstallApp,
@@ -428,15 +518,7 @@ mod unix {
             .as_ref()
             .and_then(|e| UnixOwnershipProbe.owned_by_current_user(&path, e.identity()));
         let services = computer.software.services();
-        let linked_services = (services.status == SourceStatus::Complete).then(|| {
-            let all: Vec<&_> = apps.iter().collect();
-            let items: Vec<&_> = services.services.iter().collect();
-            let target = apps.iter().position(|a| std::ptr::eq(a, app));
-            link_services(&all, &items)
-                .iter()
-                .filter(|link| Some(link.application) == target)
-                .count()
-        });
+        let linked_services = linked(&apps, app, &services);
         let helpers = helpers(&bundle);
         let running = computer.software.running(&path);
         let store_on_volume = computer.stores.locations.first().and_then(|(base, _)| {
@@ -546,11 +628,14 @@ mod unix {
         if let Err(refusal) = gate(&observed.evidence) {
             return Ok(UninstallResult::Refused(refusal.reasons().to_vec()));
         }
+        // The confirmed plan body and its stored decision must agree with what
+        // is observed now; the body is what the confirmation hash covers.
         let unchanged = observed.app.path == planned.path
-            && observed.app.reclaim == planned.reclaim
-            && observed
-                .binding()
-                .is_some_and(|b| b.hash() == stored.evidence_hash())
+            && (!observed.app.size_complete || observed.app.reclaim == planned.reclaim)
+            && observed.binding().is_some_and(|b| {
+                let hash = b.hash();
+                hash == planned.evidence_hash && hash == stored.evidence_hash()
+            })
             && observed
                 .entry
                 .as_ref()
@@ -632,7 +717,14 @@ mod unix {
         let mut index = IndexStore::new(open_index(db)?);
         let stored = checked_plan(&index, plan, confirm, now)?;
         let (planned, planned_decision) = match (stored.plan.items(), stored.decisions.as_slice()) {
-            ([item], [decision]) if is_uninstall(&stored.decisions) => (item, decision),
+            ([item], [decision])
+                if is_uninstall(&stored.decisions)
+                    && item.policy_version == GATE_VERSION
+                    && item.chosen_by == Chooser::Person
+                    && item.evidence_hash == decision.evidence_hash() =>
+            {
+                (item, decision)
+            }
             _ => return Err(UninstallError::NotAnUninstall(plan)),
         };
         let _lock = lock_ledger(db, true).map_err(QuarantineError::Lock)?;
@@ -690,13 +782,16 @@ mod unix {
             Ok(result) => result,
             Err(error) => {
                 // Nothing more runs under this plan; a journal failure after
-                // the move is settled by reconciliation.
-                index.apply_plan_event(
+                // the move is settled by reconciliation. The error that
+                // stopped it is the one reported.
+                if let Err(finish) = index.apply_plan_event(
                     plan,
                     PlanEvent::Finish {
                         all_succeeded: false,
                     },
-                )?;
+                ) {
+                    tracing::warn!(%finish, "the stopped uninstall plan was not marked finished");
+                }
                 return Err(error);
             }
         };
@@ -1174,6 +1269,67 @@ mod tests {
             preview_with(&twice.computer(), &twice.db, KEY, &twice.clock, &UuidV7Ids),
             Err(UninstallError::Ambiguous)
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn a_background_item_that_may_run_the_app_by_any_route_refuses_it() -> TestResult {
+        let agent = |env: &Env, label: &str, program: PathBuf| {
+            env.software.services.borrow_mut().services.push(Service {
+                kind: ServiceKind::LaunchAgent,
+                scope: ServiceScope::User,
+                label: UntrustedText::new(label),
+                definition: None,
+                program: Some(raw(&program)),
+                enabled: None,
+                signature: None,
+            });
+        };
+        // Another spelling of the bundle's path, which a case-insensitive
+        // volume runs.
+        let shouted = Env::eligible()?;
+        let program = shouted.root.join("applications/zed.APP/Contents/MacOS/cli");
+        agent(&shouted, "com.example.sync", program);
+        // A link elsewhere to a program inside the bundle.
+        let linked = Env::new(
+            "Applications/Zed.app",
+            &[
+                Node::Dir { path: "bin".into() },
+                Node::Symlink {
+                    path: "bin/zed".into(),
+                    target: "../Applications/Zed.app/Contents/MacOS/zed".into(),
+                },
+            ],
+        )?;
+        let program = linked.root.join("bin/zed");
+        agent(&linked, "com.example.cli", program);
+        // The bundle ID in another case.
+        let named = Env::eligible()?;
+        agent(&named, "DEV.ZED.ZED.sync", PathBuf::from("/usr/bin/true"));
+        // `open -a`: which app it starts is in arguments Lumen does not keep.
+        let launcher = Env::eligible()?;
+        agent(
+            &launcher,
+            "com.example.opener",
+            PathBuf::from("/usr/bin/open"),
+        );
+        for (env, reason) in [
+            (&shouted, Ineligible::ServiceLinked),
+            (&linked, Ineligible::ServiceLinked),
+            (&named, Ineligible::ServiceLinked),
+            (&launcher, Ineligible::ServicesUnknown),
+        ] {
+            assert_eq!(env.preview().ready, Err(vec![reason]), "{reason:?}");
+            assert!(env.installed(), "{reason:?}: not moved");
+        }
+        // An item that runs something else does not refuse it.
+        let unrelated = Env::eligible()?;
+        agent(
+            &unrelated,
+            "com.example.other",
+            PathBuf::from("/usr/bin/true"),
+        );
+        assert!(unrelated.preview().ready.is_ok());
         Ok(())
     }
 
