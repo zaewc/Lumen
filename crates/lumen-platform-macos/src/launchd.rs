@@ -2,8 +2,11 @@
 //!
 //! Reads the property lists in the five standard directories with the system's
 //! own parser, so Lumen interprets them as launchd does. Only regular files of at
-//! most 1 MiB are read, and never through symlinks. Each item's program is
-//! signature-checked like applications are.
+//! most 1 MiB are read. A symlink is followed only to a file on the sealed system
+//! volume (`/System`): macOS ships some of its own agents that way, as links into
+//! `/System/Cryptexes`. A property list without a `Label` is not a job (launchd
+//! refuses to load it; Google's updater leaves empty ones behind). Each item's
+//! program is signature-checked like applications are.
 //!
 //! `enabled` is left unknown: a plist's `Disabled` key is only a default that
 //! launchd's override database (`launchctl enable`/`disable`) can change.
@@ -96,18 +99,51 @@ fn raw(path: &Path) -> Option<RawPath> {
     RawPath::from_unix_bytes(path.as_os_str().as_bytes().to_vec()).ok()
 }
 
-/// Reads one plist into a service. `None` if it is not a readable launchd job.
-fn service(path: &Path, location: &Location) -> Option<Service> {
-    // Regular files only: a symlink is not followed, and a FIFO or device would
-    // block or never end.
+/// What one plist turned out to be.
+enum Read {
+    /// A launchd job.
+    Job(Service),
+    /// A readable property list that launchd would not load: it has no
+    /// `Label`.
+    NotAJob,
+    /// It could not be read or understood: unknown, never absent.
+    Unknown,
+}
+
+/// The file to read for the plist at `path`: itself if it is a regular file,
+/// or the target of a symlink that resolves to a regular file under `/System`
+/// (the sealed, read-only system volume). Anything else, including a FIFO or a
+/// device that would block, is not read.
+fn readable(path: &Path) -> Option<PathBuf> {
     let meta = std::fs::symlink_metadata(path).ok()?;
-    if !meta.is_file() || meta.len() > MAX_PLIST_BYTES {
-        return None;
-    }
-    let bytes = std::fs::read(path).ok()?;
-    let list = cf::property_list(&bytes)?;
-    let job = list.downcast_ref::<CFDictionary>()?;
-    let label = cf::get::<CFString>(job, &CFString::from_str("Label"))?.to_string();
+    let file = if meta.file_type().is_symlink() {
+        let target = std::fs::canonicalize(path).ok()?;
+        target.starts_with("/System/").then_some(target)?
+    } else {
+        path.to_path_buf()
+    };
+    let meta = std::fs::symlink_metadata(&file).ok()?;
+    (meta.is_file() && meta.len() <= MAX_PLIST_BYTES).then_some(file)
+}
+
+/// Reads one plist into a service.
+fn service(path: &Path, location: &Location) -> Read {
+    let Some(file) = readable(path) else {
+        return Read::Unknown;
+    };
+    let Some(list) = std::fs::read(&file)
+        .ok()
+        .and_then(|b| cf::property_list(&b))
+    else {
+        return Read::Unknown;
+    };
+    let Some(job) = list.downcast_ref::<CFDictionary>() else {
+        return Read::Unknown;
+    };
+    let Some(label) = cf::get::<CFString>(job, &CFString::from_str("Label")) else {
+        return Read::NotAJob;
+    };
+    let label = label.to_string();
     let program = cf::get::<CFString>(job, &CFString::from_str("Program"))
         .map(ToString::to_string)
         .or_else(|| {
@@ -122,7 +158,7 @@ fn service(path: &Path, location: &Location) -> Option<Service> {
         .as_deref()
         .and_then(CFURL::from_file_path)
         .map(|url| crate::apps::verify_signature(&url));
-    Some(Service {
+    Read::Job(Service {
         kind: location.kind,
         scope: location.scope,
         label: UntrustedText::new(label),
@@ -164,9 +200,10 @@ impl InventorySource for LaunchdInventory {
                     continue;
                 }
                 match service(&path, location) {
-                    Some(found) => services.push(found),
+                    Read::Job(found) => services.push(found),
+                    Read::NotAJob => {}
                     // An unreadable or malformed job is unknown, not absent.
-                    None => complete = false,
+                    Read::Unknown => complete = false,
                 }
             }
         }
@@ -279,6 +316,33 @@ mod tests {
             ],
             "Disabled is only a default, so enabled stays unknown"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn a_list_without_a_label_is_not_a_job_and_a_link_into_the_system_is_read()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // A job macOS itself ships, as the target of a link.
+        let system = std::fs::read_dir("/System/Library/LaunchDaemons")?
+            .filter_map(Result::ok)
+            .map(|e| e.path())
+            .find(|p| {
+                p.extension().is_some_and(|e| e == "plist")
+                    && std::fs::symlink_metadata(p).is_ok_and(|m| m.is_file())
+                    && matches!(
+                        service(p, &LaunchdInventory::new().locations[1]),
+                        Read::Job(_)
+                    )
+            })
+            .ok_or("macOS ships launch daemons")?;
+        let fx = Fixture::build(&[
+            file("agents/empty.plist", plist("")),
+            file("agents/settings.plist", plist("<key>Version4</key><dict/>")),
+        ])?;
+        std::os::unix::fs::symlink(&system, fx.path("agents")?.join("system.plist"))?;
+        let report = LaunchdInventory::agents_in(fx.path("agents")?).collect(&CancelToken::new());
+        assert_eq!(report.status, SourceStatus::Complete);
+        assert_eq!(report.services.len(), 1, "only the linked system job");
         Ok(())
     }
 
