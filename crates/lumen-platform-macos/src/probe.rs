@@ -230,7 +230,10 @@ fn vnode_of(pid: c_int, fd: i32) -> Option<VnodeFdInfoWithPath> {
 enum Exe {
     /// Its path.
     At(Vec<u8>),
-    /// It has none: it exited while being read, or it is the kernel.
+    /// It has no path: it exited while being read (`ESRCH`), it is the
+    /// kernel, or its executable file was deleted after it started (`ENOENT`,
+    /// seen on a CI runner for a root job run from a removed temporary file).
+    /// A deleted file lies in no folder, so it is inside none.
     Missing,
     /// It could not be read, with the errno observed (kept for diagnosis).
     Unreadable(#[cfg_attr(not(test), expect(dead_code, reason = "read by tests"))] Option<c_int>),
@@ -259,7 +262,7 @@ fn executable(pid: c_int) -> Exe {
             buffer.truncate(length);
             Exe::At(buffer)
         }
-        None if errno == Some(libc::ESRCH) => Exe::Missing,
+        None if matches!(errno, Some(libc::ESRCH | libc::ENOENT)) => Exe::Missing,
         None => Exe::Unreadable(errno),
     }
 }
