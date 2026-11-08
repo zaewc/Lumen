@@ -102,6 +102,7 @@ use utoipa::OpenApi;
         views::UninstallPreviewView,
         views::UninstallResultView,
         views::UninstallOutcomeView,
+        views::QuitView,
     ))
 )]
 pub struct ApiDoc;
@@ -147,7 +148,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 83);
+        assert_eq!(schemas, 84);
     }
 
     #[test]

@@ -39,6 +39,7 @@ export type {
   NotRestoredView,
   PlanView,
   QuarantineReportView,
+  QuitView,
   ReasonView,
   ReassessedItemView,
   ReassessGapView,

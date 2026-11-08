@@ -18,6 +18,10 @@
 //! metadata, the process table and a listing of the bundle for its size. The
 //! cleanup policy and AI review take no part (ADR-0062 rule 3). Only macOS
 //! applications qualify; elsewhere both calls say so.
+//!
+//! A running app is refused. [`quit`] asks it to quit the way its Quit menu
+//! item does (roadmap 16.3a), so it can ask to save; it never force-quits.
+//! Whether it quit is learned by previewing again.
 
 use std::path::Path;
 
@@ -162,6 +166,43 @@ pub struct UninstallReport {
     pub warnings: Vec<String>,
 }
 
+/// What asking an application to quit did (roadmap 16.3a).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QuitResult {
+    /// It was asked to quit. It may ask to save first, or decline; preview it
+    /// again to see whether it is still running.
+    Asked,
+    /// None of the person's instances of it is running.
+    NotRunning,
+    /// It is Lumen itself, which was not asked.
+    Itself,
+    /// The request could not be sent.
+    Failed,
+}
+
+/// Asks the application listed under `key` to quit, the way its Quit menu
+/// item does: only the bundle the list shows, only instances the person runs,
+/// never Lumen itself, and never a force quit.
+///
+/// # Errors
+///
+/// [`UninstallError::Unsupported`] off macOS, [`UninstallError::UnknownApp`]
+/// or [`UninstallError::Ambiguous`] if `key` names no bundle or several, or a
+/// privileged process.
+#[tracing::instrument(name = "quit_app", skip_all)]
+pub fn quit(key: &str) -> Result<QuitResult, UninstallError> {
+    #[cfg(target_os = "macos")]
+    {
+        crate::store::refuse_privileged()?;
+        unix::quit_with(&mac::Software, key)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = key;
+        Err(UninstallError::Unsupported)
+    }
+}
+
 /// Previews uninstalling the application listed under `key`, and stores the
 /// preview if ADR-0062's gate passes.
 ///
@@ -264,8 +305,8 @@ mod unix {
     };
 
     use super::{
-        ByteCount, Confirmable, UninstallApp, UninstallError, UninstallPreview, UninstallReport,
-        UninstallResult, key,
+        ByteCount, Confirmable, QuitResult, UninstallApp, UninstallError, UninstallPreview,
+        UninstallReport, UninstallResult, key,
     };
     use crate::quarantine::{QuarantineError, checked_plan, device, prepare_store};
     use crate::scan::{enumerator, excluding_stores};
@@ -280,6 +321,8 @@ mod unix {
         fn services(&self) -> InventoryReport;
         /// Whether a process runs an executable inside `bundle` (ADR-0059).
         fn running(&self, bundle: &RawPath) -> Option<bool>;
+        /// Asks the person's instances of the bundle at `bundle` to quit.
+        fn quit(&self, bundle_id: &UntrustedText, bundle: &RawPath) -> QuitResult;
     }
 
     /// Everything an uninstall uses besides the database.
@@ -550,6 +593,23 @@ mod unix {
             entry,
             evidence,
         })
+    }
+
+    /// Asks the one bundle `key_` names to quit.
+    pub(super) fn quit_with(
+        software: &dyn Software,
+        key_: &str,
+    ) -> Result<QuitResult, UninstallError> {
+        let apps = software.applications().applications;
+        let app = find(&apps, key_)?;
+        let path = app
+            .install_locations
+            .first()
+            .ok_or(UninstallError::Ambiguous)?;
+        let id = bundle_id(app).ok_or(UninstallError::UnknownApp)?;
+        let result = software.quit(id, path);
+        tracing::info!(?result, "asked an app to quit");
+        Ok(result)
     }
 
     pub(super) fn preview_with(
@@ -827,11 +887,11 @@ mod mac {
 
     use lumen_application::CancelToken;
     use lumen_application::ports::{InUseProbe, InventoryReport, InventorySource as _};
-    use lumen_domain::RawPath;
-    use lumen_platform_macos::{AppInventory, LaunchdInventory, ProcessProbe};
+    use lumen_domain::{RawPath, UntrustedText};
+    use lumen_platform_macos::{AppInventory, LaunchdInventory, ProcessProbe, QuitRequest};
 
-    use super::UninstallError;
     use super::unix::Computer;
+    use super::{QuitResult, UninstallError};
     use crate::quarantine::QuarantineError;
     use crate::store::{LocationError, refuse_privileged, stores};
 
@@ -848,6 +908,17 @@ mod mac {
 
         fn running(&self, bundle: &RawPath) -> Option<bool> {
             ProcessProbe.snapshot().running(bundle)
+        }
+
+        fn quit(&self, bundle_id: &UntrustedText, bundle: &RawPath) -> QuitResult {
+            use std::os::unix::ffi::OsStrExt as _;
+            let path = std::path::Path::new(std::ffi::OsStr::from_bytes(bundle.as_bytes()));
+            match lumen_platform_macos::ask_to_quit(bundle_id.raw(), path) {
+                QuitRequest::Asked(_) => QuitResult::Asked,
+                QuitRequest::NotRunning => QuitResult::NotRunning,
+                QuitRequest::Itself => QuitResult::Itself,
+                QuitRequest::Failed => QuitResult::Failed,
+            }
         }
     }
 
@@ -889,7 +960,7 @@ mod tests {
     use lumen_store_sqlite::{IndexStore, LedgerJournal, LedgerStore, open_index, open_ledger};
     use lumen_testkit::{Fixture, Node};
 
-    use super::unix::{Computer, Software, preview_with, uninstall_with};
+    use super::unix::{Computer, Software, preview_with, quit_with, uninstall_with};
     use super::*;
     use crate::UuidV7Ids;
     use crate::store::Stores;
@@ -947,6 +1018,8 @@ mod tests {
         apps: RefCell<Vec<Application>>,
         services: RefCell<InventoryReport>,
         running: Cell<Option<bool>>,
+        /// Every quit request: the bundle ID and the bundle.
+        quits: RefCell<Vec<(String, RawPath)>>,
     }
 
     impl Software for Fake {
@@ -963,6 +1036,13 @@ mod tests {
 
         fn running(&self, _: &RawPath) -> Option<bool> {
             self.running.get()
+        }
+
+        fn quit(&self, bundle_id: &UntrustedText, bundle: &RawPath) -> QuitResult {
+            self.quits
+                .borrow_mut()
+                .push((bundle_id.raw().to_owned(), bundle.clone()));
+            QuitResult::Asked
         }
     }
 
@@ -1023,6 +1103,7 @@ mod tests {
                     apps: RefCell::new(vec![app(&bundle)]),
                     services: RefCell::new(report("test.launchd", SourceStatus::Complete)),
                     running: Cell::new(Some(false)),
+                    quits: RefCell::new(Vec::new()),
                 },
                 db: root.join("data/index.db"),
                 in_use: Probe(std::sync::Mutex::new(Some(false))),
@@ -1537,6 +1618,35 @@ mod tests {
         ));
         assert!(env.installed());
         assert_eq!(env.held(), Vec::<String>::new());
+        Ok(())
+    }
+
+    #[test]
+    fn quitting_asks_only_the_bundle_the_list_shows() -> TestResult {
+        let env = Env::eligible()?;
+        assert_eq!(quit_with(&env.software, KEY)?, QuitResult::Asked);
+        assert_eq!(
+            *env.software.quits.borrow(),
+            [("dev.zed.Zed".to_owned(), raw(&env.bundle))]
+        );
+        assert!(env.installed(), "asking to quit moves nothing");
+        Ok(())
+    }
+
+    #[test]
+    fn quitting_an_unknown_or_ambiguous_app_asks_nothing() -> TestResult {
+        let env = Env::eligible()?;
+        assert!(matches!(
+            quit_with(&env.software, "MacApp:dev.other.App"),
+            Err(UninstallError::UnknownApp)
+        ));
+        let twice = app(&env.bundle);
+        env.software.apps.borrow_mut().push(twice);
+        assert!(matches!(
+            quit_with(&env.software, KEY),
+            Err(UninstallError::Ambiguous)
+        ));
+        assert!(env.software.quits.borrow().is_empty());
         Ok(())
     }
 }

@@ -43,6 +43,10 @@ libc = "0.2.190"
 # Typed CoreFoundation / CoreServices (FSEvents) bindings (macOS adapter only).
 objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std"] }
 objc2-core-services = { version = "0.3.2", default-features = false, features = ["std"] }
+# Asking a running app to quit (roadmap 16.3a): NSRunningApplication. Already
+# in the lock file through Tauri; only the features named here are built.
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std"] }
 # Code-signing (Security framework) bindings for the app inventory (macOS only).
 objc2-security = { version = "0.3.2", default-features = false, features = ["std"] }
 # Test-only validator; defaults pull an HTTP client and a TLS stack we do not need.

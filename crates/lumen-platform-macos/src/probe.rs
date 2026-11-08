@@ -151,7 +151,7 @@ fn c_path(path: &[[libc::c_char; 32]; 32]) -> Vec<u8> {
 
 /// Calls `proc_pidinfo` for a fixed-size struct. `None` if the call fails or
 /// returns a different size.
-fn pid_info<T: Copy>(pid: c_int, flavor: c_int, arg: u64) -> Option<T> {
+pub(crate) fn pid_info<T: Copy>(pid: c_int, flavor: c_int, arg: u64) -> Option<T> {
     let mut out = MaybeUninit::<T>::uninit();
     let size = c_int::try_from(size_of::<T>()).ok()?;
     // SAFETY: invariant: the kernel writes at most `size` bytes of `T` into

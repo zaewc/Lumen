@@ -33,6 +33,8 @@ objc2-core-foundation = { workspace = true, features = [
   "CFUUID",
 ] }
 objc2-core-services = { workspace = true, features = ["FSEvents", "MDItem", "Metadata", "dispatch2", "libc"] }
+objc2-app-kit = { workspace = true, features = ["NSRunningApplication", "libc"] }
+objc2-foundation = { workspace = true, features = ["NSArray", "NSString", "NSURL"] }
 objc2-security = { workspace = true, features = ["CSCommon", "SecBase", "SecCode", "SecItem", "SecStaticCode"] }
 
 [dev-dependencies]

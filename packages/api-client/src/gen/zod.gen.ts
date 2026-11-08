@@ -349,6 +349,35 @@ export const zNotRestoredView = z.enum([
 ]);
 
 /**
+ * What asking a running app to quit did. It was asked the way its Quit menu
+ * item asks, so it may ask to save or decline; preview it again to see
+ * whether it still runs.
+ */
+export const zQuitView = z.union([
+  z.object({
+    kind: z.enum(["asked"]),
+  }),
+  z.object({
+    kind: z.enum(["not_running"]),
+  }),
+  z.object({
+    kind: z.enum(["itself"]),
+  }),
+  z.object({
+    kind: z.enum(["failed"]),
+  }),
+  z.object({
+    kind: z.enum(["not_found"]),
+  }),
+  z.object({
+    kind: z.enum(["ambiguous"]),
+  }),
+  z.object({
+    kind: z.enum(["unsupported"]),
+  }),
+]);
+
+/**
  * One policy rule that fired, and its fixed sentence (ADR-0014).
  */
 export const zReasonView = z.object({

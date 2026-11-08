@@ -773,6 +773,34 @@ export type QuarantineReportView = {
 };
 
 /**
+ * What asking a running app to quit did. It was asked the way its Quit menu
+ * item asks, so it may ask to save or decline; preview it again to see
+ * whether it still runs.
+ */
+export type QuitView =
+  | {
+      kind: "asked";
+    }
+  | {
+      kind: "not_running";
+    }
+  | {
+      kind: "itself";
+    }
+  | {
+      kind: "failed";
+    }
+  | {
+      kind: "not_found";
+    }
+  | {
+      kind: "ambiguous";
+    }
+  | {
+      kind: "unsupported";
+    };
+
+/**
  * One policy rule that fired, and its fixed sentence (ADR-0014).
  */
 export type ReasonView = {

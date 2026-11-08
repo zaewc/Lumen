@@ -7,6 +7,7 @@ import {
   zHeldItemView,
   zPlanView,
   zQuarantineReportView,
+  zQuitView,
   zRestoreOutcomeView,
   zScanProgressView,
   zScanView,
@@ -183,6 +184,13 @@ describe("memoryTransport", () => {
     await expect(transport.uninstall?.(ready.preview, ready.hash)).rejects.toThrow(
       "already confirmed",
     );
+  });
+
+  it("answers a quit request for a listed macOS app only (roadmap 16.3a)", async () => {
+    const transport = memoryTransport();
+    const quit = async (key: string) => zQuitView.parse(await transport.quitApp?.(key)).kind;
+    expect(await quit("mac_app:com.spotify.client")).toBe("not_running");
+    expect(await quit("homebrew:act")).toBe("not_found");
   });
 
   it("paces the scan for people, reporting growing totals", async () => {

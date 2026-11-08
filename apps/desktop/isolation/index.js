@@ -29,6 +29,7 @@ const allowed = new Set([
   "reassess",
   "uninstall_preview",
   "uninstall",
+  "quit_app",
 ]);
 
 window.__TAURI_ISOLATION_HOOK__ = (payload) => {

@@ -907,6 +907,11 @@ export function memoryTransport({
       }
       return preview;
     },
+    quitApp: async (key) => {
+      await wait(pace);
+      const row = softwareList(false).items.find((item) => item.key === key);
+      return { kind: row?.origin === "mac_app" ? "not_running" : "not_found" };
+    },
     uninstall: async (preview, confirmation) => {
       await wait(pace);
       const ready = previews.get(preview);
