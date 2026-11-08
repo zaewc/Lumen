@@ -36,6 +36,10 @@ jobs:
         run: |
           shellcheck .claude/hooks/*.sh
           .claude/hooks/test-guards.sh
+      - name: Local agent recovery scenarios (temporary Git fixtures, no remote writes)
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 -m unittest discover -s scripts/agent_harness -p 'test_*.py' -v
 
   zizmor:
     name: zizmor
