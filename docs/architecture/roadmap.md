@@ -443,6 +443,26 @@ their sources before merge.
 | 15.10 | `feat(web)`: choose review items to quarantine, with AI notes beside them (ADR-0051) | open; waits for FS-1 |
 | 15.11 | Later: user-domain logs and Windows `%TEMP%` with age rules; orphaned app caches | open |
 
+## Phase 16: Installed software after 0.10.0
+
+0.10.0 shipped the Apps page ([ADR-0060](../decisions/0060-list-software-and-remove-it-only-through-its-own-mechanism.md)),
+AI notes on apps ([ADR-0061](../decisions/0061-send-installed-software-to-ai-review.md)) and
+moving a user-owned macOS app to Quarantine ([ADR-0062](../decisions/0062-uninstall-macos-apps-into-quarantine.md)).
+The epic is #804. The owner's requests after trying 0.10.0 (2026-11-08) are 16.1–16.5;
+16.6–16.9 were already open.
+
+| # | Scope | Notes |
+| --- | --- | --- |
+| 16.1 | `fix(jev)`: more useful confidence on app notes | Measured on the recorded Jeb run (`software-2026.11.0`): 20 of 32 notes were `low` and none `high`, although `purpose` was right 90.6% of the time and every `medium` note was right. Two causes. The note takes the lower of its two answers' confidence. And the 0.9 / 0.7 thresholds were made for yes/no questions; with 13 and 6 options, the top probability is rarely that high. Fix: confidence per question, buckets for each question's option count fitted on the dataset (calibration, as in 14.5), and Lumen's own facts (16.8) for the impact instead of the model's guess. Re-evaluate with one small Jeb run (owner's go-ahead). |
+| 16.2 | `feat(web)`: Apps inside the scan | One flow instead of two pages: a scan also lists the installed apps that take disk space (bundle size, and the app's own data in `~/Library` once 16.9 links it), largest first, with the same move-to-Quarantine action. Needs a UX design first (UI principles: one primary action per page); the Apps page may remain as the full list. |
+| 16.3 | `feat`: quit a running app; apps owned by another account | **Quit:** a "Quit" (종료하기) button on a running app asks it to quit (`NSRunningApplication.terminate`, the same request as Quit in its menu, so it can ask to save). Never a force quit, and only the person's own apps. Then the preview is checked again. **Another account's apps** (root-owned: `.pkg` installs, App Store) cannot be moved without administrator rights, which ADR-0060 and ADR-0062 rule out for Lumen (no privileged helper). Needs a new ADR and the owner's decision. A candidate: hand the app to the system's own removal, which asks for the administrator password (Finder's Move to Trash, or Launchpad for App Store apps). It is not Lumen's quarantine and is not restorable from it. Apps with helpers or installers keep their own uninstallers. |
+| 16.4 | `feat`: app icons on the Apps page | The host asks the system for each app's icon (`NSWorkspace.icon(forFile:)`), scales it down (32 px) and hands the web page an image; it is display only and never sent to AI. Windows: the program's `DisplayIcon`; Linux: the desktop entry's icon. Cached per bundle identity and version. |
+| 16.5 | `fix(web)`: plainer wording for "only this app" | Today "지우면 이 앱에만 영향이 있을 가능성이 높아요." Should read like "지워도 다른 곳에는 영향이 없을 것 같아요." (EN: "Removing it probably won't affect anything else.") in all locales. The guard ([#840](https://github.com/zaewc/Lumen/pull/840)) keeps it off protected, system, security and runtime software. |
+| 16.6 | `feat(jev)`: ground software notes in evidence (#850) | Observed versus inferred, sources named; dependency, uninstaller and privilege facts from Lumen. |
+| 16.7 | `feat(software)`: removal through each package manager (#809) | Homebrew, MSI and MSIX, apt and the rest, through their own commands under ADR-0060. |
+| 16.8 | `feat(software)`: package files and dependencies (#807) | Which package owns a file, and what depends on what. |
+| 16.9 | `feat(software)`: leftovers after removal (#810) | An app's data in `~/Library` after it is gone, decided in Explore (ADR-0039). |
+
 ## Later phases (outline)
 
 - **Phase 11, UI:** JavaScript bootstrap (pnpm, Biome, TS 7, Turborepo), `apps/web`
@@ -452,3 +472,4 @@ their sources before merge.
 - **Phase 13, First use:** what trying the product showed; see above.
 - **Phase 14, AI you can leave on:** an accurate, calibrated judge; see above.
 - **Phase 15, Recovery:** recover what the reference cleaners recover, safely; see above.
+- **Phase 16, Installed software:** after 0.10.0; see above.
