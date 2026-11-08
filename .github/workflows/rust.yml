@@ -22,6 +22,7 @@ jobs:
     # everything for any other answer, including none when this job fails.
     name: changes
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
       contents: read
     outputs:
@@ -32,6 +33,11 @@ jobs:
           egress-policy: block
           allowed-endpoints: >
             github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            *.actions.githubusercontent.com:443
+            actions-results-receiver-production.githubapp.com:443
+            *.blob.core.windows.net:443
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -44,6 +50,8 @@ jobs:
 
   fmt:
     name: fmt
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -76,10 +84,11 @@ jobs:
       contents: read
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
-        if: runner.os == 'Linux'
+        if: env.RUN == 'true' && runner.os == 'Linux'
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.RUN == 'true'
         with:
           persist-credentials: false
       - name: Install pinned toolchain
@@ -219,6 +228,8 @@ jobs:
 
   schemas:
     name: schemas
+    needs: changes
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -235,6 +246,7 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/develop' }}
       - name: Committed JSON Schemas match the Rust types (ADR-0011)
+        if: needs.changes.outputs.code != 'false'
         run: cargo xtask schema --check
       - name: Crate layering, pure-crate IO, ADR index and documentation links (ADR-0056)
         run: cargo xtask lint

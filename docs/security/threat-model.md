@@ -148,6 +148,7 @@ Assumptions:
 | Tampering | Compromised dependency (axios 2026-03, arrayref 2026-08) | Committed lockfiles, `--locked`, cargo-deny, OSV-Scanner, pnpm release-age gating, review of new packages, cargo-vet for sensitive crates |
 | Tampering | Compromised action or tag force-push (Trivy 2026-03) | Actions pinned by SHA, zizmor, actionlint, harden-runner, no `pull_request_target` |
 | Elevation of privilege | PR job reads secrets or poisons caches | Minimal permissions; caches saved only on `develop`; secrets only in the protected release environment |
+| Denial of service, tampering | A runner loses communication before reporting the documentation classification, or an uncertain classification skips code checks | Classifier jobs retain blocking egress with GitHub's required runner/service/storage endpoints allowed and a five-minute timeout; only an explicit `code=false` skips expensive checks; documentation link checks and the individual required matrix check names remain |
 | Tampering | A token or account with write access merges into `main` and publishes an update every installed copy accepts | **Accepted risk** ([ADR-0054](../decisions/0054-release-on-every-push-to-main.md)): no person approves a release; pull requests and required checks on `main` are the gate; the release job publishes only after checksums and the updater manifest verify; the signing key never reaches a build |
 | Spoofing | Users install a tampered build | Code signing, notarization, artifact attestations, immutable releases |
 
