@@ -151,6 +151,7 @@ Assumptions:
 | Denial of service, tampering | A runner loses communication before reporting the documentation classification, or an uncertain classification skips code checks | Classifier jobs retain blocking egress with GitHub's required runner/service/storage endpoints allowed and a five-minute timeout; only an explicit `code=false` skips expensive checks; documentation link checks and the individual required matrix check names remain |
 | Tampering | A token or account with write access merges into `main` and publishes an update every installed copy accepts | **Accepted risk** ([ADR-0054](../decisions/0054-release-on-every-push-to-main.md)): no person approves a release; pull requests and required checks on `main` are the gate; the release job publishes only after checksums and the updater manifest verify; the signing key never reaches a build |
 | Spoofing | Users install a tampered build | Code signing, notarization, artifact attestations, immutable releases |
+| Tampering, loss of work | A coding-agent session dies before handing off, a second writer races it, or stale test/PR evidence is reused | The [local recovery supervisor](../operations/agent-recovery.md) checkpoints actual Git state, retains an inherited per-worktree lock through process cleanup, verifies current local fingerprints and GitHub head/target SHAs, and gates remote writes on task authorization; trusted local developer tooling, not a sandbox against same-user malicious agents |
 
 ## 5. Privacy (LINDDUN)
 
