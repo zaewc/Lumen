@@ -1,15 +1,18 @@
 //! `lumen`: the developer command line.
 //!
 //! ```text
-//! lumen scan <PATH>... [--db <FILE>] [--json]
-//! lumen assess --db <FILE> [--json]
-//! lumen plan --db <FILE> [--choose <PATH>]...
+//! lumen scan [<PATH>...] [--db <FILE>] [--json]
+//! lumen assess --db <FILE> [--json] [--jev | --no-ai]
+//! lumen plan --db <FILE> [--choose <PATH>]... [--jev | --no-ai]
 //! lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>
 //! lumen list --db <FILE>
 //! lumen restore --db <FILE> --op <ID>
 //! lumen finalize --db <FILE> --op <ID>
 //! lumen finalize --db <FILE> --expired
-//! lumen jev key set|clear|status
+//! lumen jev key set|clear|status [--openrouter]
+//! lumen ai on|off|status --db <FILE>
+//! lumen inspect xcode|docker|packages [--json]
+//! lumen duplicates <PATH>... [--json]
 //! ```
 //!
 //! `assess` decides the latest completed scan in the database and reports each
@@ -24,8 +27,10 @@
 //! store holds, `restore` puts one item back, and `finalize` removes one item
 //! for good (roadmap 10.15b), or, with `--expired`, every retained item past
 //! its 30-day retention (roadmap 10.20). `jev key` stores, removes or checks the
-//! `OpenRouter` API key in the system's secret store, reading it from standard
-//! input (roadmap 10.17).
+//! Jeb API key (or, with `--openrouter`, the `OpenRouter` one) in the system's
+//! secret store, reading it from standard input (roadmap 10.17). `ai` saves
+//! whether every `assess` and `plan` asks for AI review; `--jev` or `--no-ai`
+//! overrides that choice for one run.
 //!
 //! Scans are **read-only**: Lumen never modifies the scanned files. With `--db`,
 //! results and a snapshot are written to that `index.db` file (and nothing else).
@@ -41,8 +46,10 @@ use std::process::ExitCode;
 
 #[cfg(any(unix, windows))]
 mod assess;
+mod duplicates;
 #[cfg(any(unix, windows))]
 mod held;
+mod inspect;
 #[cfg(any(unix, windows))]
 mod jev;
 mod jev_service;
@@ -52,10 +59,11 @@ mod plan;
 mod progress;
 #[cfg(any(unix, windows))]
 mod quarantine;
+mod reassess;
 #[cfg(any(unix, windows))]
 mod report;
 
-const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)";
+const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)\n       lumen inspect xcode|docker|packages [--json]   (read-only tool storage inventory)\n       lumen duplicates <PATH>... [--json]   (identical copies in chosen folders, for review)\n       lumen reassess --db <FILE> [--choose <PATH>]... [--json]   (check items again with fresh read-only evidence)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -95,6 +103,9 @@ enum AiAction {
 
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
+    Inspect(inspect::Args),
+    Reassess(reassess::Args),
+    Duplicates(duplicates::Args),
     Scan(ScanArgs),
     Assess(AssessArgs),
     Plan(PlanArgs),
@@ -251,7 +262,12 @@ fn parse(args: &[String]) -> Result<Command, String> {
     match iter.next().map(String::as_str) {
         Some("scan") => {}
         Some("assess") => return parse_assess(iter.as_slice()),
+        Some("inspect") => return inspect::parse(iter.as_slice()).map(Command::Inspect),
+        Some("duplicates") => {
+            return duplicates::parse(iter.as_slice()).map(Command::Duplicates);
+        }
         Some("plan") => return parse_plan(iter.as_slice()),
+        Some("reassess") => return reassess::parse(iter.as_slice()).map(Command::Reassess),
         Some("ai") => return parse_ai(iter.as_slice()),
         Some("quarantine") => return parse_quarantine(iter.as_slice()),
         Some("list") => {
@@ -316,10 +332,11 @@ fn database(command: &Command) -> Option<&std::path::Path> {
         Command::Scan(args) => args.db.as_deref(),
         Command::Assess(args) => Some(&args.db),
         Command::Plan(args) => Some(&args.db),
+        Command::Reassess(args) => Some(&args.db),
         Command::Quarantine(args) => Some(&args.db),
         Command::List(db) | Command::FinalizeExpired(db) | Command::Ai(_, db) => Some(db),
         Command::Restore(args) | Command::Finalize(args) => Some(&args.db),
-        Command::JevKey(..) | Command::Help => None,
+        Command::JevKey(..) | Command::Inspect(_) | Command::Duplicates(_) | Command::Help => None,
     }
 }
 
@@ -348,13 +365,9 @@ fn main() -> ExitCode {
             println!("{USAGE}");
             ExitCode::SUCCESS
         }
-        Ok(Command::Scan(scan)) => match run(&scan) {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(e) => {
-                eprintln!("error: {e}");
-                ExitCode::FAILURE
-            }
-        },
+        Ok(Command::Scan(scan)) => report(run(&scan)),
+        Ok(Command::Inspect(args)) => report(inspect::run(&args)),
+        Ok(Command::Duplicates(args)) => report(duplicates::run(&args)),
         Ok(Command::List(db)) => report(run_held(HeldAction::List, &db, None)),
         Ok(Command::JevKey(action, service)) => report(run_jev_key(action, service)),
         Ok(Command::Ai(action, db)) => report(run_ai(action, &db)),
@@ -367,27 +380,10 @@ fn main() -> ExitCode {
         Ok(Command::Finalize(args)) => {
             report(run_held(HeldAction::Finalize, &args.db, Some(&args.op)))
         }
-        Ok(Command::Quarantine(args)) => match run_quarantine(&args) {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(e) => {
-                eprintln!("error: {e}");
-                ExitCode::FAILURE
-            }
-        },
-        Ok(Command::Plan(args)) => match run_plan(&args) {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(e) => {
-                eprintln!("error: {e}");
-                ExitCode::FAILURE
-            }
-        },
-        Ok(Command::Assess(assess)) => match run_assess(&assess) {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(e) => {
-                eprintln!("error: {e}");
-                ExitCode::FAILURE
-            }
-        },
+        Ok(Command::Quarantine(args)) => report(run_quarantine(&args)),
+        Ok(Command::Plan(args)) => report(run_plan(&args)),
+        Ok(Command::Reassess(args)) => report(run_reassess(&args)),
+        Ok(Command::Assess(assess)) => report(run_assess(&assess)),
         Err(message) => {
             eprintln!("error: {message}\n{USAGE}");
             ExitCode::from(2)
@@ -512,6 +508,54 @@ fn run_assess(args: &AssessArgs) -> Result<(), Box<dyn Error>> {
         print!("{}", assess::to_text(&assessed));
     }
     Ok(())
+}
+
+/// Assesses as `lumen assess` does, then checks the chosen items, or every
+/// item with something unknown, again (ADR-0058).
+#[cfg(any(unix, windows))]
+fn run_reassess(args: &reassess::Args) -> Result<(), Box<dyn Error>> {
+    let chosen = args
+        .chosen
+        .iter()
+        .map(|path| {
+            let absolute = std::path::absolute(path)?;
+            lumen_app::raw_path(&absolute).map_err(|e| format!("{}: {e}", path.display()).into())
+        })
+        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+    let assessed = with_judge(
+        AiChoice::Setting,
+        &args.db,
+        |judge, describer| {
+            Ok(lumen_app::assess(
+                &args.db,
+                &lumen_app::SystemClock,
+                judge,
+                describer,
+            )?)
+        },
+        Vec::as_slice,
+    )?;
+    let before = reassess::select(assessed, &chosen)?;
+    let result = lumen_app::reassess::reassess(
+        &args.db,
+        &before,
+        &lumen_app::SystemClock,
+        &lumen_application::CancelToken::new(),
+    )?;
+    if args.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&reassess::to_json(&before, &result))?
+        );
+    } else {
+        print!("{}", reassess::to_text(&before, &result));
+    }
+    Ok(())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn run_reassess(_args: &reassess::Args) -> Result<(), Box<dyn Error>> {
+    Err("reassessment is not supported on this platform".into())
 }
 
 #[cfg(not(any(unix, windows)))]

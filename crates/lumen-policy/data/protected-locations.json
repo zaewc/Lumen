@@ -97,6 +97,78 @@
     "source": "https://learn.microsoft.com/en-us/troubleshoot/windows-client/setup-upgrade-and-drivers/disable-and-re-enable-hibernation"
   },
   {
+    "id": "linux-usr",
+    "kind": "system",
+    "platforms": ["linux"],
+    "root": "filesystem",
+    "path": "usr",
+    "source": "https://uapi-group.org/specifications/specs/linux_file_system_hierarchy/"
+  },
+  {
+    "id": "linux-etc",
+    "kind": "system",
+    "platforms": ["linux"],
+    "root": "filesystem",
+    "path": "etc",
+    "source": "https://uapi-group.org/specifications/specs/linux_file_system_hierarchy/"
+  },
+  {
+    "id": "linux-boot",
+    "kind": "system",
+    "platforms": ["linux"],
+    "root": "filesystem",
+    "path": "boot",
+    "source": "https://uapi-group.org/specifications/specs/linux_file_system_hierarchy/"
+  },
+  {
+    "id": "linux-efi",
+    "kind": "system",
+    "platforms": ["linux"],
+    "root": "filesystem",
+    "path": "efi",
+    "source": "https://uapi-group.org/specifications/specs/linux_file_system_hierarchy/"
+  },
+  {
+    "id": "linux-var-lib",
+    "kind": "system",
+    "platforms": ["linux"],
+    "root": "filesystem",
+    "path": "var/lib",
+    "source": "https://uapi-group.org/specifications/specs/linux_file_system_hierarchy/"
+  },
+  {
+    "id": "linux-bin",
+    "kind": "system",
+    "platforms": ["linux"],
+    "root": "filesystem",
+    "path": "bin",
+    "source": "https://uapi-group.org/specifications/specs/linux_file_system_hierarchy/"
+  },
+  {
+    "id": "linux-sbin",
+    "kind": "system",
+    "platforms": ["linux"],
+    "root": "filesystem",
+    "path": "sbin",
+    "source": "https://uapi-group.org/specifications/specs/linux_file_system_hierarchy/"
+  },
+  {
+    "id": "linux-lib",
+    "kind": "system",
+    "platforms": ["linux"],
+    "root": "filesystem",
+    "path": "lib",
+    "source": "https://uapi-group.org/specifications/specs/linux_file_system_hierarchy/"
+  },
+  {
+    "id": "linux-lib64",
+    "kind": "system",
+    "platforms": ["linux"],
+    "root": "filesystem",
+    "path": "lib64",
+    "source": "https://uapi-group.org/specifications/specs/linux_file_system_hierarchy/"
+  },
+  {
     "id": "ssh",
     "kind": "sensitive",
     "platforms": ["macos", "linux"],

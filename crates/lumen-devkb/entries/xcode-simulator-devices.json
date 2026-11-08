@@ -5,7 +5,8 @@
     {
       "platforms": ["macos"],
       "root": { "kind": "home" },
-      "path": "Library/Developer/CoreSimulator/Devices"
+      "path": "Library/Developer/CoreSimulator/Devices",
+      "kind": "directory"
     }
   ],
   "safety_class": "tool_action",

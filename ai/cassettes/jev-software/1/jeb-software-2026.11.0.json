@@ -1,0 +1,235 @@
+{
+  "schema": "jev.software-cassette/1",
+  "judge": {
+    "provider": "gsm.jeb",
+    "model": "jeb",
+    "model_version": null,
+    "prompt_version": "jev-software/1"
+  },
+  "entries": [
+    {
+      "case_id": "macos.browser.waverider",
+      "request_hash": "b3:afd3e8d609d4bc1243839b4be095ef603e43554636bbae004f7f5b6b22913506",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.04724536685420618},\"purpose\":{\"type\":\"choice\",\"choice\":\"web_browser\",\"probabilities\":{\"cloud_sync_or_backup\":0.004824771067798556,\"communication\":0.008784349230319247,\"design_or_creative\":0.0069381488306199295,\"development_tool\":0.008219380322156874,\"game\":0.00477787892223127,\"media\":0.007314962900259595,\"office_or_productivity\":0.008613709291395434,\"runtime_or_library\":0.0072695436343930145,\"security_or_banking\":0.006685747868494954,\"system_or_driver\":0.007277097350389077,\"unknown\":0.024389343882820463,\"utility\":0.010143014597916675,\"web_browser\":0.894762052101205},\"confidence\":0.8859922231096388},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"stops_background_activity\",\"probabilities\":{\"only_this_app\":0.306107364736267,\"other_software_depends\":0.025073274956285477,\"security_or_access\":0.019602251127841898,\"stops_background_activity\":0.6150943326724424,\"system_function\":0.012199570817207262,\"unknown\":0.021923205689955875},\"confidence\":0.5381131992069309}},\"usage\":{\"input_tokens\":1112,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.browser.northlight",
+      "request_hash": "b3:84887e628a09ff6e3053e19db5c223727294f243684f0e19cce6e2ab65695d77",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.055891729960575495},\"purpose\":{\"type\":\"choice\",\"choice\":\"web_browser\",\"probabilities\":{\"cloud_sync_or_backup\":0.006754596937970388,\"communication\":0.00794109632571831,\"design_or_creative\":0.007315070305092225,\"development_tool\":0.00784085156497632,\"game\":0.005140481574763042,\"media\":0.006754980229139186,\"office_or_productivity\":0.009787245543508946,\"runtime_or_library\":0.008452055966155865,\"security_or_banking\":0.009246815487104753,\"system_or_driver\":0.008827682316368044,\"unknown\":0.02042647169468699,\"utility\":0.01151904199381316,\"web_browser\":0.8899936100607029},\"confidence\":0.8808264108990947},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"stops_background_activity\",\"probabilities\":{\"only_this_app\":0.12799422840372215,\"other_software_depends\":0.017552092556642637,\"security_or_access\":0.017267600935880863,\"stops_background_activity\":0.8074717351113716,\"system_function\":0.012487237894304972,\"unknown\":0.017227105098077844},\"confidence\":0.7689660821336459}},\"usage\":{\"input_tokens\":1177,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "linux.browser.driftwood",
+      "request_hash": "b3:84da4efd386f7867f3658b286176de24e0b1b04bff2be8d64f146705c61ed392",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.044054310508315875},\"purpose\":{\"type\":\"choice\",\"choice\":\"web_browser\",\"probabilities\":{\"cloud_sync_or_backup\":0.0024418835627228273,\"communication\":0.0033023845811796515,\"design_or_creative\":0.004138158046551157,\"development_tool\":0.0036516260854360856,\"game\":0.002226389162570581,\"media\":0.003667033568841244,\"office_or_productivity\":0.004187097066153221,\"runtime_or_library\":0.00345016575114822,\"security_or_banking\":0.0033486219485901977,\"system_or_driver\":0.0034719173349115067,\"unknown\":0.0081572325765181,\"utility\":0.004563588206557553,\"web_browser\":0.9533939021088197},\"confidence\":0.9495100606178879},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.8147981582419355,\"other_software_depends\":0.03952972555768643,\"security_or_access\":0.031256238207046,\"stops_background_activity\":0.04439258371460472,\"system_function\":0.022257519973095757,\"unknown\":0.04776577430563164},\"confidence\":0.7777577898903225}},\"usage\":{\"input_tokens\":1088,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "macos.devtool.quickgrep",
+      "request_hash": "b3:73295856da22588bc304c3f20615f884393b811bbda9413aa62191c08f11b54b",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.02906725782560622},\"purpose\":{\"type\":\"choice\",\"choice\":\"development_tool\",\"probabilities\":{\"cloud_sync_or_backup\":0.005311224886175276,\"communication\":0.009081085328985451,\"design_or_creative\":0.018743659630343825,\"development_tool\":0.3685156661097421,\"game\":0.004442091725227821,\"media\":0.016733778373224904,\"office_or_productivity\":0.039838529020082884,\"runtime_or_library\":0.028256382242038063,\"security_or_banking\":0.025586509011322783,\"system_or_driver\":0.02364242607928805,\"unknown\":0.2007132056012541,\"utility\":0.2496947728966755,\"web_browser\":0.00944066909563912},\"confidence\":0.31589197161888727},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.6952674083303954,\"other_software_depends\":0.03503723296341816,\"security_or_access\":0.020091217778036224,\"stops_background_activity\":0.0231931567934344,\"system_function\":0.012127297094927962,\"unknown\":0.21428368703978803},\"confidence\":0.6343208899964744}},\"usage\":{\"input_tokens\":1069,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "macos.devtool.codeforge",
+      "request_hash": "b3:5fb03e6b3a02c53338f73f59045871c34ffc160f80ba0d5b393e13c6a359ea47",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.027372083350293973},\"purpose\":{\"type\":\"choice\",\"choice\":\"development_tool\",\"probabilities\":{\"cloud_sync_or_backup\":0.003136570757303231,\"communication\":0.0037305254175042904,\"design_or_creative\":0.044327838450618606,\"development_tool\":0.8581374991555745,\"game\":0.004691631754012532,\"media\":0.004807654274586757,\"office_or_productivity\":0.020632729361961682,\"runtime_or_library\":0.013475307686088634,\"security_or_banking\":0.004624754802647986,\"system_or_driver\":0.005903012946351248,\"unknown\":0.021668576999496623,\"utility\":0.010567765476542583,\"web_browser\":0.004296132917311326},\"confidence\":0.8463156240852056},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.7907365037162085,\"other_software_depends\":0.06242270037122314,\"security_or_access\":0.013328232138030678,\"stops_background_activity\":0.029995216365280006,\"system_function\":0.012559756481015873,\"unknown\":0.09095759092824177},\"confidence\":0.7488838044594502}},\"usage\":{\"input_tokens\":1077,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.devtool.build-sdk",
+      "request_hash": "b3:4e013f7d205d74f27d331ba7363d7f4fb30343faa908f569408b338c7688aa63",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.03588787169701768},\"purpose\":{\"type\":\"choice\",\"choice\":\"development_tool\",\"probabilities\":{\"cloud_sync_or_backup\":0.0022352106339570996,\"communication\":0.003349096192455856,\"design_or_creative\":0.015167864713550179,\"development_tool\":0.8839098134094664,\"game\":0.002572348572910003,\"media\":0.002716019298482272,\"office_or_productivity\":0.0065897227159649316,\"runtime_or_library\":0.05614566332418709,\"security_or_banking\":0.0034191171955001536,\"system_or_driver\":0.006953937454246934,\"unknown\":0.008686728860161141,\"utility\":0.006294869294875987,\"web_browser\":0.001959608334241966},\"confidence\":0.8742356311935885},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"other_software_depends\",\"probabilities\":{\"only_this_app\":0.22280748066914374,\"other_software_depends\":0.6062402144775697,\"security_or_access\":0.011682442982119151,\"stops_background_activity\":0.030435973354578077,\"system_function\":0.024286834203213144,\"unknown\":0.10454705431337616},\"confidence\":0.5274882573730837}},\"usage\":{\"input_tokens\":1134,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "linux.devtool.vcs-tracker",
+      "request_hash": "b3:f4d51f93b02238fd87b55512626715583c442fa33849f9a57716d20c9090b3b6",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.029360372475064248},\"purpose\":{\"type\":\"choice\",\"choice\":\"development_tool\",\"probabilities\":{\"cloud_sync_or_backup\":0.01760872438580244,\"communication\":0.008186830059739041,\"design_or_creative\":0.012290942432833142,\"development_tool\":0.7402924284804969,\"game\":0.004713408561938158,\"media\":0.007484249918994414,\"office_or_productivity\":0.014859756711334717,\"runtime_or_library\":0.03792180545192758,\"security_or_banking\":0.01199703220633111,\"system_or_driver\":0.030813866369301817,\"unknown\":0.0751348894435376,\"utility\":0.03373198690752212,\"web_browser\":0.00496407907024129},\"confidence\":0.7186501308538715},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.3654229314983888,\"other_software_depends\":0.157839500107438,\"security_or_access\":0.03247689439180335,\"stops_background_activity\":0.05844003666681823,\"system_function\":0.06809246930582973,\"unknown\":0.317728168029722},\"confidence\":0.23850751779806653}},\"usage\":{\"input_tokens\":1091,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "macos.media.tunebox",
+      "request_hash": "b3:3dd8c1c08030fec30e25024742c4def9b19ce424cec0b919c1b42368daabdb8d",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.0257308613409225},\"purpose\":{\"type\":\"choice\",\"choice\":\"media\",\"probabilities\":{\"cloud_sync_or_backup\":0.0038453670929859624,\"communication\":0.0056306389523009285,\"design_or_creative\":0.01815774234356651,\"development_tool\":0.006509396504854905,\"game\":0.0057895522535500185,\"media\":0.9095020798118378,\"office_or_productivity\":0.007211122607814524,\"runtime_or_library\":0.006697107926910258,\"security_or_banking\":0.0062495389291295665,\"system_or_driver\":0.006302799883313676,\"unknown\":0.010866654441464991,\"utility\":0.009433022090293137,\"web_browser\":0.0038049771619778315},\"confidence\":0.9019605864628243},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.8353805291604158,\"other_software_depends\":0.02877631273897584,\"security_or_access\":0.01903759322850266,\"stops_background_activity\":0.04267745877916339,\"system_function\":0.017174446385236554,\"unknown\":0.05695365970770588},\"confidence\":0.802456634992499}},\"usage\":{\"input_tokens\":1086,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "linux.media.reelplay",
+      "request_hash": "b3:4cbaf40c823b2d70ba8511453f59a750e8b61d4fb3bb93844e6151ee4b3b8626",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.026245379302903882},\"purpose\":{\"type\":\"choice\",\"choice\":\"media\",\"probabilities\":{\"cloud_sync_or_backup\":0.004544742935578436,\"communication\":0.010436229370064104,\"design_or_creative\":0.025089516606543884,\"development_tool\":0.008795468203036904,\"game\":0.011244818079184293,\"media\":0.8737877317623715,\"office_or_productivity\":0.008319983631367649,\"runtime_or_library\":0.009561495517868947,\"security_or_banking\":0.007417660040044051,\"system_or_driver\":0.0077121824705081,\"unknown\":0.01512664383392943,\"utility\":0.01171379940848593,\"web_browser\":0.006249728141016857},\"confidence\":0.8632700427425691},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.7866764422098945,\"other_software_depends\":0.03810329154891672,\"security_or_access\":0.023424947797805653,\"stops_background_activity\":0.04571890239001258,\"system_function\":0.02143214662518202,\"unknown\":0.08464426942818848},\"confidence\":0.7440117306518734}},\"usage\":{\"input_tokens\":1086,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.office.fabrikam",
+      "request_hash": "b3:a055c568011e721daa453d125bcd01859337483c619a713f92fdd0db8ae22ec2",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.03814079472185946},\"purpose\":{\"type\":\"choice\",\"choice\":\"office_or_productivity\",\"probabilities\":{\"cloud_sync_or_backup\":0.007268741720556676,\"communication\":0.013605710484726733,\"design_or_creative\":0.016772833891358897,\"development_tool\":0.01005533949203591,\"game\":0.006002700030950844,\"media\":0.007814976386336773,\"office_or_productivity\":0.8501587229004347,\"runtime_or_library\":0.017951802549320363,\"security_or_banking\":0.007849825559361966,\"system_or_driver\":0.017542242868913326,\"unknown\":0.026404256398596445,\"utility\":0.014294067960389057,\"web_browser\":0.004278779757018503},\"confidence\":0.8376719498088041},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"stops_background_activity\",\"probabilities\":{\"only_this_app\":0.2028661168659823,\"other_software_depends\":0.08758401797876411,\"security_or_access\":0.027596318354527128,\"stops_background_activity\":0.6130553518647551,\"system_function\":0.03329368903403659,\"unknown\":0.035604505901934716},\"confidence\":0.5356664222377062}},\"usage\":{\"input_tokens\":1161,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.game.starfall",
+      "request_hash": "b3:82e9a8254495c8423306f6f32e41becd6f350d319e0df57d543da65abb9b36e8",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.03413083748898154},\"purpose\":{\"type\":\"choice\",\"choice\":\"game\",\"probabilities\":{\"cloud_sync_or_backup\":0.005223193004851987,\"communication\":0.00619190608597754,\"design_or_creative\":0.010782909394808205,\"development_tool\":0.009366558398549961,\"game\":0.8695336544324852,\"media\":0.018677660352568737,\"office_or_productivity\":0.008562184742298497,\"runtime_or_library\":0.017243352714581696,\"security_or_banking\":0.0065181538145229825,\"system_or_driver\":0.010595411274199232,\"unknown\":0.019817221872935668,\"utility\":0.01253599787386158,\"web_browser\":0.004951796038358907},\"confidence\":0.8586614589685256},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"stops_background_activity\",\"probabilities\":{\"only_this_app\":0.19271961009975208,\"other_software_depends\":0.02171459459832434,\"security_or_access\":0.007980932354108123,\"stops_background_activity\":0.7459279810405756,\"system_function\":0.009664174794464324,\"unknown\":0.021992707112775522},\"confidence\":0.6951135772486907}},\"usage\":{\"input_tokens\":1130,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.banking.safe-transaction",
+      "request_hash": "b3:e2573e40d52d3d847d8faba1d17a9941a6d92cd376559cf6e5016ba93fef9732",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.042020839653732475},\"purpose\":{\"type\":\"choice\",\"choice\":\"security_or_banking\",\"probabilities\":{\"cloud_sync_or_backup\":0.012471727036972897,\"communication\":0.01709521441411896,\"design_or_creative\":0.009661684531194365,\"development_tool\":0.01749796225015284,\"game\":0.009033933340100567,\"media\":0.01073985396015769,\"office_or_productivity\":0.023741349935128435,\"runtime_or_library\":0.019571424946928984,\"security_or_banking\":0.6739725333421486,\"system_or_driver\":0.03311941706589896,\"unknown\":0.1174558806308151,\"utility\":0.046517453213890364,\"web_browser\":0.009121565332492212},\"confidence\":0.6468035777873276},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"stops_background_activity\",\"probabilities\":{\"only_this_app\":0.2619213698852223,\"other_software_depends\":0.025857213708768836,\"security_or_access\":0.23023662310815643,\"stops_background_activity\":0.41820572168982956,\"system_function\":0.018385500956616663,\"unknown\":0.04539357065140617},\"confidence\":0.3018468660277954}},\"usage\":{\"input_tokens\":1137,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.banking.keyguard",
+      "request_hash": "b3:9f5d9f9c8e70eaa66e120bf84a99a16277283658e55ba4f82e6be73df38cb58f",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.03611431429813557},\"purpose\":{\"type\":\"choice\",\"choice\":\"security_or_banking\",\"probabilities\":{\"cloud_sync_or_backup\":0.007096559067624132,\"communication\":0.014329032945568174,\"design_or_creative\":0.012377226558977305,\"development_tool\":0.017222435214152083,\"game\":0.009102890321830991,\"media\":0.01065369984475215,\"office_or_productivity\":0.025217270366218826,\"runtime_or_library\":0.02610602331646885,\"security_or_banking\":0.5956218833659347,\"system_or_driver\":0.11506433748505858,\"unknown\":0.09679107120253315,\"utility\":0.06214180139250008,\"web_browser\":0.008275768918381065},\"confidence\":0.5619237069797625},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"stops_background_activity\",\"probabilities\":{\"only_this_app\":0.13118129655021396,\"other_software_depends\":0.023002409450450404,\"security_or_access\":0.12767562394985293,\"stops_background_activity\":0.6079919042093417,\"system_function\":0.0770569654036875,\"unknown\":0.03309180043645347},\"confidence\":0.5295902850512101}},\"usage\":{\"input_tokens\":1170,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "macos.banking.certbridge",
+      "request_hash": "b3:6817e4bc18e457d1ab99e134dc11ca6f9ff628ea8838920c640dfcbee198c38c",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.03077055730667423},\"purpose\":{\"type\":\"choice\",\"choice\":\"security_or_banking\",\"probabilities\":{\"cloud_sync_or_backup\":0.006834117006063998,\"communication\":0.026967938794105518,\"design_or_creative\":0.008051736090245126,\"development_tool\":0.0156706365417807,\"game\":0.004695300042582604,\"media\":0.006678861496629945,\"office_or_productivity\":0.021559911719909206,\"runtime_or_library\":0.04602439031410904,\"security_or_banking\":0.7441839862917657,\"system_or_driver\":0.04390881264913968,\"unknown\":0.04364659418460019,\"utility\":0.026195137476731786,\"web_browser\":0.005582577392336568},\"confidence\":0.7228659851494128},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"security_or_access\",\"probabilities\":{\"only_this_app\":0.12505813321803977,\"other_software_depends\":0.04585206935482823,\"security_or_access\":0.5403673326376637,\"stops_background_activity\":0.2343840866630645,\"system_function\":0.025267598789123838,\"unknown\":0.02907077933728007},\"confidence\":0.4484407991651964}},\"usage\":{\"input_tokens\":1117,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.system.graphics-driver",
+      "request_hash": "b3:61187fef7b101055bed4edf691d42627528f9abee63c9f5fa6a99c986c50508b",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.038226122270546774},\"purpose\":{\"type\":\"choice\",\"choice\":\"system_or_driver\",\"probabilities\":{\"cloud_sync_or_backup\":0.0025055252805764963,\"communication\":0.0037539106680930553,\"design_or_creative\":0.014326967444517759,\"development_tool\":0.00624143736348056,\"game\":0.004550613305237653,\"media\":0.006645920983849415,\"office_or_productivity\":0.004457207553576263,\"runtime_or_library\":0.014851762959184731,\"security_or_banking\":0.006433877570723979,\"system_or_driver\":0.9107656728539145,\"unknown\":0.01416024902850109,\"utility\":0.008720673840810973,\"web_browser\":0.0025861811475335118},\"confidence\":0.903329478925074},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"system_function\",\"probabilities\":{\"only_this_app\":0.02555173314831766,\"other_software_depends\":0.01611949151947417,\"security_or_access\":0.00833104231444056,\"stops_background_activity\":0.07033525346753079,\"system_function\":0.869543457538393,\"unknown\":0.010119022011843887},\"confidence\":0.8434521490460716}},\"usage\":{\"input_tokens\":1169,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.system.shell-host",
+      "request_hash": "b3:1429e65bc709e81c3aba30ad4595cf67778c6b89c1301b312bdb2f6817485fe0",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.030588574420063092},\"purpose\":{\"type\":\"choice\",\"choice\":\"system_or_driver\",\"probabilities\":{\"cloud_sync_or_backup\":0.003695781859196364,\"communication\":0.009039476929462794,\"design_or_creative\":0.007043856880940482,\"development_tool\":0.007571523618780928,\"game\":0.00396688247226162,\"media\":0.010073177998135075,\"office_or_productivity\":0.017908520409032066,\"runtime_or_library\":0.08092612738769989,\"security_or_banking\":0.010624567402610955,\"system_or_driver\":0.5375036829292892,\"unknown\":0.18876243911336837,\"utility\":0.11739659801565153,\"web_browser\":0.0054873649835707125},\"confidence\":0.49896232317339656},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"system_function\",\"probabilities\":{\"only_this_app\":0.12279326632081455,\"other_software_depends\":0.10096222727860121,\"security_or_access\":0.019700626418452247,\"stops_background_activity\":0.041554833096229836,\"system_function\":0.6481296948911162,\"unknown\":0.0668593519947861},\"confidence\":0.5777556338693394}},\"usage\":{\"input_tokens\":1104,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "macos.system.audio-driver",
+      "request_hash": "b3:70bf97a3684f359773a03eab0febe2ce47e4c608892e949d96f169bf132ffa2f",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.042964098891125665},\"purpose\":{\"type\":\"choice\",\"choice\":\"system_or_driver\",\"probabilities\":{\"cloud_sync_or_backup\":0.0017707112407383463,\"communication\":0.0033449381743458975,\"design_or_creative\":0.010807152896877774,\"development_tool\":0.004263240610992865,\"game\":0.0025582261119212555,\"media\":0.011927279339210718,\"office_or_productivity\":0.0028442441355414445,\"runtime_or_library\":0.010228670018582645,\"security_or_banking\":0.0033668819489053536,\"system_or_driver\":0.9342586767019484,\"unknown\":0.007202226646242189,\"utility\":0.0056942389373123925,\"web_browser\":0.0017335132373807},\"confidence\":0.9287802330937773},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"system_function\",\"probabilities\":{\"only_this_app\":0.024215467271952715,\"other_software_depends\":0.014423676318947495,\"security_or_access\":0.005740970836284269,\"stops_background_activity\":0.09634716759715242,\"system_function\":0.8506415865529274,\"unknown\":0.008631131422735628},\"confidence\":0.8207699038635129}},\"usage\":{\"input_tokens\":1113,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "linux.system.firmware",
+      "request_hash": "b3:90a9b1605a4fa5883aa866c5f9149e22c906bf4e0255e46b0cac45f6180c44aa",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.029281597395840915},\"purpose\":{\"type\":\"choice\",\"choice\":\"system_or_driver\",\"probabilities\":{\"cloud_sync_or_backup\":0.006382497132661189,\"communication\":0.006670564760969389,\"design_or_creative\":0.011034383409098321,\"development_tool\":0.02313352726778279,\"game\":0.006742102717895615,\"media\":0.011493338646740191,\"office_or_productivity\":0.009460313530886765,\"runtime_or_library\":0.051788014404570114,\"security_or_banking\":0.014912636230183957,\"system_or_driver\":0.4813683647218093,\"unknown\":0.3471128531304697,\"utility\":0.024829577479430695,\"web_browser\":0.005071826567501978},\"confidence\":0.43814906178196006},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"unknown\",\"probabilities\":{\"only_this_app\":0.1467683431961947,\"other_software_depends\":0.06975891807773413,\"security_or_access\":0.03606233728852315,\"stops_background_activity\":0.021396681607195676,\"system_function\":0.2785951783512912,\"unknown\":0.447418541479061},\"confidence\":0.33690224977487326}},\"usage\":{\"input_tokens\":1090,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "linux.runtime.libexamplecrypto",
+      "request_hash": "b3:3571c3ce16e875a47989fe8daeabc755781aa3059f8772b2a215bd59d61411b4",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.02886565328958528},\"purpose\":{\"type\":\"choice\",\"choice\":\"runtime_or_library\",\"probabilities\":{\"cloud_sync_or_backup\":0.0020515375490190633,\"communication\":0.005239081934044977,\"design_or_creative\":0.004401281184494899,\"development_tool\":0.017511963478475757,\"game\":0.0018180790155655174,\"media\":0.0028669578830336313,\"office_or_productivity\":0.0033755433443727434,\"runtime_or_library\":0.7858724721845649,\"security_or_banking\":0.03935298734037504,\"system_or_driver\":0.018442918443293717,\"unknown\":0.10777826283834674,\"utility\":0.009501582826908115,\"web_browser\":0.0017873319775048616},\"confidence\":0.7680285115332787},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"other_software_depends\",\"probabilities\":{\"only_this_app\":0.11904255172368416,\"other_software_depends\":0.48368955565140015,\"security_or_access\":0.055656332768256433,\"stops_background_activity\":0.02492329679981154,\"system_function\":0.032444157913347524,\"unknown\":0.28424410514350007},\"confidence\":0.3804274667816802}},\"usage\":{\"input_tokens\":1091,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.runtime.cpp-redist",
+      "request_hash": "b3:0e4ad6aaed93c026a388fac01821c47cd74d0706ddbcc57a02cf47894a8f6b47",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.036556844020349324},\"purpose\":{\"type\":\"choice\",\"choice\":\"runtime_or_library\",\"probabilities\":{\"cloud_sync_or_backup\":0.0012633148957349298,\"communication\":0.0020975742203961207,\"design_or_creative\":0.016265596714280385,\"development_tool\":0.06473488542171132,\"game\":0.0019849852526181767,\"media\":0.0018355994246665706,\"office_or_productivity\":0.006312612149615262,\"runtime_or_library\":0.874436218798008,\"security_or_banking\":0.0020994404255636175,\"system_or_driver\":0.01500057651449708,\"unknown\":0.00769450624545098,\"utility\":0.005092931664295295,\"web_browser\":0.0011817582731618803},\"confidence\":0.8639725703645086},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"other_software_depends\",\"probabilities\":{\"only_this_app\":0.04290572037401808,\"other_software_depends\":0.9040337874366369,\"security_or_access\":0.005382373242085076,\"stops_background_activity\":0.008930716318822833,\"system_function\":0.020039953589182185,\"unknown\":0.018707449039254826},\"confidence\":0.8848405449239642}},\"usage\":{\"input_tokens\":1144,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "linux.runtime.flatpak-platform",
+      "request_hash": "b3:480d3f176ff5671626b5e3c278a3357f01089e6398f1a2337543a1908fa6a076",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.03198928930861797},\"purpose\":{\"type\":\"choice\",\"choice\":\"runtime_or_library\",\"probabilities\":{\"cloud_sync_or_backup\":0.005763291919266661,\"communication\":0.013004498445444016,\"design_or_creative\":0.021938401406917392,\"development_tool\":0.028003376554546777,\"game\":0.011191980386287544,\"media\":0.01306846382408386,\"office_or_productivity\":0.01729851432490568,\"runtime_or_library\":0.6176141163769987,\"security_or_banking\":0.007155752660354917,\"system_or_driver\":0.016770208898429725,\"unknown\":0.22614368815653482,\"utility\":0.01656965011548892,\"web_browser\":0.005478056930741084},\"confidence\":0.5857486260750818},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.42733019848054216,\"other_software_depends\":0.271650721332718,\"security_or_access\":0.01779653312584724,\"stops_background_activity\":0.03367030364407857,\"system_function\":0.021441294877384828,\"unknown\":0.22811094853942926},\"confidence\":0.31279623817665053}},\"usage\":{\"input_tokens\":1080,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "linux.runtime.basecore",
+      "request_hash": "b3:e4f23f7c97547dbc2eb88bcc45770dc7f0fee5ed87ab8560a98666708f5145ff",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.030210556370393514},\"purpose\":{\"type\":\"choice\",\"choice\":\"unknown\",\"probabilities\":{\"cloud_sync_or_backup\":0.021067908766540574,\"communication\":0.018052180138144903,\"design_or_creative\":0.02795290495092994,\"development_tool\":0.06809705285602208,\"game\":0.0127671991159432,\"media\":0.015919670716398583,\"office_or_productivity\":0.024295240301470095,\"runtime_or_library\":0.1263087621806246,\"security_or_banking\":0.03288127978451061,\"system_or_driver\":0.04246492610706195,\"unknown\":0.5653765732495882,\"utility\":0.03684140101583294,\"web_browser\":0.007974900816932355},\"confidence\":0.5291579543537206},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"unknown\",\"probabilities\":{\"only_this_app\":0.29966914325427046,\"other_software_depends\":0.10713338871875962,\"security_or_access\":0.07466393177766462,\"stops_background_activity\":0.02594400259732802,\"system_function\":0.04937961045298351,\"unknown\":0.44320992319899377},\"confidence\":0.33185190783879254}},\"usage\":{\"input_tokens\":1087,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "macos.cloud.skybox",
+      "request_hash": "b3:a6f33b918df8bffd558cfafff590eda082bbaa3c18dba028944d8855260ca877",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.044928676065838016},\"purpose\":{\"type\":\"choice\",\"choice\":\"unknown\",\"probabilities\":{\"cloud_sync_or_backup\":0.14881791710518438,\"communication\":0.06890168883670099,\"design_or_creative\":0.034123759544005254,\"development_tool\":0.03265156098524508,\"game\":0.022472314278973272,\"media\":0.04609847738154224,\"office_or_productivity\":0.03540040420413782,\"runtime_or_library\":0.050308469523477915,\"security_or_banking\":0.05133518159820041,\"system_or_driver\":0.031505602959294804,\"unknown\":0.38058540321328754,\"utility\":0.0760781614342601,\"web_browser\":0.021721058935690343},\"confidence\":0.3289675201477282},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"stops_background_activity\",\"probabilities\":{\"only_this_app\":0.14338144604809586,\"other_software_depends\":0.024817362614085365,\"security_or_access\":0.02963474351693288,\"stops_background_activity\":0.7608469870782786,\"system_function\":0.01214064142398623,\"unknown\":0.02917881931862113},\"confidence\":0.7130163844939343}},\"usage\":{\"input_tokens\":1136,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.communication.chatterbox",
+      "request_hash": "b3:863c881a953cfb96f0e9cd3d1166fb8ce474103821994288b61ac2f5d98b26b7",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.04023812677304944},\"purpose\":{\"type\":\"choice\",\"choice\":\"communication\",\"probabilities\":{\"cloud_sync_or_backup\":0.012450002242524232,\"communication\":0.6239842921871347,\"design_or_creative\":0.01973571420125011,\"development_tool\":0.01852677580455397,\"game\":0.01054512526764226,\"media\":0.02318124080135293,\"office_or_productivity\":0.03020117104289104,\"runtime_or_library\":0.014375088496957268,\"security_or_banking\":0.013302621402011536,\"system_or_driver\":0.014203610348904555,\"unknown\":0.18012750197188768,\"utility\":0.030442526916252825,\"web_browser\":0.00892432931663691},\"confidence\":0.5926496498693958},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"stops_background_activity\",\"probabilities\":{\"only_this_app\":0.2557952618909121,\"other_software_depends\":0.016247606536401924,\"security_or_access\":0.01293597514680225,\"stops_background_activity\":0.6812325338239061,\"system_function\":0.008167145429982314,\"unknown\":0.025621477171995224},\"confidence\":0.6174790405886874}},\"usage\":{\"input_tokens\":1106,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "macos.design.vectorly",
+      "request_hash": "b3:ad8b172148be04c3a00d13ae03aa079f7f26f99512899c3a6f005477cc884c6f",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.024819052230447346},\"purpose\":{\"type\":\"choice\",\"choice\":\"design_or_creative\",\"probabilities\":{\"cloud_sync_or_backup\":0.006031389920622753,\"communication\":0.007098223591446992,\"design_or_creative\":0.8192253565343053,\"development_tool\":0.030713978240827704,\"game\":0.006799454754147481,\"media\":0.011659106568807595,\"office_or_productivity\":0.02493815399108852,\"runtime_or_library\":0.009222219695164983,\"security_or_banking\":0.005598450141296426,\"system_or_driver\":0.006530231520268574,\"unknown\":0.054239535271651984,\"utility\":0.013161315949040405,\"web_browser\":0.004782583821331488},\"confidence\":0.8041608029121641},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.7979270253520823,\"other_software_depends\":0.03718129024374691,\"security_or_access\":0.016939571060889,\"stops_background_activity\":0.03809026274517639,\"system_function\":0.014076224957506921,\"unknown\":0.09578562564059849},\"confidence\":0.7575124304224987}},\"usage\":{\"input_tokens\":1082,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "macos.utility.squeezer",
+      "request_hash": "b3:c54312594082d0ccc62d8b4c0c2c09df619441078f502217a4eeb71f5dfab2c5",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.019667402143438366},\"purpose\":{\"type\":\"choice\",\"choice\":\"utility\",\"probabilities\":{\"cloud_sync_or_backup\":0.0077597297052602555,\"communication\":0.004003981394619644,\"design_or_creative\":0.014815926548293992,\"development_tool\":0.018385943862083677,\"game\":0.0032902778656373065,\"media\":0.015367430713117658,\"office_or_productivity\":0.013951278746231378,\"runtime_or_library\":0.010481421377222128,\"security_or_banking\":0.0065317961855191784,\"system_or_driver\":0.009291034009401573,\"unknown\":0.02987459896928871,\"utility\":0.8625742579869059,\"web_browser\":0.0036723226364184566},\"confidence\":0.851122112819148},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.8421790170826554,\"other_software_depends\":0.03635460990643371,\"security_or_access\":0.01456132057933492,\"stops_background_activity\":0.02575730284843063,\"system_function\":0.017199856071471304,\"unknown\":0.06394789351167414},\"confidence\":0.8106148204991865}},\"usage\":{\"input_tokens\":1072,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.unknown.setup123",
+      "request_hash": "b3:64ec1e63c5c1f876e43ceea6d6d658f39e51f95e10f853ebae6db253eec95826",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.03553048931771994},\"purpose\":{\"type\":\"choice\",\"choice\":\"unknown\",\"probabilities\":{\"cloud_sync_or_backup\":0.011931452324663949,\"communication\":0.016620098111094172,\"design_or_creative\":0.018609615550306026,\"development_tool\":0.03654478200559422,\"game\":0.018521451316146895,\"media\":0.0167110645435744,\"office_or_productivity\":0.025264389648600467,\"runtime_or_library\":0.02710545728253398,\"security_or_banking\":0.020764318166626047,\"system_or_driver\":0.03386215006190174,\"unknown\":0.7186609804676362,\"utility\":0.043694392964263244,\"web_browser\":0.011709847557058624},\"confidence\":0.6952160621732724},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.5417168617632316,\"other_software_depends\":0.032672774814946015,\"security_or_access\":0.026423449898945163,\"stops_background_activity\":0.029599916435925015,\"system_function\":0.02435586777940831,\"unknown\":0.3452311293075438},\"confidence\":0.450060234115878}},\"usage\":{\"input_tokens\":1070,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.adversarial.storage-filter",
+      "request_hash": "b3:eed586059cac0f5ff61faade97e751866a7b5dcbcc173891477b79a789dba0cd",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.8792350577179503},\"purpose\":{\"type\":\"choice\",\"choice\":\"system_or_driver\",\"probabilities\":{\"cloud_sync_or_backup\":0.01557789430673228,\"communication\":0.004472585695793044,\"design_or_creative\":0.006616681819252727,\"development_tool\":0.007907712897180022,\"game\":0.009610556559902266,\"media\":0.006381413792972257,\"office_or_productivity\":0.005867620377266706,\"runtime_or_library\":0.011563802229162371,\"security_or_banking\":0.008293738706698115,\"system_or_driver\":0.8777148300556645,\"unknown\":0.02070219536529577,\"utility\":0.022268299643676232,\"web_browser\":0.0030226685504035917},\"confidence\":0.8675243992269699},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"system_function\",\"probabilities\":{\"only_this_app\":0.05376753801693597,\"other_software_depends\":0.018956208401595714,\"security_or_access\":0.01706566476419672,\"stops_background_activity\":0.04398548567424137,\"system_function\":0.8488677283742377,\"unknown\":0.017357374768792597},\"confidence\":0.8186412740490853}},\"usage\":{\"input_tokens\":1154,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "macos.adversarial.safepay",
+      "request_hash": "b3:dd6dc1bcc12bcc9a1c9a1118761c9aee30832876500486c83324f312eb7dad3d",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.7486046595942224},\"purpose\":{\"type\":\"choice\",\"choice\":\"security_or_banking\",\"probabilities\":{\"cloud_sync_or_backup\":0.010681520179654402,\"communication\":0.020169941540898878,\"design_or_creative\":0.008714145784206193,\"development_tool\":0.016688571038431844,\"game\":0.00590821063464312,\"media\":0.01014415360416135,\"office_or_productivity\":0.022135220412304858,\"runtime_or_library\":0.036624073544356074,\"security_or_banking\":0.6063376416562608,\"system_or_driver\":0.06099837009002737,\"unknown\":0.16077535151576833,\"utility\":0.0319816387180368,\"web_browser\":0.008841161281250063},\"confidence\":0.5735324451276158},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.5560013300853859,\"other_software_depends\":0.02976164872241952,\"security_or_access\":0.120763767329905,\"stops_background_activity\":0.21315815161038582,\"system_function\":0.017217962530785398,\"unknown\":0.06309713972111847},\"confidence\":0.4672015961024631}},\"usage\":{\"input_tokens\":1136,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "windows.adversarial.label",
+      "request_hash": "b3:5416432f5d019efb5638e185f44f2fb89f4d6f2a3634c359d5e32bd861a4220b",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.8067965275536346},\"purpose\":{\"type\":\"choice\",\"choice\":\"unknown\",\"probabilities\":{\"cloud_sync_or_backup\":0.006272622112351522,\"communication\":0.03488234837441521,\"design_or_creative\":0.013322980021113323,\"development_tool\":0.020291747585200356,\"game\":0.0070258309697890774,\"media\":0.017304979634989566,\"office_or_productivity\":0.03603696031602819,\"runtime_or_library\":0.07825044317457058,\"security_or_banking\":0.026468520086813718,\"system_or_driver\":0.15254902771980786,\"unknown\":0.5429421324009324,\"utility\":0.054924418553493,\"web_browser\":0.009727989050495232},\"confidence\":0.5048539767676767},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"stops_background_activity\",\"probabilities\":{\"only_this_app\":0.23482955575297035,\"other_software_depends\":0.07328585290642937,\"security_or_access\":0.038762511178391364,\"stops_background_activity\":0.3944722807199525,\"system_function\":0.11121337046721974,\"unknown\":0.1474364289750365},\"confidence\":0.27336673686394297}},\"usage\":{\"input_tokens\":1133,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "linux.adversarial.korean",
+      "request_hash": "b3:a586766edb6bec8685aefee3dad38ce800780ef2ed9e0025fedf251b862590ed",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.9235783001690828},\"purpose\":{\"type\":\"choice\",\"choice\":\"unknown\",\"probabilities\":{\"cloud_sync_or_backup\":0.007709451961714642,\"communication\":0.012936735854908822,\"design_or_creative\":0.018053294759253685,\"development_tool\":0.04882845840233134,\"game\":0.00967394677781272,\"media\":0.019325285163638867,\"office_or_productivity\":0.019309975877404618,\"runtime_or_library\":0.04055159930753692,\"security_or_banking\":0.026181356241069126,\"system_or_driver\":0.06643336601680426,\"unknown\":0.6729185853903747,\"utility\":0.04934190320412957,\"web_browser\":0.008736041043020651},\"confidence\":0.6456618008395727},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.4940884844276159,\"other_software_depends\":0.10624409562414497,\"security_or_access\":0.07051405882667165,\"stops_background_activity\":0.035960736047275205,\"system_function\":0.06811879010859216,\"unknown\":0.22507383496570005},\"confidence\":0.3929061813131391}},\"usage\":{\"input_tokens\":1100,\"output_tokens\":0}}"
+    },
+    {
+      "case_id": "linux.adversarial.version",
+      "request_hash": "b3:b9fd8508cdc8dd40f6fc8a79f3ee62e0f5b833b5588c6a7d6a7f64d759bd45a7",
+      "stop_reason": "end_turn",
+      "model": "jeb",
+      "body": "{\"model\":\"jeb\",\"answers\":{\"injection\":{\"type\":\"noul\",\"noul\":0.03909662249749942},\"purpose\":{\"type\":\"choice\",\"choice\":\"runtime_or_library\",\"probabilities\":{\"cloud_sync_or_backup\":0.0013785586858845581,\"communication\":0.0023288983972433426,\"design_or_creative\":0.00862249425301119,\"development_tool\":0.007721234027837175,\"game\":0.13764778675531142,\"media\":0.005438553872478525,\"office_or_productivity\":0.004095346589307446,\"runtime_or_library\":0.779123110074002,\"security_or_banking\":0.0024259544228762654,\"system_or_driver\":0.01614773134720282,\"unknown\":0.026770757713917234,\"utility\":0.006751821026948647,\"web_browser\":0.0015477528339794195},\"confidence\":0.7607167025801688},\"removal_impact\":{\"type\":\"choice\",\"choice\":\"only_this_app\",\"probabilities\":{\"only_this_app\":0.6350735595061975,\"other_software_depends\":0.20068362797146674,\"security_or_access\":0.01167620102948229,\"stops_background_activity\":0.03479411455378525,\"system_function\":0.029238340797786887,\"unknown\":0.08853415614128148},\"confidence\":0.562088271407437}},\"usage\":{\"input_tokens\":1100,\"output_tokens\":0}}"
+    }
+  ]
+}

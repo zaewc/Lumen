@@ -106,7 +106,7 @@ standard library instead, and this records what it does:
   items (`InventorySource::collect`).
 - **Async ports.** `JudgeModel` and `Describer` return boxed futures
   (`crates/lumen-application/src/ports.rs`). There is no async runtime:
-  `lumen_app::block_on` (`crates/lumen-app/src/assess.rs`) polls the future on the
+  `lumen_app::block_on` (`crates/lumen-app/src/runtime.rs`) polls the future on the
   calling thread and parks it until woken. The OpenRouter adapter runs each blocking
   `ureq` request on its own thread and wakes the future when the answer arrives
   (`crates/lumen-jev/src/openrouter.rs`).

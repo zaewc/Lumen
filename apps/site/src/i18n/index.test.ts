@@ -4,7 +4,7 @@ import { LOCALE_NAMES, LOCALES, localePath, messages, screenshotLocale } from ".
 
 describe("site locales", () => {
   it("provides complete catalogs and valid client strings", () => {
-    expect(LOCALES).toEqual(["ko", "en", "ru", "ja", "zh-CN", "es"]);
+    expect(LOCALES).toEqual(["ko", "en", "ru", "ja", "zh-CN", "es", "fr"]);
     for (const locale of LOCALES) {
       expect(messages[locale].lang).toBe(locale);
       expect(LOCALE_NAMES[locale]).not.toBe("");

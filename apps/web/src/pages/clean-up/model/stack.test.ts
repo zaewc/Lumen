@@ -32,6 +32,22 @@ function candidate(extra: Partial<CandidateView> = {}): CandidateView {
 }
 
 describe("evidenceStack", () => {
+  it("shows review uncertainty and future-code fallbacks without repeating tool or AI rules", () => {
+    const review_reasons = {
+      schema: "review-reasons/1",
+      codes: ["unknown_owner", "tool_required", "future"],
+    };
+    const lines = evidenceStack(
+      candidate({ review_reasons, reasons: [{ rule: "default.review", text: "generic" }] }),
+      [],
+    ).filter((line) => line.type === "review_reason");
+    expect(lines.map((line) => line.code)).toEqual(["unknown_owner", "future"]);
+    expect(
+      evidenceStack(candidate({ verdict: "keep", review_reasons }), []).some(
+        (line) => line.type === "review_reason",
+      ),
+    ).toBe(false);
+  });
   it("puts rules first, by source, with their certainty", () => {
     const lines = evidenceStack(
       candidate({
@@ -99,6 +115,33 @@ describe("evidenceStack", () => {
         folder: false,
       }),
     ).toEqual(["unknown", "unknown"]);
+  });
+
+  it("shows usage after use and times, partial about what the platform records", () => {
+    const lines = evidenceStack(
+      candidate({
+        facts: [
+          fact({ type: "project_activity", at: "2026-09-01T00:00:00Z" }),
+          fact({
+            type: "application_last_opened",
+            app: "com.example.OldEditor",
+            at: "2025-01-02T00:00:00Z",
+          }),
+          fact({ type: "application_running", app: "com.example.OldEditor", running: false }),
+          fact({ type: "in_use", in_use: false }),
+        ],
+      }),
+      [],
+    );
+    expect(lines.map((l) => [l.type, l.certainty])).toEqual([
+      ["app_running", "resolved"],
+      ["in_use", "resolved"],
+      ["time", "resolved"],
+      ["time", "partial"],
+      ["app_opened", "partial"],
+      ["project_activity", "partial"],
+      ["unrelated", "unknown"],
+    ]);
   });
 
   it("ends with relations, then AI review's note on an item to review only", () => {

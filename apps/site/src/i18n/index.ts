@@ -1,12 +1,13 @@
 import { en } from "./en";
 import { es } from "./es";
+import { fr } from "./fr";
 import { ja } from "./ja";
 import { ko } from "./ko";
 import { ru } from "./ru";
 import type { Locale, Messages } from "./types";
 import { zhCN } from "./zh-CN";
 
-export const LOCALES: readonly Locale[] = ["ko", "en", "ru", "ja", "zh-CN", "es"];
+export const LOCALES: readonly Locale[] = ["ko", "en", "ru", "ja", "zh-CN", "es", "fr"];
 
 export const LOCALE_NAMES: Readonly<Record<Locale, string>> = {
   ko: "한국어",
@@ -15,6 +16,7 @@ export const LOCALE_NAMES: Readonly<Record<Locale, string>> = {
   ja: "日本語",
   "zh-CN": "简体中文",
   es: "Español",
+  fr: "Français",
 };
 
 export const messages: Readonly<Record<Locale, Messages>> = {
@@ -24,6 +26,7 @@ export const messages: Readonly<Record<Locale, Messages>> = {
   ja,
   "zh-CN": zhCN,
   es,
+  fr,
 };
 
 export function screenshotLocale(locale: Locale): "ko" | "en" {

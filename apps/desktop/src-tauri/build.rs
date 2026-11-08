@@ -19,6 +19,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "check_update",
         "install_update",
         "run_tool_command",
+        "tool_storage",
+        "software",
+        "explain_software",
+        "compare_folders",
+        "cancel_comparison",
+        "reassess",
+        "uninstall_preview",
+        "uninstall",
     ];
     tauri_build::try_build(
         tauri_build::Attributes::new()

@@ -325,7 +325,7 @@ impl IndexStore {
                 |row| row.get(0),
             )
             .optional()?;
-        id.map(|id| id.parse().map_err(|_| corrupt("id")))
+        id.map(|id| id.parse().map_err(|_| StoreError::corrupt("id")))
             .transpose()
     }
 
@@ -367,7 +367,7 @@ impl IndexStore {
         rows.map(|row| {
             let (flavor, path) = row?;
             RawPath::from_stored(parse_flavor(&flavor)?, path)
-                .map_err(|_| corrupt("scan_roots.path"))
+                .map_err(|_| StoreError::corrupt("scan_roots.path"))
         })
         .collect()
     }
@@ -382,7 +382,7 @@ impl IndexStore {
             "SELECT id FROM scans WHERE state = 'running' ORDER BY started_secs, started_nanos, id",
         )?;
         let ids = query.query_map([], |row| row.get::<_, String>(0))?;
-        ids.map(|id| id?.parse().map_err(|_| corrupt("id")))
+        ids.map(|id| id?.parse().map_err(|_| StoreError::corrupt("id")))
             .collect()
     }
 
@@ -421,8 +421,12 @@ impl IndexStore {
         for row in rows {
             let (path, volume, file_id) = row?;
             let path = path?;
-            let volume = VolumeId::new(volume).map_err(|_| corrupt("volume"))?;
-            let file = u128::from_be_bytes(file_id.try_into().map_err(|_| corrupt("file_id"))?);
+            let volume = VolumeId::new(volume).map_err(|_| StoreError::corrupt("volume"))?;
+            let file = u128::from_be_bytes(
+                file_id
+                    .try_into()
+                    .map_err(|_| StoreError::corrupt("file_id"))?,
+            );
             let Some(root_volume) = root_volume_for(&roots, &path) else {
                 continue;
             };
@@ -499,7 +503,7 @@ impl IndexStore {
                     Ok(RootSnapshot {
                         root: root.clone(),
                         taken_at: join_time("taken", row.get(0)?, row.get(1)?)?
-                            .ok_or_else(|| corrupt("taken"))?,
+                            .ok_or_else(|| StoreError::corrupt("taken"))?,
                         files: from_i64("files", row.get(2)?)?,
                         logical: ByteCount::new(from_i64("logical", row.get(3)?)?),
                         allocated: ByteCount::new(from_i64("allocated", row.get(4)?)?),
@@ -736,7 +740,7 @@ impl IndexStore {
 
 /// A `LIMIT` value.
 fn sql_limit(limit: usize) -> Result<i64, StoreError> {
-    i64::try_from(limit).map_err(|_| corrupt("limit"))
+    i64::try_from(limit).map_err(|_| StoreError::corrupt("limit"))
 }
 
 /// The path of a row whose first three columns are flavor, directory path and
@@ -745,7 +749,7 @@ fn path_from_row(row: &Row<'_>) -> Result<RawPath, StoreError> {
     let flavor = parse_flavor(&row.get::<_, String>(0)?)?;
     let mut path: Vec<u8> = row.get(1)?;
     path.extend_from_slice(&row.get::<_, Vec<u8>>(2)?);
-    RawPath::from_stored(flavor, path).map_err(|_| corrupt("path"))
+    RawPath::from_stored(flavor, path).map_err(|_| StoreError::corrupt("path"))
 }
 
 /// A listing row: flavor, directory path, name, access, complete.
@@ -793,16 +797,12 @@ fn root_volume_for(roots: &[(RawPath, VolumeId)], path: &RawPath) -> Option<Volu
         .map(|(_, volume)| volume.clone())
 }
 
-fn corrupt(column: &'static str) -> StoreError {
-    StoreError::Corrupt { column }
-}
-
 fn to_i64(column: &'static str, value: u64) -> Result<i64, StoreError> {
     i64::try_from(value).map_err(|_| StoreError::OutOfRange { column })
 }
 
 fn from_i64(column: &'static str, value: i64) -> Result<u64, StoreError> {
-    u64::try_from(value).map_err(|_| corrupt(column))
+    u64::try_from(value).map_err(|_| StoreError::corrupt(column))
 }
 
 fn split(time: Option<Timestamp>) -> (Option<i64>, Option<u32>) {
@@ -820,8 +820,8 @@ fn join_time(
         (None, None) => Ok(None),
         (Some(s), Some(n)) => Timestamp::from_unix(s, n)
             .map(Some)
-            .map_err(|_| corrupt(column)),
-        _ => Err(corrupt(column)),
+            .map_err(|_| StoreError::corrupt(column)),
+        _ => Err(StoreError::corrupt(column)),
     }
 }
 
@@ -836,7 +836,7 @@ fn parse_flavor(text: &str) -> Result<PathFlavor, StoreError> {
     match text {
         "unix" => Ok(PathFlavor::Unix),
         "windows" => Ok(PathFlavor::Windows),
-        _ => Err(corrupt("flavor")),
+        _ => Err(StoreError::corrupt("flavor")),
     }
 }
 
@@ -859,7 +859,7 @@ fn parse_kind(text: &str) -> Result<EntryKind, StoreError> {
         "junction" => EntryKind::Junction,
         "other_reparse_point" => EntryKind::OtherReparsePoint,
         "special" => EntryKind::Special,
-        _ => return Err(corrupt("kind")),
+        _ => return Err(StoreError::corrupt("kind")),
     })
 }
 
@@ -882,7 +882,7 @@ fn parse_scan_state(text: &str) -> Result<ScanState, StoreError> {
         "completed" => ScanState::Completed,
         "cancelled" => ScanState::Cancelled,
         "failed" => ScanState::Failed,
-        _ => return Err(corrupt("state")),
+        _ => return Err(StoreError::corrupt("state")),
     })
 }
 
@@ -946,31 +946,36 @@ const fn protection_from(bits: i64) -> Protection {
 /// Access states use the domain's serde form, so storage shares one validated
 /// vocabulary with every other boundary.
 fn access_text(access: AccessState) -> Result<String, StoreError> {
-    serde_json::to_string(&access).map_err(|_| corrupt("access"))
+    serde_json::to_string(&access).map_err(|_| StoreError::corrupt("access"))
 }
 
 fn parse_access(text: &str) -> Result<AccessState, StoreError> {
-    serde_json::from_str(text).map_err(|_| corrupt("access"))
+    serde_json::from_str(text).map_err(|_| StoreError::corrupt("access"))
 }
 
 /// An entry row: flavor, directory path and name, then the entry's columns.
 fn entry_from_row(row: &Row<'_>) -> Result<FilesystemEntry, StoreError> {
     let path = path_from_row(row)?;
-    let volume = VolumeId::new(row.get::<_, String>(3)?).map_err(|_| corrupt("volume"))?;
+    let volume =
+        VolumeId::new(row.get::<_, String>(3)?).map_err(|_| StoreError::corrupt("volume"))?;
     let file_bytes: Vec<u8> = row.get(4)?;
-    let file = u128::from_be_bytes(file_bytes.try_into().map_err(|_| corrupt("file_id"))?);
+    let file = u128::from_be_bytes(
+        file_bytes
+            .try_into()
+            .map_err(|_| StoreError::corrupt("file_id"))?,
+    );
     let clone_id = row
         .get::<_, Option<Vec<u8>>>(9)?
         .map(|b| {
             <[u8; 8]>::try_from(b)
                 .map(|b| CloneId::new(u64::from_be_bytes(b)))
-                .map_err(|_| corrupt("clone_id"))
+                .map_err(|_| StoreError::corrupt("clone_id"))
         })
         .transpose()?;
     let link_count = u32::try_from(row.get::<_, i64>(10)?)
         .ok()
         .and_then(NonZeroU32::new)
-        .ok_or_else(|| corrupt("link_count"))?;
+        .ok_or_else(|| StoreError::corrupt("link_count"))?;
     Ok(FilesystemEntry {
         path,
         kind: parse_kind(&row.get::<_, String>(5)?)?,

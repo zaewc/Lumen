@@ -58,6 +58,12 @@ impl InventorySource for InstalledApps {
                     version: key.string(&name, "DisplayVersion"),
                     publisher: key.string(&name, "Publisher"),
                     install_location: key.string(&name, "InstallLocation"),
+                    uninstall_string: key.string(&name, "UninstallString"),
+                    quiet_uninstall_string: key.string(&name, "QuietUninstallString"),
+                    windows_installer: key.dword(&name, "WindowsInstaller"),
+                    system_component: key.dword(&name, "SystemComponent"),
+                    no_remove: key.dword(&name, "NoRemove"),
+                    parent_key_name: key.string(&name, "ParentKeyName"),
                     key: name,
                 };
                 applications.extend(to_application(&entry, &source()));
@@ -90,6 +96,15 @@ mod tests {
             "a Windows runner has installed programs"
         );
         assert!(report.applications.iter().all(|a| a.name.is_some()));
+        // Runners carry Windows Installer packages (the Visual C++ runtimes);
+        // reading their `WindowsInstaller` flag exercises the DWORD reader.
+        assert!(
+            report
+                .applications
+                .iter()
+                .any(|a| a.uninstall.as_ref().is_some_and(|u| u.windows_installer)),
+            "no Windows Installer entry was read"
+        );
         let cancel = CancelToken::new();
         cancel.cancel();
         assert_eq!(InstalledApps.collect(&cancel).status, SourceStatus::Partial);

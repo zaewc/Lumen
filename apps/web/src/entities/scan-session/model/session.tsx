@@ -45,6 +45,11 @@ export interface ScanSession {
   readonly cleanUpError: unknown;
   readonly execute: (plan: PlanView) => void;
   readonly resetCleanUp: () => void;
+  /**
+   * Puts items decided again (ADR-0058) in place of their earlier
+   * assessment, matched by path; other items stay as they are.
+   */
+  readonly replace: (decided: readonly CandidateView[]) => void;
 }
 
 const ScanSessionContext = createContext<ScanSession | null>(null);
@@ -113,6 +118,13 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
         void execution.run(confirmed);
       },
       resetCleanUp: execution.reset,
+      replace: (decided) => {
+        const now = new Map(decided.map((candidate) => [candidate.path, candidate]));
+        queries.setQueryData<readonly CandidateView[]>(
+          [...QUERY_KEYS.assessment, scanId],
+          (earlier) => earlier?.map((candidate) => now.get(candidate.path) ?? candidate),
+        );
+      },
       start: (roots) => {
         if (cleaning || scan.isPending) {
           return;

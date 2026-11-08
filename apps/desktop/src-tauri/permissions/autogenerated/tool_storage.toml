@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tool-storage"
+description = "Enables the tool_storage command without any pre-configured scope."
+commands.allow = ["tool_storage"]
+
+[[permission]]
+identifier = "deny-tool-storage"
+description = "Denies the tool_storage command without any pre-configured scope."
+commands.deny = ["tool_storage"]

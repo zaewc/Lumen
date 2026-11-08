@@ -24,6 +24,7 @@ export const zhCN: Messages = {
     overview: "存储空间",
     cleanUp: "探索",
     quarantine: "隔离区",
+    apps: "应用",
     settings: "设置",
     held: (n: number) => `隔离区中有 ${items(n)}`,
   },
@@ -61,6 +62,60 @@ export const zhCN: Messages = {
       cleaned: (n: number, size: string) => `${items(n)}（${size}）已移至隔离区。`,
       none: "尚未扫描。扫描磁盘以探索其中的内容，并查看每项决策背后的证据。",
     },
+    tools: {
+      title: "开发工具",
+      intro: "询问 Xcode、Docker 和包管理器各自占用多少空间。Lumen 只读取它们的回答。",
+      check: "检查开发工具",
+      checking: "正在检查…",
+      checkAgain: "再次检查",
+      loadFailed: "Lumen 无法询问开发工具。",
+      notInstalled: "未安装",
+      unsupported: "此电脑上无法检查",
+      unavailable: "无法检查",
+      none: "没有报告任何项目",
+      inUse: (detail: string) => `使用中 ${detail}`,
+      reclaimable: (size: string) => `Docker 估计 ${size} 未使用`,
+      cache: "缓存",
+      sharedStore: "共享存储",
+      ownCommand: "专用命令",
+      xcodeManage: "在 Xcode › Settings › Components 中管理运行时。",
+      dockerManage:
+        "Docker 认为未使用的空间包括卷和已停止的容器，其中可能有你需要的数据。Docker 清理只会在“探索”中确认完整命令后运行，并保留卷。",
+      sharedStoreNote: "项目会链接到此存储。它的专用命令会保留仍在使用的包。",
+      cacheNote: "需要时会重新下载。",
+    },
+    copies: {
+      title: "相同的文件",
+      intro:
+        "选择文件夹后，Lumen 会比较其中的文件，找出内容相同的文件。Lumen 只读取你选择的文件夹中的文件。",
+      choose: "选择要比较的文件夹…",
+      chooseAgain: "比较其他文件夹…",
+      stop: "停止",
+      stopping: "正在停止…",
+      stopped: "已停止比较。不会显示这次比较的结果。",
+      comparing: "正在比较…",
+      stage: {
+        head: "正在比较大小相同的文件的开头",
+        tail: "正在比较仍然相同的文件的结尾",
+        full: "正在完整比较仍然相同的文件",
+      },
+      filesRead: (n: string) => `已读取 ${count(n)} 个文件`,
+      folders: "已比较的文件夹",
+      group: (n: number, size: string) => `${count(n)} 个副本 · 每个 ${size}`,
+      none: "在能够比较的文件中，没有内容相同的文件。",
+      more: (n: number) => `另有 ${count(n)} 组较小的文件未显示。`,
+      hardLinks: (n: number) =>
+        `${count(n)} 个文件有多个名称（硬链接）。它们各是一个文件，不是副本。`,
+      skipped: (n: number) =>
+        `${count(n)} 个文件未比较：它们已更改、无法读取、仅在云端，或受系统保护。`,
+      protectedFiles: (n: number) => `受保护位置中的 ${count(n)} 个文件未读取。`,
+      incomplete: "部分文件夹未能完整读取，其中的文件未比较。",
+      unsupported: "这台电脑暂时还不能比较文件。",
+      tooMany: (limit: string) => `这些文件夹中的文件超过 ${count(limit)} 个。请选择更小的文件夹。`,
+      failed: "Lumen 无法比较这些文件夹。",
+      advice:
+        "副本可能是你想保留的备份。Lumen 不会选择或删除任何副本。删除一个副本释放的空间可能小于它的大小。",
+    },
   },
   workspace: {
     available: "可用空间",
@@ -91,7 +146,7 @@ export const zhCN: Messages = {
     offIntro:
       "AI 模型会再次检查 Lumen 建议清理的内容，并说明待检查项目可能是什么。它只能让 Lumen 的判断更加谨慎。",
     onIntro: (key: string) =>
-      `已开启，使用 ${key}。Lumen 会发送每个建议处理项目以及最多 20 个待检查项目的详细信息，绝不会发送其内容。AI 只能让 Lumen 的判断更加谨慎。你可以随时关闭此功能。`,
+      `已开启，使用 ${key}。Lumen 会发送每个建议处理项目以及最多 20 个待检查项目的详细信息，绝不会发送其内容。AI 只能让 Lumen 的判断更加谨慎。你可以随时关闭此功能。 还会发送已安装应用的名称、发布者和版本，不含路径。`,
     keyInUse: {
       builtin: (service: string) => `${service}（内置密钥）`,
       stored: (service: string) => `${service}（你的密钥）`,
@@ -105,7 +160,7 @@ export const zhCN: Messages = {
     changeFailed: "Lumen 无法更改 AI 检查设置。",
     consent: {
       title: "开启 AI 检查？",
-      what: "对于每个建议处理项目以及最多 20 个体积最大的待检查项目，Lumen 会发送其路径（主文件夹会显示为 ~）、大小、存放时间以及决策依据。绝不会发送文件内容。",
+      what: "对于每个建议处理项目以及最多 20 个体积最大的待检查项目，Lumen 会发送其路径（主文件夹会显示为 ~）、大小、存放时间以及决策依据。绝不会发送文件内容。 为了应用页面，还会发送已安装应用的名称、发布者、版本及与其关联的后台项目，不含路径。",
       whereJeb:
         "Lumen 会使用你的 API 密钥将这些信息发送到你学校的 Jeb 服务器（jeb.https.gsmsv.site）。服务器运营者可能会保留请求。",
       whereJebBuiltin:
@@ -230,6 +285,11 @@ export const zhCN: Messages = {
       present === null
         ? `属于 ${app}。是否已安装尚不清楚。`
         : `属于 ${app}，该应用${present ? "已安装" : "未安装"}。`,
+    appRunning: (app: string, running: boolean) =>
+      running ? `${app} 正在运行。` : `${app} 未在运行。`,
+    appOpened: (app: string, date: string) =>
+      `${app} 上次打开于 ${date}；系统可能不会记录每次启动。`,
+    projectChanged: (date: string) => `项目文件上次更改于 ${date}；只看清单和锁定文件这类文件。`,
     inUse: (inUse: boolean): string =>
       inUse ? "有应用正在使用此项目。" : "没有应用正在使用此项目。",
     unseen: (unseen: number | null) =>
@@ -251,6 +311,23 @@ export const zhCN: Messages = {
       review: "Lumen 会将此项目留给你判断，不会自行移动。",
       command: "应由对应工具自行清理。只有在你要求时，Lumen 才会运行命令。",
       quarantine: "Lumen 建议将此项目移至隔离区。之后可以从隔离区恢复。",
+    },
+    recheck: {
+      unknown: "Lumen 判断时不知道：",
+      gaps: {
+        in_use: "是否有应用在使用它",
+        unread: "其中的全部内容",
+        stale: "它现在的状态",
+        owner: "它属于哪个应用，以及该应用是否已安装",
+      },
+      action: "重新检查",
+      checking: "正在检查…",
+      note: "检查只读取，不会移动任何内容。",
+      settled: "没有需要检查的：这个判断不依赖 Lumen 不知道的信息。",
+      changed: "扫描后它已改变，因此 Lumen 没有重新判断。请重新扫描。",
+      still: (status: string) => `已重新检查 · 仍为${status}`,
+      now: (before: string, after: string) => `已重新检查 · ${before} → ${after}`,
+      failed: "无法重新检查。",
     },
     lens: {
       tool: (n: number, tool: string, size: string) => `${tool} 的另外 ${items(n)} · ${size}`,
@@ -463,6 +540,106 @@ export const zhCN: Messages = {
       "此项目可能正在被使用，或者 Lumen 无法检查，因此没有移除任何内容。请关闭正在使用它的应用后重试。",
     notFinalizable: "此项目只能恢复。",
   },
+  apps: {
+    title: "应用",
+    desktopOnly: "已安装的应用列表可在桌面应用中查看。",
+    reading: "正在读取已安装的应用…",
+    readAgain: "重新读取",
+    loadFailed: "无法读取已安装的应用。",
+    search: "搜索应用",
+    showAll: (n: number) => `同时显示 ${n} 个依赖项和隐藏项`,
+    none: "没有匹配的应用。",
+    protected: "系统组件",
+    protectedTip: "Lumen 绝不会删除此项。",
+    partial: (names: string) => `部分列表未能完整读取，可能缺少一些应用：${names}。`,
+    readOnly: "此列表从你的电脑读取并保留在本机。只有确认后才会移动应用。",
+    readOnlyAi:
+      "启用 AI 审查时，会向其发送这些应用的名称、发布者和版本，不含路径。只有确认后才会移动应用。",
+    move: {
+      action: "移至隔离区…",
+      title: (name: string) => `将“${name}”移至隔离区？`,
+      moving: (name: string) => `正在将“${name}”移至隔离区…`,
+      checking: "正在检查应用…",
+      failed: "无法检查或移动应用。重试前请先查看隔离区。",
+      refused: "这个应用无法移至隔离区",
+      notFound: "列表中已找不到这个应用。请重新读取列表。",
+      ambiguous: "多个应用使用同一个标识符，Lumen 无法选择。",
+      unsupported: "将应用移至隔离区的功能仅适用于 macOS。",
+      size: "应用大小",
+      atLeast: (size: string) => `至少 ${size}`,
+      expires: (date: string) => `此预览在创建 24 小时后的 ${date} 到期。`,
+      moved: (name: string) => `已将“${name}”移至隔离区。`,
+      noSpace: "只有从隔离区永久删除应用后，才会释放空间。",
+      changed: "应用已发生变化。请关闭预览并重新检查。",
+      failedMove: "未能完成应用移动。",
+      notes: {
+        goes_to_quarantine: "永久删除前可以恢复应用。Lumen 不会自动删除它。",
+        library_data_stays: "~/Library 中的应用数据会保留。重新扫描后，可以在探索中查看。",
+      },
+      locations: {
+        source: "应用仍在原来的位置。",
+        quarantine: "应用在隔离区中。请打开隔离区查看。",
+        gone: "无法确认应用的位置。重试前请先查看隔离区。",
+      },
+      reasons: {
+        not_in_applications: "应用不直接位于 /Applications 或 ~/Applications 中。",
+        protected: "它是 macOS 的一部分，Lumen 会保留它。",
+        not_a_bundle: "它不是应用文件夹，或者是一个链接。",
+        owner_unknown: "无法确认应用的所有者。",
+        not_owned_by_user: "应用属于其他账户。请使用其安装程序或 App Store 删除。",
+        services_unknown: "无法检查所有后台项目。",
+        service_linked: "有后台项目与这个应用关联。请使用应用自己的卸载程序。",
+        helpers_unknown: "无法检查应用的后台辅助程序。",
+        has_helpers: "应用带有后台辅助程序。请使用它自己的卸载程序。",
+        running_unknown: "无法确认应用是否正在运行。",
+        running: "应用正在运行。请退出后重新检查。",
+        store_unknown: "无法确认此驱动器是否有隔离区存储位置。",
+        no_store_on_volume: "此驱动器没有隔离区存储位置。",
+      },
+    },
+    ai: {
+      explaining: "AI 检查正在说明这些应用…",
+      note: (purpose: string, confidence: string, impact: string) =>
+        `AI：很可能是${purpose}（${confidence}）。${impact}`,
+      purposes: {
+        web_browser: "网页浏览器",
+        communication: "通讯应用",
+        media: "媒体应用",
+        office_or_productivity: "办公或效率应用",
+        development_tool: "开发工具",
+        design_or_creative: "设计或创意应用",
+        game: "游戏",
+        security_or_banking: "安全或银行软件",
+        system_or_driver: "系统组件或驱动程序",
+        cloud_sync_or_backup: "云同步或备份应用",
+        utility: "实用工具",
+        runtime_or_library: "运行时或库",
+        unknown: "无法判断的项目",
+      },
+      impacts: {
+        only_this_app: "删除后很可能只影响这个应用。",
+        other_software_depends: "其他软件很可能依赖它。",
+        stops_background_activity: "删除后其后台活动很可能会停止。",
+        security_or_access: "删除后安全、银行或登录功能可能无法正常工作。",
+        system_function: "删除后某项系统功能可能无法正常工作。",
+        unknown: "无法判断删除它会有什么影响。",
+      },
+    },
+    origins: {
+      mac_app: "应用",
+      mac_installer: "安装包",
+      homebrew: "Homebrew",
+      homebrew_cask: "Homebrew Cask",
+      windows_program: "程序",
+      msix: "商店包",
+      dpkg: "dpkg",
+      rpm: "RPM",
+      pacman: "pacman",
+      flatpak: "Flatpak",
+      snap: "Snap",
+      other: "其他",
+    },
+  },
   settings: {
     title: "设置",
     appearance: {
@@ -494,7 +671,7 @@ export const zhCN: Messages = {
       version: "版本",
       local: "此设备上的数据",
       localBody:
-        "扫描、决策和隔离区内容都保留在此电脑上。文件内容绝不会发送到任何地方。开启 AI 检查时，只会发送路径和大小等详细信息。",
+        "扫描、决策和隔离区内容都保留在此电脑上。文件内容绝不会发送到任何地方。开启 AI 检查时，只会发送路径和大小等详细信息。 还会发送已安装应用的名称、发布者和版本。",
       update: {
         title: "更新",
         checking: "正在检查新版本…",
@@ -526,6 +703,12 @@ export const zhCN: Messages = {
       body: "隔离区是安全的暂存位置。清理时，项目会移到这里而不是被删除；在永久移除之前，你可以将其恢复到原处。隔离区中的项目仍会占用磁盘空间。",
     },
   },
+  reviewReasons: {
+    unknownOwner: "无法确认它属于哪个应用或工具。",
+    sharedResource: "它可能与其他文件共享存储空间，或在此项目之外还有链接。",
+    staleEvidence: "部分依据已过时，请重新扫描后再决定。",
+    uncertainSize: "永久删除后能释放多少空间尚不确定。",
+  },
   reasons: {
     location: (name: string) => `保留：此项目位于受保护的位置（${name}）。`,
     rules: {
@@ -536,6 +719,7 @@ export const zhCN: Messages = {
       "protect.cloud-backed":
         "保留：此项目与云服务同步，在此处移除可能会导致它在所有位置都被删除。",
       "protect.in-use": "保留：正在运行的应用正在使用此项目。",
+      "protect.app-running": "保留：此项目所属的应用正在运行。退出该应用后重新扫描即可清理。",
       "protect.in-use-partial": "保留：Lumen 可见的应用都未使用此项目，但 Lumen 无法检查所有应用。",
       "protect.in-use-unknown": "保留：Lumen 尚未检查是否有程序正在使用此项目。",
       "protect.not-observed": "保留：扫描尚未观察到此项目。",

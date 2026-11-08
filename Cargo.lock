@@ -2370,7 +2370,7 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "lumen-api"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "lumen-app",
  "lumen-application",
@@ -2383,7 +2383,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-app"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "lumen-application",
  "lumen-devkb",
@@ -2391,6 +2391,7 @@ dependencies = [
  "lumen-fs-exec",
  "lumen-graph",
  "lumen-jev",
+ "lumen-platform-linux",
  "lumen-platform-macos",
  "lumen-platform-windows",
  "lumen-policy",
@@ -2407,8 +2408,9 @@ dependencies = [
 
 [[package]]
 name = "lumen-application"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
+ "blake3",
  "lumen-domain",
  "lumen-graph",
  "lumen-policy",
@@ -2419,7 +2421,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-cli"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "lumen-app",
  "lumen-application",
@@ -2435,7 +2437,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-cluster"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "criterion",
  "thiserror 2.0.21",
@@ -2443,7 +2445,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-desktop"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "lumen-api",
  "lumen-app",
@@ -2454,6 +2456,7 @@ dependencies = [
  "lumen-store-sqlite",
  "lumen-telemetry",
  "lumen-testkit",
+ "rfd",
  "serde",
  "serde_json",
  "tauri",
@@ -2465,7 +2468,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-devkb"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "jsonschema",
  "lumen-domain",
@@ -2478,7 +2481,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-domain"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "blake3",
  "jsonschema",
@@ -2492,7 +2495,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-ffi"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "lumen-cluster",
  "thiserror 2.0.21",
@@ -2501,7 +2504,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-fs-exec"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "lumen-application",
  "lumen-domain",
@@ -2515,7 +2518,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-graph"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "blake3",
  "lumen-domain",
@@ -2527,7 +2530,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-jev"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "jsonschema",
  "lumen-application",
@@ -2542,7 +2545,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-jev-eval"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "blake3",
  "lumen-app",
@@ -2557,9 +2560,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "lumen-platform-macos"
-version = "0.9.4"
+name = "lumen-platform-linux"
+version = "0.10.0"
 dependencies = [
+ "blake3",
+ "lumen-application",
+ "lumen-domain",
+ "lumen-scan",
+ "lumen-testkit",
+ "rustix",
+ "tempfile",
+]
+
+[[package]]
+name = "lumen-platform-macos"
+version = "0.10.0"
+dependencies = [
+ "blake3",
  "criterion",
  "dispatch2",
  "libc",
@@ -2571,26 +2588,29 @@ dependencies = [
  "objc2-core-services",
  "objc2-security",
  "proptest",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "lumen-platform-windows"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
+ "blake3",
  "lumen-application",
  "lumen-domain",
  "lumen-scan",
  "proptest",
  "tempfile",
  "thiserror 2.0.21",
+ "windows",
  "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "lumen-policy"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "criterion",
  "lumen-domain",
@@ -2602,7 +2622,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-scan"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "criterion",
  "lumen-application",
@@ -2615,7 +2635,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-store-sqlite"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "lumen-application",
  "lumen-domain",
@@ -2633,7 +2653,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-telemetry"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "lumen-testkit",
  "serde_json",
@@ -2645,7 +2665,7 @@ dependencies = [
 
 [[package]]
 name = "lumen-testkit"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
  "lumen-application",
  "lumen-domain",
@@ -3711,6 +3731,29 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
+]
+
+[[package]]
+name = "rfd"
+version = "0.17.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20dafead71c16a34e1ff357ddefc8afc11e7d51d6d2b9fbd07eaa48e3e540220"
+dependencies = [
+ "block2",
+ "dispatch2",
+ "js-sys",
+ "libc",
+ "log",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-core-foundation",
+ "objc2-foundation",
+ "percent-encoding",
+ "raw-window-handle",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6251,11 +6294,13 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.9.4"
+version = "0.10.0"
 dependencies = [
+ "libc",
  "lumen-api",
  "lumen-devkb",
  "lumen-domain",
+ "lumen-testkit",
  "schemars 1.2.2",
  "serde_json",
 ]

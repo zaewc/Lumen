@@ -24,14 +24,14 @@ pub struct StoredPlan {
 }
 
 fn json<T: serde::Serialize>(column: &'static str, value: &T) -> Result<Vec<u8>, StoreError> {
-    serde_json::to_vec(value).map_err(|_| StoreError::Corrupt { column })
+    serde_json::to_vec(value).map_err(|_| StoreError::corrupt(column))
 }
 
 fn parse<T: serde::de::DeserializeOwned>(
     column: &'static str,
     bytes: &[u8],
 ) -> Result<T, StoreError> {
-    serde_json::from_slice(bytes).map_err(|_| StoreError::Corrupt { column })
+    serde_json::from_slice(bytes).map_err(|_| StoreError::corrupt(column))
 }
 
 impl IndexStore {
@@ -105,9 +105,7 @@ impl IndexStore {
         };
         let plan: CleanupPlan = parse("plans.body", &body)?;
         if plan.hash().to_string() != hash || plan.canonical_bytes() != body || plan.id() != id {
-            return Err(StoreError::Corrupt {
-                column: "plans.body",
-            });
+            return Err(StoreError::corrupt("plans.body"));
         }
         let state: PlanState = parse("plans.state", &state)?;
         let mut query = self.conn.prepare_cached(
@@ -118,9 +116,7 @@ impl IndexStore {
             .map(|bytes| parse("plan_decisions.decision", &bytes?))
             .collect::<Result<Vec<PolicyDecision>, StoreError>>()?;
         if decisions.len() != plan.items().len() {
-            return Err(StoreError::Corrupt {
-                column: "plan_decisions",
-            });
+            return Err(StoreError::corrupt("plan_decisions"));
         }
         Ok(Some(StoredPlan {
             plan,

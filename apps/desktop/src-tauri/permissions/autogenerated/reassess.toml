@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reassess"
+description = "Enables the reassess command without any pre-configured scope."
+commands.allow = ["reassess"]
+
+[[permission]]
+identifier = "deny-reassess"
+description = "Denies the reassess command without any pre-configured scope."
+commands.deny = ["reassess"]

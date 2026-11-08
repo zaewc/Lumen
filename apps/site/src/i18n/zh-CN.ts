@@ -11,19 +11,36 @@ export const zhCN: Messages = {
   nav: { label: "网站", docs: "文档" },
   hero: {
     headline: ["Storage intelligence", "for every device."],
-    lead: "哪些该保留，哪些该清理？AI 可以帮你判断。",
+    lead: "一款免费应用，找出占满磁盘的文件，由 AI 一起检查能否删除，安全地腾出空间。清理的文件不会立即删除，而是先移到隔离区，可以恢复。",
     download: "查看发行版本",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   showcase: {
     main: "Lumen「探索」页面示例：按决策分类的存储空间、开发工具和应用缓存中建议清理的 9.9 GB，以及由工具自身清理的项目和对应命令。",
   },
+  howTo: {
+    title: "使用方法",
+    steps: [
+      {
+        title: "下载并打开",
+        text: "在下方选择适合你电脑的文件并安装。第一次打开时，只需允许一次。",
+      },
+      {
+        title: "扫描磁盘",
+        text: "点击“扫描磁盘”，Lumen 会显示哪些内容占用了空间，并对每一项作出判断。扫描不会更改任何内容。",
+      },
+      {
+        title: "只清理建议处理的项目",
+        text: "查看标为“建议处理”的项目，然后点击“清理…”。Lumen 会把它们移到隔离区，需要时可以从隔离区恢复。",
+      },
+    ],
+  },
   features: {
     title: "Lumen 的功能",
     items: [
       {
         title: "找出占用空间的内容",
-        text: "从 Xcode 构建数据、Gradle 缓存，到应用缓存和旧安装包。扫描时不会打开任何文件。",
+        text: "应用缓存、旧安装包，以及开发工具留下的构建数据。扫描时不会打开任何文件。",
       },
       {
         title: "解释每项决策",
@@ -35,7 +52,7 @@ export const zhCN: Messages = {
       },
       {
         title: "经你确认后再清理",
-        text: "文件会移到隔离区，你可以随时恢复。对于 pnpm 存储目录或 Xcode 模拟器，请检查并运行对应工具自己的清理命令。工具命令会直接删除数据，无法撤销。",
+        text: "文件会移到隔离区，你可以随时恢复。开发工具的存储目录等只应由其工具清理的项目，Lumen 只会在你检查命令后才运行。工具命令删除的数据无法撤销。",
       },
     ],
   },
@@ -56,7 +73,7 @@ export const zhCN: Messages = {
     title: "下载与安装",
     noScript: ["文件可从", { link: "GitHub 发行版本", href: `${REPO_URL}/releases` }, "获取。"],
     checking: "正在检查发行版本…",
-    thisComputer: "<-- 需要下载",
+    thisComputer: "适用于这台电脑",
     installer: "安装程序",
     requirements: {
       mac: "macOS 13 或更高版本 · Apple silicon 和 Intel",

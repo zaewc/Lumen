@@ -7,7 +7,7 @@
       "name": "Apache-2.0",
       "identifier": "Apache-2.0"
     },
-    "version": "0.9.4"
+    "version": "0.10.0"
   },
   "paths": {},
   "components": {
@@ -252,6 +252,16 @@
             },
             "description": "Why: one reason per policy rule that fired, in the policy's order."
           },
+          "rechecks": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ReassessGapView"
+            },
+            "description": "What Lumen did not know when it decided, which \"Check again\" would ask\n(ADR-0058); empty when the verdict rests on decisions only. Optional\non input for compatibility with older hosts."
+          },
           "reclaimable_bytes": {
             "type": "string",
             "description": "What removing it would free now, in bytes."
@@ -263,6 +273,17 @@
           "relations": {
             "$ref": "#/components/schemas/RelationsView",
             "description": "The relationships in its decision's evidence bundle, nearest first\nand bounded (ADR-0053)."
+          },
+          "review_reasons": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ReviewReasonsView",
+                "description": "Versioned descriptive review categories, never permission to change a\nverdict. Optional on input for compatibility with older hosts."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "times": {
             "$ref": "#/components/schemas/TimesView",
@@ -293,6 +314,123 @@
           "person"
         ]
       },
+      "CompareOutcomeView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "The person closed the dialog; nothing was read.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "nothing_chosen"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "This platform cannot read contents to compare yet.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unsupported"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The folders hold more files than one comparison covers.",
+            "required": [
+              "limit",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "too_many"
+                ]
+              },
+              "limit": {
+                "type": "string",
+                "description": "The most files one comparison covers."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The person stopped the comparison; no groups are shown, since a stopped\ncomparison proves nothing about the files it did not finish.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "cancelled"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The comparison finished.",
+            "required": [
+              "report",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "compared"
+                ]
+              },
+              "report": {
+                "$ref": "#/components/schemas/DuplicatesView",
+                "description": "What it found."
+              }
+            }
+          }
+        ],
+        "description": "How a comparison ended."
+      },
+      "CompareProgressView": {
+        "type": "object",
+        "description": "A running comparison's step and how many files it has read.",
+        "required": [
+          "stage",
+          "files_read"
+        ],
+        "properties": {
+          "files_read": {
+            "type": "string",
+            "description": "Files read so far."
+          },
+          "stage": {
+            "$ref": "#/components/schemas/CompareStageView",
+            "description": "The step."
+          }
+        }
+      },
+      "CompareStageView": {
+        "type": "string",
+        "description": "Which comparison step is running.",
+        "enum": [
+          "head",
+          "tail",
+          "full"
+        ]
+      },
       "ConfidenceView": {
         "type": "string",
         "description": "How sure AI review was.",
@@ -317,6 +455,77 @@
           "total_bytes": {
             "type": "string",
             "description": "The volume's size, in bytes."
+          }
+        }
+      },
+      "DuplicateGroupView": {
+        "type": "object",
+        "description": "Files with the same contents, for a person to review.",
+        "required": [
+          "bytes_each",
+          "paths"
+        ],
+        "properties": {
+          "bytes_each": {
+            "type": "string",
+            "description": "The size of each copy, in bytes."
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Where each copy is."
+          }
+        }
+      },
+      "DuplicatesView": {
+        "type": "object",
+        "description": "What a comparison found and what it could not cover.",
+        "required": [
+          "folders",
+          "groups",
+          "hard_links",
+          "skipped",
+          "protected",
+          "incomplete"
+        ],
+        "properties": {
+          "folders": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The folders the person chose."
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DuplicateGroupView"
+            },
+            "description": "Identical copies, the largest extra copies first. Copies can share\nblocks (APFS clones), so this is not space removing one would free."
+          },
+          "hard_links": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Names of one file (hard links): not copies, and removing one frees nothing."
+          },
+          "incomplete": {
+            "type": "boolean",
+            "description": "Some folders could not be listed completely; files there were not compared."
+          },
+          "protected": {
+            "type": "string",
+            "description": "Files left unread in protected locations."
+          },
+          "skipped": {
+            "type": "string",
+            "description": "Files not compared: changed, unreadable, cloud-only or protected by the system."
           }
         }
       },
@@ -600,6 +809,78 @@
                 "type": "string",
                 "enum": [
                   "owned_by_current_user"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Whether an application that owns it is running (ADR-0059). `false`\nonly when every process was visible.",
+            "required": [
+              "app",
+              "running",
+              "type"
+            ],
+            "properties": {
+              "app": {
+                "type": "string",
+                "description": "The application's identifier."
+              },
+              "running": {
+                "type": "boolean",
+                "description": "Whether a process runs it."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "application_running"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "When the platform last recorded an application that owns it being\nopened (ADR-0059). Shown, never decided on: an old date is not proof\nthe application is unused.",
+            "required": [
+              "app",
+              "at",
+              "type"
+            ],
+            "properties": {
+              "app": {
+                "type": "string",
+                "description": "The application's identifier."
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When it was last opened."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "application_last_opened"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "When the project it belongs to last changed: the newest modification\ntime of the project's marker files (ADR-0059). Shown, never decided on.",
+            "required": [
+              "at",
+              "type"
+            ],
+            "properties": {
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the project last changed."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "project_activity"
                 ]
               }
             }
@@ -1001,6 +1282,44 @@
         ],
         "description": "What became of one planned item."
       },
+      "LinkedServiceView": {
+        "type": "object",
+        "description": "A background item linked to a piece of software.",
+        "required": [
+          "kind",
+          "label",
+          "scope",
+          "method",
+          "verified",
+          "ambiguous"
+        ],
+        "properties": {
+          "ambiguous": {
+            "type": "boolean",
+            "description": "It matched other software too: this is one candidate, not the owner."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ServiceKindView",
+            "description": "What kind of item."
+          },
+          "label": {
+            "type": "string",
+            "description": "Its label, service name or entry name; display-escaped."
+          },
+          "method": {
+            "$ref": "#/components/schemas/ServiceLinkMethodView",
+            "description": "The evidence for the link."
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ServiceScopeView",
+            "description": "User or system."
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "The link is proven: its program lies inside this software and no other."
+          }
+        }
+      },
       "LocationView": {
         "type": "string",
         "description": "Where an item is after a failure.",
@@ -1214,6 +1533,144 @@
           }
         }
       },
+      "ReassessGapView": {
+        "type": "string",
+        "description": "Something the earlier assessment did not know.",
+        "enum": [
+          "in_use",
+          "unread",
+          "stale",
+          "owner"
+        ]
+      },
+      "ReassessOutcomeView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Its verdict does not rest on anything unknown; nothing was checked.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "settled"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It changed since the scan, so it was not decided again: scan again.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Decided again from fresh evidence.",
+            "required": [
+              "candidate",
+              "added_facts",
+              "kind"
+            ],
+            "properties": {
+              "added_facts": {
+                "type": "string",
+                "description": "How many facts the checks added."
+              },
+              "candidate": {
+                "$ref": "#/components/schemas/CandidateView",
+                "description": "The item as decided now."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "decided"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "How checking one item again ended."
+      },
+      "ReassessRequest": {
+        "type": "object",
+        "description": "Which items to check again.",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Items of the latest assessment, by [`CandidateView::id`]. Empty: every\nitem kept or reviewed because of something Lumen did not know."
+          }
+        }
+      },
+      "ReassessView": {
+        "type": "object",
+        "description": "Items checked again, in order.",
+        "required": [
+          "items",
+          "cancelled"
+        ],
+        "properties": {
+          "cancelled": {
+            "type": "boolean",
+            "description": "The run stopped early; later items were not checked."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReassessedItemView"
+            },
+            "description": "Every item checked before the run ended."
+          }
+        }
+      },
+      "ReassessedItemView": {
+        "type": "object",
+        "description": "One item checked again.",
+        "required": [
+          "id",
+          "before",
+          "gaps",
+          "outcome"
+        ],
+        "properties": {
+          "before": {
+            "$ref": "#/components/schemas/VerdictView",
+            "description": "Its earlier verdict."
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReassessGapView"
+            },
+            "description": "What was unknown."
+          },
+          "id": {
+            "type": "string",
+            "description": "Its ID, as in the assessment."
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/ReassessOutcomeView",
+            "description": "How it ended."
+          }
+        }
+      },
       "RelationKindView": {
         "type": "string",
         "description": "The kind of a relationship, read `from <kind> to`.",
@@ -1280,6 +1737,18 @@
             "description": "How many more there are, as a decimal string: left out by the bound,\nor of a kind this view does not know."
           }
         }
+      },
+      "RemovalImpactView": {
+        "type": "string",
+        "description": "What AI review says removing a piece of software could affect besides\nitself (ADR-0061): a description, never a statement that removal is safe.",
+        "enum": [
+          "only_this_app",
+          "other_software_depends",
+          "stops_background_activity",
+          "security_or_access",
+          "system_function",
+          "unknown"
+        ]
       },
       "RemovedView": {
         "type": "string",
@@ -1380,6 +1849,27 @@
           }
         ],
         "description": "What a restore did."
+      },
+      "ReviewReasonsView": {
+        "type": "object",
+        "description": "Machine-readable uncertainty; unknown future codes remain displayable through\nthe decision's localized fired-rule explanations and supporting facts.",
+        "required": [
+          "schema",
+          "codes"
+        ],
+        "properties": {
+          "codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Stable `snake_case` categories. Strings preserve forward compatibility."
+          },
+          "schema": {
+            "type": "string",
+            "description": "`review-reasons/1` for this contract."
+          }
+        }
       },
       "RootView": {
         "type": "object",
@@ -1533,6 +2023,36 @@
           }
         }
       },
+      "ServiceKindView": {
+        "type": "string",
+        "description": "What kind of background item.",
+        "enum": [
+          "launch_agent",
+          "launch_daemon",
+          "login_item",
+          "windows_service",
+          "driver",
+          "scheduled_task",
+          "startup_entry",
+          "other"
+        ]
+      },
+      "ServiceLinkMethodView": {
+        "type": "string",
+        "description": "The evidence linking a background item to a piece of software.",
+        "enum": [
+          "program_inside_application",
+          "label_matches_bundle_id"
+        ]
+      },
+      "ServiceScopeView": {
+        "type": "string",
+        "description": "Whether a background item runs for one user or for the whole system.",
+        "enum": [
+          "user",
+          "system"
+        ]
+      },
       "SkipView": {
         "type": "string",
         "description": "Why a planned item was not moved.",
@@ -1545,6 +2065,217 @@
           "not_prepared",
           "manifest"
         ]
+      },
+      "SoftwareItemView": {
+        "type": "object",
+        "description": "One application or package.",
+        "required": [
+          "key",
+          "origin",
+          "id",
+          "name",
+          "version",
+          "vendor",
+          "location",
+          "protected",
+          "hidden",
+          "explicit",
+          "services",
+          "ai_note"
+        ],
+        "properties": {
+          "ai_note": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SoftwareNoteView",
+                "description": "What AI review said about it, when it may be shown (ADR-0061)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "explicit": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether it was installed on request rather than as another package's\ndependency; `None` where the record does not say."
+          },
+          "hidden": {
+            "type": "boolean",
+            "description": "The platform's own list hides it (Windows `SystemComponent`)."
+          },
+          "id": {
+            "type": "string",
+            "description": "Its native identifier, display-escaped."
+          },
+          "key": {
+            "type": "string",
+            "description": "A key unique in the list: the origin and the native identifier."
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where it is installed, if recorded; display-escaped."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its display name, if the record has one; display-escaped."
+          },
+          "origin": {
+            "$ref": "#/components/schemas/SoftwareOriginView",
+            "description": "Which inventory recorded it."
+          },
+          "protected": {
+            "type": "boolean",
+            "description": "Part of the operating system or marked by its platform as not\nremovable: never removable from Lumen (ADR-0060)."
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LinkedServiceView"
+            },
+            "description": "Background items linked to it, verified first."
+          },
+          "vendor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its publisher or vendor, as recorded; display-escaped."
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its version, as recorded; display-escaped."
+          }
+        }
+      },
+      "SoftwareNoteView": {
+        "type": "object",
+        "description": "An AI note on a piece of software: closed choices and a confidence, never\nmodel text. Display only (ADR-0061).",
+        "required": [
+          "purpose",
+          "removal_impact",
+          "confidence"
+        ],
+        "properties": {
+          "confidence": {
+            "$ref": "#/components/schemas/ConfidenceView",
+            "description": "How sure AI review was."
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/SoftwarePurposeView",
+            "description": "What it is most likely for."
+          },
+          "removal_impact": {
+            "$ref": "#/components/schemas/RemovalImpactView",
+            "description": "What removing it could most likely affect."
+          }
+        }
+      },
+      "SoftwareOriginView": {
+        "type": "string",
+        "description": "Which inventory recorded a piece of software, and so how it is identified.",
+        "enum": [
+          "mac_app",
+          "mac_installer",
+          "homebrew",
+          "homebrew_cask",
+          "windows_program",
+          "msix",
+          "dpkg",
+          "rpm",
+          "pacman",
+          "flatpak",
+          "snap",
+          "other"
+        ]
+      },
+      "SoftwarePurposeView": {
+        "type": "string",
+        "description": "What AI review says a piece of software is mainly for (ADR-0061).",
+        "enum": [
+          "web_browser",
+          "communication",
+          "media",
+          "office_or_productivity",
+          "development_tool",
+          "design_or_creative",
+          "game",
+          "security_or_banking",
+          "system_or_driver",
+          "cloud_sync_or_backup",
+          "utility",
+          "runtime_or_library",
+          "unknown"
+        ]
+      },
+      "SoftwareSourceStateView": {
+        "type": "string",
+        "description": "How completely one inventory was read.",
+        "enum": [
+          "complete",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "SoftwareSourceView": {
+        "type": "object",
+        "description": "One inventory and how completely it was read.",
+        "required": [
+          "source",
+          "state",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many rows, or background items, it gave.",
+            "minimum": 0
+          },
+          "source": {
+            "type": "string",
+            "description": "The inventory's name, such as `macos.homebrew`."
+          },
+          "state": {
+            "$ref": "#/components/schemas/SoftwareSourceStateView",
+            "description": "How completely it was read."
+          }
+        }
+      },
+      "SoftwareView": {
+        "type": "object",
+        "description": "The installed software list.",
+        "required": [
+          "items",
+          "sources"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SoftwareItemView"
+            },
+            "description": "Every application and package, by name."
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SoftwareSourceView"
+            },
+            "description": "Every inventory read, with how completely."
+          }
+        }
       },
       "SpaceChangeView": {
         "type": "object",
@@ -1709,6 +2440,17 @@
           }
         }
       },
+      "ToolKindView": {
+        "type": "string",
+        "description": "A developer tool whose own storage report the desktop shows (#705, #706, #712).",
+        "enum": [
+          "xcode",
+          "docker",
+          "homebrew",
+          "npm",
+          "pnpm"
+        ]
+      },
       "ToolRunView": {
         "type": "object",
         "description": "How running a tool's command ended (ADR-0049).",
@@ -1751,6 +2493,503 @@
             "description": "It ran past the time limit and was stopped."
           }
         }
+      },
+      "ToolStateView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "The tool answered completely.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "found"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The program is not installed where the user's terminal would find it.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_installed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "This platform has no such tool or adapter.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unsupported"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The tool could not answer completely.",
+            "required": [
+              "reason",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unavailable"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "description": "Why, in the core's words, for display."
+              }
+            }
+          }
+        ],
+        "description": "Whether the tool answered. Anything but `found` means unknown, never empty."
+      },
+      "ToolStorageItemView": {
+        "type": "object",
+        "description": "One thing a tool reports, in the tool's own words and units.",
+        "required": [
+          "name",
+          "detail",
+          "bytes",
+          "reported_size",
+          "reported_reclaimable"
+        ],
+        "properties": {
+          "bytes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "An exact size in bytes, when the tool gives one."
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The tool's state or counts for it, if any."
+          },
+          "name": {
+            "type": "string",
+            "description": "What it is: a runtime, a Docker category, or a location."
+          },
+          "reported_reclaimable": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the tool itself estimates it could free; not a Lumen promise."
+          },
+          "reported_size": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A size as the tool wrote it (Docker), when it gives no byte count."
+          }
+        }
+      },
+      "ToolStorageView": {
+        "type": "object",
+        "description": "What one developer tool reports about its storage. Read only on request;\nnothing here removes anything.",
+        "required": [
+          "tool",
+          "state",
+          "version",
+          "scope",
+          "items",
+          "command",
+          "shared_store"
+        ],
+        "properties": {
+          "command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The tool's own cleanup command, literally; it runs only through the\nconfirmed flow (ADR-0049)."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolStorageItemView"
+            },
+            "description": "What it reported."
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Which installation or daemon answered (Docker's context and endpoint)."
+          },
+          "shared_store": {
+            "type": "boolean",
+            "description": "The location is a store projects link into (pnpm), not a cache."
+          },
+          "state": {
+            "$ref": "#/components/schemas/ToolStateView",
+            "description": "Whether it answered."
+          },
+          "tool": {
+            "$ref": "#/components/schemas/ToolKindView",
+            "description": "The tool."
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its version, as it prints it."
+          }
+        }
+      },
+      "UninstallAppView": {
+        "type": "object",
+        "description": "The application a preview is about, as observed now.",
+        "required": [
+          "key",
+          "name",
+          "bundle_id",
+          "version",
+          "path",
+          "size_bytes",
+          "size_complete",
+          "notes"
+        ],
+        "properties": {
+          "bundle_id": {
+            "type": "string",
+            "description": "Its bundle identifier; display-escaped."
+          },
+          "key": {
+            "type": "string",
+            "description": "The software list's key, as given."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its display name, if it has one; display-escaped."
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UninstallNoteView"
+            },
+            "description": "What happens to it and its data."
+          },
+          "path": {
+            "type": "string",
+            "description": "Where it is, for showing only; display-escaped."
+          },
+          "size_bytes": {
+            "type": "string",
+            "description": "What removing it for good would free, in bytes."
+          },
+          "size_complete": {
+            "type": "boolean",
+            "description": "Every folder inside it was listed; otherwise the size is a lower\nbound."
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its version, if recorded; display-escaped."
+          }
+        }
+      },
+      "UninstallNoteView": {
+        "type": "string",
+        "description": "What happens to the app and its data when it is uninstalled this way.",
+        "enum": [
+          "goes_to_quarantine",
+          "library_data_stays"
+        ]
+      },
+      "UninstallOutcomeView": {
+        "type": "object",
+        "description": "An executed uninstall preview.",
+        "required": [
+          "preview",
+          "path",
+          "size_bytes",
+          "resolved",
+          "result",
+          "warnings"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Where the app was, for showing only; display-escaped."
+          },
+          "preview": {
+            "type": "string",
+            "description": "The preview."
+          },
+          "resolved": {
+            "type": "string",
+            "description": "Interrupted operations from earlier runs that were resolved first."
+          },
+          "result": {
+            "$ref": "#/components/schemas/UninstallResultView",
+            "description": "What happened."
+          },
+          "size_bytes": {
+            "type": "string",
+            "description": "What removing it for good frees, as previewed, in bytes."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Problems that did not stop it."
+          }
+        }
+      },
+      "UninstallPreviewView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "It may be uninstalled: confirm `hash` to move it into Quarantine.",
+            "required": [
+              "preview",
+              "hash",
+              "created_at",
+              "app",
+              "kind"
+            ],
+            "properties": {
+              "app": {
+                "$ref": "#/components/schemas/UninstallAppView",
+                "description": "The application."
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When it was made; it expires 24 hours later."
+              },
+              "hash": {
+                "type": "string",
+                "description": "Its full hash: the confirmation."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "ready"
+                ]
+              },
+              "preview": {
+                "type": "string",
+                "description": "The preview's ID, for `uninstall`."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It cannot be uninstalled this way; nothing was stored.",
+            "required": [
+              "app",
+              "reasons",
+              "kind"
+            ],
+            "properties": {
+              "app": {
+                "$ref": "#/components/schemas/UninstallAppView",
+                "description": "The application."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "refused"
+                ]
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/UninstallReasonView"
+                },
+                "description": "Every reason, at least one."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "No installed application has that key now: list the software again.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_found"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "More than one application has that key, so which one is meant is\nunknown: uninstall it in Finder.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "ambiguous"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Uninstalling into quarantine is only for macOS applications.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unsupported"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What uninstalling an application into quarantine would do."
+      },
+      "UninstallReasonView": {
+        "type": "string",
+        "description": "Why an application cannot be uninstalled into quarantine. Each `*_unknown`\nreason is a check Lumen could not answer, which never counts as passing.",
+        "enum": [
+          "not_in_applications",
+          "protected",
+          "not_a_bundle",
+          "owner_unknown",
+          "not_owned_by_user",
+          "services_unknown",
+          "service_linked",
+          "helpers_unknown",
+          "has_helpers",
+          "running_unknown",
+          "running",
+          "store_unknown",
+          "no_store_on_volume"
+        ]
+      },
+      "UninstallResultView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "It is in Quarantine, restorable.",
+            "required": [
+              "operation",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "quarantined"
+                ]
+              },
+              "operation": {
+                "type": "string",
+                "description": "The operation, for restoring or removing it for good."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Checked again right before the move, it may not go now; it was not\nmoved.",
+            "required": [
+              "reasons",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "refused"
+                ]
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/UninstallReasonView"
+                },
+                "description": "Every reason, at least one."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It is not what the preview showed; it was not moved. Preview again.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The move failed.",
+            "required": [
+              "reason",
+              "left",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              },
+              "left": {
+                "$ref": "#/components/schemas/LocationView",
+                "description": "Where the app is."
+              },
+              "reason": {
+                "$ref": "#/components/schemas/FailureView",
+                "description": "Why."
+              }
+            }
+          }
+        ],
+        "description": "What became of the application."
       },
       "UpdateView": {
         "type": "object",

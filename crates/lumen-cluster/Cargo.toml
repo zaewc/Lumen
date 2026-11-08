@@ -18,5 +18,9 @@ criterion.workspace = true
 name = "cluster"
 harness = false
 
+[[bench]]
+name = "memory"
+harness = false
+
 [lints]
 workspace = true

@@ -145,6 +145,14 @@ a feed without verification by handle.
 
 ## The whole disk
 
+Application scans exclude every current-user quarantine store supplied by
+`lumen_app::store::stores`, including other eligible Windows drives. Exclusion
+checks paths and store identities (so aliases are also excluded); directly chosen
+store descendants are excluded too. Excluded entries never reach the index or
+assessment. Their parent listing remains incomplete, preventing an ancestor from
+being offered for quarantine while containing held data. Other sibling directories
+are still scanned normally. Unknown store locations prevent a scan from starting.
+
 With no folder given, `lumen scan` scans the startup disk (`lumen_app::roots`):
 
 - macOS: each data-volume firmlink in `/usr/share/firmlinks` (`/Users`,
@@ -168,7 +176,7 @@ needed, and why the invariant holds. All other crates forbid or deny `unsafe`.
 | --- | --- |
 | `lumen-platform-macos/src/sys.rs` | `getattrlistbulk`, `getattrlistat`, `getattrlist`; `getiopolicy_np`/`setiopolicy_np` |
 | `lumen-platform-macos/src/feed.rs` | `FSEvents` stream lifecycle, event-store UUID, callback arrays |
-| `lumen-platform-windows/src/sys.rs` | `CreateFileW`, `CloseHandle`, `GetFileInformationByHandleEx`, `GetVolumeInformationByHandleW`, thread placeholder mode, overlapped `ReadDirectoryChangesW` |
+| `lumen-platform-windows/src/sys.rs` | `CreateFileW`, `CloseHandle`, `GetFileInformationByHandleEx`, `GetVolumeInformationByHandleW`, thread placeholder mode, overlapped `ReadDirectoryChangesW`, positioned `ReadFile` (duplicate analysis only) |
 
 Asynchronous I/O (`Watch`) keeps its buffer and `OVERLAPPED` at fixed heap
 addresses and cancels and drains a pending read before freeing them. The `FSEvents`

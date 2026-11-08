@@ -5,8 +5,12 @@ import { baseName, formatBytes } from "@/shared/lib";
 import { type Filter, shows } from "../model/filter";
 import { type Lens, lensMark } from "../model/lens";
 import {
+  appIconLabel,
+  heightFor,
+  labelFor,
   layoutTopography,
   type Placed,
+  showAppIcon,
   type TopoGroup,
   type TopoNode,
   trailTo,
@@ -16,45 +20,11 @@ import {
 const HEADER = 22;
 const GAP = 3;
 
-/** The frame's height: shorter on narrow windows. */
-function heightFor(width: number): number {
-  return width < 640 ? 200 : 280;
-}
-
-/** Whether a region is large enough for its name and size, or for its size alone. */
-function labelFor(width: number, height: number): "full" | "size" | "none" {
-  if (width >= 72 && height >= 38) {
-    return "full";
-  }
-  return width >= 64 && height >= 20 ? "size" : "none";
-}
-
 function groupName(m: ReturnType<typeof useI18n>["m"], group: TopoGroup): string {
   if (group.id === group.kind) {
     return m.results.groups[group.kind];
   }
   return group.source ?? m.results.otherTools;
-}
-
-export function appIconLabel(source: string | null): string | null {
-  const text = source?.trim();
-  if (!text) {
-    return null;
-  }
-  const initials = text
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter(Boolean)
-    .flatMap((part) => part.slice(0, 2).split(/(?=[A-Z0-9])/))
-    .map((part) => part.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-  return initials || null;
-}
-
-export function showAppIcon(width: number, height: number): boolean {
-  return width >= 100 && height >= 64;
 }
 
 function AppIcon({ source }: { readonly source: string | null }) {

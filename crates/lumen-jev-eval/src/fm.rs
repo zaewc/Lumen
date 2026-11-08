@@ -225,9 +225,8 @@ impl FmHelper {
                 .map_err(|_| FmError::Protocol("invalid model name"))?,
             model_version: Some(UntrustedText::new(status.model_version)),
             prompt_version: foundation::PROMPT_VERSION
-                .split_once('/')
-                .and_then(|(name, revision)| PromptVersion::new(name, revision.parse().ok()?).ok())
-                .ok_or(FmError::Protocol("invalid prompt version"))?,
+                .parse::<PromptVersion>()
+                .map_err(|_| FmError::Protocol("invalid prompt version"))?,
         };
         Ok(Self {
             path: path.to_owned(),

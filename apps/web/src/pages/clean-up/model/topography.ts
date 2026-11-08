@@ -213,3 +213,37 @@ export function layoutTopography(
 export function candidatesIn(node: TopoNode): CandidateView[] {
   return node.type === "item" ? [node.candidate] : node.children.flatMap(candidatesIn);
 }
+
+/** The frame's height: shorter on narrow windows. */
+export function heightFor(width: number): number {
+  return width < 640 ? 200 : 280;
+}
+
+/** Whether a region is large enough for its name and size, or for its size alone. */
+export function labelFor(width: number, height: number): "full" | "size" | "none" {
+  if (width >= 72 && height >= 38) {
+    return "full";
+  }
+  return width >= 64 && height >= 20 ? "size" : "none";
+}
+
+export function appIconLabel(source: string | null): string | null {
+  const text = source?.trim();
+  if (!text) {
+    return null;
+  }
+  const initials = text
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean)
+    .flatMap((part) => part.slice(0, 2).split(/(?=[A-Z0-9])/))
+    .map((part) => part.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+  return initials || null;
+}
+
+export function showAppIcon(width: number, height: number): boolean {
+  return width >= 100 && height >= 64;
+}

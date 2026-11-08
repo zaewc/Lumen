@@ -32,6 +32,7 @@ mod evidence;
 mod id;
 mod inventory;
 mod jev;
+mod jev_software;
 mod judgment;
 mod lifecycle;
 mod manifest;
@@ -40,6 +41,7 @@ mod path;
 mod plan;
 mod quarantine;
 mod relationship;
+mod review;
 mod size;
 mod text;
 mod time;
@@ -75,11 +77,15 @@ pub use id::{
 };
 pub use inventory::{
     AppId, AppIdScheme, Application, CodeSignature, Package, PackageManager, Process, Service,
-    ServiceKind, ServiceScope, SignatureCheck,
+    ServiceKind, ServiceScope, SignatureCheck, UninstallRecord,
 };
 pub use jev::{
     CandidateSummary, CoverageNote, CoverageSummary, EvidenceKind, JEV_REQUEST_SCHEMA, JevRequest,
     RequestEvidence, UntrustedField, response_hash,
+};
+pub use jev_software::{
+    JEV_SOFTWARE_REQUEST_SCHEMA, RemovalImpact, SoftwareFacts, SoftwareField, SoftwareNote,
+    SoftwareOrigin, SoftwarePurpose, SoftwareRequest, SoftwareService,
 };
 pub use judgment::{
     Assessment, ItemKind, ItemNote, ItemRef, JevTrace, JudgeDescriptor, Judgment,
@@ -96,6 +102,7 @@ pub use quarantine::{
     ItemLocation, QuarantineEvent, QuarantineFailure, QuarantineState, TransitionError,
 };
 pub use relationship::{RelationKind, Relationship, RelationshipError, SubjectType};
+pub use review::{REVIEW_REASONS_SCHEMA, ReviewReason};
 pub use size::{ByteCount, CloneId, ReclaimEstimate, SizeFacts, SizeFlags};
 pub use text::{UntrustedText, UntrustedTextTooLong};
 pub use time::{Timestamp, TimestampError};

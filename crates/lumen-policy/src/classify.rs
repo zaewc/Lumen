@@ -231,6 +231,14 @@ pub(crate) fn orphan(input: &PolicyInput) -> Option<Finding> {
         let Fact::OwningApplication(app) = &owner.fact else {
             continue;
         };
+        // Found installed by any source (another volume, ADR-0059): not an
+        // orphan, whatever another inventory missed.
+        let found = input.evidence.iter().any(
+            |e| matches!(&e.fact, Fact::ApplicationPresent { app: a, present: true } if a == app),
+        );
+        if found {
+            continue;
+        }
         for absent in &input.evidence {
             let trusted = matches!(
                 &absent.basis,
@@ -499,6 +507,53 @@ mod tests {
             let decision = run(absent(searched, present), complete)?;
             assert_eq!(fired(&decision), ["default.review"]);
         }
+        Ok(())
+    }
+
+    #[test]
+    fn an_app_found_installed_anywhere_is_not_an_orphan() -> Result<(), PolicyError> {
+        let app = lumen_domain::AppId {
+            scheme: lumen_domain::AppIdScheme::BundleId,
+            value: UntrustedText::new("com.example.elsewhere"),
+        };
+        let inventory = entry("macos.applications");
+        let presence = |present: bool, source: SourceName, basis: Basis| Evidence {
+            subject: Subject::Application { id: app.clone() },
+            fact: Fact::ApplicationPresent {
+                app: app.clone(),
+                present,
+            },
+            basis,
+            provenance: Provenance {
+                source,
+                observed_at: Timestamp::UNIX_EPOCH,
+            },
+        };
+        let mut i = input(vec![
+            fact(file(1), Fact::InUse(false)),
+            fact(file(1), Fact::OwningApplication(app.clone())),
+            fact(
+                file(1),
+                Fact::AppDataLocation {
+                    kind: AppDataKind::ApplicationSupport,
+                },
+            ),
+            presence(
+                false,
+                inventory.clone(),
+                Basis::Absence {
+                    searched: BTreeSet::from([inventory.clone()]),
+                },
+            ),
+        ]);
+        i.context.complete_sources = BTreeSet::from([inventory]);
+        assert_eq!(fired(&evaluate(&i)?), ["classify.orphan"]);
+        // Spotlight finds it on another volume (ADR-0059).
+        i.evidence
+            .push(presence(true, entry("macos.spotlight"), Basis::Observed));
+        let found = evaluate(&i)?;
+        assert_eq!(fired(&found), ["classify.app-state"]);
+        assert_eq!(found.verdict(), Verdict::Keep);
         Ok(())
     }
 

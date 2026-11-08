@@ -8,11 +8,92 @@ import type {
   ItemReportView,
   PlanView,
   ScanView,
+  SoftwareItemView,
+  SoftwareView,
+  UninstallAppView,
+  UninstallPreviewView,
 } from "@lumen/api-client";
 import { isApiKey, sumBytes } from "@/shared/lib";
 import type { LumenTransport } from "./transport";
 
 const HOME = "/Users/ana";
+
+// The sample software list; `explained` adds the notes AI review would
+// have given for software it had not explained yet (ADR-0061).
+function softwareList(explained: boolean): SoftwareView {
+  const row = (
+    origin: SoftwareItemView["origin"],
+    id: string,
+    name: string | null,
+    version: string | null,
+    extra: Partial<SoftwareItemView> = {},
+  ): SoftwareItemView => ({
+    key: `${origin}:${id}`,
+    origin,
+    id,
+    name,
+    version,
+    vendor: null,
+    location: null,
+    protected: false,
+    hidden: false,
+    explicit: null,
+    services: [],
+    ai_note: null,
+    ...extra,
+  });
+  return {
+    items: [
+      row("homebrew", "act", null, "0.2.79", {
+        location: "/opt/homebrew/Cellar/act",
+        explicit: true,
+      }),
+      row("mac_app", "com.apple.calculator", "Calculator", "11.0", {
+        location: "/System/Applications/Calculator.app",
+        protected: true,
+      }),
+      row("homebrew_cask", "docker", null, "4.30.0", {
+        location: "/opt/homebrew/Caskroom/docker",
+        explicit: true,
+      }),
+      row("mac_installer", "com.example.driver.pkg", null, "2.4.1", { location: "/" }),
+      row("mac_app", "com.example.OldEditor", "OldEditor", "3.2", {
+        location: "/Applications/OldEditor.app",
+        services: [
+          {
+            kind: "launch_agent",
+            label: "com.example.OldEditor.updater",
+            scope: "user",
+            method: "program_inside_application",
+            verified: true,
+            ambiguous: false,
+          },
+        ],
+      }),
+      row("homebrew", "openssl@3", null, "3.5.0", {
+        location: "/opt/homebrew/Cellar/openssl@3",
+        explicit: false,
+        ai_note: {
+          purpose: "runtime_or_library",
+          removal_impact: "other_software_depends",
+          confidence: "high",
+        },
+      }),
+      row("mac_app", "com.spotify.client", "Spotify", "1.2.48", {
+        location: "/Applications/Spotify.app",
+        ai_note: explained
+          ? { purpose: "media", removal_impact: "only_this_app", confidence: "medium" }
+          : null,
+      }),
+    ],
+    sources: [
+      { source: "macos.applications", state: "complete", count: 4 },
+      { source: "macos.package-receipts", state: "complete", count: 1 },
+      { source: "macos.homebrew", state: "complete", count: 3 },
+      { source: "macos.launchd-plists", state: "complete", count: 1 },
+    ],
+  };
+}
 
 const scanView: ScanView = {
   scan: "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a1",
@@ -113,7 +194,11 @@ function devkb(entry: string): Fact {
   return seen({ type: "knowledge_base_match", entry }, "devkb");
 }
 
-/** An application's data folder, named after it, and whether it is installed. */
+/**
+ * An application's data folder, named after it, and whether it is installed;
+ * an installed one is not running and was last opened two days before the
+ * assessment (ADR-0059: shown, never decided on).
+ */
 function appData(
   app: string,
   kind: "caches" | "application_support" | "web_data",
@@ -123,14 +208,28 @@ function appData(
   return [
     seen({ type: "owning_application", app }, source),
     seen({ type: "app_data_location", kind }, source),
-    installed
-      ? seen({ type: "application_present", app, present: true }, "macos.applications", ASSESSED)
-      : {
-          fact: { type: "application_present", app, present: false },
-          basis: { kind: "absence", searched: ["macos.applications"] },
-          source: "lumen.inventory",
-          observed_at: ASSESSED,
-        },
+    ...(installed
+      ? [
+          seen({ type: "application_present", app, present: true }, "macos.applications", ASSESSED),
+          seen(
+            { type: "application_running", app, running: false },
+            "macos.process-probe",
+            ASSESSED,
+          ),
+          seen(
+            { type: "application_last_opened", app, at: "2026-10-27T09:12:00Z" },
+            "macos.launchservices",
+            ASSESSED,
+          ),
+        ]
+      : [
+          {
+            fact: { type: "application_present", app, present: false },
+            basis: { kind: "absence", searched: ["macos.applications"] },
+            source: "lumen.inventory",
+            observed_at: ASSESSED,
+          } satisfies Fact,
+        ]),
   ];
 }
 
@@ -313,6 +412,7 @@ const candidates: readonly CandidateView[] = [
     group: { kind: "app_cache", source: "com.hnc.Discord" },
     ai_note: null,
     free_when_closed: { processes: ["Discord"] },
+    rechecks: ["in_use"],
     times: folderTimes("2026-10-16T08:57:40Z", "2026-10-16T08:57:40Z"),
     facts: [devkb("discord-chromium-caches"), ...scanned({ inUse: true })],
     relations: noneRecorded,
@@ -399,6 +499,7 @@ const candidates: readonly CandidateView[] = [
   {
     id: fileId(13),
     path: `${HOME}/Downloads/Installers`,
+    review_reasons: { schema: "review-reasons/1", codes: ["unknown_owner"] },
     verdict: "review",
     reclaimable_bytes: "2300000000",
     reclaimable_exact: true,
@@ -489,6 +590,38 @@ function wait(ms: number): Promise<void> {
   return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
 }
 
+// The sample uninstall previews (ADR-0062): Spotify may go to Quarantine;
+// Calculator is part of macOS, and OldEditor has a background item.
+function uninstallPreviewOf(key: string, n: number): UninstallPreviewView {
+  const row = softwareList(false).items.find((item) => item.key === key);
+  if (row === undefined || row.origin !== "mac_app") {
+    return { kind: "not_found" };
+  }
+  const app: UninstallAppView = {
+    key,
+    name: row.name,
+    bundle_id: row.id,
+    version: row.version,
+    path: row.location ?? "",
+    size_bytes: "412000000",
+    size_complete: true,
+    notes: ["goes_to_quarantine", "library_data_stays"],
+  };
+  if (row.protected) {
+    return { kind: "refused", app, reasons: ["not_in_applications", "protected"] };
+  }
+  if (row.services.length > 0) {
+    return { kind: "refused", app, reasons: ["service_linked"] };
+  }
+  return {
+    kind: "ready",
+    preview: `0190f0d2-6c1e-7a3b-8c4d-5e6f7081b0${n.toString().padStart(2, "0")}`,
+    hash: `b3:${n.toString(16).padStart(64, "0")}`,
+    created_at: new Date().toISOString(),
+    app,
+  };
+}
+
 /** A held item's operation ID, made up in the same shape as the core's. */
 function operationId(n: number): string {
   return `0190f0d2-6c1e-7a3b-8c4d-5e6f7081a0${n.toString().padStart(2, "0")}`;
@@ -516,6 +649,10 @@ export function memoryTransport({
     : { chosen: false, enabled: false, consented_at: null, key: "none", key_source: null };
   let held: readonly HeldItemView[] = initiallyHeld;
   let moves = 0;
+  let comparing = { stopped: false };
+  let previewed = 0;
+  // Previews that may still be confirmed, each once.
+  const previews = new Map<string, { hash: string; app: UninstallAppView }>();
   const take = (operation: string): HeldItemView | undefined => {
     const item = held.find((h) => h.operation === operation);
     held = held.filter((h) => h.operation !== operation);
@@ -642,6 +779,216 @@ export function memoryTransport({
         timed_out: false,
         output: "Removed 1,284 packages\n",
         space_changes: null,
+      };
+    },
+    software: async () => {
+      await wait(pace * 2);
+      return softwareList(false);
+    },
+    explainSoftware: async () => {
+      await wait(pace * 4);
+      return softwareList(true);
+    },
+    toolStorage: async () => {
+      await wait(pace * 2);
+      const location = (name: string) => ({
+        name,
+        detail: null,
+        bytes: null,
+        reported_size: null,
+        reported_reclaimable: null,
+      });
+      return [
+        {
+          tool: "xcode",
+          state: { kind: "found" },
+          version: null,
+          scope: null,
+          items: [
+            {
+              name: "26.1 (23B86)",
+              detail: "Ready",
+              bytes: "8724152320",
+              reported_size: null,
+              reported_reclaimable: null,
+            },
+          ],
+          command: null,
+          shared_store: false,
+        },
+        {
+          tool: "docker",
+          state: { kind: "unavailable", reason: "the inventory command failed (exit status 1)" },
+          version: null,
+          scope: null,
+          items: [],
+          command: null,
+          shared_store: false,
+        },
+        {
+          tool: "homebrew",
+          state: { kind: "found" },
+          version: "Homebrew 7.0.12",
+          scope: null,
+          items: [location("/Users/demo/Library/Caches/Homebrew")],
+          command: "brew cleanup --prune=all --scrub",
+          shared_store: false,
+        },
+        {
+          tool: "npm",
+          state: { kind: "not_installed" },
+          version: null,
+          scope: null,
+          items: [],
+          command: "npm cache clean --force",
+          shared_store: false,
+        },
+        {
+          tool: "pnpm",
+          state: { kind: "found" },
+          version: "10.33.0",
+          scope: null,
+          items: [location("/Users/demo/Library/pnpm/store/v10")],
+          command: "pnpm store prune",
+          shared_store: true,
+        },
+      ];
+    },
+    compareFolders: async (onProgress) => {
+      const run = { stopped: false };
+      comparing = run;
+      for (const [stage, read] of [
+        ["head", "120"],
+        ["tail", "18"],
+        ["full", "9"],
+      ] as const) {
+        await wait(pace);
+        if (run.stopped) return { kind: "cancelled" };
+        onProgress?.({ stage, files_read: read });
+      }
+      return {
+        kind: "compared",
+        report: {
+          folders: ["/Users/demo/Downloads", "/Users/demo/Pictures"],
+          groups: [
+            {
+              bytes_each: "734003200",
+              paths: [
+                "/Users/demo/Downloads/Ubuntu 26.04.iso",
+                "/Users/demo/Downloads/old/Ubuntu 26.04.iso",
+              ],
+            },
+            {
+              bytes_each: "4194304",
+              paths: [
+                "/Users/demo/Pictures/Trip/IMG_2041.HEIC",
+                "/Users/demo/Pictures/Trip copy/IMG_2041.HEIC",
+                "/Users/demo/Downloads/IMG_2041.HEIC",
+              ],
+            },
+          ],
+          hard_links: [["/Users/demo/Pictures/cover.jpg", "/Users/demo/Pictures/Album/cover.jpg"]],
+          skipped: "2",
+          protected: "0",
+          incomplete: false,
+        },
+      };
+    },
+    cancelComparison: async () => {
+      comparing.stopped = true;
+      await wait(0);
+    },
+    uninstallPreview: async (key) => {
+      await wait(pace);
+      previewed += 1;
+      const preview = uninstallPreviewOf(key, previewed);
+      if (preview.kind === "ready") {
+        previews.set(preview.preview, { hash: preview.hash, app: preview.app });
+      }
+      return preview;
+    },
+    uninstall: async (preview, confirmation) => {
+      await wait(pace);
+      const ready = previews.get(preview);
+      if (ready === undefined) {
+        return Promise.reject(
+          new Error(`plan ${preview} was already confirmed or executed; make a new plan`),
+        );
+      }
+      if (ready.hash !== confirmation) {
+        return Promise.reject(
+          new Error(`the confirmation does not match plan ${preview}; nothing was moved`),
+        );
+      }
+      previews.delete(preview);
+      moves += 1;
+      const operation = operationId(moves);
+      held = [
+        ...held,
+        {
+          operation,
+          state: "retained",
+          original: ready.app.path,
+          since: new Date().toISOString(),
+          reclaim_bytes: ready.app.size_bytes,
+          chosen_by: "person",
+        },
+      ];
+      return {
+        preview,
+        path: ready.app.path,
+        size_bytes: ready.app.size_bytes,
+        resolved: "0",
+        result: { kind: "quarantined", operation },
+        warnings: [],
+      };
+    },
+    reassess: async ({ ids }) => {
+      await wait(pace);
+      const chosen =
+        ids.length === 0 ? candidates.filter((c) => (c.rechecks ?? []).length > 0) : [];
+      for (const id of ids) {
+        const found = candidates.filter((c) => c.id === id);
+        if (found.length === 0) {
+          return Promise.reject(
+            new Error("that item is not in the latest assessment; assess again"),
+          );
+        }
+        chosen.push(...found);
+      }
+      return {
+        cancelled: false,
+        items: chosen.map((candidate) => {
+          const gaps = candidate.rechecks ?? [];
+          if (gaps.length === 0) {
+            return {
+              id: candidate.id,
+              before: candidate.verdict,
+              gaps,
+              outcome: { kind: "settled" },
+            };
+          }
+          // The demo's Discord has been closed since the assessment.
+          const now: CandidateView = {
+            ...candidate,
+            verdict: "quarantine",
+            reasons: [
+              {
+                rule: "classify.app-cache",
+                text: "Quarantine proposed: it is an application's cache, which the application re-creates.",
+              },
+            ],
+            free_when_closed: null,
+            rechecks: [],
+            facts: [devkb("discord-chromium-caches"), ...scanned()],
+          };
+          return {
+            id: candidate.id,
+            before: candidate.verdict,
+            gaps,
+            outcome: { kind: "decided", candidate: now, added_facts: "2" },
+          };
+        }),
       };
     },
     setAiKey: async (key) => {

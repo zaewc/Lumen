@@ -42,14 +42,14 @@ fn sample(path: &Path) -> Option<Sample> {
 }
 
 #[cfg(unix)]
-fn native(path: &RawPath) -> Option<PathBuf> {
+pub(crate) fn native(path: &RawPath) -> Option<PathBuf> {
     use std::os::unix::ffi::OsStrExt as _;
     (path.flavor() == lumen_domain::PathFlavor::Unix)
         .then(|| PathBuf::from(std::ffi::OsStr::from_bytes(path.as_bytes())))
 }
 
 #[cfg(windows)]
-fn native(path: &RawPath) -> Option<PathBuf> {
+pub(crate) fn native(path: &RawPath) -> Option<PathBuf> {
     use std::os::windows::ffi::OsStringExt as _;
     Some(PathBuf::from(std::ffi::OsString::from_wide(
         &path.to_windows_wide()?,

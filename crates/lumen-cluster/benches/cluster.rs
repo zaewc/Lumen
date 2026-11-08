@@ -1,54 +1,82 @@
-//! Grouping 5,000 feature vectors of 768 elements, the size ADR-0007's
-//! performance spike clusters. Run with `cargo bench -p lumen-cluster`.
+//! Clustering time (#778): sizes from 100 to 20,000 vectors, sparse, dense and
+//! mixed similarity, several embedding sizes, and one worker against all of
+//! them. Run with `cargo bench -p lumen-cluster --bench cluster`; filter with
+//! a name, e.g. `-- size`. Peak memory is the `memory` benchmark.
+//! Baselines: docs/architecture/performance.md.
 
 // Benchmark setup aborts on failure; there is no caller to report errors to.
 #![allow(clippy::expect_used, missing_docs)]
 
-use criterion::{Criterion, criterion_group, criterion_main};
+mod data;
 
-/// Deterministic pseudo-random vectors: 1,000 "originals", each with four
-/// slightly perturbed near-duplicates.
-fn vectors() -> Vec<Vec<f32>> {
-    let mut state = 0x2545_F491_4F6C_DD1D_u64;
-    let mut next = move || {
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        #[allow(clippy::cast_precision_loss, reason = "noise in [0, 1)")]
-        let unit = (state >> 40) as f32 / (1_u64 << 24) as f32;
-        unit
-    };
-    let mut out = Vec::with_capacity(5_000);
-    for _ in 0..1_000 {
-        let original: Vec<f32> = (0..768).map(|_| next()).collect();
-        for copy in 0..5 {
-            out.push(
-                original
-                    .iter()
-                    .map(|x| {
-                        if copy == 0 {
-                            *x
-                        } else {
-                            x + (next() - 0.5) * 0.01
-                        }
-                    })
-                    .collect(),
-            );
-        }
-    }
-    out
+use std::num::NonZeroUsize;
+
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use data::{Kind, THRESHOLD, vectors};
+
+fn all_workers() -> NonZeroUsize {
+    std::thread::available_parallelism().unwrap_or(NonZeroUsize::MIN)
 }
 
-fn group_5k(c: &mut Criterion) {
-    let vectors = vectors();
+fn run(vectors: &[Vec<f32>], workers: NonZeroUsize) -> Vec<usize> {
     let refs: Vec<&[f32]> = vectors.iter().map(Vec::as_slice).collect();
-    let mut group = c.benchmark_group("cluster");
+    lumen_cluster::group_with_workers(&refs, THRESHOLD, workers).expect("valid input")
+}
+
+/// Mixed similarity at 768 elements, from 100 to 20,000 vectors.
+fn size(c: &mut Criterion) {
+    let mut group = c.benchmark_group("size");
     group.sample_size(10);
-    group.bench_function("group 5k x 768", |b| {
-        b.iter(|| lumen_cluster::group(&refs, 0.5).expect("valid input"));
-    });
+    for count in [100, 1_000, 5_000, 10_000, 20_000] {
+        let data = vectors(Kind::Mixed, count, 768);
+        group.bench_with_input(BenchmarkId::new("mixed x 768", count), &data, |b, data| {
+            b.iter(|| run(data, all_workers()));
+        });
+    }
     group.finish();
 }
 
-criterion_group!(benches, group_5k);
+/// 5,000 vectors of 768 elements, from nothing alike to all alike.
+fn similarity(c: &mut Criterion) {
+    let mut group = c.benchmark_group("similarity");
+    group.sample_size(10);
+    for kind in [Kind::Sparse, Kind::Mixed, Kind::Dense] {
+        let data = vectors(kind, 5_000, 768);
+        group.bench_with_input(BenchmarkId::new(kind.name(), 5_000), &data, |b, data| {
+            b.iter(|| run(data, all_workers()));
+        });
+    }
+    group.finish();
+}
+
+/// 5,000 mixed vectors of 128, 768 and 2,048 elements.
+fn dimensions(c: &mut Criterion) {
+    let mut group = c.benchmark_group("dimensions");
+    group.sample_size(10);
+    for dims in [128, 768, 2_048] {
+        let data = vectors(Kind::Mixed, 5_000, dims);
+        group.bench_with_input(BenchmarkId::new("mixed 5k", dims), &data, |b, data| {
+            b.iter(|| run(data, all_workers()));
+        });
+    }
+    group.finish();
+}
+
+/// One worker against every core, from 100 to 5,000 mixed vectors, finely
+/// around where threads start to pay (#781).
+fn workers(c: &mut Criterion) {
+    let mut group = c.benchmark_group("workers");
+    group.sample_size(10);
+    for count in [100, 200, 300, 500, 1_000, 5_000] {
+        let data = vectors(Kind::Mixed, count, 768);
+        for (name, workers) in [("one", NonZeroUsize::MIN), ("all", all_workers())] {
+            group.bench_with_input(BenchmarkId::new(name, count), &data, |b, data| {
+                b.iter(|| run(data, workers));
+            });
+        }
+    }
+    group.finish();
+}
+
+criterion_group!(benches, size, similarity, dimensions, workers);
 criterion_main!(benches);

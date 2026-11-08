@@ -135,6 +135,14 @@ pub fn app<R: Runtime>(
             commands::set_ai_review,
             commands::set_ai_key,
             commands::run_tool_command,
+            commands::tool_storage,
+            commands::software,
+            commands::explain_software,
+            commands::compare_folders,
+            commands::cancel_comparison,
+            commands::reassess,
+            commands::uninstall_preview,
+            commands::uninstall,
             update::check_update,
             update::install_update,
         ])
@@ -164,6 +172,8 @@ pub fn app<R: Runtime>(
                 builtin,
                 tool_entries: std::sync::Mutex::default(),
                 tool_running: Arc::default(),
+                comparison: Arc::default(),
+                assessed: std::sync::Mutex::default(),
                 settled,
                 activity: Arc::default(),
             });

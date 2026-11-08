@@ -4,7 +4,7 @@
 import type { PlatformId } from "../data/release";
 import type { ClientStrings } from "./client";
 
-export type Locale = "ko" | "en" | "ru" | "ja" | "zh-CN" | "es";
+export type Locale = "ko" | "en" | "ru" | "ja" | "zh-CN" | "es" | "fr";
 
 /** A run of text with a little inline markup, rendered by Rich.astro. */
 export type Inline =
@@ -14,6 +14,12 @@ export type Inline =
   | { readonly link: string; readonly href: string };
 
 export type Rich = readonly Inline[];
+
+/** One step of using Lumen. */
+export interface Step {
+  readonly title: string;
+  readonly text: string;
+}
 
 export interface Messages {
   readonly lang: Locale;
@@ -34,6 +40,11 @@ export interface Messages {
   /** The app capture (sample data), with what it shows. */
   readonly showcase: {
     readonly main: string;
+  };
+  /** How to use Lumen, in three steps, with the app's own button names. */
+  readonly howTo: {
+    readonly title: string;
+    readonly steps: readonly [Step, Step, Step];
   };
   /** What Lumen does, as short claims the app backs up. */
   readonly features: {

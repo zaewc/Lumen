@@ -12,8 +12,14 @@ license.workspace = true
 lumen-api.workspace = true
 lumen-devkb.workspace = true
 lumen-domain.workspace = true
+# Labeled homes for `effectiveness` (issue #703).
+lumen-testkit.workspace = true
 schemars.workspace = true
 serde_json.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+# `getrusage` for the peak memory `effectiveness` reports.
+libc.workspace = true
 
 [lints]
 workspace = true

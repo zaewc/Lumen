@@ -1,5 +1,6 @@
 //! Test support: declarative fixture directory trees, a scripted [`MockJudge`]
-//! for code that consults Jev, and an in-memory [`MemorySecretStore`].
+//! for code that consults Jev, an in-memory [`MemorySecretStore`], and
+//! [`labeled`] homes for measuring cleanup effectiveness.
 //!
 //! Every test that touches a filesystem uses a [`Fixture`]: a fresh temporary
 //! directory populated from a list of [`Node`]s. Destructive behaviour is only ever
@@ -15,6 +16,7 @@
 #![forbid(unsafe_code)]
 
 mod judge;
+pub mod labeled;
 mod secrets;
 
 pub use judge::MockJudge;

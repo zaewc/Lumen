@@ -52,16 +52,14 @@ impl LedgerStore {
         })?;
         rows.map(|row| {
             let (operation, chooser) = row?;
-            let operation = operation.parse().map_err(|_| StoreError::Corrupt {
-                column: "quarantine_choosers.operation_id",
-            })?;
+            let operation = operation
+                .parse()
+                .map_err(|_| StoreError::corrupt("quarantine_choosers.operation_id"))?;
             let chooser = match chooser.as_str() {
                 "policy" => Chooser::Policy,
                 "person" => Chooser::Person,
                 _ => {
-                    return Err(StoreError::Corrupt {
-                        column: "quarantine_choosers.chooser",
-                    });
+                    return Err(StoreError::corrupt("quarantine_choosers.chooser"));
                 }
             };
             Ok((operation, chooser))

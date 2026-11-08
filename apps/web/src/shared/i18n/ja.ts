@@ -27,6 +27,7 @@ export const ja: Messages = {
     overview: "ストレージ",
     cleanUp: "探索",
     quarantine: "隔離",
+    apps: "アプリ",
     settings: "設定",
     held: (n: number) => `隔離中：${items(n)}`,
   },
@@ -64,6 +65,64 @@ export const ja: Messages = {
       cleaned: (n: number, size: string) => `${items(n)}（${size}）を隔離に移動しました。`,
       none: "まだスキャンしていません。ディスクをスキャンして、内容と判断の根拠を確認しましょう。",
     },
+    tools: {
+      title: "開発ツール",
+      intro:
+        "Xcode、Docker、パッケージマネージャーに、使っている容量を問い合わせます。Lumen は回答を読むだけです。",
+      check: "開発ツールを確認",
+      checking: "確認中…",
+      checkAgain: "もう一度確認",
+      loadFailed: "開発ツールに問い合わせできませんでした。",
+      notInstalled: "インストールされていません",
+      unsupported: "このコンピュータでは確認できません",
+      unavailable: "確認できませんでした",
+      none: "報告された項目はありません",
+      inUse: (detail: string) => `使用中 ${detail}`,
+      reclaimable: (size: string) => `Docker の見積もりでは ${size} が未使用`,
+      cache: "キャッシュ",
+      sharedStore: "共有ストア",
+      ownCommand: "専用コマンド",
+      xcodeManage: "ランタイムは Xcode › Settings › Components で管理します。",
+      dockerManage:
+        "Docker が未使用とみなす量にはボリュームや停止したコンテナも含まれ、必要なデータがあるかもしれません。Docker の整理は「探索」で完全なコマンドを確認したあとにだけ実行し、ボリュームは残します。",
+      sharedStoreNote:
+        "プロジェクトはこのストアにリンクしています。専用コマンドは使用中のパッケージを残します。",
+      cacheNote: "必要に応じて再ダウンロードされます。",
+    },
+    copies: {
+      title: "同じ内容のファイル",
+      intro:
+        "フォルダを選ぶと、その中のファイルを比べて内容が同じものを探します。Lumen が読むのは選んだフォルダのファイルだけです。",
+      choose: "比べるフォルダを選ぶ…",
+      chooseAgain: "ほかのフォルダを比べる…",
+      stop: "停止",
+      stopping: "停止しています…",
+      stopped: "比較を停止しました。途中までの結果は表示しません。",
+      comparing: "比べています…",
+      stage: {
+        head: "同じサイズのファイルの先頭を比べています",
+        tail: "まだ一致するファイルの末尾を比べています",
+        full: "まだ一致するファイルを最後まで比べています",
+      },
+      filesRead: (n: string) => `${count(n)}個のファイルを読みました`,
+      folders: "比べたフォルダ",
+      group: (n: number, size: string) => `${count(n)}個のコピー · 各 ${size}`,
+      none: "比べられたファイルの中に、同じ内容のファイルはありません。",
+      more: (n: number) => `小さいグループ ${count(n)}個は表示していません。`,
+      hardLinks: (n: number) =>
+        `${count(n)}個のファイルには複数の名前(ハードリンク)があります。コピーではなく 1 つのファイルです。`,
+      skipped: (n: number) =>
+        `${count(n)}個のファイルは比べていません。変更された、読めない、クラウドにしかない、またはシステムが保護しているファイルです。`,
+      protectedFiles: (n: number) =>
+        `保護された場所にある ${count(n)}個のファイルは読んでいません。`,
+      incomplete: "一部のフォルダを最後まで読めませんでした。そこにあるファイルは比べていません。",
+      unsupported: "このコンピュータでは、まだファイルを比べられません。",
+      tooMany: (limit: string) =>
+        `ファイルが ${count(limit)}個を超えています。もっと小さいフォルダを選んでください。`,
+      failed: "フォルダを比べられませんでした。",
+      advice:
+        "コピーは残しておきたいバックアップかもしれません。Lumen はどれも選んだり削除したりしません。コピーを削除しても、そのサイズ分の空きが増えないことがあります。",
+    },
   },
   workspace: {
     available: "空き容量",
@@ -94,7 +153,7 @@ export const ja: Messages = {
     offIntro:
       "AIモデルが整理候補をもう一度確認し、確認が必要な項目が何かを推測します。Lumenの判断をより慎重にすることしかできません。",
     onIntro: (key: string) =>
-      `有効（${key}）。整理候補と、確認が必要な項目のうち最大20件について、内容は含めずに詳細情報を送信します。Lumenの判断をより慎重にすることしかできません。いつでも無効にできます。`,
+      `有効（${key}）。整理候補と、確認が必要な項目のうち最大20件について、内容は含めずに詳細情報を送信します。Lumenの判断をより慎重にすることしかできません。いつでも無効にできます。 インストール済みアプリの名前、発行元、バージョンもパスを含めずに送信します。`,
     keyInUse: {
       builtin: (service: string) => `${service}（組み込みキー）`,
       stored: (service: string) => `${service}（自分のキー）`,
@@ -108,7 +167,7 @@ export const ja: Messages = {
     changeFailed: "AIレビューの設定を変更できませんでした。",
     consent: {
       title: "AIレビューを有効にしますか？",
-      what: "整理候補と、確認が必要な項目のうちサイズが大きい最大20件について、パス（ホームフォルダーは「~」と表示）、サイズ、経過期間、判断の根拠を送信します。ファイルの内容は送信しません。",
+      what: "整理候補と、確認が必要な項目のうちサイズが大きい最大20件について、パス（ホームフォルダーは「~」と表示）、サイズ、経過期間、判断の根拠を送信します。ファイルの内容は送信しません。 アプリ画面のために、インストール済みアプリの名前、発行元、バージョンと、関連するバックグラウンド項目もパスを含めずに送信します。",
       whereJeb:
         "APIキーとともに学校のJebサーバー（jeb.https.gsmsv.site）へ送信します。サーバーの運営者がリクエストを保存する場合があります。",
       whereJebBuiltin:
@@ -232,6 +291,12 @@ export const ja: Messages = {
       present === null
         ? `${app}に属します。インストールされているかは不明です。`
         : `${app}に属します。${present ? "インストールされています" : "インストールされていません"}。`,
+    appRunning: (app: string, running: boolean) =>
+      running ? `${app}は実行中です。` : `${app}は実行されていません。`,
+    appOpened: (app: string, date: string) =>
+      `${app}の最終起動：${date}。システムがすべての起動を記録するとは限りません。`,
+    projectChanged: (date: string) =>
+      `プロジェクトのファイルの最終変更日：${date}。マニフェストやロックファイルなどのファイルだけを見ています。`,
     inUse: (inUse: boolean): string =>
       inUse ? "アプリが使用中です。" : "使用中のアプリはありません。",
     unseen: (unseen: number | null) =>
@@ -257,6 +322,23 @@ export const ja: Messages = {
       review: "判断はお任せします。Lumenが自動で移動することはありません。",
       command: "専用ツールで整理してください。依頼された場合にのみ、Lumenがコマンドを実行します。",
       quarantine: "隔離への移動を提案しています。隔離から復元できます。",
+    },
+    recheck: {
+      unknown: "判断したとき Lumen が知らなかったこと:",
+      gaps: {
+        in_use: "アプリが使っているか",
+        unread: "中身のすべて",
+        stale: "今どうなっているか",
+        owner: "どのアプリのものか、そのアプリがインストールされているか",
+      },
+      action: "再確認する",
+      checking: "確認しています…",
+      note: "確認は読み取りだけです。何も移動しません。",
+      settled: "確認することはありません。この判断は Lumen が知らなかったことに左右されません。",
+      changed: "スキャン後に変わったため、判断し直していません。もう一度スキャンしてください。",
+      still: (status: string) => `再確認しました · ${status}のまま`,
+      now: (before: string, after: string) => `再確認しました · ${before} → ${after}`,
+      failed: "再確認できませんでした。",
     },
     lens: {
       tool: (n: number, tool: string, size: string) => `${tool}由来の${others(n)} · ${size}`,
@@ -472,6 +554,114 @@ export const ja: Messages = {
       "使用中か、使用中かどうかを確認できないため、削除していません。使用中のアプリを終了して再試行してください。",
     notFinalizable: "この項目は復元のみ可能です。",
   },
+  apps: {
+    title: "アプリ",
+    desktopOnly: "インストール済みのアプリはデスクトップアプリで表示できます。",
+    reading: "インストール済みのアプリを読み込んでいます…",
+    readAgain: "もう一度読み込む",
+    loadFailed: "インストール済みのアプリを読み込めませんでした。",
+    search: "アプリを検索",
+    showAll: (n: number) => `依存関係と非表示の項目 ${n} 件も表示`,
+    none: "一致するアプリはありません。",
+    protected: "システムの一部",
+    protectedTip: "Lumen はこれを削除しません。",
+    partial: (names: string) =>
+      `一部の一覧は途中までしか読めなかったため、表示されていないアプリがある可能性があります: ${names}。`,
+    readOnly:
+      "この一覧はコンピュータから読み取り、外部には送りません。アプリは確認してから移動します。",
+    readOnlyAi:
+      "AIレビューがオンの間は、アプリの名前、発行元、バージョンをパスなしで送信します。アプリは確認してから移動します。",
+    move: {
+      action: "隔離へ移動…",
+      title: (name: string) => `「${name}」を隔離へ移動しますか？`,
+      moving: (name: string) => `「${name}」を隔離へ移動しています…`,
+      checking: "アプリを確認しています…",
+      failed: "アプリの確認または移動ができませんでした。再試行する前に隔離を確認してください。",
+      refused: "このアプリは隔離へ移動できません",
+      notFound: "このアプリは一覧にありません。一覧を再読み込みしてください。",
+      ambiguous: "同じ識別子のアプリが複数あるため、選べません。",
+      unsupported: "アプリの隔離への移動はmacOSで利用できます。",
+      size: "アプリのサイズ",
+      atLeast: (size: string) => `${size}以上`,
+      expires: (date: string) => `このプレビューは作成から24時間後の${date}まで有効です。`,
+      moved: (name: string) => `「${name}」を隔離へ移動しました。`,
+      noSpace: "空き容量が増えるのは、隔離からアプリを完全に削除したときです。",
+      changed: "アプリが変わりました。プレビューを閉じて確認し直してください。",
+      failedMove: "アプリの移動を完了できませんでした。",
+      notes: {
+        goes_to_quarantine:
+          "完全に削除するまでは復元できます。Lumenが自動で削除することはありません。",
+        library_data_stays:
+          "~/Libraryのアプリデータは残ります。新しくスキャンした後、探索で確認できます。",
+      },
+      locations: {
+        source: "アプリは元の場所にあります。",
+        quarantine: "アプリは隔離にあります。隔離を開いて確認してください。",
+        gone: "アプリの場所を確認できませんでした。再試行する前に隔離を確認してください。",
+      },
+      reasons: {
+        not_in_applications: "/Applicationsまたは~/Applicationsの直下にありません。",
+        protected: "macOSの一部なので、そのままにします。",
+        not_a_bundle: "アプリのフォルダではないか、リンクです。",
+        owner_unknown: "アプリの所有者を確認できませんでした。",
+        not_owned_by_user:
+          "別のアカウントのアプリです。インストーラかApp Storeから削除してください。",
+        services_unknown: "バックグラウンド項目をすべて確認できませんでした。",
+        service_linked:
+          "関連するバックグラウンド項目があります。アプリ専用の削除ツールを使ってください。",
+        helpers_unknown: "アプリのバックグラウンド補助プログラムを確認できませんでした。",
+        has_helpers:
+          "バックグラウンド補助プログラムがあります。アプリ専用の削除ツールを使ってください。",
+        running_unknown: "アプリが起動中か確認できませんでした。",
+        running: "アプリが起動中です。終了してから確認し直してください。",
+        store_unknown: "このドライブの隔離用保存場所を確認できませんでした。",
+        no_store_on_volume: "このドライブには隔離用の保存場所がありません。",
+      },
+    },
+    ai: {
+      explaining: "AIレビューがアプリを説明しています…",
+      note: (purpose: string, confidence: string, impact: string) =>
+        `AI: ${purpose}の可能性が高い（${confidence}）。${impact}`,
+      purposes: {
+        web_browser: "Webブラウザー",
+        communication: "コミュニケーションアプリ",
+        media: "メディアアプリ",
+        office_or_productivity: "オフィス・生産性アプリ",
+        development_tool: "開発ツール",
+        design_or_creative: "デザイン・クリエイティブアプリ",
+        game: "ゲーム",
+        security_or_banking: "セキュリティ・銀行用ソフトウェア",
+        system_or_driver: "システムコンポーネントまたはドライバー",
+        cloud_sync_or_backup: "クラウド同期・バックアップアプリ",
+        utility: "ユーティリティ",
+        runtime_or_library: "ランタイムまたはライブラリ",
+        unknown: "判断できない項目",
+      },
+      impacts: {
+        only_this_app: "削除しても影響はこのアプリだけの可能性が高いです。",
+        other_software_depends: "他のソフトウェアがこれに依存している可能性が高いです。",
+        stops_background_activity: "削除するとバックグラウンドの動作が止まる可能性が高いです。",
+        security_or_access:
+          "削除するとセキュリティ、銀行取引、サインインが動作しなくなる可能性があります。",
+        system_function: "削除するとシステムの機能が動作しなくなる可能性があります。",
+        unknown: "削除した場合の影響は判断できませんでした。",
+      },
+    },
+    origins: {
+      mac_app: "アプリ",
+      mac_installer: "インストーラパッケージ",
+      homebrew: "Homebrew",
+      homebrew_cask: "Homebrew Cask",
+      windows_program: "プログラム",
+      msix: "ストアパッケージ",
+      dpkg: "dpkg",
+      rpm: "RPM",
+      pacman: "pacman",
+      flatpak: "Flatpak",
+      snap: "Snap",
+      other: "その他",
+    },
+  },
   settings: {
     title: "設定",
     appearance: {
@@ -504,7 +694,7 @@ export const ja: Messages = {
       version: "バージョン",
       local: "このデバイス内",
       localBody:
-        "スキャン、判断、隔離データはこのコンピューター内に保管されます。ファイルの内容を外部に送信することはありません。AIレビューが有効な場合も、パスやサイズなどの詳細情報のみを送信します。",
+        "スキャン、判断、隔離データはこのコンピューター内に保管されます。ファイルの内容を外部に送信することはありません。AIレビューが有効な場合も、パスやサイズなどの詳細情報のみを送信します。 インストール済みアプリの名前、発行元、バージョンも送信します。",
       update: {
         title: "アップデート",
         checking: "新しいバージョンを確認中…",
@@ -539,6 +729,13 @@ export const ja: Messages = {
       body: "隔離は項目を安全に保管する場所です。整理では削除せずにここへ移動し、完全に削除するまでは元の場所に復元できます。隔離中もディスク容量を使用します。",
     },
   },
+  reviewReasons: {
+    unknownOwner: "どのアプリやツールの項目か確認できませんでした。",
+    sharedResource:
+      "ほかのファイルと領域を共有しているか、この項目の外にもリンクがある可能性があります。",
+    staleEvidence: "確認した根拠が古くなっています。もう一度スキャンしてから判断してください。",
+    uncertainSize: "完全に削除したあとに空く領域は確かではありません。",
+  },
   reasons: {
     location: (name: string) => `維持：保護された場所（${name}）にあります。`,
     rules: {
@@ -549,6 +746,8 @@ export const ja: Messages = {
       "protect.cloud-backed":
         "維持：クラウドサービスと同期されています。ここで削除すると、ほかの場所からも削除される可能性があります。",
       "protect.in-use": "維持：実行中のアプリが使用しています。",
+      "protect.app-running":
+        "維持：この項目のアプリが実行中です。アプリを終了してからもう一度スキャンすると整理できます。",
       "protect.in-use-partial":
         "維持：確認できるアプリは使用していませんが、すべてのアプリを確認できませんでした。",
       "protect.in-use-unknown": "維持：使用中かどうかを確認していません。",

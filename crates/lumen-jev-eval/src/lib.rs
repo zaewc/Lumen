@@ -11,7 +11,10 @@
 //! command applies the gates to a dataset and a cassette (roadmap 12.1);
 //! [`record`] writes a cassette from a live judge (`lumen-jev-eval record`,
 //! roadmap 12.1b): Jeb, or Apple's on-device model through the `fm-judge`
-//! helper ([`FmHelper`], ADR-0044, evaluation only).
+//! helper ([`FmHelper`], ADR-0044, evaluation only). Software notes
+//! (`jev-software/1`, ADR-0061) have their own dataset ([`load_software`]),
+//! cassette ([`SoftwareCassette`]), replay ([`run_software`]) and recorder
+//! ([`record_software`]), behind `run-software` and `record-software`.
 
 #![forbid(unsafe_code)]
 
@@ -20,6 +23,7 @@ mod dataset;
 mod fm;
 mod record;
 mod run;
+mod software;
 
 pub use cassette::{CASSETTE_SCHEMA, Cassette, CassetteError, Recorded, RecordedStop, ReplayJudge};
 pub use dataset::{Dataset, DatasetError, DatasetReport, load, run_dataset};
@@ -28,4 +32,9 @@ pub use record::{LiveError, LiveJudge, Pacing, RecordOutcome, Recording, record}
 pub use run::{
     CASE_SCHEMA, CRITICAL_FPR_TARGET, Case, Expected, Grade, Outcome, Report, block_on,
     clopper_pearson_upper, run,
+};
+pub use software::{
+    LiveExplainer, SOFTWARE_CASSETTE_SCHEMA, SoftwareCase, SoftwareCassette, SoftwareDataset,
+    SoftwareExpected, SoftwareOutcome, SoftwareRecording, SoftwareReplay, SoftwareReport,
+    load_software, record_software, run_software,
 };

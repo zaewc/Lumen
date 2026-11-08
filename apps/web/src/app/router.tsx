@@ -6,6 +6,7 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import { useAiSettings } from "@/entities/ai-review";
+import { AppsPage } from "@/pages/apps";
 import { CleanUpPage, cleanUpSearch } from "@/pages/clean-up";
 import { FirstLaunchPage } from "@/pages/first-launch";
 import { OverviewPage } from "@/pages/overview";
@@ -56,6 +57,11 @@ const quarantine = createRoute({
   path: "/quarantine",
   component: QuarantinePage,
 });
+const apps = createRoute({
+  getParentRoute: () => root,
+  path: "/apps",
+  component: AppsPage,
+});
 const settings = createRoute({
   getParentRoute: () => root,
   path: "/settings",
@@ -78,7 +84,15 @@ const formerPlan = createRoute({
 });
 
 export const router = createRouter({
-  routeTree: root.addChildren([overview, cleanUp, quarantine, settings, formerScan, formerPlan]),
+  routeTree: root.addChildren([
+    overview,
+    cleanUp,
+    quarantine,
+    apps,
+    settings,
+    formerScan,
+    formerPlan,
+  ]),
 });
 
 declare module "@tanstack/react-router" {

@@ -1,11 +1,12 @@
 import type { CandidateView, RootView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
-import { appIconLabel, showAppIcon } from "../ui/Topography";
 import type { Rect } from "./squarify";
 import {
+  appIconLabel,
   candidatesIn,
   layoutTopography,
   type Placed,
+  showAppIcon,
   topographyOf,
   trailTo,
   unreadEntries,

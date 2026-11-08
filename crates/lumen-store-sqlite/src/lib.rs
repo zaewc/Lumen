@@ -126,6 +126,13 @@ pub enum StoreError {
     PlanTransition(#[from] lumen_domain::PlanTransitionError),
 }
 
+impl StoreError {
+    /// A [`StoreError::Corrupt`] for `column`.
+    pub(crate) const fn corrupt(column: &'static str) -> Self {
+        Self::Corrupt { column }
+    }
+}
+
 /// Durability setting per database class.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Durability {

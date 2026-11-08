@@ -5,17 +5,25 @@ import type {
   AiSettingsView,
   AssessProgressView,
   CandidateView,
+  CompareOutcomeView,
+  CompareProgressView,
   DiskView,
   ExecuteRequest,
   FinalizeOutcomeView,
   HeldItemView,
   PlanView,
   QuarantineReportView,
+  ReassessRequest,
+  ReassessView,
   RestoreOutcomeView,
   ScanProgressView,
   ScanRequest,
   ScanView,
+  SoftwareView,
   ToolRunView,
+  ToolStorageView,
+  UninstallOutcomeView,
+  UninstallPreviewView,
   UpdateView,
 } from "@lumen/api-client";
 import type { Theme } from "@/shared/theme";
@@ -78,4 +86,54 @@ export interface LumenTransport {
    * Only where the host can run it (the desktop app).
    */
   runToolCommand?(entry: string): Promise<ToolRunView>;
+  /**
+   * What Xcode, Docker and the package managers report about their own
+   * storage; read-only queries the host runs only when asked. Only where the
+   * host can run them (the desktop app).
+   */
+  toolStorage?(): Promise<readonly ToolStorageView[]>;
+  /**
+   * The installed software list: every inventory the platform keeps of
+   * installed applications and packages, read on request (ADR-0060). Read
+   * only. Only where the host can read them (the desktop app).
+   */
+  software?(): Promise<SoftwareView>;
+  /**
+   * The installed software list after AI review explains software it has not
+   * explained yet (ADR-0061): sends identity fields (origin, identifier, name,
+   * publisher, version, linked background items) only while AI review is on,
+   * at most 40 per call; otherwise the list with notes already on the device.
+   * Only where the host can read the list (the desktop app).
+   */
+  explainSoftware?(): Promise<SoftwareView>;
+  /**
+   * Asks the person which folders to compare, in the system's own dialog,
+   * then finds identical copies there (ADR-0057). Takes no path: the host
+   * reads only what the person picks. Only where the host can show the
+   * dialog (the desktop app).
+   */
+  compareFolders?(
+    onProgress?: (progress: CompareProgressView) => void,
+  ): Promise<CompareOutcomeView>;
+  /** Stops the running comparison, which then ends as `cancelled`. */
+  cancelComparison?(): Promise<void>;
+  /**
+   * Checks items of the latest assessment again with fresh read-only
+   * evidence (ADR-0058), by ID; none: every item with something unknown.
+   * Moves nothing. Only where the host keeps the assessment (the desktop app).
+   */
+  reassess?(request: ReassessRequest): Promise<ReassessView>;
+  /**
+   * Previews uninstalling the macOS app the software list shows under `key`
+   * (ADR-0062): ready to confirm by its hash, or every reason it cannot go to
+   * Quarantine. Reads only; moves nothing. Only where the host can read the
+   * list (the desktop app); off macOS it answers `unsupported`.
+   */
+  uninstallPreview?(key: string): Promise<UninstallPreviewView>;
+  /**
+   * Moves the app of one preview into Quarantine, confirmed by the preview's
+   * full hash; names the preview, never a path. The host checks the app again
+   * right before the move. Restorable until removed for good.
+   */
+  uninstall?(preview: string, confirmation: string): Promise<UninstallOutcomeView>;
 }

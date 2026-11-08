@@ -11,7 +11,7 @@ export interface Running {
 }
 
 /** The places of the app, as the navigation lists them. */
-export type Place = "/" | "/clean" | "/quarantine" | "/settings";
+export type Place = "/" | "/clean" | "/quarantine" | "/apps" | "/settings";
 
 /** The places that already show each kind of work themselves. */
 const SHOWN_ON: { readonly [A in Activity]: readonly Place[] } = {

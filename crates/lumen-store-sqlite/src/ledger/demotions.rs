@@ -8,7 +8,7 @@
 use lumen_domain::{FileIdentity, Judgment, Timestamp};
 use rusqlite::params;
 
-use super::{LedgerStore, corrupt};
+use super::LedgerStore;
 use crate::StoreError;
 
 impl LedgerStore {
@@ -24,10 +24,10 @@ impl LedgerStore {
         identity: &FileIdentity,
         judgment: &Judgment,
     ) -> Result<(), StoreError> {
-        let identity =
-            serde_json::to_vec(identity).map_err(|_| corrupt("jev_demotions.identity"))?;
-        let judgment =
-            serde_json::to_vec(judgment).map_err(|_| corrupt("jev_demotions.judgment"))?;
+        let identity = serde_json::to_vec(identity)
+            .map_err(|_| StoreError::corrupt("jev_demotions.identity"))?;
+        let judgment = serde_json::to_vec(judgment)
+            .map_err(|_| StoreError::corrupt("jev_demotions.judgment"))?;
         self.conn.execute(
             "INSERT INTO jev_demotions (requested_secs, requested_nanos, identity, judgment) \
              VALUES (?1, ?2, ?3, ?4)",
@@ -62,8 +62,10 @@ impl LedgerStore {
         rows.map(|row| {
             let (identity, judgment) = row?;
             Ok((
-                serde_json::from_slice(&identity).map_err(|_| corrupt("jev_demotions.identity"))?,
-                serde_json::from_slice(&judgment).map_err(|_| corrupt("jev_demotions.judgment"))?,
+                serde_json::from_slice(&identity)
+                    .map_err(|_| StoreError::corrupt("jev_demotions.identity"))?,
+                serde_json::from_slice(&judgment)
+                    .map_err(|_| StoreError::corrupt("jev_demotions.judgment"))?,
             ))
         })
         .collect()

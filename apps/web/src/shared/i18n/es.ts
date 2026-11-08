@@ -25,6 +25,7 @@ export const es: Messages = {
     overview: "Almacenamiento",
     cleanUp: "Explorar",
     quarantine: "Cuarentena",
+    apps: "Apps",
     settings: "Ajustes",
     held: (n: number) => `${items(n)} en Cuarentena`,
   },
@@ -62,6 +63,72 @@ export const es: Messages = {
       cleaned: (n: number, size: string) => `${items(n)} (${size}) se movieron a Cuarentena.`,
       none: "Todavía no se ha analizado nada. Analiza el disco para explorar su contenido y las pruebas que respaldan cada decisión.",
     },
+    tools: {
+      title: "Herramientas de desarrollo",
+      intro:
+        "Pregunta a Xcode, Docker y los gestores de paquetes cuánto espacio ocupan. Lumen solo lee sus respuestas.",
+      check: "Consultar herramientas",
+      checking: "Consultando…",
+      checkAgain: "Consultar de nuevo",
+      loadFailed: "Lumen no pudo consultar las herramientas de desarrollo.",
+      notInstalled: "No instalado",
+      unsupported: "No disponible en este equipo",
+      unavailable: "No se pudo consultar",
+      none: "No informó de nada",
+      inUse: (detail: string) => `${detail} en uso`,
+      reclaimable: (size: string) => `Docker calcula ${size} sin usar`,
+      cache: "Caché",
+      sharedStore: "Almacén compartido",
+      ownCommand: "Comando propio",
+      xcodeManage: "Gestiona los runtimes en Xcode › Settings › Components.",
+      dockerManage:
+        "Lo que Docker cuenta como sin usar incluye volúmenes y contenedores detenidos, que pueden guardar datos que necesitas. Su limpieza solo se ejecuta desde Explorar, después de que confirmes el comando completo, y conserva los volúmenes.",
+      sharedStoreNote:
+        "Los proyectos enlazan a este almacén. Su comando propio conserva lo que aún usan.",
+      cacheNote: "Se vuelve a descargar cuando hace falta.",
+    },
+    copies: {
+      title: "Copias idénticas",
+      intro:
+        "Elige carpetas y Lumen compara sus archivos para encontrar los que tienen el mismo contenido. Lumen solo lee archivos de las carpetas que elijas.",
+      choose: "Elegir carpetas para comparar…",
+      chooseAgain: "Comparar otras carpetas…",
+      stop: "Detener",
+      stopping: "Deteniendo…",
+      stopped: "Comparación detenida. No se muestra nada de esa comparación.",
+      comparing: "Comparando…",
+      stage: {
+        head: "Comparando el inicio de los archivos del mismo tamaño",
+        tail: "Comparando el final de los archivos que aún coinciden",
+        full: "Comparando completos los archivos que aún coinciden",
+      },
+      filesRead: (n: string) => `${count(n)} ${n === "1" ? "archivo leído" : "archivos leídos"}`,
+      folders: "Carpetas comparadas",
+      group: (n: number, size: string) => `${count(n)} copias · ${size} cada una`,
+      none: "No hay copias idénticas entre los archivos que Lumen pudo comparar.",
+      more: (n: number) =>
+        n === 1
+          ? "1 grupo más pequeño no se muestra."
+          : `${count(n)} grupos más pequeños no se muestran.`,
+      hardLinks: (n: number) =>
+        n === 1
+          ? "1 archivo tiene varios nombres (enlaces duros). Es un solo archivo, no copias."
+          : `${count(n)} archivos tienen varios nombres (enlaces duros). Cada uno es un solo archivo, no copias.`,
+      skipped: (n: number) =>
+        `${count(n)} ${n === 1 ? "archivo sin comparar" : "archivos sin comparar"}: cambiaron, no se pudieron leer, solo están en la nube o los protege el sistema.`,
+      protectedFiles: (n: number) =>
+        n === 1
+          ? "1 archivo en una ubicación protegida no se leyó."
+          : `${count(n)} archivos en ubicaciones protegidas no se leyeron.`,
+      incomplete:
+        "Algunas carpetas no se pudieron leer por completo. Sus archivos no se compararon.",
+      unsupported: "Comparar archivos aún no está disponible en este ordenador.",
+      tooMany: (limit: string) =>
+        `Estas carpetas tienen más de ${count(limit)} archivos. Elige carpetas más pequeñas.`,
+      failed: "Lumen no pudo comparar estas carpetas.",
+      advice:
+        "Las copias pueden ser copias de seguridad que quieres conservar. Lumen no elige ni elimina ninguna. Eliminar una copia puede liberar menos espacio que su tamaño.",
+    },
   },
   workspace: {
     available: "Espacio disponible",
@@ -92,7 +159,7 @@ export const es: Messages = {
     offIntro:
       "Un modelo de IA vuelve a examinar lo que Lumen propone limpiar y te orienta sobre qué podrían ser los elementos que requieren revisión. Solo puede hacer que Lumen actúe con más cautela.",
     onIntro: (key: string) =>
-      `Activada con ${key}. Lumen envía los detalles de cada elemento propuesto y de hasta 20 elementos que requieren revisión, nunca su contenido. Solo puede hacer que Lumen actúe con más cautela. Puedes desactivarla cuando quieras.`,
+      `Activada con ${key}. Lumen envía los detalles de cada elemento propuesto y de hasta 20 elementos que requieren revisión, nunca su contenido. Solo puede hacer que Lumen actúe con más cautela. Puedes desactivarla cuando quieras. También envía el nombre, el editor y la versión de las apps instaladas, sin rutas.`,
     keyInUse: {
       builtin: (service: string) => `${service} (clave integrada)`,
       stored: (service: string) => `${service} (tu clave)`,
@@ -106,7 +173,7 @@ export const es: Messages = {
     changeFailed: "Lumen no pudo cambiar el ajuste de revisión con IA.",
     consent: {
       title: "¿Activar la revisión con IA?",
-      what: "Por cada elemento propuesto y hasta 20 de los elementos más grandes que requieren revisión, Lumen envía su ruta (mostrando tu carpeta de inicio como ~), tamaño, antigüedad y las pruebas que respaldan la decisión. Nunca se envía el contenido de los archivos.",
+      what: "Por cada elemento propuesto y hasta 20 de los elementos más grandes que requieren revisión, Lumen envía su ruta (mostrando tu carpeta de inicio como ~), tamaño, antigüedad y las pruebas que respaldan la decisión. Nunca se envía el contenido de los archivos. Para la página Apps, también envía el nombre, el editor y la versión de las apps instaladas y los elementos en segundo plano vinculados a ellas, sin rutas.",
       whereJeb:
         "Lumen lo envía con tu clave de API al servidor Jeb de tu escuela (jeb.https.gsmsv.site). Quien opera el servidor podría conservar las solicitudes.",
       whereJebBuiltin:
@@ -234,6 +301,12 @@ export const es: Messages = {
       present === null
         ? `Pertenece a ${app}. Se desconoce si está instalada.`
         : `Pertenece a ${app}, que ${present ? "está instalada" : "no está instalada"}.`,
+    appRunning: (app: string, running: boolean) =>
+      running ? `${app} se está ejecutando.` : `${app} no se está ejecutando.`,
+    appOpened: (app: string, date: string) =>
+      `${app} se abrió por última vez el ${date}; es posible que el sistema no registre todos los inicios.`,
+    projectChanged: (date: string) =>
+      `Los archivos del proyecto cambiaron por última vez el ${date}; solo cuentan archivos como el manifiesto y el archivo de bloqueo.`,
     inUse: (inUse: boolean): string =>
       inUse ? "Una aplicación lo tiene abierto." : "Ninguna aplicación lo tiene abierto.",
     unseen: (unseen: number | null) =>
@@ -260,6 +333,23 @@ export const es: Messages = {
       command:
         "La herramienta correspondiente debería limpiarlo. Lumen solo ejecuta el comando si se lo pides.",
       quarantine: "Lumen propone moverlo a Cuarentena. Desde allí puedes restaurarlo.",
+    },
+    recheck: {
+      unknown: "Cuando Lumen decidió, no sabía:",
+      gaps: {
+        in_use: "si alguna app lo está usando",
+        unread: "todo lo que contiene",
+        stale: "cómo está ahora",
+        owner: "a qué app pertenece y si esa app está instalada",
+      },
+      action: "Comprobar de nuevo",
+      checking: "Comprobando…",
+      note: "Comprobar solo lee. No se mueve nada.",
+      settled: "No hay nada que comprobar: esta decisión no depende de nada que Lumen no supiera.",
+      changed: "Cambió después del escaneo, así que Lumen no volvió a decidir. Escanea de nuevo.",
+      still: (status: string) => `Comprobado de nuevo · sigue como ${status}`,
+      now: (before: string, after: string) => `Comprobado de nuevo · ${before} → ${after}`,
+      failed: "Lumen no pudo comprobarlo de nuevo.",
     },
     lens: {
       tool: (n: number, tool: string, size: string) => `${others(n)} de ${tool} · ${size}`,
@@ -487,6 +577,116 @@ export const es: Messages = {
       "Es posible que esté en uso, o que Lumen no pueda comprobarlo, así que no eliminó nada. Cierra las aplicaciones que lo usan e inténtalo de nuevo.",
     notFinalizable: "Este elemento solo se puede restaurar.",
   },
+  apps: {
+    title: "Apps",
+    desktopOnly: "Lumen muestra las apps instaladas en la app de escritorio.",
+    reading: "Leyendo las apps instaladas…",
+    readAgain: "Volver a leer",
+    loadFailed: "Lumen no pudo leer las apps instaladas.",
+    search: "Buscar apps",
+    showAll: (n: number) => `Mostrar dependencias y elementos ocultos (${n})`,
+    none: "Ninguna app coincide.",
+    protected: "Parte del sistema",
+    protectedTip: "Lumen nunca elimina esto.",
+    partial: (names: string) =>
+      `Algunas listas se leyeron solo en parte, así que pueden faltar apps: ${names}.`,
+    readOnly:
+      "Esta lista se lee de tu ordenador y se queda en él. Una app solo se mueve después de que lo confirmes.",
+    readOnlyAi:
+      "Mientras la revisión con IA está activada, se le envían el nombre, el editor y la versión de estas apps, sin rutas. Una app solo se mueve después de que lo confirmes.",
+    move: {
+      action: "Mover a Cuarentena…",
+      title: (name: string) => `¿Mover «${name}» a Cuarentena?`,
+      moving: (name: string) => `Moviendo «${name}» a Cuarentena…`,
+      checking: "Comprobando la app…",
+      failed:
+        "Lumen no pudo comprobar o mover la app. Revisa Cuarentena antes de intentarlo de nuevo.",
+      refused: "Esta app no se puede mover a Cuarentena",
+      notFound: "Esta app ya no está en la lista. Vuelve a leerla.",
+      ambiguous: "Varias apps tienen este identificador. Lumen no puede elegir una.",
+      unsupported: "Mover apps a Cuarentena solo está disponible en macOS.",
+      size: "Tamaño de la app",
+      atLeast: (size: string) => `Al menos ${size}`,
+      expires: (date: string) =>
+        `Esta vista previa caduca el ${date}, 24 horas después de crearla.`,
+      moved: (name: string) => `Se movió «${name}» a Cuarentena.`,
+      noSpace: "El espacio se libera al eliminar la app definitivamente de Cuarentena.",
+      changed: "La app ha cambiado. Cierra esta vista previa y vuelve a comprobarla.",
+      failedMove: "Lumen no pudo terminar de mover la app.",
+      notes: {
+        goes_to_quarantine:
+          "Puedes restaurarla hasta que la elimines definitivamente. Lumen nunca la elimina automáticamente.",
+        library_data_stays:
+          "Sus datos en ~/Library se conservan. Tras un nuevo análisis, puedes revisarlos en Explorar.",
+      },
+      locations: {
+        source: "La app sigue en su ubicación original.",
+        quarantine: "La app está en Cuarentena. Abre Cuarentena para revisarla.",
+        gone: "Lumen no pudo confirmar dónde está la app. Revisa Cuarentena antes de volver a intentarlo.",
+      },
+      reasons: {
+        not_in_applications: "No está directamente en /Applications o ~/Applications.",
+        protected: "Es parte de macOS. Lumen la conserva.",
+        not_a_bundle: "No es una carpeta de app, o es un enlace.",
+        owner_unknown: "Lumen no pudo comprobar quién es el propietario.",
+        not_owned_by_user:
+          "Pertenece a otra cuenta. Usa su instalador o App Store para eliminarla.",
+        services_unknown: "Lumen no pudo comprobar todos los elementos en segundo plano.",
+        service_linked:
+          "Tiene un elemento en segundo plano vinculado. Usa su propio desinstalador.",
+        helpers_unknown: "Lumen no pudo comprobar sus programas auxiliares en segundo plano.",
+        has_helpers: "Tiene programas auxiliares en segundo plano. Usa su propio desinstalador.",
+        running_unknown: "Lumen no pudo comprobar si la app está en ejecución.",
+        running: "La app está en ejecución. Ciérrala y vuelve a comprobarla.",
+        store_unknown: "Lumen no pudo comprobar si esta unidad tiene un almacén de Cuarentena.",
+        no_store_on_volume: "Esta unidad no tiene un almacén de Cuarentena.",
+      },
+    },
+    ai: {
+      explaining: "La revisión con IA está describiendo las apps…",
+      note: (purpose: string, confidence: string, impact: string) =>
+        `IA: probablemente ${purpose} (${confidence}). ${impact}`,
+      purposes: {
+        web_browser: "un navegador web",
+        communication: "una app de comunicación",
+        media: "una app multimedia",
+        office_or_productivity: "una app de oficina o productividad",
+        development_tool: "una herramienta de desarrollo",
+        design_or_creative: "una app de diseño o creatividad",
+        game: "un juego",
+        security_or_banking: "software de seguridad o banca",
+        system_or_driver: "un componente del sistema o controlador",
+        cloud_sync_or_backup: "una app de sincronización en la nube o copia de seguridad",
+        utility: "una utilidad",
+        runtime_or_library: "un entorno de ejecución o biblioteca",
+        unknown: "algo que no pudo determinar",
+      },
+      impacts: {
+        only_this_app: "Eliminarla probablemente solo afecta a esta app.",
+        other_software_depends: "Probablemente otro software depende de ella.",
+        stops_background_activity:
+          "Eliminarla probablemente detiene su actividad en segundo plano.",
+        security_or_access:
+          "Eliminarla puede impedir que funcionen la seguridad, la banca o el inicio de sesión.",
+        system_function: "Eliminarla puede impedir que funcione una función del sistema.",
+        unknown: "No pudo determinar qué afectaría eliminarla.",
+      },
+    },
+    origins: {
+      mac_app: "App",
+      mac_installer: "Paquete de instalación",
+      homebrew: "Homebrew",
+      homebrew_cask: "Homebrew Cask",
+      windows_program: "Programa",
+      msix: "Paquete de la tienda",
+      dpkg: "dpkg",
+      rpm: "RPM",
+      pacman: "pacman",
+      flatpak: "Flatpak",
+      snap: "Snap",
+      other: "Otro",
+    },
+  },
   settings: {
     title: "Ajustes",
     appearance: {
@@ -520,7 +720,7 @@ export const es: Messages = {
       version: "Versión",
       local: "En este dispositivo",
       localBody:
-        "Los análisis, las decisiones y Cuarentena permanecen en este ordenador. El contenido de los archivos nunca se envía a ningún lugar. Mientras la revisión con IA está activada, solo se envían detalles como rutas y tamaños.",
+        "Los análisis, las decisiones y Cuarentena permanecen en este ordenador. El contenido de los archivos nunca se envía a ningún lugar. Mientras la revisión con IA está activada, solo se envían detalles como rutas y tamaños. También se envían el nombre, el editor y la versión de las apps instaladas.",
       update: {
         title: "Actualizaciones",
         checking: "Buscando una nueva versión…",
@@ -554,6 +754,13 @@ export const es: Messages = {
       body: "Cuarentena es un lugar seguro donde guardar elementos. Al limpiar, se mueven allí en vez de eliminarse, y puedes restaurarlos en su ubicación original hasta que los elimines definitivamente. Hasta entonces, los elementos en Cuarentena siguen ocupando espacio en disco.",
     },
   },
+  reviewReasons: {
+    unknownOwner: "No se ha identificado qué aplicación o herramienta lo creó.",
+    sharedResource:
+      "Puede compartir espacio con otros archivos o tener enlaces fuera de este elemento.",
+    staleEvidence: "Parte de la evidencia está desactualizada. Vuelve a analizar antes de decidir.",
+    uncertainSize: "No se sabe con certeza cuánto espacio liberaría su eliminación definitiva.",
+  },
   reasons: {
     location: (name: string) => `Se conserva: está en una ubicación protegida (${name}).`,
     rules: {
@@ -565,6 +772,8 @@ export const es: Messages = {
       "protect.cloud-backed":
         "Se conserva: está sincronizado con un servicio en la nube, así que quitarlo aquí podría eliminarlo en todas partes.",
       "protect.in-use": "Se conserva: una aplicación en ejecución lo está usando.",
+      "protect.app-running":
+        "Se conserva: la aplicación a la que pertenece está en ejecución. Ciérrala y vuelve a analizar para limpiarlo.",
       "protect.in-use-partial":
         "Se conserva: ninguna aplicación visible para Lumen lo usa, pero Lumen no pudo comprobar todas las aplicaciones.",
       "protect.in-use-unknown": "Se conserva: Lumen no ha comprobado si algo lo está usando.",

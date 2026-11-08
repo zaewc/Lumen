@@ -1,0 +1,81 @@
+name: web-screens
+
+# A pull request that changes the web UI gets screenshots of its main screens
+# (Clean up, the evidence inspector, Storage and Quarantine), in English and
+# Korean, light and dark, from the in-memory sample data, as an artifact.
+# scripts/capture-app-screens.mjs drives the browser; its checks (no runtime
+# exceptions, no external requests, no horizontal overflow, the expected
+# sample rows) fail the job. Informational, never required.
+on:
+  pull_request:
+    paths:
+      - apps/web/**
+      - packages/**
+      - pnpm-lock.yaml
+      - scripts/capture-app-screens.mjs
+      - .github/workflows/web-screens.yml
+
+permissions: {}
+
+concurrency:
+  group: web-screens-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screens:
+    name: screens
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Install the workspace exactly as locked
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Install Korean fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+      - name: Capture the screens
+        run: |
+          out="$RUNNER_TEMP/screens"
+          pnpm --filter @lumen/web exec vite --host 127.0.0.1 --port 5198 --strictPort \
+            >"$RUNNER_TEMP/vite.log" 2>&1 &
+          # The runner's Chrome, isolated, on loopback fixture pages only. The
+          # job holds no secrets; Ubuntu 24.04's AppArmor blocks Chrome's
+          # namespace sandbox for unprivileged users.
+          google-chrome --headless=new --no-sandbox --remote-debugging-port=9342 \
+            --no-first-run --no-default-browser-check \
+            --disable-background-networking --disable-component-update \
+            --user-data-dir="$(mktemp -d)" about:blank >"$RUNNER_TEMP/chrome.log" 2>&1 &
+          for _ in $(seq 60); do
+            curl -sf http://127.0.0.1:5198/ >/dev/null && curl -sf http://127.0.0.1:9342/json/version >/dev/null && break
+            sleep 1
+          done
+          LUMEN_CAPTURE_OUT="$out" node scripts/capture-app-screens.mjs
+          {
+            echo "## Web screens"
+            echo
+            echo "The \`web-screens\` artifact holds $(find "$out" -name '*.png' | wc -l) captures:"
+            echo "Clean up, the evidence inspector, Storage and Quarantine, in English and Korean, light and dark."
+          } >>"$GITHUB_STEP_SUMMARY"
+      - name: Server and browser logs
+        if: ${{ failure() }}
+        run: tail -n 50 "$RUNNER_TEMP/vite.log" "$RUNNER_TEMP/chrome.log"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: web-screens
+          path: ${{ runner.temp }}/screens
+          retention-days: 14
+          if-no-files-found: ignore

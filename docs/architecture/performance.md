@@ -45,7 +45,7 @@ Readings:
 | Benchmark | Median time | Notes |
 | --- | --- | --- |
 | `policy/decide quarantine candidate` | 8.8 µs | one regenerable cache through every stage to `QUARANTINE`; about 110,000 decisions/s |
-| `cluster/group 5k x 768` | 33 ms | 5,000 feature prints (1,000 originals with 4 near-copies each), all pairs on 12 cores with early exit |
+| `cluster/group 5k x 768` | 33 ms | 5,000 feature prints (1,000 originals with 4 near-copies each), all pairs on 12 cores with early exit; superseded by the clustering section below |
 
 Readings:
 
@@ -54,11 +54,108 @@ Readings:
 - Grouping 5,000 photos is far below the time to compute their feature prints on a
   phone (ADR-0007's spike measures both).
 
+## Clustering (#778, 2026-11-06, same machine)
+
+`cargo bench -p lumen-cluster` runs two benchmarks, both on deterministic vectors
+(`benches/data`):
+- `cluster` measures time with Criterion: 100 to 20,000 vectors; sparse (nothing
+  alike), mixed (originals with four near-copies) and dense (all alike); 128, 768 and
+  2,048 elements; and one worker against all 12.
+- `memory` measures each call's peak heap above its input, with a counting allocator.
+
+The threshold is 0.5 throughout. Near-copies differ by ±0.005 per element.
+
+| Time | Median |
+| --- | --- |
+| mixed × 768: 100 / 1,000 / 5,000 / 10,000 / 20,000 | 0.15 / 1.8 / 30 / 146 / 657 ms |
+| 5,000 × 768: sparse / mixed / dense | 29 / 29 / 265 ms |
+| 5,000 mixed: 128 / 768 / 2,048 elements | 23 / 30 / 33 ms |
+| one worker / all: 100 | 0.14 / 0.15 ms |
+| one worker / all: 1,000 | 7.0 / 1.4 ms |
+| one worker / all: 5,000 | 188 / 31 ms |
+
+| Peak memory above the input (× 128) | Peak | Time |
+| --- | --- | --- |
+| sparse 20,000 | 0.6 MiB | 0.33 s |
+| mixed 20,000 | 1.1 MiB | 0.35 s |
+| dense 5,000 | 235 MiB | 0.10 s |
+| dense 10,000 | 938 MiB | 0.42 s |
+| dense 20,000 | 3,751 MiB | 2.2 s |
+
+Readings:
+
+- Every matching pair was kept in memory until the end. The peak therefore grew with
+  the square of a dense set: 20,000 identical photos took 3.7 GiB, which a phone
+  cannot spare. Since #779, each worker joins pairs into its own disjoint sets as it
+  finds them, and the sets are merged at the end. The peak is now two indices per
+  vector per worker, and the groups are unchanged:
+
+  | Peak memory above the input (× 128) | Before | After | Time after |
+  | --- | --- | --- | --- |
+  | sparse 20,000 | 0.6 MiB | 4.0 MiB | 0.37 s |
+  | mixed 20,000 | 1.1 MiB | 4.0 MiB | 0.33 s |
+  | dense 20,000 | 3,751 MiB | 4.0 MiB | 0.61 s (was 2.2 s) |
+
+  Timings are otherwise unchanged within noise; dense at 5,000 × 768 went from 265 ms
+  to 246 ms.
+- At 100 vectors, all workers were slower than one: starting threads cost more than
+  the comparisons. Since #781, a call compares the first row on its own thread and
+  uses what that cost per pair to estimate the rest. Below about 8,000 chunk
+  comparisons (about 150 µs), it finishes there. Otherwise every core takes rows one
+  at a time, longest first, and one worker never starts a thread. Mixed × 768, median:
+
+  | Vectors | One worker, before → after | All workers, before → after |
+  | ---: | ---: | ---: |
+  | 100 | 0.13 → 0.11 ms | 0.15 → 0.11 ms (stays on one thread) |
+  | 200 | 0.37 → 0.35 ms | 0.19 → 0.22 ms |
+  | 300 | 0.74 → 0.72 ms | 0.27 → 0.30 ms |
+  | 500 | 1.87 → 1.84 ms | 0.49 → 0.47 ms |
+  | 1,000 | 7.0 → 6.9 ms | 1.42 → 1.26 ms |
+  | 5,000 | 187 → 184 ms | 30.9 → 26.1 ms |
+
+  Between 200 and 300 vectors, the first row on the calling thread adds about 20 µs.
+- Elements beyond 128 add little, because a pair stops summing as soon as it exceeds
+  the threshold. Dense sets compare every element of every pair, so they are about
+  9× slower than sparse ones at the same size; see #783 below.
+- A pair's distance was summed one element at a time, so each addition waited for the
+  last and the compiler could not use vector instructions. Since #782, each chunk is
+  summed in 16 independent lanes, which the compiler turns into vector code without
+  `unsafe` or a new dependency. The threshold check is unchanged: still once per
+  chunk, and still exact. Median, 5,000 vectors unless noted:
+
+  | Case | Before | After |
+  | --- | ---: | ---: |
+  | sparse / mixed / dense × 768 | 26 / 27 / 223 ms | 16 / 15 / 106 ms |
+  | mixed × 128 / 768 / 2,048 | 18.9 / 27.1 / 28.4 ms | 9.2 / 14.1 / 26.3 ms |
+  | mixed × 768, one worker / all | 196 / 27.7 ms | 102 / 15.8 ms |
+- A set of near-copies compared every pair of its members, though once two members
+  are in one group, the distance between them cannot change any group. Since #783, a
+  worker skips a pair it has already joined, so a set of n near-copies costs about n
+  comparisons instead of n²/2. The groups are the same. The sequential cutoff rose
+  from 8,192 to 24,576 chunk comparisons, because a chunk now costs about half as
+  much; all twelve threads still overtake one between 200 and 300 vectors. Median:
+
+  | Case | Before | After |
+  | --- | ---: | ---: |
+  | dense 5,000 × 768 | 130 ms | 3.5 ms |
+  | mixed × 768: 100 / 5,000 / 20,000 | 0.065 / 15.7 / 454 ms | 0.058 / 15.3 / 395 ms |
+  | sparse 5,000 × 768 | 18.0 ms | 15.4 ms |
+
+  Other cases moved within ±12%, about the spread between two runs of the same code
+  on this machine. Peak memory is unchanged; in the memory benchmark, dense 20,000 ×
+  128 now takes 0.02 s.
+
 ## CI hardware
 
 The `bench` workflow (manual) runs the same benchmarks on GitHub's `ubuntu-24.04` and
 `macos-26` runners and keeps criterion's reports as artifacts. Shared runners vary,
 so compare runs of the same workflow with each other, never with the numbers above.
+
+A pull request that changes `lumen-cluster`, `lumen-scan` or `lumen-policy` also
+runs `bench-compare`, which benchmarks that crate on the base and on the pull
+request in one job on one runner, and shows each median and change in the job
+summary (`scripts/bench-compare.sh`). It is informational and never required:
+read only changes well beyond the few percent two runs of the same code differ.
 
 ## Real tree: `lumen scan ~/Library`
 
@@ -168,3 +265,72 @@ cargo build --release -p lumen-cli
 
 Scans are read-only. Run the same command twice and keep the second (warm-cache)
 result.
+
+## Cleanup effectiveness on a labeled home
+
+Speed alone does not show whether Lumen proposes the right things (issue #703).
+`lumen_testkit::labeled` describes a small macOS home in which each path is labeled:
+
+| Label | Meaning | Gate |
+| --- | --- | --- |
+| Proposed | A regenerable artifact: DerivedData, iOS DeviceSupport, Cargo `deps` and `incremental`, a Next.js cache | Must be covered by a quarantine proposal; a miss is a coverage gap |
+| Review | Shown, never proposed: Xcode Archives, the npm and pip caches (tool-managed) | Proposed for quarantine is unsafe |
+| Kept | User data and state: Documents, `.ssh`, Keychains, app data, build outputs, project manifests, a download | In, or containing, a proposal is unsafe |
+| In use | An artifact the harness holds open while assessing | Proposed while open is unsafe |
+
+The home also holds traps that must not change these outcomes:
+- a link from an app cache to Documents;
+- a hard link to a document inside the pip cache;
+- an unreadable folder;
+- a 1 MiB sparse file.
+
+`crates/lumen-cli/tests/effectiveness.rs` runs the real `lumen scan` and `lumen assess --json` on it. It requires:
+- no unsafe recommendations;
+- every Proposed and Review path found;
+- some bytes proposed.
+
+The test runs on every macOS CI job. Without the open file, the in-use artifact is proposed and the test fails, so the trap is live.
+
+### Seeded homes: `just effectiveness`
+
+`cargo xtask effectiveness [--projects N] [--seed S] [--out FILE]` adds `N`
+generated projects to the labeled home (`seeded_macos_home`). Each project has a
+Rust project, a web project, an Xcode build and a document, with file sizes from 1
+to 16 KiB drawn from the seed, so the same arguments always build the same home.
+
+The command:
+1. builds `lumen` in release mode;
+2. runs `scan` twice, first and then warm, and `assess --json` with `HOME` set to
+   the fixture;
+3. writes JSON and a summary: timings, each run's own peak resident memory (from
+   `wait4`, so the build is not counted), and the score;
+4. fails on any unsafe recommendation.
+
+The first scan is only as cold as the OS file cache allows; the tool never purges it.
+
+Baseline on the machine above, 2026-11-06, seed 1, macOS temporary directory (APFS):
+
+| Projects | Files | First scan | Warm scan | Assess | Peak RSS scan / assess | Proposed found | Unsafe |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 200 | 1,820 | 571 ms | 70 ms | 13.7 s | 21 / 42 MiB | 805 / 805 | 0 |
+| 1,000 | 9,020 | 637 ms | 398 ms | 106.5 s | 33 / 114 MiB | 4,005 / 4,005 | 0 |
+
+Before #766, assessing grew faster than the number of candidates: 5× the
+candidates took 7.8× as long. A `sample` profile showed two costs paid once per
+candidate:
+- re-hashing every gathered evidence record to find the cited ones;
+- re-reading the whole process table from the kernel for the in-use probe.
+
+The evidence is now indexed once per assessment (#767). On macOS the process table
+is read once per assessment and every candidate is answered from it. Quarantine and
+finalize still ask the kernel live, item by item.
+
+With both changes, same machine and seed:
+
+| Projects | Assess before | Evidence index only | Both | Peak RSS assess | Unsafe |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 200 | 13.7 s | 8.3 s | 1.5 s | 51 MiB | 0 |
+| 1,000 | 106.5 s | 39.4 s | 1.7 s | 125 MiB | 0 |
+
+These numbers are baselines, not targets; the issue rules out setting targets
+before measuring.

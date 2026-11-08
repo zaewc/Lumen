@@ -31,16 +31,12 @@ pub struct JournalEntry {
     pub detail: serde_json::Value,
 }
 
-fn corrupt(column: &'static str) -> StoreError {
-    StoreError::Corrupt { column }
-}
-
 /// The event's name, for the lookup column.
 fn event_name(event: QuarantineEvent) -> Result<String, StoreError> {
     serde_json::to_value(event)
         .ok()
         .and_then(|v| v.get("event").and_then(|e| e.as_str()).map(str::to_owned))
-        .ok_or_else(|| corrupt("quarantine_journal.event"))
+        .ok_or_else(|| StoreError::corrupt("quarantine_journal.event"))
 }
 
 impl LedgerStore {
@@ -51,7 +47,8 @@ impl LedgerStore {
     ///
     /// Returns [`StoreError`] if SQLite fails.
     pub fn journal(&mut self, entry: &JournalEntry) -> Result<(), StoreError> {
-        let body = serde_json::to_vec(entry).map_err(|_| corrupt("quarantine_journal.body"))?;
+        let body = serde_json::to_vec(entry)
+            .map_err(|_| StoreError::corrupt("quarantine_journal.body"))?;
         self.conn.execute(
             "INSERT INTO quarantine_journal \
              (operation_id, event, recorded_secs, recorded_nanos, body) \
@@ -82,10 +79,10 @@ impl LedgerStore {
         let mut entries = Vec::new();
         for row in rows {
             let (operation, event, body) = row?;
-            let entry: JournalEntry =
-                serde_json::from_slice(&body).map_err(|_| corrupt("quarantine_journal.body"))?;
+            let entry: JournalEntry = serde_json::from_slice(&body)
+                .map_err(|_| StoreError::corrupt("quarantine_journal.body"))?;
             if entry.operation.to_string() != operation || event_name(entry.event)? != event {
-                return Err(corrupt("quarantine_journal.body"));
+                return Err(StoreError::corrupt("quarantine_journal.body"));
             }
             entries.push(entry);
         }
@@ -126,7 +123,7 @@ impl LedgerStore {
                     .try_fold(QuarantineState::Planned, |state, e| {
                         state
                             .apply(e.event)
-                            .map_err(|_| corrupt("quarantine_journal.event"))
+                            .map_err(|_| StoreError::corrupt("quarantine_journal.event"))
                     })?;
                 Ok((state, entries))
             })

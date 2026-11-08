@@ -25,7 +25,7 @@ The deterministic safety policy (ADR-0014): facts in, `KEEP` / `REVIEW` /
    every language).
 3. Keep `tests/safety.rs` (property tests) passing; add a property if the rule adds
    a new safety claim. Never delete a line from `tests/safety.proptest-regressions`.
-4. Run `cargo nextest run -p lumen-policy` and, because decisions feed the AI
-   evaluation, `just check` (CI also replays the Jev cassettes).
+4. CI runs the tests and, because decisions feed the AI evaluation, replays the
+   Jev cassettes; do not repeat them locally (root `AGENTS.md`, step 5).
 
 A rule that removes more than before needs an ADR. When unsure, make it `REVIEW`.

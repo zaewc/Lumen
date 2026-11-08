@@ -13,19 +13,36 @@ export const en: Messages = {
   nav: { label: "Site", docs: "Docs" },
   hero: {
     headline: ["Storage intelligence", "for every device."],
-    lead: "What to keep and what to clear: AI helps you work it out.",
+    lead: "A free app that finds what fills your disk and, with AI taking a second look, frees up space safely. Cleaned-up files go to Quarantine first, so you can put them back.",
     download: "View releases",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   showcase: {
     main: "Lumen's Explore page with sample data: storage composition by decision, 9.9 GB proposed across developer tools and app caches, and commands for items their own tool should clean.",
   },
+  howTo: {
+    title: "How to use it",
+    steps: [
+      {
+        title: "Download and open",
+        text: "Pick the file for your computer below and install it. The first time you open Lumen, your computer asks you to allow it once.",
+      },
+      {
+        title: "Scan your disk",
+        text: "Press Scan disk. Lumen shows what takes up space and decides about each item. Scanning changes nothing.",
+      },
+      {
+        title: "Clean up what is proposed",
+        text: "Check the items marked Proposed, then press Clean up. Lumen moves them to Quarantine, where you can restore them.",
+      },
+    ],
+  },
   features: {
     title: "What Lumen does",
     items: [
       {
         title: "Finds what takes up space",
-        text: "From Xcode's build data and Gradle caches to app caches and old installers. Scanning never opens a file.",
+        text: "App caches, old installers and the build data developer tools leave behind. Scanning never opens a file.",
       },
       {
         title: "Explains every decision",
@@ -37,7 +54,7 @@ export const en: Messages = {
       },
       {
         title: "Cleans up after you confirm",
-        text: "Files go to Quarantine so you can restore them. For the pnpm store or Xcode simulators, review and run the tool's own cleanup command. Tool commands remove data directly and cannot be undone.",
+        text: "Files go to Quarantine so you can restore them. Some items, such as a developer tool's storage, only their own tool should clean: Lumen runs the tool's command only after you check it, and that removal cannot be undone.",
       },
     ],
   },
@@ -62,7 +79,7 @@ export const en: Messages = {
       ".",
     ],
     checking: "Checking releases…",
-    thisComputer: "<-- You need to download",
+    thisComputer: "For this computer",
     installer: "Installer",
     requirements: {
       mac: "macOS 13 or later · Apple silicon and Intel",

@@ -5,20 +5,54 @@ import {
   zAiSettingsView,
   zAssessProgressView,
   zCandidateView,
+  zCompareOutcomeView,
+  zCompareProgressView,
   zDiskView,
   zFinalizeOutcomeView,
   zHeldItemView,
   zPlanView,
   zQuarantineReportView,
+  zReassessedItemView,
+  zReassessGapView,
+  zReassessView,
   zRestoreOutcomeView,
+  zReviewReasonsView,
   zScanProgressView,
   zScanView,
+  zSoftwareView,
   zToolRunView,
+  zToolStorageView,
+  zUninstallOutcomeView,
+  zUninstallPreviewView,
   zUpdateView,
 } from "@lumen/api-client";
 import { Channel, type InvokeArgs, invoke } from "@tauri-apps/api/core";
+import { z } from "zod";
 import { hostError } from "./host-error";
 import type { LumenTransport } from "./transport";
+
+// Older hosts omit these additive descriptors. Normalize them at the boundary
+// so Zod's optional output also satisfies exactOptionalPropertyTypes.
+const zCompatibleCandidate = zCandidateView.extend({
+  review_reasons: zReviewReasonsView.nullable().default(null),
+  rechecks: zReassessGapView.array().nullable().default(null),
+});
+const zCompatiblePlan = zPlanView.extend({ items: zCompatibleCandidate.array() });
+const zCompatibleReassess = zReassessView.extend({
+  items: zReassessedItemView
+    .extend({
+      outcome: z.union([
+        z.object({ kind: z.literal("settled") }),
+        z.object({ kind: z.literal("changed") }),
+        z.object({
+          kind: z.literal("decided"),
+          candidate: zCompatibleCandidate,
+          added_facts: z.string(),
+        }),
+      ]),
+    })
+    .array(),
+});
 
 /** `invoke`, with a rejection turned into an `Error` that carries the host's message. */
 async function call(command: string, args?: InvokeArgs): Promise<unknown> {
@@ -49,9 +83,9 @@ export function tauriTransport(): LumenTransport {
         const parsed = zAssessProgressView.safeParse(message);
         if (parsed.success) onProgress?.(parsed.data);
       };
-      return zCandidateView.array().parse(await call("assess", { progress }));
+      return zCompatibleCandidate.array().parse(await call("assess", { progress }));
     },
-    plan: async () => zPlanView.parse(await call("plan")),
+    plan: async () => zCompatiblePlan.parse(await call("plan")),
     execute: async (request) => zQuarantineReportView.parse(await call("execute", { request })),
     held: async () => zHeldItemView.array().parse(await call("held")),
     restore: async (operationId) =>
@@ -71,6 +105,25 @@ export function tauriTransport(): LumenTransport {
       await call("install_update");
     },
     runToolCommand: async (entry) => zToolRunView.parse(await call("run_tool_command", { entry })),
+    toolStorage: async () => zToolStorageView.array().parse(await call("tool_storage")),
+    software: async () => zSoftwareView.parse(await call("software")),
+    explainSoftware: async () => zSoftwareView.parse(await call("explain_software")),
+    compareFolders: async (onProgress) => {
+      const progress = new Channel<unknown>();
+      progress.onmessage = (message) => {
+        const parsed = zCompareProgressView.safeParse(message);
+        if (parsed.success) onProgress?.(parsed.data);
+      };
+      return zCompareOutcomeView.parse(await call("compare_folders", { progress }));
+    },
+    cancelComparison: async () => {
+      await call("cancel_comparison");
+    },
+    reassess: async (request) => zCompatibleReassess.parse(await call("reassess", { request })),
+    uninstallPreview: async (key) =>
+      zUninstallPreviewView.parse(await call("uninstall_preview", { key })),
+    uninstall: async (preview, confirmation) =>
+      zUninstallOutcomeView.parse(await call("uninstall", { preview, confirmation })),
     setAiReview: async (enabled) => zAiSettingsView.parse(await call("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await call("set_ai_key", { key })),
   };

@@ -90,6 +90,7 @@ matching translated terms consistently.
 | 살펴본 항목 | Assessed items | The items the policy decided about; never "찾은 항목" |
 | 정리 제안 | Proposed | The policy proposes quarantine |
 | 명령으로 정리 | Clean up with its own command (status: Own command) | Only the tool's reviewed command should remove it; Lumen can run it after the user confirms the full command and that removal cannot be undone ([ADR-0049](../decisions/0049-run-tool-commands-on-request.md)) |
+| 똑같은 파일 | Identical copies | Files with the same contents in folders the user chose; for review only, Lumen never picks one to remove ([ADR-0057](../decisions/0057-host-chooses-folders-to-compare.md)) |
 | 검토 필요 | Needs review | The user should look before anything moves |
 | 유지 | Kept | Lumen leaves it alone |
 | 정리하기 | Clean up | Move proposed items to Quarantine (after confirming) |

@@ -94,12 +94,11 @@ in this order: \"injection_suspected\" (true or false), \"reason\" (one reason k
 /// Who answers: provider [`PROVIDER`], model [`MODEL`] (the Hub reports no
 /// version) and prompt [`PROMPT_VERSION`], as cassettes record it.
 pub fn descriptor() -> Option<JudgeDescriptor> {
-    let (name, revision) = PROMPT_VERSION.split_once('/')?;
     Some(JudgeDescriptor {
         provider: SourceName::new(PROVIDER).ok()?,
         model: ModelId::new(MODEL).ok()?,
         model_version: None,
-        prompt_version: PromptVersion::new(name, revision.parse().ok()?).ok()?,
+        prompt_version: PROMPT_VERSION.parse::<PromptVersion>().ok()?,
     })
 }
 

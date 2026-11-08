@@ -142,24 +142,26 @@ impl Recording {
 }
 
 /// The model an answer names, or nothing.
-fn reported_model(body: &str) -> String {
+pub(crate) fn reported_model(body: &str) -> String {
     serde_json::from_str::<serde_json::Value>(body)
         .ok()
         .and_then(|v| v.get("model")?.as_str().map(str::to_owned))
         .unwrap_or_default()
 }
 
-fn ask_with_retries(
-    judge: &dyn LiveJudge,
-    request: &JevRequest,
+/// `ask`, retried as `pacing` says after a transient failure, waiting with
+/// `wait`.
+pub(crate) fn ask_with_retries(
+    ask: impl Fn() -> Result<String, LiveError>,
+    wait: impl Fn(Duration),
     pacing: Pacing,
 ) -> Result<String, LiveError> {
     let mut backoff = pacing.backoff;
     let mut tries = 1;
     loop {
-        match judge.ask(request) {
+        match ask() {
             Err(error) if error.is_transient() && tries < pacing.attempts => {
-                judge.wait(backoff);
+                wait(backoff);
                 backoff = backoff.saturating_mul(2);
                 tries += 1;
             }
@@ -216,7 +218,7 @@ pub fn record(
                 judge.wait(pacing.pause);
             }
             sent = true;
-            match ask_with_retries(judge, &case.request, pacing) {
+            match ask_with_retries(|| judge.ask(&case.request), |p| judge.wait(p), pacing) {
                 Ok(body) => {
                     let recorded = Recorded {
                         case_id: case.case_id.clone(),

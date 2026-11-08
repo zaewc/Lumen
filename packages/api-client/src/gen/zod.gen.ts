@@ -76,6 +76,19 @@ export const zBasisView = z.union([
 export const zChooserView = z.enum(["policy", "person"]);
 
 /**
+ * Which comparison step is running.
+ */
+export const zCompareStageView = z.enum(["head", "tail", "full"]);
+
+/**
+ * A running comparison's step and how many files it has read.
+ */
+export const zCompareProgressView = z.object({
+  files_read: z.string(),
+  stage: zCompareStageView,
+});
+
+/**
  * How sure AI review was.
  */
 export const zConfidenceView = z.enum(["low", "medium", "high"]);
@@ -87,6 +100,49 @@ export const zDiskView = z.object({
   available_bytes: z.string(),
   total_bytes: z.string(),
 });
+
+/**
+ * Files with the same contents, for a person to review.
+ */
+export const zDuplicateGroupView = z.object({
+  bytes_each: z.string(),
+  paths: z.array(z.string()),
+});
+
+/**
+ * What a comparison found and what it could not cover.
+ */
+export const zDuplicatesView = z.object({
+  folders: z.array(z.string()),
+  groups: z.array(zDuplicateGroupView),
+  hard_links: z.array(z.array(z.string())),
+  incomplete: z.boolean(),
+  protected: z.string(),
+  skipped: z.string(),
+});
+
+/**
+ * How a comparison ended.
+ */
+export const zCompareOutcomeView = z.union([
+  z.object({
+    kind: z.enum(["nothing_chosen"]),
+  }),
+  z.object({
+    kind: z.enum(["unsupported"]),
+  }),
+  z.object({
+    kind: z.enum(["too_many"]),
+    limit: z.string(),
+  }),
+  z.object({
+    kind: z.enum(["cancelled"]),
+  }),
+  z.object({
+    kind: z.enum(["compared"]),
+    report: zDuplicatesView,
+  }),
+]);
 
 /**
  * A request to execute a plan: its ID and, as the confirmation, its full
@@ -152,6 +208,20 @@ export const zFactKindView = z.union([
   z.object({
     owned: z.boolean(),
     type: z.enum(["owned_by_current_user"]),
+  }),
+  z.object({
+    app: z.string(),
+    running: z.boolean(),
+    type: z.enum(["application_running"]),
+  }),
+  z.object({
+    app: z.string(),
+    at: z.iso.datetime(),
+    type: z.enum(["application_last_opened"]),
+  }),
+  z.object({
+    at: z.iso.datetime(),
+    type: z.enum(["project_activity"]),
   }),
 ]);
 
@@ -287,6 +357,18 @@ export const zReasonView = z.object({
 });
 
 /**
+ * Something the earlier assessment did not know.
+ */
+export const zReassessGapView = z.enum(["in_use", "unread", "stale", "owner"]);
+
+/**
+ * Which items to check again.
+ */
+export const zReassessRequest = z.object({
+  ids: z.array(z.string()),
+});
+
+/**
  * The kind of a relationship, read `from <kind> to`.
  */
 export const zRelationKindView = z.enum([
@@ -322,6 +404,19 @@ export const zRelationsView = z.object({
   edges: z.array(zRelationView),
   omitted: z.string(),
 });
+
+/**
+ * What AI review says removing a piece of software could affect besides
+ * itself (ADR-0061): a description, never a statement that removal is safe.
+ */
+export const zRemovalImpactView = z.enum([
+  "only_this_app",
+  "other_software_depends",
+  "stops_background_activity",
+  "security_or_access",
+  "system_function",
+  "unknown",
+]);
 
 /**
  * How much a failed removal took.
@@ -381,6 +476,15 @@ export const zRestoreOutcomeView = z.object({
 });
 
 /**
+ * Machine-readable uncertainty; unknown future codes remain displayable through
+ * the decision's localized fired-rule explanations and supporting facts.
+ */
+export const zReviewReasonsView = z.object({
+  codes: z.array(z.string()),
+  schema: z.string(),
+});
+
+/**
  * What a scan found below one root.
  */
 export const zRootView = z.object({
@@ -424,6 +528,45 @@ export const zScanView = z.object({
   partial: z.boolean(),
   roots: z.array(zRootView),
   scan: z.string(),
+});
+
+/**
+ * What kind of background item.
+ */
+export const zServiceKindView = z.enum([
+  "launch_agent",
+  "launch_daemon",
+  "login_item",
+  "windows_service",
+  "driver",
+  "scheduled_task",
+  "startup_entry",
+  "other",
+]);
+
+/**
+ * The evidence linking a background item to a piece of software.
+ */
+export const zServiceLinkMethodView = z.enum([
+  "program_inside_application",
+  "label_matches_bundle_id",
+]);
+
+/**
+ * Whether a background item runs for one user or for the whole system.
+ */
+export const zServiceScopeView = z.enum(["user", "system"]);
+
+/**
+ * A background item linked to a piece of software.
+ */
+export const zLinkedServiceView = z.object({
+  ambiguous: z.boolean(),
+  kind: zServiceKindView,
+  label: z.string(),
+  method: zServiceLinkMethodView,
+  scope: zServiceScopeView,
+  verified: z.boolean(),
 });
 
 /**
@@ -476,6 +619,96 @@ export const zQuarantineReportView = z.object({
   plan: z.string(),
   resolved: z.string(),
   warnings: z.array(z.string()),
+});
+
+/**
+ * Which inventory recorded a piece of software, and so how it is identified.
+ */
+export const zSoftwareOriginView = z.enum([
+  "mac_app",
+  "mac_installer",
+  "homebrew",
+  "homebrew_cask",
+  "windows_program",
+  "msix",
+  "dpkg",
+  "rpm",
+  "pacman",
+  "flatpak",
+  "snap",
+  "other",
+]);
+
+/**
+ * What AI review says a piece of software is mainly for (ADR-0061).
+ */
+export const zSoftwarePurposeView = z.enum([
+  "web_browser",
+  "communication",
+  "media",
+  "office_or_productivity",
+  "development_tool",
+  "design_or_creative",
+  "game",
+  "security_or_banking",
+  "system_or_driver",
+  "cloud_sync_or_backup",
+  "utility",
+  "runtime_or_library",
+  "unknown",
+]);
+
+/**
+ * An AI note on a piece of software: closed choices and a confidence, never
+ * model text. Display only (ADR-0061).
+ */
+export const zSoftwareNoteView = z.object({
+  confidence: zConfidenceView,
+  purpose: zSoftwarePurposeView,
+  removal_impact: zRemovalImpactView,
+});
+
+/**
+ * One application or package.
+ */
+export const zSoftwareItemView = z.object({
+  ai_note: zSoftwareNoteView.nullable(),
+  explicit: z.boolean().nullable(),
+  hidden: z.boolean(),
+  id: z.string(),
+  key: z.string(),
+  location: z.string().nullable(),
+  name: z.string().nullable(),
+  origin: zSoftwareOriginView,
+  protected: z.boolean(),
+  services: z.array(zLinkedServiceView),
+  vendor: z.string().nullable(),
+  version: z.string().nullable(),
+});
+
+/**
+ * How completely one inventory was read.
+ */
+export const zSoftwareSourceStateView = z.enum(["complete", "partial", "unavailable"]);
+
+/**
+ * One inventory and how completely it was read.
+ */
+export const zSoftwareSourceView = z.object({
+  count: z
+    .int()
+    .gte(0)
+    .max(2147483647, { error: "Invalid value: Expected int32 to be <= 2147483647" }),
+  source: z.string(),
+  state: zSoftwareSourceStateView,
+});
+
+/**
+ * The installed software list.
+ */
+export const zSoftwareView = z.object({
+  items: z.array(zSoftwareItemView),
+  sources: z.array(zSoftwareSourceView),
 });
 
 /**
@@ -545,6 +778,11 @@ export const zToolCommandView = z.object({
 });
 
 /**
+ * A developer tool whose own storage report the desktop shows (#705, #706, #712).
+ */
+export const zToolKindView = z.enum(["xcode", "docker", "homebrew", "npm", "pnpm"]);
+
+/**
  * How running a tool's command ended (ADR-0049).
  */
 export const zToolRunView = z.object({
@@ -557,6 +795,150 @@ export const zToolRunView = z.object({
   space_changes: z.array(zSpaceChangeView).nullable(),
   success: z.boolean(),
   timed_out: z.boolean(),
+});
+
+/**
+ * Whether the tool answered. Anything but `found` means unknown, never empty.
+ */
+export const zToolStateView = z.union([
+  z.object({
+    kind: z.enum(["found"]),
+  }),
+  z.object({
+    kind: z.enum(["not_installed"]),
+  }),
+  z.object({
+    kind: z.enum(["unsupported"]),
+  }),
+  z.object({
+    kind: z.enum(["unavailable"]),
+    reason: z.string(),
+  }),
+]);
+
+/**
+ * One thing a tool reports, in the tool's own words and units.
+ */
+export const zToolStorageItemView = z.object({
+  bytes: z.string().nullable(),
+  detail: z.string().nullable(),
+  name: z.string(),
+  reported_reclaimable: z.string().nullable(),
+  reported_size: z.string().nullable(),
+});
+
+/**
+ * What one developer tool reports about its storage. Read only on request;
+ * nothing here removes anything.
+ */
+export const zToolStorageView = z.object({
+  command: z.string().nullable(),
+  items: z.array(zToolStorageItemView),
+  scope: z.string().nullable(),
+  shared_store: z.boolean(),
+  state: zToolStateView,
+  tool: zToolKindView,
+  version: z.string().nullable(),
+});
+
+/**
+ * What happens to the app and its data when it is uninstalled this way.
+ */
+export const zUninstallNoteView = z.enum(["goes_to_quarantine", "library_data_stays"]);
+
+/**
+ * The application a preview is about, as observed now.
+ */
+export const zUninstallAppView = z.object({
+  bundle_id: z.string(),
+  key: z.string(),
+  name: z.string().nullable(),
+  notes: z.array(zUninstallNoteView),
+  path: z.string(),
+  size_bytes: z.string(),
+  size_complete: z.boolean(),
+  version: z.string().nullable(),
+});
+
+/**
+ * Why an application cannot be uninstalled into quarantine. Each `*_unknown`
+ * reason is a check Lumen could not answer, which never counts as passing.
+ */
+export const zUninstallReasonView = z.enum([
+  "not_in_applications",
+  "protected",
+  "not_a_bundle",
+  "owner_unknown",
+  "not_owned_by_user",
+  "services_unknown",
+  "service_linked",
+  "helpers_unknown",
+  "has_helpers",
+  "running_unknown",
+  "running",
+  "store_unknown",
+  "no_store_on_volume",
+]);
+
+/**
+ * What uninstalling an application into quarantine would do.
+ */
+export const zUninstallPreviewView = z.union([
+  z.object({
+    app: zUninstallAppView,
+    created_at: z.iso.datetime(),
+    hash: z.string(),
+    kind: z.enum(["ready"]),
+    preview: z.string(),
+  }),
+  z.object({
+    app: zUninstallAppView,
+    kind: z.enum(["refused"]),
+    reasons: z.array(zUninstallReasonView),
+  }),
+  z.object({
+    kind: z.enum(["not_found"]),
+  }),
+  z.object({
+    kind: z.enum(["ambiguous"]),
+  }),
+  z.object({
+    kind: z.enum(["unsupported"]),
+  }),
+]);
+
+/**
+ * What became of the application.
+ */
+export const zUninstallResultView = z.union([
+  z.object({
+    kind: z.enum(["quarantined"]),
+    operation: z.string(),
+  }),
+  z.object({
+    kind: z.enum(["refused"]),
+    reasons: z.array(zUninstallReasonView),
+  }),
+  z.object({
+    kind: z.enum(["changed"]),
+  }),
+  z.object({
+    kind: z.enum(["failed"]),
+    left: zLocationView,
+    reason: zFailureView,
+  }),
+]);
+
+/**
+ * An executed uninstall preview.
+ */
+export const zUninstallOutcomeView = z.object({
+  path: z.string(),
+  preview: z.string(),
+  resolved: z.string(),
+  result: zUninstallResultView,
+  size_bytes: z.string(),
+  warnings: z.array(z.string()),
 });
 
 /**
@@ -584,9 +966,11 @@ export const zCandidateView = z.object({
   id: z.string(),
   path: z.string(),
   reasons: z.array(zReasonView),
+  rechecks: z.array(zReassessGapView).nullish(),
   reclaimable_bytes: z.string(),
   reclaimable_exact: z.boolean(),
   relations: zRelationsView,
+  review_reasons: zReviewReasonsView.nullish(),
   times: zTimesView,
   tool_command: zToolCommandView.nullable(),
   verdict: zVerdictView,
@@ -600,4 +984,39 @@ export const zPlanView = z.object({
   hash: z.string(),
   items: z.array(zCandidateView),
   plan: z.string(),
+});
+
+/**
+ * How checking one item again ended.
+ */
+export const zReassessOutcomeView = z.union([
+  z.object({
+    kind: z.enum(["settled"]),
+  }),
+  z.object({
+    kind: z.enum(["changed"]),
+  }),
+  z.object({
+    added_facts: z.string(),
+    candidate: zCandidateView,
+    kind: z.enum(["decided"]),
+  }),
+]);
+
+/**
+ * One item checked again.
+ */
+export const zReassessedItemView = z.object({
+  before: zVerdictView,
+  gaps: z.array(zReassessGapView),
+  id: z.string(),
+  outcome: zReassessOutcomeView,
+});
+
+/**
+ * Items checked again, in order.
+ */
+export const zReassessView = z.object({
+  cancelled: z.boolean(),
+  items: z.array(zReassessedItemView),
 });

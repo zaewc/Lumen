@@ -3,7 +3,8 @@
 //!
 //! Reads return view models. Mutations name a plan (with its full hash as the
 //! confirmation) or an operation; no command accepts a path to act on. Scans
-//! take roots, but only read. Every command runs on a blocking thread so the
+//! take roots, but only read. Comparing copies reads contents, so it takes no
+//! roots: the host asks the person in a dialog (ADR-0057). Every command runs on a blocking thread so the
 //! webview never waits on the filesystem.
 //!
 //! AI review (ADR-0037) is a setting next to the database: the UI can read
@@ -14,9 +15,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use lumen_api::views::{
-    AiSettingsView, AssessProgressView, CandidateView, DiskView, ExecuteRequest,
-    FinalizeOutcomeView, HeldItemView, PlanView, QuarantineReportView, RestoreOutcomeView,
-    ScanProgressView, ScanRequest, ScanView, ToolRunView,
+    AiSettingsView, AssessProgressView, CandidateView, CompareOutcomeView, CompareProgressView,
+    DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, PlanView, QuarantineReportView,
+    ReassessRequest, ReassessView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
+    SoftwareView, ToolRunView, ToolStorageView, UninstallOutcomeView, UninstallPreviewView,
+    candidate_id,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -47,6 +50,12 @@ pub(crate) struct Core {
     >,
     /// Held while a tool's command runs: one at a time.
     pub(crate) tool_running: Arc<std::sync::Mutex<()>>,
+    /// The latest assessment, as shown: what `reassess` checks again and
+    /// updates (ADR-0058).
+    pub(crate) assessed: std::sync::Mutex<Vec<Assessed>>,
+    /// The running comparison of copies, if any: one at a time, and what
+    /// `cancel_comparison` stops.
+    pub(crate) comparison: Arc<std::sync::Mutex<Option<CancelToken>>>,
     /// Startup's reconciliation (UX-3): run once, when the app starts, and
     /// waited for before the held items are first listed.
     pub(crate) settled: Arc<std::sync::Once>,
@@ -70,6 +79,17 @@ impl std::fmt::Debug for Core {
                     .map(|entries| entries.len()),
             )
             .field("tool_running", &self.tool_running.try_lock().is_err())
+            .field(
+                "assessed",
+                &self.assessed.try_lock().ok().map(|assessed| assessed.len()),
+            )
+            .field(
+                "comparison",
+                &self
+                    .comparison
+                    .try_lock()
+                    .map_or(true, |running| running.is_some()),
+            )
             .field("settled", &self.settled.is_completed())
             .field("activity", &self.activity)
             .finish()
@@ -329,23 +349,102 @@ pub(crate) async fn assess(
             Vec::as_slice,
         )?;
         let views: Vec<_> = assessed.iter().map(CandidateView::from).collect();
-        let mut entries = std::collections::BTreeMap::<_, Vec<_>>::new();
-        for (view, assessed) in views.iter().zip(&assessed) {
-            if let Some(command) = &view.tool_command {
-                entries.entry(command.entry.clone()).or_default().push((
-                    assessed.candidate.path.clone(),
-                    assessed.candidate.identity().volume.clone(),
-                ));
-            }
-        }
-        Ok((views, entries))
+        Ok((views, assessed))
     })
     .await?;
     *core
         .tool_entries
         .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = tool_entries(&entries);
+    *core
+        .assessed
+        .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = entries;
     Ok(views)
+}
+
+/// The knowledge-base entries with a tool command among `assessed`, with
+/// their items: the only commands the page may run (ADR-0049).
+fn tool_entries(
+    assessed: &[Assessed],
+) -> std::collections::BTreeMap<String, Vec<(lumen_domain::RawPath, lumen_domain::VolumeId)>> {
+    let mut entries = std::collections::BTreeMap::<_, Vec<_>>::new();
+    for item in assessed {
+        if let Some(guidance) = lumen_app::assess::tool_action(item) {
+            entries.entry(guidance.entry).or_default().push((
+                item.candidate.path.clone(),
+                item.candidate.identity().volume.clone(),
+            ));
+        }
+    }
+    entries
+}
+
+/// Checks items of the latest assessment again with fresh read-only evidence
+/// (ADR-0058), by ID; none: every item kept or reviewed because of something
+/// Lumen did not know. Moves nothing. Items decided again replace their
+/// earlier assessment, so later checks and tool commands see them; planning
+/// assesses again from the scan itself.
+#[tauri::command]
+pub(crate) async fn reassess(
+    core: State<'_, Core>,
+    request: ReassessRequest,
+) -> Result<ReassessView, CommandError> {
+    let chosen: Vec<Assessed> = {
+        let latest = core
+            .assessed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if request.ids.is_empty() {
+            latest
+                .iter()
+                .filter(|item| !lumen_application::reassess::gaps(item).is_empty())
+                .cloned()
+                .collect()
+        } else {
+            let mut chosen = Vec::new();
+            for id in &request.ids {
+                let before = chosen.len();
+                chosen.extend(
+                    latest
+                        .iter()
+                        .filter(|item| candidate_id(item) == *id)
+                        .cloned(),
+                );
+                if chosen.len() == before {
+                    return Err(CommandError::new(
+                        "that item is not in the latest assessment; assess again",
+                    ));
+                }
+            }
+            chosen
+        }
+    };
+    let db = core.db.clone();
+    let (view, chosen, result) = blocking(move || {
+        let result = lumen_app::reassess::reassess(&db, &chosen, &SystemClock, &CancelToken::new())
+            .map_err(CommandError::new)?;
+        Ok((ReassessView::new(&chosen, &result), chosen, result))
+    })
+    .await?;
+    let mut latest = core
+        .assessed
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    for (earlier, item) in chosen.iter().zip(&result.items) {
+        if let lumen_app::reassess::Outcome::Decided { after, .. } = &item.outcome
+            && let Some(slot) = latest
+                .iter_mut()
+                .find(|slot| slot.candidate.path == earlier.candidate.path)
+        {
+            *slot = (**after).clone();
+        }
+    }
+    *core
+        .tool_entries
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = tool_entries(&latest);
+    Ok(view)
 }
 
 /// Runs the cleanup command of knowledge-base entry `entry` (ADR-0049), only
@@ -429,6 +528,179 @@ pub(crate) async fn disk() -> Result<DiskView, CommandError> {
             .map_err(CommandError::new)
     })
     .await
+}
+
+/// What Xcode, Docker and the package managers report about their own
+/// storage: read-only queries with fixed arguments, run at the same time so a
+/// slow tool (each is bounded to 30 seconds) does not hold up the others.
+#[tauri::command]
+pub(crate) async fn tool_storage() -> Result<Vec<ToolStorageView>, CommandError> {
+    blocking(move || {
+        let (xcode, docker, packages) = std::thread::scope(|scope| {
+            let xcode = scope.spawn(lumen_app::xcode::inspect);
+            let docker = scope.spawn(lumen_app::docker::inspect);
+            let packages = lumen_app::packages::inspect();
+            (xcode.join(), docker.join(), packages)
+        });
+        let (Ok(xcode), Ok(docker)) = (xcode, docker) else {
+            return Err(CommandError::new("a tool inspection stopped unexpectedly"));
+        };
+        Ok(ToolStorageView::all(&xcode, &docker, &packages))
+    })
+    .await
+}
+
+/// The installed software list (ADR-0060): every inventory the platform keeps
+/// of installed applications and packages, read on request, with the AI notes
+/// already cached on the device (ADR-0061). Read only: nothing is removed,
+/// and nothing is sent.
+#[tauri::command]
+pub(crate) async fn software(core: State<'_, Core>) -> Result<SoftwareView, CommandError> {
+    let db = core.db.clone();
+    blocking(move || {
+        let reports = lumen_app::software::inventory(&CancelToken::new());
+        let notes = lumen_app::software_notes::NoteCache::load(&db);
+        Ok(SoftwareView::from_reports(&reports).with_notes(&notes))
+    })
+    .await
+}
+
+/// The installed software list, after asking AI review about software it has
+/// not explained yet (ADR-0061): only while AI review is on and a key is
+/// available, at most 40 per call, each recorded in the ledger. Otherwise the
+/// list with the notes already cached, and nothing is sent.
+#[tauri::command]
+pub(crate) async fn explain_software(core: State<'_, Core>) -> Result<SoftwareView, CommandError> {
+    let db = core.db.clone();
+    let secrets = core.secrets.clone();
+    let builtin = core.builtin.clone();
+    blocking(move || {
+        let reports = lumen_app::software::inventory(&CancelToken::new());
+        let notes = match lumen_app::ai::active_judge(&db, secrets.as_deref(), builtin.as_ref()) {
+            Some(judge) => {
+                let subjects = lumen_api::views::software_subjects(&reports);
+                lumen_app::software_notes::explain(&db, &judge, &subjects)
+                    .map_err(CommandError::new)?
+            }
+            None => lumen_app::software_notes::NoteCache::load(&db),
+        };
+        Ok(SoftwareView::from_reports(&reports).with_notes(&notes))
+    })
+    .await
+}
+
+/// Whether this build can show the folder dialog (ADR-0057). Without it,
+/// comparing is unsupported here even where the core can read contents.
+const DIALOG: bool = cfg!(any(target_os = "macos", windows));
+
+/// The comparison slot while a comparison runs; emptied when it ends,
+/// however it ends.
+struct Comparing(Arc<std::sync::Mutex<Option<CancelToken>>>);
+
+impl Comparing {
+    /// Takes the slot with `cancel`, unless another comparison holds it.
+    fn start(
+        slot: &Arc<std::sync::Mutex<Option<CancelToken>>>,
+        cancel: &CancelToken,
+    ) -> Result<Self, CommandError> {
+        let mut running = slot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if running.is_some() {
+            return Err(CommandError::new("another comparison is still running"));
+        }
+        *running = Some(cancel.clone());
+        Ok(Self(Arc::clone(slot)))
+    }
+}
+
+impl Drop for Comparing {
+    fn drop(&mut self) {
+        *self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    }
+}
+
+/// Asks which folders to compare in the system's folder dialog, over the
+/// window, then finds identical copies in them (ADR-0057). Takes no path: only
+/// what the person picks is read, and nothing is chosen, moved or removed.
+/// Where contents cannot be read yet, says so without asking. One comparison
+/// at a time; `cancel_comparison` stops it.
+#[tauri::command]
+pub(crate) async fn compare_folders<R: tauri::Runtime>(
+    core: State<'_, Core>,
+    window: tauri::WebviewWindow<R>,
+    progress: Channel<CompareProgressView>,
+) -> Result<CompareOutcomeView, CommandError> {
+    if !DIALOG || !lumen_app::duplicates::available() {
+        return Ok(CompareOutcomeView::Unsupported);
+    }
+    let cancel = CancelToken::new();
+    let _running = Comparing::start(&core.comparison, &cancel)?;
+    let Some(folders) = choose_folders(&window).await else {
+        return Ok(CompareOutcomeView::NothingChosen);
+    };
+    blocking(move || {
+        let mut listening = true;
+        let mut last: Option<(lumen_app::duplicates::HashStage, std::time::Instant)> = None;
+        let found = lumen_app::duplicates::find(&folders, &cancel, &mut |stage, done| {
+            let now = std::time::Instant::now();
+            let due = last
+                .is_none_or(|(seen, at)| seen != stage || now.duration_since(at) >= PROGRESS_EVERY);
+            if listening && due {
+                last = Some((stage, now));
+                listening = progress.send(CompareProgressView::new(stage, done)).is_ok();
+            }
+        });
+        CompareOutcomeView::new(&folders, found).map_err(CommandError::new)
+    })
+    .await
+}
+
+/// Stops the running comparison, if any; it then ends as cancelled and shows
+/// no groups. Reads and changes nothing else.
+#[tauri::command]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Tauri hands a command its state by value"
+)]
+pub(crate) fn cancel_comparison(core: State<'_, Core>) {
+    if let Some(cancel) = core
+        .comparison
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .as_ref()
+    {
+        cancel.cancel();
+    }
+}
+
+/// The folders the person picks, in a dialog owned by `window` (a sheet on
+/// macOS); `None` if they pick none.
+#[cfg(any(target_os = "macos", windows))]
+async fn choose_folders<R: tauri::Runtime>(
+    window: &tauri::WebviewWindow<R>,
+) -> Option<Vec<PathBuf>> {
+    let chosen = rfd::AsyncFileDialog::new()
+        .set_parent(window)
+        .set_can_create_directories(false)
+        .pick_folders()
+        .await?;
+    let folders: Vec<PathBuf> = chosen
+        .iter()
+        .map(|folder| folder.path().to_path_buf())
+        .collect();
+    (!folders.is_empty()).then_some(folders)
+}
+
+/// No dialog where contents cannot be compared yet.
+#[cfg(not(any(target_os = "macos", windows)))]
+fn choose_folders<R: tauri::Runtime>(
+    _: &tauri::WebviewWindow<R>,
+) -> std::future::Ready<Option<Vec<PathBuf>>> {
+    std::future::ready(None)
 }
 
 /// System Settings › Privacy & Security › Full Disk Access (verified on
@@ -576,6 +848,66 @@ pub(crate) async fn execute(
     .await
 }
 
+/// The longest software-list key accepted; the list's keys are an origin and
+/// a display-escaped identifier.
+const MAX_SOFTWARE_KEY: usize = 4096;
+
+/// Previews uninstalling the macOS application the software list shows under
+/// `key` (ADR-0062): the app, and either a preview to confirm or why it
+/// cannot be uninstalled into quarantine. Takes the list's key, never a
+/// path; reads only, and stores the preview. Elsewhere it says it is
+/// unsupported.
+#[tauri::command]
+pub(crate) async fn uninstall_preview(
+    core: State<'_, Core>,
+    key: String,
+) -> Result<UninstallPreviewView, CommandError> {
+    if key.len() > MAX_SOFTWARE_KEY {
+        return Err(CommandError::new("not a software key"));
+    }
+    let db = core.db.clone();
+    blocking(move || {
+        UninstallPreviewView::from_result(lumen_app::uninstall::preview(
+            &db,
+            &key,
+            &SystemClock,
+            &UuidV7Ids,
+        ))
+        .map_err(CommandError::new)
+    })
+    .await
+}
+
+/// Uninstalls one app into quarantine: executes the preview `preview`,
+/// confirmed in this app by its full hash (ADR-0062, ADR-0034). The gate is
+/// checked again right before the move.
+#[tauri::command]
+pub(crate) async fn uninstall(
+    core: State<'_, Core>,
+    preview: String,
+    confirmation: String,
+) -> Result<UninstallOutcomeView, CommandError> {
+    let db = core.db.clone();
+    let moving = core.activity.moving()?;
+    blocking(move || {
+        let _moving = moving;
+        let plan: PlanId = preview
+            .parse()
+            .map_err(|_| CommandError::new("not a preview ID"))?;
+        let report = lumen_app::uninstall::uninstall(
+            &db,
+            plan,
+            &confirmation,
+            ConfirmationSurface::DesktopApp,
+            &SystemClock,
+            &UuidV7Ids,
+        )
+        .map_err(CommandError::new)?;
+        Ok(UninstallOutcomeView::from(&report))
+    })
+    .await
+}
+
 /// Settles cleanups a crash or quit interrupted, once per launch, so what
 /// they moved is listed without another cleanup (UX-3). A failure is logged
 /// and leaves everything where it is; the app works on regardless.
@@ -647,6 +979,29 @@ mod tests {
     use lumen_scan::ScanProgress;
 
     use super::*;
+
+    #[test]
+    fn one_comparison_runs_at_a_time_and_its_slot_empties_when_it_ends() {
+        let slot = Arc::default();
+        let cancel = CancelToken::new();
+        let running = Comparing::start(&slot, &cancel).unwrap_or_else(|e| unreachable!("{e}"));
+        assert!(Comparing::start(&slot, &CancelToken::new()).is_err());
+        if let Some(held) = slot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+        {
+            held.cancel();
+        }
+        assert!(cancel.is_cancelled(), "the slot holds the running token");
+        drop(running);
+        assert!(
+            slot.lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .is_none()
+        );
+        assert!(Comparing::start(&slot, &CancelToken::new()).is_ok());
+    }
 
     #[test]
     fn updates_and_item_actions_wait_for_each_other() {

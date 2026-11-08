@@ -47,7 +47,7 @@ the executor, and it is traced like a judgment. `lumen plan` describes nothing.
 | Component | Crate | Responsibility |
 | --- | --- | --- |
 | `JudgeModel` port | `lumen-application` | `descriptor()` and `judge(&EvidenceBundle) -> Result<Judgment, JudgeError>` |
-| Consultation | `lumen-application::consult` | Ask only when the policy's first decision is `QUARANTINE` and a judge is configured; re-evaluate with the judgment; trace every consultation |
+| Consultation | `lumen-application::consult` | Ask only when the policy's first decision is `QUARANTINE` and a judge is configured; re-evaluate with the judgment; trace every consultation; an assessment stops asking at the first unavailable answer (`lumen-app::assess`) |
 | Description | `lumen-application::describe` | Ask up to 20 of the largest unrecognised `REVIEW` items what kind of item each is, one at a time; set the note beside the decision, never in it; stop at the first unavailable answer; trace every request |
 | Request builder | `lumen-jev` | Canonical, redacted, versioned request from a bundle; untrusted strings JSON-encoded in labelled fields |
 | Adapters | `lumen-jev` | Provider-specific transport only; no parsing logic of their own |

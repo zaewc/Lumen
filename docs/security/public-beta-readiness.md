@@ -78,6 +78,14 @@ presented for user selection.
 **Action:** Add sourced Linux system-path protections and fixtures, or limit
 Linux whole-disk scanning until those protections exist.
 
+**Progress (2026-11-04):** policy 0.18.0 keeps `/usr` (with `/usr/local`), `/etc`,
+`/boot`, `/efi`, `/var/lib`, `/bin`, `/sbin`, `/lib` and `/lib64` on Linux, with
+everything below them (`protect.location.linux-*`, sourced from UAPI.9), and the
+ancestor rule keeps `/` and `/var`
+([research 34](../research/34-linux-system-locations.md)). `/var/cache`, `/var/tmp`,
+`/tmp`, `/var/log`, `/opt` and `/srv` stay open to the existing rules; research 34
+says why.
+
 ### UX-1: Partial scans can show a previous scan's results
 
 **Evidence:** A scan that stops early is recorded as cancelled, while assessment
@@ -257,6 +265,13 @@ unchanged.
   ([`consult.rs`](../../crates/lumen-application/src/consult.rs),
   [`openrouter.rs`](../../crates/lumen-jev/src/openrouter.rs)). Stop after the
   first unavailable answer and cap requests per assessment.
+  **Progress (2026-11-04):** an assessment stops asking the judge at its first
+  unavailable answer (a rejected key, missing credits, a rate limit, a server
+  error or a timeout), as the description stage does; the proposals left keep
+  the policy's own decision and carry no trace. A refused or malformed answer is
+  about its item, so the next proposal is still asked
+  ([`assess.rs`](../../crates/lumen-app/src/assess.rs)). A cap on requests per
+  assessment is still open.
 - **AI-6:** The desktop app never says when AI review could not check items; the
   views carry no consultation outcome
   ([`views.rs`](../../crates/lumen-api/src/views.rs)). Report asked, answered and

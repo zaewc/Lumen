@@ -42,6 +42,9 @@ lumen-platform-macos.workspace = true
 [target.'cfg(windows)'.dependencies]
 lumen-platform-windows.workspace = true
 
+[target.'cfg(target_os = "linux")'.dependencies]
+lumen-platform-linux.workspace = true
+
 [dev-dependencies]
 lumen-testkit.workspace = true
 

@@ -65,3 +65,9 @@ recommended option.
 | [0054](0054-release-on-every-push-to-main.md) | Release on every push to main, developing on develop | Accepted |
 | [0055](0055-sign-and-notarize-the-macos-app-in-its-own-job.md) | Sign and notarize the macOS app in its own job | Accepted |
 | [0056](0056-enforce-agent-rules-mechanically.md) | Enforce the agent operating rules mechanically | Accepted |
+| [0057](0057-host-chooses-folders-to-compare.md) | The host asks which folders to compare for identical copies | Accepted |
+| [0058](0058-reassess-chosen-items-with-fresh-read-only-evidence.md) | Reassess chosen items with fresh read-only evidence | Accepted |
+| [0059](0059-use-application-usage-as-cautious-evidence.md) | Use application usage only as cautious, explained evidence | Accepted |
+| [0060](0060-list-software-and-remove-it-only-through-its-own-mechanism.md) | List installed software, and remove it only through its own mechanism | Accepted |
+| [0061](0061-send-installed-software-to-ai-review.md) | While AI review is on, it also explains installed software | Accepted |
+| [0062](0062-uninstall-macos-apps-into-quarantine.md) | Uninstall a user-owned macOS app by moving it into quarantine | Accepted (amended 2026-11-08) |

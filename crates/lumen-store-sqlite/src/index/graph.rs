@@ -14,26 +14,23 @@ use rusqlite::{OptionalExtension as _, params};
 use super::IndexStore;
 use crate::StoreError;
 
-fn corrupt(column: &'static str) -> StoreError {
-    StoreError::Corrupt { column }
-}
-
 fn subject_key(subject: &Subject) -> Result<Vec<u8>, StoreError> {
-    serde_json::to_vec(subject).map_err(|_| corrupt("subjects.key"))
+    serde_json::to_vec(subject).map_err(|_| StoreError::corrupt("subjects.key"))
 }
 
 fn kind_text(kind: RelationKind) -> Result<String, StoreError> {
     match serde_json::to_value(kind) {
         Ok(serde_json::Value::String(text)) => Ok(text),
-        _ => Err(corrupt("relationships.kind")),
+        _ => Err(StoreError::corrupt("relationships.kind")),
     }
 }
 
 fn evidence_from_row(id: &[u8], body: &[u8]) -> Result<Evidence, StoreError> {
-    let evidence: Evidence = serde_json::from_slice(body).map_err(|_| corrupt("evidence.body"))?;
+    let evidence: Evidence =
+        serde_json::from_slice(body).map_err(|_| StoreError::corrupt("evidence.body"))?;
     // Content addressing: a row whose body does not hash to its ID was altered.
     if evidence.id().as_bytes()[..] != *id || evidence.canonical_bytes() != body {
-        return Err(corrupt("evidence.id"));
+        return Err(StoreError::corrupt("evidence.id"));
     }
     Ok(evidence)
 }
@@ -133,7 +130,7 @@ impl IndexStore {
         let keys = subjects.query_map([], |row| row.get::<_, Vec<u8>>(0))?;
         for key in keys {
             let subject: Subject =
-                serde_json::from_slice(&key?).map_err(|_| corrupt("subjects.key"))?;
+                serde_json::from_slice(&key?).map_err(|_| StoreError::corrupt("subjects.key"))?;
             graph.add_subject(&subject);
         }
 
@@ -154,24 +151,24 @@ impl IndexStore {
             let (from, kind, to, evidence) = row?;
             let evidence: [u8; 32] = evidence
                 .try_into()
-                .map_err(|_| corrupt("relationship_evidence.evidence"))?;
+                .map_err(|_| StoreError::corrupt("relationship_evidence.evidence"))?;
             edges
                 .entry((from, kind, to))
                 .or_default()
                 .push(EvidenceId::from_bytes(evidence));
         }
         for ((from, kind, to), evidence) in edges {
-            let from: Subject =
-                serde_json::from_slice(&from).map_err(|_| corrupt("relationships.from_key"))?;
-            let to: Subject =
-                serde_json::from_slice(&to).map_err(|_| corrupt("relationships.to_key"))?;
+            let from: Subject = serde_json::from_slice(&from)
+                .map_err(|_| StoreError::corrupt("relationships.from_key"))?;
+            let to: Subject = serde_json::from_slice(&to)
+                .map_err(|_| StoreError::corrupt("relationships.to_key"))?;
             let kind: RelationKind = serde_json::from_value(serde_json::Value::String(kind))
-                .map_err(|_| corrupt("relationships.kind"))?;
+                .map_err(|_| StoreError::corrupt("relationships.kind"))?;
             let relationship = Relationship::new(from, kind, to, evidence)
-                .map_err(|_| corrupt("relationships"))?;
+                .map_err(|_| StoreError::corrupt("relationships"))?;
             graph
                 .add(relationship)
-                .map_err(|_| corrupt("relationships"))?;
+                .map_err(|_| StoreError::corrupt("relationships"))?;
         }
         Ok(graph)
     }

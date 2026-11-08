@@ -10,17 +10,19 @@
 
 use std::collections::{BTreeSet, HashSet};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use lumen_application::assess::{Assessed, Sources, decide_candidate, nested, select};
 use lumen_application::collect::{Inventory, ScanDomains, summarize};
 use lumen_application::gather::gather;
 use lumen_application::large::LargeFolders;
 use lumen_application::observe::below;
-use lumen_application::ports::{Clock, InventoryReport};
+use lumen_application::ports::{Clock, InventoryReport, JudgeError, JudgeFuture, JudgeModel};
 use lumen_devkb::{Environment, KnowledgeBase, Markers, Root};
 use lumen_domain::{
-    CleanupMechanism, Evidence, Fact, Platform, PlatformCapabilities, RawPath, Relationship,
-    ScanId, SourceName, SourceNameError, Subject,
+    CaseSensitivity, CleanupMechanism, Evidence, Fact, JevRequest, JudgeDescriptor, Platform,
+    PlatformCapabilities, RawPath, Relationship, ScanId, SourceName, SourceNameError, Subject,
+    VolumeId,
 };
 use lumen_policy::Context;
 use lumen_store_sqlite::{IndexStore, StoreError, open_index};
@@ -100,14 +102,39 @@ fn cache_vars(
 }
 
 /// Where the knowledge base's locations are, from this process's
-/// environment: the one a tool's own command inherits when it runs.
-fn environment(kb: &KnowledgeBase, platform: Platform) -> Environment {
+/// environment: the one a tool's own command inherits when it runs. Names
+/// compare without case only on `volumes` reported as case-insensitive.
+fn environment(
+    kb: &KnowledgeBase,
+    platform: Platform,
+    volumes: Vec<(VolumeId, CaseSensitivity)>,
+) -> Environment {
     Environment {
         platform,
         home: home(),
         local_app_data: env_path("LOCALAPPDATA"),
         roaming_app_data: env_path("APPDATA"),
         vars: cache_vars(kb, platform, env_path),
+        volumes,
+    }
+}
+
+/// How names compare on each mounted volume, as the platform reports it now
+/// (#790). Read once per assessment: a device number can name another volume
+/// after a remount. Linux reports none, so its names compare exactly.
+fn volume_cases() -> Vec<(VolumeId, CaseSensitivity)> {
+    #[cfg(target_os = "macos")]
+    {
+        lumen_platform_macos::volumes::case_sensitivity()
+    }
+    #[cfg(windows)]
+    {
+        use lumen_platform_windows::volumes;
+        volumes::case_sensitivity(&volumes::mounted())
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        Vec::new()
     }
 }
 
@@ -190,12 +217,114 @@ fn platform_contributions(
             contributions.evidence.push(link.location);
             contributions.relationships.push(link.relationship);
         }
+        let usage = usage_evidence(&inventory.apps, &contributions.evidence, now);
+        contributions.evidence.extend(usage);
         // Derived from the scan alone, so dated by it.
         contributions
             .evidence
             .extend(markers.web_profiles.evidence(home, entries, scanned_at));
     }
     contributions
+}
+
+/// The most owning applications one gathering asks Spotlight about.
+#[cfg(target_os = "macos")]
+const MAX_USAGE_APPS: usize = 200;
+
+/// What Spotlight says about the applications that own something in
+/// `evidence` (ADR-0059), and nothing about any other: when an installed one
+/// was last opened, and whether one no inventory lists is installed on some
+/// indexed volume. A question Spotlight cannot answer adds nothing.
+#[cfg(target_os = "macos")]
+fn usage_evidence(
+    apps: &[lumen_domain::Application],
+    evidence: &[Evidence],
+    now: lumen_domain::Timestamp,
+) -> Vec<Evidence> {
+    use lumen_domain::{AppIdScheme, Basis, Fact, Provenance, Subject};
+    use std::os::unix::ffi::OsStrExt as _;
+    let owners: BTreeSet<&lumen_domain::AppId> = evidence
+        .iter()
+        .filter_map(|record| match &record.fact {
+            Fact::OwningApplication(app) => Some(app),
+            _ => None,
+        })
+        .collect();
+    let record = |app: &lumen_domain::AppId, fact: Fact, source: &str| {
+        Some(Evidence {
+            subject: Subject::Application { id: app.clone() },
+            fact,
+            basis: Basis::Observed,
+            provenance: Provenance {
+                source: SourceName::new(source).ok()?,
+                observed_at: now,
+            },
+        })
+    };
+    let mut found = Vec::new();
+    for owner in owners.into_iter().take(MAX_USAGE_APPS) {
+        let bundles: Vec<&RawPath> = apps
+            .iter()
+            .filter(|app| app.ids.contains(owner))
+            .flat_map(|app| &app.install_locations)
+            .collect();
+        if bundles.is_empty() {
+            let present = owner.scheme == AppIdScheme::BundleId
+                && crate::usage::found_installed(owner.value.raw())
+                    .is_ok_and(|paths| !paths.is_empty());
+            if present {
+                found.extend(record(
+                    owner,
+                    Fact::ApplicationPresent {
+                        app: owner.clone(),
+                        present: true,
+                    },
+                    "macos.spotlight",
+                ));
+            }
+            continue;
+        }
+        let opened = bundles
+            .iter()
+            .filter_map(|bundle| {
+                let path = Path::new(std::ffi::OsStr::from_bytes(bundle.as_bytes()));
+                lumen_platform_macos::metadata::last_opened(path)
+            })
+            .max();
+        if let Some(at) = opened {
+            found.extend(record(
+                owner,
+                Fact::ApplicationLastOpened {
+                    app: owner.clone(),
+                    at,
+                },
+                "macos.launchservices",
+            ));
+        }
+    }
+    found
+}
+
+/// Every installed application's identifiers with each of its bundles.
+#[cfg(target_os = "macos")]
+fn app_locations(inventory: &PlatformInventory) -> Vec<(lumen_domain::AppId, RawPath)> {
+    inventory
+        .apps
+        .iter()
+        .flat_map(|app| {
+            app.ids.iter().flat_map(move |id| {
+                app.install_locations
+                    .iter()
+                    .map(move |location| (id.clone(), location.clone()))
+            })
+        })
+        .collect()
+}
+
+/// No platform but macOS says where its applications are yet.
+#[cfg(not(target_os = "macos"))]
+fn app_locations(_inventory: &PlatformInventory) -> Vec<(lumen_domain::AppId, RawPath)> {
+    Vec::new()
 }
 
 #[cfg(windows)]
@@ -304,6 +433,19 @@ pub struct Subtree {
 }
 
 impl Subtree {
+    /// A subtree listed again now (ADR-0058), without the `nested` paths and
+    /// everything below them, measured as one read from the store is.
+    pub(crate) fn listed(
+        entries: Vec<lumen_domain::FilesystemEntry>,
+        listings: Vec<(RawPath, lumen_application::ports::DirOutcome)>,
+        nested: &[&RawPath],
+    ) -> Self {
+        let mut subtree = Self { entries, listings };
+        subtree.carve(nested);
+        measure(&mut subtree);
+        subtree
+    }
+
     /// Leaves out the `nested` paths and everything below them.
     fn carve(&mut self, nested: &[&RawPath]) {
         if nested.is_empty() {
@@ -351,6 +493,8 @@ pub struct Assessment {
     pub entries: Vec<lumen_domain::FilesystemEntry>,
     /// Gathered evidence and relationships.
     pub gathered: lumen_application::gather::Gathered,
+    /// `gathered`'s evidence indexed once for every candidate (#766).
+    pub index: lumen_application::gather::EvidenceIndex,
     /// The graph loaded back from `index.db`.
     pub graph: lumen_graph::Graph,
     /// The machine.
@@ -361,7 +505,10 @@ pub struct Assessment {
     pub inventories_complete: bool,
     /// The volumes with a quarantine store, or `None` for every volume
     /// ([`crate::Stores::volumes`], ADR-0046).
-    pub store_volumes: Option<BTreeSet<lumen_domain::VolumeId>>,
+    pub store_volumes: Option<BTreeSet<VolumeId>>,
+    /// Where each installed application is, for asking whether it runs
+    /// (ADR-0059); empty where the platform does not say.
+    pub apps: Vec<(lumen_domain::AppId, RawPath)>,
     store: IndexStore,
     scan: ScanId,
 }
@@ -422,6 +569,7 @@ impl Assessment {
         Sources {
             graph: &self.graph,
             gathered: &self.gathered,
+            index: &self.index,
             scanned: &subtree.entries,
             listings: &subtree.listings,
             context: &self.context,
@@ -591,6 +739,7 @@ fn prepare_with_progress(
     let platform = platform();
     let home = home();
     let platform_inventory = platform_inventory();
+    let apps = app_locations(&platform_inventory);
     let inventory: Inventory = summarize(&platform_inventory.reports);
     let inventories_complete = !platform_inventory.reports.is_empty()
         && platform_inventory
@@ -598,7 +747,7 @@ fn prepare_with_progress(
             .iter()
             .all(|r| r.status == lumen_domain::SourceStatus::Complete);
     let kb = KnowledgeBase::builtin()?;
-    let env = environment(&kb, platform);
+    let env = environment(&kb, platform, volume_cases());
     // The scan's facts and what is derived from them alone are dated by the
     // scan, so assessing it again records nothing new.
     let scanned_at = store.scan_finished_at(scan)?.unwrap_or(now);
@@ -656,34 +805,23 @@ fn prepare_with_progress(
     Ok(Assessment {
         roots,
         entries: found.entries,
+        index: lumen_application::gather::EvidenceIndex::new(&gathered),
         gathered,
         graph,
         context,
         knowledge: kb.knowledge(),
         inventories_complete,
         store_volumes: stores.and_then(|s| s.volumes),
+        apps,
         store,
         scan,
     })
 }
 
-/// A developer tool's own cleanup command: a literal argument vector from the
-/// knowledge base, never a shell string. Shown with its item; run only when
-/// the user asks, through [`crate::tools`] (ADR-0049).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ToolGuidance {
-    /// The knowledge-base entry it comes from, which names it to run it.
-    pub entry: String,
-    /// The tool's display name, e.g. `Xcode`.
-    pub tool: String,
-    /// The program, e.g. `xcrun`.
-    pub program: String,
-    /// Its arguments, e.g. `["simctl", "delete", "unavailable"]`.
-    pub args: Vec<String>,
-    /// The item cannot be regenerated, so the command removes data, not
-    /// just caches (Docker's disk image).
-    pub removes_data: bool,
-}
+/// A developer tool's own cleanup command shown with its item: the same
+/// [`ToolCommand`](crate::tools::ToolCommand) that [`crate::tools`] runs
+/// when the user asks (ADR-0049).
+pub use crate::tools::ToolCommand as ToolGuidance;
 
 /// The cleanup command of the tool whose knowledge-base entry `assessed`
 /// matched, if that entry has one and it acts on `assessed` here: the first
@@ -697,8 +835,16 @@ pub fn tool_action(assessed: &Assessed) -> Option<ToolGuidance> {
     };
     let env = std::cell::OnceCell::new();
     tool_guidance(kb, &subject, &assessed.input.evidence, |entry| {
-        let env = env.get_or_init(|| environment(kb, platform()));
-        kb.command_acts_on(env, &entry.id, &assessed.candidate.path)
+        // Without volume reports, names compare exactly: probing every
+        // volume for each item costs more than the case difference it would
+        // allow, and an inexact folder only withholds the command.
+        let env = env.get_or_init(|| environment(kb, platform(), Vec::new()));
+        kb.command_acts_on(
+            env,
+            &entry.id,
+            &assessed.candidate.path,
+            &assessed.candidate.identity().volume,
+        )
     })
 }
 
@@ -718,15 +864,7 @@ fn tool_guidance(
             _ => None,
         })
         .filter(|entry| entry.official_action.is_some() && acts(entry))
-        .find_map(|entry| {
-            entry.official_action.as_ref().map(|action| ToolGuidance {
-                entry: entry.id.clone(),
-                tool: entry.tool.clone(),
-                program: action.program.clone(),
-                args: action.args.clone(),
-                removes_data: entry.safety_class == lumen_devkb::SafetyClass::NotRegenerable,
-            })
-        })
+        .find_map(|entry| crate::tools::command(kb, &entry.id))
 }
 
 /// How an item is grouped when results are presented.
@@ -848,7 +986,7 @@ fn jev_request(
     item: u32,
     inventories_complete: bool,
     now: lumen_domain::Timestamp,
-) -> Option<lumen_domain::JevRequest> {
+) -> Option<JevRequest> {
     let observed = input.observed.as_ref()?;
     let candidate = lumen_jev::request::Candidate {
         item_ref: lumen_domain::ItemRef::new(format!("item-{item}")).ok()?,
@@ -911,8 +1049,51 @@ impl JudgeOutcomes {
     }
 }
 
+/// The judge for one assessment: asked until it is unavailable, then not again
+/// (audit AI-5). A rejected key, missing credits, a rate limit or a timeout
+/// would repeat for every remaining proposal, each waiting out its own limit;
+/// the description stage stops the same way. A proposal not asked keeps the
+/// policy's own decision, as after any judge error. A refused or malformed
+/// answer is about its item, so the next proposal is still asked.
+struct UntilUnavailable<'a> {
+    judge: &'a dyn JudgeModel,
+    unavailable: AtomicBool,
+}
+
+impl<'a> UntilUnavailable<'a> {
+    fn new(judge: &'a dyn JudgeModel) -> Self {
+        Self {
+            judge,
+            unavailable: AtomicBool::new(false),
+        }
+    }
+}
+
+impl JudgeModel for UntilUnavailable<'_> {
+    fn descriptor(&self) -> Option<JudgeDescriptor> {
+        if self.unavailable.load(Ordering::Relaxed) {
+            None
+        } else {
+            self.judge.descriptor()
+        }
+    }
+
+    fn judge<'a>(&'a self, request: &'a JevRequest) -> JudgeFuture<'a> {
+        Box::pin(async move {
+            let answer = self.judge.judge(request).await;
+            if matches!(
+                answer.result,
+                Err(JudgeError::Unavailable(_) | JudgeError::Disabled)
+            ) {
+                self.unavailable.store(true, Ordering::Relaxed);
+            }
+            answer
+        })
+    }
+}
+
 /// Assesses the latest completed scan in `db`, consulting `judge` when it is
-/// configured (a `NoopJudge` never is), then asking `describer` what kind of
+/// configured (a `NoopJudge` never is) until it is unavailable, then asking `describer` what kind of
 /// item each of up to 20 of the largest review items is (ADR-0041). A
 /// description is a note beside the decision and never changes it.
 ///
@@ -923,7 +1104,7 @@ impl JudgeOutcomes {
 pub fn assess(
     db: &Path,
     clock: &dyn Clock,
-    judge: &dyn lumen_application::ports::JudgeModel,
+    judge: &dyn JudgeModel,
     describer: &dyn lumen_application::ports::Describer,
 ) -> Result<Vec<Assessed>, AssessError> {
     assess_with_progress(db, clock, judge, describer, &mut |_| {})
@@ -940,7 +1121,7 @@ pub fn assess(
 pub fn assess_with_progress(
     db: &Path,
     clock: &dyn Clock,
-    judge: &dyn lumen_application::ports::JudgeModel,
+    judge: &dyn JudgeModel,
     describer: &dyn lumen_application::ports::Describer,
     progress: &mut dyn FnMut(AssessProgress),
 ) -> Result<Vec<Assessed>, AssessError> {
@@ -952,36 +1133,40 @@ pub fn assess_with_progress(
     let counter = std::cell::Cell::new(0_u32);
     let mut failures = DecisionFailures::default();
     let now = clock.now();
+    let judge = UntilUnavailable::new(judge);
     let request = |input: &lumen_policy::PolicyInput| {
         counter.set(counter.get().saturating_add(1));
         jev_request(input, counter.get(), assessment.inventories_complete, now)
     };
-    let assessed = with_probes(|probes| -> Result<Vec<Assessed>, AssessError> {
-        let mut assessed = Vec::new();
-        for (index, candidate) in candidates.iter().enumerate() {
-            // Only this candidate's part of the scan is read, and dropped
-            // after its decision; candidates inside it are decided on their
-            // own, so its decision covers the rest.
-            let inner = nested(candidate, &candidates);
-            let subtree = assessment.subtree_without(&candidate.path, &inner)?;
-            let sources = assessment.sources(&subtree);
-            if let Some(decided) = failures.record(
-                block_on(decide_candidate(
-                    candidate, &sources, probes, judge, clock, &request,
-                )),
-                "assessment",
-            ) {
-                assessed.push(decided);
+    let assessed = crate::probes::with_assessment_probes(
+        &assessment.apps,
+        |probes| -> Result<Vec<Assessed>, AssessError> {
+            let mut assessed = Vec::new();
+            for (index, candidate) in candidates.iter().enumerate() {
+                // Only this candidate's part of the scan is read, and dropped
+                // after its decision; candidates inside it are decided on their
+                // own, so its decision covers the rest.
+                let inner = nested(candidate, &candidates);
+                let subtree = assessment.subtree_without(&candidate.path, &inner)?;
+                let sources = assessment.sources(&subtree);
+                if let Some(decided) = failures.record(
+                    block_on(decide_candidate(
+                        candidate, &sources, probes, &judge, clock, &request,
+                    )),
+                    "assessment",
+                ) {
+                    assessed.push(decided);
+                }
+                report(
+                    progress,
+                    AssessStage::Deciding,
+                    u64::try_from(index + 1).unwrap_or(u64::MAX),
+                    total,
+                );
             }
-            report(
-                progress,
-                AssessStage::Deciding,
-                u64::try_from(index + 1).unwrap_or(u64::MAX),
-                total,
-            );
-        }
-        Ok(assessed)
-    })??;
+            Ok(assessed)
+        },
+    )??;
     let mut assessed = assessed;
     block_on(lumen_application::describe::describe_with_progress(
         describer,
@@ -1040,6 +1225,61 @@ mod tests {
 
     use super::*;
 
+    /// Usage facts are only about owning applications, never say an
+    /// application is missing, and nothing comes of an owner Spotlight
+    /// cannot be asked about (ADR-0059).
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn usage_is_only_about_owners_and_never_a_negative() -> Result<(), Box<dyn std::error::Error>> {
+        use lumen_domain::{
+            AppId, AppIdScheme, Application, Basis, Fact, Provenance, Subject, UntrustedText,
+        };
+        let id = |value: &str| AppId {
+            scheme: AppIdScheme::BundleId,
+            value: UntrustedText::new(value),
+        };
+        let calculator = id("com.apple.calculator");
+        let app = Application {
+            ids: BTreeSet::from([calculator.clone()]),
+            name: None,
+            version: None,
+            vendor: None,
+            signature: None,
+            install_locations: vec![RawPath::from_unix_bytes(
+                b"/System/Applications/Calculator.app".to_vec(),
+            )?],
+            sources: BTreeSet::new(),
+            uninstall: None,
+        };
+        let owned = |app: AppId| Evidence {
+            subject: Subject::Application { id: app.clone() },
+            fact: Fact::OwningApplication(app),
+            basis: Basis::Observed,
+            provenance: Provenance {
+                source: SourceName::new("test").unwrap_or_else(|_| unreachable!()),
+                observed_at: Timestamp::UNIX_EPOCH,
+            },
+        };
+        let evidence = [
+            owned(calculator.clone()),
+            // Not installed and not a plain bundle identifier: never asked.
+            owned(id("com.x\" || kMDItemFSName == \"*")),
+        ];
+        let now = Timestamp::UNIX_EPOCH;
+        for record in usage_evidence(&[app], &evidence, now) {
+            assert!(
+                matches!(&record.subject, Subject::Application { id } if *id == calculator),
+                "{record:?}"
+            );
+            assert!(
+                matches!(record.fact, Fact::ApplicationLastOpened { .. }),
+                "{record:?}"
+            );
+        }
+        assert_eq!(usage_evidence(&[], &[], now), Vec::new());
+        Ok(())
+    }
+
     #[test]
     fn failed_decisions_are_counted_without_offering_an_item() {
         let mut failures = DecisionFailures::default();
@@ -1083,6 +1323,62 @@ mod tests {
             JudgeOutcomes::count(std::iter::empty()),
             JudgeOutcomes::default()
         );
+    }
+
+    #[test]
+    fn a_judge_is_not_asked_again_once_it_is_unavailable() -> Result<(), Box<dyn std::error::Error>>
+    {
+        use std::collections::{BTreeMap, BTreeSet};
+
+        use lumen_domain::{CandidateSummary, CoverageSummary, ItemRef, ModelId, UntrustedText};
+        use lumen_testkit::MockJudge;
+
+        let request = |item: &str| -> Result<JevRequest, Box<dyn std::error::Error>> {
+            Ok(JevRequest {
+                schema_version: JevRequest::current_schema()?,
+                item_ref: ItemRef::new(item)?,
+                candidate: CandidateSummary {
+                    category: Category::Other,
+                    path_display: UntrustedText::new("~/x"),
+                    size_bytes: ByteCount::ZERO,
+                    reclaimable_bytes: ByteCount::ZERO,
+                },
+                evidence: Vec::new(),
+                coverage: CoverageSummary {
+                    complete: true,
+                    notes: BTreeSet::new(),
+                },
+                untrusted_strings: BTreeMap::new(),
+            })
+        };
+        let descriptor = JudgeDescriptor {
+            provider: SourceName::new("mock")?,
+            model: ModelId::new("mock-1")?,
+            model_version: None,
+            prompt_version: "jev-judge/1".parse()?,
+        };
+        for (stops, error) in [
+            (false, JudgeError::NoAnswer("refused")),
+            (false, JudgeError::Malformed),
+            (
+                true,
+                JudgeError::Unavailable("OpenRouter rate limit reached"),
+            ),
+            (true, JudgeError::Disabled),
+        ] {
+            let mock = MockJudge::new(Some(descriptor.clone()))
+                .answer(ItemRef::new("c_1")?, Err(error.clone()));
+            let judge = UntilUnavailable::new(&mock);
+            assert_eq!(judge.descriptor(), Some(descriptor.clone()));
+            let answer = block_on(judge.judge(&request("c_1")?));
+            assert_eq!(answer.result, Err(error.clone()), "answers pass through");
+            assert_eq!(
+                judge.descriptor().is_none(),
+                stops,
+                "{error:?}: a judge without a descriptor is never asked"
+            );
+        }
+        Ok(())
     }
 
     fn scanned(path: &str, file: u128, bytes: u64) -> FilesystemEntry {
@@ -1139,6 +1435,7 @@ mod tests {
         assert_eq!(vars.len(), 3);
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
@@ -1176,6 +1473,7 @@ mod tests {
         let vars = cache_vars(&kb, Platform::Linux, |_| None);
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
@@ -1210,6 +1508,7 @@ mod tests {
         let assess = |set: &[(&str, &str)]| {
             let env = Environment {
                 platform: Platform::Linux,
+                volumes: Vec::new(),
                 home: RawPath::from_unix_bytes("/home/ana").ok(),
                 local_app_data: None,
                 roaming_app_data: None,
@@ -1233,7 +1532,7 @@ mod tests {
                     identified.push(id);
                 }
                 if tool_guidance(&kb, &subject, &evidence, |entry| {
-                    kb.command_acts_on(&env, &entry.id, &item.path)
+                    kb.command_acts_on(&env, &entry.id, &item.path, &item.identity().volume)
                 })
                 .is_some_and(|guidance| guidance.args == ["cache", "prune"])
                 {
@@ -1288,6 +1587,7 @@ mod tests {
         let kb = KnowledgeBase::builtin()?;
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
@@ -1366,6 +1666,7 @@ mod tests {
         let kb = KnowledgeBase::builtin()?;
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
@@ -1442,6 +1743,7 @@ mod tests {
         let kb = KnowledgeBase::builtin()?;
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
@@ -1506,9 +1808,11 @@ mod tests {
             single_user: false,
         };
         let knowledge = KnowledgeBase::builtin()?.knowledge();
+        let index = lumen_application::gather::EvidenceIndex::new(gathered);
         let sources = Sources {
             graph: &graph,
             gathered,
+            index: &index,
             scanned: entries,
             listings: &listings,
             context: &context,
@@ -1642,6 +1946,7 @@ mod tests {
         let kb = KnowledgeBase::builtin()?;
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,
@@ -1728,6 +2033,7 @@ mod tests {
         let kb = KnowledgeBase::builtin()?;
         let env = Environment {
             platform: Platform::Linux,
+            volumes: Vec::new(),
             home: None,
             local_app_data: None,
             roaming_app_data: None,

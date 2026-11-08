@@ -116,6 +116,7 @@ fn why(access: AccessState) -> &'static str {
 fn skip(reason: &SkipReason) -> &'static str {
     match reason {
         SkipReason::MountPoint => "another volume",
+        SkipReason::Excluded => "Lumen quarantine store",
         SkipReason::Alias => "already scanned under another path",
         _ => "could not be opened safely",
     }

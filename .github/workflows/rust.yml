@@ -16,8 +16,42 @@ env:
   CARGO_INCREMENTAL: "0"
 
 jobs:
+  changes:
+    # Whether this pull request is documentation-only (scripts/ci-changes.sh).
+    # Jobs below skip their expensive steps when the answer is `false`, and run
+    # everything for any other answer, including none when this job fails.
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            *.actions.githubusercontent.com:443
+            actions-results-receiver-production.githubapp.com:443
+            *.blob.core.windows.net:443
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Documentation only?
+        id: classify
+        env:
+          EVENT: ${{ github.event_name }}
+        run: scripts/ci-changes.sh
+
   fmt:
     name: fmt
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -34,6 +68,13 @@ jobs:
 
   check:
     name: check (${{ matrix.os }})
+    needs: changes
+    # A matrix job skipped as a whole reports one unexpanded name, which never
+    # satisfies the required `check (<os>)` checks, so a documentation-only
+    # change runs the job and skips its steps instead.
+    if: ${{ !cancelled() }}
+    env:
+      RUN: ${{ needs.changes.outputs.code != 'false' }}
     strategy:
       fail-fast: false
       matrix:
@@ -43,45 +84,54 @@ jobs:
       contents: read
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
-        if: runner.os == 'Linux'
+        if: env.RUN == 'true' && runner.os == 'Linux'
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.RUN == 'true'
         with:
           persist-credentials: false
       - name: Install pinned toolchain
+        if: env.RUN == 'true'
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        if: env.RUN == 'true'
         with:
           # Caches written by pull requests could poison later runs (ADR-0026).
           save-if: ${{ github.ref == 'refs/heads/develop' }}
       - name: Install the desktop host's system libraries (Tauri on Linux)
-        if: runner.os == 'Linux'
+        if: env.RUN == 'true' && runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev \
             libjavascriptcoregtk-4.1-dev librsvg2-dev
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        if: env.RUN == 'true'
         with:
           tool: cargo-nextest
       - name: Clippy
+        if: env.RUN == 'true'
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Tests
+        if: env.RUN == 'true'
         run: cargo nextest run --workspace --locked --no-tests=warn
       # Tests that write to the OS credential store run only on disposable CI
       # runners, never by default on a developer's machine.
       - name: Credential store tests
-        if: runner.os == 'macOS'
+        if: env.RUN == 'true' && runner.os == 'macOS'
         run: cargo nextest run -p lumen-platform-macos --locked --run-ignored ignored-only
       - name: Credential store tests
-        if: runner.os == 'Windows'
+        if: env.RUN == 'true' && runner.os == 'Windows'
         run: cargo nextest run -p lumen-platform-windows --locked --run-ignored ignored-only
       - name: Doctests
+        if: env.RUN == 'true'
         run: cargo test --workspace --doc --locked
 
   msrv:
     name: msrv
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -114,6 +164,8 @@ jobs:
 
   android:
     name: android
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -155,6 +207,8 @@ jobs:
 
   ios:
     name: ios
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: macos-26
     permissions:
       contents: read
@@ -174,6 +228,8 @@ jobs:
 
   schemas:
     name: schemas
+    needs: changes
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -190,6 +246,7 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/develop' }}
       - name: Committed JSON Schemas match the Rust types (ADR-0011)
+        if: needs.changes.outputs.code != 'false'
         run: cargo xtask schema --check
       - name: Crate layering, pure-crate IO, ADR index and documentation links (ADR-0056)
         run: cargo xtask lint

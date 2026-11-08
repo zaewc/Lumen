@@ -28,6 +28,7 @@ use lumen_domain::{
     PolicyDecision, QuarantineManifest, RawPath, Subject, Verdict,
 };
 use lumen_policy::PolicyInput;
+use lumen_policy::ids;
 
 use crate::assess::{Probes, Sources, decide_candidate};
 use crate::ports::{CandidateVerifier, Clock, IdGenerator, JudgeModel, QuarantineExecutor};
@@ -35,13 +36,13 @@ use crate::quarantine::ConfirmedItem;
 
 /// The rules that accept a partial in-use answer (ADR-0030, ADR-0046).
 const PARTIAL_IN_USE: [&str; 2] = [
-    "eligible.in-use-partial",
-    "eligible.in-use-partial-single-user",
+    ids::ELIGIBLE_IN_USE_PARTIAL,
+    ids::ELIGIBLE_IN_USE_PARTIAL_SINGLE_USER,
 ];
 
 /// The rule that leaves an item for review because it cannot be regenerated;
 /// a person may not choose such an item (ADR-0051).
-pub const NOT_REGENERABLE: &str = "classify.devkb-not-regenerable";
+pub const NOT_REGENERABLE: &str = ids::CLASSIFY_DEVKB_NOT_REGENERABLE;
 
 /// Why a planned item is not executed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -484,6 +485,7 @@ mod tests {
         let sources = Sources {
             graph: &graph,
             gathered: &gathered,
+            index: &crate::gather::EvidenceIndex::new(&gathered),
             scanned: &scanned,
             listings: &[],
             context: &context,
@@ -495,6 +497,10 @@ mod tests {
             in_use_source: &source,
             ownership: &Mine,
             ownership_source: &source,
+
+            running: &crate::ports::NoRunningProbe,
+
+            running_source: &source,
         };
         let roots = [raw("/root")];
         let verifier = Verifier(case.present);

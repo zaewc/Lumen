@@ -7,9 +7,14 @@ use std::process::{Command, Output};
 use lumen_testkit::{Fixture, Node};
 
 fn lumen(args: &[&std::ffi::OsStr]) -> std::io::Result<Output> {
-    Command::new(env!("CARGO_BIN_EXE_lumen"))
-        .args(args)
-        .output()
+    lumen_cmd(args).output()
+}
+
+/// The `lumen` binary with `args`, for a test to add its own environment.
+fn lumen_cmd<S: AsRef<std::ffi::OsStr>>(args: &[S]) -> Command {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_lumen"));
+    cmd.args(args);
+    cmd
 }
 
 fn fixture() -> Result<Fixture, Box<dyn std::error::Error>> {
@@ -158,12 +163,7 @@ fn assess_reports_a_known_artifact_and_moves_nothing() -> Result<(), Box<dyn std
     // The scanner keeps paths as given; the home must match them exactly.
     let home = std::fs::canonicalize(fx.path("home")?)?;
     let db = fx.path("index.db")?;
-    let run = |args: &[&std::ffi::OsStr]| {
-        Command::new(env!("CARGO_BIN_EXE_lumen"))
-            .args(args)
-            .env("HOME", &home)
-            .output()
-    };
+    let run = |args: &[&std::ffi::OsStr]| lumen_cmd(args).env("HOME", &home).output();
     let scan = run(&[
         "scan".as_ref(),
         home.as_os_str(),
@@ -235,8 +235,7 @@ fn configured_npx_cache_has_its_own_command_and_assessment_modifies_nothing()
     let cache = root.join("cache");
     let db = fx.path("index.db")?;
     let run = |args: &[&std::ffi::OsStr]| {
-        Command::new(env!("CARGO_BIN_EXE_lumen"))
-            .args(args)
+        lumen_cmd(args)
             .env("npm_config_cache", &cache)
             .env_remove("NPM_CONFIG_CACHE")
             .output()
@@ -313,8 +312,7 @@ fn assess_finds_cargo_intermediates_and_preserves_outputs() -> Result<(), Box<dy
     let home = std::fs::canonicalize(fx.path("home")?)?;
     let db = fx.path("index.db")?;
     let run = |args: &[&std::ffi::OsStr]| {
-        Command::new(env!("CARGO_BIN_EXE_lumen"))
-            .args(args)
+        lumen_cmd(args)
             .env("HOME", &home)
             .env("USERPROFILE", &home)
             .output()
@@ -408,12 +406,7 @@ fn assess_names_an_apps_cache_and_never_its_data() -> Result<(), Box<dyn std::er
     ])?;
     let home = std::fs::canonicalize(fx.path("home")?)?;
     let db = fx.path("index.db")?;
-    let run = |args: &[&std::ffi::OsStr]| {
-        Command::new(env!("CARGO_BIN_EXE_lumen"))
-            .args(args)
-            .env("HOME", &home)
-            .output()
-    };
+    let run = |args: &[&std::ffi::OsStr]| lumen_cmd(args).env("HOME", &home).output();
     let scan = run(&[
         "scan".as_ref(),
         home.as_os_str(),
@@ -482,12 +475,7 @@ fn assess_shows_the_tools_own_command_and_runs_nothing() -> Result<(), Box<dyn s
     }])?;
     let home = std::fs::canonicalize(fx.path("home")?)?;
     let db = fx.path("index.db")?;
-    let run = |args: &[&std::ffi::OsStr]| {
-        Command::new(env!("CARGO_BIN_EXE_lumen"))
-            .args(args)
-            .env("HOME", &home)
-            .output()
-    };
+    let run = |args: &[&std::ffi::OsStr]| lumen_cmd(args).env("HOME", &home).output();
     let scan = run(&[
         "scan".as_ref(),
         home.as_os_str(),
@@ -581,12 +569,7 @@ fn plan_prints_the_hash_and_moves_nothing() -> Result<(), Box<dyn std::error::Er
     }])?;
     let home = std::fs::canonicalize(fx.path("home")?)?;
     let db = fx.path("index.db")?;
-    let run = |args: &[&std::ffi::OsStr]| {
-        Command::new(env!("CARGO_BIN_EXE_lumen"))
-            .args(args)
-            .env("HOME", &home)
-            .output()
-    };
+    let run = |args: &[&std::ffi::OsStr]| lumen_cmd(args).env("HOME", &home).output();
     let scan = run(&[
         "scan".as_ref(),
         home.as_os_str(),
@@ -629,12 +612,7 @@ fn plan_refuses_items_a_person_may_not_choose() -> Result<(), Box<dyn std::error
     }])?;
     let home = std::fs::canonicalize(fx.path("home")?)?;
     let db = fx.path("index.db")?;
-    let run = |args: &[&std::ffi::OsStr]| {
-        Command::new(env!("CARGO_BIN_EXE_lumen"))
-            .args(args)
-            .env("HOME", &home)
-            .output()
-    };
+    let run = |args: &[&std::ffi::OsStr]| lumen_cmd(args).env("HOME", &home).output();
     let scan = run(&[
         "scan".as_ref(),
         home.as_os_str(),
@@ -716,12 +694,7 @@ fn quarantine_executes_exactly_the_confirmed_plan() -> Result<(), Box<dyn std::e
     let home = std::fs::canonicalize(fx.path("home")?)?;
     let db = fx.path("index.db")?;
     let item = home.join("Library/Developer/Xcode/DerivedData/App-abc");
-    let run = |args: &[&std::ffi::OsStr]| {
-        Command::new(env!("CARGO_BIN_EXE_lumen"))
-            .args(args)
-            .env("HOME", &home)
-            .output()
-    };
+    let run = |args: &[&std::ffi::OsStr]| lumen_cmd(args).env("HOME", &home).output();
     let scan = run(&[
         "scan".as_ref(),
         home.as_os_str(),
@@ -815,8 +788,7 @@ fn list_restore_and_finalize_follow_the_lifecycle() -> Result<(), Box<dyn std::e
     let db = fx.path("index.db")?;
     let item = home.join("Library/Developer/Xcode/DerivedData/App-abc");
     let run = |args: &[&str]| -> Result<String, Box<dyn std::error::Error>> {
-        let out = Command::new(env!("CARGO_BIN_EXE_lumen"))
-            .args(args)
+        let out = lumen_cmd(args)
             .arg("--db")
             .arg(&db)
             .env("HOME", &home)

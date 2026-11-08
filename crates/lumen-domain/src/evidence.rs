@@ -135,6 +135,28 @@ pub enum Fact {
         /// The space removing it would free now, as the scan measured it.
         reclaimable: ByteCount,
     },
+    /// Whether this application is running (ADR-0059), matched by its
+    /// executable. `false` only when every process was visible; otherwise only
+    /// `true` is ever recorded.
+    ApplicationRunning {
+        /// The application.
+        app: AppId,
+        /// Whether a process runs it.
+        running: bool,
+    },
+    /// When the platform last recorded this application being opened
+    /// (ADR-0059; macOS: `LaunchServices` launches only). Shown, never decided
+    /// on: an old date is not proof the application is unused.
+    ApplicationLastOpened {
+        /// The application.
+        app: AppId,
+        /// When it was last opened, as the platform records it.
+        at: Timestamp,
+    },
+    /// When the project the subject belongs to last changed: the newest
+    /// modification time of its marker files (ADR-0059). Shown, never decided
+    /// on.
+    ProjectActivity(Timestamp),
 }
 
 /// Kinds of per-application data locations the platforms document.

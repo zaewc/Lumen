@@ -1,4 +1,12 @@
-import type { ConfidenceView, ItemKindView } from "@lumen/api-client";
+import type {
+  ConfidenceView,
+  ItemKindView,
+  LocationView,
+  RemovalImpactView,
+  SoftwareOriginView,
+  SoftwarePurposeView,
+  UninstallReasonView,
+} from "@lumen/api-client";
 import { countFormat } from "./format";
 import type { RuleId } from "./rules";
 
@@ -26,6 +34,7 @@ export const en = {
     overview: "Storage",
     cleanUp: "Explore",
     quarantine: "Quarantine",
+    apps: "Apps",
     settings: "Settings",
     held: (n: number) => `${items(n)} in Quarantine`,
   },
@@ -63,6 +72,65 @@ export const en = {
       cleaned: (n: number, size: string) => `${items(n)} (${size}) moved to Quarantine.`,
       none: "No scan yet. Scan your disk to explore its contents and the evidence behind each decision.",
     },
+    tools: {
+      title: "Developer tools",
+      intro:
+        "Ask Xcode, Docker and package managers how much space they keep. Lumen only reads their answers.",
+      check: "Check developer tools",
+      checking: "Checking…",
+      checkAgain: "Check again",
+      loadFailed: "Lumen could not ask the developer tools.",
+      notInstalled: "Not installed",
+      unsupported: "Not available on this computer",
+      unavailable: "Could not check",
+      none: "Nothing reported",
+      inUse: (detail: string) => `${detail} in use`,
+      reclaimable: (size: string) => `Docker counts ${size} as unused`,
+      cache: "Cache",
+      sharedStore: "Shared store",
+      ownCommand: "Own command",
+      xcodeManage: "Manage runtimes in Xcode › Settings › Components.",
+      dockerManage:
+        "Docker's unused count includes volumes and stopped containers, which can hold data you need. Its cleanup runs only from Explore, after you confirm the full command, and keeps volumes.",
+      sharedStoreNote: "Projects link to this store. Its own command keeps what they still use.",
+      cacheNote: "Downloaded again when needed.",
+    },
+    copies: {
+      title: "Identical copies",
+      intro:
+        "Choose folders, and Lumen compares their files to find ones with the same contents. Lumen reads files only in the folders you choose.",
+      choose: "Choose folders to compare…",
+      chooseAgain: "Compare other folders…",
+      stop: "Stop",
+      stopping: "Stopping…",
+      stopped: "Stopped. Nothing from that comparison is shown.",
+      comparing: "Comparing…",
+      stage: {
+        head: "Comparing the start of files of the same size",
+        tail: "Comparing the end of files that still match",
+        full: "Comparing whole files that still match",
+      },
+      filesRead: (n: string) => `${count(n)} ${n === "1" ? "file" : "files"} read`,
+      folders: "Folders compared",
+      group: (n: number, size: string) => `${count(n)} copies · ${size} each`,
+      none: "No identical copies among the files Lumen could compare.",
+      more: (n: number) => `${count(n)} smaller ${n === 1 ? "group is" : "groups are"} not shown.`,
+      hardLinks: (n: number) =>
+        n === 1
+          ? "1 file has more than one name (hard links). It is one file, not copies."
+          : `${count(n)} files have more than one name (hard links). Each is one file, not copies.`,
+      skipped: (n: number) =>
+        `${count(n)} ${n === 1 ? "file was" : "files were"} not compared: changed, unreadable, only in the cloud, or protected by the system.`,
+      protectedFiles: (n: number) =>
+        `${count(n)} ${n === 1 ? "file" : "files"} in protected locations left unread.`,
+      incomplete: "Some folders could not be read completely. Files there were not compared.",
+      unsupported: "Comparing files is not available on this computer yet.",
+      tooMany: (limit: string) =>
+        `These folders hold more than ${count(limit)} files. Choose smaller folders.`,
+      failed: "Lumen could not compare these folders.",
+      advice:
+        "Copies can be backups you want to keep. Lumen does not choose or remove any. Removing a copy can free less space than its size.",
+    },
   },
   workspace: {
     available: "Available space",
@@ -93,7 +161,7 @@ export const en = {
     offIntro:
       "An AI model takes a second look at what Lumen proposes to clean up, and says what items to review likely are. It can only make Lumen more careful.",
     onIntro: (key: string) =>
-      `On, with ${key}. Lumen sends the details of each proposed item and of up to 20 items to review, never their contents. It can only make Lumen more careful. You can turn it off at any time.`,
+      `On, with ${key}. Lumen sends the details of each proposed item and of up to 20 items to review, never their contents. It can only make Lumen more careful. You can turn it off at any time. It also sends the names, publishers and versions of installed apps, without paths.`,
     keyInUse: {
       builtin: (service: string) => `${service} (built-in key)`,
       stored: (service: string) => `${service} (your key)`,
@@ -107,7 +175,7 @@ export const en = {
     changeFailed: "Lumen could not change the AI review setting.",
     consent: {
       title: "Turn on AI review?",
-      what: "For each proposed item, and for up to 20 of the largest items to review, Lumen sends its path (with your home folder shown as ~), size, age and the evidence behind the decision. File contents are never sent.",
+      what: "For each proposed item, and for up to 20 of the largest items to review, Lumen sends its path (with your home folder shown as ~), size, age and the evidence behind the decision. File contents are never sent. For the Apps page, it also sends the names, publishers and versions of installed apps and the background items linked to them, without paths.",
       whereJeb:
         "Lumen sends it with your API key to your school's Jeb server (jeb.https.gsmsv.site). The server's operator may keep the requests.",
       whereJebBuiltin:
@@ -234,6 +302,12 @@ export const en = {
       present === null
         ? `Belongs to ${app}. Whether it is installed is unknown.`
         : `Belongs to ${app}, which is ${present ? "installed" : "not installed"}.`,
+    appRunning: (app: string, running: boolean) =>
+      running ? `${app} is running.` : `${app} is not running.`,
+    appOpened: (app: string, date: string) =>
+      `${app} was last opened ${date}; the system may not record every launch.`,
+    projectChanged: (date: string) =>
+      `Its project's files last changed ${date}; only files like the manifest and lockfile count.`,
     inUse: (inUse: boolean): string => (inUse ? "An app has it open." : "No app has it open."),
     unseen: (unseen: number | null) =>
       unseen === null
@@ -258,6 +332,23 @@ export const en = {
       review: "Lumen leaves this for you to judge and will not move it on its own.",
       command: "Its own tool should clean this up. Lumen runs the command only if you ask.",
       quarantine: "Lumen proposes moving this to Quarantine. You can restore it from there.",
+    },
+    recheck: {
+      unknown: "When Lumen decided, it did not know:",
+      gaps: {
+        in_use: "whether an app is using it",
+        unread: "everything inside it",
+        stale: "how it is now",
+        owner: "which app it belongs to and whether that app is installed",
+      },
+      action: "Check again",
+      checking: "Checking…",
+      note: "Checking only reads. Nothing is moved.",
+      settled: "Nothing to check: this decision does not depend on anything Lumen did not know.",
+      changed: "It changed since the scan, so Lumen did not decide again. Scan again.",
+      still: (status: string) => `Checked again · still ${status}`,
+      now: (before: string, after: string) => `Checked again · ${before} → ${after}`,
+      failed: "Lumen could not check it again.",
     },
     lens: {
       tool: (n: number, tool: string, size: string) => `${others(n)} from ${tool} · ${size}`,
@@ -478,6 +569,111 @@ export const en = {
       "It may be in use, or Lumen cannot check that, so Lumen removed nothing. Close the apps that use it and try again.",
     notFinalizable: "You can only restore this item.",
   },
+  apps: {
+    title: "Apps",
+    desktopOnly: "Lumen lists installed apps in the desktop app.",
+    reading: "Reading installed apps…",
+    readAgain: "Read again",
+    loadFailed: "Lumen couldn't read the installed apps.",
+    search: "Search apps",
+    showAll: (n: number) => `Show dependencies and hidden items (${n})`,
+    none: "No apps match.",
+    protected: "Part of the system",
+    protectedTip: "Lumen never removes this.",
+    partial: (names: string) =>
+      `Some lists were read only in part, so apps may be missing: ${names}.`,
+    readOnly:
+      "This list is read from your computer and stays on it. An app moves only after you confirm.",
+    readOnlyAi:
+      "While AI review is on, the names, publishers and versions of these apps are sent to it, without paths. An app moves only after you confirm.",
+    move: {
+      action: "Move to Quarantine…",
+      title: (name: string) => `Move “${name}” to Quarantine?`,
+      moving: (name: string) => `Moving “${name}” to Quarantine…`,
+      checking: "Checking the app…",
+      failed: "Lumen could not check or move the app. Check Quarantine before trying again.",
+      refused: "This app cannot go to Quarantine",
+      notFound: "This app is no longer in the list. Read the list again.",
+      ambiguous: "Several apps have this identifier. Lumen cannot choose one.",
+      unsupported: "Moving apps to Quarantine is available only on macOS.",
+      size: "App size",
+      atLeast: (size: string) => `At least ${size}`,
+      expires: (date: string) => `This preview expires at ${date}, 24 hours after it was made.`,
+      moved: (name: string) => `Moved “${name}” to Quarantine.`,
+      noSpace: "Space is freed only when you remove the app for good from Quarantine.",
+      changed: "The app changed. Close this preview and check it again.",
+      failedMove: "Lumen could not finish moving the app.",
+      notes: {
+        goes_to_quarantine:
+          "You can restore the app until you remove it for good. Lumen never removes it automatically.",
+        library_data_stays:
+          "Its data in ~/Library stays. After a new scan, you can review that data in Explore.",
+      },
+      locations: {
+        source: "The app is still in its original location.",
+        quarantine: "The app is in Quarantine. Open Quarantine to check it.",
+        gone: "Lumen could not confirm where the app is. Check Quarantine before trying again.",
+      } satisfies { readonly [L in LocationView]: string },
+      reasons: {
+        not_in_applications: "It is not directly in /Applications or ~/Applications.",
+        protected: "It is part of macOS. Lumen leaves it alone.",
+        not_a_bundle: "It is not an app folder, or it is a link.",
+        owner_unknown: "Lumen could not check who owns this app.",
+        not_owned_by_user:
+          "Another account owns this app. Use its installer or the App Store to remove it.",
+        services_unknown: "Lumen could not check all background items.",
+        service_linked: "A background item is linked to this app. Use the app’s own uninstaller.",
+        helpers_unknown: "Lumen could not check the app’s background helpers.",
+        has_helpers: "This app has background helpers. Use its own uninstaller.",
+        running_unknown: "Lumen could not check whether this app is running.",
+        running: "This app is running. Quit it and check again.",
+        store_unknown: "Lumen could not check whether this drive has a quarantine store.",
+        no_store_on_volume: "This drive has no quarantine store.",
+      } satisfies { readonly [R in UninstallReasonView]: string },
+    },
+    ai: {
+      explaining: "AI review is explaining the apps…",
+      note: (purpose: string, confidence: string, impact: string) =>
+        `AI: likely ${purpose} (${confidence}). ${impact}`,
+      purposes: {
+        web_browser: "a web browser",
+        communication: "a communication app",
+        media: "a media app",
+        office_or_productivity: "an office or productivity app",
+        development_tool: "a developer tool",
+        design_or_creative: "a design or creative app",
+        game: "a game",
+        security_or_banking: "security or banking software",
+        system_or_driver: "a system component or driver",
+        cloud_sync_or_backup: "a cloud sync or backup app",
+        utility: "a utility",
+        runtime_or_library: "a runtime or library",
+        unknown: "something it could not tell",
+      } satisfies { readonly [P in SoftwarePurposeView]: string },
+      impacts: {
+        only_this_app: "Removing it likely affects only this app.",
+        other_software_depends: "Other software likely depends on it.",
+        stops_background_activity: "Removing it likely stops its background activity.",
+        security_or_access: "Removing it may stop security, banking or sign-in from working.",
+        system_function: "Removing it may stop a system feature from working.",
+        unknown: "It could not tell what removing it would affect.",
+      } satisfies { readonly [I in RemovalImpactView]: string },
+    },
+    origins: {
+      mac_app: "App",
+      mac_installer: "Installer package",
+      homebrew: "Homebrew",
+      homebrew_cask: "Homebrew cask",
+      windows_program: "Program",
+      msix: "Store package",
+      dpkg: "dpkg",
+      rpm: "RPM",
+      pacman: "pacman",
+      flatpak: "Flatpak",
+      snap: "Snap",
+      other: "Other",
+    } satisfies { readonly [O in SoftwareOriginView]: string },
+  },
   settings: {
     title: "Settings",
     appearance: {
@@ -510,7 +706,7 @@ export const en = {
       version: "Version",
       local: "On this device",
       localBody:
-        "Scans, decisions and Quarantine stay on this computer. File contents are never sent anywhere. While AI review is on, it sends only details such as paths and sizes.",
+        "Scans, decisions and Quarantine stay on this computer. File contents are never sent anywhere. While AI review is on, it sends only details such as paths and sizes, and the names, publishers and versions of installed apps.",
       update: {
         title: "Updates",
         checking: "Checking for a new version…",
@@ -544,6 +740,12 @@ export const en = {
       body: "Quarantine is a safe holding place. Cleaning up moves items there instead of deleting them, and you can restore them where they were until you remove them for good. Items in Quarantine still use disk space until then.",
     },
   },
+  reviewReasons: {
+    unknownOwner: "No app or tool was identified as its owner.",
+    sharedResource: "It may share storage with other files or have links outside this item.",
+    staleEvidence: "Some evidence is out of date. Scan again before deciding.",
+    uncertainSize: "The space that removal would free is uncertain.",
+  },
   reasons: {
     location: (name: string) => `Kept: it is in a protected location (${name}).`,
     rules: {
@@ -554,6 +756,8 @@ export const en = {
       "protect.cloud-backed":
         "Kept: it is synced with a cloud service, so removing it here could remove it everywhere.",
       "protect.in-use": "Kept: a running app is using it.",
+      "protect.app-running":
+        "Kept: the app it belongs to is running. Quit the app, then scan again to clean this up.",
       "protect.in-use-partial":
         "Kept: no app Lumen can see uses it, but Lumen could not check every app.",
       "protect.in-use-unknown": "Kept: Lumen has not checked whether anything uses it.",

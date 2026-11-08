@@ -108,6 +108,31 @@ pub struct Application {
     pub install_locations: Vec<RawPath>,
     /// Inventory sources that reported this application.
     pub sources: BTreeSet<SourceName>,
+    /// What the platform records about removing it, if its source records
+    /// anything (ADR-0060).
+    pub uninstall: Option<UninstallRecord>,
+}
+
+/// What an installer recorded about removing its application, as the platform
+/// lists it (Windows `Uninstall` key values). Every command line is
+/// installer-written text: it is shown, or parsed into a form Lumen
+/// recognises, and never run as written (ADR-0060). A flag that was not
+/// recorded is `false`, as the platform reads it.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct UninstallRecord {
+    /// Windows Installer manages it (`WindowsInstaller` = 1): it is removed by
+    /// its product code.
+    pub windows_installer: bool,
+    /// The removal command line (`UninstallString`).
+    pub command: Option<UntrustedText>,
+    /// The command line for removal without prompts (`QuietUninstallString`).
+    pub quiet_command: Option<UntrustedText>,
+    /// The platform's own list hides it (`SystemComponent` = 1).
+    pub hidden: bool,
+    /// The platform's own list offers no removal (`NoRemove` = 1).
+    pub no_remove: bool,
+    /// It updates another entry, named by its key (`ParentKeyName`).
+    pub parent: Option<UntrustedText>,
 }
 
 impl Application {
@@ -214,8 +239,10 @@ pub struct Service {
 pub enum PackageManager {
     /// macOS Installer receipt (`pkgutil`).
     MacInstaller,
-    /// Homebrew.
+    /// Homebrew formulae.
     Homebrew,
+    /// Homebrew casks, which share names with formulae.
+    HomebrewCask,
     /// Windows Installer (MSI).
     Msi,
     /// MSIX/AppX.
@@ -224,6 +251,16 @@ pub enum PackageManager {
     Winget,
     /// Android package manager.
     Android,
+    /// Debian's `dpkg` (and `apt` over it).
+    Dpkg,
+    /// RPM (and `dnf` over it).
+    Rpm,
+    /// Arch Linux's `pacman`.
+    Pacman,
+    /// Flatpak.
+    Flatpak,
+    /// Snap.
+    Snap,
 }
 
 /// A package recorded by an installer or package manager.
@@ -237,6 +274,13 @@ pub struct Package {
     pub version: Option<UntrustedText>,
     /// Install root, if the manager reports one.
     pub install_root: Option<RawPath>,
+    /// The manager marks it as part of the base system (dpkg `Essential: yes`
+    /// or `Priority: required`): never removable from Lumen (ADR-0060).
+    /// `false` where the manager has no such mark.
+    pub required: bool,
+    /// Whether it was installed on request rather than as another package's
+    /// dependency; `None` where the manager's record does not say.
+    pub explicit: Option<bool>,
 }
 
 #[cfg(test)]
@@ -278,6 +322,7 @@ mod tests {
             signature: None,
             install_locations: vec![],
             sources: BTreeSet::new(),
+            uninstall: None,
         };
         assert!(app.has_id(&bundle("com.example.App")));
         assert!(!app.has_id(&AppId {
@@ -319,6 +364,8 @@ mod tests {
             id: UntrustedText::new("com.example.pkg"),
             version: Some(UntrustedText::new("1.2")),
             install_root: None,
+            required: false,
+            explicit: Some(true),
         };
         let json = serde_json::to_string(&package)?;
         assert_eq!(serde_json::from_str::<Package>(&json)?, package);

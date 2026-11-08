@@ -297,6 +297,11 @@ download page, served by GitHub Pages at <https://zaewc.github.io/Lumen/>.
   it with GitHub's Pages actions on every push to `main` that changes `apps/site/**`,
   the lockfile, `pnpm-workspace.yaml` or the workflow, or when run by hand. Only the
   deploy job can write to Pages.
+- **Before a release:** a pull request that changes the site runs
+  [`site-preview.yml`](../../.github/workflows/site-preview.yml). It builds the site
+  and captures every language's page at 1280 px, plus Korean and English at 390 px,
+  and keeps the build and the captures as the `site-preview` artifact. Nothing is
+  deployed.
 - **Once (done 2026-10-25):** in the repository's Settings › Pages, set **Source** to
   **GitHub Actions**. Until then the deploy job fails at `configure-pages`.
 - Every page links its files under `/Lumen/` (`base` in `astro.config.ts`), so

@@ -1,6 +1,7 @@
 import type { AiNoteView, ReasonView } from "@lumen/api-client";
 import { en, type Messages } from "./en";
 import { es } from "./es";
+import { fr } from "./fr";
 import { ja } from "./ja";
 import { ko } from "./ko";
 import type { Locale } from "./locale";
@@ -16,6 +17,7 @@ export const MESSAGES: { readonly [L in Locale]: Messages } = {
   ja,
   "zh-CN": zhCN,
   es,
+  fr,
 };
 
 /**
@@ -28,6 +30,22 @@ export function reasonText(messages: Messages, reason: ReasonView): string {
   }
   const rule = RULE_IDS.find((id) => id === reason.rule);
   return rule === undefined ? reason.text : messages.reasons.rules[rule];
+}
+
+/** Newer category codes retain a localized, cautious explanation. */
+export function reviewReasonText(m: Messages, code: string): string {
+  switch (code) {
+    case "unknown_owner":
+      return m.reviewReasons.unknownOwner;
+    case "shared_resource":
+      return m.reviewReasons.sharedResource;
+    case "stale_evidence":
+      return m.reviewReasons.staleEvidence;
+    case "uncertain_reclaimable_size":
+      return m.reviewReasons.uncertainSize;
+    default:
+      return m.reasons.rules["default.review"];
+  }
 }
 
 /**

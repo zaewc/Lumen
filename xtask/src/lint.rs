@@ -45,6 +45,7 @@ const LAYERS: &[(&str, Layer)] = &[
     ("lumen-devkb", Layer::Adapter),
     ("lumen-fs-exec", Layer::Adapter),
     ("lumen-jev", Layer::Adapter),
+    ("lumen-platform-linux", Layer::Adapter),
     ("lumen-platform-macos", Layer::Adapter),
     ("lumen-platform-windows", Layer::Adapter),
     ("lumen-scan", Layer::Adapter),

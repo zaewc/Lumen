@@ -32,6 +32,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../entries/android-gradle-project-build-cache.json"),
     ),
     (
+        "angular-build-cache.json",
+        include_str!("../entries/angular-build-cache.json"),
+    ),
+    (
         "arc-browser-caches.json",
         include_str!("../entries/arc-browser-caches.json"),
     ),
@@ -185,6 +189,10 @@ const BUILTIN: &[(&str, &str)] = &[
     (
         "vscode-squirrel-update-staging.json",
         include_str!("../entries/vscode-squirrel-update-staging.json"),
+    ),
+    (
+        "xcode-archives.json",
+        include_str!("../entries/xcode-archives.json"),
     ),
     (
         "xcode-derived-data.json",

@@ -117,7 +117,7 @@ Dependency rules (checked by `cargo xtask lint`, part of `just check` and CI):
 Ports for filesystem and OS inspection are **synchronous**. They run on plain `std`
 threads: the scanner's scoped worker threads (`crates/lumen-scan/src/scheduler.rs`) or
 the calling thread. Only model-bound ports (`JudgeModel`, `Describer`) are async; there
-is no async runtime, and `lumen_app::block_on` (`crates/lumen-app/src/assess.rs`) runs
+is no async runtime, and `lumen_app::block_on` (`crates/lumen-app/src/runtime.rs`) runs
 their futures on the calling thread
 ([ADR-0017 amendment](../decisions/0017-scan-engine-and-size-accounting.md#amendment-the-scheduler-uses-scoped-threads-and-lumens-own-token-2026-11-02)).
 
@@ -292,6 +292,38 @@ out, fully listed, and never inside, around or equal to another candidate
 unrecognised item: `default.review`, or `KEEP` when a protection fires. They are never
 proposed for quarantine.
 
+Application usage counts only towards caution
+([ADR-0059](../decisions/0059-use-application-usage-as-cautious-evidence.md)):
+- an item whose owning application is running is kept (`protect.app-running`). On
+  macOS, an application runs when a process's executable lies inside one of its
+  bundles. That is read from the assessment's one read of the process table, and read
+  again when a plan is confirmed or an item is checked again;
+- application data whose owner any source finds installed is not orphaned;
+- when an application was last opened (`ApplicationLastOpened`) and when a project
+  last changed (`ProjectActivity`) are shown and never decided on.
+
+None of these facts is sent to AI review.
+
+Some verdicts rest on what Lumen did not know at assessment time, and a person can
+ask for those items to be checked again
+([ADR-0058](../decisions/0058-reassess-chosen-items-with-fresh-read-only-evidence.md)).
+`lumen_application::reassess::gaps` maps fired rules to the gaps a read-only check may
+answer:
+- in use, partly visible or unknown, or kept because its application runs → asked
+  live again;
+- not read, or not observed → its subtree listed again;
+- an old observation → observed again;
+- `default.review` or `classify.orphan` → the inventories read again.
+
+Every other rule is a decision, and anything AI review changed is never re-decided.
+`reassess` decides the item again with the unchanged policy and no judge, only while
+its path still names the scanned object. It records the earlier verdict and rules and
+the evidence the new decision added. `reassess_all` takes at most 500 items and stops
+when cancelled. `lumen_app::reassess` runs the checks:
+- it loads the scan's evidence again, with the inventories read now;
+- it lists an unread or stale item again from the filesystem, read-only, for at most 30 s, after which the rest stays unlisted and kept;
+- it asks the live in-use probe, never the assessment's snapshot.
+
 ## 9. Explainability
 
 Every `Recommendation` answers, from evidence (or states "unknown" with the reason):
@@ -309,6 +341,16 @@ Every `Recommendation` answers, from evidence (or states "unknown" with the reas
 
 Explanations are generated from templates, never from AI free text. A Jev rationale,
 if present, is shown separately and labelled as AI-generated.
+
+REVIEW candidates also expose a `review-reasons/1` descriptor: stable typed
+categories for unknown ownership, shared resources, possible user data, uncertain
+space, tool-required cleanup and AI caution. Every REVIEW has a category; KEEP and
+QUARANTINE have none. These categories are derived after evaluation, never fed back
+into policy or plans. Fired rules and localized explanations, with their supporting
+facts, remain the explanation shown to people. The view accepts future category
+strings so an older UI can retain its existing rule-text fallback. `active_process`
+and `stale_evidence` are reserved descriptive codes, emitted only when the relevant
+evidence supports them; active use still invokes the existing KEEP protection.
 
 An item kept only because a running process uses it (`protect.in-use`) also says what
 quitting would allow ([ADR-0039, 2026-10-31 amendment](../decisions/0039-ask-for-review-only-where-a-person-can-act.md#amendment-say-which-apps-to-quit-2026-10-31)):
@@ -456,6 +498,56 @@ the schema cannot express:
   --max-age-days 180`) fails when an entry is older than 180 days or dated in the future.
 
 ### 12.3 Duplicates
+
+`lumen_application::duplicates` implements the bounded, cancellable grouping use
+case independently of metadata scanning. It collapses file identities before
+head/tail/full fingerprints and verifies members again before publishing groups.
+Groups are always `REVIEW`, including identical backups. Their logical redundancy
+does not promise physical savings: hard links are reported separately and clone or
+shared-block facts remain attached to each member. Inputs exceeding 100,000 entries
+or 32 MiB of path payload are rejected before reading. Readers must prevent link
+following and hydration; no content or fingerprint is sent to AI or telemetry.
+
+On macOS, `lumen_platform_macos::DuplicateReader` supplies the fingerprints: it
+opens with `O_NOFOLLOW_ANY` and dataless materialization off, attests the handle's
+identity, size, modification and change times before and after reading, and hashes
+4 KiB head and tail samples and then the whole file with BLAKE3 through a 64 KiB
+buffer. The samples use BLAKE3 rather than ADR-0019's XXH3, which avoids a second
+hash dependency; only the full hash establishes equality either way. A file with a
+resource fork never matches its scanned size and is skipped.
+
+On Windows, `lumen_platform_windows::DuplicateReader` does the same with cloud
+placeholders exposed for its thread. It first opens the file for its attributes
+only and refuses reparse points, offline, recall-on-open and recall-on-access
+files, system files and directories, or an object that is not the scanned one.
+Only then does it open the file again with `FILE_READ_DATA`, all share modes and no
+backup semantics, so a file's access checks always apply. It attests that handle's
+volume serial, file ID, size, last-write and change times before and after reading.
+A junction in a parent folder can redirect an open, but the file ID then differs
+and the file is skipped as changed.
+
+On Linux, `lumen_platform_linux::DuplicateReader` reads what
+`lumen_scan::StdFsEnumerator` listed. It opens with `openat2` and
+`RESOLVE_NO_SYMLINKS | RESOLVE_NO_MAGICLINKS`, so a link in any component is
+refused; a kernel without `openat2` (before 5.6, or filtered) reads nothing. Files
+on FUSE filesystems, where cloud-drive clients mount and a read can download, are
+never read. The descriptor's `st_dev`, `st_ino`, size, modification and change
+times are attested before and after reading, as on macOS.
+
+`lumen duplicates <PATH>... [--json]` (`lumen_app::duplicates::find`) runs both
+on folders the user names, never the whole disk by default. It lists them afresh
+from their real paths, skips quarantine stores like a scan, and leaves every file
+in a protected location unread (`lumen_policy::protected_location`, which fails
+closed when the location data or home is unknown). It prints paths and sizes for
+review; digests never leave the process, and nothing is chosen or removed. On
+Windows the roots lose `canonicalize`'s `\\?\` prefix for drive paths, as the
+scanner adds it itself. Other platforms report that the analysis is unsupported
+rather than finding nothing.
+
+In the desktop app, `compare_folders` takes no path: the host opens the system
+folder dialog and compares only the folders the person picks (ADR-0057). It
+shows the dialog on macOS and Windows; on Linux the app says comparing is
+unsupported.
 
 See [ADR-0019](../decisions/0019-staged-duplicate-detection.md). Exact duplicates are
 found in stages ending in a BLAKE3 content ID. Near-duplicates are `REVIEW` only.

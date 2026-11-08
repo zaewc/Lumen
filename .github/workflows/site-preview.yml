@@ -1,0 +1,93 @@
+name: site-preview
+
+# A pull request that changes the download site builds it and captures every
+# language's page at desktop width, and Korean and English at phone width, so
+# the change can be reviewed before a release publishes it (ADR-0054; the
+# `site` workflow deploys only from `main`). The built site and the captures
+# are artifacts. Informational, never required.
+on:
+  pull_request:
+    paths:
+      - apps/site/**
+      - packages/config/**
+      - pnpm-lock.yaml
+      - .github/workflows/site-preview.yml
+
+permissions: {}
+
+concurrency:
+  group: site-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: preview
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Install the site exactly as locked
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile --filter "@lumen/site..."
+      - name: Build
+        run: pnpm --filter @lumen/site build
+      - name: Install CJK fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+      - name: Capture the pages
+        run: |
+          out="$RUNNER_TEMP/site-screens"
+          mkdir -p "$out"
+          pnpm --filter @lumen/site exec astro preview --host 127.0.0.1 --port 4321 \
+            >"$RUNNER_TEMP/preview.log" 2>&1 &
+          for _ in $(seq 60); do
+            curl -sf http://127.0.0.1:4321/Lumen/ >/dev/null && break
+            sleep 1
+          done
+          # The runner's Chrome, isolated, on the loopback preview only. The
+          # job holds no secrets; Ubuntu 24.04's AppArmor blocks Chrome's
+          # namespace sandbox for unprivileged users.
+          shoot() {
+            google-chrome --headless=new --no-sandbox --hide-scrollbars \
+              --no-first-run --disable-background-networking --disable-component-update \
+              --user-data-dir="$(mktemp -d)" --force-device-scale-factor=1 \
+              --virtual-time-budget=5000 --window-size="$2" \
+              --screenshot="$out/$1.png" "http://127.0.0.1:4321/Lumen/$3" 2>/dev/null
+          }
+          shoot ko-desktop 1280,4000 ""
+          for locale in en ja ru zh-CN es; do
+            shoot "$locale-desktop" 1280,4000 "$locale/"
+          done
+          shoot ko-phone 390,8000 ""
+          shoot en-phone 390,8000 "en/"
+          {
+            echo "## Site preview"
+            echo
+            echo "The \`site-preview\` artifact holds the built site (\`dist\`) and"
+            echo "$(find "$out" -name '*.png' | wc -l) captures: every language at 1280 px, Korean and English at 390 px."
+          } >>"$GITHUB_STEP_SUMMARY"
+      - name: Preview server log
+        if: ${{ failure() }}
+        run: tail -n 50 "$RUNNER_TEMP/preview.log"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: site-preview
+          path: |
+            apps/site/dist
+            ${{ runner.temp }}/site-screens
+          retention-days: 14
+          if-no-files-found: ignore

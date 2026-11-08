@@ -16,8 +16,42 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    # Whether this pull request is documentation-only (scripts/ci-changes.sh).
+    # Jobs below skip their expensive steps when the answer is `false`, and run
+    # everything for any other answer, including none when this job fails.
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            *.actions.githubusercontent.com:443
+            actions-results-receiver-production.githubapp.com:443
+            *.blob.core.windows.net:443
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Documentation only?
+        id: classify
+        env:
+          EVENT: ${{ github.event_name }}
+        run: scripts/ci-changes.sh
+
   check:
     name: js check
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read

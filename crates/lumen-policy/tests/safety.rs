@@ -154,6 +154,7 @@ fn path() -> impl Strategy<Value = Vec<RawPath>> {
             Just("/home/t/.ssh/id_ed25519"),
             Just("/usr/lib/x"),
             Just("/usr/local/x"),
+            Just("/etc/x"),
             Just("/System/Library/x"),
             Just("/home/t/Library/CloudStorage/Dropbox/app/node_modules"),
             Just("/home/t/Dropbox/app/node_modules"),
@@ -274,12 +275,17 @@ fn must_keep(input: &PolicyInput) -> bool {
         .observed
         .as_ref()
         .is_none_or(|o| !o.complete || !o.entry.access.is_observed());
-    let system_path = input.context.platform == Platform::Macos
-        && input.paths.iter().any(|p| {
-            let bytes = p.as_bytes();
-            bytes.starts_with(b"/System/")
-                || (bytes.starts_with(b"/usr/") && !bytes.starts_with(b"/usr/local/"))
-        });
+    let system_path = input.paths.iter().any(|p| {
+        let bytes = p.as_bytes();
+        match input.context.platform {
+            Platform::Macos => {
+                bytes.starts_with(b"/System/")
+                    || (bytes.starts_with(b"/usr/") && !bytes.starts_with(b"/usr/local/"))
+            }
+            Platform::Linux => bytes.starts_with(b"/usr/") || bytes.starts_with(b"/etc/"),
+            _ => false,
+        }
+    });
     let sensitive_path = input
         .paths
         .iter()
@@ -295,13 +301,13 @@ fn must_keep(input: &PolicyInput) -> bool {
 
 /// Whether a path of the input is a folder holding a protected location
 /// (security audit FS-3): the home folder holds `.ssh`, `~/.config` Chrome's
-/// Linux profile, `~/Library` the macOS keychains and `/private/var` the
-/// macOS system database.
+/// Linux profile, `~/Library` the macOS keychains, `/private/var` the
+/// macOS system database and `/var` Linux's `/var/lib`.
 fn holds_protected(input: &PolicyInput) -> bool {
     let mac = input.context.platform == Platform::Macos;
     input.paths.iter().any(|p| match p.as_bytes() {
         b"/home/t" => true,
-        b"/home/t/.config" => !mac,
+        b"/home/t/.config" | b"/var" => !mac,
         b"/home/t/Library" | b"/private/var" => mac,
         _ => false,
     })
@@ -314,6 +320,7 @@ fn holder() -> impl Strategy<Value = RawPath> {
         Just("/home/t/.config"),
         Just("/home/t/Library"),
         Just("/private/var"),
+        Just("/var"),
     ]
     .prop_map(|p| {
         RawPath::from_unix_bytes(p.as_bytes().to_vec()).unwrap_or_else(|_| unreachable!())
@@ -422,6 +429,27 @@ proptest! {
         let without_jev = decide(&without)?.verdict();
         // `Keep` < `Review` < `Quarantine`: smaller is more cautious.
         prop_assert!(with_jev <= without_jev, "{:?} vs {:?}", with_jev, without_jev);
+    }
+
+    /// ADR-0059: when an application was last opened and when a project last
+    /// changed are shown, never decided on, so inactivity never promotes; and
+    /// a running owner only ever adds caution.
+    #[test]
+    fn usage_never_lowers_caution(input in policy_input(), at in 0_i64..4_000_000_000, running in any::<bool>()) {
+        let app = AppId {
+            scheme: AppIdScheme::BundleId,
+            value: UntrustedText::new("com.example.app"),
+        };
+        let when = Timestamp::from_unix(at, 0).unwrap_or_else(|_| unreachable!());
+        let before = decide(&input)?.verdict();
+        let mut dated = input.clone();
+        dated.evidence.push(evidence(Fact::ApplicationLastOpened { app: app.clone(), at: when }));
+        dated.evidence.push(evidence(Fact::ProjectActivity(when)));
+        prop_assert_eq!(decide(&dated)?.verdict(), before, "dates change nothing");
+        let mut run = input.clone();
+        run.evidence.push(evidence(Fact::ApplicationRunning { app, running }));
+        let after = decide(&run)?.verdict();
+        prop_assert!(after <= before, "{:?} vs {:?}", after, before);
     }
 
     #[test]

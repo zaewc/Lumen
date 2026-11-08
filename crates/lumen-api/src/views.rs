@@ -24,15 +24,35 @@ use lumen_domain::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+mod duplicates;
 mod facts;
 #[cfg(test)]
 mod fixture;
+mod reassess;
 mod relations;
+mod software;
 mod times;
+mod uninstall;
 
+pub use duplicates::{
+    CompareOutcomeView, CompareProgressView, CompareStageView, DuplicateGroupView, DuplicatesView,
+};
 pub use facts::{AppDataKindView, BasisView, FactKindView, FactView};
+pub use reassess::{
+    ReassessGapView, ReassessOutcomeView, ReassessRequest, ReassessView, ReassessedItemView,
+    candidate_id,
+};
 pub use relations::{MAX_RELATIONS, NodeView, RelationKindView, RelationView, RelationsView};
+pub use software::{
+    LinkedServiceView, RemovalImpactView, ServiceKindView, ServiceLinkMethodView, ServiceScopeView,
+    SoftwareItemView, SoftwareNoteView, SoftwareOriginView, SoftwarePurposeView,
+    SoftwareSourceStateView, SoftwareSourceView, SoftwareView, software_key, software_subjects,
+};
 pub use times::{TimeView, TimesView};
+pub use uninstall::{
+    UninstallAppView, UninstallNoteView, UninstallOutcomeView, UninstallPreviewView,
+    UninstallReasonView, UninstallResultView,
+};
 
 fn bytes(count: ByteCount) -> String {
     count.get().to_string()
@@ -242,6 +262,15 @@ pub struct CandidateView {
     pub reclaimable_exact: bool,
     /// Why: one reason per policy rule that fired, in the policy's order.
     pub reasons: Vec<ReasonView>,
+    /// Versioned descriptive review categories, never permission to change a
+    /// verdict. Optional on input for compatibility with older hosts.
+    #[serde(default)]
+    pub review_reasons: Option<ReviewReasonsView>,
+    /// What Lumen did not know when it decided, which "Check again" would ask
+    /// (ADR-0058); empty when the verdict rests on decisions only. Optional
+    /// on input for compatibility with older hosts.
+    #[serde(default)]
+    pub rechecks: Option<Vec<ReassessGapView>>,
     /// The cleanup command of the developer tool that owns it, if the tool
     /// has one: displayed in full and run by entry ID after desktop confirmation.
     #[schema(required = true)]
@@ -512,6 +541,87 @@ pub struct ReasonView {
     pub text: String,
 }
 
+/// Machine-readable uncertainty; unknown future codes remain displayable through
+/// the decision's localized fired-rule explanations and supporting facts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ReviewReasonsView {
+    /// `review-reasons/1` for this contract.
+    pub schema: String,
+    /// Stable `snake_case` categories. Strings preserve forward compatibility.
+    pub codes: Vec<String>,
+}
+
+fn review_reasons(assessed: &Assessed) -> Option<ReviewReasonsView> {
+    let reasons = lumen_application::review::reasons(assessed);
+    if reasons.is_empty() {
+        return None;
+    }
+    Some(ReviewReasonsView {
+        schema: lumen_domain::REVIEW_REASONS_SCHEMA.to_owned(),
+        codes: reasons
+            .into_iter()
+            .map(|reason| reason.as_str().to_owned())
+            .collect(),
+    })
+}
+
+#[cfg(test)]
+mod review_tests {
+    use super::*;
+    use lumen_domain::{AccessState, EntryKind, ReclaimEstimate};
+
+    #[test]
+    fn review_categories_preserve_the_decision_and_expose_unknowns()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut assessed = fixture::assessed(EntryKind::Directory, AccessState::Readable, vec![]);
+        let before = assessed.decision.clone();
+        let view = CandidateView::from(&assessed);
+        let reasons = view.review_reasons.ok_or("missing review reasons")?;
+        assert_eq!(reasons.schema, "review-reasons/1");
+        assert_eq!(
+            reasons.codes,
+            ["unknown_owner", "uncertain_reclaimable_size"]
+        );
+        assessed.input.observed = Some(lumen_policy::Observed {
+            entry: assessed.candidate.clone(),
+            complete: true,
+            reclaim: ReclaimEstimate {
+                partially_linked_files: 1,
+                exact: false,
+                ..ReclaimEstimate::default()
+            },
+        });
+        assert!(
+            review_reasons(&assessed)
+                .ok_or("missing review reasons")?
+                .codes
+                .contains(&"shared_resource".to_owned())
+        );
+        assert_eq!(
+            assessed.decision, before,
+            "describing never reevaluates policy"
+        );
+        assessed.decision = lumen_domain::PolicyDecision::new(
+            Verdict::Keep,
+            before.policy_version(),
+            before.evidence_hash(),
+            before.fired_rules().iter().cloned(),
+            before.risk().clone(),
+            before.jev_effect(),
+        )?;
+        assert_eq!(review_reasons(&assessed), None);
+        Ok(())
+    }
+
+    #[test]
+    fn future_codes_round_trip_for_existing_ui_rule_fallback() -> Result<(), serde_json::Error> {
+        let json = serde_json::json!({ "schema": "review-reasons/2", "codes": ["future_reason"] });
+        let view: ReviewReasonsView = serde_json::from_value(json.clone())?;
+        assert_eq!(serde_json::to_value(view)?, json);
+        Ok(())
+    }
+}
+
 impl From<&Assessed> for CandidateView {
     fn from(assessed: &Assessed) -> Self {
         // `explain` renders one sentence per fired rule, in the same order.
@@ -532,6 +642,13 @@ impl From<&Assessed> for CandidateView {
             reclaimable_bytes: bytes(reclaim(assessed)),
             reclaimable_exact: reclaim_exact(assessed),
             reasons,
+            review_reasons: review_reasons(assessed),
+            rechecks: Some(
+                lumen_application::reassess::gaps(assessed)
+                    .into_iter()
+                    .map(ReassessGapView::from)
+                    .collect(),
+            ),
             tool_command: tool_action(assessed).map(ToolCommandView::from),
             group: lumen_app::assess::group(assessed).into(),
             ai_note: assessed
@@ -1063,5 +1180,239 @@ impl AiSettingsView {
             key: key.map(|(service, _)| service).into(),
             key_source: key.map(|(_, source)| source.into()),
         }
+    }
+}
+
+/// A developer tool whose own storage report the desktop shows (#705, #706, #712).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolKindView {
+    /// Xcode's simulator runtimes, through `simctl`.
+    Xcode,
+    /// Docker's images, containers, volumes and build cache.
+    Docker,
+    /// Homebrew's download cache.
+    Homebrew,
+    /// npm's package cache.
+    Npm,
+    /// pnpm's shared package store.
+    Pnpm,
+}
+
+/// Whether the tool answered. Anything but `found` means unknown, never empty.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ToolStateView {
+    /// The tool answered completely.
+    Found,
+    /// The program is not installed where the user's terminal would find it.
+    NotInstalled,
+    /// This platform has no such tool or adapter.
+    Unsupported,
+    /// The tool could not answer completely.
+    Unavailable {
+        /// Why, in the core's words, for display.
+        reason: String,
+    },
+}
+
+/// One thing a tool reports, in the tool's own words and units.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ToolStorageItemView {
+    /// What it is: a runtime, a Docker category, or a location.
+    pub name: String,
+    /// The tool's state or counts for it, if any.
+    #[schema(required = true)]
+    pub detail: Option<String>,
+    /// An exact size in bytes, when the tool gives one.
+    #[schema(required = true)]
+    pub bytes: Option<String>,
+    /// A size as the tool wrote it (Docker), when it gives no byte count.
+    #[schema(required = true)]
+    pub reported_size: Option<String>,
+    /// What the tool itself estimates it could free; not a Lumen promise.
+    #[schema(required = true)]
+    pub reported_reclaimable: Option<String>,
+}
+
+/// What one developer tool reports about its storage. Read only on request;
+/// nothing here removes anything.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ToolStorageView {
+    /// The tool.
+    pub tool: ToolKindView,
+    /// Whether it answered.
+    pub state: ToolStateView,
+    /// Its version, as it prints it.
+    #[schema(required = true)]
+    pub version: Option<String>,
+    /// Which installation or daemon answered (Docker's context and endpoint).
+    #[schema(required = true)]
+    pub scope: Option<String>,
+    /// What it reported.
+    pub items: Vec<ToolStorageItemView>,
+    /// The tool's own cleanup command, literally; it runs only through the
+    /// confirmed flow (ADR-0049).
+    #[schema(required = true)]
+    pub command: Option<String>,
+    /// The location is a store projects link into (pnpm), not a cache.
+    pub shared_store: bool,
+}
+
+impl ToolStorageView {
+    const fn empty(tool: ToolKindView, state: ToolStateView) -> Self {
+        Self {
+            tool,
+            state,
+            version: None,
+            scope: None,
+            items: Vec::new(),
+            command: None,
+            shared_store: false,
+        }
+    }
+
+    fn failed(tool: ToolKindView, error: &lumen_app::xcode::InspectionError) -> Self {
+        use lumen_app::tools::ToolError;
+        use lumen_app::xcode::InspectionError;
+        let state = match error {
+            InspectionError::Tool(ToolError::NotFound(_)) => ToolStateView::NotInstalled,
+            InspectionError::Unsupported => ToolStateView::Unsupported,
+            other => ToolStateView::Unavailable {
+                reason: other.to_string(),
+            },
+        };
+        Self::empty(tool, state)
+    }
+
+    /// Every tool's report, in a fixed order.
+    pub fn all(
+        xcode: &Result<lumen_app::xcode::Inventory, lumen_app::xcode::InspectionError>,
+        docker: &Result<lumen_app::docker::Inventory, lumen_app::xcode::InspectionError>,
+        packages: &lumen_app::packages::Inventory,
+    ) -> Vec<Self> {
+        let mut views = vec![
+            match xcode {
+                Ok(inventory) => Self {
+                    items: inventory
+                        .runtimes
+                        .iter()
+                        .map(|runtime| ToolStorageItemView {
+                            name: format!("{} ({})", runtime.version, runtime.build),
+                            detail: Some(runtime.state.clone()),
+                            bytes: runtime.reported_image_bytes.clone(),
+                            reported_size: None,
+                            reported_reclaimable: None,
+                        })
+                        .collect(),
+                    ..Self::empty(ToolKindView::Xcode, ToolStateView::Found)
+                },
+                Err(error) => Self::failed(ToolKindView::Xcode, error),
+            },
+            match docker {
+                Ok(inventory) => Self {
+                    version: Some(inventory.client_version.clone()),
+                    scope: Some(format!("{} ({})", inventory.context, inventory.endpoint)),
+                    items: inventory
+                        .categories
+                        .iter()
+                        .map(|usage| ToolStorageItemView {
+                            name: usage.kind.clone(),
+                            detail: Some(format!("{}/{}", usage.active, usage.total)),
+                            bytes: None,
+                            reported_size: Some(usage.reported_size.clone()),
+                            reported_reclaimable: Some(usage.reported_reclaimable.clone()),
+                        })
+                        .collect(),
+                    ..Self::empty(ToolKindView::Docker, ToolStateView::Found)
+                },
+                Err(error) => Self::failed(ToolKindView::Docker, error),
+            },
+        ];
+        views.extend(packages.tools.iter().map(Self::package));
+        views
+    }
+
+    fn package(tool: &lumen_app::packages::Tool) -> Self {
+        use lumen_app::packages::{Status, StoreKind};
+        let kind = match tool.name {
+            "Homebrew" => ToolKindView::Homebrew,
+            "npm" => ToolKindView::Npm,
+            _ => ToolKindView::Pnpm,
+        };
+        let (state, version, items) = match &tool.status {
+            Status::Found { version, location } => (
+                ToolStateView::Found,
+                Some(version.clone()),
+                vec![ToolStorageItemView {
+                    name: location.clone(),
+                    detail: None,
+                    bytes: None,
+                    reported_size: None,
+                    reported_reclaimable: None,
+                }],
+            ),
+            Status::NotInstalled => (ToolStateView::NotInstalled, None, Vec::new()),
+            Status::Unavailable { reason } => (
+                ToolStateView::Unavailable {
+                    reason: reason.clone(),
+                },
+                None,
+                Vec::new(),
+            ),
+        };
+        Self {
+            version,
+            items,
+            command: tool.cleanup.clone(),
+            shared_store: tool.kind == StoreKind::SharedStore,
+            ..Self::empty(kind, state)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tool_storage_tests {
+    use super::*;
+    use lumen_app::packages::{Inventory as Packages, Status, StoreKind, Tool};
+    use lumen_app::tools::ToolError;
+    use lumen_app::xcode::InspectionError;
+
+    #[test]
+    fn missing_unsupported_and_failed_tools_are_unknown_never_empty() {
+        let packages = Packages {
+            schema_version: 1,
+            tools: vec![Tool {
+                name: "pnpm",
+                kind: StoreKind::SharedStore,
+                entry: "pnpm-store",
+                cleanup: Some("pnpm store prune".into()),
+                status: Status::Found {
+                    version: "10.33.0".into(),
+                    location: "/Users/a/Library/pnpm/store/v10".into(),
+                },
+            }],
+            limitation: "",
+        };
+        let views = ToolStorageView::all(
+            &Err(InspectionError::Unsupported),
+            &Err(InspectionError::Tool(ToolError::NotFound("docker".into()))),
+            &packages,
+        );
+        assert_eq!(views[0].state, ToolStateView::Unsupported);
+        assert_eq!(views[1].state, ToolStateView::NotInstalled);
+        assert!(views[0].items.is_empty() && views[1].items.is_empty());
+        assert_eq!(views[2].tool, ToolKindView::Pnpm);
+        assert!(views[2].shared_store);
+        assert_eq!(views[2].command.as_deref(), Some("pnpm store prune"));
+        let timed_out = ToolStorageView::all(
+            &Err(InspectionError::Timeout),
+            &Err(InspectionError::Timeout),
+            &packages,
+        );
+        assert!(matches!(
+            timed_out[0].state,
+            ToolStateView::Unavailable { .. }
+        ));
     }
 }

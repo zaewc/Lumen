@@ -142,6 +142,12 @@ export type CandidateView = {
    */
   reasons: Array<ReasonView>;
   /**
+   * What Lumen did not know when it decided, which "Check again" would ask
+   * (ADR-0058); empty when the verdict rests on decisions only. Optional
+   * on input for compatibility with older hosts.
+   */
+  rechecks?: Array<ReassessGapView> | null;
+  /**
    * What removing it would free now, in bytes.
    */
   reclaimable_bytes: string;
@@ -155,6 +161,7 @@ export type CandidateView = {
    * and bounded (ADR-0053).
    */
   relations: RelationsView;
+  review_reasons?: ReviewReasonsView | null;
   /**
    * Its modification and access times as the decision saw them, each
    * saying how far it can be relied on (ADR-0053).
@@ -173,6 +180,53 @@ export type CandidateView = {
 export type ChooserView = "policy" | "person";
 
 /**
+ * How a comparison ended.
+ */
+export type CompareOutcomeView =
+  | {
+      kind: "nothing_chosen";
+    }
+  | {
+      kind: "unsupported";
+    }
+  | {
+      kind: "too_many";
+      /**
+       * The most files one comparison covers.
+       */
+      limit: string;
+    }
+  | {
+      kind: "cancelled";
+    }
+  | {
+      kind: "compared";
+      /**
+       * What it found.
+       */
+      report: DuplicatesView;
+    };
+
+/**
+ * A running comparison's step and how many files it has read.
+ */
+export type CompareProgressView = {
+  /**
+   * Files read so far.
+   */
+  files_read: string;
+  /**
+   * The step.
+   */
+  stage: CompareStageView;
+};
+
+/**
+ * Which comparison step is running.
+ */
+export type CompareStageView = "head" | "tail" | "full";
+
+/**
  * How sure AI review was.
  */
 export type ConfidenceView = "low" | "medium" | "high";
@@ -189,6 +243,51 @@ export type DiskView = {
    * The volume's size, in bytes.
    */
   total_bytes: string;
+};
+
+/**
+ * Files with the same contents, for a person to review.
+ */
+export type DuplicateGroupView = {
+  /**
+   * The size of each copy, in bytes.
+   */
+  bytes_each: string;
+  /**
+   * Where each copy is.
+   */
+  paths: Array<string>;
+};
+
+/**
+ * What a comparison found and what it could not cover.
+ */
+export type DuplicatesView = {
+  /**
+   * The folders the person chose.
+   */
+  folders: Array<string>;
+  /**
+   * Identical copies, the largest extra copies first. Copies can share
+   * blocks (APFS clones), so this is not space removing one would free.
+   */
+  groups: Array<DuplicateGroupView>;
+  /**
+   * Names of one file (hard links): not copies, and removing one frees nothing.
+   */
+  hard_links: Array<Array<string>>;
+  /**
+   * Some folders could not be listed completely; files there were not compared.
+   */
+  incomplete: boolean;
+  /**
+   * Files left unread in protected locations.
+   */
+  protected: string;
+  /**
+   * Files not compared: changed, unreadable, cloud-only or protected by the system.
+   */
+  skipped: string;
 };
 
 /**
@@ -310,6 +409,35 @@ export type FactKindView =
        */
       owned: boolean;
       type: "owned_by_current_user";
+    }
+  | {
+      /**
+       * The application's identifier.
+       */
+      app: string;
+      /**
+       * Whether a process runs it.
+       */
+      running: boolean;
+      type: "application_running";
+    }
+  | {
+      /**
+       * The application's identifier.
+       */
+      app: string;
+      /**
+       * When it was last opened.
+       */
+      at: string;
+      type: "application_last_opened";
+    }
+  | {
+      /**
+       * When the project last changed.
+       */
+      at: string;
+      type: "project_activity";
     };
 
 /**
@@ -517,6 +645,36 @@ export type ItemResultView =
     };
 
 /**
+ * A background item linked to a piece of software.
+ */
+export type LinkedServiceView = {
+  /**
+   * It matched other software too: this is one candidate, not the owner.
+   */
+  ambiguous: boolean;
+  /**
+   * What kind of item.
+   */
+  kind: ServiceKindView;
+  /**
+   * Its label, service name or entry name; display-escaped.
+   */
+  label: string;
+  /**
+   * The evidence for the link.
+   */
+  method: ServiceLinkMethodView;
+  /**
+   * User or system.
+   */
+  scope: ServiceScopeView;
+  /**
+   * The link is proven: its program lies inside this software and no other.
+   */
+  verified: boolean;
+};
+
+/**
  * Where an item is after a failure.
  */
 export type LocationView = "source" | "quarantine" | "gone";
@@ -630,6 +788,80 @@ export type ReasonView = {
 };
 
 /**
+ * Something the earlier assessment did not know.
+ */
+export type ReassessGapView = "in_use" | "unread" | "stale" | "owner";
+
+/**
+ * How checking one item again ended.
+ */
+export type ReassessOutcomeView =
+  | {
+      kind: "settled";
+    }
+  | {
+      kind: "changed";
+    }
+  | {
+      /**
+       * How many facts the checks added.
+       */
+      added_facts: string;
+      /**
+       * The item as decided now.
+       */
+      candidate: CandidateView;
+      kind: "decided";
+    };
+
+/**
+ * Which items to check again.
+ */
+export type ReassessRequest = {
+  /**
+   * Items of the latest assessment, by [`CandidateView::id`]. Empty: every
+   * item kept or reviewed because of something Lumen did not know.
+   */
+  ids: Array<string>;
+};
+
+/**
+ * Items checked again, in order.
+ */
+export type ReassessView = {
+  /**
+   * The run stopped early; later items were not checked.
+   */
+  cancelled: boolean;
+  /**
+   * Every item checked before the run ended.
+   */
+  items: Array<ReassessedItemView>;
+};
+
+/**
+ * One item checked again.
+ */
+export type ReassessedItemView = {
+  /**
+   * Its earlier verdict.
+   */
+  before: VerdictView;
+  /**
+   * What was unknown.
+   */
+  gaps: Array<ReassessGapView>;
+  /**
+   * Its ID, as in the assessment.
+   */
+  id: string;
+  /**
+   * How it ended.
+   */
+  outcome: ReassessOutcomeView;
+};
+
+/**
  * The kind of a relationship, read `from <kind> to`.
  */
 export type RelationKindView =
@@ -683,6 +915,18 @@ export type RelationsView = {
 };
 
 /**
+ * What AI review says removing a piece of software could affect besides
+ * itself (ADR-0061): a description, never a statement that removal is safe.
+ */
+export type RemovalImpactView =
+  | "only_this_app"
+  | "other_software_depends"
+  | "stops_background_activity"
+  | "security_or_access"
+  | "system_function"
+  | "unknown";
+
+/**
  * How much a failed removal took.
  */
 export type RemovedView = "nothing" | "partly" | "item";
@@ -732,6 +976,21 @@ export type RestoreView =
   | {
       kind: "not_restorable";
     };
+
+/**
+ * Machine-readable uncertainty; unknown future codes remain displayable through
+ * the decision's localized fired-rule explanations and supporting facts.
+ */
+export type ReviewReasonsView = {
+  /**
+   * Stable `snake_case` categories. Strings preserve forward compatibility.
+   */
+  codes: Array<string>;
+  /**
+   * `review-reasons/1` for this contract.
+   */
+  schema: string;
+};
 
 /**
  * What a scan found below one root.
@@ -849,6 +1108,29 @@ export type ScanView = {
 };
 
 /**
+ * What kind of background item.
+ */
+export type ServiceKindView =
+  | "launch_agent"
+  | "launch_daemon"
+  | "login_item"
+  | "windows_service"
+  | "driver"
+  | "scheduled_task"
+  | "startup_entry"
+  | "other";
+
+/**
+ * The evidence linking a background item to a piece of software.
+ */
+export type ServiceLinkMethodView = "program_inside_application" | "label_matches_bundle_id";
+
+/**
+ * Whether a background item runs for one user or for the whole system.
+ */
+export type ServiceScopeView = "user" | "system";
+
+/**
  * Why a planned item was not moved.
  */
 export type SkipView =
@@ -859,6 +1141,150 @@ export type SkipView =
   | "reasons_changed"
   | "not_prepared"
   | "manifest";
+
+/**
+ * One application or package.
+ */
+export type SoftwareItemView = {
+  ai_note: SoftwareNoteView | null;
+  /**
+   * Whether it was installed on request rather than as another package's
+   * dependency; `None` where the record does not say.
+   */
+  explicit: boolean | null;
+  /**
+   * The platform's own list hides it (Windows `SystemComponent`).
+   */
+  hidden: boolean;
+  /**
+   * Its native identifier, display-escaped.
+   */
+  id: string;
+  /**
+   * A key unique in the list: the origin and the native identifier.
+   */
+  key: string;
+  /**
+   * Where it is installed, if recorded; display-escaped.
+   */
+  location: string | null;
+  /**
+   * Its display name, if the record has one; display-escaped.
+   */
+  name: string | null;
+  /**
+   * Which inventory recorded it.
+   */
+  origin: SoftwareOriginView;
+  /**
+   * Part of the operating system or marked by its platform as not
+   * removable: never removable from Lumen (ADR-0060).
+   */
+  protected: boolean;
+  /**
+   * Background items linked to it, verified first.
+   */
+  services: Array<LinkedServiceView>;
+  /**
+   * Its publisher or vendor, as recorded; display-escaped.
+   */
+  vendor: string | null;
+  /**
+   * Its version, as recorded; display-escaped.
+   */
+  version: string | null;
+};
+
+/**
+ * An AI note on a piece of software: closed choices and a confidence, never
+ * model text. Display only (ADR-0061).
+ */
+export type SoftwareNoteView = {
+  /**
+   * How sure AI review was.
+   */
+  confidence: ConfidenceView;
+  /**
+   * What it is most likely for.
+   */
+  purpose: SoftwarePurposeView;
+  /**
+   * What removing it could most likely affect.
+   */
+  removal_impact: RemovalImpactView;
+};
+
+/**
+ * Which inventory recorded a piece of software, and so how it is identified.
+ */
+export type SoftwareOriginView =
+  | "mac_app"
+  | "mac_installer"
+  | "homebrew"
+  | "homebrew_cask"
+  | "windows_program"
+  | "msix"
+  | "dpkg"
+  | "rpm"
+  | "pacman"
+  | "flatpak"
+  | "snap"
+  | "other";
+
+/**
+ * What AI review says a piece of software is mainly for (ADR-0061).
+ */
+export type SoftwarePurposeView =
+  | "web_browser"
+  | "communication"
+  | "media"
+  | "office_or_productivity"
+  | "development_tool"
+  | "design_or_creative"
+  | "game"
+  | "security_or_banking"
+  | "system_or_driver"
+  | "cloud_sync_or_backup"
+  | "utility"
+  | "runtime_or_library"
+  | "unknown";
+
+/**
+ * How completely one inventory was read.
+ */
+export type SoftwareSourceStateView = "complete" | "partial" | "unavailable";
+
+/**
+ * One inventory and how completely it was read.
+ */
+export type SoftwareSourceView = {
+  /**
+   * How many rows, or background items, it gave.
+   */
+  count: number;
+  /**
+   * The inventory's name, such as `macos.homebrew`.
+   */
+  source: string;
+  /**
+   * How completely it was read.
+   */
+  state: SoftwareSourceStateView;
+};
+
+/**
+ * The installed software list.
+ */
+export type SoftwareView = {
+  /**
+   * Every application and package, by name.
+   */
+  items: Array<SoftwareItemView>;
+  /**
+   * Every inventory read, with how completely.
+   */
+  sources: Array<SoftwareSourceView>;
+};
 
 /**
  * Observed free space on one volume, not a causal cleanup guarantee.
@@ -954,6 +1380,11 @@ export type ToolCommandView = {
 };
 
 /**
+ * A developer tool whose own storage report the desktop shows (#705, #706, #712).
+ */
+export type ToolKindView = "xcode" | "docker" | "homebrew" | "npm" | "pnpm";
+
+/**
  * How running a tool's command ended (ADR-0049).
  */
 export type ToolRunView = {
@@ -978,6 +1409,259 @@ export type ToolRunView = {
    */
   timed_out: boolean;
 };
+
+/**
+ * Whether the tool answered. Anything but `found` means unknown, never empty.
+ */
+export type ToolStateView =
+  | {
+      kind: "found";
+    }
+  | {
+      kind: "not_installed";
+    }
+  | {
+      kind: "unsupported";
+    }
+  | {
+      kind: "unavailable";
+      /**
+       * Why, in the core's words, for display.
+       */
+      reason: string;
+    };
+
+/**
+ * One thing a tool reports, in the tool's own words and units.
+ */
+export type ToolStorageItemView = {
+  /**
+   * An exact size in bytes, when the tool gives one.
+   */
+  bytes: string | null;
+  /**
+   * The tool's state or counts for it, if any.
+   */
+  detail: string | null;
+  /**
+   * What it is: a runtime, a Docker category, or a location.
+   */
+  name: string;
+  /**
+   * What the tool itself estimates it could free; not a Lumen promise.
+   */
+  reported_reclaimable: string | null;
+  /**
+   * A size as the tool wrote it (Docker), when it gives no byte count.
+   */
+  reported_size: string | null;
+};
+
+/**
+ * What one developer tool reports about its storage. Read only on request;
+ * nothing here removes anything.
+ */
+export type ToolStorageView = {
+  /**
+   * The tool's own cleanup command, literally; it runs only through the
+   * confirmed flow (ADR-0049).
+   */
+  command: string | null;
+  /**
+   * What it reported.
+   */
+  items: Array<ToolStorageItemView>;
+  /**
+   * Which installation or daemon answered (Docker's context and endpoint).
+   */
+  scope: string | null;
+  /**
+   * The location is a store projects link into (pnpm), not a cache.
+   */
+  shared_store: boolean;
+  /**
+   * Whether it answered.
+   */
+  state: ToolStateView;
+  /**
+   * The tool.
+   */
+  tool: ToolKindView;
+  /**
+   * Its version, as it prints it.
+   */
+  version: string | null;
+};
+
+/**
+ * The application a preview is about, as observed now.
+ */
+export type UninstallAppView = {
+  /**
+   * Its bundle identifier; display-escaped.
+   */
+  bundle_id: string;
+  /**
+   * The software list's key, as given.
+   */
+  key: string;
+  /**
+   * Its display name, if it has one; display-escaped.
+   */
+  name: string | null;
+  /**
+   * What happens to it and its data.
+   */
+  notes: Array<UninstallNoteView>;
+  /**
+   * Where it is, for showing only; display-escaped.
+   */
+  path: string;
+  /**
+   * What removing it for good would free, in bytes.
+   */
+  size_bytes: string;
+  /**
+   * Every folder inside it was listed; otherwise the size is a lower
+   * bound.
+   */
+  size_complete: boolean;
+  /**
+   * Its version, if recorded; display-escaped.
+   */
+  version: string | null;
+};
+
+/**
+ * What happens to the app and its data when it is uninstalled this way.
+ */
+export type UninstallNoteView = "goes_to_quarantine" | "library_data_stays";
+
+/**
+ * An executed uninstall preview.
+ */
+export type UninstallOutcomeView = {
+  /**
+   * Where the app was, for showing only; display-escaped.
+   */
+  path: string;
+  /**
+   * The preview.
+   */
+  preview: string;
+  /**
+   * Interrupted operations from earlier runs that were resolved first.
+   */
+  resolved: string;
+  /**
+   * What happened.
+   */
+  result: UninstallResultView;
+  /**
+   * What removing it for good frees, as previewed, in bytes.
+   */
+  size_bytes: string;
+  /**
+   * Problems that did not stop it.
+   */
+  warnings: Array<string>;
+};
+
+/**
+ * What uninstalling an application into quarantine would do.
+ */
+export type UninstallPreviewView =
+  | {
+      /**
+       * The application.
+       */
+      app: UninstallAppView;
+      /**
+       * When it was made; it expires 24 hours later.
+       */
+      created_at: string;
+      /**
+       * Its full hash: the confirmation.
+       */
+      hash: string;
+      kind: "ready";
+      /**
+       * The preview's ID, for `uninstall`.
+       */
+      preview: string;
+    }
+  | {
+      /**
+       * The application.
+       */
+      app: UninstallAppView;
+      kind: "refused";
+      /**
+       * Every reason, at least one.
+       */
+      reasons: Array<UninstallReasonView>;
+    }
+  | {
+      kind: "not_found";
+    }
+  | {
+      kind: "ambiguous";
+    }
+  | {
+      kind: "unsupported";
+    };
+
+/**
+ * Why an application cannot be uninstalled into quarantine. Each `*_unknown`
+ * reason is a check Lumen could not answer, which never counts as passing.
+ */
+export type UninstallReasonView =
+  | "not_in_applications"
+  | "protected"
+  | "not_a_bundle"
+  | "owner_unknown"
+  | "not_owned_by_user"
+  | "services_unknown"
+  | "service_linked"
+  | "helpers_unknown"
+  | "has_helpers"
+  | "running_unknown"
+  | "running"
+  | "store_unknown"
+  | "no_store_on_volume";
+
+/**
+ * What became of the application.
+ */
+export type UninstallResultView =
+  | {
+      kind: "quarantined";
+      /**
+       * The operation, for restoring or removing it for good.
+       */
+      operation: string;
+    }
+  | {
+      kind: "refused";
+      /**
+       * Every reason, at least one.
+       */
+      reasons: Array<UninstallReasonView>;
+    }
+  | {
+      kind: "changed";
+    }
+  | {
+      kind: "failed";
+      /**
+       * Where the app is.
+       */
+      left: LocationView;
+      /**
+       * Why.
+       */
+      reason: FailureView;
+    };
 
 /**
  * The app's version and whether a newer one is published (ADR-0048).

@@ -70,8 +70,13 @@ export function Results({
   const listed = zoomed === undefined ? candidates : candidatesIn(zoomed);
   const sections = sectionsOf(listed.filter((candidate) => shows(filter, candidate)));
   const closing = closingSummary(candidates);
+  // The open item as assessed now: checking it again replaces it.
+  const shown = open === null ? null : (candidates.find((c) => c.path === open.path) ?? open);
   // What the open item is related to, across the whole assessment.
-  const lens = useMemo(() => (open === null ? null : lensOf(open, candidates)), [open, candidates]);
+  const lens = useMemo(
+    () => (shown === null ? null : lensOf(shown, candidates)),
+    [shown, candidates],
+  );
   return (
     <>
       <FlowStage step="results" />
@@ -126,7 +131,7 @@ export function Results({
         </>
       )}
       <ScanDetails scan={scan} />
-      <CandidateSheet candidate={open} lens={lens} onClose={() => setOpen(null)} />
+      <CandidateSheet candidate={shown} lens={lens} onClose={() => setOpen(null)} />
     </>
   );
 }

@@ -22,9 +22,8 @@ impl LedgerStore {
         operation: OperationId,
         reclaim: ByteCount,
     ) -> Result<(), StoreError> {
-        let bytes = i64::try_from(reclaim.get()).map_err(|_| StoreError::Corrupt {
-            column: "quarantine_sizes.reclaim_bytes",
-        })?;
+        let bytes = i64::try_from(reclaim.get())
+            .map_err(|_| StoreError::corrupt("quarantine_sizes.reclaim_bytes"))?;
         self.conn.execute(
             "INSERT OR IGNORE INTO quarantine_sizes (operation_id, reclaim_bytes) VALUES (?1, ?2)",
             params![operation.to_string(), bytes],
@@ -47,12 +46,11 @@ impl LedgerStore {
         })?;
         rows.map(|row| {
             let (operation, bytes) = row?;
-            let operation = operation.parse().map_err(|_| StoreError::Corrupt {
-                column: "quarantine_sizes.operation_id",
-            })?;
-            let bytes = u64::try_from(bytes).map_err(|_| StoreError::Corrupt {
-                column: "quarantine_sizes.reclaim_bytes",
-            })?;
+            let operation = operation
+                .parse()
+                .map_err(|_| StoreError::corrupt("quarantine_sizes.operation_id"))?;
+            let bytes = u64::try_from(bytes)
+                .map_err(|_| StoreError::corrupt("quarantine_sizes.reclaim_bytes"))?;
             Ok((operation, ByteCount::new(bytes)))
         })
         .collect()

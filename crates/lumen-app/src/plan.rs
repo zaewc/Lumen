@@ -18,12 +18,10 @@ use lumen_domain::{
     Chooser, CleanupPlan, FileIdentity, Judgment, PlannedItem, PolicyDecision, RawPath, Subject,
     Timestamp, Verdict,
 };
+use lumen_policy::ids::CLASSIFY_DEVKB_TOOL_ACTION as TOOL_ACTION;
 use lumen_store_sqlite::{IndexStore, LedgerStore, StoreError, open_index, open_ledger};
 
 use crate::assess::{AssessError, DecisionFailures, tool_action};
-
-/// The rule that leaves an item for its tool's own command.
-const TOOL_ACTION: &str = "classify.devkb-tool-action";
 
 /// Why a path the person chose cannot enter a plan (ADR-0051).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

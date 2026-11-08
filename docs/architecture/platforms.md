@@ -100,6 +100,14 @@ Research: [03-macos-platform](../research/03-macos-platform.md),
 - Excluded from backups and indexing.
 - The Trash is only an optional release step, via `FileManager.trashItem` called
   directly, recording the resulting URL.
+- Uninstalling an app ([ADR-0062](../decisions/0062-uninstall-macos-apps-into-quarantine.md),
+  `lumen_app::uninstall`) moves its bundle into the same store, as a one-item plan
+  the person confirms by hash. Only a `.app` directly in `/Applications` or
+  `~/Applications` that the user owns, with no linked background item, no
+  `Contents/Library/{LoginItems, LaunchServices, LaunchAgents, LaunchDaemons,
+  SystemExtensions}`, not running, and on a volume with a store; any check that
+  cannot be answered refuses. The gate runs at the preview and again right before the
+  move. The cleanup policy is not asked.
 
 **Hard `KEEP`:**
 
@@ -205,7 +213,11 @@ registrations (`VolumeCaches`) are high-trust vendor evidence.
 **Inventory:**
 
 - Installed apps: Uninstall keys (three views), MSI (`MsiEnumProductsExW`), AppX
-  (`FindPackagesForUser`), and optional winget enrichment.
+  (`FindPackagesForUser`), and optional winget enrichment. Each Uninstall entry also
+  keeps what it records about removal (`UninstallString`, `QuietUninstallString`,
+  `WindowsInstaller`, `SystemComponent`, `NoRemove`, `ParentKeyName`) as untrusted
+  text, never run as written (ADR-0060); a Windows Installer entry keyed by a GUID
+  also carries its product code.
 - Startup: Run/RunOnce, Startup folders, `StartupApproved`, Task Scheduler (hidden
   included), and services and drivers (report-only).
 - Disabling uses reversible toggles with per-item consent. Uninstall is never a

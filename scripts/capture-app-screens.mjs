@@ -1,5 +1,7 @@
 // Retake the website and README captures from the real UI, using sample data only.
 // Node 24, cwebp and an isolated Chrome CDP session; see site-illustrations.md.
+// With LUMEN_CAPTURE_OUT set, it only writes the PNGs to that folder and leaves
+// the committed captures alone: the web-screens workflow's preview of a PR.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
@@ -99,10 +101,14 @@ async function click(expression) {
     if (!element) return false; element.click(); return true; })()`), true, expression);
 }
 
-const output = await mkdtemp(join(tmpdir(), "lumen-app-captures-"));
+const preview = process.env.LUMEN_CAPTURE_OUT;
+const output = preview ?? (await mkdtemp(join(tmpdir(), "lumen-app-captures-")));
 const readme = join(repo, "docs/assets/readme");
 const site = join(repo, "apps/site/public/screens");
-await Promise.all([mkdir(readme, { recursive: true }), mkdir(site, { recursive: true })]);
+await mkdir(output, { recursive: true });
+if (preview === undefined) {
+  await Promise.all([mkdir(readme, { recursive: true }), mkdir(site, { recursive: true })]);
+}
 
 async function capture(name, locale, theme) {
   await evaluate("document.fonts.ready.then(() => true)");
@@ -112,6 +118,8 @@ async function capture(name, locale, theme) {
   const png = Buffer.from(image.data, "base64");
   const temporary = join(output, `${name}-${locale}-${theme}.png`);
   await writeFile(temporary, png);
+  console.log(`${locale} ${theme}: ${name}`);
+  if (preview !== undefined) return;
   if (locale === "en") await writeFile(join(readme, `${name}-${theme}.png`), png);
   if (theme === "light" && name !== "overview") {
     execFileSync("cwebp", [
@@ -119,7 +127,6 @@ async function capture(name, locale, theme) {
       temporary, "-o", join(site, `${name}-${locale}.webp`),
     ]);
   }
-  console.log(`${locale} ${theme}: ${name}`);
 }
 
 let preload;
@@ -193,7 +200,11 @@ try {
   assert.equal(injected, 4);
   assert.deepEqual(errors, []);
   assert.ok([...requests].filter((url) => /^https?:/.test(url)).every(local), "No external requests");
-  console.log(`Refreshed 8 README PNGs and 6 website WebPs. Originals: ${output}`);
+  console.log(
+    preview === undefined
+      ? `Refreshed 8 README PNGs and 6 website WebPs. Originals: ${output}`
+      : `Wrote 16 captures to ${output}`,
+  );
 } finally {
   await send("Page.close");
   ws.close();

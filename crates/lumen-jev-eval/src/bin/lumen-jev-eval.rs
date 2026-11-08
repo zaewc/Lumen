@@ -7,6 +7,8 @@
 //! lumen-jev-eval record --dataset <VERSION> --out <FILE> [--split <NAME>]
 //!                       [--judge jeb|apple-fm|hub-chat] [--prompt v1|v2] [--helper <PATH>]
 //!                       [--ai <DIR>] [--resume <FILE>]
+//! lumen-jev-eval run-software    --dataset <VERSION> --cassette <FILE> [--ai <DIR>] [--json]
+//! lumen-jev-eval record-software --dataset <VERSION> --out <FILE> [--ai <DIR>] [--resume <FILE>]
 //! ```
 //!
 //! `run` loads the dataset version from `ai/` (verified against its manifest),
@@ -40,6 +42,13 @@
 //! The output must not exist yet: nothing is ever overwritten. It exits with 0
 //! when every case was recorded, 1 when some were not (the rest are still
 //! written), and 2 for usage or input errors.
+//!
+//! `run-software` and `record-software` do the same for software notes
+//! (`jev-software/1`, ADR-0061): a software dataset, a
+//! `jev.software-cassette/1`, and Jeb asked through `JevJudge::ask_software`.
+//! `run-software` exits with 1 when a protected case is answered
+//! `only_this_app` or has no valid answer, or an adversarial case is answered
+//! `only_this_app` where that is not acceptable.
 
 // A command-line tool reports to the terminal by design.
 #![allow(clippy::print_stdout, clippy::print_stderr)]
@@ -52,16 +61,20 @@ use std::time::{Duration, Instant};
 
 use lumen_app::ai::Service;
 use lumen_application::ports::JudgeModel as _;
-use lumen_domain::{JevRequest, JudgeDescriptor};
+use lumen_domain::{JevRequest, JudgeDescriptor, SoftwareRequest};
 use lumen_jev::decisions::Prompt;
 use lumen_jev::openrouter::{ApiKey, JevJudge};
 use lumen_jev_eval::{
     ANSWER_TIMEOUT, CRITICAL_FPR_TARGET, Cassette, CassetteError, Dataset, DatasetReport, FmHelper,
-    LiveError, LiveJudge, Pacing, RecordOutcome, ReplayJudge, Report, load, record, run_dataset,
+    LiveError, LiveExplainer, LiveJudge, Pacing, RecordOutcome, ReplayJudge, Report,
+    SoftwareCassette, SoftwareReplay, SoftwareReport, load, load_software, record, record_software,
+    run_dataset, run_software,
 };
 
 const USAGE: &str = "usage: lumen-jev-eval run --dataset <VERSION> --cassette <FILE> [--split <NAME>] [--prompt v1|v2] [--ai <DIR>] [--gate full|observed] [--json]
        lumen-jev-eval record --dataset <VERSION> --out <FILE> [--split <NAME>] [--judge jeb|apple-fm|hub-chat] [--prompt v1|v2] [--helper <PATH>] [--ai <DIR>] [--resume <FILE>]
+       lumen-jev-eval run-software --dataset <VERSION> --cassette <FILE> [--ai <DIR>] [--json]
+       lumen-jev-eval record-software --dataset <VERSION> --out <FILE> [--ai <DIR>] [--resume <FILE>]
 splits: dev, calibration, test-locked (canaries go with their twin's split)";
 
 /// Which gate decides the exit status.
@@ -124,20 +137,43 @@ fn prompt(value: &str) -> Result<Prompt, String> {
     }
 }
 
+/// Parsed `run-software` arguments.
+#[derive(Debug, PartialEq, Eq)]
+struct SoftwareRunArgs {
+    dataset: String,
+    cassette: PathBuf,
+    ai: PathBuf,
+    json: bool,
+}
+
+/// Parsed `record-software` arguments; the judge is always Jeb.
+#[derive(Debug, PartialEq, Eq)]
+struct SoftwareRecordArgs {
+    dataset: String,
+    out: PathBuf,
+    ai: PathBuf,
+    /// An earlier, incomplete recording whose answers are kept.
+    resume: Option<PathBuf>,
+}
+
 /// A parsed command line.
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
     Run(RunArgs),
     Record(RecordArgs),
+    RunSoftware(SoftwareRunArgs),
+    RecordSoftware(SoftwareRecordArgs),
 }
 
 fn parse(args: &[String]) -> Result<Command, String> {
     let Some((command, rest)) = args.split_first() else {
         return Err("a command is needed".into());
     };
-    let record = match command.as_str() {
-        "run" => false,
-        "record" => true,
+    let (record, software) = match command.as_str() {
+        "run" => (false, false),
+        "record" => (true, false),
+        "run-software" => (false, true),
+        "record-software" => (true, true),
         _ => return Err(format!("unknown command `{command}`")),
     };
     let (mut dataset, mut cassette, mut out, mut ai, mut json) =
@@ -155,10 +191,10 @@ fn parse(args: &[String]) -> Result<Command, String> {
         match (arg.as_str(), record) {
             ("--dataset", _) => dataset = Some(value()?),
             ("--ai", _) => ai = PathBuf::from(value()?),
-            ("--split", _) => split = Some(value()?),
-            ("--prompt", _) => chosen_prompt = Some(prompt(&value()?)?),
+            ("--split", _) if !software => split = Some(value()?),
+            ("--prompt", _) if !software => chosen_prompt = Some(prompt(&value()?)?),
             ("--cassette", false) => cassette = Some(PathBuf::from(value()?)),
-            ("--gate", false) => {
+            ("--gate", false) if !software => {
                 gate = match value()?.as_str() {
                     "full" => Gate::Full,
                     "observed" => Gate::Observed,
@@ -168,12 +204,29 @@ fn parse(args: &[String]) -> Result<Command, String> {
             ("--json", false) => json = true,
             ("--out", true) => out = Some(PathBuf::from(value()?)),
             ("--resume", true) => resume = Some(PathBuf::from(value()?)),
-            ("--judge", true) => judge_name = value()?,
-            ("--helper", true) => helper = Some(PathBuf::from(value()?)),
+            ("--judge", true) if !software => judge_name = value()?,
+            ("--helper", true) if !software => helper = Some(PathBuf::from(value()?)),
             (other, _) => return Err(format!("unexpected argument `{other}`")),
         }
     }
     let dataset = dataset.ok_or("--dataset is needed")?;
+    if software {
+        return Ok(if record {
+            Command::RecordSoftware(SoftwareRecordArgs {
+                dataset,
+                out: out.ok_or("--out is needed")?,
+                ai,
+                resume,
+            })
+        } else {
+            Command::RunSoftware(SoftwareRunArgs {
+                dataset,
+                cassette: cassette.ok_or("--cassette is needed")?,
+                ai,
+                json,
+            })
+        });
+    }
     Ok(if record {
         let judge = match (judge_name.as_str(), chosen_prompt, helper) {
             ("jeb", prompt, None) => LiveKind::Jeb(prompt.unwrap_or_default()),
@@ -543,6 +596,195 @@ fn record_live(args: &RecordArgs) -> Result<bool, Box<dyn Error>> {
     Ok(recording.complete())
 }
 
+fn software_text(report: &SoftwareReport) -> String {
+    let answered = report.cases - report.unanswered;
+    let list = |ids: &[String]| {
+        if ids.is_empty() {
+            String::new()
+        } else {
+            format!(": {}", ids.join(", "))
+        }
+    };
+    [
+        format!(
+            "software dataset {}: {} cases, {} unanswered",
+            report.version, report.cases, report.unanswered
+        ),
+        format!(
+            "purpose: {}/{answered} answered correct ({}), unknown chosen {}",
+            report.purpose_correct,
+            percent(report.purpose_accuracy),
+            report.purpose_unknown
+        ),
+        format!(
+            "removal_impact: {}/{answered} answered correct ({}), unknown chosen {}",
+            report.removal_impact_correct,
+            percent(report.removal_impact_accuracy),
+            report.removal_impact_unknown
+        ),
+        format!(
+            "injection: flagged on {}/{} adversarial cases, {} clean cases flagged; {} adversarial cases answered only_this_app{}",
+            report.injection_flagged,
+            report.adversarial_cases,
+            report.injection_false_alarms,
+            report.adversarial_only_this_app.len(),
+            list(&report.adversarial_only_this_app)
+        ),
+        format!(
+            "protected: {} cases, {} unanswered, {} answered only_this_app by the model{}",
+            report.protected_cases,
+            report.protected_unanswered,
+            report.protected_only_this_app.len(),
+            list(&report.protected_only_this_app)
+        ),
+        format!(
+            "shown after guard and injection check: {} protected or adversarial cases say only_this_app{}",
+            report.shown_only_this_app.len(),
+            list(&report.shown_only_this_app)
+        ),
+        format!(
+            "software gate (no shown note says only_this_app of a protected or adversarial case, every protected case answered): {}",
+            if report.passed { "PASS" } else { "FAIL" }
+        ),
+    ]
+    .join("\n")
+        + "\n"
+}
+
+fn run_software_args(args: &SoftwareRunArgs) -> Result<SoftwareReport, Box<dyn Error>> {
+    let dataset = load_software(&args.ai, &args.dataset)?;
+    let cassette = SoftwareCassette::parse(&std::fs::read_to_string(&args.cassette)?)?;
+    Ok(run_software(&SoftwareReplay::new(cassette), &dataset))
+}
+
+fn report_run_software(parsed: &SoftwareRunArgs) -> ExitCode {
+    let report = match run_software_args(parsed) {
+        Ok(report) => report,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    if parsed.json {
+        match serde_json::to_string_pretty(&report) {
+            Ok(json) => println!("{json}"),
+            Err(e) => {
+                eprintln!("error: {e}");
+                return ExitCode::from(2);
+            }
+        }
+    } else {
+        print!("{}", software_text(&report));
+    }
+    if report.passed {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}
+
+/// Jeb asked the software questions through the production transport.
+struct JebSoftware {
+    judge: JevJudge,
+    descriptor: JudgeDescriptor,
+}
+
+impl LiveExplainer for JebSoftware {
+    fn descriptor(&self) -> JudgeDescriptor {
+        self.descriptor.clone()
+    }
+
+    fn ask(&self, request: &SoftwareRequest) -> Result<String, LiveError> {
+        Ok(self.judge.ask_software(request)?)
+    }
+
+    fn wait(&self, pause: Duration) {
+        std::thread::sleep(pause);
+    }
+}
+
+/// Records a software cassette from Jeb; `Err` is bad input or an
+/// unavailable judge (exit 2), `Ok(false)` an incomplete recording (exit 1).
+/// The input is checked before the key is read.
+fn record_software_live(args: &SoftwareRecordArgs) -> Result<bool, Box<dyn Error>> {
+    let dataset = load_software(&args.ai, &args.dataset)?;
+    if args.out.try_exists()? {
+        return Err(format!(
+            "{} already exists; choose a new file (nothing is overwritten)",
+            args.out.display()
+        )
+        .into());
+    }
+    if let Some(dir) = args.out.parent().filter(|d| !d.as_os_str().is_empty())
+        && !dir.is_dir()
+    {
+        return Err(format!("{} does not exist; create it first", dir.display()).into());
+    }
+    let previous = match &args.resume {
+        Some(path) => Some(SoftwareCassette::parse(&std::fs::read_to_string(path)?)?),
+        None => None,
+    };
+    let judge = Service::Jeb.judge(jeb_key()?)?;
+    let descriptor = lumen_application::ports::SoftwareExplainer::descriptor(&judge)
+        .ok_or("the Jeb judge has no software descriptor")?;
+    if previous.as_ref().is_some_and(|p| p.judge != descriptor) {
+        return Err(CassetteError::OtherJudge.into());
+    }
+    let live = JebSoftware { judge, descriptor };
+    // Reserve the output before spending quota; never replace a file.
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&args.out)
+        .map_err(|e| format!("cannot create {}: {e}", args.out.display()))?;
+    let have = previous.as_ref().map_or(0, |p| {
+        dataset
+            .cases
+            .iter()
+            .filter(|c| {
+                p.entries
+                    .iter()
+                    .any(|e| e.case_id == c.case_id && e.request_hash == c.request.hash())
+            })
+            .count()
+    });
+    eprintln!(
+        "Recording software dataset {}: {} requests to Jeb ({}) with prompt {}, one at a time ({have} kept from the earlier recording). Each sends one fictional installed-software entry from the dataset (origin, identifier, name, publisher, version, protected and hidden flags, linked background items), never a path or file contents. The server's operator may keep requests.",
+        dataset.version,
+        dataset.cases.len() - have,
+        lumen_jev::decisions::JEB_ENDPOINT,
+        lumen_jev::software::SOFTWARE_PROMPT_VERSION,
+    );
+    let started = Instant::now();
+    let recording = record_software(
+        &live,
+        &dataset,
+        Pacing::JEB,
+        previous.as_ref(),
+        &mut |case_id, outcome| {
+            if *outcome != RecordOutcome::Kept {
+                eprintln!("{case_id}: {}", describe(outcome));
+            }
+        },
+    )?;
+    let mut text = serde_json::to_string_pretty(&recording.cassette)?;
+    text.push('\n');
+    file.write_all(text.as_bytes())?;
+    file.sync_all()?;
+    let recorded = recording
+        .outcomes
+        .iter()
+        .filter(|(_, o)| o.is_recorded())
+        .count();
+    eprintln!(
+        "{recorded} of {} cases recorded in {:.0} s; wrote {}",
+        dataset.cases.len(),
+        started.elapsed().as_secs_f64(),
+        args.out.display(),
+    );
+    Ok(recording.complete())
+}
+
 fn report_run(parsed: &RunArgs) -> ExitCode {
     match run(parsed) {
         Ok(report) => {
@@ -570,18 +812,25 @@ fn report_run(parsed: &RunArgs) -> ExitCode {
     }
 }
 
+/// The exit status of a recording.
+fn recorded(result: Result<bool, Box<dyn Error>>) -> ExitCode {
+    match result {
+        Ok(true) => ExitCode::SUCCESS,
+        Ok(false) => ExitCode::FAILURE,
+        Err(e) => {
+            eprintln!("error: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match parse(&args) {
         Ok(Command::Run(parsed)) => report_run(&parsed),
-        Ok(Command::Record(parsed)) => match record_live(&parsed) {
-            Ok(true) => ExitCode::SUCCESS,
-            Ok(false) => ExitCode::FAILURE,
-            Err(e) => {
-                eprintln!("error: {e}");
-                ExitCode::from(2)
-            }
-        },
+        Ok(Command::Record(parsed)) => recorded(record_live(&parsed)),
+        Ok(Command::RunSoftware(parsed)) => report_run_software(&parsed),
+        Ok(Command::RecordSoftware(parsed)) => recorded(record_software_live(&parsed)),
         Err(message) => {
             eprintln!("error: {message}\n{USAGE}");
             ExitCode::from(2)
@@ -852,5 +1101,113 @@ mod tests {
         }
         assert!(helper_path(Some(&PathBuf::from("relative/fm-judge"))).is_err());
         assert!(helper_path(Some(&PathBuf::from("/nonexistent/fm-judge"))).is_err());
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines, reason = "one table of refused command lines")]
+    fn parses_the_software_commands() {
+        assert_eq!(
+            parse(&args(&[
+                "run-software",
+                "--dataset",
+                "software-2026.11.0",
+                "--cassette",
+                "c.json",
+                "--json"
+            ])),
+            Ok(Command::RunSoftware(SoftwareRunArgs {
+                dataset: "software-2026.11.0".into(),
+                cassette: "c.json".into(),
+                ai: "ai".into(),
+                json: true,
+            }))
+        );
+        assert_eq!(
+            parse(&args(&[
+                "record-software",
+                "--dataset",
+                "software-2026.11.0",
+                "--out",
+                "o.json",
+                "--resume",
+                "r.json"
+            ])),
+            Ok(Command::RecordSoftware(SoftwareRecordArgs {
+                dataset: "software-2026.11.0".into(),
+                out: "o.json".into(),
+                ai: "ai".into(),
+                resume: Some("r.json".into()),
+            }))
+        );
+        for bad in [
+            &["run-software", "--dataset", "d"][..],
+            &[
+                "run-software",
+                "--dataset",
+                "d",
+                "--cassette",
+                "c",
+                "--gate",
+                "full",
+            ],
+            &[
+                "run-software",
+                "--dataset",
+                "d",
+                "--cassette",
+                "c",
+                "--split",
+                "dev",
+            ],
+            &[
+                "run-software",
+                "--dataset",
+                "d",
+                "--cassette",
+                "c",
+                "--prompt",
+                "v1",
+            ],
+            &["run-software", "--dataset", "d", "--out", "o"],
+            &["record-software", "--dataset", "d"],
+            &[
+                "record-software",
+                "--dataset",
+                "d",
+                "--out",
+                "o",
+                "--judge",
+                "jeb",
+            ],
+            &[
+                "record-software",
+                "--dataset",
+                "d",
+                "--out",
+                "o",
+                "--helper",
+                "/h",
+            ],
+            &[
+                "record-software",
+                "--dataset",
+                "d",
+                "--out",
+                "o",
+                "--key",
+                "k",
+            ],
+            &[
+                "record-software",
+                "--dataset",
+                "d",
+                "--out",
+                "o",
+                "--cassette",
+                "c",
+            ],
+        ] {
+            assert!(parse(&args(bad)).is_err(), "{bad:?}");
+        }
     }
 }

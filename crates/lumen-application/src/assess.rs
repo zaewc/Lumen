@@ -33,18 +33,20 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use lumen_domain::{
-    AppDataKind, CleanupMechanism, EntryKind, Evidence, EvidenceId, Fact, FilesystemEntry,
-    ItemNote, JevRequest, JevTrace, PathFlavor, PolicyDecision, Process, RawPath, Relationship,
-    SourceName, Subject, Timestamp, Verdict, VolumeId,
+    AppDataKind, AppId, Basis, CleanupMechanism, EntryKind, Evidence, EvidenceId, Fact,
+    FilesystemEntry, ItemNote, JevRequest, JevTrace, PathFlavor, PolicyDecision, Process,
+    Provenance, RawPath, Relationship, SourceName, Subject, Timestamp, Verdict, VolumeId,
 };
 use lumen_graph::{EvidenceBundle, Graph};
 use lumen_policy::{Context, KnowledgeClass, PolicyError, PolicyInput, evaluate, explain};
 
 use crate::collect::{in_use_evidence, ownership_evidence};
 use crate::consult::{Consulted, decide};
-use crate::gather::Gathered;
+use crate::gather::{EvidenceIndex, Gathered};
 use crate::observe::{below, observed};
-use crate::ports::{Clock, DirOutcome, InUse, InUseProbe, JudgeModel, OwnershipProbe};
+use crate::ports::{
+    Clock, DirOutcome, InUse, InUseProbe, JudgeModel, OwnershipProbe, RunningProbe,
+};
 
 /// How many relationship hops around a candidate its bundle covers.
 pub const BUNDLE_DEPTH: usize = 2;
@@ -146,6 +148,8 @@ pub struct Sources<'a> {
     pub graph: &'a Graph,
     /// The scan's gathered evidence.
     pub gathered: &'a Gathered,
+    /// `gathered`'s evidence indexed by subject and ID ([`EvidenceIndex::new`]).
+    pub index: &'a EvidenceIndex,
     /// Every scanned entry.
     pub scanned: &'a [FilesystemEntry],
     /// Every directory listing outcome.
@@ -186,23 +190,25 @@ fn assembled(
         reached.insert(relationship.from());
         reached.insert(relationship.to());
     }
-    let mut records: BTreeMap<EvidenceId, &Evidence> = sources
-        .gathered
-        .evidence
+    let mut records: BTreeMap<EvidenceId, &Evidence> = reached
         .iter()
-        .chain(fresh)
-        .filter(|record| reached.contains(&record.subject))
-        .map(|record| (record.id(), record))
+        .flat_map(|reached| sources.index.about(sources.gathered, reached))
         .collect();
+    records.extend(
+        fresh
+            .iter()
+            .filter(|record| reached.contains(&record.subject))
+            .map(|record| (record.id(), record)),
+    );
     let bundle = EvidenceBundle::new(
         subject.clone(),
         around.relationships().iter().cloned(),
         records.keys().copied().collect::<Vec<_>>(),
     );
     // Evidence the relationships cite is part of the bundle too.
-    for record in &sources.gathered.evidence {
-        if bundle.evidence().contains(&record.id()) {
-            records.entry(record.id()).or_insert(record);
+    for id in bundle.evidence() {
+        if let Some(record) = sources.index.get(sources.gathered, id) {
+            records.entry(*id).or_insert(record);
         }
     }
     let mut context = sources.context.clone();
@@ -239,6 +245,11 @@ pub struct Probes<'a> {
     pub ownership: &'a dyn OwnershipProbe,
     /// The ownership probe's source name.
     pub ownership_source: &'a SourceName,
+    /// Whether the applications that own the candidate are running
+    /// (ADR-0059).
+    pub running: &'a dyn RunningProbe,
+    /// The running probe's source name.
+    pub running_source: &'a SourceName,
 }
 
 impl std::fmt::Debug for Probes<'_> {
@@ -246,6 +257,7 @@ impl std::fmt::Debug for Probes<'_> {
         f.debug_struct("Probes")
             .field("in_use_source", self.in_use_source)
             .field("ownership_source", self.ownership_source)
+            .field("running_source", self.running_source)
             .finish_non_exhaustive()
     }
 }
@@ -283,8 +295,48 @@ fn probe(
     (in_use, fresh)
 }
 
+/// Whether each application that owns `candidate` (as `sources` record it) is
+/// running now, as evidence about the application. Unknown answers state
+/// nothing.
+fn running_evidence(
+    candidate: &FilesystemEntry,
+    sources: &Sources<'_>,
+    probes: &Probes<'_>,
+    observed_at: Timestamp,
+) -> Vec<Evidence> {
+    let subject = Subject::File {
+        identity: candidate.identity().clone(),
+    };
+    let owners: BTreeSet<&AppId> = sources
+        .index
+        .about(sources.gathered, &subject)
+        .filter_map(|(_, record)| match &record.fact {
+            Fact::OwningApplication(app) => Some(app),
+            _ => None,
+        })
+        .collect();
+    owners
+        .into_iter()
+        .filter_map(|app| {
+            let running = probes.running.running(app)?;
+            Some(Evidence {
+                subject: Subject::Application { id: app.clone() },
+                fact: Fact::ApplicationRunning {
+                    app: app.clone(),
+                    running,
+                },
+                basis: Basis::Observed,
+                provenance: Provenance {
+                    source: probes.running_source.clone(),
+                    observed_at,
+                },
+            })
+        })
+        .collect()
+}
+
 /// The rule that keeps an item a running process uses.
-const IN_USE_RULE: &str = "protect.in-use";
+const IN_USE_RULE: &str = lumen_policy::ids::PROTECT_IN_USE;
 
 /// An item kept only because running processes use it, which the policy
 /// would propose for quarantine once they are closed. Display only: the
@@ -414,7 +466,8 @@ pub async fn decide_candidate(
     request: &dyn Fn(&PolicyInput) -> Option<JevRequest>,
 ) -> Result<Assessed, PolicyError> {
     let observed_at = clock.now();
-    let (in_use, fresh) = probe(candidate, probes, observed_at);
+    let (in_use, mut fresh) = probe(candidate, probes, observed_at);
+    fresh.extend(running_evidence(candidate, sources, probes, observed_at));
     let (input, relationships) = assembled(candidate, &fresh, sources);
     let consulted = match (judge.descriptor(), request(&input)) {
         (Some(_), Some(jev_request)) => decide(judge, clock, input.clone(), &jev_request).await?,
@@ -621,6 +674,7 @@ mod tests {
             let sources = Sources {
                 graph: &graph,
                 gathered: &gathered,
+                index: &EvidenceIndex::new(&gathered),
                 scanned: &scanned,
                 listings: &[],
                 context: &ctx,
@@ -648,6 +702,7 @@ mod tests {
         let sources = Sources {
             graph: &graph,
             gathered: &gathered,
+            index: &EvidenceIndex::new(&gathered),
             scanned: &scanned,
             listings: &[],
             context: &ctx,
@@ -667,6 +722,10 @@ mod tests {
                 in_use_source: &source,
                 ownership: &owner,
                 ownership_source: &source,
+
+                running: &crate::ports::NoRunningProbe,
+
+                running_source: &source,
             };
             let assessed = ready(decide_candidate(
                 &scanned[0],
@@ -730,6 +789,7 @@ mod tests {
         let sources = Sources {
             graph: &graph,
             gathered: &gathered,
+            index: &EvidenceIndex::new(&gathered),
             scanned: &scanned,
             listings: &listings,
             context: &ctx,
@@ -744,6 +804,10 @@ mod tests {
             in_use_source: &source,
             ownership: &owner,
             ownership_source: &source,
+
+            running: &crate::ports::NoRunningProbe,
+
+            running_source: &source,
         };
         ready(decide_candidate(
             &scanned[0],
@@ -994,6 +1058,7 @@ mod tests {
         let sources = Sources {
             graph: &graph,
             gathered: &gathered,
+            index: &EvidenceIndex::new(&gathered),
             scanned: &scanned,
             listings: &[],
             context: &ctx,

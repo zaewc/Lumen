@@ -14,6 +14,10 @@
 //!   on pull requests, so time passing never fails unrelated changes.
 //! - `android`: build the mobile core for every Android ABI, check 16 KB page
 //!   alignment and generate the Kotlin bindings (ADR-0007; needs an NDK).
+//! - `effectiveness [--projects N] [--seed S] [--out FILE]`: run `lumen scan`
+//!   and `lumen assess` on a seeded labeled home and report timings, peak memory
+//!   and the score against the labels; fails on any unsafe recommendation
+//!   (issue #703; macOS).
 //! - `ios`: build the mobile core for iOS devices and the simulator as
 //!   `LumenCore.xcframework`, generate the Swift bindings and call the core
 //!   through them (ADR-0007; needs macOS and Xcode).
@@ -30,6 +34,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use lumen_devkb::{DateIssue, KnowledgeBase};
 
 mod android;
+mod effectiveness;
 mod ios;
 mod lint;
 use lumen_domain as d;
@@ -181,9 +186,10 @@ fn main() -> ExitCode {
         ["devkb", "--max-age-days", days] => devkb(days),
         ["android"] => android::android(),
         ["ios"] => ios::ios(),
+        ["effectiveness", rest @ ..] => effectiveness::effectiveness(rest),
         _ => {
             eprintln!(
-                "usage: cargo xtask schema [--check] | lint | devkb --max-age-days <N> | android | ios"
+                "usage: cargo xtask schema [--check] | lint | devkb --max-age-days <N> | android | ios | effectiveness [--projects N] [--seed S] [--out FILE]"
             );
             return ExitCode::from(2);
         }

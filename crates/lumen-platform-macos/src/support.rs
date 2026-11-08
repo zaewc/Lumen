@@ -140,12 +140,17 @@ pub fn link_support_locations(
     }
     let library = join(home.as_bytes(), "Library");
     let support = join(&library, "Application Support");
+    // Built once, not per entry: this runs over every entry of a scan.
+    let by_bundle_id: Vec<(Vec<u8>, &str, AppDataKind)> = BY_BUNDLE_ID
+        .iter()
+        .map(|(dir, suffix, kind)| (join(&library, dir), *suffix, *kind))
+        .collect();
 
     let mut links = Vec::new();
     for entry in entries {
         let path = entry.path.as_bytes();
-        for (dir, suffix, kind) in BY_BUNDLE_ID {
-            let Some(name) = child_name(path, &join(&library, dir)) else {
+        for (dir, suffix, kind) in &by_bundle_id {
+            let Some(name) = child_name(path, dir) else {
                 continue;
             };
             let Some(id) = std::str::from_utf8(name)
@@ -207,6 +212,7 @@ mod tests {
             signature: None,
             install_locations: Vec::new(),
             sources: BTreeSet::new(),
+            uninstall: None,
         }
     }
 

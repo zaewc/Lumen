@@ -55,7 +55,8 @@ export function Dialog({
     if (element === null) {
       return;
     }
-    switch (dialogChange(open, element.open)) {
+    const change = dialogChange(open, element.open);
+    switch (change) {
       case "show": {
         const focused = document.activeElement;
         opener.current = focused instanceof HTMLElement ? focused : null;
@@ -68,6 +69,8 @@ export function Dialog({
         break;
       case "none":
         break;
+      default:
+        change satisfies never;
     }
   }, [open, initialFocus]);
 

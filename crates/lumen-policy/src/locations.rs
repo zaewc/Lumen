@@ -35,7 +35,7 @@ use std::sync::OnceLock;
 use lumen_domain::{PathFlavor, Platform, RawPath, RiskFactor, Verdict};
 use serde::Deserialize;
 
-use crate::{Finding, PolicyInput};
+use crate::{Context, Finding, PolicyInput};
 
 const DATA: &str = include_str!("../data/protected-locations.json");
 
@@ -212,9 +212,8 @@ fn pattern(path: &str, platform: Platform) -> Vec<Part> {
 }
 
 /// The components `location` is relative to, if they are known for `names`.
-fn base(location: &Location, names: &[String], input: &PolicyInput) -> Option<Vec<String>> {
-    let platform = input.context.platform;
-    let context = &input.context;
+fn base(location: &Location, names: &[String], context: &Context) -> Option<Vec<String>> {
+    let platform = context.platform;
     match location.root {
         Root::Filesystem => Some(Vec::new()),
         Root::WindowsDir => context
@@ -241,9 +240,9 @@ fn full(base: &[String], relative: &str, platform: Platform) -> Vec<Part> {
 }
 
 /// Whether `names` is `location` or below it, outside its exceptions.
-fn covers(location: &Location, names: &[String], input: &PolicyInput) -> bool {
-    let platform = input.context.platform;
-    let Some(base) = base(location, names, input) else {
+fn covers(location: &Location, names: &[String], context: &Context) -> bool {
+    let platform = context.platform;
+    let Some(base) = base(location, names, context) else {
         return false;
     };
     let under = |relative: &str| {
@@ -260,11 +259,11 @@ fn covers(location: &Location, names: &[String], input: &PolicyInput) -> bool {
 /// Whether `names` lies strictly above `location`, so a directory there holds
 /// it. Only a location's last name can be a prefix, and an ancestor never
 /// reaches it.
-fn holds(location: &Location, names: &[String], input: &PolicyInput) -> bool {
-    let Some(base) = base(location, names, input) else {
+fn holds(location: &Location, names: &[String], context: &Context) -> bool {
+    let Some(base) = base(location, names, context) else {
         return false;
     };
-    let full = full(&base, &location.path, input.context.platform);
+    let full = full(&base, &location.path, context.platform);
     names.len() < full.len()
         && full
             .iter()
@@ -282,35 +281,54 @@ fn risk_of(kind: Kind) -> RiskFactor {
 
 /// `Keep` if any path of the subject is in a protected location.
 pub(crate) fn check(input: &PolicyInput) -> Option<Finding> {
-    let keep = |rule: String, kind: Kind| Finding {
+    // Unavailable data or roots keep the item even when it has no path.
+    let (rule, kind) = unchecked(&input.context).or_else(|| {
+        input
+            .paths
+            .iter()
+            .find_map(|path| protecting(path, &input.context))
+    })?;
+    Some(Finding {
         verdict: Verdict::Keep,
         evidence: BTreeSet::new(),
         risk: BTreeSet::from([risk_of(kind)]),
         rule: Some(rule),
-    };
-    let Some(locations) = locations() else {
-        return Some(keep(DATA_RULE.to_owned(), Kind::System));
-    };
-    let platform = input.context.platform;
-    let context = &input.context;
+    })
+}
+
+/// The rule that keeps `path` because it is at or below a protected location,
+/// or because the location data or a root it needs is unavailable (fail
+/// closed). `None` means `path` is outside every protected location.
+///
+/// It decides nothing: callers that read contents (duplicate analysis) use it
+/// to leave protected places unread. Like [`check`], it compares paths only.
+pub fn protected_location(path: &RawPath, context: &Context) -> Option<String> {
+    protecting(path, context).map(|(rule, _)| rule)
+}
+
+/// The rule that keeps everything when the protections cannot be checked.
+fn unchecked(context: &Context) -> Option<(String, Kind)> {
+    if locations().is_none() {
+        return Some((DATA_RULE.to_owned(), Kind::System));
+    }
     // Without these roots their protections could not be checked.
-    let windows = platform == Platform::Windows;
-    if context.home.is_none()
-        || windows && (context.windows_dir.is_none() || context.local_app_data.is_none())
-    {
-        return Some(keep(CONTEXT_RULE.to_owned(), Kind::System));
+    let windows = context.platform == Platform::Windows;
+    (context.home.is_none()
+        || windows && (context.windows_dir.is_none() || context.local_app_data.is_none()))
+    .then(|| (CONTEXT_RULE.to_owned(), Kind::System))
+}
+
+fn protecting(path: &RawPath, context: &Context) -> Option<(String, Kind)> {
+    if let Some(unchecked) = unchecked(context) {
+        return Some(unchecked);
     }
-    for path in &input.paths {
-        let names = components(path, platform);
-        if let Some(found) = locations
-            .iter()
-            .filter(|l| l.platforms.contains(&platform))
-            .find(|l| covers(l, &names, input))
-        {
-            return Some(keep(format!("protect.location.{}", found.id), found.kind));
-        }
-    }
-    None
+    let platform = context.platform;
+    let names = components(path, platform);
+    locations()?
+        .iter()
+        .filter(|l| l.platforms.contains(&platform))
+        .find(|l| covers(l, &names, context))
+        .map(|found| (format!("protect.location.{}", found.id), found.kind))
 }
 
 /// `Keep` if any path of the subject holds a protected location: it is a
@@ -328,7 +346,7 @@ pub(crate) fn check_holds(input: &PolicyInput) -> Option<Finding> {
         kinds.extend(
             locations
                 .iter()
-                .filter(|l| l.platforms.contains(&platform) && holds(l, &names, input))
+                .filter(|l| l.platforms.contains(&platform) && holds(l, &names, &input.context))
                 .map(|l| l.kind),
         );
     }
@@ -489,6 +507,10 @@ mod tests {
         assert_eq!(linux("/home/ana/.Config"), None, "case-sensitive");
         assert_eq!(linux("/home/ANA"), None, "case-sensitive");
         assert_eq!(linux("/private/var"), None, "macOS-only entries");
+        for path in ["/", "/var"] {
+            assert!(linux(path).is_some(), "{path} holds Linux system locations");
+        }
+        assert_eq!(linux("/var").as_deref(), Some("protect.contains-system"));
     }
 
     #[test]
@@ -610,7 +632,46 @@ mod tests {
         );
         assert_eq!(mac("/private/var/folders/x"), None);
         assert_eq!(mac("/Users/ana/System"), None, "anchored at the root");
-        assert_eq!(linux("/usr/lib"), None, "macOS-only entries");
+        assert_eq!(linux("/System/Library"), None, "macOS-only entries");
+    }
+
+    #[test]
+    fn linux_system_locations_are_kept() {
+        for (path, id) in [
+            ("/usr", "linux-usr"),
+            ("/usr/lib/x86_64-linux-gnu/libc.so.6", "linux-usr"),
+            ("/usr/local/bin/tool", "linux-usr"),
+            ("/etc/fstab", "linux-etc"),
+            ("/boot/vmlinuz", "linux-boot"),
+            ("/efi/EFI/BOOT", "linux-efi"),
+            ("/var/lib/dpkg/status", "linux-var-lib"),
+            ("/bin", "linux-bin"),
+            ("/sbin", "linux-sbin"),
+            ("/lib", "linux-lib"),
+            ("/lib64/ld-linux-x86-64.so.2", "linux-lib64"),
+        ] {
+            assert_eq!(
+                linux(path),
+                Some(format!("protect.location.{id}")),
+                "{path}"
+            );
+        }
+        for path in [
+            // Cache and temporary data the specification lets be flushed.
+            "/var/cache/apt",
+            "/var/tmp/x",
+            "/tmp/x",
+            "/opt/app",
+            // Look-alikes, other roots and case.
+            "/usr2",
+            "/etcetera",
+            "/var/library",
+            "/home/ana/usr",
+            "/USR/lib",
+        ] {
+            assert_eq!(linux(path), None, "{path}");
+        }
+        assert_eq!(mac("/var/lib/x"), None, "Linux-only entries");
     }
 
     #[test]
@@ -955,5 +1016,31 @@ mod tests {
         ] {
             assert!(parse(&bad).is_none(), "{bad}");
         }
+    }
+
+    #[test]
+    fn a_path_can_be_asked_about_without_deciding_anything() {
+        let macos = context(Platform::Macos);
+        assert_eq!(
+            protected_location(
+                &unix("/Users/ana/Library/Keychains/login.keychain-db"),
+                &macos
+            )
+            .as_deref(),
+            Some("protect.location.macos-keychains")
+        );
+        assert_eq!(
+            protected_location(&unix("/Users/ana/Documents/report.pdf"), &macos),
+            None
+        );
+        let unknown_home = Context {
+            home: None,
+            ..macos
+        };
+        assert_eq!(
+            protected_location(&unix("/Users/ana/Documents/report.pdf"), &unknown_home).as_deref(),
+            Some(CONTEXT_RULE),
+            "unknown roots fail closed"
+        );
     }
 }

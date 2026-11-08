@@ -101,9 +101,7 @@ impl DirCache {
             .optional()?;
         let key = key
             .ok_or(StoreError::UnknownScan { scan })?
-            .ok_or(StoreError::Corrupt {
-                column: "scans.key",
-            })?;
+            .ok_or(StoreError::corrupt("scans.key"))?;
         self.scan = Some((scan, key));
         Ok(key)
     }

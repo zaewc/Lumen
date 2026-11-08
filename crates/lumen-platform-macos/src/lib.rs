@@ -18,19 +18,29 @@ mod backup;
 mod bulk;
 #[cfg(target_os = "macos")]
 mod cf;
+#[cfg(target_os = "macos")]
+pub mod duplicates;
 pub mod entry;
 pub mod events;
 #[cfg(target_os = "macos")]
 mod feed;
 #[cfg(target_os = "macos")]
+mod homebrew;
+#[cfg(target_os = "macos")]
 mod keychain;
 #[cfg(target_os = "macos")]
 mod launchd;
 #[cfg(target_os = "macos")]
+pub mod metadata;
+#[cfg(target_os = "macos")]
 mod probe;
+#[cfg(target_os = "macos")]
+mod receipts;
 pub mod support;
 #[cfg(target_os = "macos")]
 mod sys;
+#[cfg(target_os = "macos")]
+pub mod volumes;
 pub mod web_profile;
 
 #[cfg(target_os = "macos")]
@@ -40,10 +50,16 @@ pub use backup::{BackupExclusionError, exclude_from_backup};
 #[cfg(target_os = "macos")]
 pub use bulk::BulkEnumerator;
 #[cfg(target_os = "macos")]
+pub use duplicates::DuplicateReader;
+#[cfg(target_os = "macos")]
 pub use feed::FsEventsFeed;
+#[cfg(target_os = "macos")]
+pub use homebrew::HomebrewInventory;
 #[cfg(target_os = "macos")]
 pub use keychain::{KeychainStore, SERVICE as KEYCHAIN_SERVICE};
 #[cfg(target_os = "macos")]
 pub use launchd::LaunchdInventory;
 #[cfg(target_os = "macos")]
-pub use probe::ProcessProbe;
+pub use probe::{ProcessProbe, ProcessSnapshot};
+#[cfg(target_os = "macos")]
+pub use receipts::ReceiptInventory;

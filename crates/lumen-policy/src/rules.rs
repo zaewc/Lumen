@@ -12,6 +12,39 @@ use lumen_domain::{
 
 use crate::{Finding, PolicyInput, Rule};
 
+/// Identifiers of the rules that other crates look for in a decision's fired
+/// rules. The `RULES` table uses the same constants, so renaming a rule here
+/// renames it at every safety check that depends on it.
+pub mod ids {
+    /// Keeps an item a running process uses.
+    pub const PROTECT_IN_USE: &str = "protect.in-use";
+    /// Accepts a partial in-use answer (ADR-0030).
+    pub const ELIGIBLE_IN_USE_PARTIAL: &str = "eligible.in-use-partial";
+    /// Accepts a partial in-use answer on a single-user computer (ADR-0046).
+    pub const ELIGIBLE_IN_USE_PARTIAL_SINGLE_USER: &str = "eligible.in-use-partial-single-user";
+    /// Leaves an item for its tool's own cleanup command (ADR-0051).
+    pub const CLASSIFY_DEVKB_TOOL_ACTION: &str = "classify.devkb-tool-action";
+    /// Leaves an item for review because it cannot be regenerated (ADR-0051).
+    pub const CLASSIFY_DEVKB_NOT_REGENERABLE: &str = "classify.devkb-not-regenerable";
+    /// Keeps an item when not every process could be checked and the partial
+    /// answer is not accepted (ADR-0030).
+    pub const PROTECT_IN_USE_PARTIAL: &str = "protect.in-use-partial";
+    /// Keeps an item nobody checked for use.
+    pub const PROTECT_IN_USE_UNKNOWN: &str = "protect.in-use-unknown";
+    /// Keeps an item the scan did not observe.
+    pub const PROTECT_NOT_OBSERVED: &str = "protect.not-observed";
+    /// Keeps an item part of which could not be read.
+    pub const PROTECT_INCOMPLETE_SCAN: &str = "protect.incomplete-scan";
+    /// Leaves an item for review because its application appears uninstalled.
+    pub const CLASSIFY_ORPHAN: &str = "classify.orphan";
+    /// Leaves an unrecognised item large enough to matter for review (ADR-0039).
+    pub const DEFAULT_REVIEW: &str = "default.review";
+    /// AI review advised caution (ADR-0020).
+    pub const JEV_DEMOTE: &str = "jev.demote";
+    /// Keeps an item whose owning application is running (ADR-0059).
+    pub const PROTECT_APP_RUNNING: &str = "protect.app-running";
+}
+
 /// Every rule the policy evaluates.
 pub(crate) const RULES: &[Rule] = &[
     Rule {
@@ -40,37 +73,42 @@ pub(crate) const RULES: &[Rule] = &[
         check: cloud_backed,
     },
     Rule {
-        id: "protect.in-use",
+        id: ids::PROTECT_IN_USE,
         stage: PolicyStage::HardProtection,
         check: in_use,
     },
     Rule {
-        id: "protect.in-use-partial",
+        id: ids::PROTECT_APP_RUNNING,
+        stage: PolicyStage::HardProtection,
+        check: app_running,
+    },
+    Rule {
+        id: ids::PROTECT_IN_USE_PARTIAL,
         stage: PolicyStage::HardProtection,
         check: in_use_partial,
     },
     Rule {
-        id: "protect.in-use-unknown",
+        id: ids::PROTECT_IN_USE_UNKNOWN,
         stage: PolicyStage::HardProtection,
         check: in_use_unknown,
     },
     Rule {
-        id: "protect.not-observed",
+        id: ids::PROTECT_NOT_OBSERVED,
         stage: PolicyStage::HardProtection,
         check: not_observed,
     },
     Rule {
-        id: "protect.incomplete-scan",
+        id: ids::PROTECT_INCOMPLETE_SCAN,
         stage: PolicyStage::HardProtection,
         check: incomplete_scan,
     },
     Rule {
-        id: "eligible.in-use-partial",
+        id: ids::ELIGIBLE_IN_USE_PARTIAL,
         stage: PolicyStage::Eligibility,
         check: in_use_partial_allowed,
     },
     Rule {
-        id: "eligible.in-use-partial-single-user",
+        id: ids::ELIGIBLE_IN_USE_PARTIAL_SINGLE_USER,
         stage: PolicyStage::Eligibility,
         check: in_use_partial_single_user,
     },
@@ -95,12 +133,12 @@ pub(crate) const RULES: &[Rule] = &[
         check: crate::classify::devkb_regenerable,
     },
     Rule {
-        id: "classify.devkb-tool-action",
+        id: ids::CLASSIFY_DEVKB_TOOL_ACTION,
         stage: PolicyStage::Classification,
         check: crate::classify::devkb_tool_action,
     },
     Rule {
-        id: "classify.devkb-not-regenerable",
+        id: ids::CLASSIFY_DEVKB_NOT_REGENERABLE,
         stage: PolicyStage::Classification,
         check: crate::classify::devkb_not_regenerable,
     },
@@ -135,7 +173,7 @@ pub(crate) const RULES: &[Rule] = &[
         check: crate::classify::app_state,
     },
     Rule {
-        id: "classify.orphan",
+        id: ids::CLASSIFY_ORPHAN,
         stage: PolicyStage::Classification,
         check: crate::classify::orphan,
     },
@@ -196,6 +234,32 @@ fn cloud_backed(input: &PolicyInput) -> Option<Finding> {
 /// A process uses the item.
 fn in_use(input: &PolicyInput) -> Option<Finding> {
     keep_if(about(input, |f| *f == Fact::InUse(true)), RiskFactor::InUse)
+}
+
+/// The application that owns the item is running (ADR-0059): its cache may be
+/// in use soon even when no file in it is open now. Kept as an item in use
+/// is; the person can quit the application and scan again.
+fn app_running(input: &PolicyInput) -> Option<Finding> {
+    let owners: Vec<(&lumen_domain::AppId, EvidenceId)> = input
+        .evidence
+        .iter()
+        .filter(|e| e.subject == input.subject)
+        .filter_map(|e| match &e.fact {
+            Fact::OwningApplication(app) => Some((app, e.id())),
+            _ => None,
+        })
+        .collect();
+    let mut evidence = BTreeSet::new();
+    for (owner, owned) in owners {
+        for record in &input.evidence {
+            if matches!(&record.fact, Fact::ApplicationRunning { app, running: true } if app == owner)
+            {
+                evidence.insert(owned);
+                evidence.insert(record.id());
+            }
+        }
+    }
+    keep_if(evidence, RiskFactor::InUse)
 }
 
 fn complete_no(input: &PolicyInput) -> bool {
@@ -712,6 +776,77 @@ mod tests {
             .first()
             .ok_or_else(|| PolicyError::RuleId("none".into()))?;
         assert_eq!(rule.evidence, BTreeSet::from([used.id()]));
+        Ok(())
+    }
+
+    #[test]
+    fn a_running_owner_keeps_its_cache_and_usage_dates_change_nothing() -> Result<(), PolicyError> {
+        let app = lumen_domain::AppId {
+            scheme: lumen_domain::AppIdScheme::BundleId,
+            value: lumen_domain::UntrustedText::new("com.example.chat"),
+        };
+        let about_app = |f: Fact| Evidence {
+            subject: Subject::Application { id: app.clone() },
+            fact: f,
+            basis: Basis::Observed,
+            provenance: Provenance {
+                source: SourceName::new("test").unwrap_or_else(|_| unreachable!()),
+                observed_at: Timestamp::UNIX_EPOCH,
+            },
+        };
+        let cache = || {
+            vec![
+                fact(file(1), Fact::InUse(false)),
+                fact(file(1), Fact::OwningApplication(app.clone())),
+                fact(
+                    file(1),
+                    Fact::AppDataLocation {
+                        kind: lumen_domain::AppDataKind::Caches,
+                    },
+                ),
+            ]
+        };
+        let proposed = evaluate(&crate::testing::input(cache()))?;
+        assert_eq!(proposed.verdict(), Verdict::Quarantine);
+
+        let mut running = cache();
+        running.push(about_app(Fact::ApplicationRunning {
+            app: app.clone(),
+            running: true,
+        }));
+        let kept = evaluate(&crate::testing::input(running))?;
+        assert_eq!(kept.verdict(), Verdict::Keep);
+        assert_eq!(fired(&kept), [ids::PROTECT_APP_RUNNING]);
+
+        // Another app running, a "not running" answer, and old or recent
+        // usage dates change nothing.
+        let other = lumen_domain::AppId {
+            scheme: lumen_domain::AppIdScheme::BundleId,
+            value: lumen_domain::UntrustedText::new("com.example.other"),
+        };
+        for extra in [
+            about_app(Fact::ApplicationRunning {
+                app: other,
+                running: true,
+            }),
+            about_app(Fact::ApplicationRunning {
+                app: app.clone(),
+                running: false,
+            }),
+            about_app(Fact::ApplicationLastOpened {
+                app: app.clone(),
+                at: Timestamp::UNIX_EPOCH,
+            }),
+            fact(file(1), Fact::ProjectActivity(Timestamp::UNIX_EPOCH)),
+        ] {
+            let mut facts = cache();
+            facts.push(extra.clone());
+            assert_eq!(
+                evaluate(&crate::testing::input(facts))?.verdict(),
+                Verdict::Quarantine,
+                "{extra:?}"
+            );
+        }
         Ok(())
     }
 }

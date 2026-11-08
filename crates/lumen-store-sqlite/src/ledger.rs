@@ -25,10 +25,6 @@ pub struct LedgerStore {
     conn: Connection,
 }
 
-fn corrupt(column: &'static str) -> StoreError {
-    StoreError::Corrupt { column }
-}
-
 impl LedgerStore {
     /// Wraps a connection opened with [`open_ledger`](crate::open_ledger).
     pub fn new(conn: Connection) -> Self {
@@ -41,7 +37,7 @@ impl LedgerStore {
     ///
     /// Returns [`StoreError`] if SQLite fails.
     pub fn append_jev_trace(&mut self, trace: &JevTrace) -> Result<(), StoreError> {
-        let body = serde_json::to_vec(trace).map_err(|_| corrupt("jev_traces.body"))?;
+        let body = serde_json::to_vec(trace).map_err(|_| StoreError::corrupt("jev_traces.body"))?;
         self.conn.execute(
             "INSERT INTO jev_traces \
              (requested_secs, requested_nanos, request_hash, evidence_hash, body) \
@@ -80,21 +76,21 @@ impl LedgerStore {
         let mut traces = Vec::new();
         for row in rows {
             let (secs, nanos, request, evidence, body) = row?;
-            let trace: JevTrace =
-                serde_json::from_slice(&body).map_err(|_| corrupt("jev_traces.body"))?;
+            let trace: JevTrace = serde_json::from_slice(&body)
+                .map_err(|_| StoreError::corrupt("jev_traces.body"))?;
             let requested_at = Timestamp::from_unix(secs, nanos)
-                .map_err(|_| corrupt("jev_traces.requested_secs"))?;
+                .map_err(|_| StoreError::corrupt("jev_traces.requested_secs"))?;
             let request: [u8; 32] = request
                 .try_into()
-                .map_err(|_| corrupt("jev_traces.request_hash"))?;
+                .map_err(|_| StoreError::corrupt("jev_traces.request_hash"))?;
             let evidence: [u8; 32] = evidence
                 .try_into()
-                .map_err(|_| corrupt("jev_traces.evidence_hash"))?;
+                .map_err(|_| StoreError::corrupt("jev_traces.evidence_hash"))?;
             if trace.requested_at != requested_at
                 || trace.request_hash != PayloadHash::from_bytes(request)
                 || trace.evidence_hash != EvidenceHash::from_bytes(evidence)
             {
-                return Err(corrupt("jev_traces.body"));
+                return Err(StoreError::corrupt("jev_traces.body"));
             }
             traces.push(trace);
         }

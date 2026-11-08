@@ -28,20 +28,22 @@ pub(crate) enum Point {
 
 #[cfg(test)]
 thread_local! {
-    static ARMED: std::cell::Cell<Option<Point>> = const { std::cell::Cell::new(None) };
+    static ARMED: std::cell::Cell<Option<(Point, Errno)>> = const { std::cell::Cell::new(None) };
 }
 
 /// Makes `point` fail on this thread until disarmed.
 #[cfg(test)]
-pub(crate) fn arm(point: Option<Point>) {
+pub(crate) fn arm(point: Option<(Point, Errno)>) {
     ARMED.with(|armed| armed.set(point));
 }
 
 /// Fails if a test armed `point` on this thread.
 #[cfg(test)]
 pub(crate) fn check(point: Point) -> Result<(), Errno> {
-    if ARMED.with(std::cell::Cell::get) == Some(point) {
-        Err(Errno::IO)
+    if let Some((armed, error)) = ARMED.with(std::cell::Cell::get)
+        && armed == point
+    {
+        Err(error)
     } else {
         Ok(())
     }
@@ -77,7 +79,11 @@ mod tests {
 
     impl Armed {
         fn at(point: Point) -> Self {
-            arm(Some(point));
+            Self::with_error(point, Errno::IO)
+        }
+
+        fn with_error(point: Point, error: Errno) -> Self {
+            arm(Some((point, error)));
             Self
         }
     }
@@ -94,6 +100,136 @@ mod tests {
         move_into(&verified, store, name.as_bytes(), &item.expected)
             .unwrap_or_else(|e| unreachable!("{e}"));
         item
+    }
+
+    fn partly_removed_tree_can_be_restored(root: &Path, store: &Store, error: Errno) {
+        std::fs::write(root.join("cache/dir/y"), b"survivor")
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        let item = quarantined(root, store, "cache/dir", "fault-matrix");
+        let result = {
+            let _armed = Armed::with_error(Point::FinalizeUnlink, error);
+            finalize(store, b"fault-matrix", &item.expected)
+        };
+        assert_eq!(
+            result.err().map(|e| e.removed()),
+            Some(Removed::Partly),
+            "{error:?}"
+        );
+        let remaining: Vec<_> = std::fs::read_dir(root.join("Quarantine/fault-matrix"))
+            .unwrap_or_else(|e| unreachable!("{e}"))
+            .map(|entry| entry.unwrap_or_else(|e| unreachable!("{e}")).file_name())
+            .collect();
+        assert_eq!(remaining.len(), 1);
+        restore(store, b"fault-matrix", &item).unwrap_or_else(|e| unreachable!("{e}"));
+        let expected: &[u8] = if remaining[0] == "x" {
+            b"x"
+        } else {
+            b"survivor"
+        };
+        assert_eq!(
+            std::fs::read(root.join("cache/dir").join(&remaining[0])).unwrap_or_default(),
+            expected
+        );
+    }
+
+    #[test]
+    fn disk_full_and_permission_faults_preserve_the_reported_location_and_recovery() {
+        let points = [
+            Point::MoveSync,
+            Point::MoveCheck,
+            Point::SidecarWrite,
+            Point::RestoreSync,
+            Point::RestoreCheck,
+            Point::FinalizeUnlink,
+            Point::FinalizeSidecar,
+        ];
+        for point in points {
+            for error in [Errno::IO, Errno::NOSPC, Errno::ACCESS] {
+                let (_fx, root, store) = setup();
+                let source = root.join("cache/app/data.bin");
+                let original = std::fs::read(&source).unwrap_or_else(|e| unreachable!("{e}"));
+                let name = b"fault-matrix";
+                let held = root.join("Quarantine/fault-matrix");
+                let item = match point {
+                    Point::MoveSync | Point::MoveCheck => {
+                        let item = plan(&root, "cache/app/data.bin");
+                        let verified = verify(&item).unwrap_or_else(|e| unreachable!("{e}"));
+                        let result = {
+                            let _armed = Armed::with_error(point, error);
+                            move_into(&verified, &store, name, &item.expected)
+                        };
+                        assert_eq!(
+                            result.err().map(|e| e.left()),
+                            Some(Left::InStore),
+                            "{point:?}/{error:?}"
+                        );
+                        item
+                    }
+                    Point::SidecarWrite => {
+                        let item = quarantined(&root, &store, "cache/app/data.bin", "fault-matrix");
+                        let result = {
+                            let _armed = Armed::with_error(point, error);
+                            write_sidecar(&store, name, b"manifest")
+                        };
+                        assert!(result.is_err(), "{point:?}/{error:?}");
+                        item
+                    }
+                    Point::RestoreSync | Point::RestoreCheck => {
+                        let item = quarantined(&root, &store, "cache/app/data.bin", "fault-matrix");
+                        let result = {
+                            let _armed = Armed::with_error(point, error);
+                            restore(&store, name, &item)
+                        };
+                        assert_eq!(
+                            result.err().map(|e| e.left()),
+                            Some(Left::AtSource),
+                            "{point:?}/{error:?}"
+                        );
+                        assert!(!held.exists());
+                        assert_eq!(std::fs::read(&source).unwrap_or_default(), original);
+                        continue;
+                    }
+                    Point::FinalizeUnlink => {
+                        partly_removed_tree_can_be_restored(&root, &store, error);
+                        continue;
+                    }
+                    Point::FinalizeSidecar => {
+                        let item = quarantined(&root, &store, "cache/app/data.bin", "fault-matrix");
+                        write_sidecar(&store, name, b"manifest")
+                            .unwrap_or_else(|e| unreachable!("{e}"));
+                        let result = {
+                            let _armed = Armed::with_error(point, error);
+                            finalize(&store, name, &item.expected)
+                        };
+                        assert_eq!(
+                            result.err().map(|e| e.removed()),
+                            Some(Removed::Item),
+                            "{point:?}/{error:?}"
+                        );
+                        assert!(!held.exists());
+                        continue;
+                    }
+                };
+                assert!(!source.exists());
+                assert_eq!(std::fs::read(&held).unwrap_or_default(), original);
+                restore(&store, name, &item).unwrap_or_else(|e| unreachable!("{e}"));
+                assert_eq!(std::fs::read(&source).unwrap_or_default(), original);
+            }
+        }
+    }
+
+    #[test]
+    fn injected_errors_are_thread_local_and_disarmed_on_drop() {
+        {
+            let _armed = Armed::with_error(Point::MoveSync, Errno::NOSPC);
+            assert_eq!(check(Point::MoveSync), Err(Errno::NOSPC));
+            assert_eq!(check(Point::RestoreSync), Ok(()));
+            assert_eq!(
+                std::thread::spawn(|| check(Point::MoveSync)).join().ok(),
+                Some(Ok(()))
+            );
+        }
+        assert_eq!(check(Point::MoveSync), Ok(()));
     }
 
     #[test]

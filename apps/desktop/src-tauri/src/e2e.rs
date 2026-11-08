@@ -161,16 +161,24 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
     );
     let item = home.join("Library/Developer/Xcode/DerivedData/App-abc");
     let cycle = || -> Option<String> {
+        let excluded_store = lumen_app::store::scan_exclusion_paths()
+            .unwrap_or_else(|e| unreachable!("{e}"))
+            .iter()
+            .any(|path| path.starts_with(home) && path.is_dir());
         let scan = ok(
             "scan",
             json!({ "request": { "roots": [home] }, "progress": "__CHANNEL__:7" }),
         );
-        assert_eq!(scan["roots"][0]["coverage_complete"], true, "{scan}");
+        assert_eq!(
+            scan["roots"][0]["coverage_complete"], !excluded_store,
+            "{scan}"
+        );
         let assessed = ok("assess", json!({ "progress": "__CHANNEL__:8" }));
         assert!(
             assessed.as_array().is_some_and(|items| !items.is_empty()),
             "{assessed}"
         );
+        assert!(!assessed.to_string().contains("/Quarantine/"), "{assessed}");
         assert!(
             item.exists(),
             "assessment only reads, even without a progress listener"

@@ -21,6 +21,14 @@ const allowed = new Set([
   "check_update",
   "install_update",
   "run_tool_command",
+  "tool_storage",
+  "software",
+  "explain_software",
+  "compare_folders",
+  "cancel_comparison",
+  "reassess",
+  "uninstall_preview",
+  "uninstall",
 ]);
 
 window.__TAURI_ISOLATION_HOOK__ = (payload) => {

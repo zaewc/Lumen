@@ -286,3 +286,41 @@ fn a_held_file_that_changes_is_neither_restored_nor_finalized() {
     );
     assert!(!root.join("cache/app/data.bin").exists());
 }
+
+#[test]
+fn concurrent_quarantine_attempts_keep_one_recoverable_copy() {
+    let (_fx, root, executor) = setup();
+    let item = prepare(&executor, &root, "cache/app/data.bin");
+    let barrier = std::sync::Barrier::new(2);
+    let results = std::thread::scope(|scope| {
+        let workers: Vec<_> = [op(12), op(13)]
+            .into_iter()
+            .map(|operation| {
+                let (executor, item, barrier) = (&executor, &item, &barrier);
+                scope.spawn(move || {
+                    barrier.wait();
+                    (operation, executor.quarantine(item, operation, b"{}"))
+                })
+            })
+            .collect();
+        workers
+            .into_iter()
+            .map(|worker| worker.join().unwrap_or_else(|_| unreachable!("worker")))
+            .collect::<Vec<_>>()
+    });
+    let winners: Vec<_> = results
+        .iter()
+        .filter(|(_, result)| result.is_ok())
+        .collect();
+    assert_eq!(winners.len(), 1, "{results:?}");
+    let operation = winners[0].0;
+    let held = root.join("Quarantine").join(operation.to_string());
+    assert_eq!(std::fs::read(&held).unwrap_or_default(), b"0123456789");
+    assert!(!root.join("cache/app/data.bin").exists());
+    assert_eq!(executor.locate(&item, operation), Located::InStore);
+    assert!(executor.restore(&item, operation).is_ok());
+    assert_eq!(
+        std::fs::read(root.join("cache/app/data.bin")).unwrap_or_default(),
+        b"0123456789"
+    );
+}

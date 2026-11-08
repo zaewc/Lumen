@@ -104,6 +104,9 @@ pub enum ScanEvent {
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ScanError {
+    /// Store locations must be known before scanning can exclude them.
+    #[error("quarantine locations are unknown: {0}")]
+    StoreLocation(#[from] crate::store::LocationError),
     /// A root could not be made absolute.
     #[error("{root}: {source}")]
     Root {
@@ -170,7 +173,7 @@ pub fn raw_path(path: &Path) -> Result<RawPath, PathError> {
 
 /// The roots as absolute raw paths, without resolving symlinks: a symlinked
 /// root is reported as a link, never followed.
-fn absolute_roots(roots: &[PathBuf]) -> Result<Vec<RawPath>, ScanError> {
+pub(crate) fn absolute_roots(roots: &[PathBuf]) -> Result<Vec<RawPath>, ScanError> {
     roots
         .iter()
         .map(|root| {
@@ -184,6 +187,42 @@ fn absolute_roots(roots: &[PathBuf]) -> Result<Vec<RawPath>, ScanError> {
             })
         })
         .collect()
+}
+
+/// Resolve only exclusion comparisons, never the paths given to traversal.
+/// Identities cover store aliases; canonical root comparisons cover a directly
+/// selected descendant, including paths with `..` or alternate casing.
+pub(crate) fn excluding_stores(
+    roots: &[PathBuf],
+    stores: &[PathBuf],
+) -> Result<ScanConfig, ScanError> {
+    let mut config = ScanConfig::default();
+    let mut paths = Vec::new();
+    for store in stores {
+        paths.push(store.clone());
+        if let Ok(canonical) = std::fs::canonicalize(store) {
+            paths.push(canonical);
+        }
+        let raw = raw_path(store).map_err(|source| ScanError::Path {
+            root: store.clone(),
+            source,
+        })?;
+        if let Ok(entry) = enumerator().stat(&raw) {
+            config.excluded_identities.insert(entry.identity().clone());
+        }
+    }
+    for root in roots {
+        if std::fs::canonicalize(root)
+            .is_ok_and(|canonical| paths.iter().any(|store| canonical.starts_with(store)))
+        {
+            paths.push(std::path::absolute(root).map_err(|source| ScanError::Root {
+                root: root.clone(),
+                source,
+            })?);
+        }
+    }
+    config.excluded_paths = absolute_roots(&paths)?;
+    Ok(config)
 }
 
 /// Scans `roots` read-only until done or `cancel` fires; with `db`, records
@@ -224,6 +263,7 @@ fn guarded(
 ) -> Result<ScanSummary, ScanError> {
     let timer = std::time::Instant::now();
     let raw_roots = absolute_roots(roots)?;
+    let config = excluding_stores(roots, &crate::store::scan_exclusion_paths()?)?;
     on_event(&ScanEvent::Started {
         roots: raw_roots.clone(),
     });
@@ -249,35 +289,29 @@ fn guarded(
     let mut write_error: Option<StoreError> = None;
     let mut live = Live::default();
     let mut out_of_space = false;
-    let summary = run_scan(
-        &enumerator(),
-        &raw_roots,
-        &ScanConfig::default(),
-        cancel,
-        |item| {
-            coverage.observe(&item);
-            sizes.observe(&item);
-            live.report(&item, on_event);
-            if let (Some(path), ScanItem::Progress(_)) = (db, &item)
-                && room(path).is_err()
-            {
-                out_of_space = true;
-                return ControlFlow::Break(());
+    let summary = run_scan(&enumerator(), &raw_roots, &config, cancel, |item| {
+        coverage.observe(&item);
+        sizes.observe(&item);
+        live.report(&item, on_event);
+        if let (Some(path), ScanItem::Progress(_)) = (db, &item)
+            && room(path).is_err()
+        {
+            out_of_space = true;
+            return ControlFlow::Break(());
+        }
+        let stored = match (&writer, item) {
+            (Some(w), ScanItem::Entry(entry)) => w.entry(entry),
+            (Some(w), ScanItem::Listed { path, outcome }) => w.listing(path, outcome),
+            _ => Ok(()),
+        };
+        match stored {
+            Ok(()) => ControlFlow::Continue(()),
+            Err(e) => {
+                write_error = Some(e);
+                ControlFlow::Break(())
             }
-            let stored = match (&writer, item) {
-                (Some(w), ScanItem::Entry(entry)) => w.entry(entry),
-                (Some(w), ScanItem::Listed { path, outcome }) => w.listing(path, outcome),
-                _ => Ok(()),
-            };
-            match stored {
-                Ok(()) => ControlFlow::Continue(()),
-                Err(e) => {
-                    write_error = Some(e);
-                    ControlFlow::Break(())
-                }
-            }
-        },
-    );
+        }
+    });
     let coverage = coverage.finish(&summary);
     let totals = sizes.finish();
 
@@ -476,6 +510,122 @@ mod tests {
             },
         ])
         .unwrap_or_else(|e| unreachable!("{e}"))
+    }
+
+    #[test]
+    fn stores_and_direct_descendant_roots_are_never_assessed_as_scanned()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let fx = Fixture::build(&[
+            Node::File {
+                path: "main/Lumen/Quarantine/held/cache.bin".into(),
+                contents: vec![1; 50],
+            },
+            Node::File {
+                path: "other/$LumenQuarantine.SID/held.bin".into(),
+                contents: vec![2; 50],
+            },
+            Node::File {
+                path: "main/Lumen/Quarantine-copy/keep.bin".into(),
+                contents: vec![3; 50],
+            },
+        ])?;
+        let stores = crate::store::Stores {
+            locations: vec![
+                (
+                    fx.path("main")?,
+                    vec![b"Lumen".to_vec(), b"Quarantine".to_vec()],
+                ),
+                (fx.path("other")?, vec![b"$LumenQuarantine.SID".to_vec()]),
+            ],
+            volumes: None,
+            single_user: false,
+        }
+        .paths();
+        let sibling = fx.path("main")?.join("Lumen").join("Quarantine-copy");
+        let sibling_path = raw_path(&sibling)?;
+        let sibling_file = raw_path(&sibling.join("keep.bin"))?;
+        for root in [
+            fx.root().to_path_buf(),
+            stores[0].clone(),
+            stores[0].join("held"),
+            stores[0].join("held/../held/cache.bin"),
+            stores[1].clone(),
+        ] {
+            let config = excluding_stores(std::slice::from_ref(&root), &stores)?;
+            let roots = absolute_roots(std::slice::from_ref(&root))?;
+            let mut entries = Vec::new();
+            let mut listings = Vec::new();
+            let summary = run_scan(
+                &enumerator(),
+                &roots,
+                &config,
+                &CancelToken::new(),
+                |item| {
+                    match item {
+                        ScanItem::Entry(entry) => entries.push(entry),
+                        ScanItem::Listed { path, outcome } => listings.push((path, outcome)),
+                        _ => {}
+                    }
+                    ControlFlow::Continue(())
+                },
+            );
+            assert_eq!(summary.stop, None);
+            for store in &stores {
+                let path = raw_path(store)?;
+                assert!(entries.iter().all(|entry| entry.path != path
+                    && !lumen_application::observe::below(&entry.path, &path)));
+            }
+            if root == fx.root() {
+                assert!(entries.iter().any(|entry| entry.path == sibling_file));
+                let parent = entries
+                    .iter()
+                    .find(|entry| entry.path == roots[0])
+                    .ok_or("root")?;
+                assert!(
+                    !lumen_application::observe::observed(parent, &entries, &listings).complete,
+                    "a parent containing a store must stay ineligible"
+                );
+                let sibling = entries
+                    .iter()
+                    .find(|entry| entry.path == sibling_path)
+                    .ok_or("sibling")?;
+                assert!(
+                    lumen_application::observe::observed(sibling, &entries, &listings).complete
+                );
+            } else {
+                assert!(entries.is_empty(), "direct store roots expose no entries");
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_alias_to_a_store_descendant_is_excluded() -> Result<(), Box<dyn std::error::Error>> {
+        let fx = Fixture::build(&[
+            Node::File {
+                path: "store/held/cache".into(),
+                contents: vec![1],
+            },
+            Node::Symlink {
+                path: "alias".into(),
+                target: "store/held".into(),
+            },
+        ])?;
+        let root = fx.path("alias/cache")?;
+        let config = excluding_stores(std::slice::from_ref(&root), &[fx.path("store")?])?;
+        let summary = run_scan(
+            &enumerator(),
+            &absolute_roots(&[root])?,
+            &config,
+            &CancelToken::new(),
+            |item| {
+                assert!(!matches!(item, ScanItem::Entry(_)));
+                ControlFlow::Continue(())
+            },
+        );
+        assert_eq!(summary.totals.skipped, 1);
+        Ok(())
     }
 
     #[test]

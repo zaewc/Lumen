@@ -7,16 +7,23 @@
 
 pub mod ai;
 pub mod assess;
+pub mod docker;
+pub mod duplicates;
 #[cfg(any(unix, windows))]
 pub mod held;
+mod inspection;
 mod knowledge;
+pub mod packages;
 pub mod plan;
 mod probes;
 #[cfg(any(unix, windows))]
 pub mod quarantine;
+pub mod reassess;
 pub mod roots;
 mod runtime;
 pub mod scan;
+pub mod software;
+pub mod software_notes;
 pub mod space;
 #[cfg(any(unix, windows))]
 pub mod space_change;
@@ -24,6 +31,11 @@ pub mod space_change;
 pub mod store;
 pub mod system;
 pub mod tools;
+#[cfg(any(unix, windows))]
+pub mod uninstall;
+#[cfg(target_os = "macos")]
+pub mod usage;
+pub mod xcode;
 
 pub use assess::{AssessError, Assessment, assess, block_on, prepare, with_probes};
 pub use plan::{NotChoosable, PlanError, Planned, plan};

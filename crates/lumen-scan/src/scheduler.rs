@@ -30,7 +30,7 @@ use lumen_domain::{ByteCount, EntryKind, FileIdentity, FilesystemEntry, RawPath}
 const CANCEL_POLL: Duration = Duration::from_millis(50);
 
 /// Scheduler settings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScanConfig {
     /// Worker threads.
     pub workers: NonZeroUsize,
@@ -40,6 +40,10 @@ pub struct ScanConfig {
     pub cross_devices: bool,
     /// Emit a [`ScanItem::Progress`] after this many results.
     pub progress_every: NonZeroUsize,
+    /// Paths whose entries and descendants must not be delivered.
+    pub excluded_paths: Vec<RawPath>,
+    /// Store identities also exclude aliases (firmlinks, case variants).
+    pub excluded_identities: HashSet<FileIdentity>,
 }
 
 impl Default for ScanConfig {
@@ -49,7 +53,19 @@ impl Default for ScanConfig {
             channel_capacity: NonZeroUsize::new(4096).unwrap_or(NonZeroUsize::MIN),
             cross_devices: false,
             progress_every: NonZeroUsize::new(1000).unwrap_or(NonZeroUsize::MIN),
+            excluded_paths: Vec::new(),
+            excluded_identities: HashSet::new(),
         }
+    }
+}
+
+impl ScanConfig {
+    fn excludes(&self, path: &RawPath, identity: Option<&FileIdentity>) -> bool {
+        identity.is_some_and(|id| self.excluded_identities.contains(id))
+            || self
+                .excluded_paths
+                .iter()
+                .any(|root| path == root || lumen_application::observe::below(path, root))
     }
 }
 
@@ -57,6 +73,8 @@ impl Default for ScanConfig {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum SkipReason {
+    /// Intentionally excluded; its contents are unknown, never empty.
+    Excluded,
     /// The directory is on another volume and `cross_devices` is off.
     MountPoint,
     /// The directory was already reached through another path: a macOS firmlink
@@ -140,7 +158,16 @@ struct Shared<'a> {
     cancel: &'a CancelToken,
 }
 
-impl Shared<'_> {
+impl<'a> Shared<'a> {
+    /// An empty queue whose workers observe `cancel`.
+    fn new(cancel: &'a CancelToken) -> Self {
+        Self {
+            queue: Mutex::new(Queue::default()),
+            changed: Condvar::new(),
+            cancel,
+        }
+    }
+
     fn lock(&self) -> MutexGuard<'_, Queue> {
         // A worker that panicked cannot leave the queue logically inconsistent
         // (every mutation is a single push/pop/counter update), so recover.
@@ -199,7 +226,17 @@ struct Delivery<'c, C> {
     every: usize,
 }
 
-impl<C: FnMut(ScanItem) -> ControlFlow<()>> Delivery<'_, C> {
+impl<'c, C: FnMut(ScanItem) -> ControlFlow<()>> Delivery<'c, C> {
+    /// Zero totals, with progress emitted every `config.progress_every` results.
+    fn new(consume: &'c mut C, config: &ScanConfig) -> Self {
+        Self {
+            consume,
+            totals: ScanProgress::default(),
+            since_progress: 0,
+            every: config.progress_every.get(),
+        }
+    }
+
     fn deliver(&mut self, item: ScanItem) -> ControlFlow<()> {
         match &item {
             ScanItem::Entry(entry) => {
@@ -234,17 +271,8 @@ pub fn scan<E: DirEnumerator, C: FnMut(ScanItem) -> ControlFlow<()>>(
     cancel: &CancelToken,
     mut consume: C,
 ) -> ScanSummary {
-    let shared = Shared {
-        queue: Mutex::new(Queue::default()),
-        changed: Condvar::new(),
-        cancel,
-    };
-    let mut delivery = Delivery {
-        consume: &mut consume,
-        totals: ScanProgress::default(),
-        since_progress: 0,
-        every: config.progress_every.get(),
-    };
+    let shared = Shared::new(cancel);
+    let mut delivery = Delivery::new(&mut consume, config);
     let mut stop = None;
 
     // Roots are examined on the calling thread so their entries arrive first.
@@ -253,7 +281,27 @@ pub fn scan<E: DirEnumerator, C: FnMut(ScanItem) -> ControlFlow<()>>(
             stop = Some(StopReason::Cancelled);
             break;
         }
+        if config.excludes(root, None) {
+            if delivery
+                .deliver(ScanItem::Skipped {
+                    path: root.clone(),
+                    reason: SkipReason::Excluded,
+                })
+                .is_break()
+            {
+                stop = Some(StopReason::Consumer);
+                break;
+            }
+            continue;
+        }
         let items = match enumerator.stat(root) {
+            Ok(entry) if config.excludes(root, Some(entry.identity())) => [
+                Some(ScanItem::Skipped {
+                    path: root.clone(),
+                    reason: SkipReason::Excluded,
+                }),
+                None,
+            ],
             Ok(entry) => {
                 let mut alias = None;
                 if entry.kind == EntryKind::Directory {
@@ -307,25 +355,32 @@ pub fn resume<E: DirEnumerator, C: FnMut(ScanItem) -> ControlFlow<()>>(
     cancel: &CancelToken,
     mut consume: C,
 ) -> ScanSummary {
-    let shared = Shared {
-        queue: Mutex::new(Queue::default()),
-        changed: Condvar::new(),
-        cancel,
-    };
+    let shared = Shared::new(cancel);
+    let mut delivery = Delivery::new(&mut consume, config);
+    for dir in frontier
+        .iter()
+        .filter(|dir| config.excludes(&dir.path, Some(&dir.identity)))
+    {
+        if delivery
+            .deliver(ScanItem::Skipped {
+                path: dir.path.clone(),
+                reason: SkipReason::Excluded,
+            })
+            .is_break()
+        {
+            return finish(&mut delivery, Some(StopReason::Consumer));
+        }
+    }
     {
         let mut queue = shared.lock();
         for dir in frontier {
-            if queue.claimed.insert(dir.identity.clone()) {
+            if !config.excludes(&dir.path, Some(&dir.identity))
+                && queue.claimed.insert(dir.identity.clone())
+            {
                 queue.pending.push_back(dir.clone());
             }
         }
     }
-    let mut delivery = Delivery {
-        consume: &mut consume,
-        totals: ScanProgress::default(),
-        since_progress: 0,
-        every: config.progress_every.get(),
-    };
     let stop = if cancel.is_cancelled() {
         Some(StopReason::Cancelled)
     } else {
@@ -400,9 +455,24 @@ fn worker<E: DirEnumerator>(
     while let Some(dir) = shared.take() {
         let mut children = Vec::new();
         let mut disconnected = false;
+        let mut excluded = false;
         let result = enumerator.read_dir(&dir.path, Some(&dir.identity), &mut |entry| {
             if shared.cancel.is_cancelled() {
                 return ControlFlow::Break(());
+            }
+            if config.excludes(&entry.path, Some(entry.identity())) {
+                excluded = true;
+                if sender
+                    .send(ScanItem::Skipped {
+                        path: entry.path,
+                        reason: SkipReason::Excluded,
+                    })
+                    .is_err()
+                {
+                    disconnected = true;
+                    return ControlFlow::Break(());
+                }
+                return ControlFlow::Continue(());
             }
             if entry.kind == EntryKind::Directory {
                 let skip = if entry.size.identity.volume != dir.root_volume && !config.cross_devices
@@ -437,10 +507,15 @@ fn worker<E: DirEnumerator>(
             ControlFlow::Continue(())
         });
         let item = match result {
-            Ok(outcome) => ScanItem::Listed {
-                path: dir.path,
-                outcome,
-            },
+            Ok(mut outcome) => {
+                // A parent containing an excluded store must not be assessed
+                // as fully observed and offered for quarantine itself.
+                outcome.complete &= !excluded;
+                ScanItem::Listed {
+                    path: dir.path,
+                    outcome,
+                }
+            }
             Err(error) => ScanItem::Skipped {
                 path: dir.path,
                 reason: SkipReason::Enumerate(error),
@@ -573,11 +648,52 @@ mod tests {
             channel_capacity: NonZeroUsize::new(capacity).unwrap_or(NonZeroUsize::MIN),
             cross_devices,
             progress_every: NonZeroUsize::new(1000).unwrap_or(NonZeroUsize::MIN),
+            ..ScanConfig::default()
         }
     }
 
     fn root() -> RawPath {
         RawPath::from_unix_bytes(b"/r".to_vec()).unwrap_or_else(|_| unreachable!())
+    }
+
+    #[test]
+    fn excluded_identities_hide_aliases_and_excluded_paths_hide_direct_roots() {
+        let mut fs = FakeFs::default();
+        fs.add("/r", EntryKind::Directory, "v", false);
+        fs.add("/r/store", EntryKind::Directory, "v", false);
+        fs.add("/r/store/file", EntryKind::File, "v", false);
+        fs.add("/r/store-copy", EntryKind::File, "v", false);
+        fs.alias("/r/alias", "/r/store");
+        let store = fs.entry("/r/store").unwrap_or_else(|| unreachable!());
+        let mut config = config(2, 2, false);
+        config.excluded_identities.insert(store.identity().clone());
+        let (items, summary) = collect(&fs, &config);
+        assert_eq!(entry_paths(&items), ["/r", "/r/store-copy"]);
+        assert_eq!(summary.totals.skipped, 2);
+        assert!(items.iter().any(|item| matches!(item,
+            ScanItem::Listed { outcome, .. } if !outcome.complete)));
+        config.excluded_paths.push(store.path.clone());
+        let child = fs.entry("/r/store/file").unwrap_or_else(|| unreachable!());
+        for path in [store.path.clone(), child.path] {
+            let summary = scan(&fs, &[path], &config, &CancelToken::new(), |item| {
+                assert!(!matches!(item, ScanItem::Entry(_)));
+                ControlFlow::Continue(())
+            });
+            assert_eq!(summary.totals.skipped, 1);
+        }
+        let frontier = [PendingDirectory {
+            path: store.path,
+            root_volume: store.size.identity.volume.clone(),
+            identity: store.size.identity,
+        }];
+        let summary = resume(&fs, &frontier, &config, &CancelToken::new(), |item| {
+            assert!(!matches!(
+                item,
+                ScanItem::Entry(_) | ScanItem::Listed { .. }
+            ));
+            ControlFlow::Continue(())
+        });
+        assert_eq!(summary.totals.skipped, 1);
     }
 
     fn collect(fs: &FakeFs, config: &ScanConfig) -> (Vec<ScanItem>, ScanSummary) {
