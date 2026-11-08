@@ -1,17 +1,23 @@
 import type { SoftwareItemView, UninstallOutcomeView } from "@lumen/api-client";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice, Notice } from "@/shared/ui";
 import { title } from "../model/list";
 import { failureText, useAppMove } from "../model/move";
+import { onlyRunning, QUIT_CHECK_MS, QUIT_WAIT_MS, quitStage } from "../model/quit";
 import { MoveDialog, MoveReasons } from "./MoveDialog";
 
 /**
  * Asks the host for a fresh preview of moving `item` to Quarantine (ADR-0062)
  * and confirms exactly that preview. The page sends only the app's key and the
  * preview's ID and hash; every fact shown comes from the host.
+ *
+ * An app refused only because it runs can be asked to quit (roadmap 16.3a),
+ * the way its Quit menu item asks; the preview is then checked again every
+ * few seconds for a while, since the app may first ask to save.
  */
 export function MoveFlow({
   item,
@@ -23,6 +29,27 @@ export function MoveFlow({
   const transport = useTransport();
   const ask = transport.uninstallPreview;
   const move = useAppMove();
+  const quitApp = transport.quitApp;
+  // Each quit request starts a wait of QUIT_WAIT_MS, during which the
+  // preview is checked again every QUIT_CHECK_MS while the app still runs.
+  const [asked, setAsked] = useState(0);
+  const [waiting, setWaiting] = useState(false);
+  useEffect(() => {
+    if (asked === 0) return;
+    const timer = setTimeout(() => setWaiting(false), QUIT_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [asked]);
+  const quit = useMutation({
+    mutationFn: (key: string) =>
+      quitApp === undefined ? Promise.reject(new Error("unsupported")) : quitApp(key),
+    onSuccess: (answer) => {
+      if (answer.kind === "asked" || answer.kind === "not_running") {
+        setWaiting(true);
+        setAsked((n) => n + 1);
+        void preview.refetch();
+      }
+    },
+  });
   const preview = useQuery({
     queryKey: ["software", "uninstall-preview", item.key],
     queryFn: () => (ask === undefined ? Promise.reject(new Error("unsupported")) : ask(item.key)),
@@ -30,13 +57,29 @@ export function MoveFlow({
     gcTime: 0,
     staleTime: 0,
     refetchOnWindowFocus: false,
+    refetchInterval: (query) =>
+      waiting && onlyRunning(query.state.data ?? null) ? QUIT_CHECK_MS : false,
   });
+  const data = preview.data ?? null;
   return (
     <MoveDialog
       name={title(item)}
-      preview={preview.data ?? null}
-      error={preview.isError ? preview.error : null}
+      preview={data}
+      error={preview.isError ? preview.error : quit.isError ? quit.error : null}
       loading={preview.isFetching}
+      quit={
+        quitApp === undefined
+          ? "none"
+          : quit.isPending
+            ? "waiting"
+            : quitStage(data, quit.data ?? null, waiting)
+      }
+      onQuit={() => quit.mutate(item.key)}
+      onRecheck={() => {
+        setWaiting(false);
+        quit.reset();
+        void preview.refetch();
+      }}
       onClose={onClose}
       onConfirm={(ready) => {
         onClose();

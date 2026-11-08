@@ -35,6 +35,8 @@ pub mod metadata;
 #[cfg(target_os = "macos")]
 mod probe;
 #[cfg(target_os = "macos")]
+mod quit;
+#[cfg(target_os = "macos")]
 mod receipts;
 pub mod support;
 #[cfg(target_os = "macos")]
@@ -61,5 +63,7 @@ pub use keychain::{KeychainStore, SERVICE as KEYCHAIN_SERVICE};
 pub use launchd::LaunchdInventory;
 #[cfg(target_os = "macos")]
 pub use probe::{ProcessProbe, ProcessSnapshot};
+#[cfg(target_os = "macos")]
+pub use quit::{QuitRequest, ask_to_quit};
 #[cfg(target_os = "macos")]
 pub use receipts::ReceiptInventory;

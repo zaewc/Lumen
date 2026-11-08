@@ -48,24 +48,6 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: scripts/ci-changes.sh
 
-  fmt:
-    name: fmt
-    needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Install pinned toolchain
-        run: rustup toolchain install
-      - run: cargo fmt --all --check
-
   check:
     name: check (${{ matrix.os }})
     needs: changes
@@ -94,6 +76,9 @@ jobs:
       - name: Install pinned toolchain
         if: env.RUN == 'true'
         run: rustup toolchain install
+      - name: Check formatting
+        if: env.RUN == 'true' && runner.os == 'Linux'
+        run: cargo fmt --all --check
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         if: env.RUN == 'true'
         with:
@@ -106,10 +91,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev \
             libjavascriptcoregtk-4.1-dev librsvg2-dev
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+      - name: Install cargo-nextest from crates.io
         if: env.RUN == 'true'
-        with:
-          tool: cargo-nextest
+        run: cargo install cargo-nextest --version 0.9.146 --locked --force
       - name: Clippy
         if: env.RUN == 'true'
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -191,19 +175,41 @@ jobs:
       - name: Compile the generated Kotlin bindings
         env:
           KOTLIN_VERSION: 2.4.20
-          KOTLIN_SHA256: 59e9ca74c7904ef2c122b12114937673ccce68de820a663f0ed66ccf8799e0b7
           JNA_VERSION: 5.19.1
-          JNA_SHA256: 4fb141dd8ef6b0585ffceea4bc49602fbc6312fa977e2c488794ea3e6aafecae
         run: |
           cd "$RUNNER_TEMP"
-          curl -fsSL -o kotlin.zip \
-            "https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip"
-          echo "${KOTLIN_SHA256}  kotlin.zip" | sha256sum -c -
-          curl -fsSL -o jna.jar \
-            "https://repo1.maven.org/maven2/net/java/dev/jna/jna/${JNA_VERSION}/jna-${JNA_VERSION}.jar"
-          echo "${JNA_SHA256}  jna.jar" | sha256sum -c -
-          unzip -q kotlin.zip
-          ./kotlinc/bin/kotlinc "$GITHUB_WORKSPACE/target/android/kotlin" -cp jna.jar -d bindings.jar
+          cat > kotlin-pom.xml <<'EOF'
+          <project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>local.ci</groupId>
+            <artifactId>kotlin-bindings-check</artifactId>
+            <version>1.0</version>
+            <dependencies>
+              <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-compiler-embeddable</artifactId>
+                <version>${kotlin.version}</version>
+              </dependency>
+              <dependency>
+                <groupId>net.java.dev.jna</groupId>
+                <artifactId>jna</artifactId>
+                <version>${jna.version}</version>
+              </dependency>
+            </dependencies>
+          </project>
+          EOF
+          mvn --batch-mode --strict-checksums \
+            -Dkotlin.version="${KOTLIN_VERSION}" \
+            -Djna.version="${JNA_VERSION}" \
+            -Dmdep.outputFile="${RUNNER_TEMP}/kotlin-classpath.txt" \
+            -f "${RUNNER_TEMP}/kotlin-pom.xml" \
+            org.apache.maven.plugins:maven-dependency-plugin:3.8.1:build-classpath
+          compiler_classpath=$(cat "${RUNNER_TEMP}/kotlin-classpath.txt")
+          java -cp "${compiler_classpath}" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+            -no-stdlib -no-reflect \
+            -classpath "${compiler_classpath}" \
+            "$GITHUB_WORKSPACE/target/android/kotlin" \
+            -d "${RUNNER_TEMP}/bindings.jar"
 
   ios:
     name: ios

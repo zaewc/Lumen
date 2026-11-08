@@ -603,6 +603,14 @@ export const en = {
       noSpace: "Space is freed only when you remove the app for good from Quarantine.",
       changed: "The app changed. Close this preview and check it again.",
       failedMove: "Lumen could not finish moving the app.",
+      quit: "Quit",
+      quitHint:
+        "Quit asks the app to close, as its own Quit menu item does. If it has unsaved work, it asks you first.",
+      quitAsked: "Lumen asked the app to quit. If it asks about saving, answer it there.",
+      stillRunning: "The app is still running. Quit it, then check again.",
+      quitItself: "Lumen cannot quit itself from here.",
+      quitFailed: "Lumen could not ask the app to quit. Quit it yourself, then check again.",
+      recheck: "Check again",
       notes: {
         goes_to_quarantine:
           "You can restore the app until you remove it for good. Lumen never removes it automatically.",

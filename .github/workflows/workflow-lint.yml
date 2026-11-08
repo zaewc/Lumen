@@ -24,17 +24,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Install actionlint (checksum-verified)
+      - name: Install actionlint from Go modules
         env:
-          VERSION: "1.7.12"
-          SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
-        run: |
-          curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o actionlint.tar.gz \
-            "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/actionlint_${VERSION}_linux_amd64.tar.gz"
-          echo "${SHA256}  actionlint.tar.gz" | sha256sum --check --strict -
-          tar -xzf actionlint.tar.gz actionlint
+          GOTOOLCHAIN: go1.25.0
+          GOPROXY: "https://proxy.golang.org"
+          GOSUMDB: sum.golang.org
+        run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
       # shellcheck is preinstalled on ubuntu runners and checks run: scripts.
-      - run: ./actionlint -color
+      - run: '"$HOME/go/bin/actionlint" -color'
       - name: Claude Code guard hooks block what they should, and only that (ADR-0056)
         run: |
           shellcheck .claude/hooks/*.sh

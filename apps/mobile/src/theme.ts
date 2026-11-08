@@ -1,9 +1,9 @@
 import { Platform, StyleSheet, useColorScheme } from "react-native";
+import { suitFont } from "./fonts";
 
 /**
  * Lumen's mobile colours: the desktop app's tokens (apps/web/src/app/styles.css)
  * on a phone's own backgrounds, with one accent, the indigo of the app icon.
- * Text uses the platform's system font (no `fontFamily`).
  */
 export interface Colors {
   readonly background: string;
@@ -93,11 +93,11 @@ export function controlMaterial(c: Colors) {
 /** Type sizes after each platform's own scale (iOS text styles, Material type scale). */
 export const type = {
   largeTitle: Platform.select({
-    ios: { fontSize: 34, fontWeight: "700" as const },
-    default: { fontSize: 28, fontWeight: "400" as const },
+    ios: { fontSize: 34, ...suitFont(700) },
+    default: { fontSize: 28, ...suitFont(400) },
   }),
-  headline: { fontSize: Platform.OS === "ios" ? 17 : 16, fontWeight: "600" as const },
-  body: { fontSize: Platform.OS === "ios" ? 17 : 16 },
-  footnote: { fontSize: Platform.OS === "ios" ? 13 : 14 },
-  caption: { fontSize: 12 },
+  headline: { fontSize: Platform.OS === "ios" ? 17 : 16, ...suitFont(600) },
+  body: { fontSize: Platform.OS === "ios" ? 17 : 16, ...suitFont(400) },
+  footnote: { fontSize: Platform.OS === "ios" ? 13 : 14, ...suitFont(400) },
+  caption: { fontSize: 12, ...suitFont(400) },
 };

@@ -27,6 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "reassess",
         "uninstall_preview",
         "uninstall",
+        "quit_app",
     ];
     tauri_build::try_build(
         tauri_build::Attributes::new()

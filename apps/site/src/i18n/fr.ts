@@ -11,7 +11,7 @@ export const fr: Messages = {
   skip: "Aller au contenu",
   nav: { label: "Site", docs: "Documentation" },
   hero: {
-    headline: ["Comprendre votre stockage", "sur tous vos appareils."],
+    headline: ["Storage intelligence", "for every device."],
     lead: "Une application gratuite qui repère ce qui remplit votre disque et libère de l'espace en toute sécurité, avec un second avis de l'IA. Les fichiers nettoyés passent d'abord en quarantaine : vous pouvez les restaurer.",
     download: "Voir les versions",
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",

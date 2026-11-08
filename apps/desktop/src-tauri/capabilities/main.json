@@ -27,6 +27,7 @@
     "allow-cancel-comparison",
     "allow-reassess",
     "allow-uninstall-preview",
-    "allow-uninstall"
+    "allow-uninstall",
+    "allow-quit-app"
   ]
 }

@@ -4,6 +4,7 @@ import { formatDateTime, useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { buttonClass, Dialog, Disclosure, ErrorNotice } from "@/shared/ui";
 import type { ReadyPreview } from "../model/move";
+import { mayBeRunning, type QuitStage } from "../model/quit";
 
 export function MoveReasons({ reasons }: { readonly reasons: readonly UninstallReasonView[] }) {
   const { m } = useI18n();
@@ -22,6 +23,9 @@ export function MoveDialog({
   preview,
   error,
   loading,
+  quit = "none",
+  onQuit,
+  onRecheck,
   onClose,
   onConfirm,
 }: {
@@ -29,6 +33,11 @@ export function MoveDialog({
   readonly preview: UninstallPreviewView | null;
   readonly error: unknown;
   readonly loading: boolean;
+  /** Where asking the app to quit stands; `none` hides it. */
+  readonly quit?: QuitStage;
+  readonly onQuit?: () => void;
+  /** Checks the app again, for one that runs or may run. */
+  readonly onRecheck?: () => void;
   readonly onClose: () => void;
   readonly onConfirm: (preview: ReadyPreview) => void;
 }) {
@@ -38,6 +47,22 @@ export function MoveDialog({
   const close = useRef<HTMLButtonElement>(null);
   const app = preview?.kind === "ready" || preview?.kind === "refused" ? preview.app : null;
   const ready = preview?.kind === "ready" ? preview : null;
+  const quitText = () => {
+    switch (quit) {
+      case "none":
+        return null;
+      case "offer":
+        return <p>{a.quitHint}</p>;
+      case "waiting":
+        return <p role="status">{a.quitAsked}</p>;
+      case "still_running":
+        return <p>{a.stillRunning}</p>;
+      case "itself":
+        return <p>{a.quitItself}</p>;
+      case "failed":
+        return <p>{a.quitFailed}</p>;
+    }
+  };
   const message = () => {
     if (preview === null) return null;
     switch (preview.kind) {
@@ -113,12 +138,28 @@ export function MoveDialog({
           </>
         )}
         {message()}
+        {quitText()}
         {error !== null && <ErrorNotice message={a.failed} error={error} />}
       </div>
       <div className="mt-6 flex flex-col-reverse gap-2 min-[480px]:flex-row min-[480px]:justify-end">
         <button ref={close} type="button" onClick={onClose} className={buttonClass("secondary")}>
           {m.common.close}
         </button>
+        {onRecheck !== undefined && mayBeRunning(preview) && quit !== "waiting" && (
+          <button
+            type="button"
+            onClick={onRecheck}
+            disabled={loading}
+            className={buttonClass("secondary")}
+          >
+            {a.recheck}
+          </button>
+        )}
+        {onQuit !== undefined && quit === "offer" && (
+          <button type="button" onClick={onQuit} className={buttonClass("primary")}>
+            {a.quit}
+          </button>
+        )}
         {ready !== null && (
           <button type="button" onClick={() => onConfirm(ready)} className={buttonClass("primary")}>
             {m.confirm.move}

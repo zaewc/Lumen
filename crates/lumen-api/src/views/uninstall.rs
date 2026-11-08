@@ -2,10 +2,11 @@
 //! preview shows, and what became of the app. The page names an app by its
 //! software-list key and confirms a preview by its ID and hash; no view
 //! carries a path to act on (ADR-0023). Every name and path is
-//! display-escaped untrusted text.
+//! display-escaped untrusted text. A running app can be asked to quit
+//! (roadmap 16.3a), named by its key too.
 
 use lumen_app::uninstall::{
-    UninstallApp, UninstallError, UninstallPreview, UninstallReport, UninstallResult,
+    QuitResult, UninstallApp, UninstallError, UninstallPreview, UninstallReport, UninstallResult,
 };
 use lumen_application::uninstall::Ineligible;
 use serde::{Deserialize, Serialize};
@@ -271,6 +272,50 @@ impl From<&UninstallReport> for UninstallOutcomeView {
     }
 }
 
+/// What asking a running app to quit did. It was asked the way its Quit menu
+/// item asks, so it may ask to save or decline; preview it again to see
+/// whether it still runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum QuitView {
+    /// It was asked to quit.
+    Asked,
+    /// It is not running (any more).
+    NotRunning,
+    /// It is Lumen itself; it was not asked.
+    Itself,
+    /// The request could not be sent.
+    Failed,
+    /// No installed application has that key now: list the software again.
+    NotFound,
+    /// More than one application has that key, so which one is meant is
+    /// unknown.
+    Ambiguous,
+    /// Asking an app to quit is only for macOS applications.
+    Unsupported,
+}
+
+impl QuitView {
+    /// The view of a quit request, or of the reason none was sent.
+    ///
+    /// # Errors
+    ///
+    /// The error, if it is not one the page explains itself (a privileged
+    /// process).
+    pub fn from_result(result: Result<QuitResult, UninstallError>) -> Result<Self, UninstallError> {
+        match result {
+            Ok(QuitResult::Asked) => Ok(Self::Asked),
+            Ok(QuitResult::NotRunning) => Ok(Self::NotRunning),
+            Ok(QuitResult::Itself) => Ok(Self::Itself),
+            Ok(QuitResult::Failed) => Ok(Self::Failed),
+            Err(UninstallError::UnknownApp) => Ok(Self::NotFound),
+            Err(UninstallError::Ambiguous) => Ok(Self::Ambiguous),
+            Err(UninstallError::Unsupported) => Ok(Self::Unsupported),
+            Err(error) => Err(error),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use lumen_app::uninstall::Confirmable;
@@ -423,6 +468,39 @@ mod tests {
         assert_eq!(
             refused["result"],
             serde_json::json!({"kind": "refused", "reasons": ["running"]})
+        );
+    }
+
+    #[test]
+    fn a_quit_request_is_tagged_and_explained_errors_are_views() {
+        let json = |result| {
+            QuitView::from_result(result)
+                .map(|view| serde_json::to_value(view).unwrap_or_default())
+                .ok()
+        };
+        assert_eq!(
+            json(Ok(QuitResult::Asked)),
+            Some(serde_json::json!({"kind": "asked"}))
+        );
+        assert_eq!(
+            json(Ok(QuitResult::NotRunning)),
+            Some(serde_json::json!({"kind": "not_running"}))
+        );
+        assert_eq!(
+            json(Ok(QuitResult::Itself)),
+            Some(serde_json::json!({"kind": "itself"}))
+        );
+        assert_eq!(
+            json(Err(UninstallError::UnknownApp)),
+            Some(serde_json::json!({"kind": "not_found"}))
+        );
+        assert!(
+            QuitView::from_result(Err(UninstallError::NotAnUninstall(
+                "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a3"
+                    .parse()
+                    .unwrap_or_else(|_| unreachable!())
+            )))
+            .is_err()
         );
     }
 }

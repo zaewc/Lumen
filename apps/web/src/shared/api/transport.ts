@@ -13,6 +13,7 @@ import type {
   HeldItemView,
   PlanView,
   QuarantineReportView,
+  QuitView,
   ReassessRequest,
   ReassessView,
   RestoreOutcomeView,
@@ -136,4 +137,11 @@ export interface LumenTransport {
    * right before the move. Restorable until removed for good.
    */
   uninstall?(preview: string, confirmation: string): Promise<UninstallOutcomeView>;
+  /**
+   * Asks the running macOS app the software list shows under `key` to quit,
+   * the way its Quit menu item does (roadmap 16.3a): it may ask to save or
+   * decline, and is never force-quit. Preview it again to see whether it
+   * still runs. Only where the host can (the desktop app on macOS).
+   */
+  quitApp?(key: string): Promise<QuitView>;
 }

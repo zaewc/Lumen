@@ -572,6 +572,13 @@ export const zhCN: Messages = {
       noSpace: "只有从隔离区永久删除应用后，才会释放空间。",
       changed: "应用已发生变化。请关闭预览并重新检查。",
       failedMove: "未能完成应用移动。",
+      quit: "退出",
+      quitHint: "像应用自己的“退出”菜单一样请求它退出。如有未保存的工作，应用会先询问你。",
+      quitAsked: "已请求应用退出。如果它询问是否保存，请在应用中回答。",
+      stillRunning: "应用仍在运行。请退出后重新检查。",
+      quitItself: "Lumen 无法在这里退出自身。",
+      quitFailed: "无法请求应用退出。请自行退出后重新检查。",
+      recheck: "重新检查",
       notes: {
         goes_to_quarantine: "永久删除前可以恢复应用。Lumen 不会自动删除它。",
         library_data_stays: "~/Library 中的应用数据会保留。重新扫描后，可以在探索中查看。",

@@ -590,9 +590,10 @@ function wait(ms: number): Promise<void> {
   return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
 }
 
-// The sample uninstall previews (ADR-0062): Spotify may go to Quarantine;
-// Calculator is part of macOS, and OldEditor has a background item.
-function uninstallPreviewOf(key: string, n: number): UninstallPreviewView {
+// The sample uninstall previews (ADR-0062): Spotify may go to Quarantine once
+// it is not running; Calculator is part of macOS, and OldEditor has a
+// background item.
+function uninstallPreviewOf(key: string, n: number, running: boolean): UninstallPreviewView {
   const row = softwareList(false).items.find((item) => item.key === key);
   if (row === undefined || row.origin !== "mac_app") {
     return { kind: "not_found" };
@@ -612,6 +613,9 @@ function uninstallPreviewOf(key: string, n: number): UninstallPreviewView {
   }
   if (row.services.length > 0) {
     return { kind: "refused", app, reasons: ["service_linked"] };
+  }
+  if (running) {
+    return { kind: "refused", app, reasons: ["running"] };
   }
   return {
     kind: "ready",
@@ -653,6 +657,8 @@ export function memoryTransport({
   let previewed = 0;
   // Previews that may still be confirmed, each once.
   const previews = new Map<string, { hash: string; app: UninstallAppView }>();
+  // Apps running in the sample, until asked to quit (roadmap 16.3a).
+  const running = new Set(["mac_app:com.spotify.client"]);
   const take = (operation: string): HeldItemView | undefined => {
     const item = held.find((h) => h.operation === operation);
     held = held.filter((h) => h.operation !== operation);
@@ -901,11 +907,17 @@ export function memoryTransport({
     uninstallPreview: async (key) => {
       await wait(pace);
       previewed += 1;
-      const preview = uninstallPreviewOf(key, previewed);
+      const preview = uninstallPreviewOf(key, previewed, running.has(key));
       if (preview.kind === "ready") {
         previews.set(preview.preview, { hash: preview.hash, app: preview.app });
       }
       return preview;
+    },
+    quitApp: async (key) => {
+      await wait(pace);
+      const row = softwareList(false).items.find((item) => item.key === key);
+      if (row?.origin !== "mac_app") return { kind: "not_found" };
+      return { kind: running.delete(key) ? "asked" : "not_running" };
     },
     uninstall: async (preview, confirmation) => {
       await wait(pace);

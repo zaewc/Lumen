@@ -26,6 +26,7 @@ const csp = [
   "script-src 'self'",
   "style-src 'self'",
   "img-src 'self' data:",
+  "font-src 'self'",
   ...(notFound ? [] : ["connect-src https://api.github.com"]),
   "base-uri 'none'",
   "form-action 'none'",

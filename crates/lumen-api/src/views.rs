@@ -50,7 +50,7 @@ pub use software::{
 };
 pub use times::{TimeView, TimesView};
 pub use uninstall::{
-    UninstallAppView, UninstallNoteView, UninstallOutcomeView, UninstallPreviewView,
+    QuitView, UninstallAppView, UninstallNoteView, UninstallOutcomeView, UninstallPreviewView,
     UninstallReasonView, UninstallResultView,
 };
 

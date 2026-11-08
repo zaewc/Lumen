@@ -613,6 +613,16 @@ export const es: Messages = {
       noSpace: "El espacio se libera al eliminar la app definitivamente de Cuarentena.",
       changed: "La app ha cambiado. Cierra esta vista previa y vuelve a comprobarla.",
       failedMove: "Lumen no pudo terminar de mover la app.",
+      quit: "Salir",
+      quitHint:
+        "Pide a la app que se cierre, como su propio menú Salir. Si tiene trabajo sin guardar, te lo preguntará primero.",
+      quitAsked:
+        "Lumen pidió a la app que se cerrara. Si pregunta si quieres guardar, responde en la app.",
+      stillRunning: "La app sigue en ejecución. Ciérrala y vuelve a comprobarla.",
+      quitItself: "Lumen no puede cerrarse a sí mismo desde aquí.",
+      quitFailed:
+        "Lumen no pudo pedir a la app que se cerrara. Ciérrala tú y vuelve a comprobarla.",
+      recheck: "Comprobar de nuevo",
       notes: {
         goes_to_quarantine:
           "Puedes restaurarla hasta que la elimines definitivamente. Lumen nunca la elimina automáticamente.",

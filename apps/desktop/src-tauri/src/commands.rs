@@ -17,9 +17,9 @@ use std::sync::Arc;
 use lumen_api::views::{
     AiSettingsView, AssessProgressView, CandidateView, CompareOutcomeView, CompareProgressView,
     DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, PlanView, QuarantineReportView,
-    ReassessRequest, ReassessView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
-    SoftwareView, ToolRunView, ToolStorageView, UninstallOutcomeView, UninstallPreviewView,
-    candidate_id,
+    QuitView, ReassessRequest, ReassessView, RestoreOutcomeView, ScanProgressView, ScanRequest,
+    ScanView, SoftwareView, ToolRunView, ToolStorageView, UninstallOutcomeView,
+    UninstallPreviewView, candidate_id,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -904,6 +904,22 @@ pub(crate) async fn uninstall(
         )
         .map_err(CommandError::new)?;
         Ok(UninstallOutcomeView::from(&report))
+    })
+    .await
+}
+
+/// Asks the running macOS application the software list shows under `key` to
+/// quit, the way its Quit menu item does (roadmap 16.3a): it may ask to save
+/// or decline, and it is never force-quit. Only the person's own instances of
+/// that one bundle are asked, never Lumen itself. Takes the list's key, never
+/// a path or a process ID. Elsewhere it says it is unsupported.
+#[tauri::command]
+pub(crate) async fn quit_app(key: String) -> Result<QuitView, CommandError> {
+    if key.len() > MAX_SOFTWARE_KEY {
+        return Err(CommandError::new("not a software key"));
+    }
+    blocking(move || {
+        QuitView::from_result(lumen_app::uninstall::quit(&key)).map_err(CommandError::new)
     })
     .await
 }

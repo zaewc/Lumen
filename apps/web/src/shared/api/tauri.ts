@@ -12,6 +12,7 @@ import {
   zHeldItemView,
   zPlanView,
   zQuarantineReportView,
+  zQuitView,
   zReassessedItemView,
   zReassessGapView,
   zReassessView,
@@ -124,6 +125,7 @@ export function tauriTransport(): LumenTransport {
       zUninstallPreviewView.parse(await call("uninstall_preview", { key })),
     uninstall: async (preview, confirmation) =>
       zUninstallOutcomeView.parse(await call("uninstall", { preview, confirmation })),
+    quitApp: async (key) => zQuitView.parse(await call("quit_app", { key })),
     setAiReview: async (enabled) => zAiSettingsView.parse(await call("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await call("set_ai_key", { key })),
   };

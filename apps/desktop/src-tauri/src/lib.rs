@@ -143,6 +143,7 @@ pub fn app<R: Runtime>(
             commands::reassess,
             commands::uninstall_preview,
             commands::uninstall,
+            commands::quit_app,
             update::check_update,
             update::install_update,
         ])

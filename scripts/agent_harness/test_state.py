@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import unittest
 
-from state import atomic, conflicts, git, lock, read, snapshot
+from state import atomic, command, conflicts, git, inspect, lock, read, snapshot
 
 
 class Repository(unittest.TestCase):
@@ -21,6 +21,18 @@ class Repository(unittest.TestCase):
 
 
 class StateTests(Repository):
+    def test_inspection_patch_round_trips_non_utf8_bytes(self):
+        (self.root / "tracked").write_bytes(b"staged \xff\n")
+        git(self.root, "add", "tracked")
+        (self.root / "tracked").write_bytes(b"unstaged \xfe\n")
+        before = snapshot(self.root)
+        inspect(self.root, self.root / ".git")
+        record = read(self.root / ".git" / "diff.json")
+        for field, args in (("working_patch", ["HEAD"]), ("staged_patch", ["--cached"])):
+            expected = command(["git", "diff", *args, "--binary", "--no-ext-diff", "--no-textconv"], self.root)
+            self.assertEqual(record[field].encode("utf-8", "surrogateescape"), expected)
+        self.assertEqual(snapshot(self.root), before)
+
     def test_fingerprints_preserve_all_three_change_layers(self):
         clean = snapshot(self.root)
         (self.root / "tracked").write_text("staged\n")

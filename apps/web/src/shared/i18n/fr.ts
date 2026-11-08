@@ -591,6 +591,17 @@ export const fr: Messages = {
       noSpace: "L’espace se libère quand vous supprimez définitivement l’app de la quarantaine.",
       changed: "L’app a changé. Fermez cet aperçu et vérifiez-la à nouveau.",
       failedMove: "Lumen n’a pas pu terminer le déplacement de l’app.",
+      quit: "Quitter",
+      quitHint:
+        "Demande à l’app de se fermer, comme son propre menu Quitter. Si du travail n’est pas enregistré, elle vous le demande d’abord.",
+      quitAsked:
+        "Lumen a demandé à l’app de se fermer. Si elle propose d’enregistrer, répondez dans l’app.",
+      stillRunning:
+        "Cette app est toujours en cours d’exécution. Quittez-la et vérifiez à nouveau.",
+      quitItself: "Lumen ne peut pas se quitter lui-même d’ici.",
+      quitFailed:
+        "Lumen n’a pas pu demander à l’app de se fermer. Quittez-la vous-même et vérifiez à nouveau.",
+      recheck: "Vérifier à nouveau",
       notes: {
         goes_to_quarantine:
           "Vous pouvez la restaurer avant de la supprimer définitivement. Lumen ne la supprime jamais automatiquement.",
