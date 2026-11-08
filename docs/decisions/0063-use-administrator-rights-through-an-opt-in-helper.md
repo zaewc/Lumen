@@ -28,6 +28,9 @@ The owner decided:
 - **Mechanism.** A privileged helper that moves items into Lumen's quarantine, on
   macOS. On Windows, a service installed once rather than an elevation prompt every
   time.
+- **Signing on Windows.** Lumen's own signing key, at no cost, rather than a bought
+  certificate. Artifact Signing (formerly Trusted Signing) is open only to
+  organizations, and to individuals in the United States or Canada.
 - **Scope.** Apps, and system-scope files that the safety policy allows; never the
   personal folders of other accounts.
 - **Timing.** The helper is set up the first time it is needed.
@@ -104,9 +107,11 @@ there is no new destructive code.
   after Lumen says what it is.
 - It can be turned off in Settings, which unregisters or removes it. Uninstalling
   Lumen removes it.
-- **Signed.** It requires signed builds: Developer ID on macOS (already in place) and
-  Authenticode on Windows (**not yet in place: a prerequisite**, below). An unsigned
-  build cannot use it.
+- **Signed.** It requires signed builds:
+  - macOS: Developer ID, already in place;
+  - Windows: **Lumen's code key**, rule 8.
+
+  A build without these signatures cannot use it.
 
 ### 4. Who may talk to it
 
@@ -121,7 +126,8 @@ there is no new destructive code.
   user's SID from that token, never from its own environment. Under Windows 11's
   Administrator protection, an elevated process runs as a separate hidden account and
   profile.
-- It checks that the client process image carries Lumen's Authenticode signature.
+- It checks that the client process's image file carries a valid signature by Lumen's
+  code key (rule 8).
 
 **Never from the request:** the target user is never read from a field in the request,
 nor from the helper's own `HOME`, `HKCU` or `%TEMP%`.
@@ -168,7 +174,44 @@ tree first.
 - After that, no permission prompts. The preview says when an item belongs to another
   account or to the system and is handled by Lumen's helper.
 
-### 8. Review and tests
+### 8. Lumen's code key on Windows
+
+Windows releases are not Authenticode-signed. A certificate costs money every year,
+and Artifact Signing is not open to individuals outside the United States and Canada.
+The helper does not need public trust; it needs to know a file came from Lumen's
+release. So Windows uses **Lumen's own code key**:
+
+- **The key.** A minisign (Ed25519) key used for nothing else. It is separate from the
+  updater key (ADR-0048), so a signature for one purpose can never pass for the other.
+  - The private key lives only in the `release` environment.
+  - Only the `sign` job uses it, with network access blocked. No build job ever
+    receives it.
+  - Its public key is pinned in the helper's source.
+- **What is signed.** In the release workflow, `Lumen.exe` and `lumen-helper.exe` are
+  signed after they are built, then packaged into the installer with their detached
+  signatures. Packaging moves after signing, as macOS signing already does. Each
+  signature's trusted comment names the file and the version.
+- **What is verified.** Verification uses the `minisign-verify` crate, already in the
+  dependency tree for the updater.
+  - **Before installing.** The elevated install step verifies `lumen-helper.exe`
+    against the pinned key. It then copies the file to `%ProgramFiles%` and verifies
+    the copy again.
+  - **On every connection.** The helper verifies the client's image file.
+- **What it does not do.**
+  - Windows still shows "unknown publisher" and SmartScreen warnings when Lumen is
+    downloaded and installed, as it does today. A bought certificate would change only
+    that, and can be added later without changing the helper.
+  - On Windows, a process running as the same user can inject code into a genuine,
+    signed `Lumen.exe`. The client check therefore keeps other programs and other
+    accounts from using the helper casually, but it is not the security boundary,
+    and the same is true of Authenticode. The boundary is rules 1 and 5: the helper
+    re-decides everything itself, acts only on what the policy allows, and every move
+    is a reversible quarantine.
+- **Rotation.** A new key means a new helper with the new pinned key. Lumen sets the
+  helper up again the next time it is needed. A key that leaks is replaced at once,
+  and the release that replaces it says so.
+
+### 9. Review and tests
 
 - The helper gets its own threat-model section and a pass through the executor review
   checklist.
@@ -187,17 +230,19 @@ tree first.
   while it is installed. A bug in its checks could move something it should not; the
   rules above and the shared executor are the defence, and quarantine stays
   reversible.
-- Bad: it depends on code signing. Windows needs an Authenticode certificate first,
-  which costs money and needs the owner. A new signing identity breaks the client
-  check until the helper is set up again.
+- Bad: it depends on code signing: Developer ID on macOS, and Lumen's own code key on
+  Windows. A new signing identity breaks the client check until the helper is set up
+  again.
+- Bad: Windows keeps its "unknown publisher" warnings, because Lumen's code key is not
+  publicly trusted.
 - Neutral: macOS's approval prompt for background items has varied between versions.
   The app says where to allow it in System Settings.
 
 ## Implementation (roadmap 16.3 and 16.10)
 
-**Prerequisite (owner):** Authenticode signing for Windows releases, through a code
-signing certificate or Azure Trusted Signing. Release steps go in
-[`docs/operations/release.md`](../operations/release.md).
+**Prerequisite (owner):** Lumen's code key, generated once and stored in the
+`release` environment. The steps are in
+[`docs/operations/release.md`](../operations/release.md), under "Lumen's code key".
 
 **macOS:**
 1. The Quit button. It needs no privileges and is separate from this ADR.
@@ -208,9 +253,11 @@ signing certificate or Azure Trusted Signing. Release steps go in
 4. `restore`, `finalize`, `locate`, and reconciliation through the helper.
 5. Web: the preview's owner note, and the Settings switch.
 
-**Windows** (after signing):
-6. The service: install with one elevation prompt, the copy to Program Files, the
-   pipe with its DACL and client checks, and `status`.
+**Windows** (after the code key exists):
+6. The release pipeline: sign `Lumen.exe` and `lumen-helper.exe` with Lumen's code
+   key in the `sign` job, then package the installer. Then the service: install with
+   one elevation prompt, the copy to Program Files, the pipe with its DACL and client
+   checks, and `status`.
 7. The store, and `quarantine`, `restore`, `finalize` and `locate`.
 8. `remove_package` for MSI product codes, and the one-prompt path for vendor
    uninstallers with a window.
