@@ -4,6 +4,9 @@
 *.profraw
 *.profdata
 
+# Local Python developer harness
+__pycache__/
+
 # Node / pnpm
 node_modules/
 .pnpm-store/
