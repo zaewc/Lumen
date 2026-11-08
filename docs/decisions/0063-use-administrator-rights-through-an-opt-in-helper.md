@@ -186,7 +186,8 @@ release. So Windows uses **Lumen's own code key**:
   - The private key lives only in the `release` environment.
   - Only the `sign` job uses it, with network access blocked. No build job ever
     receives it.
-  - Its public key is pinned in the helper's source.
+  - Its public key, [`keys/lumen-code.pub`](../../keys/lumen-code.pub) (key id
+    `337EA42D297CCF5E`, generated 2026-11-08), is pinned in the helper's source.
 - **What is signed.** In the release workflow, `Lumen.exe` and `lumen-helper.exe` are
   signed after they are built, then packaged into the installer with their detached
   signatures. Packaging moves after signing, as macOS signing already does. Each

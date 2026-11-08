@@ -218,8 +218,13 @@ cat ~/.lumen/code.key.pub
 ```
 
 - Keep an offline backup of `~/.lumen/code.key` and its password.
-- The public key (`code.key.pub`) is not secret. It is committed to the repository and
-  pinned in the helper, in the pull request that first uses it.
+- The public key (`code.key.pub`) is not secret. It is committed as
+  [`keys/lumen-code.pub`](../../keys/lumen-code.pub), decoded, and pinned in the
+  helper.
+
+The key was generated on 2026-11-08 (key id `337EA42D297CCF5E`). Its test signature
+was verified against the committed public key with `minisign-verify` 0.3.0, and the
+two secrets were set in the `release` environment.
 - Only the `sign` job reads the two secrets. No build job ever receives them.
 
 ### Rotating or revoking it
