@@ -232,15 +232,15 @@ enum Exe {
     At(Vec<u8>),
     /// It has none: it exited while being read, or it is the kernel.
     Missing,
-    /// It could not be read.
-    Unreadable,
+    /// It could not be read, with the errno observed (kept for diagnosis).
+    Unreadable(#[cfg_attr(not(test), expect(dead_code, reason = "read by tests"))] Option<c_int>),
 }
 
 impl Exe {
     fn path(&self) -> Option<&[u8]> {
         match self {
             Self::At(path) => Some(path),
-            Self::Missing | Self::Unreadable => None,
+            Self::Missing | Self::Unreadable(_) => None,
         }
     }
 }
@@ -248,7 +248,7 @@ impl Exe {
 fn executable(pid: c_int) -> Exe {
     let mut buffer = vec![0_u8; 4 * 1024];
     let Ok(size) = u32::try_from(buffer.len()) else {
-        return Exe::Unreadable;
+        return Exe::Unreadable(None);
     };
     // SAFETY: invariant: the kernel writes at most `size` bytes. Why unsafe: FFI
     // writing through a raw pointer. Why it holds: `size` is the buffer length.
@@ -260,7 +260,7 @@ fn executable(pid: c_int) -> Exe {
             Exe::At(buffer)
         }
         None if errno == Some(libc::ESRCH) => Exe::Missing,
-        None => Exe::Unreadable,
+        None => Exe::Unreadable(errno),
     }
 }
 
@@ -563,10 +563,31 @@ impl ProcessSnapshot {
             match exe {
                 Exe::At(path) if folder.holds(path) => return Some(true),
                 Exe::At(_) | Exe::Missing => {}
-                Exe::Unreadable => unreadable = true,
+                Exe::Unreadable(_) => unreadable = true,
             }
         }
         (!unreadable).then_some(false)
+    }
+}
+
+#[cfg(test)]
+impl ProcessSnapshot {
+    /// The processes whose executable path could not be read: pid and errno.
+    fn unreadable(&self) -> Vec<(c_int, Option<c_int>)> {
+        self.processes
+            .iter()
+            .flatten()
+            .filter_map(|process| match process {
+                Observed::Visible(visible) => match visible.exe {
+                    Exe::Unreadable(errno) => {
+                        Some((c_int::try_from(visible.process.pid).unwrap_or(-1), errno))
+                    }
+                    _ => None,
+                },
+                Observed::Hidden(pid, Exe::Unreadable(errno)) => Some((*pid, *errno)),
+                _ => None,
+            })
+            .collect()
     }
 }
 
@@ -661,7 +682,19 @@ mod tests {
         assert_eq!(
             snapshot.running(&raw(elsewhere.path())?),
             Some(false),
-            "every executable path is readable, and none is in an empty folder"
+            "every executable path is readable, and none is in an empty folder; unreadable: {:?}",
+            snapshot
+                .unreadable()
+                .into_iter()
+                .map(|(pid, errno)| {
+                    let name = std::process::Command::new("/bin/ps")
+                        .args(["-o", "user=,comm=", "-p", &pid.to_string()])
+                        .output()
+                        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
+                        .unwrap_or_default();
+                    (pid, errno, name)
+                })
+                .collect::<Vec<_>>()
         );
         Ok(())
     }
