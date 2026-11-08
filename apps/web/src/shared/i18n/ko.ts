@@ -573,9 +573,55 @@ export const ko = {
     protectedTip: "Lumen은 이 항목을 지우지 않아요.",
     partial: (names: string) => `일부 목록은 다 읽지 못해서 빠진 앱이 있을 수 있어요: ${names}.`,
     readOnly:
-      "이 목록은 컴퓨터에서 읽었고 컴퓨터 밖으로 나가지 않아요. 여기서는 아무것도 지우지 않아요.",
+      "이 목록은 컴퓨터에서 읽었고 컴퓨터 밖으로 나가지 않아요. 앱은 직접 확인한 뒤에만 옮겨요.",
     readOnlyAi:
-      "AI 검토가 켜져 있는 동안에는 이 앱들의 이름, 게시자, 버전을 경로 없이 AI 검토로 보내요. 여기서는 아무것도 지우지 않아요.",
+      "AI 검토가 켜져 있는 동안에는 이 앱들의 이름, 게시자, 버전을 경로 없이 AI 검토로 보내요. 앱은 직접 확인한 뒤에만 옮겨요.",
+    move: {
+      action: "격리함으로 옮기기…",
+      title: (name: string) => `${name} 앱을 격리함으로 옮길까요?`,
+      moving: (name: string) => `${name} 앱을 격리함으로 옮기고 있어요…`,
+      checking: "앱을 확인하고 있어요…",
+      failed: "앱을 확인하거나 옮기지 못했어요. 다시 시도하기 전에 격리함을 확인해 주세요.",
+      refused: "이 앱은 격리함으로 옮길 수 없어요",
+      notFound: "목록에서 이 앱을 찾지 못했어요. 목록을 다시 읽어 주세요.",
+      ambiguous: "같은 식별자를 쓰는 앱이 여러 개라서 하나를 고를 수 없어요.",
+      unsupported: "앱을 격리함으로 옮기는 기능은 macOS에서 쓸 수 있어요.",
+      size: "앱 크기",
+      atLeast: (size: string) => `최소 ${size}`,
+      expires: (date: string) => `미리보기는 만든 뒤 24시간이 지난 ${date}까지 쓸 수 있어요.`,
+      moved: (name: string) => `${name} 앱을 격리함으로 옮겼어요.`,
+      noSpace: "디스크 공간은 격리함에서 앱을 영구 삭제할 때 생겨요.",
+      changed: "앱이 달라졌어요. 미리보기를 닫고 다시 확인해 주세요.",
+      failedMove: "앱을 격리함으로 옮기는 작업을 끝내지 못했어요.",
+      notes: {
+        goes_to_quarantine:
+          "영구 삭제하기 전까지 앱을 복원할 수 있어요. Lumen이 자동으로 지우지 않아요.",
+        library_data_stays:
+          "~/Library의 앱 데이터는 그대로 둬요. 새로 검사한 뒤 탐색에서 살펴볼 수 있어요.",
+      },
+      locations: {
+        source: "앱은 원래 위치에 있어요.",
+        quarantine: "앱은 격리함에 있어요. 격리함을 열어 확인해 주세요.",
+        gone: "앱이 어디에 있는지 확인하지 못했어요. 다시 시도하기 전에 격리함을 확인해 주세요.",
+      },
+      reasons: {
+        not_in_applications: "/Applications나 ~/Applications 바로 안에 있는 앱이 아니에요.",
+        protected: "macOS의 일부라서 그대로 둬요.",
+        not_a_bundle: "앱 폴더가 아니거나 링크예요.",
+        owner_unknown: "앱의 소유자를 확인하지 못했어요.",
+        not_owned_by_user:
+          "다른 계정이 소유한 앱이에요. 앱의 설치 프로그램이나 App Store에서 지워 주세요.",
+        services_unknown: "백그라운드 항목을 모두 확인하지 못했어요.",
+        service_linked:
+          "이 앱에 연결된 백그라운드 항목이 있어요. 앱의 전용 삭제 프로그램을 써 주세요.",
+        helpers_unknown: "앱의 백그라운드 보조 프로그램을 확인하지 못했어요.",
+        has_helpers: "백그라운드 보조 프로그램이 있어요. 앱의 전용 삭제 프로그램을 써 주세요.",
+        running_unknown: "앱이 실행 중인지 확인하지 못했어요.",
+        running: "앱이 실행 중이에요. 앱을 종료한 뒤 다시 확인해 주세요.",
+        store_unknown: "이 드라이브에 격리함을 둘 수 있는지 확인하지 못했어요.",
+        no_store_on_volume: "이 드라이브에는 격리함이 없어요.",
+      },
+    },
     ai: {
       explaining: "AI 검토가 앱을 설명하고 있어요…",
       note: (purpose: string, confidence: string, impact: string) =>

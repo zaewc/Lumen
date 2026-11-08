@@ -568,9 +568,56 @@ export const ja: Messages = {
     partial: (names: string) =>
       `一部の一覧は途中までしか読めなかったため、表示されていないアプリがある可能性があります: ${names}。`,
     readOnly:
-      "この一覧はこのコンピュータから読み込み、外部には送信しません。ここでは何も削除しません。",
+      "この一覧はコンピュータから読み取り、外部には送りません。アプリは確認してから移動します。",
     readOnlyAi:
-      "AIレビューが有効な間は、これらのアプリの名前、発行元、バージョンをパスを含めずにAIレビューへ送信します。ここでは何も削除しません。",
+      "AIレビューがオンの間は、アプリの名前、発行元、バージョンをパスなしで送信します。アプリは確認してから移動します。",
+    move: {
+      action: "隔離へ移動…",
+      title: (name: string) => `「${name}」を隔離へ移動しますか？`,
+      moving: (name: string) => `「${name}」を隔離へ移動しています…`,
+      checking: "アプリを確認しています…",
+      failed: "アプリの確認または移動ができませんでした。再試行する前に隔離を確認してください。",
+      refused: "このアプリは隔離へ移動できません",
+      notFound: "このアプリは一覧にありません。一覧を再読み込みしてください。",
+      ambiguous: "同じ識別子のアプリが複数あるため、選べません。",
+      unsupported: "アプリの隔離への移動はmacOSで利用できます。",
+      size: "アプリのサイズ",
+      atLeast: (size: string) => `${size}以上`,
+      expires: (date: string) => `このプレビューは作成から24時間後の${date}まで有効です。`,
+      moved: (name: string) => `「${name}」を隔離へ移動しました。`,
+      noSpace: "空き容量が増えるのは、隔離からアプリを完全に削除したときです。",
+      changed: "アプリが変わりました。プレビューを閉じて確認し直してください。",
+      failedMove: "アプリの移動を完了できませんでした。",
+      notes: {
+        goes_to_quarantine:
+          "完全に削除するまでは復元できます。Lumenが自動で削除することはありません。",
+        library_data_stays:
+          "~/Libraryのアプリデータは残ります。新しくスキャンした後、探索で確認できます。",
+      },
+      locations: {
+        source: "アプリは元の場所にあります。",
+        quarantine: "アプリは隔離にあります。隔離を開いて確認してください。",
+        gone: "アプリの場所を確認できませんでした。再試行する前に隔離を確認してください。",
+      },
+      reasons: {
+        not_in_applications: "/Applicationsまたは~/Applicationsの直下にありません。",
+        protected: "macOSの一部なので、そのままにします。",
+        not_a_bundle: "アプリのフォルダではないか、リンクです。",
+        owner_unknown: "アプリの所有者を確認できませんでした。",
+        not_owned_by_user:
+          "別のアカウントのアプリです。インストーラかApp Storeから削除してください。",
+        services_unknown: "バックグラウンド項目をすべて確認できませんでした。",
+        service_linked:
+          "関連するバックグラウンド項目があります。アプリ専用の削除ツールを使ってください。",
+        helpers_unknown: "アプリのバックグラウンド補助プログラムを確認できませんでした。",
+        has_helpers:
+          "バックグラウンド補助プログラムがあります。アプリ専用の削除ツールを使ってください。",
+        running_unknown: "アプリが起動中か確認できませんでした。",
+        running: "アプリが起動中です。終了してから確認し直してください。",
+        store_unknown: "このドライブの隔離用保存場所を確認できませんでした。",
+        no_store_on_volume: "このドライブには隔離用の保存場所がありません。",
+      },
+    },
     ai: {
       explaining: "AIレビューがアプリを説明しています…",
       note: (purpose: string, confidence: string, impact: string) =>

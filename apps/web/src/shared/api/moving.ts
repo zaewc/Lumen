@@ -6,6 +6,7 @@ import { idleOperation, type OperationState } from "./operation";
  * desktop host holds quitting and updates (UX-3).
  */
 export const MOVING_OPERATIONS = {
+  app: ["session-operation", "app-quarantine"],
   cleanUp: ["session-operation", "clean-up"],
   quarantine: ["session-operation", "quarantine"],
 } as const;

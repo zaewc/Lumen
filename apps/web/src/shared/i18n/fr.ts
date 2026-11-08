@@ -569,9 +569,58 @@ export const fr: Messages = {
     protectedTip: "Lumen ne supprime jamais ceci.",
     partial: (names: string) =>
       `Certaines listes n'ont été lues qu'en partie, des apps peuvent donc manquer : ${names}.`,
-    readOnly: "Cette liste est lue sur votre ordinateur et y reste. Rien n'est supprimé ici.",
+    readOnly:
+      "Cette liste est lue sur votre ordinateur et y reste. Une app est déplacée uniquement après votre confirmation.",
     readOnlyAi:
-      "Tant que l'analyse par IA est activée, le nom, l'éditeur et la version de ces apps lui sont envoyés, sans chemin. Rien n'est supprimé ici.",
+      "Tant que l’analyse par IA est activée, le nom, l’éditeur et la version de ces apps lui sont envoyés, sans chemin. Une app est déplacée uniquement après votre confirmation.",
+    move: {
+      action: "Déplacer en quarantaine…",
+      title: (name: string) => `Déplacer « ${name} » en quarantaine ?`,
+      moving: (name: string) => `Déplacement de « ${name} » en quarantaine…`,
+      checking: "Vérification de l’app…",
+      failed:
+        "Lumen n’a pas pu vérifier ou déplacer l’app. Vérifiez la quarantaine avant de réessayer.",
+      refused: "Cette app ne peut pas aller en quarantaine",
+      notFound: "Cette app n’est plus dans la liste. Relisez la liste.",
+      ambiguous: "Plusieurs apps ont cet identifiant. Lumen ne peut pas en choisir une.",
+      unsupported: "Le déplacement des apps en quarantaine est disponible uniquement sur macOS.",
+      size: "Taille de l’app",
+      atLeast: (size: string) => `Au moins ${size}`,
+      expires: (date: string) => `Cet aperçu expire le ${date}, 24 heures après sa création.`,
+      moved: (name: string) => `« ${name} » a été déplacée en quarantaine.`,
+      noSpace: "L’espace se libère quand vous supprimez définitivement l’app de la quarantaine.",
+      changed: "L’app a changé. Fermez cet aperçu et vérifiez-la à nouveau.",
+      failedMove: "Lumen n’a pas pu terminer le déplacement de l’app.",
+      notes: {
+        goes_to_quarantine:
+          "Vous pouvez la restaurer avant de la supprimer définitivement. Lumen ne la supprime jamais automatiquement.",
+        library_data_stays:
+          "Ses données dans ~/Library restent en place. Après une nouvelle analyse, vous pouvez les examiner dans Explorer.",
+      },
+      locations: {
+        source: "L’app est toujours à son emplacement d’origine.",
+        quarantine: "L’app est en quarantaine. Ouvrez la quarantaine pour la vérifier.",
+        gone: "Lumen n’a pas pu confirmer où se trouve l’app. Vérifiez la quarantaine avant de réessayer.",
+      },
+      reasons: {
+        not_in_applications: "Elle n’est pas directement dans /Applications ou ~/Applications.",
+        protected: "Elle fait partie de macOS. Lumen la laisse en place.",
+        not_a_bundle: "Ce n’est pas un dossier d’app, ou c’est un lien.",
+        owner_unknown: "Lumen n’a pas pu vérifier qui possède cette app.",
+        not_owned_by_user:
+          "Elle appartient à un autre compte. Utilisez son installateur ou l’App Store pour la supprimer.",
+        services_unknown: "Lumen n’a pas pu vérifier tous les éléments en arrière-plan.",
+        service_linked:
+          "Un élément en arrière-plan est lié à cette app. Utilisez son propre outil de désinstallation.",
+        helpers_unknown: "Lumen n’a pas pu vérifier ses programmes auxiliaires en arrière-plan.",
+        has_helpers:
+          "Elle a des programmes auxiliaires en arrière-plan. Utilisez son propre outil de désinstallation.",
+        running_unknown: "Lumen n’a pas pu vérifier si cette app est en cours d’exécution.",
+        running: "Cette app est en cours d’exécution. Quittez-la et vérifiez à nouveau.",
+        store_unknown: "Lumen n’a pas pu vérifier si ce disque dispose d’un espace de quarantaine.",
+        no_store_on_volume: "Ce disque n’a pas d’espace de quarantaine.",
+      },
+    },
     ai: {
       explaining: "L'analyse par IA décrit les apps…",
       note: (purpose: string, confidence: string, impact: string) =>

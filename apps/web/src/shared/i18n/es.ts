@@ -590,9 +590,58 @@ export const es: Messages = {
     protectedTip: "Lumen nunca elimina esto.",
     partial: (names: string) =>
       `Algunas listas se leyeron solo en parte, así que pueden faltar apps: ${names}.`,
-    readOnly: "Esta lista se lee de tu ordenador y se queda en él. Aquí no se elimina nada.",
+    readOnly:
+      "Esta lista se lee de tu ordenador y se queda en él. Una app solo se mueve después de que lo confirmes.",
     readOnlyAi:
-      "Mientras la revisión con IA está activada, se le envían el nombre, el editor y la versión de estas apps, sin rutas. Aquí no se elimina nada.",
+      "Mientras la revisión con IA está activada, se le envían el nombre, el editor y la versión de estas apps, sin rutas. Una app solo se mueve después de que lo confirmes.",
+    move: {
+      action: "Mover a Cuarentena…",
+      title: (name: string) => `¿Mover «${name}» a Cuarentena?`,
+      moving: (name: string) => `Moviendo «${name}» a Cuarentena…`,
+      checking: "Comprobando la app…",
+      failed:
+        "Lumen no pudo comprobar o mover la app. Revisa Cuarentena antes de intentarlo de nuevo.",
+      refused: "Esta app no se puede mover a Cuarentena",
+      notFound: "Esta app ya no está en la lista. Vuelve a leerla.",
+      ambiguous: "Varias apps tienen este identificador. Lumen no puede elegir una.",
+      unsupported: "Mover apps a Cuarentena solo está disponible en macOS.",
+      size: "Tamaño de la app",
+      atLeast: (size: string) => `Al menos ${size}`,
+      expires: (date: string) =>
+        `Esta vista previa caduca el ${date}, 24 horas después de crearla.`,
+      moved: (name: string) => `Se movió «${name}» a Cuarentena.`,
+      noSpace: "El espacio se libera al eliminar la app definitivamente de Cuarentena.",
+      changed: "La app ha cambiado. Cierra esta vista previa y vuelve a comprobarla.",
+      failedMove: "Lumen no pudo terminar de mover la app.",
+      notes: {
+        goes_to_quarantine:
+          "Puedes restaurarla hasta que la elimines definitivamente. Lumen nunca la elimina automáticamente.",
+        library_data_stays:
+          "Sus datos en ~/Library se conservan. Tras un nuevo análisis, puedes revisarlos en Explorar.",
+      },
+      locations: {
+        source: "La app sigue en su ubicación original.",
+        quarantine: "La app está en Cuarentena. Abre Cuarentena para revisarla.",
+        gone: "Lumen no pudo confirmar dónde está la app. Revisa Cuarentena antes de volver a intentarlo.",
+      },
+      reasons: {
+        not_in_applications: "No está directamente en /Applications o ~/Applications.",
+        protected: "Es parte de macOS. Lumen la conserva.",
+        not_a_bundle: "No es una carpeta de app, o es un enlace.",
+        owner_unknown: "Lumen no pudo comprobar quién es el propietario.",
+        not_owned_by_user:
+          "Pertenece a otra cuenta. Usa su instalador o App Store para eliminarla.",
+        services_unknown: "Lumen no pudo comprobar todos los elementos en segundo plano.",
+        service_linked:
+          "Tiene un elemento en segundo plano vinculado. Usa su propio desinstalador.",
+        helpers_unknown: "Lumen no pudo comprobar sus programas auxiliares en segundo plano.",
+        has_helpers: "Tiene programas auxiliares en segundo plano. Usa su propio desinstalador.",
+        running_unknown: "Lumen no pudo comprobar si la app está en ejecución.",
+        running: "La app está en ejecución. Ciérrala y vuelve a comprobarla.",
+        store_unknown: "Lumen no pudo comprobar si esta unidad tiene un almacén de Cuarentena.",
+        no_store_on_volume: "Esta unidad no tiene un almacén de Cuarentena.",
+      },
+    },
     ai: {
       explaining: "La revisión con IA está describiendo las apps…",
       note: (purpose: string, confidence: string, impact: string) =>

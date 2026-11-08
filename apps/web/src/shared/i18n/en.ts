@@ -1,9 +1,11 @@
 import type {
   ConfidenceView,
   ItemKindView,
+  LocationView,
   RemovalImpactView,
   SoftwareOriginView,
   SoftwarePurposeView,
+  UninstallReasonView,
 } from "@lumen/api-client";
 import { countFormat } from "./format";
 import type { RuleId } from "./rules";
@@ -581,9 +583,54 @@ export const en = {
     partial: (names: string) =>
       `Some lists were read only in part, so apps may be missing: ${names}.`,
     readOnly:
-      "This list is read from your computer and stays on it. Nothing here removes anything.",
+      "This list is read from your computer and stays on it. An app moves only after you confirm.",
     readOnlyAi:
-      "While AI review is on, the names, publishers and versions of these apps are sent to it, without paths. Nothing here removes anything.",
+      "While AI review is on, the names, publishers and versions of these apps are sent to it, without paths. An app moves only after you confirm.",
+    move: {
+      action: "Move to Quarantine…",
+      title: (name: string) => `Move “${name}” to Quarantine?`,
+      moving: (name: string) => `Moving “${name}” to Quarantine…`,
+      checking: "Checking the app…",
+      failed: "Lumen could not check or move the app. Check Quarantine before trying again.",
+      refused: "This app cannot go to Quarantine",
+      notFound: "This app is no longer in the list. Read the list again.",
+      ambiguous: "Several apps have this identifier. Lumen cannot choose one.",
+      unsupported: "Moving apps to Quarantine is available only on macOS.",
+      size: "App size",
+      atLeast: (size: string) => `At least ${size}`,
+      expires: (date: string) => `This preview expires at ${date}, 24 hours after it was made.`,
+      moved: (name: string) => `Moved “${name}” to Quarantine.`,
+      noSpace: "Space is freed only when you remove the app for good from Quarantine.",
+      changed: "The app changed. Close this preview and check it again.",
+      failedMove: "Lumen could not finish moving the app.",
+      notes: {
+        goes_to_quarantine:
+          "You can restore the app until you remove it for good. Lumen never removes it automatically.",
+        library_data_stays:
+          "Its data in ~/Library stays. After a new scan, you can review that data in Explore.",
+      },
+      locations: {
+        source: "The app is still in its original location.",
+        quarantine: "The app is in Quarantine. Open Quarantine to check it.",
+        gone: "Lumen could not confirm where the app is. Check Quarantine before trying again.",
+      } satisfies { readonly [L in LocationView]: string },
+      reasons: {
+        not_in_applications: "It is not directly in /Applications or ~/Applications.",
+        protected: "It is part of macOS. Lumen leaves it alone.",
+        not_a_bundle: "It is not an app folder, or it is a link.",
+        owner_unknown: "Lumen could not check who owns this app.",
+        not_owned_by_user:
+          "Another account owns this app. Use its installer or the App Store to remove it.",
+        services_unknown: "Lumen could not check all background items.",
+        service_linked: "A background item is linked to this app. Use the app’s own uninstaller.",
+        helpers_unknown: "Lumen could not check the app’s background helpers.",
+        has_helpers: "This app has background helpers. Use its own uninstaller.",
+        running_unknown: "Lumen could not check whether this app is running.",
+        running: "This app is running. Quit it and check again.",
+        store_unknown: "Lumen could not check whether this drive has a quarantine store.",
+        no_store_on_volume: "This drive has no quarantine store.",
+      } satisfies { readonly [R in UninstallReasonView]: string },
+    },
     ai: {
       explaining: "AI review is explaining the apps…",
       note: (purpose: string, confidence: string, impact: string) =>

@@ -6,8 +6,15 @@ import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice, Notice, Page } from "@/shared/ui";
 import { partial, title, tucked, visible } from "../model/list";
+import { MoveFlow, MoveResult } from "./MoveFlow";
 
-function AppRow({ item }: { readonly item: SoftwareItemView }) {
+function AppRow({
+  item,
+  onMove,
+}: {
+  readonly item: SoftwareItemView;
+  readonly onMove: ((item: SoftwareItemView) => void) | null;
+}) {
   const { m } = useI18n();
   const a = m.apps;
   const details = [
@@ -34,10 +41,21 @@ function AppRow({ item }: { readonly item: SoftwareItemView }) {
           </p>
         )}
       </div>
-      {item.protected && (
+      {item.protected ? (
         <span title={a.protectedTip} className="shrink-0 text-[12px] text-ink-2">
           {a.protected}
         </span>
+      ) : (
+        onMove !== null &&
+        item.origin === "mac_app" && (
+          <button
+            type="button"
+            onClick={() => onMove(item)}
+            className={`${buttonClass("secondary", "sm")} shrink-0`}
+          >
+            {a.move.action}
+          </button>
+        )
       )}
     </li>
   );
@@ -45,9 +63,10 @@ function AppRow({ item }: { readonly item: SoftwareItemView }) {
 
 /**
  * Everything the platform says is installed (ADR-0060): applications and
- * packages from each inventory, read when the page opens. Read only; this
- * page removes nothing. Absent where the host cannot read inventories (a
- * browser).
+ * packages from each inventory, read when the page opens. Nothing moves
+ * without a confirmed preview: a user-owned macOS app can be moved to
+ * Quarantine (ADR-0062), and the host decides whether it may. Absent where
+ * the host cannot read inventories (a browser).
  */
 export function AppsPage() {
   const { m } = useI18n();
@@ -59,6 +78,8 @@ export function AppsPage() {
   const searchId = useId();
   const [query, setQuery] = useState("");
   const [all, setAll] = useState(false);
+  const [moving, setMoving] = useState<SoftwareItemView | null>(null);
+  const canMove = transport.uninstallPreview !== undefined && transport.uninstall !== undefined;
   const software = useQuery({
     queryKey: ["software"],
     queryFn: () => (ask === undefined ? Promise.reject(new Error("unsupported")) : ask()),
@@ -119,6 +140,12 @@ export function AppsPage() {
               {a.ai.explaining}
             </p>
           )}
+          <MoveResult
+            name={(key) => {
+              const found = items.find((item) => item.key === key);
+              return found === undefined ? null : title(found);
+            }}
+          />
           {missing.length > 0 && (
             <Notice tone="warning">
               <p>{a.partial(missing.join(", "))}</p>
@@ -148,13 +175,14 @@ export function AppsPage() {
           ) : (
             <ul className="divide-y divide-line">
               {shown.map((item) => (
-                <AppRow key={item.key} item={item} />
+                <AppRow key={item.key} item={item} onMove={canMove ? setMoving : null} />
               ))}
             </ul>
           )}
           <p className="text-[12px] text-ink-3">{aiOn ? a.readOnlyAi : a.readOnly}</p>
         </div>
       )}
+      {moving !== null && <MoveFlow item={moving} onClose={() => setMoving(null)} />}
     </Page>
   );
 }
