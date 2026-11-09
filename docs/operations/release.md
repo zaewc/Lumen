@@ -109,6 +109,14 @@ the app replaces the one in Tauri's disk image, and the disk image is signed,
 notarized and stapled too. The updater archive is made from the same signed app. If
 Apple rejects either submission the job prints Apple's log and nothing is released.
 
+Lumen's helper (ADR-0063) is a plain executable at `Contents/MacOS/lumen-helper`,
+built by Tauri's `beforeBundleCommand`
+([`scripts/build-macos-helper.sh`](../../scripts/build-macos-helper.sh)), with its
+launchd plist at `Contents/Library/LaunchDaemons/dev.lumen.desktop.helper.plist`. The
+script signs it under the fixed identifier `dev.lumen.desktop.helper` and stops if it
+or its plist is missing: launchd stops starting a registered daemon whose identifier
+changed (research 37).
+
 ### Setting up the Apple secrets (once)
 
 The Account Holder of the Apple Developer Program membership does this on a Mac:

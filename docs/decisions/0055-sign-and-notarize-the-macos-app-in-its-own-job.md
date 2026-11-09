@@ -55,6 +55,8 @@ the updater key away from.
   and a secure timestamp, and no entitlements: Lumen needs none, and each one
   weakens the Hardened Runtime. A nested bundle (framework, helper app, XPC service)
   stops the run, because it needs its own signing order; Lumen ships none today.
+  Lumen's helper (ADR-0063) is a plain executable, not a bundle; it is signed under
+  its fixed identifier `dev.lumen.desktop.helper`.
 - The certificate goes into a keychain made for the run with a random password and
   deleted at the end; the notary key (an App Store Connect API key) goes into a file
   readable only by the runner user and is deleted with it. The certificate must hold

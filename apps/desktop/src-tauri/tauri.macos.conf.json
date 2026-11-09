@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "build": {
+    "beforeBundleCommand": "bash ../../scripts/build-macos-helper.sh"
+  },
+  "bundle": {
+    "macOS": {
+      "files": {
+        "MacOS/lumen-helper": "../../../target/lumen-helper/lumen-helper",
+        "Library/LaunchDaemons/dev.lumen.desktop.helper.plist": "macos/dev.lumen.desktop.helper.plist"
+      }
+    }
+  }
+}

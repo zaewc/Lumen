@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Lumen's helper (ADR-0063), registered with SMAppService.daemon. The
+	     label, the Mach service and the helper's code identifier are one name,
+	     which never changes (research 37). -->
+	<key>Label</key>
+	<string>dev.lumen.desktop.helper</string>
+	<!-- Relative to the app bundle, so moving Lumen.app keeps it working. -->
+	<key>BundleProgram</key>
+	<string>Contents/MacOS/lumen-helper</string>
+	<!-- Started on demand when Lumen connects; it exits when idle. -->
+	<key>MachServices</key>
+	<dict>
+		<key>dev.lumen.desktop.helper</key>
+		<true/>
+	</dict>
+</dict>
+</plist>
