@@ -148,6 +148,10 @@ pub fn open_login_items() -> Result<(), HelperError> {
 
 /// What a status answer means for this app, whose protocol is `protocol` and
 /// version `version`.
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(dead_code, reason = "only macOS asks the helper outside tests")
+)]
 fn reach_of(
     answer: Result<lumen_application::helper::HelperResponse, Link>,
     version: &str,
