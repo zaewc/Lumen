@@ -237,6 +237,18 @@ pub fn original_path(item: &PreparedItem) -> Option<PathBuf> {
     Some(path)
 }
 
+/// The identity of the item `item` recorded, in the enumerators' form
+/// (`dev:<hex>`, inode). Lumen's helper checks with it that the record it
+/// will move names the item the person confirmed (ADR-0063 rule 5). `None` if
+/// the record is not this executor's.
+pub fn recorded_identity(item: &PreparedItem) -> Option<FileIdentity> {
+    let (dev, ino) = parse(item)?.identity;
+    Some(FileIdentity {
+        volume: VolumeId::new(format!("dev:{dev:x}")).ok()?,
+        file: FileId::new(u128::from(ino)),
+    })
+}
+
 impl QuarantineExecutor for Executor {
     fn prepare(
         &self,
@@ -576,6 +588,18 @@ mod tests {
             .prepare(&raw(&root), &relative())
             .unwrap_or_else(|e| unreachable!("{e}"));
         assert_eq!(executor.held(&prepared, op(4)), None, "not yet held");
+        let source = std::fs::symlink_metadata(root.join("cache/app/data.bin"))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        let recorded = recorded_identity(&prepared).unwrap_or_else(|| unreachable!("ours"));
+        assert_eq!(
+            (recorded.volume.as_str(), recorded.file.get()),
+            (
+                format!("dev:{:x}", std::os::unix::fs::MetadataExt::dev(&source)).as_str(),
+                u128::from(std::os::unix::fs::MetadataExt::ino(&source))
+            ),
+            "recorded in the enumerators' form"
+        );
+        assert_eq!(recorded_identity(&PreparedItem(b"{}".to_vec())), None);
         assert_eq!(executor.quarantine(&prepared, op(4), b"{}"), Ok(()));
         let (path, identity) = executor
             .held(&prepared, op(4))

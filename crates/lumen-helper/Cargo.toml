@@ -15,12 +15,19 @@ path = "src/main.rs"
 [dependencies]
 # The protocol and its decisions, IO-free (ADR-0063 rule 5).
 lumen-application.workspace = true
-lumen-domain.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
-# The XPC listener with the peer code-signing requirement (ADR-0063 rule 4).
+# The XPC listener with the peer code-signing requirement (ADR-0063 rule 4),
+# the process table, inventories and account lookups.
 lumen-platform-macos.workspace = true
+lumen-domain.workspace = true
+# The reviewed executor: the only code that moves files (ADR-0063 rule 3).
+lumen-fs-exec.workspace = true
 libc.workspace = true
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+lumen-testkit.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true
