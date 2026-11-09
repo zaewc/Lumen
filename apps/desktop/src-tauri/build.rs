@@ -32,6 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "helper_enable",
         "helper_disable",
         "helper_open_login_items",
+        "app_icon",
     ];
     tauri_build::try_build(
         tauri_build::Attributes::new()

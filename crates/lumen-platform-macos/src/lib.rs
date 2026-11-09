@@ -29,6 +29,8 @@ pub mod helper;
 #[cfg(target_os = "macos")]
 mod homebrew;
 #[cfg(target_os = "macos")]
+mod icon;
+#[cfg(target_os = "macos")]
 mod keychain;
 #[cfg(target_os = "macos")]
 mod launchd;
@@ -61,6 +63,8 @@ pub use duplicates::DuplicateReader;
 pub use feed::FsEventsFeed;
 #[cfg(target_os = "macos")]
 pub use homebrew::HomebrewInventory;
+#[cfg(target_os = "macos")]
+pub use icon::{ICON_PIXELS, MAX_ICON_BYTES, app_icon_png};
 #[cfg(target_os = "macos")]
 pub use keychain::{KeychainStore, SERVICE as KEYCHAIN_SERVICE};
 #[cfg(target_os = "macos")]

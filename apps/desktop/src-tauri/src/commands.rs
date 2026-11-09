@@ -62,6 +62,9 @@ pub(crate) struct Core {
     /// Clean-ups and Quarantine actions running, and an update installing:
     /// quitting and updating wait for the first, item actions for the second.
     pub(crate) activity: Arc<Activity>,
+    /// The icons of the apps in the latest software list, by its key, drawn
+    /// on request and kept in memory (roadmap 16.4).
+    pub(crate) icons: Arc<lumen_app::icons::AppIcons>,
 }
 
 impl std::fmt::Debug for Core {
@@ -92,6 +95,7 @@ impl std::fmt::Debug for Core {
             )
             .field("settled", &self.settled.is_completed())
             .field("activity", &self.activity)
+            .field("icons", &self.icons)
             .finish()
     }
 }
@@ -557,8 +561,10 @@ pub(crate) async fn tool_storage() -> Result<Vec<ToolStorageView>, CommandError>
 #[tauri::command]
 pub(crate) async fn software(core: State<'_, Core>) -> Result<SoftwareView, CommandError> {
     let db = core.db.clone();
+    let icons = Arc::clone(&core.icons);
     blocking(move || {
         let reports = lumen_app::software::inventory(&CancelToken::new());
+        icons.remember(&reports);
         let notes = lumen_app::software_notes::NoteCache::load(&db);
         Ok(SoftwareView::from_reports(&reports).with_notes(&notes))
     })
@@ -574,8 +580,10 @@ pub(crate) async fn explain_software(core: State<'_, Core>) -> Result<SoftwareVi
     let db = core.db.clone();
     let secrets = core.secrets.clone();
     let builtin = core.builtin.clone();
+    let icons = Arc::clone(&core.icons);
     blocking(move || {
         let reports = lumen_app::software::inventory(&CancelToken::new());
+        icons.remember(&reports);
         let notes = match lumen_app::ai::active_judge(&db, secrets.as_deref(), builtin.as_ref()) {
             Some(judge) => {
                 let subjects = lumen_api::views::software_subjects(&reports);
@@ -922,6 +930,23 @@ pub(crate) async fn quit_app(key: String) -> Result<QuitView, CommandError> {
         QuitView::from_result(lumen_app::uninstall::quit(&key)).map_err(CommandError::new)
     })
     .await
+}
+
+/// The icon of the app the latest software list shows under `key`, as a
+/// small PNG data URL (64 × 64 pixels, at most 32 KiB), or `None` if the list
+/// has no such app or the system gives no icon (roadmap 16.4). Takes the
+/// list's key, never a path. Display only: never stored or sent to AI review.
+/// macOS only for now; elsewhere always `None`.
+#[tauri::command]
+pub(crate) async fn app_icon(
+    core: State<'_, Core>,
+    key: String,
+) -> Result<Option<String>, CommandError> {
+    if key.len() > MAX_SOFTWARE_KEY {
+        return Err(CommandError::new("not a software key"));
+    }
+    let icons = Arc::clone(&core.icons);
+    blocking(move || Ok(icons.icon(&key).map(|url| url.to_string()))).await
 }
 
 /// Settles cleanups a crash or quit interrupted, once per launch, so what
