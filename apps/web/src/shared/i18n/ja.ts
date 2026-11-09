@@ -440,6 +440,8 @@ export const ja: Messages = {
     freedNote: "隔離から完全に削除すると、空き容量が戻ります。",
     openQuarantine: "隔離を開く",
     notMoved: (n: number) => `移動されなかった項目：${items(n)}`,
+    left: (n: number) => `今回のスキャンで残った項目：${items(n)}`,
+    scanAgainToMove: "さらに移動するには、もう一度スキャンしてください。",
   },
   item: {
     quarantined: "隔離に移動しました。復元できます。",

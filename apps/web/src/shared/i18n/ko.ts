@@ -446,6 +446,8 @@ export const ko = {
     freedNote: "디스크 공간은 격리함에서 영구 삭제할 때 생겨요.",
     openQuarantine: "격리함 열기",
     notMoved: (n: number) => `옮기지 않은 ${items(n)}`,
+    left: (n: number) => `이번 검사에서 남은 ${items(n)}`,
+    scanAgainToMove: "더 옮기려면 다시 검사해 주세요.",
   },
   item: {
     quarantined: "격리함으로 옮겼어요. 복원할 수 있어요.",

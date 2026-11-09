@@ -6,6 +6,7 @@ export {
   certaintyOfSize,
 } from "./model/certainty";
 export { stagePercent } from "./model/progress";
+export { remainingAfter } from "./model/remaining";
 export {
   type AssessmentStatus,
   type ScanSession,

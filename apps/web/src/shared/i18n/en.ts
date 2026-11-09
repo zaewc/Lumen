@@ -452,6 +452,8 @@ export const en = {
     freedNote: "You get the space back when you remove them from Quarantine for good.",
     openQuarantine: "Open Quarantine",
     notMoved: (n: number) => `${items(n)} not moved`,
+    left: (n: number) => `${items(n)} left from this scan`,
+    scanAgainToMove: "To move more, scan again.",
   },
   item: {
     quarantined: "Moved to Quarantine. You can restore it.",

@@ -442,6 +442,8 @@ export const fr: Messages = {
       "L'espace sera libéré lorsque vous les supprimerez définitivement de la quarantaine.",
     openQuarantine: "Ouvrir la quarantaine",
     notMoved: (n) => `${items(n)} non déplacés`,
+    left: (n) => `${items(n)} restants de cette analyse`,
+    scanAgainToMove: "Pour en déplacer davantage, analysez à nouveau.",
   },
   item: {
     quarantined: "Déplacé en quarantaine. Vous pouvez le restaurer.",

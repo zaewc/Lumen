@@ -458,6 +458,8 @@ export const es: Messages = {
     freedNote: "Recuperarás el espacio cuando los elimines definitivamente de Cuarentena.",
     openQuarantine: "Abrir Cuarentena",
     notMoved: (n: number) => `${items(n)} no se movieron`,
+    left: (n: number) => `Quedan ${items(n)} de este análisis`,
+    scanAgainToMove: "Para mover más, analiza de nuevo.",
   },
   item: {
     quarantined: "Se movió a Cuarentena. Puedes restaurarlo.",

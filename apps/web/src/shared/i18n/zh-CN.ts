@@ -426,6 +426,8 @@ export const zhCN: Messages = {
     freedNote: "从隔离区永久移除这些项目后，才会释放相应空间。",
     openQuarantine: "打开隔离区",
     notMoved: (n: number) => `${items(n)}未移动`,
+    left: (n: number) => `本次扫描剩余 ${items(n)}`,
+    scanAgainToMove: "要移动更多项目，请重新扫描。",
   },
   item: {
     quarantined: "已移至隔离区。你可以恢复。",

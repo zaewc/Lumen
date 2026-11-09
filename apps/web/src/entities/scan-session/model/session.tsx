@@ -9,6 +9,7 @@ import type {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useMemo, useRef, useState } from "react";
 import { MOVING_OPERATIONS, QUERY_KEYS, useSessionOperation, useTransport } from "@/shared/api";
+import { remainingAfter } from "./remaining";
 
 /** Where the assessment of the latest scan is. */
 export type AssessmentStatus = "pending" | "error" | "success";
@@ -32,7 +33,10 @@ export interface ScanSession {
   readonly candidates: readonly CandidateView[] | null;
   readonly assessmentError: unknown;
   readonly assessmentProgress: AssessProgressView | null;
-  /** What the last clean-up did, until a new scan starts. */
+  /**
+   * What the last clean-up did, until a new scan starts. The scan and its
+   * candidates stay, without the items it moved.
+   */
   readonly report: QuarantineReportView | null;
   /** Scans these roots (none: the whole disk), read-only. */
   readonly start: (roots: string[]) => void;
@@ -93,9 +97,12 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
       plan: confirmed.plan,
       confirmation: confirmed.hash,
     });
+    // The scan's results stay, without what is now in quarantine.
+    queries.setQueriesData<readonly CandidateView[]>(
+      { queryKey: QUERY_KEYS.assessment },
+      (earlier) => (earlier === undefined ? earlier : remainingAfter(earlier, finished)),
+    );
     setReport(finished);
-    reset();
-    queries.removeQueries({ queryKey: QUERY_KEYS.assessment });
     await queries.invalidateQueries({ queryKey: QUERY_KEYS.held });
     await queries.invalidateQueries({ queryKey: QUERY_KEYS.disk });
     return finished;
