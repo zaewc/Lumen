@@ -24,11 +24,17 @@ const allowed = new Set([
   "tool_storage",
   "software",
   "explain_software",
-  "compare_folders",
+  "compare_scan",
   "cancel_comparison",
   "reassess",
   "uninstall_preview",
   "uninstall",
+  "quit_app",
+  "helper_state",
+  "helper_enable",
+  "helper_disable",
+  "helper_open_login_items",
+  "app_icon",
 ]);
 
 window.__TAURI_ISOLATION_HOOK__ = (payload) => {

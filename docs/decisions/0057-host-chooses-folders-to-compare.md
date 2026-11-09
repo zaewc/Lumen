@@ -1,6 +1,6 @@
 # ADR-0057: The host asks which folders to compare for identical copies
 
-- Status: Accepted
+- Status: Superseded in part by [ADR-0065](0065-compare-completed-scan-roots-for-identical-copies.md)
 - Date: 2026-11-06
 - Refines: [ADR-0019](0019-staged-duplicate-detection.md) (staged duplicate
   detection), [ADR-0023](0023-ipc-security.md) (IPC security)

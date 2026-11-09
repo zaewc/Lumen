@@ -1,0 +1,60 @@
+reviews:
+  language: ko-KR
+  profile: "quiet"
+  path_instructions:
+    - path: "crates/**/*.rs"
+      instructions: |
+        Prioritize correctness and security issues over style. Review filesystem
+        operations for safe deletion and quarantine behavior, path traversal and
+        identity/race conditions, and platform-specific behavior. Confirm that
+        destructive operations stay within the filesystem executor and that
+        uncertainty fails safely. Report only actionable issues with a concrete
+        impact; do not suggest removing safety checks for convenience.
+    - path: "apps/desktop/src-tauri/**/*.rs"
+      instructions: |
+        Prioritize correctness and security issues over style. Review filesystem
+        operations for safe deletion and quarantine behavior, path traversal and
+        identity/race conditions, and platform-specific behavior. Confirm that
+        destructive operations stay within the filesystem executor and that
+        uncertainty fails safely. Report only actionable issues with a concrete
+        impact; do not suggest removing safety checks for convenience.
+    - path: "apps/**/src/**/*.ts"
+      instructions: |
+        Focus on real bugs in state synchronization, asynchronous operations,
+        and React rendering behavior, including stale state, race conditions,
+        cancellation, and regressions across loading and error states. Report
+        only issues with a concrete user-visible or data-safety impact; minimize
+        style-only feedback.
+    - path: "apps/**/src/**/*.tsx"
+      instructions: |
+        Focus on real bugs in state synchronization, asynchronous operations,
+        and React rendering behavior, including stale state, race conditions,
+        cancellation, and regressions across loading and error states. Report
+        only issues with a concrete user-visible or data-safety impact; minimize
+        style-only feedback.
+    - path: ".github/workflows/release*.yml"
+      instructions: |
+        Review release workflows for signing and verification failures,
+        updater integrity, artifact provenance, and missing or incorrectly
+        verified hashes. Check that release secrets are narrowly scoped and
+        that artifacts are not published before required validation succeeds.
+        Report concrete risks, not speculative hardening suggestions.
+    - path: "scripts/sign-macos.sh"
+      instructions: |
+        Review signing and notarization behavior, identity and entitlement
+        handling, verification of signed outputs, and failures that could
+        publish an unsigned or incorrectly signed artifact.
+    - path: "scripts/release-version.sh"
+      instructions: |
+        Review version and release artifact consistency, integrity checks, and
+        failure paths that could publish mismatched or unverified artifacts.
+    - path: "apps/desktop/src-tauri/src/update.rs"
+      instructions: |
+        Review update integrity and authenticity checks, including signature or
+        hash verification, version selection, and failure handling. Ensure an
+        unverified or malformed update cannot be installed.
+    - path: "apps/web/src/entities/app-update/**/*"
+      instructions: |
+        Review update integrity and authenticity checks, including signature or
+        hash verification, version selection, and failure handling. Ensure an
+        unverified or malformed update cannot be installed.

@@ -126,9 +126,6 @@ export const zDuplicatesView = z.object({
  */
 export const zCompareOutcomeView = z.union([
   z.object({
-    kind: z.enum(["nothing_chosen"]),
-  }),
-  z.object({
     kind: z.enum(["unsupported"]),
   }),
   z.object({
@@ -285,6 +282,54 @@ export const zHeldItemView = z.object({
 });
 
 /**
+ * What asking the helper for its status gave.
+ */
+export const zHelperReachView = z.union([
+  z.object({
+    kind: z.enum(["not_asked"]),
+  }),
+  z.object({
+    current: z.boolean(),
+    kind: z.enum(["answered"]),
+    version: z.string(),
+  }),
+  z.object({
+    kind: z.enum(["unsigned"]),
+  }),
+  z.object({
+    kind: z.enum(["unavailable"]),
+  }),
+  z.object({
+    kind: z.enum(["not_signed_as_required"]),
+  }),
+  z.object({
+    kind: z.enum(["refused"]),
+  }),
+  z.object({
+    kind: z.enum(["failed"]),
+  }),
+]);
+
+/**
+ * Where the helper's registration stands.
+ */
+export const zHelperRegistrationView = z.enum([
+  "unsupported",
+  "not_registered",
+  "enabled",
+  "requires_approval",
+  "not_found",
+]);
+
+/**
+ * Lumen's helper as it stands now.
+ */
+export const zHelperView = z.object({
+  reach: zHelperReachView,
+  registration: zHelperRegistrationView,
+});
+
+/**
  * What kind of item AI review says a review item most likely is.
  */
 export const zItemKindView = z.enum([
@@ -346,6 +391,35 @@ export const zNotRestoredView = z.enum([
   "origin_unreachable",
   "item_changed",
   "failed",
+]);
+
+/**
+ * What asking a running app to quit did. It was asked the way its Quit menu
+ * item asks, so it may ask to save or decline; preview it again to see
+ * whether it still runs.
+ */
+export const zQuitView = z.union([
+  z.object({
+    kind: z.enum(["asked"]),
+  }),
+  z.object({
+    kind: z.enum(["not_running"]),
+  }),
+  z.object({
+    kind: z.enum(["itself"]),
+  }),
+  z.object({
+    kind: z.enum(["failed"]),
+  }),
+  z.object({
+    kind: z.enum(["not_found"]),
+  }),
+  z.object({
+    kind: z.enum(["ambiguous"]),
+  }),
+  z.object({
+    kind: z.enum(["unsupported"]),
+  }),
 ]);
 
 /**
@@ -663,9 +737,10 @@ export const zSoftwarePurposeView = z.enum([
  * model text. Display only (ADR-0061).
  */
 export const zSoftwareNoteView = z.object({
-  confidence: zConfidenceView,
   purpose: zSoftwarePurposeView,
+  purpose_confidence: zConfidenceView,
   removal_impact: zRemovalImpactView,
+  removal_impact_confidence: zConfidenceView,
 });
 
 /**

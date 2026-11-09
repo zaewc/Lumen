@@ -11,6 +11,8 @@ pub mod docker;
 pub mod duplicates;
 #[cfg(any(unix, windows))]
 pub mod held;
+pub mod helper;
+pub mod icons;
 mod inspection;
 mod knowledge;
 pub mod packages;

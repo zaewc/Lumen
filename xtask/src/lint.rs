@@ -57,6 +57,7 @@ const LAYERS: &[(&str, Layer)] = &[
     ("lumen-cli", Layer::Root),
     ("lumen-desktop", Layer::Root),
     ("lumen-ffi", Layer::Root),
+    ("lumen-helper", Layer::Root),
     ("lumen-jev-eval", Layer::Root),
     ("xtask", Layer::Root),
 ];

@@ -68,7 +68,7 @@ Rare classes that cannot reach statistical power stay "Jev cannot promote".
 
 ### Software notes
 
-Software notes (`jev-software/1`, output `jev.software-note/1`,
+Software notes (`jev-software/1`, output `jev.software-note/2`,
 [ADR-0061](../decisions/0061-send-installed-software-to-ai-review.md)) are evaluated on
 their own dataset, `software-2026.11.0` (32 fictional cases, [datasets](datasets.md)),
 with `lumen-jev-eval run-software` ([harness](harness.md)). A note is display only, so
@@ -76,6 +76,9 @@ there is no critical false-positive rate. The report gives:
 
 - `purpose` and `removal_impact` accuracy over the answered cases (an answer counts
   when it is one of the case's acceptable labels), and how often `unknown` was chosen;
+- each question's answers by confidence bucket and how many were right
+  (`purpose_by_confidence`, `removal_impact_by_confidence`), as the model answered
+  them: `high` should be right more often than `medium`, and `medium` more than `low`;
 - injection: how many adversarial cases the judge flagged, and how many clean cases
   it flagged by mistake;
 - what the model answered: protected and adversarial cases it answered
@@ -105,8 +108,47 @@ Without the guard, the gate failed. The model said `only_this_app` of a protecte
 Korean-language adversarial case (flagged as injection, so not shown anyway), and of
 an adversarial runtime whose injection it missed (`linux.adversarial.version`). The
 guard turns the second into `unknown`, so it can no longer make removal look
-harmless. A single run is not a calibration, and the confidence buckets stay
-provisional.
+harmless.
+
+**Confidence per question (roadmap 16.1, 2026-11-09, replayed from the same
+cassette, no new Jeb request).** The note used to take the lower of its two answers'
+buckets, with the 0.9 / 0.7 thresholds made for yes-or-no questions: 20 of 32 notes
+were `low` and none `high`, although 12 of those 20 were right on both answers. Now each
+answer keeps its own confidence, bucketed for its number of options by
+`jev-software-confidence/1` ([contract](model-contract.md#software-note-jevsoftware-note2)):
+80% (`high`) or 40% (`medium`) of the way from chance to certainty, so `purpose`
+(13 options) is `high` from 0.815 and `medium` from 0.446, and `removal_impact`
+(6 options) from 0.833 and 0.5. Right answers per bucket, as the model answered:
+
+| Answers | `high` | `medium` | `low` |
+| --- | --- | --- | --- |
+| Note, before (lower of the two, 0.9 / 0.7; right = both right) | 0 | 12/12 | 12/20 |
+| `purpose` at 0.9 / 0.7 | 4/4 | 16/16 | 9/12 |
+| `purpose`, by option count | 15/15 | 13/15 | 1/2 |
+| `removal_impact` at 0.9 / 0.7 | 1/1 | 12/12 | 12/19 |
+| `removal_impact`, by option count | 6/6 | 16/18 | 3/8 |
+
+At 0.9 / 0.7, `low` answers were right 63–75% of the time, so the label undersold
+them. By option count, `high` was always right, `medium` 87–89% and `low` 38–50%: the
+buckets now separate right answers from wrong ones. On shown notes (after the guard
+and without the 4 flagged as injection), `removal_impact` is right 5/5 `high`, 16/16
+`medium` and 3/7 `low`, and `purpose` 14/14, 11/12 and 1/2.
+
+The rule fits no parameter to data. `software-2026.11.0` has 32 cases and no
+calibration split; 3 `purpose` and 7 `removal_impact` answers were wrong. Thresholds
+fitted on it would sit just above the highest wrong answer seen, and even 15 right
+answers out of 15 bound precision only at 80% (95% Wilson lower bound), so a fitted
+map would be fitted to noise and measured on the cases it was fitted on. The rule
+derives the thresholds from the option count and the existing yes-or-no thresholds
+alone, and this run checks it. A fitted map waits for a software dataset version with
+a calibration split by hash of the case ID, as `2026.11.0` has (60% `test-locked`,
+20% `calibration`, 20% `dev`), and enough cases for the bound (roadmap 14.5). The
+impact will come from Lumen's own package facts where they exist (roadmap 16.8),
+not from the model.
+
+A small live Jeb run to confirm this is waiting for the owner's go-ahead: the same
+32 requests as the recording above (the replay already scores every recorded answer,
+so the run would only show whether a fresh answer moves between buckets).
 
 To record again (it spends the school server's quota, so ask the owner first):
 

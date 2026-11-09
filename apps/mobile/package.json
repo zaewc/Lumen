@@ -15,6 +15,7 @@
   "dependencies": {
     "@shopify/flash-list": "catalog:",
     "expo": "catalog:",
+    "expo-font": "catalog:",
     "expo-image": "catalog:",
     "expo-modules-core": "catalog:",
     "expo-status-bar": "catalog:",

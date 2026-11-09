@@ -9,7 +9,9 @@ installed copy; workflows hold signing and updater secrets. Reviewed by CODEOWNE
 - First step `step-security/harden-runner`; `actions/checkout` with
   `persist-credentials: false`.
 - Pin every action to a full commit SHA with its version in a comment
-  (`uses: owner/action@<sha> # vX.Y.Z`); download tools with a checked SHA-256.
+  (`uses: owner/action@<sha> # vX.Y.Z`); download prebuilt tools with a checked
+  SHA-256, or install Go/Rust/Maven tools at pinned versions from their
+  registries with checksum verification enabled.
 - Never interpolate `${{ … }}` from events or inputs into `run:`; pass it through
   `env:`.
 - Secrets reach only the step that needs them, never a job that runs dependency

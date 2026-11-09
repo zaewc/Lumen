@@ -22,6 +22,7 @@ catalog:
   astro: 7.4.2
   expo: 58.0.11
   expo-image: 58.0.15
+  expo-font: 58.0.8
   expo-modules-core: 58.0.19
   expo-status-bar: 58.0.3
   react: 19.3.0

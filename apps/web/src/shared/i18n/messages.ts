@@ -1,4 +1,4 @@
-import type { AiNoteView, ReasonView } from "@lumen/api-client";
+import type { AiNoteView, ReasonView, SoftwareNoteView } from "@lumen/api-client";
 import { en, type Messages } from "./en";
 import { es } from "./es";
 import { fr } from "./fr";
@@ -59,5 +59,26 @@ export function aiNoteText(messages: Messages, note: AiNoteView): string {
   return messages.aiNote.likely(
     messages.aiNote.kinds[note.kind],
     messages.aiNote.confidence[note.confidence],
+  );
+}
+
+/**
+ * An AI note on installed software (ADR-0061), labelled as AI: the closed
+ * purpose and removal impact, each with its own confidence. "Could not tell"
+ * carries no confidence.
+ */
+export function softwareNoteText(messages: Messages, note: SoftwareNoteView): string {
+  const a = messages.apps.ai;
+  const impact =
+    note.removal_impact === "unknown"
+      ? a.impacts.unknown
+      : a.withConfidence(
+          a.impacts[note.removal_impact],
+          messages.aiNote.confidence[note.removal_impact_confidence],
+        );
+  return a.note(
+    a.purposes[note.purpose],
+    messages.aiNote.confidence[note.purpose_confidence],
+    impact,
   );
 }

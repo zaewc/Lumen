@@ -21,6 +21,7 @@ pub mod describe;
 pub mod duplicates;
 pub mod finalize;
 pub mod gather;
+pub mod helper;
 pub mod large;
 pub mod measure;
 pub mod observe;
@@ -33,6 +34,7 @@ pub mod restore;
 pub mod review;
 pub mod software_links;
 pub mod software_notes;
+pub mod software_relations;
 pub mod uninstall;
 
 pub use cancel::CancelToken;

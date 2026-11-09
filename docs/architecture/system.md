@@ -85,6 +85,7 @@ Crates are created only when their first code lands.
  lumen-devkb  lumen-telemetry
         ▲            ▲            ▲             ▲              ▲
       lumen-app  ·  lumen-api  ·  lumen-ffi  ·  apps/desktop (Tauri host)  ·  lumen-cli
+      lumen-helper (macOS launch daemon, ADR-0063)
 ```
 
 Dependency rules (checked by `cargo xtask lint`, part of `just check` and CI):
@@ -544,10 +545,12 @@ Windows the roots lose `canonicalize`'s `\\?\` prefix for drive paths, as the
 scanner adds it itself. Other platforms report that the analysis is unsupported
 rather than finding nothing.
 
-In the desktop app, `compare_folders` takes no path: the host opens the system
-folder dialog and compares only the folders the person picks (ADR-0057). It
-shows the dialog on macOS and Windows; on Linux the app says comparing is
-unsupported.
+In the desktop app, Explore starts `compare_scan` after a non-partial scan
+finishes (ADR-0065). It sends only the scan ID; the host checks that it is the
+latest completed scan and reads its roots from the index. The comparison is a
+separate operation from scanning, has its own progress and cancellation, and
+never accepts paths from the webview. macOS, Windows and Linux use the same
+bounded duplicate reader.
 
 See [ADR-0019](../decisions/0019-staged-duplicate-detection.md). Exact duplicates are
 found in stages ending in a BLAKE3 content ID. Near-duplicates are `REVIEW` only.

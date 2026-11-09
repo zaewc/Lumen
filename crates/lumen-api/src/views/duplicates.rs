@@ -1,6 +1,6 @@
-//! Identical copies in folders the person chose (ADR-0019, ADR-0057): paths and
-//! sizes for review. Content digests never leave the host, and nothing here
-//! chooses a copy to keep.
+//! Identical copies in the roots of a completed scan (ADR-0019, ADR-0065):
+//! paths and sizes for review. Content digests never leave the host, and
+//! nothing here chooses a copy to keep.
 
 use std::path::PathBuf;
 
@@ -57,7 +57,7 @@ pub struct DuplicateGroupView {
 /// What a comparison found and what it could not cover.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct DuplicatesView {
-    /// The folders the person chose.
+    /// The roots of the completed scan.
     pub folders: Vec<String>,
     /// Identical copies, the largest extra copies first. Copies can share
     /// blocks (APFS clones), so this is not space removing one would free.
@@ -76,8 +76,6 @@ pub struct DuplicatesView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum CompareOutcomeView {
-    /// The person closed the dialog; nothing was read.
-    NothingChosen,
     /// This platform cannot read contents to compare yet.
     Unsupported,
     /// The folders hold more files than one comparison covers.

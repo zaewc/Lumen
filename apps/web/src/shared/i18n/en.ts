@@ -98,9 +98,8 @@ export const en = {
     copies: {
       title: "Identical copies",
       intro:
-        "Choose folders, and Lumen compares their files to find ones with the same contents. Lumen reads files only in the folders you choose.",
-      choose: "Choose folders to compare…",
-      chooseAgain: "Compare other folders…",
+        "After a scan finishes, Lumen separately reads files in the scanned folders to find identical contents. This read-only comparison never chooses or removes a copy.",
+      compareAgain: "Compare again",
       stop: "Stop",
       stopping: "Stopping…",
       stopped: "Stopped. Nothing from that comparison is shown.",
@@ -111,7 +110,7 @@ export const en = {
         full: "Comparing whole files that still match",
       },
       filesRead: (n: string) => `${count(n)} ${n === "1" ? "file" : "files"} read`,
-      folders: "Folders compared",
+      folders: "Scan folders compared",
       group: (n: number, size: string) => `${count(n)} copies · ${size} each`,
       none: "No identical copies among the files Lumen could compare.",
       more: (n: number) => `${count(n)} smaller ${n === 1 ? "group is" : "groups are"} not shown.`,
@@ -126,8 +125,8 @@ export const en = {
       incomplete: "Some folders could not be read completely. Files there were not compared.",
       unsupported: "Comparing files is not available on this computer yet.",
       tooMany: (limit: string) =>
-        `These folders hold more than ${count(limit)} files. Choose smaller folders.`,
-      failed: "Lumen could not compare these folders.",
+        `The scan covers more than ${count(limit)} files. Run a narrower scan to compare fewer.`,
+      failed: "Lumen could not compare the scan's files.",
       advice:
         "Copies can be backups you want to keep. Lumen does not choose or remove any. Removing a copy can free less space than its size.",
     },
@@ -452,6 +451,8 @@ export const en = {
     freedNote: "You get the space back when you remove them from Quarantine for good.",
     openQuarantine: "Open Quarantine",
     notMoved: (n: number) => `${items(n)} not moved`,
+    left: (n: number) => `${items(n)} left from this scan`,
+    scanAgainToMove: "To move more, scan again.",
   },
   item: {
     quarantined: "Moved to Quarantine. You can restore it.",
@@ -603,6 +604,14 @@ export const en = {
       noSpace: "Space is freed only when you remove the app for good from Quarantine.",
       changed: "The app changed. Close this preview and check it again.",
       failedMove: "Lumen could not finish moving the app.",
+      quit: "Quit",
+      quitHint:
+        "Quit asks the app to close, as its own Quit menu item does. If it has unsaved work, it asks you first.",
+      quitAsked: "Lumen asked the app to quit. If it asks about saving, answer it there.",
+      stillRunning: "The app is still running. Quit it, then check again.",
+      quitItself: "Lumen cannot quit itself from here.",
+      quitFailed: "Lumen could not ask the app to quit. Quit it yourself, then check again.",
+      recheck: "Check again",
       notes: {
         goes_to_quarantine:
           "You can restore the app until you remove it for good. Lumen never removes it automatically.",
@@ -635,6 +644,7 @@ export const en = {
       explaining: "AI review is explaining the apps…",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI: likely ${purpose} (${confidence}). ${impact}`,
+      withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
       purposes: {
         web_browser: "a web browser",
         communication: "a communication app",
@@ -651,7 +661,7 @@ export const en = {
         unknown: "something it could not tell",
       } satisfies { readonly [P in SoftwarePurposeView]: string },
       impacts: {
-        only_this_app: "Removing it likely affects only this app.",
+        only_this_app: "Removing it probably won't affect anything else.",
         other_software_depends: "Other software likely depends on it.",
         stops_background_activity: "Removing it likely stops its background activity.",
         security_or_access: "Removing it may stop security, banking or sign-in from working.",
@@ -700,6 +710,30 @@ export const en = {
         "Your computer may block Lumen from some folders. Lumen still reads every folder it is allowed to.",
       unread:
         "Lumen shows a folder it cannot read as unread, never as empty, and proposes nothing in it.",
+      helper: {
+        title: "Administrator helper",
+        intro:
+          "For cleaning up what needs administrator rights, such as apps another account installed. Lumen's safety rules stay the same, and anything moved can be restored from Quarantine.",
+        notYet: "For now it only checks the connection; it moves nothing.",
+        off: "Off.",
+        waiting:
+          "Allow Lumen in System Settings › General › Login Items. It asks for an administrator password.",
+        on: (version: string) => `On. The helper answers (version ${version}).`,
+        enable: "Turn on",
+        disable: "Turn off",
+        openLoginItems: "Open Login Items",
+        changeFailed: "Lumen could not change the helper.",
+        problems: {
+          outdated:
+            "On, but the helper is from another version of Lumen. Turn it off and on again.",
+          unsigned:
+            "This copy of Lumen is not signed with a Developer ID, so it cannot use the helper.",
+          no_answer: "On, but the helper does not answer. Turn it off and on again.",
+          not_found: "Lumen could not find its helper. Reinstall Lumen.",
+          mismatch: "The helper's signature does not match this Lumen. Turn it off and on again.",
+          failed: "Lumen could not check the helper.",
+        },
+      },
     },
     about: {
       title: "About",

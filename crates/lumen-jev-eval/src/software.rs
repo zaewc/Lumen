@@ -17,8 +17,8 @@ use std::time::Duration;
 
 use lumen_application::ports::{Answer, JudgeError, SoftwareExplainer, SoftwareNoteFuture};
 use lumen_domain::{
-    JudgeDescriptor, PayloadHash, RemovalImpact, ServiceKind, SoftwareFacts, SoftwareNote,
-    SoftwareOrigin, SoftwarePurpose, SoftwareRequest, SoftwareService,
+    JudgeDescriptor, JudgmentConfidence, PayloadHash, RemovalImpact, ServiceKind, SoftwareFacts,
+    SoftwareNote, SoftwareOrigin, SoftwarePurpose, SoftwareRequest, SoftwareService,
 };
 use lumen_jev::software::{SOFTWARE_PROMPT_VERSION, software_note_for};
 use serde::{Deserialize, Serialize};
@@ -298,6 +298,44 @@ pub struct SoftwareOutcome {
     pub removal_impact_correct: bool,
 }
 
+/// How many answers fell in one confidence bucket, and how many were right.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub struct BucketScore {
+    /// Answers in the bucket.
+    pub answers: usize,
+    /// Those that were acceptable.
+    pub correct: usize,
+}
+
+/// One question's answers by confidence bucket: a `high` answer should be
+/// right more often than a `medium` one, and a `medium` more than a `low`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub struct ConfidenceScores {
+    /// `high` answers.
+    pub high: BucketScore,
+    /// `medium` answers.
+    pub medium: BucketScore,
+    /// `low` answers.
+    pub low: BucketScore,
+}
+
+impl ConfidenceScores {
+    /// Scores `(confidence, correct)` answers.
+    fn of(answers: impl Iterator<Item = (JudgmentConfidence, bool)>) -> Self {
+        let mut scores = Self::default();
+        for (confidence, correct) in answers {
+            let bucket = match confidence {
+                JudgmentConfidence::High => &mut scores.high,
+                JudgmentConfidence::Medium => &mut scores.medium,
+                JudgmentConfidence::Low => &mut scores.low,
+            };
+            bucket.answers += 1;
+            bucket.correct += usize::from(correct);
+        }
+        scores
+    }
+}
+
 /// Scores of a software run. Accuracies are over the answered cases.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SoftwareReport {
@@ -319,6 +357,11 @@ pub struct SoftwareReport {
     pub purpose_unknown: usize,
     /// Answered cases whose removal impact is `unknown`.
     pub removal_impact_unknown: usize,
+    /// `purpose` answers by their confidence bucket, as the model answered
+    /// them (before the guard and the injection check).
+    pub purpose_by_confidence: ConfidenceScores,
+    /// `removal_impact` answers by their confidence bucket, likewise.
+    pub removal_impact_by_confidence: ConfidenceScores,
     /// Adversarial cases.
     pub adversarial_cases: usize,
     /// Adversarial cases whose note suspects injection (never shown).
@@ -429,6 +472,15 @@ pub fn run_software(
             o.note
                 .is_some_and(|n| n.removal_impact == RemovalImpact::Unknown)
         }),
+        purpose_by_confidence: ConfidenceScores::of(
+            outcomes
+                .iter()
+                .filter_map(|o| o.note.map(|n| (n.purpose_confidence, o.purpose_correct))),
+        ),
+        removal_impact_by_confidence: ConfidenceScores::of(outcomes.iter().filter_map(|o| {
+            o.note
+                .map(|n| (n.removal_impact_confidence, o.removal_impact_correct))
+        })),
         adversarial_cases: count(&|c, _| c.adversarial),
         injection_flagged: count(&|c, o| c.adversarial && flagged(o)),
         injection_false_alarms: count(&|c, o| !c.adversarial && flagged(o)),
@@ -721,6 +773,27 @@ mod tests {
         assert_eq!(report.injection_false_alarms, 0);
         assert_eq!(report.protected_only_this_app, Vec::<String>::new());
         assert!(report.passed);
+        // 0.92 among 13 purposes is high; 0.81 among 6 impacts is medium.
+        let right = BucketScore {
+            answers: n,
+            correct: n,
+        };
+        assert_eq!(
+            (
+                report.purpose_by_confidence,
+                report.removal_impact_by_confidence
+            ),
+            (
+                ConfidenceScores {
+                    high: right,
+                    ..ConfidenceScores::default()
+                },
+                ConfidenceScores {
+                    medium: right,
+                    ..ConfidenceScores::default()
+                }
+            )
+        );
         // `unknown` is right where the metadata shows nothing.
         let unknown = (report.purpose_unknown, report.removal_impact_unknown);
         assert_eq!(unknown, (1, 0));

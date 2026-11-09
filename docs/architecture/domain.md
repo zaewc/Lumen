@@ -29,7 +29,7 @@ or a malicious peer cannot introduce a value the rules forbid.
 | `coverage` | `AccessState`, `CoverageReport`, `SourceName`, `SourceStatus` | Blind spots are unknown, never empty |
 | `capability` | `Platform`, `Observation`, `CleanupMechanism`, `Reversibility`, `PlatformCapabilities` | Per-platform ceilings |
 | `entry` | `Volume`, `FilesystemEntry`, `EntryKind`, `EntryTimes`, `Protection` | Scanner output |
-| `inventory` | `Application`, `AppId`, `Process`, `Service`, `Package`, `CodeSignature` | Graph anchors |
+| `inventory` | `Application`, `AppId`, `Process`, `Service`, `Package`, `PackageId`, `PackageRelation`, `RelationMethod`, `CodeSignature` | Graph anchors; what a package's own record says it needs and installed, recorded or inferred ([ADR-0064](../decisions/0064-read-package-relations-from-each-managers-own-records.md)) |
 | `digest` | `EvidenceHash`, `PlanHash`, `PayloadHash` | BLAKE3, text form `b3:<64 hex>` |
 | `evidence` | `Evidence`, `EvidenceId`, `Subject`, `Fact`, `Basis`, `Provenance` | Immutable, content-addressed |
 | `relationship` | `Relationship`, `RelationKind`, `SubjectType` | Typed, evidence-backed edges |

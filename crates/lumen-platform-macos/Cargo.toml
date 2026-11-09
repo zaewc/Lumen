@@ -15,6 +15,7 @@ thiserror.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 blake3.workspace = true
+block2.workspace = true
 dispatch2.workspace = true
 libc.workspace = true
 # Homebrew's install receipts are JSON (#806); already a workspace dependency.
@@ -33,6 +34,22 @@ objc2-core-foundation = { workspace = true, features = [
   "CFUUID",
 ] }
 objc2-core-services = { workspace = true, features = ["FSEvents", "MDItem", "Metadata", "dispatch2", "libc"] }
+objc2 = { workspace = true }
+# NSRunningApplication: quitting an app (16.3a). NSWorkspace through
+# NSGraphicsContext: drawing an app's icon small (16.4).
+objc2-app-kit = { workspace = true, features = [
+  "NSBitmapImageRep",
+  "NSGraphics",
+  "NSGraphicsContext",
+  "NSImage",
+  "NSImageRep",
+  "NSRunningApplication",
+  "NSWorkspace",
+  "libc",
+  "objc2-core-foundation",
+] }
+objc2-foundation = { workspace = true, features = ["NSArray", "NSData", "NSDictionary", "NSError", "NSGeometry", "NSString", "NSURL"] }
+objc2-service-management = { workspace = true, features = ["SMAppService", "objc2", "objc2-foundation"] }
 objc2-security = { workspace = true, features = ["CSCommon", "SecBase", "SecCode", "SecItem", "SecStaticCode"] }
 
 [dev-dependencies]

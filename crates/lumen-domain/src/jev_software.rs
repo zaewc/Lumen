@@ -1,5 +1,5 @@
 //! What Jev sees and says about installed software (ADR-0061):
-//! the request `jev.software-request/1` and the note `jev.software-note/1`
+//! the request `jev.software-request/1` and the note `jev.software-note/2`
 //! (docs/ai/model-contract.md).
 //!
 //! A request describes one installed application or package with identity
@@ -323,7 +323,7 @@ pub enum RemovalImpact {
     Unknown,
 }
 
-/// An AI note about installed software (`jev.software-note/1`, ADR-0061):
+/// An AI note about installed software (`jev.software-note/2`, ADR-0061):
 /// display only. It is never an input to the policy, a plan or the executor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -332,8 +332,13 @@ pub struct SoftwareNote {
     pub purpose: SoftwarePurpose,
     /// What removing it could most likely affect.
     pub removal_impact: RemovalImpact,
-    /// How sure the model was: the lower of the two chosen options' buckets.
-    pub confidence: JudgmentConfidence,
+    /// How sure the model was of `purpose`, bucketed for a question with that
+    /// many options (`lumen_jev::software`).
+    pub purpose_confidence: JudgmentConfidence,
+    /// How sure the model was of `removal_impact`, bucketed the same way.
+    /// Each answer keeps its own confidence: a sure purpose is not made to
+    /// look unsure by an unsure impact, nor the other way round.
+    pub removal_impact_confidence: JudgmentConfidence,
     /// Whether the model saw text trying to influence it; such a note is
     /// recorded but never shown.
     pub injection_suspected: bool,
@@ -346,12 +351,15 @@ impl SoftwareNote {
     }
 
     /// The note with a removal impact that contradicts what is known set to
-    /// [`RemovalImpact::Unknown`], like the judgment guards (ADR-0043):
-    /// "only this app" is never said of software the platform marks
-    /// protected, nor of software whose own purpose means other things rely
-    /// on it (security or banking, a system component or driver, a runtime or
-    /// library). The model's answer can never make removal look harmless
-    /// there.
+    /// [`RemovalImpact::Unknown`] with low confidence, like the judgment
+    /// guards (ADR-0043): "only this app" is never said of software the
+    /// platform marks protected, nor of software whose own purpose means other
+    /// things rely on it (security or banking, a system component or driver, a
+    /// runtime or library). The model's answer can never make removal look
+    /// harmless there.
+    ///
+    /// Roadmap 16.8 hook: once Lumen knows what depends on a package, that
+    /// fact, not the model's guess, decides the impact; it belongs here.
     #[must_use]
     pub const fn guarded(self, protected: bool) -> Self {
         let relied_on = matches!(
@@ -363,6 +371,7 @@ impl SoftwareNote {
         if matches!(self.removal_impact, RemovalImpact::OnlyThisApp) && (protected || relied_on) {
             Self {
                 removal_impact: RemovalImpact::Unknown,
+                removal_impact_confidence: JudgmentConfidence::Low,
                 ..self
             }
         } else {
@@ -475,7 +484,8 @@ mod tests {
         let note = |purpose| SoftwareNote {
             purpose,
             removal_impact: RemovalImpact::OnlyThisApp,
-            confidence: JudgmentConfidence::High,
+            purpose_confidence: JudgmentConfidence::High,
+            removal_impact_confidence: JudgmentConfidence::High,
             injection_suspected: false,
         };
         let media = note(SoftwarePurpose::Media);
@@ -485,9 +495,13 @@ mod tests {
             "an ordinary app keeps its answer"
         );
         assert_eq!(
-            media.guarded(true).removal_impact,
-            RemovalImpact::Unknown,
-            "protected"
+            media.guarded(true),
+            SoftwareNote {
+                removal_impact: RemovalImpact::Unknown,
+                removal_impact_confidence: JudgmentConfidence::Low,
+                ..media
+            },
+            "protected: unknown, with low confidence; the purpose is kept"
         );
         for purpose in [
             SoftwarePurpose::SecurityOrBanking,

@@ -22,11 +22,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "tool_storage",
         "software",
         "explain_software",
-        "compare_folders",
+        "compare_scan",
         "cancel_comparison",
         "reassess",
         "uninstall_preview",
         "uninstall",
+        "quit_app",
+        "helper_state",
+        "helper_enable",
+        "helper_disable",
+        "helper_open_login_items",
+        "app_icon",
     ];
     tauri_build::try_build(
         tauri_build::Attributes::new()

@@ -6,7 +6,7 @@ resolver = "3"
 [workspace.package]
 edition = "2024"
 rust-version = "1.95"
-version = "0.10.0"
+version = "0.11.0"
 publish = false
 repository = "https://github.com/zaewc/Lumen"
 license = "Apache-2.0"
@@ -23,6 +23,7 @@ lumen-domain = { path = "crates/lumen-domain" }
 lumen-ffi = { path = "crates/lumen-ffi" }
 lumen-fs-exec = { path = "crates/lumen-fs-exec" }
 lumen-graph = { path = "crates/lumen-graph" }
+lumen-helper = { path = "crates/lumen-helper" }
 lumen-jev = { path = "crates/lumen-jev" }
 lumen-jev-eval = { path = "crates/lumen-jev-eval" }
 lumen-platform-linux = { path = "crates/lumen-platform-linux" }
@@ -43,6 +44,18 @@ libc = "0.2.190"
 # Typed CoreFoundation / CoreServices (FSEvents) bindings (macOS adapter only).
 objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std"] }
 objc2-core-services = { version = "0.3.2", default-features = false, features = ["std"] }
+# Objective-C blocks for the XPC event handlers of Lumen's helper (ADR-0063);
+# already in the lock file through objc2-app-kit.
+block2 = { version = "0.6.2", default-features = false, features = ["std"] }
+# Asking a running app to quit (roadmap 16.3a): NSRunningApplication. Already
+# in the lock file through Tauri; only the features named here are built.
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std"] }
+# Registering Lumen's helper as a launch daemon with SMAppService (ADR-0063);
+# allocating AppKit objects and draining autorelease pools off the main thread
+# (app icons, roadmap 16.4).
+objc2 = { version = "0.6.5", default-features = false, features = ["std"] }
+objc2-service-management = { version = "0.3.2", default-features = false, features = ["std"] }
 # Code-signing (Security framework) bindings for the app inventory (macOS only).
 objc2-security = { version = "0.3.2", default-features = false, features = ["std"] }
 # Test-only validator; defaults pull an HTTP client and a TLS stack we do not need.

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { suitFont } from "./fonts";
 import { type Colors, controlMaterial, material, TOUCH, type, useColors } from "./theme";
 
 /**
@@ -84,7 +85,8 @@ export function Segmented<T extends string>({
               numberOfLines={1}
               style={[
                 type.footnote,
-                { color: selected ? c.ink : c.ink2, fontWeight: selected ? "600" : "400" },
+                suitFont(selected ? 600 : 400),
+                { color: selected ? c.ink : c.ink2 },
               ]}
             >
               {option.label}

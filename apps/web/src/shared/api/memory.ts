@@ -5,6 +5,7 @@ import type {
   AiSettingsView,
   CandidateView,
   HeldItemView,
+  HelperView,
   ItemReportView,
   PlanView,
   ScanView,
@@ -76,13 +77,19 @@ function softwareList(explained: boolean): SoftwareView {
         ai_note: {
           purpose: "runtime_or_library",
           removal_impact: "other_software_depends",
-          confidence: "high",
+          purpose_confidence: "high",
+          removal_impact_confidence: "medium",
         },
       }),
       row("mac_app", "com.spotify.client", "Spotify", "1.2.48", {
         location: "/Applications/Spotify.app",
         ai_note: explained
-          ? { purpose: "media", removal_impact: "only_this_app", confidence: "medium" }
+          ? {
+              purpose: "media",
+              removal_impact: "only_this_app",
+              purpose_confidence: "high",
+              removal_impact_confidence: "medium",
+            }
           : null,
       }),
     ],
@@ -590,9 +597,10 @@ function wait(ms: number): Promise<void> {
   return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
 }
 
-// The sample uninstall previews (ADR-0062): Spotify may go to Quarantine;
-// Calculator is part of macOS, and OldEditor has a background item.
-function uninstallPreviewOf(key: string, n: number): UninstallPreviewView {
+// The sample uninstall previews (ADR-0062): Spotify may go to Quarantine once
+// it is not running; Calculator is part of macOS, and OldEditor has a
+// background item.
+function uninstallPreviewOf(key: string, n: number, running: boolean): UninstallPreviewView {
   const row = softwareList(false).items.find((item) => item.key === key);
   if (row === undefined || row.origin !== "mac_app") {
     return { kind: "not_found" };
@@ -612,6 +620,9 @@ function uninstallPreviewOf(key: string, n: number): UninstallPreviewView {
   }
   if (row.services.length > 0) {
     return { kind: "refused", app, reasons: ["service_linked"] };
+  }
+  if (running) {
+    return { kind: "refused", app, reasons: ["running"] };
   }
   return {
     kind: "ready",
@@ -653,6 +664,10 @@ export function memoryTransport({
   let previewed = 0;
   // Previews that may still be confirmed, each once.
   const previews = new Map<string, { hash: string; app: UninstallAppView }>();
+  // Lumen's helper (ADR-0063), not set up at first.
+  let helper: HelperView = { registration: "not_registered", reach: { kind: "not_asked" } };
+  // Apps running in the sample, until asked to quit (roadmap 16.3a).
+  const running = new Set(["mac_app:com.spotify.client"]);
   const take = (operation: string): HeldItemView | undefined => {
     const item = held.find((h) => h.operation === operation);
     held = held.filter((h) => h.operation !== operation);
@@ -854,7 +869,8 @@ export function memoryTransport({
         },
       ];
     },
-    compareFolders: async (onProgress) => {
+    compareScan: async (scan, onProgress) => {
+      void scan;
       const run = { stopped: false };
       comparing = run;
       for (const [stage, read] of [
@@ -869,7 +885,7 @@ export function memoryTransport({
       return {
         kind: "compared",
         report: {
-          folders: ["/Users/demo/Downloads", "/Users/demo/Pictures"],
+          folders: ["/Users/demo"],
           groups: [
             {
               bytes_each: "734003200",
@@ -901,11 +917,47 @@ export function memoryTransport({
     uninstallPreview: async (key) => {
       await wait(pace);
       previewed += 1;
-      const preview = uninstallPreviewOf(key, previewed);
+      const preview = uninstallPreviewOf(key, previewed, running.has(key));
       if (preview.kind === "ready") {
         previews.set(preview.preview, { hash: preview.hash, app: preview.app });
       }
       return preview;
+    },
+    helperState: async () => {
+      await wait(pace);
+      return helper;
+    },
+    helperEnable: async () => {
+      await wait(pace);
+      helper = { registration: "requires_approval", reach: { kind: "not_asked" } };
+      return helper;
+    },
+    helperDisable: async () => {
+      await wait(pace);
+      helper = { registration: "not_registered", reach: { kind: "not_asked" } };
+      return helper;
+    },
+    // In the sample, opening Login Items stands for an administrator allowing
+    // the helper there.
+    helperOpenLoginItems: async () => {
+      await wait(pace);
+      if (helper.registration === "requires_approval") {
+        helper = {
+          registration: "enabled",
+          reach: { kind: "answered", version: "0.10.0", current: true },
+        };
+      }
+    },
+    quitApp: async (key) => {
+      await wait(pace);
+      const row = softwareList(false).items.find((item) => item.key === key);
+      if (row?.origin !== "mac_app") return { kind: "not_found" };
+      return { kind: running.delete(key) ? "asked" : "not_running" };
+    },
+    // The sample has no icons; every row shows the placeholder (roadmap 16.4).
+    appIcon: async () => {
+      await wait(0);
+      return null;
     },
     uninstall: async (preview, confirmation) => {
       await wait(pace);

@@ -5,7 +5,7 @@ import { countFormat, formatDateTime } from "./format";
 import { fr } from "./fr";
 import { ko } from "./ko";
 import { detectLocale, LOCALE_NAMES, LOCALES, parseLocale } from "./locale";
-import { aiNoteText, MESSAGES, reasonText, reviewReasonText } from "./messages";
+import { aiNoteText, MESSAGES, reasonText, reviewReasonText, softwareNoteText } from "./messages";
 import { RULE_IDS } from "./rules";
 import { storedLocale, storeLocale } from "./storage";
 
@@ -50,6 +50,29 @@ describe("catalogs", () => {
       expect(
         aiNoteText(MESSAGES[locale], { kind: "logs", confidence: "medium" }).length,
       ).toBeGreaterThan(0);
+    }
+  });
+
+  it("give each part of an app note its own confidence", () => {
+    const note = {
+      purpose: "media",
+      removal_impact: "stops_background_activity",
+      purpose_confidence: "high",
+      removal_impact_confidence: "low",
+    } as const;
+    expect(softwareNoteText(en, note)).toBe(
+      "AI: likely a media app (high confidence). Removing it likely stops its background activity. (low confidence)",
+    );
+    expect(softwareNoteText(ko, note)).toBe(
+      "AI: 미디어 앱일 가능성이 높아요(확신 높음). 지우면 이 앱의 백그라운드 작업이 멈출 가능성이 높아요. (확신 낮음)",
+    );
+    expect(softwareNoteText(en, { ...note, removal_impact: "unknown" })).toBe(
+      "AI: likely a media app (high confidence). It could not tell what removing it would affect.",
+    );
+    for (const locale of LOCALES) {
+      expect(softwareNoteText(MESSAGES[locale], note)).toContain(
+        MESSAGES[locale].aiNote.confidence.low,
+      );
     }
   });
 

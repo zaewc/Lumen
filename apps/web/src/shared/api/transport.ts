@@ -11,8 +11,10 @@ import type {
   ExecuteRequest,
   FinalizeOutcomeView,
   HeldItemView,
+  HelperView,
   PlanView,
   QuarantineReportView,
+  QuitView,
   ReassessRequest,
   ReassessView,
   RestoreOutcomeView,
@@ -107,12 +109,12 @@ export interface LumenTransport {
    */
   explainSoftware?(): Promise<SoftwareView>;
   /**
-   * Asks the person which folders to compare, in the system's own dialog,
-   * then finds identical copies there (ADR-0057). Takes no path: the host
-   * reads only what the person picks. Only where the host can show the
-   * dialog (the desktop app).
+   * Finds identical copies within the roots of the latest completed scan
+   * (ADR-0065). The host verifies the scan ID and reads its roots from the
+   * index; the UI cannot provide paths.
    */
-  compareFolders?(
+  compareScan?(
+    scan: string,
     onProgress?: (progress: CompareProgressView) => void,
   ): Promise<CompareOutcomeView>;
   /** Stops the running comparison, which then ends as `cancelled`. */
@@ -136,4 +138,29 @@ export interface LumenTransport {
    * right before the move. Restorable until removed for good.
    */
   uninstall?(preview: string, confirmation: string): Promise<UninstallOutcomeView>;
+  /**
+   * Asks the running macOS app the software list shows under `key` to quit,
+   * the way its Quit menu item does (roadmap 16.3a): it may ask to save or
+   * decline, and is never force-quit. Preview it again to see whether it
+   * still runs. Only where the host can (the desktop app on macOS).
+   */
+  quitApp?(key: string): Promise<QuitView>;
+  /**
+   * Lumen's helper (ADR-0063): where its registration stands and, once an
+   * administrator allowed it, whether it answers. Only on macOS.
+   */
+  helperState?(): Promise<HelperView>;
+  /** Sets the helper up; macOS then asks an administrator to allow it. */
+  helperEnable?(): Promise<HelperView>;
+  /** Removes the helper. */
+  helperDisable?(): Promise<HelperView>;
+  /** Opens System Settings at Login Items, where the helper is allowed. */
+  helperOpenLoginItems?(): Promise<void>;
+  /**
+   * The icon of the app the software list shows under `key` (roadmap 16.4):
+   * a small PNG as a `data:` URL, or `null` if there is none. Takes the
+   * list's key, never a path. Display only; never sent to AI review. Only
+   * where the host can draw it (the desktop app; macOS for now).
+   */
+  appIcon?(key: string): Promise<string | null>;
 }

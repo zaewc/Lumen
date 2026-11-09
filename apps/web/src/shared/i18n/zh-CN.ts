@@ -87,9 +87,8 @@ export const zhCN: Messages = {
     copies: {
       title: "相同的文件",
       intro:
-        "选择文件夹后，Lumen 会比较其中的文件，找出内容相同的文件。Lumen 只读取你选择的文件夹中的文件。",
-      choose: "选择要比较的文件夹…",
-      chooseAgain: "比较其他文件夹…",
+        "扫描完成后，Lumen 会单独读取扫描路径中的文件，查找内容相同的文件。这项比较仅读取数据，不会选择或删除任何副本。",
+      compareAgain: "再次比较",
       stop: "停止",
       stopping: "正在停止…",
       stopped: "已停止比较。不会显示这次比较的结果。",
@@ -100,7 +99,7 @@ export const zhCN: Messages = {
         full: "正在完整比较仍然相同的文件",
       },
       filesRead: (n: string) => `已读取 ${count(n)} 个文件`,
-      folders: "已比较的文件夹",
+      folders: "已比较的扫描路径",
       group: (n: number, size: string) => `${count(n)} 个副本 · 每个 ${size}`,
       none: "在能够比较的文件中，没有内容相同的文件。",
       more: (n: number) => `另有 ${count(n)} 组较小的文件未显示。`,
@@ -111,8 +110,9 @@ export const zhCN: Messages = {
       protectedFiles: (n: number) => `受保护位置中的 ${count(n)} 个文件未读取。`,
       incomplete: "部分文件夹未能完整读取，其中的文件未比较。",
       unsupported: "这台电脑暂时还不能比较文件。",
-      tooMany: (limit: string) => `这些文件夹中的文件超过 ${count(limit)} 个。请选择更小的文件夹。`,
-      failed: "Lumen 无法比较这些文件夹。",
+      tooMany: (limit: string) =>
+        `扫描范围内的文件超过 ${count(limit)} 个。请缩小扫描范围后重新扫描，再进行比较。`,
+      failed: "Lumen 无法比较扫描路径中的文件。",
       advice:
         "副本可能是你想保留的备份。Lumen 不会选择或删除任何副本。删除一个副本释放的空间可能小于它的大小。",
     },
@@ -426,6 +426,8 @@ export const zhCN: Messages = {
     freedNote: "从隔离区永久移除这些项目后，才会释放相应空间。",
     openQuarantine: "打开隔离区",
     notMoved: (n: number) => `${items(n)}未移动`,
+    left: (n: number) => `本次扫描剩余 ${items(n)}`,
+    scanAgainToMove: "要移动更多项目，请重新扫描。",
   },
   item: {
     quarantined: "已移至隔离区。你可以恢复。",
@@ -572,6 +574,13 @@ export const zhCN: Messages = {
       noSpace: "只有从隔离区永久删除应用后，才会释放空间。",
       changed: "应用已发生变化。请关闭预览并重新检查。",
       failedMove: "未能完成应用移动。",
+      quit: "退出",
+      quitHint: "像应用自己的“退出”菜单一样请求它退出。如有未保存的工作，应用会先询问你。",
+      quitAsked: "已请求应用退出。如果它询问是否保存，请在应用中回答。",
+      stillRunning: "应用仍在运行。请退出后重新检查。",
+      quitItself: "Lumen 无法在这里退出自身。",
+      quitFailed: "无法请求应用退出。请自行退出后重新检查。",
+      recheck: "重新检查",
       notes: {
         goes_to_quarantine: "永久删除前可以恢复应用。Lumen 不会自动删除它。",
         library_data_stays: "~/Library 中的应用数据会保留。重新扫描后，可以在探索中查看。",
@@ -601,6 +610,7 @@ export const zhCN: Messages = {
       explaining: "AI 检查正在说明这些应用…",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI：很可能是${purpose}（${confidence}）。${impact}`,
+      withConfidence: (impact: string, confidence: string) => `${impact}（${confidence}）`,
       purposes: {
         web_browser: "网页浏览器",
         communication: "通讯应用",
@@ -617,7 +627,7 @@ export const zhCN: Messages = {
         unknown: "无法判断的项目",
       },
       impacts: {
-        only_this_app: "删除后很可能只影响这个应用。",
+        only_this_app: "删除它应该不会影响其他内容。",
         other_software_depends: "其他软件很可能依赖它。",
         stops_background_activity: "删除后其后台活动很可能会停止。",
         security_or_access: "删除后安全、银行或登录功能可能无法正常工作。",
@@ -665,6 +675,27 @@ export const zhCN: Messages = {
       accessIntro: "电脑可能会禁止 Lumen 访问某些文件夹。Lumen 仍会读取所有获准访问的文件夹。",
       unread:
         "Lumen 会将无法读取的文件夹标记为未读取，而不会视为空文件夹，并且不会建议处理其中的内容。",
+      helper: {
+        title: "管理员权限助手",
+        intro:
+          "用于清理需要管理员权限的项目，例如其他账户安装的应用。Lumen 的安全规则不变，移走的项目都可以从隔离区恢复。",
+        notYet: "目前它只检查连接，不会移动任何东西。",
+        off: "已关闭。",
+        waiting: "请在“系统设置 › 通用 › 登录项”中允许 Lumen。这需要管理员密码。",
+        on: (version: string) => `已开启。助手有响应（版本 ${version}）。`,
+        enable: "开启",
+        disable: "关闭",
+        openLoginItems: "打开登录项",
+        changeFailed: "无法更改助手设置。",
+        problems: {
+          outdated: "已开启，但助手来自另一个版本的 Lumen。请关闭后重新开启。",
+          unsigned: "此 Lumen 未使用 Developer ID 签名，无法使用助手。",
+          no_answer: "已开启，但助手没有响应。请关闭后重新开启。",
+          not_found: "找不到 Lumen 的助手。请重新安装 Lumen。",
+          mismatch: "助手的签名与此 Lumen 不符。请关闭后重新开启。",
+          failed: "无法检查助手。",
+        },
+      },
     },
     about: {
       title: "关于",

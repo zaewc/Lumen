@@ -171,7 +171,7 @@ probabilities in [0, 1], no other fields. A note is display only: it is never an
 to the policy, a plan or the executor, and a note that suspects injection is recorded
 but not shown.
 
-## Software note: `jev.software-note/1`
+## Software note: `jev.software-note/2`
 
 While AI review is on, installed applications and packages are explained for the Apps
 page ([ADR-0061](../decisions/0061-send-installed-software-to-ai-review.md)). The
@@ -223,9 +223,17 @@ None asks whether removal is safe.
 - `injection` Noul: the same question as for judgments.
 
 `lumen_jev::software::software_note_for` builds a `SoftwareNote` (`purpose`,
-`removal_impact`, `confidence`: the lower of the two chosen options' buckets, and
+`removal_impact`, `purpose_confidence`, `removal_impact_confidence` and
 `injection_suspected`) with the same checks as a judgment: pinned model, exactly these
-three answers, known options, probabilities in [0, 1], no other fields. Model free
+three answers, known options, probabilities in [0, 1], no other fields. Each answer
+keeps its own confidence, bucketed for its number of options by the rule
+`jev-software-confidence/1` (`SOFTWARE_CONFIDENCE_VERSION`): the chosen option must be
+80% (`high`) or 40% (`medium`) of the way from chance to certainty, as 0.9 and 0.7 are
+on a yes-or-no question. `purpose` (13 options) is `high` from 0.815 and `medium` from
+0.446; `removal_impact` (6 options) `high` from 0.833 and `medium` from 0.5. When the
+guard turns `only_this_app` into `unknown`, the impact's confidence becomes `low`.
+Version 1 of the note had one `confidence`, the lower of the two buckets at 0.9 and
+0.7; the app's note cache (`lumen.software-notes/2`) drops notes in that shape. Model free
 text is never read. The port is `SoftwareExplainer::explain_software`; the HTTPS judge
 (OpenRouter or Jeb) implements it, and the on-device judge does not, so it gives no
 note rather than a guess.

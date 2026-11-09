@@ -10,8 +10,10 @@ import {
   zDiskView,
   zFinalizeOutcomeView,
   zHeldItemView,
+  zHelperView,
   zPlanView,
   zQuarantineReportView,
+  zQuitView,
   zReassessedItemView,
   zReassessGapView,
   zReassessView,
@@ -29,6 +31,7 @@ import {
 import { Channel, type InvokeArgs, invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { hostError } from "./host-error";
+import { zAppIcon } from "./icon";
 import type { LumenTransport } from "./transport";
 
 // Older hosts omit these additive descriptors. Normalize them at the boundary
@@ -108,13 +111,13 @@ export function tauriTransport(): LumenTransport {
     toolStorage: async () => zToolStorageView.array().parse(await call("tool_storage")),
     software: async () => zSoftwareView.parse(await call("software")),
     explainSoftware: async () => zSoftwareView.parse(await call("explain_software")),
-    compareFolders: async (onProgress) => {
+    compareScan: async (scan, onProgress) => {
       const progress = new Channel<unknown>();
       progress.onmessage = (message) => {
         const parsed = zCompareProgressView.safeParse(message);
         if (parsed.success) onProgress?.(parsed.data);
       };
-      return zCompareOutcomeView.parse(await call("compare_folders", { progress }));
+      return zCompareOutcomeView.parse(await call("compare_scan", { scan, progress }));
     },
     cancelComparison: async () => {
       await call("cancel_comparison");
@@ -124,6 +127,14 @@ export function tauriTransport(): LumenTransport {
       zUninstallPreviewView.parse(await call("uninstall_preview", { key })),
     uninstall: async (preview, confirmation) =>
       zUninstallOutcomeView.parse(await call("uninstall", { preview, confirmation })),
+    quitApp: async (key) => zQuitView.parse(await call("quit_app", { key })),
+    helperState: async () => zHelperView.parse(await call("helper_state")),
+    helperEnable: async () => zHelperView.parse(await call("helper_enable")),
+    helperDisable: async () => zHelperView.parse(await call("helper_disable")),
+    helperOpenLoginItems: async () => {
+      await call("helper_open_login_items");
+    },
+    appIcon: async (key) => zAppIcon.parse(await call("app_icon", { key })),
     setAiReview: async (enabled) => zAiSettingsView.parse(await call("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await call("set_ai_key", { key })),
   };

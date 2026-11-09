@@ -184,9 +184,6 @@ export type ChooserView = "policy" | "person";
  */
 export type CompareOutcomeView =
   | {
-      kind: "nothing_chosen";
-    }
-  | {
       kind: "unsupported";
     }
   | {
@@ -264,7 +261,7 @@ export type DuplicateGroupView = {
  */
 export type DuplicatesView = {
   /**
-   * The folders the person chose.
+   * The roots of the completed scan.
    */
   folders: Array<string>;
   /**
@@ -584,6 +581,64 @@ export type HeldItemView = {
 export type HeldStateView = "retained" | "held_after_failure" | "needs_attention";
 
 /**
+ * What asking the helper for its status gave.
+ */
+export type HelperReachView =
+  | {
+      kind: "not_asked";
+    }
+  | {
+      /**
+       * It matches this app; otherwise turn it off and on again.
+       */
+      current: boolean;
+      kind: "answered";
+      /**
+       * Its version; display-escaped.
+       */
+      version: string;
+    }
+  | {
+      kind: "unsigned";
+    }
+  | {
+      kind: "unavailable";
+    }
+  | {
+      kind: "not_signed_as_required";
+    }
+  | {
+      kind: "refused";
+    }
+  | {
+      kind: "failed";
+    };
+
+/**
+ * Where the helper's registration stands.
+ */
+export type HelperRegistrationView =
+  | "unsupported"
+  | "not_registered"
+  | "enabled"
+  | "requires_approval"
+  | "not_found";
+
+/**
+ * Lumen's helper as it stands now.
+ */
+export type HelperView = {
+  /**
+   * Its answer, when enabled.
+   */
+  reach: HelperReachView;
+  /**
+   * Its registration.
+   */
+  registration: HelperRegistrationView;
+};
+
+/**
  * What kind of item AI review says a review item most likely is.
  */
 export type ItemKindView =
@@ -771,6 +826,34 @@ export type QuarantineReportView = {
    */
   warnings: Array<string>;
 };
+
+/**
+ * What asking a running app to quit did. It was asked the way its Quit menu
+ * item asks, so it may ask to save or decline; preview it again to see
+ * whether it still runs.
+ */
+export type QuitView =
+  | {
+      kind: "asked";
+    }
+  | {
+      kind: "not_running";
+    }
+  | {
+      kind: "itself";
+    }
+  | {
+      kind: "failed";
+    }
+  | {
+      kind: "not_found";
+    }
+  | {
+      kind: "ambiguous";
+    }
+  | {
+      kind: "unsupported";
+    };
 
 /**
  * One policy rule that fired, and its fixed sentence (ADR-0014).
@@ -1201,17 +1284,21 @@ export type SoftwareItemView = {
  */
 export type SoftwareNoteView = {
   /**
-   * How sure AI review was.
-   */
-  confidence: ConfidenceView;
-  /**
    * What it is most likely for.
    */
   purpose: SoftwarePurposeView;
   /**
+   * How sure AI review was of the purpose.
+   */
+  purpose_confidence: ConfidenceView;
+  /**
    * What removing it could most likely affect.
    */
   removal_impact: RemovalImpactView;
+  /**
+   * How sure AI review was of the removal impact.
+   */
+  removal_impact_confidence: ConfidenceView;
 };
 
 /**

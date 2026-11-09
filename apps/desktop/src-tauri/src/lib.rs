@@ -138,11 +138,17 @@ pub fn app<R: Runtime>(
             commands::tool_storage,
             commands::software,
             commands::explain_software,
-            commands::compare_folders,
+            commands::compare_scan,
             commands::cancel_comparison,
             commands::reassess,
             commands::uninstall_preview,
             commands::uninstall,
+            commands::quit_app,
+            commands::helper_state,
+            commands::helper_enable,
+            commands::helper_disable,
+            commands::helper_open_login_items,
+            commands::app_icon,
             update::check_update,
             update::install_update,
         ])
@@ -176,6 +182,7 @@ pub fn app<R: Runtime>(
                 assessed: std::sync::Mutex::default(),
                 settled,
                 activity: Arc::default(),
+                icons: Arc::default(),
             });
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")

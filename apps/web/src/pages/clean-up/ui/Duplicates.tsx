@@ -1,7 +1,6 @@
 import type { CompareOutcomeView, CompareProgressView, DuplicatesView } from "@lumen/api-client";
-import { useMutation } from "@tanstack/react-query";
-import { useId, useState } from "react";
-import { useTransport } from "@/shared/api";
+import { useEffect, useId, useRef, useState } from "react";
+import { useSessionOperation, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { buttonClass, ErrorNotice } from "@/shared/ui";
@@ -76,8 +75,6 @@ function Outcome({ outcome }: { readonly outcome: CompareOutcomeView }) {
   const { m } = useI18n();
   const t = m.overview.copies;
   switch (outcome.kind) {
-    case "nothing_chosen":
-      return null;
     case "unsupported":
       return <p className="text-[13px] text-ink-2">{t.unsupported}</p>;
     case "too_many":
@@ -94,69 +91,89 @@ function Outcome({ outcome }: { readonly outcome: CompareOutcomeView }) {
 }
 
 /**
- * Identical copies in folders the person picks in the system's dialog
- * (ADR-0057): the page passes no path, and nothing here removes anything.
- * Absent where the host cannot show the dialog (a browser).
+ * Runs a separate, read-only comparison after a complete scan. The host
+ * verifies the scan ID and reads only that scan's roots (ADR-0065).
  */
-export function Duplicates() {
+export function Duplicates({ scanId }: { readonly scanId: string }) {
   const { m } = useI18n();
   const transport = useTransport();
-  const compare = transport.compareFolders;
+  const compare = transport.compareScan;
   const stop = transport.cancelComparison;
   const title = useId();
-  const [progress, setProgress] = useState<CompareProgressView | null>(null);
+  const started = useRef<string | null>(null);
   const [stopping, setStopping] = useState(false);
-  const run = useMutation({
-    mutationFn: (ask: NonNullable<typeof compare>) => ask(setProgress),
-    onSettled: () => {
-      setProgress(null);
-      setStopping(false);
+  const [stopError, setStopError] = useState<unknown>(null);
+  const run = useSessionOperation(
+    ["session-operation", "duplicate-comparison", scanId],
+    async (id: string, report: (progress: CompareProgressView) => void) => {
+      if (compare === undefined) throw new Error("Duplicate comparison is unavailable");
+      return compare(id, report);
     },
-  });
+  );
+  const pending = run.status === "pending";
+  const canCompareAgain =
+    run.status === "error" || run.data?.kind === "compared" || run.data?.kind === "cancelled";
+  useEffect(() => {
+    if (compare !== undefined && run.status === "idle" && started.current !== scanId) {
+      started.current = scanId;
+      void run.run(scanId);
+    }
+  }, [compare, run.run, run.status, scanId]);
+  useEffect(() => {
+    if (!pending) setStopping(false);
+  }, [pending]);
   if (compare === undefined) return null;
   const t = m.overview.copies;
-  const answered = run.data !== undefined && run.data.kind !== "nothing_chosen";
-  const compared = run.data?.kind === "compared";
   return (
-    <section aria-labelledby={title} aria-busy={run.isPending} className="space-y-3 pt-8">
+    <section aria-labelledby={title} aria-busy={pending} className="space-y-3 pt-8">
       <div className="flex items-baseline justify-between gap-3">
         <h2 id={title} className="text-section text-ink">
           {t.title}
         </h2>
         <div className="flex gap-2">
-          {run.isPending && stop !== undefined && (
+          {pending && stop !== undefined && (
             <button
               type="button"
               disabled={stopping}
               onClick={() => {
                 setStopping(true);
-                void stop();
+                setStopError(null);
+                void stop().catch((error: unknown) => {
+                  setStopError(error);
+                  setStopping(false);
+                });
               }}
               className={buttonClass("secondary", "sm")}
             >
               {stopping ? t.stopping : t.stop}
             </button>
           )}
-          <button
-            type="button"
-            disabled={run.isPending}
-            onClick={() => run.mutate(compare)}
-            className={buttonClass("secondary", "sm")}
-          >
-            {run.isPending ? t.comparing : compared ? t.chooseAgain : t.choose}
-          </button>
+          {!pending && canCompareAgain && (
+            <button
+              type="button"
+              onClick={() => {
+                started.current = scanId;
+                setStopError(null);
+                void run.run(scanId);
+              }}
+              className={buttonClass("secondary", "sm")}
+            >
+              {t.compareAgain}
+            </button>
+          )}
         </div>
       </div>
-      {!answered && !run.isPending && !run.isError && (
+      {run.data === null && !pending && run.status !== "error" && (
         <p className="text-[13px] text-ink-2">{t.intro}</p>
       )}
-      {progress !== null && (
+      {run.progress !== null && (
         <p role="status" className="text-[13px] text-ink-2 tabular-nums">
-          {t.stage[progress.stage]} · {t.filesRead(progress.files_read)}
+          {t.stage[run.progress.stage]} · {t.filesRead(run.progress.files_read)}
         </p>
       )}
-      {run.isError && <ErrorNotice message={t.failed} error={run.error} />}
-      {!run.isPending && run.data !== undefined && <Outcome outcome={run.data} />}
+      {stopError !== null && <ErrorNotice message={t.failed} error={stopError} />}
+      {run.status === "error" && <ErrorNotice message={t.failed} error={run.error} />}
+      {!pending && run.data !== null && <Outcome outcome={run.data} />}
     </section>
   );
 }

@@ -3,9 +3,10 @@
 //!
 //! Reads return view models. Mutations name a plan (with its full hash as the
 //! confirmation) or an operation; no command accepts a path to act on. Scans
-//! take roots, but only read. Comparing copies reads contents, so it takes no
-//! roots: the host asks the person in a dialog (ADR-0057). Every command runs on a blocking thread so the
-//! webview never waits on the filesystem.
+//! take roots, but only read. Comparing copies reads contents, so the host
+//! takes the roots from the latest completed scan, never from the webview
+//! (ADR-0065). Every command runs on a blocking thread so the webview never
+//! waits on the filesystem.
 //!
 //! AI review (ADR-0037) is a setting next to the database: the UI can read
 //! it, turn it on (only with a stored key) or off, and store a Jeb key. No
@@ -16,17 +17,18 @@ use std::sync::Arc;
 
 use lumen_api::views::{
     AiSettingsView, AssessProgressView, CandidateView, CompareOutcomeView, CompareProgressView,
-    DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, PlanView, QuarantineReportView,
-    ReassessRequest, ReassessView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
-    SoftwareView, ToolRunView, ToolStorageView, UninstallOutcomeView, UninstallPreviewView,
-    candidate_id,
+    DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, HelperView, PlanView,
+    QuarantineReportView, QuitView, ReassessRequest, ReassessView, RestoreOutcomeView,
+    ScanProgressView, ScanRequest, ScanView, SoftwareView, ToolRunView, ToolStorageView,
+    UninstallOutcomeView, UninstallPreviewView, candidate_id,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
 use lumen_application::CancelToken;
 use lumen_application::assess::Assessed;
 use lumen_application::ports::{Clock as _, Describer, JudgeModel, NoopJudge, SecretStore};
-use lumen_domain::{ConfirmationSurface, OperationId, PlanId};
+use lumen_domain::{ConfirmationSurface, OperationId, PathFlavor, PlanId, ScanId};
+use lumen_store_sqlite::{IndexStore, open_index};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use tauri::ipc::Channel;
@@ -62,6 +64,9 @@ pub(crate) struct Core {
     /// Clean-ups and Quarantine actions running, and an update installing:
     /// quitting and updating wait for the first, item actions for the second.
     pub(crate) activity: Arc<Activity>,
+    /// The icons of the apps in the latest software list, by its key, drawn
+    /// on request and kept in memory (roadmap 16.4).
+    pub(crate) icons: Arc<lumen_app::icons::AppIcons>,
 }
 
 impl std::fmt::Debug for Core {
@@ -92,6 +97,7 @@ impl std::fmt::Debug for Core {
             )
             .field("settled", &self.settled.is_completed())
             .field("activity", &self.activity)
+            .field("icons", &self.icons)
             .finish()
     }
 }
@@ -557,8 +563,10 @@ pub(crate) async fn tool_storage() -> Result<Vec<ToolStorageView>, CommandError>
 #[tauri::command]
 pub(crate) async fn software(core: State<'_, Core>) -> Result<SoftwareView, CommandError> {
     let db = core.db.clone();
+    let icons = Arc::clone(&core.icons);
     blocking(move || {
         let reports = lumen_app::software::inventory(&CancelToken::new());
+        icons.remember(&reports);
         let notes = lumen_app::software_notes::NoteCache::load(&db);
         Ok(SoftwareView::from_reports(&reports).with_notes(&notes))
     })
@@ -574,8 +582,10 @@ pub(crate) async fn explain_software(core: State<'_, Core>) -> Result<SoftwareVi
     let db = core.db.clone();
     let secrets = core.secrets.clone();
     let builtin = core.builtin.clone();
+    let icons = Arc::clone(&core.icons);
     blocking(move || {
         let reports = lumen_app::software::inventory(&CancelToken::new());
+        icons.remember(&reports);
         let notes = match lumen_app::ai::active_judge(&db, secrets.as_deref(), builtin.as_ref()) {
             Some(judge) => {
                 let subjects = lumen_api::views::software_subjects(&reports);
@@ -588,10 +598,6 @@ pub(crate) async fn explain_software(core: State<'_, Core>) -> Result<SoftwareVi
     })
     .await
 }
-
-/// Whether this build can show the folder dialog (ADR-0057). Without it,
-/// comparing is unsupported here even where the core can read contents.
-const DIALOG: bool = cfg!(any(target_os = "macos", windows));
 
 /// The comparison slot while a comparison runs; emptied when it ends,
 /// however it ends.
@@ -623,26 +629,29 @@ impl Drop for Comparing {
     }
 }
 
-/// Asks which folders to compare in the system's folder dialog, over the
-/// window, then finds identical copies in them (ADR-0057). Takes no path: only
-/// what the person picks is read, and nothing is chosen, moved or removed.
-/// Where contents cannot be read yet, says so without asking. One comparison
+/// Finds identical copies in the roots of the latest completed scan (ADR-0065).
+/// The UI supplies only the scan ID; the host checks it against the index and
+/// reads roots from there. Nothing is chosen, moved or removed. One comparison
 /// at a time; `cancel_comparison` stops it.
 #[tauri::command]
-pub(crate) async fn compare_folders<R: tauri::Runtime>(
+pub(crate) async fn compare_scan(
     core: State<'_, Core>,
-    window: tauri::WebviewWindow<R>,
+    scan: ScanId,
     progress: Channel<CompareProgressView>,
 ) -> Result<CompareOutcomeView, CommandError> {
-    if !DIALOG || !lumen_app::duplicates::available() {
+    if !lumen_app::duplicates::available() {
         return Ok(CompareOutcomeView::Unsupported);
     }
     let cancel = CancelToken::new();
     let _running = Comparing::start(&core.comparison, &cancel)?;
-    let Some(folders) = choose_folders(&window).await else {
-        return Ok(CompareOutcomeView::NothingChosen);
-    };
+    let db = core.db.clone();
     blocking(move || {
+        let folders = scanned_roots(&db, scan)?;
+        if folders.is_empty() {
+            return Err(CommandError::new(
+                "the completed scan has no roots to compare",
+            ));
+        }
         let mut listening = true;
         let mut last: Option<(lumen_app::duplicates::HashStage, std::time::Instant)> = None;
         let found = lumen_app::duplicates::find(&folders, &cancel, &mut |stage, done| {
@@ -657,6 +666,63 @@ pub(crate) async fn compare_folders<R: tauri::Runtime>(
         CompareOutcomeView::new(&folders, found).map_err(CommandError::new)
     })
     .await
+}
+
+/// Reads only the roots belonging to the current latest completed scan.
+fn scanned_roots(db: &Path, scan: ScanId) -> Result<Vec<PathBuf>, CommandError> {
+    let store = IndexStore::new(open_index(db).map_err(CommandError::new)?);
+    if !store
+        .unfinished_scans()
+        .map_err(CommandError::new)?
+        .is_empty()
+    {
+        return Err(CommandError::new(
+            "cannot compare files while a scan is still running",
+        ));
+    }
+    if store.latest_completed_scan().map_err(CommandError::new)? != Some(scan) {
+        return Err(CommandError::new(
+            "the scan is no longer the latest completed scan; scan again before comparing",
+        ));
+    }
+    store
+        .scan_roots(scan)
+        .map_err(CommandError::new)?
+        .into_iter()
+        .map(|root| native_path(&root))
+        .collect()
+}
+
+/// Converts a stored path to the host's native representation without
+/// lossy text conversion.
+#[cfg(unix)]
+fn native_path(root: &lumen_domain::RawPath) -> Result<PathBuf, CommandError> {
+    use std::os::unix::ffi::OsStrExt as _;
+
+    if root.flavor() != PathFlavor::Unix {
+        return Err(CommandError::new("scan root does not match this platform"));
+    }
+    Ok(Path::new(std::ffi::OsStr::from_bytes(root.as_bytes())).to_path_buf())
+}
+
+/// Converts a stored path to the host's native representation without
+/// lossy text conversion.
+#[cfg(windows)]
+fn native_path(root: &lumen_domain::RawPath) -> Result<PathBuf, CommandError> {
+    use std::os::windows::ffi::OsStringExt as _;
+
+    let wide = root
+        .to_windows_wide()
+        .filter(|_| root.flavor() == PathFlavor::Windows)
+        .ok_or_else(|| CommandError::new("scan root does not match this platform"))?;
+    Ok(PathBuf::from(std::ffi::OsString::from_wide(&wide)))
+}
+
+#[cfg(not(any(unix, windows)))]
+fn native_path(_: &lumen_domain::RawPath) -> Result<PathBuf, CommandError> {
+    Err(CommandError::new(
+        "native paths are unsupported on this platform",
+    ))
 }
 
 /// Stops the running comparison, if any; it then ends as cancelled and shows
@@ -675,32 +741,6 @@ pub(crate) fn cancel_comparison(core: State<'_, Core>) {
     {
         cancel.cancel();
     }
-}
-
-/// The folders the person picks, in a dialog owned by `window` (a sheet on
-/// macOS); `None` if they pick none.
-#[cfg(any(target_os = "macos", windows))]
-async fn choose_folders<R: tauri::Runtime>(
-    window: &tauri::WebviewWindow<R>,
-) -> Option<Vec<PathBuf>> {
-    let chosen = rfd::AsyncFileDialog::new()
-        .set_parent(window)
-        .set_can_create_directories(false)
-        .pick_folders()
-        .await?;
-    let folders: Vec<PathBuf> = chosen
-        .iter()
-        .map(|folder| folder.path().to_path_buf())
-        .collect();
-    (!folders.is_empty()).then_some(folders)
-}
-
-/// No dialog where contents cannot be compared yet.
-#[cfg(not(any(target_os = "macos", windows)))]
-fn choose_folders<R: tauri::Runtime>(
-    _: &tauri::WebviewWindow<R>,
-) -> std::future::Ready<Option<Vec<PathBuf>>> {
-    std::future::ready(None)
 }
 
 /// System Settings › Privacy & Security › Full Disk Access (verified on
@@ -908,6 +948,39 @@ pub(crate) async fn uninstall(
     .await
 }
 
+/// Asks the running macOS application the software list shows under `key` to
+/// quit, the way its Quit menu item does (roadmap 16.3a): it may ask to save
+/// or decline, and it is never force-quit. Only the person's own instances of
+/// that one bundle are asked, never Lumen itself. Takes the list's key, never
+/// a path or a process ID. Elsewhere it says it is unsupported.
+#[tauri::command]
+pub(crate) async fn quit_app(key: String) -> Result<QuitView, CommandError> {
+    if key.len() > MAX_SOFTWARE_KEY {
+        return Err(CommandError::new("not a software key"));
+    }
+    blocking(move || {
+        QuitView::from_result(lumen_app::uninstall::quit(&key)).map_err(CommandError::new)
+    })
+    .await
+}
+
+/// The icon of the app the latest software list shows under `key`, as a
+/// small PNG data URL (64 × 64 pixels, at most 32 KiB), or `None` if the list
+/// has no such app or the system gives no icon (roadmap 16.4). Takes the
+/// list's key, never a path. Display only: never stored or sent to AI review.
+/// macOS only for now; elsewhere always `None`.
+#[tauri::command]
+pub(crate) async fn app_icon(
+    core: State<'_, Core>,
+    key: String,
+) -> Result<Option<String>, CommandError> {
+    if key.len() > MAX_SOFTWARE_KEY {
+        return Err(CommandError::new("not a software key"));
+    }
+    let icons = Arc::clone(&core.icons);
+    blocking(move || Ok(icons.icon(&key).map(|url| url.to_string()))).await
+}
+
 /// Settles cleanups a crash or quit interrupted, once per launch, so what
 /// they moved is listed without another cleanup (UX-3). A failure is logged
 /// and leaves everything where it is; the app works on regardless.
@@ -975,10 +1048,34 @@ pub(crate) async fn finalize(
 
 #[cfg(test)]
 mod tests {
-    use lumen_domain::{AccessState, ByteCount, DenialReason, RawPath};
+    use lumen_domain::{AccessState, ByteCount, DenialReason, RawPath, ScanState, Timestamp};
     use lumen_scan::ScanProgress;
+    use lumen_testkit::Fixture;
 
     use super::*;
+
+    #[test]
+    fn comparison_roots_are_limited_to_the_latest_completed_scan()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let fixture = Fixture::build(&[])?;
+        let db = fixture.path("index.db")?;
+        let scan: ScanId = "00000000-0000-0000-0000-000000000001".parse()?;
+        let stale_scan: ScanId = "00000000-0000-0000-0000-000000000002".parse()?;
+        let running_scan: ScanId = "00000000-0000-0000-0000-000000000003".parse()?;
+        let root = lumen_app::raw_path(fixture.root())?;
+        let mut store = IndexStore::new(open_index(&db)?);
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[root])?;
+        store.finish_scan(scan, ScanState::Completed, Timestamp::UNIX_EPOCH)?;
+        drop(store);
+
+        assert_eq!(scanned_roots(&db, scan)?, [fixture.root().to_path_buf()]);
+        assert!(scanned_roots(&db, stale_scan).is_err());
+        let mut store = IndexStore::new(open_index(&db)?);
+        store.begin_scan(running_scan, Timestamp::UNIX_EPOCH, &[])?;
+        drop(store);
+        assert!(scanned_roots(&db, scan).is_err());
+        Ok(())
+    }
 
     #[test]
     fn one_comparison_runs_at_a_time_and_its_slot_empties_when_it_ends() {
@@ -1083,4 +1180,40 @@ mod tests {
         assert_eq!(live.view(&totals, at(259)), None, "at most every 250 ms");
         assert!(live.view(&totals, at(260)).is_some(), "again after 250 ms");
     }
+}
+
+/// Lumen's helper (ADR-0063): where its registration stands and, once an
+/// administrator allowed it, its status over XPC. Reads only.
+#[tauri::command]
+pub(crate) async fn helper_state() -> Result<HelperView, CommandError> {
+    blocking(|| Ok(HelperView::from(&lumen_app::helper::state()))).await
+}
+
+/// Sets Lumen's helper up as a launch daemon (ADR-0063). macOS then asks an
+/// administrator to allow it in System Settings › Login Items. Takes nothing.
+#[tauri::command]
+pub(crate) async fn helper_enable() -> Result<HelperView, CommandError> {
+    blocking(|| {
+        lumen_app::helper::enable()
+            .map(|state| HelperView::from(&state))
+            .map_err(CommandError::new)
+    })
+    .await
+}
+
+/// Removes Lumen's helper; macOS stops it if it runs. Takes nothing.
+#[tauri::command]
+pub(crate) async fn helper_disable() -> Result<HelperView, CommandError> {
+    blocking(|| {
+        lumen_app::helper::disable()
+            .map(|state| HelperView::from(&state))
+            .map_err(CommandError::new)
+    })
+    .await
+}
+
+/// Opens System Settings at Login Items, where the helper is allowed.
+#[tauri::command]
+pub(crate) async fn helper_open_login_items() -> Result<(), CommandError> {
+    blocking(|| lumen_app::helper::open_login_items().map_err(CommandError::new)).await
 }

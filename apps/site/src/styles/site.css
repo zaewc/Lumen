@@ -4,6 +4,78 @@
  * hairline separators keep the download action and safety model in focus.
  * Hierarchy comes from type, spacing and alignment, not containers.
  */
+@font-face {
+  font-family: SUIT;
+  src: url("../../../../fonts/SUIT-Thin.otf") format("opentype");
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: SUIT;
+  src: url("../../../../fonts/SUIT-ExtraLight.otf") format("opentype");
+  font-style: normal;
+  font-weight: 200;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: SUIT;
+  src: url("../../../../fonts/SUIT-Light.otf") format("opentype");
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: SUIT;
+  src: url("../../../../fonts/SUIT-Regular.otf") format("opentype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: SUIT;
+  src: url("../../../../fonts/SUIT-Medium.otf") format("opentype");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: SUIT;
+  src: url("../../../../fonts/SUIT-SemiBold.otf") format("opentype");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: SUIT;
+  src: url("../../../../fonts/SUIT-Bold.otf") format("opentype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: SUIT;
+  src: url("../../../../fonts/SUIT-ExtraBold.otf") format("opentype");
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: SUIT;
+  src: url("../../../../fonts/SUIT-Heavy.otf") format("opentype");
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
 
@@ -23,7 +95,7 @@
   --ok: #15803d;
 
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo",
+    SUIT, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo",
     "Segoe UI Variable Text", "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 

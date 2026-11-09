@@ -43,7 +43,9 @@ function CoverageNotice({ scan }: { readonly scan: ScanView }) {
  * What a scan found: how much can be freed, the legend that is the one
  * status filter, the map, then every item in sections by group (items with
  * their own command apart from those to review). A row opens its details in
- * a sheet.
+ * a sheet. After a clean-up (`cleanedUp`) it shows what is left of the scan
+ * below the report: nothing more can be moved from it, since the core plans
+ * from the scan as it was, so it says to scan again instead.
  */
 export function Results({
   scan,
@@ -52,6 +54,7 @@ export function Results({
   filter,
   onFilterChange,
   focus,
+  cleanedUp = false,
 }: {
   readonly scan: ScanView;
   readonly candidates: readonly CandidateView[];
@@ -59,6 +62,8 @@ export function Results({
   readonly filter: Filter;
   readonly onFilterChange: (filter: Filter) => void;
   readonly focus: boolean;
+  /** A clean-up of this scan ran; its report is shown above. */
+  readonly cleanedUp?: boolean;
 }) {
   const { m } = useI18n();
   const [open, setOpen] = useState<CandidateView | null>(null);
@@ -79,20 +84,29 @@ export function Results({
   );
   return (
     <>
-      <FlowStage step="results" />
+      {!cleanedUp && <FlowStage step="results" />}
       <div className="space-y-3">
-        <div>
-          <StepHeading focus={focus} className="text-section text-ink tabular-nums">
-            {m.workspace.assessment(candidates.length)}
-          </StepHeading>
-          <p className="mt-1 text-[13px] text-ink-2">
-            {proposed.items.length > 0
-              ? m.results.canFree(formatBytes(proposed.bytes))
-              : m.results.nothingTitle}
-            {proposed.items.length > 0 && ` · ${m.common.items(proposed.items.length)}`}
-          </p>
-        </div>
-        {proposed.items.length === 0 && <p className="text-ink-2">{m.results.nothing}</p>}
+        {cleanedUp ? (
+          <div>
+            <h3 className="text-section text-ink tabular-nums">{m.done.left(candidates.length)}</h3>
+            <p className="mt-1 text-[13px] text-ink-2">{m.done.scanAgainToMove}</p>
+          </div>
+        ) : (
+          <>
+            <div>
+              <StepHeading focus={focus} className="text-section text-ink tabular-nums">
+                {m.workspace.assessment(candidates.length)}
+              </StepHeading>
+              <p className="mt-1 text-[13px] text-ink-2">
+                {proposed.items.length > 0
+                  ? m.results.canFree(formatBytes(proposed.bytes))
+                  : m.results.nothingTitle}
+                {proposed.items.length > 0 && ` · ${m.common.items(proposed.items.length)}`}
+              </p>
+            </div>
+            {proposed.items.length === 0 && <p className="text-ink-2">{m.results.nothing}</p>}
+          </>
+        )}
         {closing !== null && (
           <p className="text-[13px] text-ink-2">
             {m.results.whenClosed(formatBytes(closing.bytes), ...closing.apps)}

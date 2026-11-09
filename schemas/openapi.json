@@ -7,7 +7,7 @@
       "name": "Apache-2.0",
       "identifier": "Apache-2.0"
     },
-    "version": "0.10.0"
+    "version": "0.11.0"
   },
   "paths": {},
   "components": {
@@ -318,21 +318,6 @@
         "oneOf": [
           {
             "type": "object",
-            "description": "The person closed the dialog; nothing was read.",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "nothing_chosen"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
             "description": "This platform cannot read contents to compare yet.",
             "required": [
               "kind"
@@ -496,7 +481,7 @@
             "items": {
               "type": "string"
             },
-            "description": "The folders the person chose."
+            "description": "The roots of the completed scan."
           },
           "groups": {
             "type": "array",
@@ -1175,6 +1160,155 @@
           "needs_attention"
         ]
       },
+      "HelperReachView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Not asked: it is not enabled.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_asked"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It answered.",
+            "required": [
+              "version",
+              "current",
+              "kind"
+            ],
+            "properties": {
+              "current": {
+                "type": "boolean",
+                "description": "It matches this app; otherwise turn it off and on again."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "answered"
+                ]
+              },
+              "version": {
+                "type": "string",
+                "description": "Its version; display-escaped."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "This build is not signed with a Developer ID, so it cannot use the\nhelper.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unsigned"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It did not answer.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unavailable"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It is not signed by the same team as this app.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_signed_as_required"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It refused the request.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "refused"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Its answer could not be read.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What asking the helper for its status gave."
+      },
+      "HelperRegistrationView": {
+        "type": "string",
+        "description": "Where the helper's registration stands.",
+        "enum": [
+          "unsupported",
+          "not_registered",
+          "enabled",
+          "requires_approval",
+          "not_found"
+        ]
+      },
+      "HelperView": {
+        "type": "object",
+        "description": "Lumen's helper as it stands now.",
+        "required": [
+          "registration",
+          "reach"
+        ],
+        "properties": {
+          "reach": {
+            "$ref": "#/components/schemas/HelperReachView",
+            "description": "Its answer, when enabled."
+          },
+          "registration": {
+            "$ref": "#/components/schemas/HelperRegistrationView",
+            "description": "Its registration."
+          }
+        }
+      },
       "ItemKindView": {
         "type": "string",
         "description": "What kind of item AI review says a review item most likely is.",
@@ -1514,6 +1648,109 @@
             "description": "Problems that did not stop the execution."
           }
         }
+      },
+      "QuitView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "asked"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_running"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "itself"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_found"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "ambiguous"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unsupported"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What asking a running app to quit did. It was asked the way its Quit menu\nitem asks, so it may ask to save or decline; preview it again to see\nwhether it still runs."
       },
       "ReasonView": {
         "type": "object",
@@ -2165,20 +2402,25 @@
         "required": [
           "purpose",
           "removal_impact",
-          "confidence"
+          "purpose_confidence",
+          "removal_impact_confidence"
         ],
         "properties": {
-          "confidence": {
-            "$ref": "#/components/schemas/ConfidenceView",
-            "description": "How sure AI review was."
-          },
           "purpose": {
             "$ref": "#/components/schemas/SoftwarePurposeView",
             "description": "What it is most likely for."
           },
+          "purpose_confidence": {
+            "$ref": "#/components/schemas/ConfidenceView",
+            "description": "How sure AI review was of the purpose."
+          },
           "removal_impact": {
             "$ref": "#/components/schemas/RemovalImpactView",
             "description": "What removing it could most likely affect."
+          },
+          "removal_impact_confidence": {
+            "$ref": "#/components/schemas/ConfidenceView",
+            "description": "How sure AI review was of the removal impact."
           }
         }
       },

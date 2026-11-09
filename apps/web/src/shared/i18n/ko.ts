@@ -98,9 +98,8 @@ export const ko = {
     copies: {
       title: "똑같은 파일",
       intro:
-        "폴더를 고르면 그 안의 파일을 비교해서 내용이 같은 파일을 찾아요. Lumen은 고른 폴더의 파일만 읽어요.",
-      choose: "비교할 폴더 고르기…",
-      chooseAgain: "다른 폴더 비교하기…",
+        "검사가 끝나면 별도 작업으로 검사한 경로의 파일을 읽어 내용이 같은 파일을 찾아요. 이 비교는 읽기만 하며, 어느 파일도 고르거나 지우지 않아요.",
+      compareAgain: "다시 비교",
       stop: "멈추기",
       stopping: "멈추는 중…",
       stopped: "비교를 멈췄어요. 멈춘 비교의 결과는 보여 주지 않아요.",
@@ -111,7 +110,7 @@ export const ko = {
         full: "아직 같은 파일을 끝까지 비교하고 있어요",
       },
       filesRead: (n: string) => `파일 ${count(n)}개를 읽었어요`,
-      folders: "비교한 폴더",
+      folders: "검사에서 비교한 경로",
       group: (n: number, size: string) => `똑같은 파일 ${count(n)}개 · 각 ${size}`,
       none: "비교한 파일 중에 똑같은 파일이 없어요.",
       more: (n: number) => `더 작은 묶음 ${count(n)}개는 보여 주지 않았어요.`,
@@ -123,8 +122,8 @@ export const ko = {
       incomplete: "일부 폴더를 끝까지 읽지 못했어요. 그 안의 파일은 비교하지 않았어요.",
       unsupported: "이 컴퓨터에서는 아직 파일을 비교할 수 없어요.",
       tooMany: (limit: string) =>
-        `파일이 ${count(limit)}개보다 많아요. 더 작은 폴더를 골라 주세요.`,
-      failed: "폴더를 비교하지 못했어요.",
+        `이번 검사는 파일이 ${count(limit)}개보다 많아 비교할 수 없어요. 범위를 좁혀 다시 검사해 주세요.`,
+      failed: "검사한 경로의 파일을 비교하지 못했어요.",
       advice:
         "사본은 남겨 두고 싶은 백업일 수 있어요. Lumen은 어느 것도 고르거나 지우지 않아요. 사본을 지워도 그 크기보다 적게 비워질 수 있어요.",
     },
@@ -446,6 +445,8 @@ export const ko = {
     freedNote: "디스크 공간은 격리함에서 영구 삭제할 때 생겨요.",
     openQuarantine: "격리함 열기",
     notMoved: (n: number) => `옮기지 않은 ${items(n)}`,
+    left: (n: number) => `이번 검사에서 남은 ${items(n)}`,
+    scanAgainToMove: "더 옮기려면 다시 검사해 주세요.",
   },
   item: {
     quarantined: "격리함으로 옮겼어요. 복원할 수 있어요.",
@@ -593,6 +594,14 @@ export const ko = {
       noSpace: "디스크 공간은 격리함에서 앱을 영구 삭제할 때 생겨요.",
       changed: "앱이 달라졌어요. 미리보기를 닫고 다시 확인해 주세요.",
       failedMove: "앱을 격리함으로 옮기는 작업을 끝내지 못했어요.",
+      quit: "종료하기",
+      quitHint:
+        "앱의 종료 메뉴처럼 앱에 종료를 요청해요. 저장하지 않은 작업이 있으면 앱이 먼저 물어봐요.",
+      quitAsked: "앱에 종료를 요청했어요. 저장할지 물으면 앱에서 답해 주세요.",
+      stillRunning: "앱이 아직 실행 중이에요. 앱을 종료한 뒤 다시 확인해 주세요.",
+      quitItself: "Lumen은 여기서 스스로 종료할 수 없어요.",
+      quitFailed: "앱에 종료를 요청하지 못했어요. 앱을 직접 종료한 뒤 다시 확인해 주세요.",
+      recheck: "다시 확인하기",
       notes: {
         goes_to_quarantine:
           "영구 삭제하기 전까지 앱을 복원할 수 있어요. Lumen이 자동으로 지우지 않아요.",
@@ -626,6 +635,7 @@ export const ko = {
       explaining: "AI 검토가 앱을 설명하고 있어요…",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI: ${purpose}일 가능성이 높아요(${confidence}). ${impact}`,
+      withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
       purposes: {
         web_browser: "웹 브라우저",
         communication: "소통 앱",
@@ -642,7 +652,7 @@ export const ko = {
         unknown: "알 수 없는 항목",
       },
       impacts: {
-        only_this_app: "지우면 이 앱에만 영향이 있을 가능성이 높아요.",
+        only_this_app: "지워도 다른 곳에는 영향이 없을 것 같아요.",
         other_software_depends: "다른 프로그램이 이 항목에 의존할 가능성이 높아요.",
         stops_background_activity: "지우면 이 앱의 백그라운드 작업이 멈출 가능성이 높아요.",
         security_or_access: "지우면 보안, 뱅킹, 로그인이 동작하지 않을 수 있어요.",
@@ -691,6 +701,28 @@ export const ko = {
         "컴퓨터가 일부 폴더에 Lumen이 접근하지 못하게 막을 수 있어요. 그래도 Lumen은 허용된 폴더를 모두 읽어요.",
       unread:
         "읽지 못한 폴더는 비어 있다고 보지 않고 ‘읽지 못함’으로 표시해요. 그 안의 항목은 정리를 제안하지 않아요.",
+      helper: {
+        title: "관리자 권한 도우미",
+        intro:
+          "다른 계정이 설치한 앱처럼 관리자 권한이 필요한 항목을 정리할 때 써요. 정리 규칙은 그대로이고, 옮긴 항목은 격리함에서 되돌릴 수 있어요.",
+        notYet: "아직은 연결만 확인하고, 아무것도 옮기지 않아요.",
+        off: "꺼져 있어요.",
+        waiting:
+          "시스템 설정 › 일반 › 로그인 항목에서 Lumen을 허용해 주세요. 관리자 암호가 필요해요.",
+        on: (version: string) => `켜져 있어요. 도우미가 응답해요(버전 ${version}).`,
+        enable: "켜기",
+        disable: "끄기",
+        openLoginItems: "로그인 항목 열기",
+        changeFailed: "도우미 설정을 바꾸지 못했어요.",
+        problems: {
+          outdated: "켜져 있지만 도우미가 다른 버전의 Lumen에서 왔어요. 껐다가 다시 켜 주세요.",
+          unsigned: "이 Lumen은 Developer ID로 서명되지 않아서 도우미를 쓸 수 없어요.",
+          no_answer: "켜져 있지만 도우미가 응답하지 않아요. 껐다가 다시 켜 주세요.",
+          not_found: "Lumen에서 도우미를 찾지 못했어요. Lumen을 다시 설치해 주세요.",
+          mismatch: "도우미의 서명이 이 Lumen과 맞지 않아요. 껐다가 다시 켜 주세요.",
+          failed: "도우미를 확인하지 못했어요.",
+        },
+      },
     },
     about: {
       title: "정보",

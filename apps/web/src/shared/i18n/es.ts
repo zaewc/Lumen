@@ -90,9 +90,8 @@ export const es: Messages = {
     copies: {
       title: "Copias idénticas",
       intro:
-        "Elige carpetas y Lumen compara sus archivos para encontrar los que tienen el mismo contenido. Lumen solo lee archivos de las carpetas que elijas.",
-      choose: "Elegir carpetas para comparar…",
-      chooseAgain: "Comparar otras carpetas…",
+        "Al terminar un análisis, Lumen lee por separado los archivos de las rutas analizadas para encontrar contenido idéntico. Esta comparación solo lee: Lumen no elige ni elimina ninguna copia.",
+      compareAgain: "Comparar de nuevo",
       stop: "Detener",
       stopping: "Deteniendo…",
       stopped: "Comparación detenida. No se muestra nada de esa comparación.",
@@ -103,7 +102,7 @@ export const es: Messages = {
         full: "Comparando completos los archivos que aún coinciden",
       },
       filesRead: (n: string) => `${count(n)} ${n === "1" ? "archivo leído" : "archivos leídos"}`,
-      folders: "Carpetas comparadas",
+      folders: "Rutas del análisis comparadas",
       group: (n: number, size: string) => `${count(n)} copias · ${size} cada una`,
       none: "No hay copias idénticas entre los archivos que Lumen pudo comparar.",
       more: (n: number) =>
@@ -124,8 +123,8 @@ export const es: Messages = {
         "Algunas carpetas no se pudieron leer por completo. Sus archivos no se compararon.",
       unsupported: "Comparar archivos aún no está disponible en este ordenador.",
       tooMany: (limit: string) =>
-        `Estas carpetas tienen más de ${count(limit)} archivos. Elige carpetas más pequeñas.`,
-      failed: "Lumen no pudo comparar estas carpetas.",
+        `El análisis abarca más de ${count(limit)} archivos. Vuelve a analizar un ámbito más pequeño para comparar menos.`,
+      failed: "Lumen no pudo comparar los archivos del análisis.",
       advice:
         "Las copias pueden ser copias de seguridad que quieres conservar. Lumen no elige ni elimina ninguna. Eliminar una copia puede liberar menos espacio que su tamaño.",
     },
@@ -458,6 +457,8 @@ export const es: Messages = {
     freedNote: "Recuperarás el espacio cuando los elimines definitivamente de Cuarentena.",
     openQuarantine: "Abrir Cuarentena",
     notMoved: (n: number) => `${items(n)} no se movieron`,
+    left: (n: number) => `Quedan ${items(n)} de este análisis`,
+    scanAgainToMove: "Para mover más, analiza de nuevo.",
   },
   item: {
     quarantined: "Se movió a Cuarentena. Puedes restaurarlo.",
@@ -613,6 +614,16 @@ export const es: Messages = {
       noSpace: "El espacio se libera al eliminar la app definitivamente de Cuarentena.",
       changed: "La app ha cambiado. Cierra esta vista previa y vuelve a comprobarla.",
       failedMove: "Lumen no pudo terminar de mover la app.",
+      quit: "Salir",
+      quitHint:
+        "Pide a la app que se cierre, como su propio menú Salir. Si tiene trabajo sin guardar, te lo preguntará primero.",
+      quitAsked:
+        "Lumen pidió a la app que se cerrara. Si pregunta si quieres guardar, responde en la app.",
+      stillRunning: "La app sigue en ejecución. Ciérrala y vuelve a comprobarla.",
+      quitItself: "Lumen no puede cerrarse a sí mismo desde aquí.",
+      quitFailed:
+        "Lumen no pudo pedir a la app que se cerrara. Ciérrala tú y vuelve a comprobarla.",
+      recheck: "Comprobar de nuevo",
       notes: {
         goes_to_quarantine:
           "Puedes restaurarla hasta que la elimines definitivamente. Lumen nunca la elimina automáticamente.",
@@ -646,6 +657,7 @@ export const es: Messages = {
       explaining: "La revisión con IA está describiendo las apps…",
       note: (purpose: string, confidence: string, impact: string) =>
         `IA: probablemente ${purpose} (${confidence}). ${impact}`,
+      withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
       purposes: {
         web_browser: "un navegador web",
         communication: "una app de comunicación",
@@ -662,7 +674,7 @@ export const es: Messages = {
         unknown: "algo que no pudo determinar",
       },
       impacts: {
-        only_this_app: "Eliminarla probablemente solo afecta a esta app.",
+        only_this_app: "Eliminarla probablemente no afectará a nada más.",
         other_software_depends: "Probablemente otro software depende de ella.",
         stops_background_activity:
           "Eliminarla probablemente detiene su actividad en segundo plano.",
@@ -714,6 +726,31 @@ export const es: Messages = {
         "Es posible que el ordenador impida a Lumen acceder a algunas carpetas. Lumen sigue leyendo todas las carpetas permitidas.",
       unread:
         "Lumen muestra como ilegible cualquier carpeta que no puede leer, nunca como vacía, y no propone nada de su contenido.",
+      helper: {
+        title: "Asistente de administrador",
+        intro:
+          "Sirve para limpiar lo que necesita permisos de administrador, como apps que instaló otra cuenta. Las reglas de seguridad de Lumen no cambian y todo lo que se mueve se puede restaurar desde la Cuarentena.",
+        notYet: "Por ahora solo comprueba la conexión; no mueve nada.",
+        off: "Desactivado.",
+        waiting:
+          "Permite Lumen en Ajustes del Sistema › General › Ítems de inicio. Te pedirá una contraseña de administrador.",
+        on: (version: string) => `Activado. El asistente responde (versión ${version}).`,
+        enable: "Activar",
+        disable: "Desactivar",
+        openLoginItems: "Abrir Ítems de inicio",
+        changeFailed: "Lumen no pudo cambiar el asistente.",
+        problems: {
+          outdated:
+            "Activado, pero el asistente es de otra versión de Lumen. Desactívalo y vuelve a activarlo.",
+          unsigned:
+            "Esta copia de Lumen no está firmada con un Developer ID, así que no puede usar el asistente.",
+          no_answer: "Activado, pero el asistente no responde. Desactívalo y vuelve a activarlo.",
+          not_found: "Lumen no encontró su asistente. Vuelve a instalar Lumen.",
+          mismatch:
+            "La firma del asistente no coincide con este Lumen. Desactívalo y vuelve a activarlo.",
+          failed: "Lumen no pudo comprobar el asistente.",
+        },
+      },
     },
     about: {
       title: "Acerca de",

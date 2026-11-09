@@ -8,6 +8,7 @@ import type { Filter } from "../model/filter";
 import { cleanUpStep } from "../model/step";
 import { useCleanUpAction } from "./CleanUpAction";
 import { DonePanel } from "./DonePanel";
+import { Duplicates } from "./Duplicates";
 import { ProgressPanel } from "./ProgressPanel";
 import { Results } from "./Results";
 import { StartPanel } from "./StartPanel";
@@ -109,6 +110,29 @@ export function CleanUpPage() {
     }
   };
 
+  // What the scan found; after a clean-up, what is left of it.
+  const { scan, candidates } = session;
+  const results =
+    scan !== null && candidates !== null && summary !== null
+      ? (cleanedUp: boolean) => (
+          <Results
+            scan={scan}
+            candidates={candidates}
+            summary={summary}
+            filter={filter}
+            onFilterChange={(next) => {
+              void navigate({
+                to: "/clean",
+                search: next === "all" ? {} : { show: next },
+                replace: true,
+              });
+            }}
+            focus={acted && !cleanedUp}
+            cleanedUp={cleanedUp}
+          />
+        )
+      : null;
+
   const view = (): ReactNode => {
     switch (step) {
       case "start":
@@ -144,34 +168,29 @@ export function CleanUpPage() {
           </section>
         );
       case "results":
-        return session.scan !== null && session.candidates !== null && summary !== null ? (
+        return results === null ? null : (
           <>
             {cleanUp.error}
-            <Results
-              scan={session.scan}
-              candidates={session.candidates}
-              summary={summary}
-              filter={filter}
-              onFilterChange={(next) => {
-                void navigate({
-                  to: "/clean",
-                  search: next === "all" ? {} : { show: next },
-                  replace: true,
-                });
-              }}
-              focus={acted}
-            />
+            {results(false)}
             {cleanUp.dialog}
           </>
-        ) : null;
+        );
       case "done":
-        return session.report !== null ? <DonePanel report={session.report} focus={acted} /> : null;
+        return session.report !== null ? (
+          <>
+            <DonePanel report={session.report} focus={acted} />
+            {results?.(true)}
+          </>
+        ) : null;
     }
   };
 
   return (
     <Page title={m.nav.cleanUp} actions={actions()}>
       {view()}
+      {scan !== null && !session.scanning && !scan.partial && (
+        <Duplicates key={scan.scan} scanId={scan.scan} />
+      )}
     </Page>
   );
 }

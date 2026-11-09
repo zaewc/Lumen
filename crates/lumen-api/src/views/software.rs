@@ -196,8 +196,18 @@ pub struct SoftwareNoteView {
     pub purpose: SoftwarePurposeView,
     /// What removing it could most likely affect.
     pub removal_impact: RemovalImpactView,
-    /// How sure AI review was.
-    pub confidence: ConfidenceView,
+    /// How sure AI review was of the purpose.
+    pub purpose_confidence: ConfidenceView,
+    /// How sure AI review was of the removal impact.
+    pub removal_impact_confidence: ConfidenceView,
+}
+
+fn confidence_view(confidence: JudgmentConfidence) -> ConfidenceView {
+    match confidence {
+        JudgmentConfidence::Low => ConfidenceView::Low,
+        JudgmentConfidence::Medium => ConfidenceView::Medium,
+        JudgmentConfidence::High => ConfidenceView::High,
+    }
 }
 
 impl From<SoftwareNote> for SoftwareNoteView {
@@ -228,11 +238,8 @@ impl From<SoftwareNote> for SoftwareNoteView {
                 RemovalImpact::SystemFunction => RemovalImpactView::SystemFunction,
                 RemovalImpact::Unknown => RemovalImpactView::Unknown,
             },
-            confidence: match note.confidence {
-                JudgmentConfidence::Low => ConfidenceView::Low,
-                JudgmentConfidence::Medium => ConfidenceView::Medium,
-                JudgmentConfidence::High => ConfidenceView::High,
-            },
+            purpose_confidence: confidence_view(note.purpose_confidence),
+            removal_impact_confidence: confidence_view(note.removal_impact_confidence),
         }
     }
 }
@@ -634,6 +641,7 @@ mod tests {
             install_root: None,
             required,
             explicit: Some(true),
+            relations: None,
         }
     }
 
@@ -875,7 +883,8 @@ mod tests {
         let note = |injection_suspected| SoftwareNote {
             purpose: SoftwarePurpose::RuntimeOrLibrary,
             removal_impact: RemovalImpact::OtherSoftwareDepends,
-            confidence: JudgmentConfidence::High,
+            purpose_confidence: JudgmentConfidence::High,
+            removal_impact_confidence: JudgmentConfidence::Medium,
             injection_suspected,
         };
         let key = |id: &str| SoftwareKey {
@@ -902,7 +911,8 @@ mod tests {
                     Some(serde_json::json!({
                         "purpose": "runtime_or_library",
                         "removal_impact": "other_software_depends",
-                        "confidence": "high",
+                        "purpose_confidence": "high",
+                        "removal_impact_confidence": "medium",
                     }))
                 ),
             ]

@@ -21,6 +21,7 @@ lumen-api.workspace = true
 lumen-app.workspace = true
 lumen-application.workspace = true
 lumen-domain.workspace = true
+lumen-store-sqlite.workspace = true
 lumen-telemetry.workspace = true
 serde.workspace = true
 # `generate_context!` embeds the plugins' configuration as JSON values.
@@ -39,19 +40,11 @@ tauri-plugin-updater = { version = "=2.14.0", default-features = false, features
   "system-proxy",
 ] }
 
-[target.'cfg(any(target_os = "macos", windows))'.dependencies]
-# The system folder dialog, shown by the host so only folders the person picks
-# are compared (ADR-0057). Also what tauri-plugin-dialog uses; its AppKit and
-# Win32 bindings are the ones Tauri already links. No default features: they
-# are Linux portal and Wayland support.
-rfd = { version = "=0.17.2", default-features = false }
-
 [dev-dependencies]
 # An interrupted cleanup in a fixture home, for the recovery test (UX-3).
 lumen-fs-exec.workspace = true
 # Scan totals, to build progress events in tests.
 lumen-scan.workspace = true
-lumen-store-sqlite.workspace = true
 lumen-testkit.workspace = true
 # The mock runtime, to drive the real invoke handler and capabilities in tests.
 tauri = { version = "=2.12.3", features = ["isolation", "test"] }

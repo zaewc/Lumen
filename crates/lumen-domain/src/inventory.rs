@@ -281,6 +281,129 @@ pub struct Package {
     /// Whether it was installed on request rather than as another package's
     /// dependency; `None` where the manager's record does not say.
     pub explicit: Option<bool>,
+    /// What the manager's or installer's own record relates it to: what it
+    /// needs, and what it put on the computer (ADR-0064). `None` where the
+    /// record was not read or could not be: its relations are unknown, never
+    /// none. `Some` lists every relation the record states that Lumen reads.
+    pub relations: Option<Vec<PackageRelation>>,
+}
+
+impl Package {
+    /// The package's identity: its manager and identifier.
+    pub fn package_id(&self) -> PackageId {
+        PackageId {
+            manager: self.manager,
+            id: self.id.clone(),
+        }
+    }
+}
+
+/// A package by the manager that recorded it and its identifier, as ADR-0060
+/// rule 1 names one. Two managers can use the same identifier (a Homebrew
+/// formula and a cask), so an identifier alone names nothing.
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
+pub struct PackageId {
+    /// Recording installer or manager.
+    pub manager: PackageManager,
+    /// Identifier within that manager.
+    pub id: UntrustedText,
+}
+
+/// One relation a package's own record states (ADR-0064). Ownership is never
+/// concluded from a matching file or folder name: every relation names the
+/// record it was read from in its [`method`](Self::method).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct PackageRelation {
+    /// What it relates the package to.
+    pub kind: PackageRelationKind,
+    /// The record it was read from, and so how far it can be trusted.
+    pub method: RelationMethod,
+}
+
+/// What a package is related to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum PackageRelationKind {
+    /// It needs this other package to run.
+    DependsOn {
+        /// The package it needs.
+        package: PackageId,
+        /// Whether the package itself declares the need, rather than through
+        /// another dependency; `None` where the record does not say.
+        direct: Option<bool>,
+    },
+    /// It put this application bundle or folder on the computer.
+    Installed {
+        /// Where, as an absolute path.
+        location: RawPath,
+    },
+    /// It installed this other package and removes it as its own (a cask's
+    /// `uninstall pkgutil:`, naming the installer package it runs).
+    InstalledPackage {
+        /// The package it installed.
+        package: PackageId,
+    },
+}
+
+/// Which record a relation was read from.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum RelationMethod {
+    /// Homebrew's install receipt lists it under `runtime_dependencies`,
+    /// written when the formula or cask was installed.
+    HomebrewRuntimeDependencies,
+    /// The cask's install receipt lists it under `uninstall_artifacts`: what
+    /// Homebrew itself removes when the cask is uninstalled.
+    CaskUninstallArtifacts,
+    /// The cask definition Homebrew stored when it installed the cask lists it
+    /// among its `artifacts`.
+    CaskDefinition,
+    /// A cask's `app` artifact, placed in `/Applications` because Homebrew's
+    /// recorded configuration names no other folder: a default, not a record.
+    CaskDefaultAppFolder,
+    /// The installer receipt's file list (its bill of materials) records the
+    /// bundle's `Contents/Info.plist` as a file it installed.
+    ReceiptFileList,
+}
+
+/// Whether a relation was recorded or inferred.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RelationBasis {
+    /// The package manager or installer recorded it: authoritative for what
+    /// the record states, as of when it was written.
+    Recorded,
+    /// Lumen inferred it from a default or convention: never proof.
+    Inferred,
+}
+
+impl RelationMethod {
+    /// Whether the method reads a record or infers.
+    pub const fn basis(self) -> RelationBasis {
+        match self {
+            Self::HomebrewRuntimeDependencies
+            | Self::CaskUninstallArtifacts
+            | Self::CaskDefinition
+            | Self::ReceiptFileList => RelationBasis::Recorded,
+            Self::CaskDefaultAppFolder => RelationBasis::Inferred,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -332,6 +455,18 @@ mod tests {
     }
 
     #[test]
+    fn only_defaults_are_inferred() {
+        assert_eq!(
+            RelationMethod::CaskDefaultAppFolder.basis(),
+            RelationBasis::Inferred
+        );
+        assert_eq!(
+            RelationMethod::ReceiptFileList.basis(),
+            RelationBasis::Recorded
+        );
+    }
+
+    #[test]
     fn service_labels_display_escaped() {
         let service = Service {
             kind: ServiceKind::LaunchAgent,
@@ -366,6 +501,24 @@ mod tests {
             install_root: None,
             required: false,
             explicit: Some(true),
+            relations: Some(vec![
+                PackageRelation {
+                    kind: PackageRelationKind::DependsOn {
+                        package: PackageId {
+                            manager: PackageManager::Homebrew,
+                            id: UntrustedText::new("openssl@3"),
+                        },
+                        direct: Some(true),
+                    },
+                    method: RelationMethod::HomebrewRuntimeDependencies,
+                },
+                PackageRelation {
+                    kind: PackageRelationKind::Installed {
+                        location: RawPath::from_unix_bytes(b"/Applications/Example.app".to_vec())?,
+                    },
+                    method: RelationMethod::CaskDefaultAppFolder,
+                },
+            ]),
         };
         let json = serde_json::to_string(&package)?;
         assert_eq!(serde_json::from_str::<Package>(&json)?, package);

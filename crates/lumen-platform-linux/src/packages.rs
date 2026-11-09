@@ -80,6 +80,7 @@ pub fn parse_dpkg_status(status: &str) -> (Vec<Package>, usize) {
             // dpkg does not record why a package was installed; apt keeps
             // that in another file.
             explicit: None,
+            relations: None,
         });
     }
     (packages, malformed)
@@ -112,6 +113,7 @@ pub fn parse_pacman_desc(desc: &str) -> Option<Package> {
         // `%REASON%` 1 means installed as a dependency; absent or 0 means
         // installed explicitly.
         explicit: Some(reason != Some("1")),
+        relations: None,
     })
 }
 

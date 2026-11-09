@@ -25,7 +25,11 @@ pub mod events;
 #[cfg(target_os = "macos")]
 mod feed;
 #[cfg(target_os = "macos")]
+pub mod helper;
+#[cfg(target_os = "macos")]
 mod homebrew;
+#[cfg(target_os = "macos")]
+mod icon;
 #[cfg(target_os = "macos")]
 mod keychain;
 #[cfg(target_os = "macos")]
@@ -35,6 +39,8 @@ pub mod metadata;
 #[cfg(target_os = "macos")]
 mod probe;
 #[cfg(target_os = "macos")]
+mod quit;
+#[cfg(target_os = "macos")]
 mod receipts;
 pub mod support;
 #[cfg(target_os = "macos")]
@@ -42,6 +48,8 @@ mod sys;
 #[cfg(target_os = "macos")]
 pub mod volumes;
 pub mod web_profile;
+#[cfg(target_os = "macos")]
+pub mod xpc;
 
 #[cfg(target_os = "macos")]
 pub use apps::AppInventory;
@@ -56,10 +64,14 @@ pub use feed::FsEventsFeed;
 #[cfg(target_os = "macos")]
 pub use homebrew::HomebrewInventory;
 #[cfg(target_os = "macos")]
+pub use icon::{ICON_PIXELS, MAX_ICON_BYTES, app_icon_png};
+#[cfg(target_os = "macos")]
 pub use keychain::{KeychainStore, SERVICE as KEYCHAIN_SERVICE};
 #[cfg(target_os = "macos")]
 pub use launchd::LaunchdInventory;
 #[cfg(target_os = "macos")]
 pub use probe::{ProcessProbe, ProcessSnapshot};
+#[cfg(target_os = "macos")]
+pub use quit::{QuitRequest, ask_to_quit};
 #[cfg(target_os = "macos")]
 pub use receipts::ReceiptInventory;

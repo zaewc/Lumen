@@ -49,6 +49,7 @@ pub fn parse_rpm_query(output: &str) -> (Vec<Package>, usize) {
             required: false,
             // RPM does not record why a package was installed.
             explicit: None,
+            relations: None,
         });
     }
     (packages, malformed)

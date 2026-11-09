@@ -34,7 +34,7 @@ pub use run::{
     clopper_pearson_upper, run,
 };
 pub use software::{
-    LiveExplainer, SOFTWARE_CASSETTE_SCHEMA, SoftwareCase, SoftwareCassette, SoftwareDataset,
-    SoftwareExpected, SoftwareOutcome, SoftwareRecording, SoftwareReplay, SoftwareReport,
-    load_software, record_software, run_software,
+    BucketScore, ConfidenceScores, LiveExplainer, SOFTWARE_CASSETTE_SCHEMA, SoftwareCase,
+    SoftwareCassette, SoftwareDataset, SoftwareExpected, SoftwareOutcome, SoftwareRecording,
+    SoftwareReplay, SoftwareReport, load_software, record_software, run_software,
 };

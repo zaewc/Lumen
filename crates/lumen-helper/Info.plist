@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The helper's code identifier. Never change it: launchd ties the
+	     registered daemon to it (research 37). -->
+	<key>CFBundleIdentifier</key>
+	<string>dev.lumen.desktop.helper</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Lumen Helper</string>
+</dict>
+</plist>

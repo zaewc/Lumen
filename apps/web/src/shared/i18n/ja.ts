@@ -92,9 +92,8 @@ export const ja: Messages = {
     copies: {
       title: "同じ内容のファイル",
       intro:
-        "フォルダを選ぶと、その中のファイルを比べて内容が同じものを探します。Lumen が読むのは選んだフォルダのファイルだけです。",
-      choose: "比べるフォルダを選ぶ…",
-      chooseAgain: "ほかのフォルダを比べる…",
+        "スキャン完了後、別の処理としてスキャンしたフォルダ内のファイルを読み、内容が同じものを探します。この比較は読み取り専用で、ファイルを選んだり削除したりしません。",
+      compareAgain: "もう一度比較",
       stop: "停止",
       stopping: "停止しています…",
       stopped: "比較を停止しました。途中までの結果は表示しません。",
@@ -105,7 +104,7 @@ export const ja: Messages = {
         full: "まだ一致するファイルを最後まで比べています",
       },
       filesRead: (n: string) => `${count(n)}個のファイルを読みました`,
-      folders: "比べたフォルダ",
+      folders: "スキャンで比較したフォルダ",
       group: (n: number, size: string) => `${count(n)}個のコピー · 各 ${size}`,
       none: "比べられたファイルの中に、同じ内容のファイルはありません。",
       more: (n: number) => `小さいグループ ${count(n)}個は表示していません。`,
@@ -118,8 +117,8 @@ export const ja: Messages = {
       incomplete: "一部のフォルダを最後まで読めませんでした。そこにあるファイルは比べていません。",
       unsupported: "このコンピュータでは、まだファイルを比べられません。",
       tooMany: (limit: string) =>
-        `ファイルが ${count(limit)}個を超えています。もっと小さいフォルダを選んでください。`,
-      failed: "フォルダを比べられませんでした。",
+        `スキャン範囲のファイルが ${count(limit)}個を超えています。範囲を狭めて再スキャンしてください。`,
+      failed: "スキャンしたファイルを比較できませんでした。",
       advice:
         "コピーは残しておきたいバックアップかもしれません。Lumen はどれも選んだり削除したりしません。コピーを削除しても、そのサイズ分の空きが増えないことがあります。",
     },
@@ -440,6 +439,8 @@ export const ja: Messages = {
     freedNote: "隔離から完全に削除すると、空き容量が戻ります。",
     openQuarantine: "隔離を開く",
     notMoved: (n: number) => `移動されなかった項目：${items(n)}`,
+    left: (n: number) => `今回のスキャンで残った項目：${items(n)}`,
+    scanAgainToMove: "さらに移動するには、もう一度スキャンしてください。",
   },
   item: {
     quarantined: "隔離に移動しました。復元できます。",
@@ -588,6 +589,14 @@ export const ja: Messages = {
       noSpace: "空き容量が増えるのは、隔離からアプリを完全に削除したときです。",
       changed: "アプリが変わりました。プレビューを閉じて確認し直してください。",
       failedMove: "アプリの移動を完了できませんでした。",
+      quit: "終了",
+      quitHint:
+        "アプリの「終了」メニューと同じように、アプリに終了を求めます。保存していない作業があれば、アプリが先に確認します。",
+      quitAsked: "アプリに終了を求めました。保存するか聞かれたら、アプリで答えてください。",
+      stillRunning: "アプリはまだ起動中です。終了してから確認し直してください。",
+      quitItself: "Lumen はここから自分自身を終了できません。",
+      quitFailed: "アプリに終了を求められませんでした。自分で終了してから確認し直してください。",
+      recheck: "確認し直す",
       notes: {
         goes_to_quarantine:
           "完全に削除するまでは復元できます。Lumenが自動で削除することはありません。",
@@ -622,6 +631,7 @@ export const ja: Messages = {
       explaining: "AIレビューがアプリを説明しています…",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI: ${purpose}の可能性が高い（${confidence}）。${impact}`,
+      withConfidence: (impact: string, confidence: string) => `${impact}（${confidence}）`,
       purposes: {
         web_browser: "Webブラウザー",
         communication: "コミュニケーションアプリ",
@@ -638,7 +648,7 @@ export const ja: Messages = {
         unknown: "判断できない項目",
       },
       impacts: {
-        only_this_app: "削除しても影響はこのアプリだけの可能性が高いです。",
+        only_this_app: "削除しても、ほかには影響しないと思われます。",
         other_software_depends: "他のソフトウェアがこれに依存している可能性が高いです。",
         stops_background_activity: "削除するとバックグラウンドの動作が止まる可能性が高いです。",
         security_or_access:
@@ -688,6 +698,31 @@ export const ja: Messages = {
         "コンピューターが一部のフォルダーへのアクセスをブロックすることがあります。許可されたフォルダーはすべて読み取ります。",
       unread:
         "読み取れないフォルダーは「未読み取り」と表示し、空として扱いません。その中の項目は提案しません。",
+      helper: {
+        title: "管理者権限ヘルパー",
+        intro:
+          "ほかのアカウントがインストールしたアプリなど、管理者権限が必要な項目を整理するときに使います。整理のルールは変わらず、移動した項目は隔離フォルダから元に戻せます。",
+        notYet: "今は接続を確認するだけで、何も移動しません。",
+        off: "オフです。",
+        waiting:
+          "システム設定 › 一般 › ログイン項目で Lumen を許可してください。管理者パスワードが必要です。",
+        on: (version: string) => `オンです。ヘルパーが応答しています（バージョン ${version}）。`,
+        enable: "オンにする",
+        disable: "オフにする",
+        openLoginItems: "ログイン項目を開く",
+        changeFailed: "ヘルパーの設定を変更できませんでした。",
+        problems: {
+          outdated:
+            "オンですが、ヘルパーは別のバージョンの Lumen のものです。オフにしてからもう一度オンにしてください。",
+          unsigned: "この Lumen は Developer ID で署名されていないため、ヘルパーを使えません。",
+          no_answer:
+            "オンですが、ヘルパーが応答しません。オフにしてからもう一度オンにしてください。",
+          not_found: "Lumen のヘルパーが見つかりません。Lumen を再インストールしてください。",
+          mismatch:
+            "ヘルパーの署名がこの Lumen と一致しません。オフにしてからもう一度オンにしてください。",
+          failed: "ヘルパーを確認できませんでした。",
+        },
+      },
     },
     about: {
       title: "Lumenについて",

@@ -109,6 +109,14 @@ the app replaces the one in Tauri's disk image, and the disk image is signed,
 notarized and stapled too. The updater archive is made from the same signed app. If
 Apple rejects either submission the job prints Apple's log and nothing is released.
 
+Lumen's helper (ADR-0063) is a plain executable at `Contents/MacOS/lumen-helper`,
+built by Tauri's `beforeBundleCommand`
+([`scripts/build-macos-helper.sh`](../../scripts/build-macos-helper.sh)), with its
+launchd plist at `Contents/Library/LaunchDaemons/dev.lumen.desktop.helper.plist`. The
+script signs it under the fixed identifier `dev.lumen.desktop.helper` and stops if it
+or its plist is missing: launchd stops starting a registered daemon whose identifier
+changed (research 37).
+
 ### Setting up the Apple secrets (once)
 
 The Account Holder of the Apple Developer Program membership does this on a Mac:
@@ -190,6 +198,55 @@ reinstalled from the download site; say so in the release notes. The new key's p
 was generated with `openssl rand`, set in the `release` environment only after a test
 signature with it succeeded, and kept in the owner's password manager. Generate any
 future key the same way rather than typing the password at a hidden prompt.
+
+## Lumen's code key (Windows)
+
+[ADR-0063](../decisions/0063-use-administrator-rights-through-an-opt-in-helper.md)
+rule 8. Windows releases are not Authenticode-signed, so Lumen signs its own Windows
+executables (`Lumen.exe`, and later `lumen-helper.exe`) with a minisign key of its own.
+The privileged helper checks against that key before it is installed, and on every
+connection. The key is **not the updater key**, and must never be the same key.
+
+### Setting it up (once)
+
+On your own computer, not in CI. The password is generated, never typed, as for the
+updater key:
+
+```sh
+umask 077 && mkdir -p ~/.lumen
+pw=$(openssl rand -base64 32)
+pnpm --filter @lumen/desktop exec tauri signer generate --ci -p "$pw" -w ~/.lumen/code.key
+# A test signature must succeed before the secrets are set.
+printf test > ~/.lumen/probe
+pnpm --filter @lumen/desktop exec tauri signer sign -f ~/.lumen/code.key -p "$pw" ~/.lumen/probe
+gh secret set LUMEN_CODE_KEY --env release --repo zaewc/Lumen < ~/.lumen/code.key
+printf %s "$pw" | gh secret set LUMEN_CODE_KEY_PASSWORD --env release --repo zaewc/Lumen
+printf %s "$pw"   # store it in your password manager, then clear the terminal
+cat ~/.lumen/code.key.pub
+```
+
+- Keep an offline backup of `~/.lumen/code.key` and its password.
+- The public key (`code.key.pub`) is not secret. It is committed as
+  [`keys/lumen-code.pub`](../../keys/lumen-code.pub), decoded, and pinned in the
+  helper.
+
+The key was generated on 2026-11-08 (key id `337EA42D297CCF5E`). Its test signature
+was verified against the committed public key with `minisign-verify` 0.3.0, and the
+two secrets were set in the `release` environment.
+- Only the `sign` job reads the two secrets. No build job ever receives them.
+
+### Rotating or revoking it
+
+The helper pins the public key it was built with:
+
+1. Generate a new key as above.
+2. Commit the new public key, then release.
+3. The next time the helper is needed, Lumen sets up the new helper.
+
+After a suspected leak:
+- replace the secrets at once;
+- say in the release notes that older helpers must be set up again;
+- remove the old public key from the repository in the same release.
 
 ## Built-in Jeb key
 

@@ -146,11 +146,34 @@ if [ -n "$nested" ]; then
   exit 1
 fi
 main="$app/Contents/MacOS/$(plutil -extract CFBundleExecutable raw "$app/Contents/Info.plist")"
+# Lumen's helper (ADR-0063): a launch daemon whose code identifier launchd ties
+# its registration to, so it is signed under that identifier, never one taken
+# from the file name, and must be there with its launchd plist.
+helper="$app/Contents/MacOS/lumen-helper"
+helper_id=dev.lumen.desktop.helper
+helper_plist="$app/Contents/Library/LaunchDaemons/$helper_id.plist"
+if [ ! -f "$helper" ] || [ ! -f "$helper_plist" ]; then
+  echo "::error::Lumen.app lacks its helper or the helper's launchd plist (ADR-0063)"
+  exit 1
+fi
+if [ "$(plutil -extract BundleProgram raw "$helper_plist")" != Contents/MacOS/lumen-helper ]; then
+  echo "::error::the helper's launchd plist does not point at Contents/MacOS/lumen-helper"
+  exit 1
+fi
 while IFS= read -r -d '' file; do
-  if [ "$file" != "$main" ] && file -b "$file" | grep -q '^Mach-O'; then
+  if [ "$file" = "$helper" ]; then
+    sign --options runtime --identifier "$helper_id" "$file"
+  elif [ "$file" != "$main" ] && file -b "$file" | grep -q '^Mach-O'; then
     sign --options runtime "$file"
   fi
 done < <(find "$app/Contents" -type f -print0)
+# Captured first: with pipefail, `grep -q` closing the pipe early would fail
+# codesign with SIGPIPE.
+helper_details=$(codesign -d --verbose=2 "$helper" 2>&1)
+if ! grep -qx "Identifier=$helper_id" <<< "$helper_details"; then
+  echo "::error::lumen-helper is not signed as $helper_id"
+  exit 1
+fi
 sign --options runtime "$app"
 codesign --verify --strict --deep --verbose=2 "$app"
 details=$(codesign -d --verbose=2 "$app" 2>&1)
