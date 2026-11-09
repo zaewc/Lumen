@@ -1,7 +1,6 @@
 # Apps inside the scan (roadmap 16.2)
 
-- Status: **Proposal, waiting for the owner's choice** (2026-11-09). Nothing here is
-  built until the owner picks an option and answers the questions at the end.
+- Status: **Accepted: Option A** (owner, 2026-11-09). See [Decisions](#decisions) at the end.
 - Roadmap: [Phase 16, item 16.2](../architecture/roadmap.md#phase-16-installed-software-after-0100)
 - Builds on: [ui-principles.md](ui-principles.md), [ux-writing.md](ux-writing.md),
   [ADR-0039](../decisions/0039-ask-for-review-only-where-a-person-can-act.md),
@@ -301,7 +300,7 @@ with a scan of chosen folders. Documentation updated with them: this file's stat
 the roadmap row, and [storage-identity.md](storage-identity.md)'s description of
 results.
 
-## Questions for the owner
+## Questions the owner was asked
 
 1. **Which option:** A (recommended), B or C?
 2. **Which apps the section lists:** the largest 10, at least 100 MB? Or every app at
@@ -318,3 +317,16 @@ results.
 6. **Last opened:** under ADR-0059 the assessment already asks Spotlight when an app
    that owns a candidate was last opened, as cautious evidence. Should the section show it ("마지막으로 연 날짜"), or stay with size only?
    The proposal is size only: "unused" is a claim the data cannot always back.
+
+## Decisions
+
+The owner's answers (2026-11-09):
+
+1. **Option A**: an Apps section in Explore's results list.
+2. The section lists the **largest 10 apps of at least 100 MB**, with a link to the full
+   Apps page.
+3. Apps Lumen cannot move today are **listed with a muted hint** and the reason
+   (other account, helpers, a linked background item).
+4. Not decided yet; decided with 16.9.
+5. **Yes**: the Apps page also gets sizes and a by-size order (step 5).
+6. Not asked; size only, as proposed.
