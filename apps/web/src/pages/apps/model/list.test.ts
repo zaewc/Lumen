@@ -1,6 +1,6 @@
 import type { SoftwareItemView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
-import { partial, title, tucked, visible } from "./list";
+import { iconsShown, partial, title, tucked, visible } from "./list";
 
 function row(id: string, extra: Partial<SoftwareItemView> = {}): SoftwareItemView {
   return {
@@ -51,5 +51,11 @@ describe("software list", () => {
         { source: "linux.snap", state: "unavailable", count: 0 },
       ]),
     ).toEqual(["macos.homebrew"]);
+  });
+
+  it("leaves room for icons only when the list has macOS apps", () => {
+    expect(iconsShown(items)).toBe(false);
+    expect(iconsShown([...items, row("dev.zed.Zed", { origin: "mac_app" })])).toBe(true);
+    expect(iconsShown([])).toBe(false);
   });
 });

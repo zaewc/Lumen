@@ -36,6 +36,15 @@ export function tucked(items: readonly SoftwareItemView[]): number {
   return items.filter((item) => item.explicit === false || item.hidden).length;
 }
 
+/**
+ * Whether rows leave room for an app icon: only when the list has macOS apps,
+ * the only rows the host draws icons for so far (roadmap 16.4). Every row
+ * then gets the same room, so names line up; elsewhere there is none.
+ */
+export function iconsShown(items: readonly SoftwareItemView[]): boolean {
+  return items.some((item) => item.origin === "mac_app");
+}
+
 /** The inventories read only in part: some software may be missing from the list. */
 export function partial(sources: readonly SoftwareSourceView[]): readonly string[] {
   return sources.filter((source) => source.state === "partial").map((source) => source.source);

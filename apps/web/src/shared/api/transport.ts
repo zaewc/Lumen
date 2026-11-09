@@ -156,4 +156,11 @@ export interface LumenTransport {
   helperDisable?(): Promise<HelperView>;
   /** Opens System Settings at Login Items, where the helper is allowed. */
   helperOpenLoginItems?(): Promise<void>;
+  /**
+   * The icon of the app the software list shows under `key` (roadmap 16.4):
+   * a small PNG as a `data:` URL, or `null` if there is none. Takes the
+   * list's key, never a path. Display only; never sent to AI review. Only
+   * where the host can draw it (the desktop app; macOS for now).
+   */
+  appIcon?(key: string): Promise<string | null>;
 }
