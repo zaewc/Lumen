@@ -74,7 +74,10 @@ impl HelperFolder {
 
 /// Why an application cannot be uninstalled into quarantine. Each "unknown"
 /// reason is a check that could not be answered.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum Ineligible {
     /// It is not a `.app` directly in `/Applications` or `~/Applications`.
     NotInApplications,
