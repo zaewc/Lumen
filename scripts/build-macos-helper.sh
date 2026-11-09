@@ -3,8 +3,9 @@
 # beforeBundleCommand: for the target being bundled (TAURI_ENV_TARGET_TRIPLE,
 # both architectures joined for universal-apple-darwin), in the profile being
 # bundled (TAURI_ENV_DEBUG), to target/lumen-helper/lumen-helper, which
-# tauri.macos.conf.json copies to Lumen.app/Contents/MacOS/. Signing happens
-# later, with the app (scripts/sign-macos.sh).
+# tauri.macos.conf.json copies to Lumen.app/Contents/MacOS/. It is ad-hoc signed
+# here for Tauri's bundle step; scripts/sign-macos.sh later replaces that with
+# the Developer ID signature.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -37,4 +38,5 @@ case "$triple" in
     exit 1
     ;;
 esac
+codesign --force --sign - "$out/lumen-helper"
 echo "built $out/lumen-helper for $triple ($profile)"
