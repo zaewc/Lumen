@@ -77,13 +77,19 @@ function softwareList(explained: boolean): SoftwareView {
         ai_note: {
           purpose: "runtime_or_library",
           removal_impact: "other_software_depends",
-          confidence: "high",
+          purpose_confidence: "high",
+          removal_impact_confidence: "medium",
         },
       }),
       row("mac_app", "com.spotify.client", "Spotify", "1.2.48", {
         location: "/Applications/Spotify.app",
         ai_note: explained
-          ? { purpose: "media", removal_impact: "only_this_app", confidence: "medium" }
+          ? {
+              purpose: "media",
+              removal_impact: "only_this_app",
+              purpose_confidence: "high",
+              removal_impact_confidence: "medium",
+            }
           : null,
       }),
     ],

@@ -610,6 +610,7 @@ export const zhCN: Messages = {
       explaining: "AI 检查正在说明这些应用…",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI：很可能是${purpose}（${confidence}）。${impact}`,
+      withConfidence: (impact: string, confidence: string) => `${impact}（${confidence}）`,
       purposes: {
         web_browser: "网页浏览器",
         communication: "通讯应用",

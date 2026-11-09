@@ -638,6 +638,7 @@ export const fr: Messages = {
       explaining: "L'analyse par IA décrit les apps…",
       note: (purpose: string, confidence: string, impact: string) =>
         `IA : probablement ${purpose} (${confidence}). ${impact}`,
+      withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
       purposes: {
         web_browser: "un navigateur web",
         communication: "une app de communication",

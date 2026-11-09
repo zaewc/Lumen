@@ -645,6 +645,7 @@ export const en = {
       explaining: "AI review is explaining the apps…",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI: likely ${purpose} (${confidence}). ${impact}`,
+      withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
       purposes: {
         web_browser: "a web browser",
         communication: "a communication app",

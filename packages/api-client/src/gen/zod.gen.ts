@@ -740,9 +740,10 @@ export const zSoftwarePurposeView = z.enum([
  * model text. Display only (ADR-0061).
  */
 export const zSoftwareNoteView = z.object({
-  confidence: zConfidenceView,
   purpose: zSoftwarePurposeView,
+  purpose_confidence: zConfidenceView,
   removal_impact: zRemovalImpactView,
+  removal_impact_confidence: zConfidenceView,
 });
 
 /**

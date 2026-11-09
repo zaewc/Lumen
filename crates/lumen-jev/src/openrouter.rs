@@ -861,7 +861,8 @@ mod tests {
             Ok(SoftwareNote {
                 purpose: lumen_domain::SoftwarePurpose::RuntimeOrLibrary,
                 removal_impact: lumen_domain::RemovalImpact::OtherSoftwareDepends,
-                confidence: lumen_domain::JudgmentConfidence::High,
+                purpose_confidence: lumen_domain::JudgmentConfidence::High,
+                removal_impact_confidence: lumen_domain::JudgmentConfidence::High,
                 injection_suspected: false,
             })
         );

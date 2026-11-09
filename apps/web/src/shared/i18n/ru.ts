@@ -669,6 +669,7 @@ export const ru: Messages = {
       explaining: "ИИ-проверка описывает приложения…",
       note: (purpose: string, confidence: string, impact: string) =>
         `ИИ: вероятно, ${purpose} (${confidence}). ${impact}`,
+      withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
       purposes: {
         web_browser: "веб-браузер",
         communication: "приложение для общения",

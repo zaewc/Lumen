@@ -1287,17 +1287,21 @@ export type SoftwareItemView = {
  */
 export type SoftwareNoteView = {
   /**
-   * How sure AI review was.
-   */
-  confidence: ConfidenceView;
-  /**
    * What it is most likely for.
    */
   purpose: SoftwarePurposeView;
   /**
+   * How sure AI review was of the purpose.
+   */
+  purpose_confidence: ConfidenceView;
+  /**
    * What removing it could most likely affect.
    */
   removal_impact: RemovalImpactView;
+  /**
+   * How sure AI review was of the removal impact.
+   */
+  removal_impact_confidence: ConfidenceView;
 };
 
 /**

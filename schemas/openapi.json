@@ -2417,20 +2417,25 @@
         "required": [
           "purpose",
           "removal_impact",
-          "confidence"
+          "purpose_confidence",
+          "removal_impact_confidence"
         ],
         "properties": {
-          "confidence": {
-            "$ref": "#/components/schemas/ConfidenceView",
-            "description": "How sure AI review was."
-          },
           "purpose": {
             "$ref": "#/components/schemas/SoftwarePurposeView",
             "description": "What it is most likely for."
           },
+          "purpose_confidence": {
+            "$ref": "#/components/schemas/ConfidenceView",
+            "description": "How sure AI review was of the purpose."
+          },
           "removal_impact": {
             "$ref": "#/components/schemas/RemovalImpactView",
             "description": "What removing it could most likely affect."
+          },
+          "removal_impact_confidence": {
+            "$ref": "#/components/schemas/ConfidenceView",
+            "description": "How sure AI review was of the removal impact."
           }
         }
       },

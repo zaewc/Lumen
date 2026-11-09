@@ -658,6 +658,7 @@ export const es: Messages = {
       explaining: "La revisión con IA está describiendo las apps…",
       note: (purpose: string, confidence: string, impact: string) =>
         `IA: probablemente ${purpose} (${confidence}). ${impact}`,
+      withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
       purposes: {
         web_browser: "un navegador web",
         communication: "una app de comunicación",

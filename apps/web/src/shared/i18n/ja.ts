@@ -632,6 +632,7 @@ export const ja: Messages = {
       explaining: "AIレビューがアプリを説明しています…",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI: ${purpose}の可能性が高い（${confidence}）。${impact}`,
+      withConfidence: (impact: string, confidence: string) => `${impact}（${confidence}）`,
       purposes: {
         web_browser: "Webブラウザー",
         communication: "コミュニケーションアプリ",

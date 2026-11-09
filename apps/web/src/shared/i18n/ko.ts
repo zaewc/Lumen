@@ -636,6 +636,7 @@ export const ko = {
       explaining: "AI 검토가 앱을 설명하고 있어요…",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI: ${purpose}일 가능성이 높아요(${confidence}). ${impact}`,
+      withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
       purposes: {
         web_browser: "웹 브라우저",
         communication: "소통 앱",

@@ -9,7 +9,9 @@
 //! The cache holds only those identity fields, the model and prompt version,
 //! and the note: no path, user name, usage signal or size. It keeps at most
 //! [`MAX_CACHED`] entries, dropping the oldest. A cache that is missing or
-//! cannot be read is empty: it never keeps the software list from showing.
+//! cannot be read is empty: it never keeps the software list from showing. A
+//! cache of an earlier schema (`lumen.software-notes/1`, one confidence per
+//! note) is dropped, so its software is explained once more.
 
 use std::path::{Path, PathBuf};
 
@@ -61,7 +63,7 @@ struct CacheFile {
     entries: Vec<Entry>,
 }
 
-const SCHEMA: &str = "lumen.software-notes/1";
+const SCHEMA: &str = "lumen.software-notes/2";
 
 /// The cached notes, oldest first.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -239,7 +241,8 @@ mod tests {
         SoftwareNote {
             purpose: SoftwarePurpose::RuntimeOrLibrary,
             removal_impact: RemovalImpact::OtherSoftwareDepends,
-            confidence: JudgmentConfidence::High,
+            purpose_confidence: JudgmentConfidence::High,
+            removal_impact_confidence: JudgmentConfidence::High,
             injection_suspected,
         }
     }

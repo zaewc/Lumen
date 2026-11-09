@@ -137,10 +137,11 @@ it reads the key. `--split`, `--prompt`, `--judge` and `--helper` are refused: t
 judge is Jeb and the prompt `jev-software/1`. The exact command the owner runs is in
 [evaluation](evaluation.md#software-notes).
 
-`run-software` replays the cassette with no network and reports accuracy, `unknown`
-answers, injection flags and failures ([evaluation](evaluation.md#software-notes)). It
-exits 0 when there is no failure, 1 when there is one, and 2 for bad input. CI does not
-replay software cassettes yet: none is committed.
+`run-software` replays the cassette with no network and reports accuracy, accuracy per
+confidence bucket, `unknown` answers, injection flags and failures
+([evaluation](evaluation.md#software-notes)). It exits 0 when there is no failure, 1
+when there is one, and 2 for bad input. CI replays the committed software cassette and
+requires the committed report to come out unchanged.
 
 ### Recording the AI Hub's chat model
 

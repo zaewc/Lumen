@@ -11,7 +11,7 @@
 //! at a time; the first answer that says the judge is unavailable or disabled
 //! ends the run, and so does AI review being turned off between requests.
 //! Every request is traced (`jev.trace/1` with output schema
-//! `jev.software-note/1`), accepted or not.
+//! `jev.software-note/2`), accepted or not.
 
 use lumen_domain::{
     EvidenceHash, JevEffect, JevTrace, JudgeDescriptor, SchemaVersion, SoftwareNote,
@@ -78,7 +78,7 @@ pub async fn explain<K: Clone>(
     let Some(descriptor) = explainer.descriptor() else {
         return Vec::new();
     };
-    let output_schema = SchemaVersion::new("jev.software-note", 1, 0)
+    let output_schema = SchemaVersion::new("jev.software-note", 2, 0)
         .unwrap_or_else(|e| unreachable!("constant schema version is valid: {e}"));
     let mut outcomes = Vec::new();
     for index in chosen(subjects, &|key| cached(key, &descriptor)) {
@@ -244,7 +244,8 @@ mod tests {
         SoftwareNote {
             purpose: SoftwarePurpose::DevelopmentTool,
             removal_impact: RemovalImpact::OnlyThisApp,
-            confidence: JudgmentConfidence::Medium,
+            purpose_confidence: JudgmentConfidence::Medium,
+            removal_impact_confidence: JudgmentConfidence::Medium,
             injection_suspected,
         }
     }
@@ -298,7 +299,7 @@ mod tests {
                 trace.policy_effect,
             ),
             (
-                "jev.software-note/1.0".to_owned(),
+                "jev.software-note/2.0".to_owned(),
                 "jev.software-request/1.0".to_owned(),
                 TraceValidation::Accepted,
                 JevEffect::None

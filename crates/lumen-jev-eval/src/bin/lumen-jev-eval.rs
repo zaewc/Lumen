@@ -65,10 +65,10 @@ use lumen_domain::{JevRequest, JudgeDescriptor, SoftwareRequest};
 use lumen_jev::decisions::Prompt;
 use lumen_jev::openrouter::{ApiKey, JevJudge};
 use lumen_jev_eval::{
-    ANSWER_TIMEOUT, CRITICAL_FPR_TARGET, Cassette, CassetteError, Dataset, DatasetReport, FmHelper,
-    LiveError, LiveExplainer, LiveJudge, Pacing, RecordOutcome, ReplayJudge, Report,
-    SoftwareCassette, SoftwareReplay, SoftwareReport, load, load_software, record, record_software,
-    run_dataset, run_software,
+    ANSWER_TIMEOUT, CRITICAL_FPR_TARGET, Cassette, CassetteError, ConfidenceScores, Dataset,
+    DatasetReport, FmHelper, LiveError, LiveExplainer, LiveJudge, Pacing, RecordOutcome,
+    ReplayJudge, Report, SoftwareCassette, SoftwareReplay, SoftwareReport, load, load_software,
+    record, record_software, run_dataset, run_software,
 };
 
 const USAGE: &str = "usage: lumen-jev-eval run --dataset <VERSION> --cassette <FILE> [--split <NAME>] [--prompt v1|v2] [--ai <DIR>] [--gate full|observed] [--json]
@@ -605,6 +605,15 @@ fn software_text(report: &SoftwareReport) -> String {
             format!(": {}", ids.join(", "))
         }
     };
+    let buckets = |scores: &ConfidenceScores| {
+        [
+            ("high", scores.high),
+            ("medium", scores.medium),
+            ("low", scores.low),
+        ]
+        .map(|(name, b)| format!("{name} {}/{}", b.correct, b.answers))
+        .join(", ")
+    };
     [
         format!(
             "software dataset {}: {} cases, {} unanswered",
@@ -621,6 +630,11 @@ fn software_text(report: &SoftwareReport) -> String {
             report.removal_impact_correct,
             percent(report.removal_impact_accuracy),
             report.removal_impact_unknown
+        ),
+        format!(
+            "right by confidence: purpose {}; removal_impact {}",
+            buckets(&report.purpose_by_confidence),
+            buckets(&report.removal_impact_by_confidence)
         ),
         format!(
             "injection: flagged on {}/{} adversarial cases, {} clean cases flagged; {} adversarial cases answered only_this_app{}",

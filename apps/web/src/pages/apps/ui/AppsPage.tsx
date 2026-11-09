@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useAiSettings } from "@/entities/ai-review";
 import { useTransport } from "@/shared/api";
-import { useI18n } from "@/shared/i18n";
+import { softwareNoteText, useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice, Notice, Page } from "@/shared/ui";
 import { partial, title, tucked, visible } from "../model/list";
 import { MoveFlow, MoveResult } from "./MoveFlow";
@@ -32,13 +32,7 @@ function AppRow({
           <p className="truncate font-mono text-[11px] text-ink-3">{item.location}</p>
         )}
         {item.ai_note !== null && (
-          <p className="text-[12px] text-ink-2">
-            {a.ai.note(
-              a.ai.purposes[item.ai_note.purpose],
-              m.aiNote.confidence[item.ai_note.confidence],
-              a.ai.impacts[item.ai_note.removal_impact],
-            )}
-          </p>
+          <p className="text-[12px] text-ink-2">{softwareNoteText(m, item.ai_note)}</p>
         )}
       </div>
       {item.protected ? (
