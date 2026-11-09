@@ -16,6 +16,8 @@
 //! person saw ([`Binding`]), so an app that changed after its preview is
 //! refused. Pure and IO-free.
 
+pub mod evidence;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use lumen_domain::{
