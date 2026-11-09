@@ -56,10 +56,12 @@ Sources on macOS:
 Chosen: **option 2**, read from the managers' own files, with these rules.
 
 1. **Shape** (`lumen_domain::inventory`). `Package::relations` holds
-   `PackageRelation { kind, method }`:
+   `PackageRelation { kind, method }`, or `None` where the record was not read or
+   could not be (unknown, never "none"):
    - `kind` is `DependsOn { package: PackageId, direct }`, `Installed { location }`
      (an application bundle or folder, by absolute path) or
-     `InstalledPackage { package: PackageId }` (a cask that ran an installer package);
+     `InstalledPackage { package: PackageId }` (an installer package a cask runs and
+     removes as its own);
    - `PackageId` is the manager and the identifier together (ADR-0060 rule 1);
    - `method` names the record (`HomebrewRuntimeDependencies`,
      `CaskUninstallArtifacts`, `CaskDefinition`, `ReceiptFileList`) or the default it

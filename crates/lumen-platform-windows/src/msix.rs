@@ -46,7 +46,7 @@ pub fn to_package(package: &MsixPackage) -> Option<Package> {
         install_root,
         required: package.system,
         explicit: Some(!package.framework),
-        relations: Vec::new(),
+        relations: None,
     })
 }
 

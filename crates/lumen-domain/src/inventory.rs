@@ -282,9 +282,10 @@ pub struct Package {
     /// dependency; `None` where the manager's record does not say.
     pub explicit: Option<bool>,
     /// What the manager's or installer's own record relates it to: what it
-    /// needs, and what it put on the computer (ADR-0064). Empty where its
-    /// source records nothing, which is not evidence that it has no relations.
-    pub relations: Vec<PackageRelation>,
+    /// needs, and what it put on the computer (ADR-0064). `None` where the
+    /// record was not read or could not be: its relations are unknown, never
+    /// none. `Some` lists every relation the record states that Lumen reads.
+    pub relations: Option<Vec<PackageRelation>>,
 }
 
 impl Package {
@@ -339,8 +340,8 @@ pub enum PackageRelationKind {
         /// Where, as an absolute path.
         location: RawPath,
     },
-    /// It installed this other package (a cask that runs an installer
-    /// package).
+    /// It installed this other package and removes it as its own (a cask's
+    /// `uninstall pkgutil:`, naming the installer package it runs).
     InstalledPackage {
         /// The package it installed.
         package: PackageId,
@@ -500,7 +501,7 @@ mod tests {
             install_root: None,
             required: false,
             explicit: Some(true),
-            relations: vec![
+            relations: Some(vec![
                 PackageRelation {
                     kind: PackageRelationKind::DependsOn {
                         package: PackageId {
@@ -517,7 +518,7 @@ mod tests {
                     },
                     method: RelationMethod::CaskDefaultAppFolder,
                 },
-            ],
+            ]),
         };
         let json = serde_json::to_string(&package)?;
         assert_eq!(serde_json::from_str::<Package>(&json)?, package);

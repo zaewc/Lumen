@@ -78,7 +78,7 @@ fn receipt(bytes: &[u8]) -> Option<Package> {
         // A product can install several component packages; a receipt does
         // not say which one was asked for.
         explicit: None,
-        relations: Vec::new(),
+        relations: None,
     })
 }
 

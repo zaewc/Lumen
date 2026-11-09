@@ -110,7 +110,7 @@ fn package(manager: PackageManager, name: &str, dir: &Path) -> Option<Package> {
         // Homebrew has no "part of the base system" mark.
         required: false,
         explicit,
-        relations: Vec::new(),
+        relations: None,
     })
 }
 

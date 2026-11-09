@@ -20,6 +20,10 @@
 //!   inventory that would list it was read whole (ADR-0008), which the caller
 //!   knows from each report's status.
 //! - Only a recorded relation can be verified; an inferred one never is.
+//! - A package whose relations are unknown (`None`) contributes nothing, so
+//!   "nothing depends on this" holds only where every package of the source
+//!   was read (`Some`) and the source itself was read whole; the caller
+//!   decides that from the reports.
 
 use lumen_domain::{
     Application, Package, PackageId, PackageRelationKind, RelationBasis, RelationMethod,
@@ -104,7 +108,7 @@ pub fn resolve_relations(
     };
     let mut resolved = Vec::new();
     for (p, package) in packages.iter().enumerate() {
-        for (r, relation) in package.relations.iter().enumerate() {
+        for (r, relation) in package.relations.iter().flatten().enumerate() {
             let (kind, matches, ambiguous) = match &relation.kind {
                 PackageRelationKind::DependsOn { package, direct } => {
                     let matches = named(package);
@@ -248,7 +252,7 @@ mod tests {
             install_root: None,
             required: false,
             explicit: None,
-            relations,
+            relations: Some(relations),
         }
     }
 
