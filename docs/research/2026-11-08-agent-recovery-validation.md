@@ -30,10 +30,11 @@ zizmor --offline --no-progress .github/workflows/workflow-lint.yml
 git diff --check
 ```
 
-Observed: 25 tests passed (6.662 seconds); Ruff, repository lint, Zizmor and whitespace
-checks passed. After adding explicit private-log permissions, the affected six
-process tests passed again. `actionlint` was not installed locally; the existing CI
-job still runs it, followed by the recovery suite. Full `just check` was not run.
+Initial run: 25 tests passed (6.662 seconds); Ruff, repository lint, Zizmor and
+whitespace checks passed. After adding explicit private-log permissions, the affected
+six process tests passed again. Final local run on the revised PR head: 36 tests
+passed (11.770 seconds). `actionlint` was not installed locally; the existing CI job
+still runs it, followed by the recovery suite. Full `just check` was not run.
 
 A real, unmodified `codex exec --json --sandbox workspace-write` smoke request ran
 through the guardian in an empty temporary Git repository: exit 0,
