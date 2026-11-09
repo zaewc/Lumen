@@ -55,3 +55,29 @@ Publish each logical unit in order only after authorization, updating the next
 branch onto merged `develop` before its PR. Required CI for these changes has
 not run; nothing was merged. Same-machine/POSIX, process-observation and missing
 durable-file-backup limitations remain as documented in the operations guide.
+
+## Pre-merge review follow-up — 2026-11-09
+
+PR #869's original head reverted lossless diff decoding, causing the one failure
+among its 26 recovery tests. Local reproduction confirmed the byte mismatch and
+also confirmed that a second plain resume could bypass `needs_inspection`, a
+large prompt could fail with `E2BIG`, and missing exact PR discovery could retain
+the wrong saved CI target. The follow-up restores lossless decoding, keeps the
+inspection gate pending until acknowledgment, compacts Git summaries and delivers
+prompts through stdin, and validates expected PR identity before/after CI proof.
+
+Regression fixtures cover repeated resume/check/publication refusal, original
+byte preservation, multi-megabyte stdin input, retargeted PRs and an identity
+change during evidence collection. The supervisor-loss test now independently
+probes its child PID after guardian cleanup. These are local validation results;
+the revised PR head must obtain fresh required GitHub checks before merging.
+Read-only Windows CI logs also showed a quoted `git.exe` path; checkout parsing
+now recognizes that form instead of incorrectly treating the job as metadata-only.
+A later review also reproduced stdin encoding failure for surrogate-escaped
+filenames. Such characters are now displayed with backslash escapes, while the
+private command input record preserves the original string. Its process fixture
+checks both successful delivery and checkpoint preservation.
+Final review fixtures also cover case-insensitive repository identity in Actions
+URLs and distinguish storage quota errors from account usage limits. Process
+tests poll the lock-release deadline after durable results and allow more startup
+time for observing a separately sessioned child; termination assertions remain.

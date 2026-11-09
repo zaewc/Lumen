@@ -46,8 +46,16 @@ class GitHub:
     def job_log(self, job_id):
         return job_log(self, job_id)
 
-    def ci(self, number):
+    def ci(self, number, expected_branch=None, expected_base="develop"):
         pr = self.api(f"pulls/{number}")
+        def expected_identity(candidate):
+            repository = candidate["head"].get("repo")
+            return (candidate["state"] == "open" and candidate["base"]["ref"] == expected_base
+                    and (expected_branch is None or candidate["head"]["ref"] == expected_branch)
+                    and repository is not None
+                    and repository["full_name"].lower() == self.repository.lower())
+        if not expected_identity(pr):
+            return {"verified": False, "head_sha": pr["head"]["sha"], "reason": "PR identity changed"}
         head, base, merge = pr["head"]["sha"], pr["base"]["sha"], pr["merge_commit_sha"]
         required = self.gh("pr", "checks", str(number), "--repo", self.repository,
                            "--required", "--json", "name,bucket,link,state", allowed=(0, 1, 8))
@@ -78,7 +86,7 @@ class GitHub:
         current = self.api(f"pulls/{number}")
         gate = self.gh("pr", "view", str(number), "--repo", self.repository,
                        "--json", "headRefOid,baseRefOid,mergeStateStatus")
-        stable = (current["head"]["sha"], current["base"]["sha"], current["merge_commit_sha"]) == (head, base, merge)
+        stable = expected_identity(current) and (current["head"]["sha"], current["base"]["sha"], current["merge_commit_sha"]) == (head, base, merge)
         verified = bool(required) and len(evidence) == len(required) and stable
         # GitHub's gate also accounts for expected check-app identities/rulesets.
         verified = verified and gate == dict(headRefOid=head, baseRefOid=base, mergeStateStatus="CLEAN")

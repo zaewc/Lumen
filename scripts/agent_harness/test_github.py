@@ -38,6 +38,33 @@ class FakeGitHub(GitHub):
 
 
 class GitHubTests(Repository):
+    def test_ci_rejects_retargeted_or_replaced_pr_identity(self):
+        for field, value in (("base", "main"), ("head", "feat/other"), ("repository", "fork/repo")):
+            gh = FakeGitHub()
+            if field == "repository":
+                gh.pr["head"]["repo"]["full_name"] = value
+            else:
+                gh.pr[field]["ref"] = value
+            with self.subTest(field=field):
+                result = gh.ci(3, "feat/task", "develop")
+                self.assertFalse(result["verified"])
+                self.assertEqual(result["reason"], "PR identity changed")
+
+    def test_ci_rechecks_pr_identity_after_collecting_evidence(self):
+        gh = FakeGitHub()
+        original_api = gh.api
+        reads = 0
+        def api(path):
+            nonlocal reads
+            result = original_api(path)
+            if path.startswith("pulls/"):
+                reads += 1
+                if reads == 2:
+                    result["base"]["ref"] = "main"
+            return result
+        with patch.object(gh, "api", side_effect=api):
+            self.assertFalse(gh.ci(3, "feat/task", "develop")["verified"])
+
     def test_current_required_checks_include_head_and_actual_merge_target(self):
         gh = FakeGitHub()
         result = gh.ci(3)

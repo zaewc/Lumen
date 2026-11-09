@@ -8,6 +8,7 @@ import select
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 
 from state import atomic, read
@@ -76,10 +77,13 @@ def guard(spec_path, control):
     known = {}
     result = {"started_at": started, "guardian_pid": os.getpid()}
     try:
-        with private_output(spec["stdout"]) as output, private_output(spec["stderr"]) as errors:
+        with tempfile.TemporaryFile() as incoming, private_output(spec["stdout"]) as output, private_output(spec["stderr"]) as errors:
+            if spec.get("input") is not None:
+                incoming.write(spec["input"].encode("utf-8", "backslashreplace"))
+                incoming.seek(0)
             env = dict(os.environ, CARGO_TARGET_DIR=spec["target"])
             process = subprocess.Popen(spec["argv"], cwd=spec["cwd"],
-                                       stdin=subprocess.DEVNULL, stdout=output,
+                                       stdin=incoming if spec.get("input") is not None else subprocess.DEVNULL, stdout=output,
                                        stderr=errors, env=env, start_new_session=True)
             result["pgid"] = process.pid
             atomic(Path(spec_path).with_suffix(".pid.json"), result)
@@ -110,12 +114,12 @@ def guard(spec_path, control):
     atomic(Path(spec_path).with_suffix(".result.json"), result)
 
 
-def launch(directory, name, argv, worktree, target, timeout, lock_fd):
+def launch(directory, name, argv, worktree, target, timeout, lock_fd, input_text=None):
     """The caller checkpoints this spec path BEFORE launch (also for checks)."""
     directory = Path(directory)
     path = directory / (name + ".json")
     atomic(path, {"argv": argv, "cwd": str(worktree), "target": str(target),
-                  "timeout": timeout, "stdout": str(directory / (name + ".jsonl")),
+                  "timeout": timeout, "input": input_text, "stdout": str(directory / (name + ".jsonl")),
                   "stderr": str(directory / (name + ".stderr"))})
     control, writer = os.pipe()
     try:
@@ -172,7 +176,7 @@ def policy(run, event, fingerprint, previous, attempt, maximum=4):
     """Only error envelopes drive retry classification, never agent prose."""
     text = json.dumps(event["errors"]).lower()
     reason = run["reason"]
-    if "usage_limit" in text or "usage limit" in text or "quota" in text:
+    if "usage_limit" in text or "usage limit" in text or "insufficient_quota" in text:
         reason = "usage_limit"
     elif "context_length_exceeded" in text or "context window" in text:
         reason = "context_exhausted"

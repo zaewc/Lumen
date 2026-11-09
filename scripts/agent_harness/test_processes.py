@@ -71,8 +71,18 @@ with lock(sys.argv[2]) as fd:
             time.sleep(0.05)
         self.assertTrue(read(result)["stopped"])
         self.assertEqual(read(result)["reason"], "supervisor_lost")
-        with lock(self.root):
-            pass
+        child = int((self.root / "ready").read_text())
+        remaining = process_table().get(child)
+        self.assertTrue(remaining is None or remaining["state"].startswith("Z"))
+        unlock_deadline = time.monotonic() + 5
+        while True:
+            try:
+                with lock(self.root):
+                    break
+            except RuntimeError:
+                if time.monotonic() >= unlock_deadline:
+                    raise
+                time.sleep(0.02)
 
     def test_timeout_and_usage_and_repeated_failure(self):
         directory = self.root / ".git" / "runs"
@@ -117,7 +127,7 @@ Path('escaped-child').write_text(str(child.pid))
 time.sleep(60)
 """
         with lock(self.root) as fd:
-            result = launch(directory, "escaped", [sys.executable, "-c", source], self.root, directory, 0.5, fd)
+            result = launch(directory, "escaped", [sys.executable, "-c", source], self.root, directory, 3, fd)
         child = int((self.root / "escaped-child").read_text())
         self.assertTrue(result["stopped"])
         self.assertIn(str(child), result["observed_processes"])
@@ -133,3 +143,35 @@ time.sleep(60)
         run = {"reason": "exit", "code": 1, "stopped": True}
         self.assertEqual(policy(run, event, "fp", {}, 1)["status"], "waiting_usage")
         self.assertIsNone(policy(run, event, "fp", {}, 1)["retry_at"])
+
+    def test_large_prompt_is_delivered_over_stdin_without_large_argv(self):
+        directory = self.root / ".git" / "runs"
+        directory.mkdir()
+        prompt = "변경 파일\n" * 160000
+        with lock(self.root) as fd:
+            result = launch(directory, "stdin", [sys.executable, "-c",
+                            "import sys; print(len(sys.stdin.buffer.read()))"],
+                            self.root, directory, 10, fd, input_text=prompt)
+        self.assertEqual(result["code"], 0)
+        self.assertTrue(result["stopped"])
+        self.assertEqual(int((directory / "stdin.jsonl").read_text()), len(prompt.encode()))
+
+    def test_stdin_escapes_surrogate_filenames_as_valid_utf8(self):
+        directory = self.root / ".git" / "runs"
+        directory.mkdir()
+        prompt = "untracked: name\udcff.txt\n"
+        with lock(self.root) as fd:
+            result = launch(directory, "filename", [sys.executable, "-c",
+                            "import sys; sys.stdout.write(sys.stdin.read())"],
+                            self.root, directory, 10, fd, input_text=prompt)
+        self.assertEqual(result["code"], 0)
+        self.assertTrue(result["stopped"])
+        self.assertEqual((directory / "filename.jsonl").read_text(), "untracked: name\\udcff.txt\n")
+        self.assertEqual(read(directory / "filename.json")["input"], prompt)
+
+    def test_storage_quota_does_not_trigger_account_usage_wait(self):
+        run = {"reason": "exit", "code": 1, "stopped": True}
+        event = {"errors": [{"type": "error", "message": "disk quota exceeded"}], "completed": False}
+        self.assertEqual(policy(run, event, "fp", {}, 1)["status"], "retry")
+        event["errors"] = [{"code": "insufficient_quota"}]
+        self.assertEqual(policy(run, event, "fp", {}, 1)["status"], "waiting_usage")

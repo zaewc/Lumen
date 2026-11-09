@@ -46,6 +46,12 @@ same command again after the guardian releases the worktree lock. A new Codex
 session receives the original request/conditions, actual change summary, last
 check and next step. A context-exhausted session's transcript/handoff is omitted.
 For other endings, the last handoff is labeled unverified reference material.
+Each Git summary is limited to 8,000 characters in that prompt; full summaries
+remain in the checkpoint. Prompts travel through private stdin with `codex exec
+... -`, so a large original request cannot exceed an OS argv-size limit. Command
+specs retain the input privately; no shell expansion is involved.
+Surrogate-escaped non-UTF-8 filenames are displayed as escapes in stdin; the
+checkpoint retains the original strings and valid UTF-8 prompt text is unchanged.
 
 Checks are trusted, operator-supplied argv (repeat `--check` for multiple checks).
 There is no shell expansion. Keep commands free of credentials. Commit manually,
@@ -87,7 +93,10 @@ must also respect the worktree's single-writer rule.
 Every resume queries real Git, the exact GitHub PR and remote branch SHA. A newer
 worktree is inspected from its actual patches/status, not an agent's description.
 Unexpected external changes stop at `needs_inspection`; read `diff.json` and Git
-before acknowledging them with `--accept-changes`. An unfinished merge/rebase,
+before acknowledging them with `--accept-changes`.
+Repeated `resume`, `check` or `publish` calls keep this gate closed until explicit
+acknowledgment, even when the last observed fingerprint has already been saved.
+An unfinished merge/rebase,
 unmerged paths, changed branch or lost base ancestry stops at `blocked_git` and
 preserves the files. Finish the Git operation yourself before resuming.
 
@@ -98,6 +107,7 @@ preserves the files. Finish the Git operation yourself before resuming.
 | `waiting_usage` | Wait until structured `retry_at`/`resets_at` or `retry_after`; absent a timestamp, remain waiting without polling the agent |
 | `stopped_repeated_failure` | Same failure at the same Git fingerprint twice, or attempt limit; inspect and start a newly scoped task |
 | `blocked_process` | Worker termination not proven, guardian failure or missing result; no new writer is launched |
+| `blocked_pr` | Saved PR no longer matches expected repository, branch and base; inspect its identity before continuing |
 | `checks_failed_or_changed` | Inspect the command log and changed files, fix, then rerun `check`; do not publish |
 | `local_validated` | Agent exit and required local checks recorded; task/remote validation is still separate |
 | `waiting_ci` / `verified` | Current required GitHub checks pending/unproven, or verified for the recorded head and test target |
@@ -147,7 +157,9 @@ SHA. Missing logs, stale checkouts and unsupported event types fail closed; curr
 `pull_request` and `push` jobs are supported. A recent `gh` with
 `api --allow-escape-sequences` is needed to read colour-containing job logs.
 The supervisor records head, status and actual target SHAs, rereads PR SHAs,
-and requires GitHub's `CLEAN` merge gate
+and rechecks the expected repository/head/base before and after collecting proof.
+A disappeared exact match never falls back to a saved PR number. Verification
+requires GitHub's `CLEAN` merge gate
 (also accounting for required app identity/rulesets). Empty/unknown requirements,
 incomplete checks or races never verify. This is conservative: unrelated review or
 merge-gate blockers may also keep the task waiting. Old CI is invalidated before

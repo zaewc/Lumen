@@ -1,5 +1,5 @@
 import sys
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from state import atomic, git, lock, read, snapshot
 from supervisor import Supervisor
@@ -67,6 +67,50 @@ class SupervisorTests(Repository):
             self.assertEqual(supervisor.state["snapshot"], snapshot(self.root))
             self.assertIn("new", supervisor.prompt())
 
+    def test_inspection_gate_persists_until_explicit_acknowledgment(self):
+        (self.root / "tracked").write_text("external change")
+        with lock(self.root) as fd, patch("supervisor.remote_head", return_value=None):
+            for operation in ("resume", "resume", "check", "publish"):
+                supervisor = Supervisor(self.path, OfflineGitHub(), fd)
+                with patch.object(supervisor, "execute") as execute, patch.object(supervisor, "checks") as checks:
+                    with self.assertRaisesRegex(RuntimeError, "unexpected Git changes"):
+                        if operation == "resume":
+                            supervisor.step()
+                        else:
+                            supervisor.reconcile()
+                            supervisor.checks()
+                    execute.assert_not_called()
+                    checks.assert_not_called()
+            supervisor = Supervisor(self.path, OfflineGitHub(), fd)
+            supervisor.reconcile(accept_changes=True)
+            self.assertNotIn("interrupted_status", supervisor.state)
+            self.assertEqual(supervisor.state["status"], "ready")
+
+    def test_missing_exact_pr_discovery_never_reuses_saved_ci_target(self):
+        self.initial["pr"] = {"number": 3, "head_sha": self.head}
+        atomic(self.path, self.initial)
+        github = OfflineGitHub()
+        github.ci = Mock(return_value={"head_sha": self.head, "verified": True})
+        with lock(self.root) as fd, patch("supervisor.remote_head", return_value=self.head):
+            supervisor = Supervisor(self.path, github, fd)
+            with self.assertRaisesRegex(RuntimeError, "expected repository/head/base"):
+                supervisor.step()
+        github.ci.assert_not_called()
+        self.assertEqual(read(self.path)["status"], "blocked_pr")
+
+    def test_agent_prompt_uses_stdin_and_compact_git_summaries(self):
+        with lock(self.root) as fd:
+            supervisor = Supervisor(self.path, OfflineGitHub(), fd)
+            supervisor.state.update(actual_changes="C" * 500000, change_summary="S" * 500000)
+            with patch.object(supervisor, "reconcile"), patch.object(supervisor, "execute") as execute:
+                supervisor.step()
+            argv = execute.call_args.args[1]
+            prompt = execute.call_args.kwargs["input_text"]
+            self.assertEqual(argv[-1], "-")
+            self.assertLess(len(prompt.encode()), 50000)
+            self.assertIn(supervisor.state["request"], prompt)
+            self.assertEqual(len(supervisor.state["actual_changes"]), 500000)
+
     def test_zero_exit_does_not_complete_task_and_usage_wait_runs_no_agent(self):
         state = self.initial
         state.update(status="waiting_usage", policy={"status": "waiting_usage", "retry_at": None})
@@ -90,7 +134,7 @@ class SupervisorTests(Repository):
             head = self.head
             def discover(inner, branch, base):
                 return {"number": 3, "state": "open", "head": {"sha": inner.head}}
-            def ci(inner, number):
+            def ci(inner, number, expected_branch=None, expected_base="develop"):
                 return {"head_sha": inner.head, "target_sha": "merge", "verified": True}
         gh = Published()
         with lock(self.root) as fd, patch("supervisor.remote_head", return_value=self.head):

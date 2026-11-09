@@ -10,7 +10,7 @@ def checkout_shas(log):
     pending = False
     for line in log.splitlines():
         line = re.sub(r"\x1b\[[0-9;]*m", "", line)
-        if "[command]" in line and "git log -1 --format=%H" in line:
+        if "[command]" in line and re.search(r'\bgit(?:\.exe)?["\x27]?\s+log\s+-1\s+--format=%H(?:\s|$)', line):
             pending = True
         elif pending:
             match = re.search(r"\s([0-9a-f]{40,64})\s*$", line)
@@ -23,7 +23,7 @@ def checkout_shas(log):
 def actions_evidence(github, check, pr, status_sha):
     prefix = f"https://github.com/{github.repository}/actions/runs/"
     link = check.get("link") or ""
-    if not link.startswith(prefix):
+    if not link.lower().startswith(prefix.lower()):
         return {"target_sha": status_sha, "source": "commit-status"}
     match = re.fullmatch(r"(\d+)(?:/attempts/\d+)?/job/(\d+)", link[len(prefix):])
     if not match:

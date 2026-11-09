@@ -54,14 +54,18 @@ class Supervisor:
         if changed:
             state.setdefault("recoveries", []).append({"before": state["snapshot"], "after": current,
                                                        "observed_at": time.time()})
-            if not state.get("active") and not accept_changes:
-                state["interrupted_status"] = state.get("interrupted_status", state["status"])
-                self.stop("needs_inspection", "unexpected Git changes; inspect diff.json, then --accept-changes")
+        pending_inspection = "interrupted_status" in state or state["status"] == "needs_inspection"
+        if (changed or pending_inspection) and not state.get("active") and not accept_changes:
+            state["interrupted_status"] = state.get("interrupted_status", state["status"])
+            self.stop("needs_inspection", "unexpected Git changes; inspect diff.json, then --accept-changes")
+        if changed:
             state["next_step"] = "Inspect actual_changes and diff.json; continue the original request from the real worktree."
         if accept_changes and state.get("interrupted_status"):
             state["status"] = state.pop("interrupted_status")
         if state.get("active"):
             self.finish()
+        if state.get("pr") and not pr:
+            self.stop("blocked_pr", "saved PR no longer matches expected repository/head/base")
         if pr:
             state["pr"] = {"number": pr["number"], "head_sha": pr["head"]["sha"], "state": pr["state"]}
             if pr["state"] != "open":
@@ -69,7 +73,7 @@ class Supervisor:
         state.pop("reason", None)
         self.save()
 
-    def execute(self, kind, argv, timeout):
+    def execute(self, kind, argv, timeout, input_text=None):
         state = self.state
         sequence = state.get("sequence", 0) + 1
         state["sequence"] = sequence
@@ -80,7 +84,7 @@ class Supervisor:
         state["status"] = "running" if kind == "agent" else "checking"
         self.save()  # Pending intent survives even a crash in the spawn window.
         launch(self.directory, name, argv, self.worktree,
-               Path(self.worktree) / "target" / "agent-harness", timeout, self.lock_fd)
+               Path(self.worktree) / "target" / "agent-harness", timeout, self.lock_fd, input_text=input_text)
         return self.finish()
 
     def finish(self):
@@ -145,9 +149,11 @@ class Supervisor:
         return ("Read current AGENTS.md and relevant nested instructions. Preserve all existing changes. "
                 "Do not push, create a PR, merge, release, or bypass checks. Work only in this worktree.\n"
                 "Original request and completion conditions:\n" + state["request"] + "\n" + state["conditions"]
-                + "\nActual Git changes:\n" + state.get("change_summary", "") + "\n" + state.get("actual_changes", "")
+                + "\nActual Git changes (up to 8000 characters each; full summaries in state.json):\n"
+                + state.get("change_summary", "")[-8000:] + "\n" + state.get("actual_changes", "")[-8000:]
                 + "\nRead the actual local diff before editing; the supervisor inspected it.\n"
-                + "Last check/run evidence:\n" + str([{"argv": r["argv"][:1], "result": r["result"],
+                + "Last check/run evidence:\n" + str([{"argv": r["argv"], "result": {
+                    key: r["result"].get(key) for key in ("code", "reason", "signal", "elapsed")},
                                                        "fingerprint": r["after"]["fingerprint"]} for r in last])
                 + "\nNext step:\n" + state["next_step"] + handoff)
 
@@ -159,7 +165,7 @@ class Supervisor:
                 return
             state.update(ci=None, status="waiting_ci")
             self.save()
-            state["ci"] = self.github.ci(state["pr"]["number"])
+            state["ci"] = self.github.ci(state["pr"]["number"], state["branch"], state["base"])
             same = state["ci"]["head_sha"] == snapshot(self.worktree)["head"]
             clean = not git(self.worktree, "status", "--porcelain")
             state["status"] = "verified" if state["ci"]["verified"] and same and clean else "waiting_ci"
@@ -180,6 +186,6 @@ class Supervisor:
             self.stop("stopped_attempt_limit", "maximum agent attempts reached")
         state["attempts"] += 1
         self.execute("agent", [*state["agent"], "exec", "--json", "--sandbox", "workspace-write",
-                               "--cd", self.worktree, self.prompt()], state["agent_timeout"])
+                               "--cd", self.worktree, "-"], state["agent_timeout"], input_text=self.prompt())
         if state["status"] == "agent_exited":
             self.checks()

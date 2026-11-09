@@ -8,6 +8,10 @@ class ActionsTests(unittest.TestCase):
     base = "b" * 40
     merge = "c" * 40
 
+    def test_windows_checkout_executable_path_is_recognized(self):
+        log = r'2026-11-09T00:00:00Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H'
+        self.assertEqual(checkout_shas(log + "\n2026-11-09T00:00:01Z " + self.merge), [self.merge])
+
     def fixture(self):
         head, base, merge = self.head, self.base, self.merge
         class GitHub:
@@ -29,6 +33,13 @@ class ActionsTests(unittest.TestCase):
         pr["head"]["sha"] = "d" * 40
         with self.assertRaisesRegex(RuntimeError, "different PR head"):
             actions_evidence(github, check, pr, self.head)
+
+    def test_repository_case_does_not_bypass_actions_evidence(self):
+        github, pr, check = self.fixture()
+        github.repository = "OWNER/Repo"
+        evidence = actions_evidence(github, check, pr, self.head)
+        self.assertEqual(evidence["target_sha"], self.merge)
+        self.assertEqual(evidence["source"], "checkout-log")
 
     def test_stale_checkout_or_base_is_rejected(self):
         github, pr, check = self.fixture()
