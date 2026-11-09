@@ -15,6 +15,7 @@ import {
   Segmented,
 } from "@/shared/ui";
 import { AiReviewSetting } from "./AiReviewSetting";
+import { HelperSetting } from "./HelperSetting";
 
 /** Each language is named in its own words. */
 function LanguageSetting() {
@@ -112,6 +113,7 @@ function PermissionsGroup() {
             )
           }
         />
+        <HelperSetting />
       </Group>
     </div>
   );

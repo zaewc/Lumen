@@ -674,6 +674,27 @@ export const zhCN: Messages = {
       accessIntro: "电脑可能会禁止 Lumen 访问某些文件夹。Lumen 仍会读取所有获准访问的文件夹。",
       unread:
         "Lumen 会将无法读取的文件夹标记为未读取，而不会视为空文件夹，并且不会建议处理其中的内容。",
+      helper: {
+        title: "管理员权限助手",
+        intro:
+          "用于清理需要管理员权限的项目，例如其他账户安装的应用。Lumen 的安全规则不变，移走的项目都可以从隔离区恢复。",
+        notYet: "目前它只检查连接，不会移动任何东西。",
+        off: "已关闭。",
+        waiting: "请在“系统设置 › 通用 › 登录项”中允许 Lumen。这需要管理员密码。",
+        on: (version: string) => `已开启。助手有响应（版本 ${version}）。`,
+        enable: "开启",
+        disable: "关闭",
+        openLoginItems: "打开登录项",
+        changeFailed: "无法更改助手设置。",
+        problems: {
+          outdated: "已开启，但助手来自另一个版本的 Lumen。请关闭后重新开启。",
+          unsigned: "此 Lumen 未使用 Developer ID 签名，无法使用助手。",
+          no_answer: "已开启，但助手没有响应。请关闭后重新开启。",
+          not_found: "找不到 Lumen 的助手。请重新安装 Lumen。",
+          mismatch: "助手的签名与此 Lumen 不符。请关闭后重新开启。",
+          failed: "无法检查助手。",
+        },
+      },
     },
     about: {
       title: "关于",

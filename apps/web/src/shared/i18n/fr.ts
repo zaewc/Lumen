@@ -706,6 +706,31 @@ export const fr: Messages = {
         "Votre ordinateur peut bloquer l'accès de Lumen à certains dossiers. Lumen lit tout de même chaque dossier autorisé.",
       unread:
         "Lumen signale un dossier illisible comme non lu, jamais comme vide, et n'y propose aucun élément.",
+      helper: {
+        title: "Assistant administrateur",
+        intro:
+          "Sert à nettoyer ce qui demande les droits d’administrateur, comme les apps installées par un autre compte. Les règles de sécurité de Lumen restent les mêmes, et tout ce qui est déplacé peut être restauré depuis la Quarantaine.",
+        notYet: "Pour l’instant, il vérifie seulement la connexion ; il ne déplace rien.",
+        off: "Désactivé.",
+        waiting:
+          "Autorisez Lumen dans Réglages Système › Général › Ouverture. Un mot de passe administrateur est demandé.",
+        on: (version: string) => `Activé. L’assistant répond (version ${version}).`,
+        enable: "Activer",
+        disable: "Désactiver",
+        openLoginItems: "Ouvrir Ouverture",
+        changeFailed: "Lumen n’a pas pu modifier l’assistant.",
+        problems: {
+          outdated:
+            "Activé, mais l’assistant vient d’une autre version de Lumen. Désactivez-le puis réactivez-le.",
+          unsigned:
+            "Cette copie de Lumen n’est pas signée avec un Developer ID ; elle ne peut pas utiliser l’assistant.",
+          no_answer: "Activé, mais l’assistant ne répond pas. Désactivez-le puis réactivez-le.",
+          not_found: "Lumen ne trouve pas son assistant. Réinstallez Lumen.",
+          mismatch:
+            "La signature de l’assistant ne correspond pas à ce Lumen. Désactivez-le puis réactivez-le.",
+          failed: "Lumen n’a pas pu vérifier l’assistant.",
+        },
+      },
     },
     about: {
       title: "À propos",

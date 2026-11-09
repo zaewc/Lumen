@@ -726,6 +726,31 @@ export const es: Messages = {
         "Es posible que el ordenador impida a Lumen acceder a algunas carpetas. Lumen sigue leyendo todas las carpetas permitidas.",
       unread:
         "Lumen muestra como ilegible cualquier carpeta que no puede leer, nunca como vacía, y no propone nada de su contenido.",
+      helper: {
+        title: "Asistente de administrador",
+        intro:
+          "Sirve para limpiar lo que necesita permisos de administrador, como apps que instaló otra cuenta. Las reglas de seguridad de Lumen no cambian y todo lo que se mueve se puede restaurar desde la Cuarentena.",
+        notYet: "Por ahora solo comprueba la conexión; no mueve nada.",
+        off: "Desactivado.",
+        waiting:
+          "Permite Lumen en Ajustes del Sistema › General › Ítems de inicio. Te pedirá una contraseña de administrador.",
+        on: (version: string) => `Activado. El asistente responde (versión ${version}).`,
+        enable: "Activar",
+        disable: "Desactivar",
+        openLoginItems: "Abrir Ítems de inicio",
+        changeFailed: "Lumen no pudo cambiar el asistente.",
+        problems: {
+          outdated:
+            "Activado, pero el asistente es de otra versión de Lumen. Desactívalo y vuelve a activarlo.",
+          unsigned:
+            "Esta copia de Lumen no está firmada con un Developer ID, así que no puede usar el asistente.",
+          no_answer: "Activado, pero el asistente no responde. Desactívalo y vuelve a activarlo.",
+          not_found: "Lumen no encontró su asistente. Vuelve a instalar Lumen.",
+          mismatch:
+            "La firma del asistente no coincide con este Lumen. Desactívalo y vuelve a activarlo.",
+          failed: "Lumen no pudo comprobar el asistente.",
+        },
+      },
     },
     about: {
       title: "Acerca de",

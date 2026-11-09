@@ -710,6 +710,30 @@ export const en = {
         "Your computer may block Lumen from some folders. Lumen still reads every folder it is allowed to.",
       unread:
         "Lumen shows a folder it cannot read as unread, never as empty, and proposes nothing in it.",
+      helper: {
+        title: "Administrator helper",
+        intro:
+          "For cleaning up what needs administrator rights, such as apps another account installed. Lumen's safety rules stay the same, and anything moved can be restored from Quarantine.",
+        notYet: "For now it only checks the connection; it moves nothing.",
+        off: "Off.",
+        waiting:
+          "Allow Lumen in System Settings › General › Login Items. It asks for an administrator password.",
+        on: (version: string) => `On. The helper answers (version ${version}).`,
+        enable: "Turn on",
+        disable: "Turn off",
+        openLoginItems: "Open Login Items",
+        changeFailed: "Lumen could not change the helper.",
+        problems: {
+          outdated:
+            "On, but the helper is from another version of Lumen. Turn it off and on again.",
+          unsigned:
+            "This copy of Lumen is not signed with a Developer ID, so it cannot use the helper.",
+          no_answer: "On, but the helper does not answer. Turn it off and on again.",
+          not_found: "Lumen could not find its helper. Reinstall Lumen.",
+          mismatch: "The helper's signature does not match this Lumen. Turn it off and on again.",
+          failed: "Lumen could not check the helper.",
+        },
+      },
     },
     about: {
       title: "About",
