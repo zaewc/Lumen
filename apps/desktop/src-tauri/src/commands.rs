@@ -689,14 +689,14 @@ fn scanned_roots(db: &Path, scan: ScanId) -> Result<Vec<PathBuf>, CommandError> 
         .scan_roots(scan)
         .map_err(CommandError::new)?
         .into_iter()
-        .map(native_path)
+        .map(|root| native_path(&root))
         .collect()
 }
 
 /// Converts a stored path to the host's native representation without
 /// lossy text conversion.
 #[cfg(unix)]
-fn native_path(root: lumen_domain::RawPath) -> Result<PathBuf, CommandError> {
+fn native_path(root: &lumen_domain::RawPath) -> Result<PathBuf, CommandError> {
     use std::os::unix::ffi::OsStrExt as _;
 
     if root.flavor() != PathFlavor::Unix {
@@ -708,7 +708,7 @@ fn native_path(root: lumen_domain::RawPath) -> Result<PathBuf, CommandError> {
 /// Converts a stored path to the host's native representation without
 /// lossy text conversion.
 #[cfg(windows)]
-fn native_path(root: lumen_domain::RawPath) -> Result<PathBuf, CommandError> {
+fn native_path(root: &lumen_domain::RawPath) -> Result<PathBuf, CommandError> {
     use std::os::windows::ffi::OsStringExt as _;
 
     let wide = root
@@ -719,7 +719,7 @@ fn native_path(root: lumen_domain::RawPath) -> Result<PathBuf, CommandError> {
 }
 
 #[cfg(not(any(unix, windows)))]
-fn native_path(_: lumen_domain::RawPath) -> Result<PathBuf, CommandError> {
+fn native_path(_: &lumen_domain::RawPath) -> Result<PathBuf, CommandError> {
     Err(CommandError::new(
         "native paths are unsupported on this platform",
     ))
