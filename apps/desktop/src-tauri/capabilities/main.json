@@ -32,6 +32,7 @@
     "allow-helper-state",
     "allow-helper-enable",
     "allow-helper-disable",
-    "allow-helper-open-login-items"
+    "allow-helper-open-login-items",
+    "allow-app-icon"
   ]
 }
