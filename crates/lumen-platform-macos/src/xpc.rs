@@ -321,9 +321,13 @@ impl Listener {
         handler: Handler,
     ) -> Result<Self, XpcError> {
         require(&connection, requirement)?;
+        // Set again on each accepted peer: the header does not say whether a
+        // peer inherits the listener's requirement (the newer listener API
+        // says peers do not).
+        let requirement = requirement.map(str::to_owned);
         let accept = RcBlock::new(move |event: Raw| {
             if kind(event) == Kind::Connection {
-                serve(event, Arc::clone(&handler));
+                serve(event, requirement.as_deref(), Arc::clone(&handler));
             }
         });
         // SAFETY: invariant: the handler is set before the listener is resumed;
@@ -355,10 +359,14 @@ impl Drop for Listener {
 }
 
 /// Accepts one peer connection and answers its requests.
-fn serve(peer: Raw, handler: Handler) {
+fn serve(peer: Raw, requirement: Option<&str>, handler: Handler) {
     let Some(peer) = Object::retain(peer) else {
         return;
     };
+    // A peer whose requirement cannot be set is cancelled unanswered.
+    if require(&peer, requirement).is_err() {
+        return;
+    }
     let connection = Arc::new(peer);
     let reply_to = Arc::clone(&connection);
     let messages = RcBlock::new(move |message: Raw| {
@@ -559,6 +567,16 @@ mod tests {
         let uid = unsafe { libc::geteuid() };
         assert_eq!(client.request("status").unwrap(), format!("{uid}:status"));
         assert_eq!(client.request("again").unwrap(), format!("{uid}:again"));
+    }
+
+    #[test]
+    fn a_peer_that_satisfies_the_listener_s_requirement_is_answered() {
+        // The test binary is ad hoc signed, so it is not anchored at Apple;
+        // the requirement is set on the listener and on the accepted peer.
+        let listener = Listener::anonymous(Some("! anchor apple"), echo()).unwrap();
+        let client = Client::endpoint(&listener.endpoint(), None).unwrap();
+        let answer = within(move || client.request("status"));
+        assert!(matches!(answer, Some(Ok(ref body)) if body.ends_with(":status")));
     }
 
     #[test]
