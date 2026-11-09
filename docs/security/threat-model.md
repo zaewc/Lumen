@@ -269,6 +269,6 @@ GOAL: a file the user needs is permanently lost because of Lumen
 - IPC peer-rejection tests per transport.
 - An injection canary corpus for Jev, in both directions.
 - Fuzzing of every parser of untrusted data (plist, registry exports, package
-  manifests, `getattrlistbulk` buffers).
+  manifests, `getattrlistbulk` buffers, installer bills of materials).
 - Supply-chain checks as required CI gates
   ([ADR-0026](../decisions/0026-ci-and-supply-chain-security.md)).

@@ -82,9 +82,12 @@ Chosen: **option 2**, read from the managers' own files, with these rules.
    file list records the bundle's `Contents/Info.plist` as a file. Directories alone
    never count, because packages share them (`/Applications`, `/Library/Application
    Support`).
-4. **Receipts: read the bill of materials** with Lumen's own bounded, read-only reader.
-   A structure it does not understand makes that receipt's list unreadable and the
-   source partial, never empty. Only positive matches are used.
+4. **Receipts: read the bill of materials** with Lumen's own bounded, read-only reader
+   (`lumen_platform_macos::bom`). A structure it does not understand fails the whole
+   file, and that package's relations stay unknown (`None`), never empty. Paths are
+   placed under the receipt's `InstallPrefixPath` (empty means the volume's root; a
+   prefix can itself be the bundle, as `Applications/Tailscale.app`). Only positive
+   matches are used.
 5. **Homebrew: read the install receipts**, the same field Homebrew reads back for an
    installed keg (`Keg#runtime_dependencies` reads the tab), and for casks the
    `uninstall_artifacts` and `runtime_dependencies` it records. `brew` is not run.
@@ -123,7 +126,10 @@ Measured on macOS 26.6.2 with Homebrew 7.0.12, 2026-11-09:
   a newline would read as two paths; a crafted name could fake a path.
 - `/var/db/receipts` held 50 third-party receipts and 85 MB of bills of materials;
   Apple's own receipts live under `/Library/Apple/System/Library/Receipts` and are
-  not read.
+  not read. Lumen's reader gave the same path lists as `pkgutil --files` for all 50
+  (byte-exact names, where `pkgutil` re-normalises Unicode) and read all 50 in 80 ms
+  (release build), finding 44 bundles; 12 receipts had an empty
+  `InstallPrefixPath` (the root) and one had its bundle as the prefix.
 - All 216 formula install receipts carried `runtime_dependencies`, each with
   `full_name` and `declared_directly`. Casks installed by Homebrew 5 and later carry
   `.metadata/INSTALL_RECEIPT.json` with `uninstall_artifacts` (`app`, `uninstall`
