@@ -10,7 +10,7 @@
 In scope:
 
 - the desktop app (Tauri host + core);
-- the future agent and privileged helper;
+- the opt-in privileged helper (macOS, ADR-0063) and the future agent;
 - the opt-in browser dashboard;
 - mobile apps;
 - the Jev providers;
@@ -37,7 +37,7 @@ Assumptions:
 | Quarantine store and ledger | Required for rollback; tampering defeats reversibility |
 | Evidence, decisions and Jev traces | Audit trail; integrity needed for explanation and investigation |
 | Metadata about the device (paths, app lists, hashes) | Privacy-sensitive |
-| Privileged helper (future) | Privilege escalation target |
+| Privileged helper (macOS, opt-in; ADR-0063) | Privilege escalation target |
 | Signing keys, release pipeline | Supply-chain compromise of all users |
 | Cloud Jev credentials (if any) | Abuse and cost |
 
@@ -115,13 +115,21 @@ Assumptions:
 | Elevation of privilege | Memory-safety bug in Windows FFI | `unsafe` confined to `win_sys`, each block with a SAFETY comment; CODEOWNERS and the [executor review checklist](executor-review.md) ([ADR-0033](../decisions/0033-windows-executor-mechanics.md)) |
 | Information disclosure | Quarantine store indexed or backed up to the cloud | macOS: sticky Time Machine exclusion of each store; Windows: stores not content-indexed. macOS has no documented programmatic Spotlight exclusion, so stores stay indexed there (owner-only) |
 
-### TB4: Core → privileged helper (future)
+### TB4: Core → privileged helper (macOS, ADR-0063)
+
+`lumen-helper` is a launch daemon the app registers with `SMAppService`, started by
+launchd on demand and exiting after a minute idle. As of roadmap 16.3b it answers
+`status` only: it moves, deletes and opens nothing. The rows below are its controls
+now; each later verb (16.3c–d) adds its own.
 
 | Threat | Example | Controls |
 | --- | --- | --- |
-| Spoofing | Another process connects to the helper | XPC peer code-signing requirement; pipe DACL, `FILE_FLAG_FIRST_PIPE_INSTANCE`, remote clients rejected, client signature check |
-| Elevation of privilege | Confused deputy: helper deletes a root-owned file named by an attacker | Helper accepts only signed plan IDs, re-checks deny-list and identities itself, operates by handle, never derives the user from its own environment ([ADR-0005](../decisions/0005-process-topology-and-privilege.md)) |
-| Tampering | Version skew between app and helper | Versioned handshake; refuse on mismatch |
+| Spoofing (client) | Another program, or another account's process, sends the helper requests | One XPC Mach service in the system domain. The listener and every accepted peer require a Developer ID signature by the helper's own team with Lumen's identifier `dev.lumen.desktop` (`xpc_connection_set_peer_code_signing_requirement`, checked by XPC on every message's audit token, so a reused PID cannot pass); requests failing it are dropped. The team is read from the helper's own valid signature: an unsigned or ad hoc build has none and refuses to listen. Requirement text is built only from ASCII letters, digits, `.` and `-` |
+| Spoofing (helper) | A program poses as the helper to read Lumen's requests or forge answers | The client looks the service up only in the system domain (`XPC_CONNECTION_MACH_SERVICE_PRIVILEGED`), where only launchd jobs registered by an administrator live, and requires the helper's identifier `dev.lumen.desktop.helper` and the same team on every reply |
+| Elevation of privilege | Confused deputy: the request names another user, or a path | The caller's user comes from the connection (`xpc_connection_get_euid`), never from the request or the helper's environment; a field naming a user is ignored. A root caller is refused. Requests are parsed into a closed set of verbs, anything else is refused (`lumen_application::helper::answer`, pure and tested) |
+| Denial of service | Large or endless requests keep a root process busy | Bodies over 64 KiB are refused at the transport; each request gets one reply; the daemon exits when idle and launchd starts it again on demand |
+| Tampering | The helper binary is replaced inside the app bundle, or its identifier changes in an update | The bundle is sealed by the app's Developer ID signature and notarized; launchd ties the registered daemon to its signature's identifier, which is embedded in the helper's Info.plist section and never changes (research 37) |
+| Tampering | Version skew between app and helper | `status` reports the protocol version; a client that sees another one sets the helper up again |
 
 ### TB5: Cloud Jev
 

@@ -2415,6 +2415,7 @@ dependencies = [
  "lumen-graph",
  "lumen-policy",
  "lumen-testkit",
+ "serde",
  "serde_json",
  "thiserror 2.0.21",
 ]
@@ -2526,6 +2527,15 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "lumen-helper"
+version = "0.10.0"
+dependencies = [
+ "libc",
+ "lumen-application",
+ "lumen-platform-macos",
 ]
 
 [[package]]

@@ -21,6 +21,7 @@ pub mod describe;
 pub mod duplicates;
 pub mod finalize;
 pub mod gather;
+pub mod helper;
 pub mod large;
 pub mod measure;
 pub mod observe;

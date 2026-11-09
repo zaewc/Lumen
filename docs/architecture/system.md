@@ -85,6 +85,7 @@ Crates are created only when their first code lands.
  lumen-devkb  lumen-telemetry
         ▲            ▲            ▲             ▲              ▲
       lumen-app  ·  lumen-api  ·  lumen-ffi  ·  apps/desktop (Tauri host)  ·  lumen-cli
+      lumen-helper (macOS launch daemon, ADR-0063)
 ```
 
 Dependency rules (checked by `cargo xtask lint`, part of `just check` and CI):

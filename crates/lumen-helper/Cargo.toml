@@ -1,0 +1,25 @@
+[package]
+name = "lumen-helper"
+description = "Lumen's opt-in privileged helper (ADR-0063): a macOS launch daemon reached over XPC."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "lumen-helper"
+path = "src/main.rs"
+
+[dependencies]
+# The protocol and its decisions, IO-free (ADR-0063 rule 5).
+lumen-application.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# The XPC listener with the peer code-signing requirement (ADR-0063 rule 4).
+lumen-platform-macos.workspace = true
+libc.workspace = true
+
+[lints]
+workspace = true
