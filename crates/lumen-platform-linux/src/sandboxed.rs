@@ -165,6 +165,7 @@ impl InventorySource for FlatpakInventory {
                         // Applications are installed on request; runtimes
                         // come with them and are not listed.
                         explicit: Some(true),
+                        relations: Vec::new(),
                     }),
                     _ => complete = false,
                 }
@@ -268,6 +269,7 @@ impl InventorySource for SnapInventory {
                             // snapd records this in its state, readable by
                             // root only.
                             explicit: None,
+                            relations: Vec::new(),
                         });
                     }
                     _ => complete = false,

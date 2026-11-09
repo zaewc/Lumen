@@ -117,19 +117,28 @@ fn label_matches(label: &str, app: &Application) -> bool {
 
 /// An absolute path as its root and the components below it.
 #[derive(Debug, PartialEq, Eq)]
-struct Components<'a> {
+pub(crate) struct Components<'a> {
     flavor: PathFlavor,
     root: Vec<&'a [u8]>,
     below: Vec<&'a [u8]>,
 }
 
 impl Components<'_> {
-    fn depth(&self) -> usize {
+    pub(crate) fn depth(&self) -> usize {
         self.below.len()
+    }
+
+    /// The same location as `other`, compared component by component.
+    pub(crate) fn is_same(&self, other: &Components<'_>) -> bool {
+        self.depth() == other.depth() && self.is_at_or_inside(other)
     }
 
     /// Strictly below `location`.
     fn is_inside(&self, location: &Components<'_>) -> bool {
+        self.depth() > location.depth() && self.is_at_or_inside(location)
+    }
+
+    fn is_at_or_inside(&self, location: &Components<'_>) -> bool {
         let same = |a: &[u8], b: &[u8]| match self.flavor {
             PathFlavor::Unix => a == b,
             // WTF-8 never puts an ASCII byte inside a longer sequence.
@@ -140,13 +149,13 @@ impl Components<'_> {
         };
         self.flavor == location.flavor
             && all_same(&self.root, &location.root)
-            && self.below.len() > location.below.len()
+            && self.below.len() >= location.below.len()
             && all_same(&self.below[..location.below.len()], &location.below)
     }
 }
 
 /// Splits an absolute path; `None` for a relative path or one with `.` or `..`.
-fn components(path: &RawPath) -> Option<Components<'_>> {
+pub(crate) fn components(path: &RawPath) -> Option<Components<'_>> {
     let bytes = path.as_bytes();
     let (root, rest): (Vec<&[u8]>, &[u8]) = match path.flavor() {
         PathFlavor::Unix => (Vec::new(), bytes.strip_prefix(b"/")?),

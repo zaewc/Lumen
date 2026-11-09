@@ -76,7 +76,8 @@ pub use id::{
     DeviceId, FileId, FileIdentity, IdError, OperationId, PlanId, ScanId, SnapshotId, VolumeId,
 };
 pub use inventory::{
-    AppId, AppIdScheme, Application, CodeSignature, Package, PackageManager, Process, Service,
+    AppId, AppIdScheme, Application, CodeSignature, Package, PackageId, PackageManager,
+    PackageRelation, PackageRelationKind, Process, RelationBasis, RelationMethod, Service,
     ServiceKind, ServiceScope, SignatureCheck, UninstallRecord,
 };
 pub use jev::{

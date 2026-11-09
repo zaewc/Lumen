@@ -634,6 +634,7 @@ mod tests {
             install_root: None,
             required,
             explicit: Some(true),
+            relations: Vec::new(),
         }
     }
 
