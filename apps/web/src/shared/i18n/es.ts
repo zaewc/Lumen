@@ -90,9 +90,8 @@ export const es: Messages = {
     copies: {
       title: "Copias idénticas",
       intro:
-        "Elige carpetas y Lumen compara sus archivos para encontrar los que tienen el mismo contenido. Lumen solo lee archivos de las carpetas que elijas.",
-      choose: "Elegir carpetas para comparar…",
-      chooseAgain: "Comparar otras carpetas…",
+        "Al terminar un análisis, Lumen lee por separado los archivos de las rutas analizadas para encontrar contenido idéntico. Esta comparación solo lee: Lumen no elige ni elimina ninguna copia.",
+      compareAgain: "Comparar de nuevo",
       stop: "Detener",
       stopping: "Deteniendo…",
       stopped: "Comparación detenida. No se muestra nada de esa comparación.",
@@ -103,7 +102,7 @@ export const es: Messages = {
         full: "Comparando completos los archivos que aún coinciden",
       },
       filesRead: (n: string) => `${count(n)} ${n === "1" ? "archivo leído" : "archivos leídos"}`,
-      folders: "Carpetas comparadas",
+      folders: "Rutas del análisis comparadas",
       group: (n: number, size: string) => `${count(n)} copias · ${size} cada una`,
       none: "No hay copias idénticas entre los archivos que Lumen pudo comparar.",
       more: (n: number) =>
@@ -124,8 +123,8 @@ export const es: Messages = {
         "Algunas carpetas no se pudieron leer por completo. Sus archivos no se compararon.",
       unsupported: "Comparar archivos aún no está disponible en este ordenador.",
       tooMany: (limit: string) =>
-        `Estas carpetas tienen más de ${count(limit)} archivos. Elige carpetas más pequeñas.`,
-      failed: "Lumen no pudo comparar estas carpetas.",
+        `El análisis abarca más de ${count(limit)} archivos. Vuelve a analizar un ámbito más pequeño para comparar menos.`,
+      failed: "Lumen no pudo comparar los archivos del análisis.",
       advice:
         "Las copias pueden ser copias de seguridad que quieres conservar. Lumen no elige ni elimina ninguna. Eliminar una copia puede liberar menos espacio que su tamaño.",
     },

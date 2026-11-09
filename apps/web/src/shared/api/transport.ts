@@ -109,12 +109,12 @@ export interface LumenTransport {
    */
   explainSoftware?(): Promise<SoftwareView>;
   /**
-   * Asks the person which folders to compare, in the system's own dialog,
-   * then finds identical copies there (ADR-0057). Takes no path: the host
-   * reads only what the person picks. Only where the host can show the
-   * dialog (the desktop app).
+   * Finds identical copies within the roots of the latest completed scan
+   * (ADR-0065). The host verifies the scan ID and reads its roots from the
+   * index; the UI cannot provide paths.
    */
-  compareFolders?(
+  compareScan?(
+    scan: string,
     onProgress?: (progress: CompareProgressView) => void,
   ): Promise<CompareOutcomeView>;
   /** Stops the running comparison, which then ends as `cancelled`. */

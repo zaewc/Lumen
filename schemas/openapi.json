@@ -318,21 +318,6 @@
         "oneOf": [
           {
             "type": "object",
-            "description": "The person closed the dialog; nothing was read.",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "nothing_chosen"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
             "description": "This platform cannot read contents to compare yet.",
             "required": [
               "kind"
@@ -496,7 +481,7 @@
             "items": {
               "type": "string"
             },
-            "description": "The folders the person chose."
+            "description": "The roots of the completed scan."
           },
           "groups": {
             "type": "array",

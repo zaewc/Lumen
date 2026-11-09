@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "tool_storage",
         "software",
         "explain_software",
-        "compare_folders",
+        "compare_scan",
         "cancel_comparison",
         "reassess",
         "uninstall_preview",

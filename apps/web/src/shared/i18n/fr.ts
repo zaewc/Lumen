@@ -87,9 +87,8 @@ export const fr: Messages = {
     copies: {
       title: "Copies identiques",
       intro:
-        "Choisissez des dossiers : Lumen compare leurs fichiers pour repérer ceux dont le contenu est identique. Lumen ne lit que les fichiers des dossiers choisis.",
-      choose: "Choisir des dossiers à comparer…",
-      chooseAgain: "Comparer d'autres dossiers…",
+        "Une fois l'analyse terminée, Lumen lit séparément les fichiers des dossiers analysés pour repérer les contenus identiques. Cette comparaison est en lecture seule : Lumen ne choisit ni ne supprime aucune copie.",
+      compareAgain: "Comparer à nouveau",
       stop: "Arrêter",
       stopping: "Arrêt en cours…",
       stopped: "Comparaison arrêtée. Aucun résultat de cette comparaison n'est affiché.",
@@ -100,7 +99,7 @@ export const fr: Messages = {
         full: "Comparaison des fichiers entiers encore identiques",
       },
       filesRead: (n) => `${count(n)} fichier${n === "1" ? "" : "s"} lu${n === "1" ? "" : "s"}`,
-      folders: "Dossiers comparés",
+      folders: "Dossiers de l'analyse comparés",
       group: (n, size) => `${count(n)} copies · ${size} chacune`,
       none: "Aucune copie identique parmi les fichiers que Lumen a pu comparer.",
       more: (n) =>
@@ -117,8 +116,8 @@ export const fr: Messages = {
         "Certains dossiers n'ont pas pu être lus entièrement. Leurs fichiers n'ont pas été comparés.",
       unsupported: "La comparaison de fichiers n'est pas encore disponible sur cet ordinateur.",
       tooMany: (limit) =>
-        `Ces dossiers contiennent plus de ${count(limit)} fichiers. Choisissez des dossiers plus petits.`,
-      failed: "Lumen n'a pas pu comparer ces dossiers.",
+        `L'analyse couvre plus de ${count(limit)} fichiers. Relancez une analyse plus ciblée pour en comparer moins.`,
+      failed: "Lumen n'a pas pu comparer les fichiers de l'analyse.",
       advice:
         "Certaines copies peuvent être des sauvegardes à conserver. Lumen ne choisit ni ne supprime aucune copie. La suppression d'une copie peut libérer moins d'espace que sa taille.",
     },

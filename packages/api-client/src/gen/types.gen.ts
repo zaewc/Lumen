@@ -184,9 +184,6 @@ export type ChooserView = "policy" | "person";
  */
 export type CompareOutcomeView =
   | {
-      kind: "nothing_chosen";
-    }
-  | {
       kind: "unsupported";
     }
   | {
@@ -264,7 +261,7 @@ export type DuplicateGroupView = {
  */
 export type DuplicatesView = {
   /**
-   * The folders the person chose.
+   * The roots of the completed scan.
    */
   folders: Array<string>;
   /**

@@ -98,9 +98,8 @@ export const ko = {
     copies: {
       title: "똑같은 파일",
       intro:
-        "폴더를 고르면 그 안의 파일을 비교해서 내용이 같은 파일을 찾아요. Lumen은 고른 폴더의 파일만 읽어요.",
-      choose: "비교할 폴더 고르기…",
-      chooseAgain: "다른 폴더 비교하기…",
+        "검사가 끝나면 별도 작업으로 검사한 경로의 파일을 읽어 내용이 같은 파일을 찾아요. 이 비교는 읽기만 하며, 어느 파일도 고르거나 지우지 않아요.",
+      compareAgain: "다시 비교",
       stop: "멈추기",
       stopping: "멈추는 중…",
       stopped: "비교를 멈췄어요. 멈춘 비교의 결과는 보여 주지 않아요.",
@@ -111,7 +110,7 @@ export const ko = {
         full: "아직 같은 파일을 끝까지 비교하고 있어요",
       },
       filesRead: (n: string) => `파일 ${count(n)}개를 읽었어요`,
-      folders: "비교한 폴더",
+      folders: "검사에서 비교한 경로",
       group: (n: number, size: string) => `똑같은 파일 ${count(n)}개 · 각 ${size}`,
       none: "비교한 파일 중에 똑같은 파일이 없어요.",
       more: (n: number) => `더 작은 묶음 ${count(n)}개는 보여 주지 않았어요.`,
@@ -123,8 +122,8 @@ export const ko = {
       incomplete: "일부 폴더를 끝까지 읽지 못했어요. 그 안의 파일은 비교하지 않았어요.",
       unsupported: "이 컴퓨터에서는 아직 파일을 비교할 수 없어요.",
       tooMany: (limit: string) =>
-        `파일이 ${count(limit)}개보다 많아요. 더 작은 폴더를 골라 주세요.`,
-      failed: "폴더를 비교하지 못했어요.",
+        `이번 검사는 파일이 ${count(limit)}개보다 많아 비교할 수 없어요. 범위를 좁혀 다시 검사해 주세요.`,
+      failed: "검사한 경로의 파일을 비교하지 못했어요.",
       advice:
         "사본은 남겨 두고 싶은 백업일 수 있어요. Lumen은 어느 것도 고르거나 지우지 않아요. 사본을 지워도 그 크기보다 적게 비워질 수 있어요.",
     },

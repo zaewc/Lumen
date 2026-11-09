@@ -98,9 +98,8 @@ export const en = {
     copies: {
       title: "Identical copies",
       intro:
-        "Choose folders, and Lumen compares their files to find ones with the same contents. Lumen reads files only in the folders you choose.",
-      choose: "Choose folders to compare…",
-      chooseAgain: "Compare other folders…",
+        "After a scan finishes, Lumen separately reads files in the scanned folders to find identical contents. This read-only comparison never chooses or removes a copy.",
+      compareAgain: "Compare again",
       stop: "Stop",
       stopping: "Stopping…",
       stopped: "Stopped. Nothing from that comparison is shown.",
@@ -111,7 +110,7 @@ export const en = {
         full: "Comparing whole files that still match",
       },
       filesRead: (n: string) => `${count(n)} ${n === "1" ? "file" : "files"} read`,
-      folders: "Folders compared",
+      folders: "Scan folders compared",
       group: (n: number, size: string) => `${count(n)} copies · ${size} each`,
       none: "No identical copies among the files Lumen could compare.",
       more: (n: number) => `${count(n)} smaller ${n === 1 ? "group is" : "groups are"} not shown.`,
@@ -126,8 +125,8 @@ export const en = {
       incomplete: "Some folders could not be read completely. Files there were not compared.",
       unsupported: "Comparing files is not available on this computer yet.",
       tooMany: (limit: string) =>
-        `These folders hold more than ${count(limit)} files. Choose smaller folders.`,
-      failed: "Lumen could not compare these folders.",
+        `The scan covers more than ${count(limit)} files. Run a narrower scan to compare fewer.`,
+      failed: "Lumen could not compare the scan's files.",
       advice:
         "Copies can be backups you want to keep. Lumen does not choose or remove any. Removing a copy can free less space than its size.",
     },

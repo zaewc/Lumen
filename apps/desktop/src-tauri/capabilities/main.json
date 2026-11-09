@@ -23,7 +23,7 @@
     "allow-tool-storage",
     "allow-software",
     "allow-explain-software",
-    "allow-compare-folders",
+    "allow-compare-scan",
     "allow-cancel-comparison",
     "allow-reassess",
     "allow-uninstall-preview",

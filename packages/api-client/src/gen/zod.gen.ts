@@ -126,9 +126,6 @@ export const zDuplicatesView = z.object({
  */
 export const zCompareOutcomeView = z.union([
   z.object({
-    kind: z.enum(["nothing_chosen"]),
-  }),
-  z.object({
     kind: z.enum(["unsupported"]),
   }),
   z.object({

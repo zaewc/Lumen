@@ -111,13 +111,13 @@ export function tauriTransport(): LumenTransport {
     toolStorage: async () => zToolStorageView.array().parse(await call("tool_storage")),
     software: async () => zSoftwareView.parse(await call("software")),
     explainSoftware: async () => zSoftwareView.parse(await call("explain_software")),
-    compareFolders: async (onProgress) => {
+    compareScan: async (scan, onProgress) => {
       const progress = new Channel<unknown>();
       progress.onmessage = (message) => {
         const parsed = zCompareProgressView.safeParse(message);
         if (parsed.success) onProgress?.(parsed.data);
       };
-      return zCompareOutcomeView.parse(await call("compare_folders", { progress }));
+      return zCompareOutcomeView.parse(await call("compare_scan", { scan, progress }));
     },
     cancelComparison: async () => {
       await call("cancel_comparison");

@@ -24,7 +24,7 @@ const allowed = new Set([
   "tool_storage",
   "software",
   "explain_software",
-  "compare_folders",
+  "compare_scan",
   "cancel_comparison",
   "reassess",
   "uninstall_preview",

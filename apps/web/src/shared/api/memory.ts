@@ -869,7 +869,8 @@ export function memoryTransport({
         },
       ];
     },
-    compareFolders: async (onProgress) => {
+    compareScan: async (scan, onProgress) => {
+      void scan;
       const run = { stopped: false };
       comparing = run;
       for (const [stage, read] of [
@@ -884,7 +885,7 @@ export function memoryTransport({
       return {
         kind: "compared",
         report: {
-          folders: ["/Users/demo/Downloads", "/Users/demo/Pictures"],
+          folders: ["/Users/demo"],
           groups: [
             {
               bytes_each: "734003200",

@@ -8,6 +8,7 @@ import type { Filter } from "../model/filter";
 import { cleanUpStep } from "../model/step";
 import { useCleanUpAction } from "./CleanUpAction";
 import { DonePanel } from "./DonePanel";
+import { Duplicates } from "./Duplicates";
 import { ProgressPanel } from "./ProgressPanel";
 import { Results } from "./Results";
 import { StartPanel } from "./StartPanel";
@@ -187,6 +188,9 @@ export function CleanUpPage() {
   return (
     <Page title={m.nav.cleanUp} actions={actions()}>
       {view()}
+      {scan !== null && !session.scanning && !scan.partial && (
+        <Duplicates key={scan.scan} scanId={scan.scan} />
+      )}
     </Page>
   );
 }

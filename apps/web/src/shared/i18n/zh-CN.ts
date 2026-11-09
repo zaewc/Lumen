@@ -87,9 +87,8 @@ export const zhCN: Messages = {
     copies: {
       title: "相同的文件",
       intro:
-        "选择文件夹后，Lumen 会比较其中的文件，找出内容相同的文件。Lumen 只读取你选择的文件夹中的文件。",
-      choose: "选择要比较的文件夹…",
-      chooseAgain: "比较其他文件夹…",
+        "扫描完成后，Lumen 会单独读取扫描路径中的文件，查找内容相同的文件。这项比较仅读取数据，不会选择或删除任何副本。",
+      compareAgain: "再次比较",
       stop: "停止",
       stopping: "正在停止…",
       stopped: "已停止比较。不会显示这次比较的结果。",
@@ -100,7 +99,7 @@ export const zhCN: Messages = {
         full: "正在完整比较仍然相同的文件",
       },
       filesRead: (n: string) => `已读取 ${count(n)} 个文件`,
-      folders: "已比较的文件夹",
+      folders: "已比较的扫描路径",
       group: (n: number, size: string) => `${count(n)} 个副本 · 每个 ${size}`,
       none: "在能够比较的文件中，没有内容相同的文件。",
       more: (n: number) => `另有 ${count(n)} 组较小的文件未显示。`,
@@ -111,8 +110,9 @@ export const zhCN: Messages = {
       protectedFiles: (n: number) => `受保护位置中的 ${count(n)} 个文件未读取。`,
       incomplete: "部分文件夹未能完整读取，其中的文件未比较。",
       unsupported: "这台电脑暂时还不能比较文件。",
-      tooMany: (limit: string) => `这些文件夹中的文件超过 ${count(limit)} 个。请选择更小的文件夹。`,
-      failed: "Lumen 无法比较这些文件夹。",
+      tooMany: (limit: string) =>
+        `扫描范围内的文件超过 ${count(limit)} 个。请缩小扫描范围后重新扫描，再进行比较。`,
+      failed: "Lumen 无法比较扫描路径中的文件。",
       advice:
         "副本可能是你想保留的备份。Lumen 不会选择或删除任何副本。删除一个副本释放的空间可能小于它的大小。",
     },
