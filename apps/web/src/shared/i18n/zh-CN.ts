@@ -626,7 +626,7 @@ export const zhCN: Messages = {
         unknown: "无法判断的项目",
       },
       impacts: {
-        only_this_app: "删除后很可能只影响这个应用。",
+        only_this_app: "删除它应该不会影响其他内容。",
         other_software_depends: "其他软件很可能依赖它。",
         stops_background_activity: "删除后其后台活动很可能会停止。",
         security_or_access: "删除后安全、银行或登录功能可能无法正常工作。",

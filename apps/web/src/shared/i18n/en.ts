@@ -661,7 +661,7 @@ export const en = {
         unknown: "something it could not tell",
       } satisfies { readonly [P in SoftwarePurposeView]: string },
       impacts: {
-        only_this_app: "Removing it likely affects only this app.",
+        only_this_app: "Removing it probably won't affect anything else.",
         other_software_depends: "Other software likely depends on it.",
         stops_background_activity: "Removing it likely stops its background activity.",
         security_or_access: "Removing it may stop security, banking or sign-in from working.",

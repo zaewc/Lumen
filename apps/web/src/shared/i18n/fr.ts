@@ -654,7 +654,7 @@ export const fr: Messages = {
         unknown: "quelque chose qu'elle n'a pas pu déterminer",
       },
       impacts: {
-        only_this_app: "La supprimer n'affecte probablement que cette app.",
+        only_this_app: "La supprimer ne devrait rien affecter d'autre.",
         other_software_depends: "D'autres logiciels en dépendent probablement.",
         stops_background_activity: "La supprimer arrête probablement son activité en arrière-plan.",
         security_or_access:

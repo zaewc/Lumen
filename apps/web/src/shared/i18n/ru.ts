@@ -685,7 +685,7 @@ export const ru: Messages = {
         unknown: "что-то, что не удалось определить",
       },
       impacts: {
-        only_this_app: "Удаление, вероятно, затронет только это приложение.",
+        only_this_app: "Удаление, скорее всего, ничего больше не затронет.",
         other_software_depends: "Вероятно, от него зависят другие программы.",
         stops_background_activity: "Удаление, вероятно, остановит его фоновую работу.",
         security_or_access:

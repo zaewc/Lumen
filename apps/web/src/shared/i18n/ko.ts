@@ -652,7 +652,7 @@ export const ko = {
         unknown: "알 수 없는 항목",
       },
       impacts: {
-        only_this_app: "지우면 이 앱에만 영향이 있을 가능성이 높아요.",
+        only_this_app: "지워도 다른 곳에는 영향이 없을 것 같아요.",
         other_software_depends: "다른 프로그램이 이 항목에 의존할 가능성이 높아요.",
         stops_background_activity: "지우면 이 앱의 백그라운드 작업이 멈출 가능성이 높아요.",
         security_or_access: "지우면 보안, 뱅킹, 로그인이 동작하지 않을 수 있어요.",

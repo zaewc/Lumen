@@ -648,7 +648,7 @@ export const ja: Messages = {
         unknown: "判断できない項目",
       },
       impacts: {
-        only_this_app: "削除しても影響はこのアプリだけの可能性が高いです。",
+        only_this_app: "削除しても、ほかには影響しないと思われます。",
         other_software_depends: "他のソフトウェアがこれに依存している可能性が高いです。",
         stops_background_activity: "削除するとバックグラウンドの動作が止まる可能性が高いです。",
         security_or_access:

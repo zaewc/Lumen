@@ -674,7 +674,7 @@ export const es: Messages = {
         unknown: "algo que no pudo determinar",
       },
       impacts: {
-        only_this_app: "Eliminarla probablemente solo afecta a esta app.",
+        only_this_app: "Eliminarla probablemente no afectará a nada más.",
         other_software_depends: "Probablemente otro software depende de ella.",
         stops_background_activity:
           "Eliminarla probablemente detiene su actividad en segundo plano.",
