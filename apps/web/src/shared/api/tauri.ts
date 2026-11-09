@@ -10,6 +10,7 @@ import {
   zDiskView,
   zFinalizeOutcomeView,
   zHeldItemView,
+  zHelperView,
   zPlanView,
   zQuarantineReportView,
   zQuitView,
@@ -126,6 +127,12 @@ export function tauriTransport(): LumenTransport {
     uninstall: async (preview, confirmation) =>
       zUninstallOutcomeView.parse(await call("uninstall", { preview, confirmation })),
     quitApp: async (key) => zQuitView.parse(await call("quit_app", { key })),
+    helperState: async () => zHelperView.parse(await call("helper_state")),
+    helperEnable: async () => zHelperView.parse(await call("helper_enable")),
+    helperDisable: async () => zHelperView.parse(await call("helper_disable")),
+    helperOpenLoginItems: async () => {
+      await call("helper_open_login_items");
+    },
     setAiReview: async (enabled) => zAiSettingsView.parse(await call("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await call("set_ai_key", { key })),
   };

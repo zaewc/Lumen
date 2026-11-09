@@ -16,10 +16,10 @@ use std::sync::Arc;
 
 use lumen_api::views::{
     AiSettingsView, AssessProgressView, CandidateView, CompareOutcomeView, CompareProgressView,
-    DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, PlanView, QuarantineReportView,
-    QuitView, ReassessRequest, ReassessView, RestoreOutcomeView, ScanProgressView, ScanRequest,
-    ScanView, SoftwareView, ToolRunView, ToolStorageView, UninstallOutcomeView,
-    UninstallPreviewView, candidate_id,
+    DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, HelperView, PlanView,
+    QuarantineReportView, QuitView, ReassessRequest, ReassessView, RestoreOutcomeView,
+    ScanProgressView, ScanRequest, ScanView, SoftwareView, ToolRunView, ToolStorageView,
+    UninstallOutcomeView, UninstallPreviewView, candidate_id,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -1099,4 +1099,40 @@ mod tests {
         assert_eq!(live.view(&totals, at(259)), None, "at most every 250 ms");
         assert!(live.view(&totals, at(260)).is_some(), "again after 250 ms");
     }
+}
+
+/// Lumen's helper (ADR-0063): where its registration stands and, once an
+/// administrator allowed it, its status over XPC. Reads only.
+#[tauri::command]
+pub(crate) async fn helper_state() -> Result<HelperView, CommandError> {
+    blocking(|| Ok(HelperView::from(&lumen_app::helper::state()))).await
+}
+
+/// Sets Lumen's helper up as a launch daemon (ADR-0063). macOS then asks an
+/// administrator to allow it in System Settings › Login Items. Takes nothing.
+#[tauri::command]
+pub(crate) async fn helper_enable() -> Result<HelperView, CommandError> {
+    blocking(|| {
+        lumen_app::helper::enable()
+            .map(|state| HelperView::from(&state))
+            .map_err(CommandError::new)
+    })
+    .await
+}
+
+/// Removes Lumen's helper; macOS stops it if it runs. Takes nothing.
+#[tauri::command]
+pub(crate) async fn helper_disable() -> Result<HelperView, CommandError> {
+    blocking(|| {
+        lumen_app::helper::disable()
+            .map(|state| HelperView::from(&state))
+            .map_err(CommandError::new)
+    })
+    .await
+}
+
+/// Opens System Settings at Login Items, where the helper is allowed.
+#[tauri::command]
+pub(crate) async fn helper_open_login_items() -> Result<(), CommandError> {
+    blocking(|| lumen_app::helper::open_login_items().map_err(CommandError::new)).await
 }

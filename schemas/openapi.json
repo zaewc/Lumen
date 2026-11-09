@@ -1175,6 +1175,155 @@
           "needs_attention"
         ]
       },
+      "HelperReachView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Not asked: it is not enabled.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_asked"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It answered.",
+            "required": [
+              "version",
+              "current",
+              "kind"
+            ],
+            "properties": {
+              "current": {
+                "type": "boolean",
+                "description": "It matches this app; otherwise turn it off and on again."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "answered"
+                ]
+              },
+              "version": {
+                "type": "string",
+                "description": "Its version; display-escaped."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "This build is not signed with a Developer ID, so it cannot use the\nhelper.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unsigned"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It did not answer.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unavailable"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It is not signed by the same team as this app.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_signed_as_required"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It refused the request.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "refused"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Its answer could not be read.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What asking the helper for its status gave."
+      },
+      "HelperRegistrationView": {
+        "type": "string",
+        "description": "Where the helper's registration stands.",
+        "enum": [
+          "unsupported",
+          "not_registered",
+          "enabled",
+          "requires_approval",
+          "not_found"
+        ]
+      },
+      "HelperView": {
+        "type": "object",
+        "description": "Lumen's helper as it stands now.",
+        "required": [
+          "registration",
+          "reach"
+        ],
+        "properties": {
+          "reach": {
+            "$ref": "#/components/schemas/HelperReachView",
+            "description": "Its answer, when enabled."
+          },
+          "registration": {
+            "$ref": "#/components/schemas/HelperRegistrationView",
+            "description": "Its registration."
+          }
+        }
+      },
       "ItemKindView": {
         "type": "string",
         "description": "What kind of item AI review says a review item most likely is.",

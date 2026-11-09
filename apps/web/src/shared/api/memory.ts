@@ -5,6 +5,7 @@ import type {
   AiSettingsView,
   CandidateView,
   HeldItemView,
+  HelperView,
   ItemReportView,
   PlanView,
   ScanView,
@@ -657,6 +658,8 @@ export function memoryTransport({
   let previewed = 0;
   // Previews that may still be confirmed, each once.
   const previews = new Map<string, { hash: string; app: UninstallAppView }>();
+  // Lumen's helper (ADR-0063), not set up at first.
+  let helper: HelperView = { registration: "not_registered", reach: { kind: "not_asked" } };
   // Apps running in the sample, until asked to quit (roadmap 16.3a).
   const running = new Set(["mac_app:com.spotify.client"]);
   const take = (operation: string): HeldItemView | undefined => {
@@ -912,6 +915,31 @@ export function memoryTransport({
         previews.set(preview.preview, { hash: preview.hash, app: preview.app });
       }
       return preview;
+    },
+    helperState: async () => {
+      await wait(pace);
+      return helper;
+    },
+    helperEnable: async () => {
+      await wait(pace);
+      helper = { registration: "requires_approval", reach: { kind: "not_asked" } };
+      return helper;
+    },
+    helperDisable: async () => {
+      await wait(pace);
+      helper = { registration: "not_registered", reach: { kind: "not_asked" } };
+      return helper;
+    },
+    // In the sample, opening Login Items stands for an administrator allowing
+    // the helper there.
+    helperOpenLoginItems: async () => {
+      await wait(pace);
+      if (helper.registration === "requires_approval") {
+        helper = {
+          registration: "enabled",
+          reach: { kind: "answered", version: "0.10.0", current: true },
+        };
+      }
     },
     quitApp: async (key) => {
       await wait(pace);

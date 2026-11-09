@@ -144,6 +144,10 @@ pub fn app<R: Runtime>(
             commands::uninstall_preview,
             commands::uninstall,
             commands::quit_app,
+            commands::helper_state,
+            commands::helper_enable,
+            commands::helper_disable,
+            commands::helper_open_login_items,
             update::check_update,
             update::install_update,
         ])

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-helper-disable"
+description = "Enables the helper_disable command without any pre-configured scope."
+commands.allow = ["helper_disable"]
+
+[[permission]]
+identifier = "deny-helper-disable"
+description = "Denies the helper_disable command without any pre-configured scope."
+commands.deny = ["helper_disable"]

@@ -285,6 +285,54 @@ export const zHeldItemView = z.object({
 });
 
 /**
+ * What asking the helper for its status gave.
+ */
+export const zHelperReachView = z.union([
+  z.object({
+    kind: z.enum(["not_asked"]),
+  }),
+  z.object({
+    current: z.boolean(),
+    kind: z.enum(["answered"]),
+    version: z.string(),
+  }),
+  z.object({
+    kind: z.enum(["unsigned"]),
+  }),
+  z.object({
+    kind: z.enum(["unavailable"]),
+  }),
+  z.object({
+    kind: z.enum(["not_signed_as_required"]),
+  }),
+  z.object({
+    kind: z.enum(["refused"]),
+  }),
+  z.object({
+    kind: z.enum(["failed"]),
+  }),
+]);
+
+/**
+ * Where the helper's registration stands.
+ */
+export const zHelperRegistrationView = z.enum([
+  "unsupported",
+  "not_registered",
+  "enabled",
+  "requires_approval",
+  "not_found",
+]);
+
+/**
+ * Lumen's helper as it stands now.
+ */
+export const zHelperView = z.object({
+  reach: zHelperReachView,
+  registration: zHelperRegistrationView,
+});
+
+/**
  * What kind of item AI review says a review item most likely is.
  */
 export const zItemKindView = z.enum([

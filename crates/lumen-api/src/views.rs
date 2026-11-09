@@ -28,6 +28,7 @@ mod duplicates;
 mod facts;
 #[cfg(test)]
 mod fixture;
+mod helper;
 mod reassess;
 mod relations;
 mod software;
@@ -38,6 +39,7 @@ pub use duplicates::{
     CompareOutcomeView, CompareProgressView, CompareStageView, DuplicateGroupView, DuplicatesView,
 };
 pub use facts::{AppDataKindView, BasisView, FactKindView, FactView};
+pub use helper::{HelperReachView, HelperRegistrationView, HelperView};
 pub use reassess::{
     ReassessGapView, ReassessOutcomeView, ReassessRequest, ReassessView, ReassessedItemView,
     candidate_id,

@@ -5,6 +5,7 @@ import {
   zDiskView,
   zFinalizeOutcomeView,
   zHeldItemView,
+  zHelperView,
   zPlanView,
   zQuarantineReportView,
   zQuitView,
@@ -197,6 +198,18 @@ describe("memoryTransport", () => {
     expect(await quit("mac_app:com.spotify.client")).toBe("asked");
     expect(await quit("mac_app:com.spotify.client")).toBe("not_running");
     expect(await quit("homebrew:act")).toBe("not_found");
+  });
+
+  it("sets the helper up, waits for approval, then answers (ADR-0063)", async () => {
+    const transport = memoryTransport();
+    const state = async (view: Promise<unknown> | undefined) => zHelperView.parse(await view);
+    expect((await state(transport.helperState?.())).registration).toBe("not_registered");
+    expect((await state(transport.helperEnable?.())).registration).toBe("requires_approval");
+    await transport.helperOpenLoginItems?.();
+    const allowed = await state(transport.helperState?.());
+    expect(allowed.registration).toBe("enabled");
+    expect(allowed.reach).toEqual({ kind: "answered", version: "0.10.0", current: true });
+    expect((await state(transport.helperDisable?.())).registration).toBe("not_registered");
   });
 
   it("paces the scan for people, reporting growing totals", async () => {

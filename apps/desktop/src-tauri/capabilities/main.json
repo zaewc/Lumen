@@ -28,6 +28,10 @@
     "allow-reassess",
     "allow-uninstall-preview",
     "allow-uninstall",
-    "allow-quit-app"
+    "allow-quit-app",
+    "allow-helper-state",
+    "allow-helper-enable",
+    "allow-helper-disable",
+    "allow-helper-open-login-items"
   ]
 }

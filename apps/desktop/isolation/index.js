@@ -30,6 +30,10 @@ const allowed = new Set([
   "uninstall_preview",
   "uninstall",
   "quit_app",
+  "helper_state",
+  "helper_enable",
+  "helper_disable",
+  "helper_open_login_items",
 ]);
 
 window.__TAURI_ISOLATION_HOOK__ = (payload) => {

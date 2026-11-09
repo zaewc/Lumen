@@ -28,6 +28,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "uninstall_preview",
         "uninstall",
         "quit_app",
+        "helper_state",
+        "helper_enable",
+        "helper_disable",
+        "helper_open_login_items",
     ];
     tauri_build::try_build(
         tauri_build::Attributes::new()

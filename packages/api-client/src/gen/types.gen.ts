@@ -584,6 +584,64 @@ export type HeldItemView = {
 export type HeldStateView = "retained" | "held_after_failure" | "needs_attention";
 
 /**
+ * What asking the helper for its status gave.
+ */
+export type HelperReachView =
+  | {
+      kind: "not_asked";
+    }
+  | {
+      /**
+       * It matches this app; otherwise turn it off and on again.
+       */
+      current: boolean;
+      kind: "answered";
+      /**
+       * Its version; display-escaped.
+       */
+      version: string;
+    }
+  | {
+      kind: "unsigned";
+    }
+  | {
+      kind: "unavailable";
+    }
+  | {
+      kind: "not_signed_as_required";
+    }
+  | {
+      kind: "refused";
+    }
+  | {
+      kind: "failed";
+    };
+
+/**
+ * Where the helper's registration stands.
+ */
+export type HelperRegistrationView =
+  | "unsupported"
+  | "not_registered"
+  | "enabled"
+  | "requires_approval"
+  | "not_found";
+
+/**
+ * Lumen's helper as it stands now.
+ */
+export type HelperView = {
+  /**
+   * Its answer, when enabled.
+   */
+  reach: HelperReachView;
+  /**
+   * Its registration.
+   */
+  registration: HelperRegistrationView;
+};
+
+/**
  * What kind of item AI review says a review item most likely is.
  */
 export type ItemKindView =

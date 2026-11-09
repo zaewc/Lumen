@@ -11,6 +11,7 @@ import type {
   ExecuteRequest,
   FinalizeOutcomeView,
   HeldItemView,
+  HelperView,
   PlanView,
   QuarantineReportView,
   QuitView,
@@ -144,4 +145,15 @@ export interface LumenTransport {
    * still runs. Only where the host can (the desktop app on macOS).
    */
   quitApp?(key: string): Promise<QuitView>;
+  /**
+   * Lumen's helper (ADR-0063): where its registration stands and, once an
+   * administrator allowed it, whether it answers. Only on macOS.
+   */
+  helperState?(): Promise<HelperView>;
+  /** Sets the helper up; macOS then asks an administrator to allow it. */
+  helperEnable?(): Promise<HelperView>;
+  /** Removes the helper. */
+  helperDisable?(): Promise<HelperView>;
+  /** Opens System Settings at Login Items, where the helper is allowed. */
+  helperOpenLoginItems?(): Promise<void>;
 }
