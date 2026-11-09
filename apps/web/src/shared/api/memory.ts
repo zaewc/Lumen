@@ -953,6 +953,11 @@ export function memoryTransport({
       if (row?.origin !== "mac_app") return { kind: "not_found" };
       return { kind: running.delete(key) ? "asked" : "not_running" };
     },
+    // The sample has no icons; every row shows the placeholder (roadmap 16.4).
+    appIcon: async () => {
+      await wait(0);
+      return null;
+    },
     uninstall: async (preview, confirmation) => {
       await wait(pace);
       const ready = previews.get(preview);

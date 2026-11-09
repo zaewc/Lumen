@@ -31,6 +31,7 @@ import {
 import { Channel, type InvokeArgs, invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { hostError } from "./host-error";
+import { zAppIcon } from "./icon";
 import type { LumenTransport } from "./transport";
 
 // Older hosts omit these additive descriptors. Normalize them at the boundary
@@ -133,6 +134,7 @@ export function tauriTransport(): LumenTransport {
     helperOpenLoginItems: async () => {
       await call("helper_open_login_items");
     },
+    appIcon: async (key) => zAppIcon.parse(await call("app_icon", { key })),
     setAiReview: async (enabled) => zAiSettingsView.parse(await call("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await call("set_ai_key", { key })),
   };

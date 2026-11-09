@@ -5,14 +5,17 @@ import { useAiSettings } from "@/entities/ai-review";
 import { useTransport } from "@/shared/api";
 import { softwareNoteText, useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice, Notice, Page } from "@/shared/ui";
-import { partial, title, tucked, visible } from "../model/list";
+import { iconsShown, partial, title, tucked, visible } from "../model/list";
+import { AppIcon } from "./AppIcon";
 import { MoveFlow, MoveResult } from "./MoveFlow";
 
 function AppRow({
   item,
+  icon,
   onMove,
 }: {
   readonly item: SoftwareItemView;
+  readonly icon: boolean;
   readonly onMove: ((item: SoftwareItemView) => void) | null;
 }) {
   const { m } = useI18n();
@@ -25,15 +28,18 @@ function AppRow({
   ].filter((part): part is string => part !== null);
   return (
     <li className="flex items-start justify-between gap-4 py-3">
-      <div className="min-w-0 space-y-0.5">
-        <p className="truncate text-[14px] font-medium text-ink">{title(item)}</p>
-        <p className="truncate text-[12px] text-ink-2">{details.join(" · ")}</p>
-        {item.location !== null && (
-          <p className="truncate font-mono text-[11px] text-ink-3">{item.location}</p>
-        )}
-        {item.ai_note !== null && (
-          <p className="text-[12px] text-ink-2">{softwareNoteText(m, item.ai_note)}</p>
-        )}
+      <div className="flex min-w-0 items-start gap-3">
+        {icon && <AppIcon item={item} />}
+        <div className="min-w-0 space-y-0.5">
+          <p className="truncate text-[14px] font-medium text-ink">{title(item)}</p>
+          <p className="truncate text-[12px] text-ink-2">{details.join(" · ")}</p>
+          {item.location !== null && (
+            <p className="truncate font-mono text-[11px] text-ink-3">{item.location}</p>
+          )}
+          {item.ai_note !== null && (
+            <p className="text-[12px] text-ink-2">{softwareNoteText(m, item.ai_note)}</p>
+          )}
+        </div>
       </div>
       {item.protected ? (
         <span title={a.protectedTip} className="shrink-0 text-[12px] text-ink-2">
@@ -94,6 +100,7 @@ export function AppsPage() {
   const shown = visible(items, { query, all });
   const missing = partial(list?.sources ?? []);
   const hiddenCount = tucked(items);
+  const icons = transport.appIcon !== undefined && iconsShown(items);
 
   return (
     <Page
@@ -169,7 +176,12 @@ export function AppsPage() {
           ) : (
             <ul className="divide-y divide-line">
               {shown.map((item) => (
-                <AppRow key={item.key} item={item} onMove={canMove ? setMoving : null} />
+                <AppRow
+                  key={item.key}
+                  item={item}
+                  icon={icons}
+                  onMove={canMove ? setMoving : null}
+                />
               ))}
             </ul>
           )}
