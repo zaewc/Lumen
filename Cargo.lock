@@ -2577,6 +2577,7 @@ name = "lumen-platform-macos"
 version = "0.10.0"
 dependencies = [
  "blake3",
+ "block2",
  "criterion",
  "dispatch2",
  "libc",

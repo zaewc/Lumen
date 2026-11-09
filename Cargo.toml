@@ -43,6 +43,9 @@ libc = "0.2.190"
 # Typed CoreFoundation / CoreServices (FSEvents) bindings (macOS adapter only).
 objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std"] }
 objc2-core-services = { version = "0.3.2", default-features = false, features = ["std"] }
+# Objective-C blocks for the XPC event handlers of Lumen's helper (ADR-0063);
+# already in the lock file through objc2-app-kit.
+block2 = { version = "0.6.2", default-features = false, features = ["std"] }
 # Asking a running app to quit (roadmap 16.3a): NSRunningApplication. Already
 # in the lock file through Tauri; only the features named here are built.
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std"] }

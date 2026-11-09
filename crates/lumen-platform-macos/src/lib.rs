@@ -44,6 +44,8 @@ mod sys;
 #[cfg(target_os = "macos")]
 pub mod volumes;
 pub mod web_profile;
+#[cfg(target_os = "macos")]
+pub mod xpc;
 
 #[cfg(target_os = "macos")]
 pub use apps::AppInventory;
