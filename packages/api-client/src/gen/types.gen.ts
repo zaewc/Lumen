@@ -466,6 +466,7 @@ export type FailureView =
   | "identity_mismatch"
   | "in_use"
   | "volume_unsupported"
+  | "store_unavailable"
   | "move_failed"
   | "verification_failed"
   | "other";

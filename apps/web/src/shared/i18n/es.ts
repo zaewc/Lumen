@@ -486,6 +486,8 @@ export const es: Messages = {
     failIdentityMismatch: "cambió después del análisis",
     failInUse: "un programa lo está usando",
     failVolumeUnsupported: "esta unidad no puede alojar una cuarentena",
+    failStoreUnavailable:
+      "la carpeta de cuarentena de esta unidad no se pudo abrir de forma segura",
     failMoveFailed: "se produjo un error al moverlo",
     failVerificationFailed: "después de moverlo no coincidía con el plan",
     failOther: "por un motivo que esta versión desconoce",

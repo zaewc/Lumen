@@ -480,6 +480,7 @@ export const en = {
     failIdentityMismatch: "it changed after the scan",
     failInUse: "a program is using it",
     failVolumeUnsupported: "this drive cannot hold a quarantine",
+    failStoreUnavailable: "the quarantine folder on this drive could not be opened safely",
     failMoveFailed: "moving it went wrong",
     failVerificationFailed: "after the move it did not match the plan",
     failOther: "for a reason this version does not know",

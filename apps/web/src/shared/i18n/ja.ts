@@ -472,6 +472,7 @@ export const ja: Messages = {
     failIdentityMismatch: "スキャン後に変更されたため",
     failInUse: "プログラムが使用中のため",
     failVolumeUnsupported: "このドライブでは隔離を保持できないため",
+    failStoreUnavailable: "このドライブの隔離フォルダーを安全に開けなかったため",
     failMoveFailed: "移動中に問題が発生したため",
     failVerificationFailed: "移動後の状態が計画と一致しなかったため",
     failOther: "このバージョンでは原因を特定できないため",

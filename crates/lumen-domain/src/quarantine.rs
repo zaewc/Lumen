@@ -23,6 +23,10 @@ pub enum QuarantineFailure {
     InUse,
     /// The volume cannot quarantine safely (no no-replace rename, read-only, …).
     VolumeUnsupported,
+    /// The item's volume has a store location, but the store there could not
+    /// be opened safely: a directory is not private to the user, is a link,
+    /// or cannot be reached. It is refused, never repaired (ADR-0066).
+    StoreUnavailable,
     /// The move itself failed.
     MoveFailed,
     /// Post-move verification did not match the plan.

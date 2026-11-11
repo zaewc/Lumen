@@ -496,6 +496,7 @@ export const ru: Messages = {
     failIdentityMismatch: "элемент изменился после сканирования",
     failInUse: "элемент используется программой",
     failVolumeUnsupported: "этот диск не поддерживает карантин",
+    failStoreUnavailable: "не удалось безопасно открыть папку карантина на этом диске",
     failMoveFailed: "при перемещении произошла ошибка",
     failVerificationFailed: "после перемещения элемент не совпал с планом",
     failOther: "по неизвестной этой версии причине",

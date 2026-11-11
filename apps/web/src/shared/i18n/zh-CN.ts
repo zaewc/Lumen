@@ -454,6 +454,7 @@ export const zhCN: Messages = {
     failIdentityMismatch: "扫描后发生了变化",
     failInUse: "有程序正在使用",
     failVolumeUnsupported: "此驱动器无法存放隔离区",
+    failStoreUnavailable: "无法安全打开此驱动器上的隔离文件夹",
     failMoveFailed: "移动时发生错误",
     failVerificationFailed: "移动后与计划不符",
     failOther: "原因未知（此版本无法识别）",

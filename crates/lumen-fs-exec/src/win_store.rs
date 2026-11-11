@@ -39,12 +39,30 @@ pub enum WinStoreError {
         /// The Win32 error code.
         code: i32,
     },
+    /// The base could not be opened or inspected, and its drive's root is not
+    /// on the items' volume or cannot be opened either (a drive that is not
+    /// connected), so the base's volume is unknown. A base that fails to open
+    /// on the items' volume is [`WinStoreError::Unreachable`] instead.
+    #[error("the store base could not be opened: OS error {code}")]
+    BaseUnreachable {
+        /// The Win32 error code.
+        code: i32,
+    },
     /// The store would be on another volume than the items.
     #[error("the store is on another volume")]
     OtherVolume,
     /// A directory is a reparse point, or its owner or DACL is not private.
     #[error("a store directory is not private to its owner")]
     Unsafe,
+}
+
+impl WinStoreError {
+    /// Whether the store is known to be on the items' volume: the error came
+    /// after the base was found on it. Otherwise this location is simply not
+    /// for that volume.
+    pub const fn on_volume(&self) -> bool {
+        !matches!(self, Self::OtherVolume | Self::BaseUnreachable { .. })
+    }
 }
 
 /// An open quarantine store.
@@ -121,6 +139,27 @@ pub(crate) fn open_existing_store(
     open(base, names, volume, false)
 }
 
+/// The volume of the drive root `base` is under (`X:\`, verbatim or not), if
+/// the root opens. Only its attributes are read.
+fn drive_volume(base: &[u16]) -> Option<u64> {
+    let prefix: Vec<u16> = r"\\?\".encode_utf16().collect();
+    let rest = base.strip_prefix(prefix.as_slice()).unwrap_or(base);
+    let letter = *rest.first()?;
+    let rooted = u8::try_from(letter).is_ok_and(|b| b.is_ascii_alphabetic())
+        && rest.get(1) == Some(&u16::from(b':'))
+        && rest.get(2) == Some(&u16::from(b'\\'));
+    if !rooted {
+        return None;
+    }
+    let mut root: Vec<u16> = prefix;
+    root.extend_from_slice(&rest[..3]);
+    root.push(0);
+    win_sys::open_root(&root)
+        .and_then(|handle| win_sys::facts(&handle))
+        .ok()
+        .map(|facts| facts.volume)
+}
+
 fn open(
     base: &[u16],
     names: &[&[u16]],
@@ -134,15 +173,30 @@ fn open(
     let sddl = private_sddl(&user);
     let mut path = base.to_vec();
     path.push(0);
-    let mut dir = win_sys::open_root(&path).map_err(unreachable("the store base"))?;
-    let base_facts = win_sys::facts(&dir).map_err(unreachable("the store base"))?;
-    if base_facts.attributes & FILE_ATTRIBUTE_REPARSE_POINT != 0 || !base_facts.directory {
-        return Err(WinStoreError::Unsafe);
-    }
+    // A base that cannot be opened is still known to be on the items' volume
+    // when its drive's root is: then the store there is unavailable (access
+    // denied, missing), not absent from the volume.
+    let base_unreachable = |error: io::Error| {
+        let code = error.raw_os_error().unwrap_or(0);
+        if drive_volume(base) == Some(volume) {
+            WinStoreError::Unreachable {
+                what: "the store base",
+                code,
+            }
+        } else {
+            WinStoreError::BaseUnreachable { code }
+        }
+    };
+    let mut dir = win_sys::open_root(&path).map_err(base_unreachable)?;
+    let base_facts = win_sys::facts(&dir).map_err(base_unreachable)?;
     // A store is only ever created on the volume of the items it is for
-    // (ADR-0046): nothing is created below a base on another volume.
+    // (ADR-0046): nothing is created below a base on another volume. Checked
+    // first, so every later error is about a store on the items' volume.
     if base_facts.volume != volume {
         return Err(WinStoreError::OtherVolume);
+    }
+    if base_facts.attributes & FILE_ATTRIBUTE_REPARSE_POINT != 0 || !base_facts.directory {
+        return Err(WinStoreError::Unsafe);
     }
     for name in names {
         dir = match win_sys::open_at(&dir, name, Want::Store) {
@@ -288,6 +342,26 @@ mod tests {
             open_existing_store(&base, &[&wide("Planted")], volume).err(),
             Some(WinStoreError::Unsafe)
         );
+    }
+
+    #[test]
+    fn a_base_that_does_not_open_is_on_the_volume_only_if_its_drive_is() {
+        let (_fx, root, _base, volume) = setup();
+        let missing: Vec<u16> = root.join("missing").as_os_str().encode_wide().collect();
+        let name = wide("Quarantine");
+        let here = open_store(&missing, &[&name], volume).err();
+        assert!(
+            matches!(here, Some(WinStoreError::Unreachable { .. })),
+            "{here:?}"
+        );
+        assert!(here.is_some_and(|e| e.on_volume()));
+        let elsewhere = open_store(&missing, &[&name], volume ^ 1).err();
+        assert!(
+            matches!(elsewhere, Some(WinStoreError::BaseUnreachable { .. })),
+            "{elsewhere:?}"
+        );
+        assert!(elsewhere.is_some_and(|e| !e.on_volume()));
+        assert!(!root.join("missing").exists(), "nothing is created");
     }
 
     #[test]

@@ -471,6 +471,8 @@ export const fr: Messages = {
     failIdentityMismatch: "il a changé depuis l'analyse",
     failInUse: "un programme l'utilise",
     failVolumeUnsupported: "ce disque ne peut pas accueillir une quarantaine",
+    failStoreUnavailable:
+      "le dossier de quarantaine de ce disque n'a pas pu être ouvert en toute sécurité",
     failMoveFailed: "le déplacement a échoué",
     failVerificationFailed: "après le déplacement, il ne correspondait pas au plan",
     failOther: "pour une raison inconnue de cette version",

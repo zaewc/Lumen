@@ -742,6 +742,9 @@ pub enum FailureView {
     /// Its drive cannot hold a quarantine store (another or removable drive,
     /// a network share, or a filesystem without a safe rename; ADR-0046).
     VolumeUnsupported,
+    /// Its drive has a store location, but the store could not be opened
+    /// safely (not private to the user, a link, or unreachable; ADR-0066).
+    StoreUnavailable,
     /// The move itself failed.
     MoveFailed,
     /// After the move, it did not match the plan.
@@ -756,6 +759,7 @@ impl From<QuarantineFailure> for FailureView {
             QuarantineFailure::IdentityMismatch => Self::IdentityMismatch,
             QuarantineFailure::InUse => Self::InUse,
             QuarantineFailure::VolumeUnsupported => Self::VolumeUnsupported,
+            QuarantineFailure::StoreUnavailable => Self::StoreUnavailable,
             QuarantineFailure::MoveFailed => Self::MoveFailed,
             QuarantineFailure::VerificationFailed => Self::VerificationFailed,
             _ => Self::Other,

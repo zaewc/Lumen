@@ -474,6 +474,7 @@ export const ko = {
     failIdentityMismatch: "검사한 뒤에 바뀌었어요",
     failInUse: "프로그램이 쓰고 있어요",
     failVolumeUnsupported: "이 드라이브에는 격리함을 둘 수 없어요",
+    failStoreUnavailable: "이 드라이브의 격리함 폴더를 안전하게 열 수 없어요",
     failMoveFailed: "옮기는 중에 문제가 생겼어요",
     failVerificationFailed: "옮긴 뒤 확인한 내용이 계획과 달랐어요",
     failOther: "알 수 없는 이유예요",
