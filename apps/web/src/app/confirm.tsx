@@ -21,12 +21,29 @@ const SAMPLE: HostAsk = {
   total_bytes: "5100000000",
   proposed: {
     items: [
-      { path: "/Users/ana/Library/Developer/Xcode/DerivedData", bytes: "4200000000" },
-      { path: "/Users/ana/.gradle/caches", bytes: "140000000" },
+      {
+        path: "/Users/ana/Library/Developer/Xcode/DerivedData",
+        name: "DerivedData",
+        folder: "/Users/ana/Library/Developer/Xcode",
+        bytes: "4200000000",
+      },
+      {
+        path: "/Users/ana/.gradle/caches",
+        name: "caches",
+        folder: "/Users/ana/.gradle",
+        bytes: "140000000",
+      },
     ],
     more: 0,
   },
-  chosen: [{ path: "/Users/ana/Library/Caches/Google/Chrome", bytes: "760000000" }],
+  chosen: [
+    {
+      path: "/Users/ana/Library/Caches/Google/Chrome",
+      name: "Chrome",
+      folder: "/Users/ana/Library/Caches/Google",
+      bytes: "760000000",
+    },
+  ],
 };
 const sample: typeof confirmHost = {
   request: () => Promise.resolve(SAMPLE),

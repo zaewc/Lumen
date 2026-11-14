@@ -40,10 +40,14 @@ pub(crate) const MAX_CHOSEN: usize = 32;
 const LISTED: usize = 200;
 
 /// One item the window names: where it is (the core's escaped form, so a
-/// deceptive name cannot pass as another path) and what it would free.
+/// deceptive name cannot pass as another path), split by the host at its own
+/// separator (a `\\` in a Unix name stays in the name), and what it would
+/// free.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct AskItem {
     pub(crate) path: String,
+    pub(crate) name: String,
+    pub(crate) folder: String,
     /// Bytes, as a decimal string; `None` when unknown.
     pub(crate) bytes: Option<String>,
 }
@@ -144,6 +148,8 @@ pub(crate) fn window<R: Runtime>(
         .maximizable(false)
         .always_on_top(true)
         .focused(true)
+        // Shown once its close handler is in place, so no close is missed.
+        .visible(false)
         .center();
     let built = match &main {
         Some(main) => builder.parent(main).and_then(WebviewWindowBuilder::build),
@@ -162,6 +168,11 @@ pub(crate) fn window<R: Runtime>(
             closed.answer(false);
         }
     });
+    if confirm.show().is_err() {
+        pending.answer(false);
+        confirm.destroy().ok();
+        return false;
+    }
     if let Some(main) = &main {
         main.set_enabled(false).ok();
     }
@@ -185,8 +196,20 @@ fn ask(prompt: &Prompt, question: &Ask) -> Result<(), CommandError> {
 }
 
 fn item(path: &RawPath, bytes: Option<u64>) -> AskItem {
+    let shown = path.display();
+    let separator = match path.flavor() {
+        lumen_domain::PathFlavor::Unix => '/',
+        lumen_domain::PathFlavor::Windows => '\\',
+    };
+    let (folder, name) = match shown.rsplit_once(separator) {
+        Some(("", name)) => (separator.to_string(), name.to_owned()),
+        Some((folder, name)) => (folder.to_owned(), name.to_owned()),
+        None => (String::new(), shown.clone()),
+    };
     AskItem {
-        path: path.display(),
+        path: shown,
+        name,
+        folder,
         bytes: bytes.map(|b| b.to_string()),
     }
 }
@@ -297,6 +320,17 @@ mod tests {
     }
 
     #[test]
+    fn a_unix_name_keeps_its_backslash() {
+        let shown = item(&raw("/Users/ana/Documents\\cache"), None);
+        assert_eq!(
+            (shown.folder.as_str(), shown.name.as_str()),
+            ("/Users/ana", "Documents\\cache")
+        );
+        let top = item(&raw("/top"), None);
+        assert_eq!((top.folder.as_str(), top.name.as_str()), ("/", "top"));
+    }
+
+    #[test]
     fn long_lists_say_how_many_more() {
         let items = (0..LISTED + 8)
             .map(|i| item(&raw(&format!("/p/{i}")), None))
@@ -349,7 +383,12 @@ mod tests {
                 "tool": "pnpm",
                 "command": "pnpm store prune",
                 "targets": {
-                    "items": [{ "path": "/Users/a/Library/pnpm", "bytes": null }],
+                    "items": [{
+                        "path": "/Users/a/Library/pnpm",
+                        "name": "pnpm",
+                        "folder": "/Users/a/Library",
+                        "bytes": null
+                    }],
                     "more": 0
                 }
             })

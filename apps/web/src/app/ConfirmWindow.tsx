@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { confirmHost, type HostAsk, type HostAskItem } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
-import { baseName, formatBytes, parentPath } from "@/shared/lib";
+import { formatBytes } from "@/shared/lib";
 import { Bytes, buttonClass, CheckIcon } from "@/shared/ui";
 
 /** One item: its name, the folder it is in, and what it frees when known. */
@@ -9,8 +9,8 @@ function Row({ item }: { readonly item: HostAskItem }) {
   return (
     <li className="flex items-baseline gap-3 py-2" title={item.path}>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-ink">{baseName(item.path)}</span>
-        <span className="block truncate text-[12px] text-ink-3">{parentPath(item.path)}</span>
+        <span className="block truncate text-ink">{item.name}</span>
+        <span className="block truncate text-[12px] text-ink-3">{item.folder}</span>
       </span>
       {item.bytes !== null && (
         <span className="shrink-0 tabular-nums text-ink">

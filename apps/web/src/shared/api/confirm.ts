@@ -2,7 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { hostError } from "./host-error";
 
-const zItem = z.object({ path: z.string(), bytes: z.string().nullable() });
+const zItem = z.object({
+  path: z.string(),
+  name: z.string(),
+  folder: z.string(),
+  bytes: z.string().nullable(),
+});
 const zListed = z.object({ items: z.array(zItem), more: z.number().int().nonnegative() });
 
 /**
