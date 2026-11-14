@@ -457,6 +457,7 @@ export const ko = {
     planHash: "계획 해시",
   },
   hostConfirm: {
+    sizeUnknown: "크기를 몰라요",
     proposed: "Lumen의 정리 제안",
     chosen: "직접 선택한 항목",
     chosenNote:

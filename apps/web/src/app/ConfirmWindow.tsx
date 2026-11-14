@@ -6,6 +6,7 @@ import { Bytes, buttonClass, CheckIcon } from "@/shared/ui";
 
 /** One item: its name, the folder it is in, and what it frees when known. */
 function Row({ item }: { readonly item: HostAskItem }) {
+  const { m } = useI18n();
   return (
     <li className="flex items-baseline gap-3 py-2">
       {/* Whole, never cut off: this is what the person confirms. */}
@@ -15,10 +16,12 @@ function Row({ item }: { readonly item: HostAskItem }) {
           {item.folder}
         </span>
       </span>
-      {item.bytes !== null && (
+      {item.bytes !== null ? (
         <span className="shrink-0 tabular-nums text-ink">
           <Bytes value={item.bytes} />
         </span>
+      ) : (
+        <span className="shrink-0 text-[12px] text-ink-3">{m.hostConfirm.sizeUnknown}</span>
       )}
     </li>
   );

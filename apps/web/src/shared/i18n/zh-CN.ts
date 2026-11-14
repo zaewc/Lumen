@@ -437,6 +437,7 @@ export const zhCN: Messages = {
     planHash: "计划哈希值",
   },
   hostConfirm: {
+    sizeUnknown: "大小未知",
     proposed: "Lumen 的建议",
     chosen: "你选择的项目",
     chosenNote:

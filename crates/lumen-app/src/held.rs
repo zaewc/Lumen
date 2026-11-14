@@ -317,6 +317,7 @@ fn find(store: &LedgerStore, operation: OperationId) -> Result<HeldItem, HeldErr
 pub fn get(db: &Path, operation: OperationId) -> Result<HeldItem, HeldError> {
     let store = ledger(db)?;
     let mut item = find(&store, operation)?;
+    item.reclaim = store.reclaims()?.get(&operation).copied();
     item.chosen_by = store.choosers()?.get(&operation).copied();
     Ok(item)
 }
