@@ -81,6 +81,12 @@ Assumptions:
 
 ### TB2 and TB3: UI → core
 
+Review-item choices (ADR-0051) name opaque assessment IDs, never paths. The desktop
+resolves only unambiguous eligible cached items and requires the newly planned
+identity to match before exposing a confirmation. Unknown, replaced, protected,
+tool-only and non-regenerable choices are refused; execution still rechecks the
+confirmed plan. Person-chosen items are never automatically finalized.
+
 | Threat | Example | Controls |
 | --- | --- | --- |
 | Elevation of privilege | Compromised webview (XSS, webview 0-day) issues arbitrary deletes | No path-accepting mutation commands: mutations name a plan ID or an operation ID; per-window capabilities; no `fs`/`shell` plugins; isolation pattern; strict CSP ([ADR-0004](../decisions/0004-desktop-shell-tauri.md), [ADR-0023](../decisions/0023-ipc-security.md)). **Host-rendered confirmation ([FS-1](public-beta-readiness.md#fs-1-webview-only-confirmation-can-authorize-irreversible-actions)):** `execute`, `uninstall`, `finalize` and `run_tool_command` first open the host's own confirmation window and wait for the person's answer there. The host builds the question from what it stored (the plan's items, each item the person chose listed by path, the held item's original path, the knowledge base's command and its targets); the window is a separate webview with Lumen's bundled `confirm.html`, and only it may read the question and answer (`capabilities/confirm.json`, the label checked again in the command), while the main window is disabled. So a compromised main webview holding a plan's hash can no longer move or remove anything without the person |

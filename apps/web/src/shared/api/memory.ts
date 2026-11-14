@@ -15,6 +15,7 @@ import type {
   UninstallPreviewView,
 } from "@lumen/api-client";
 import { isApiKey, sumBytes } from "@/shared/lib";
+import { canChooseReview, chosenPlan } from "./review-choice";
 import type { LumenTransport } from "./transport";
 
 const HOME = "/Users/ana";
@@ -660,6 +661,8 @@ export function memoryTransport({
     : { chosen: false, enabled: false, consented_at: null, key: "none", key_source: null };
   let held: readonly HeldItemView[] = initiallyHeld;
   let moves = 0;
+  let pendingPlan: PlanView | null = null;
+  let plans = 0;
   let comparing = { stopped: false };
   let previewed = 0;
   // Previews that may still be confirmed, each once.
@@ -706,13 +709,33 @@ export function memoryTransport({
       }
       return result;
     },
-    plan: async () => {
+    plan: async (chosen = []) => {
       await wait(pace / 2);
-      return planView;
+      const selected = [...new Set(chosen)].map((id) => {
+        const item = candidates.find((candidate) => candidate.id === id);
+        if (!item || !canChooseReview(item)) throw new Error("That item cannot be chosen.");
+        return item;
+      });
+      plans += 1;
+      pendingPlan = chosenPlan(
+        {
+          ...planView,
+          plan: `${planView.plan.slice(0, -12)}${plans.toString(16).padStart(12, "0")}`,
+          hash: `${planView.hash.slice(0, -8)}${plans.toString(16).padStart(8, "0")}`,
+          items: [...proposed, ...selected],
+        },
+        chosen,
+      );
+      return pendingPlan;
     },
     execute: async (request) => {
       await wait(pace);
-      const items: ItemReportView[] = planView.items.map((item) => {
+      const active = pendingPlan;
+      if (active === null || request.plan !== active.plan || request.confirmation !== active.hash) {
+        throw new Error("The confirmation does not match the plan; nothing was moved.");
+      }
+      pendingPlan = null;
+      const items: ItemReportView[] = active.items.map((item) => {
         if (item.path === CHANGED) {
           return {
             path: item.path,
@@ -730,7 +753,7 @@ export function memoryTransport({
             original: item.path,
             since: new Date().toISOString(),
             reclaim_bytes: item.reclaimable_bytes,
-            chosen_by: "policy",
+            chosen_by: item.verdict === "review" ? "person" : "policy",
           },
         ];
         return {

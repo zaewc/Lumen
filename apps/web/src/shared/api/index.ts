@@ -4,6 +4,7 @@ export { declined } from "./host-error";
 export { QUERY_KEYS } from "./keys";
 export { memoryTransport } from "./memory";
 export { followQuitHeld, MOVING_OPERATIONS, useMoving } from "./moving";
+export { canChooseReview } from "./review-choice";
 export { tauriTransport } from "./tauri";
 export type { LumenTransport, OperationId } from "./transport";
 export { operationOf } from "./transport";

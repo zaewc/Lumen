@@ -33,6 +33,7 @@ import { Channel, type InvokeArgs, invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { hostError } from "./host-error";
 import { zAppIcon } from "./icon";
+import { chosenPlan } from "./review-choice";
 import type { LumenTransport } from "./transport";
 
 // Older hosts omit these additive descriptors. Normalize them at the boundary
@@ -89,7 +90,8 @@ export function tauriTransport(): LumenTransport {
       };
       return zCompatibleCandidate.array().parse(await call("assess", { progress }));
     },
-    plan: async () => zCompatiblePlan.parse(await call("plan")),
+    plan: async (chosen = []) =>
+      chosenPlan(zCompatiblePlan.parse(await call("plan", { chosen: [...chosen] })), chosen),
     execute: async (request) => zQuarantineReportView.parse(await call("execute", { request })),
     held: async () => zHeldItemView.array().parse(await call("held")),
     restore: async (operationId) =>
