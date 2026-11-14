@@ -10,8 +10,10 @@ function Row({ item }: { readonly item: HostAskItem }) {
     <li className="flex items-baseline gap-3 py-2">
       {/* Whole, never cut off: this is what the person confirms. */}
       <span className="min-w-0 flex-1 select-text">
-        <span className="block break-words text-ink">{item.name}</span>
-        <span className="block break-all text-[12px] text-ink-3">{item.folder}</span>
+        <span className="block break-words whitespace-pre-wrap text-ink">{item.name}</span>
+        <span className="block break-all whitespace-pre-wrap text-[12px] text-ink-3">
+          {item.folder}
+        </span>
       </span>
       {item.bytes !== null && (
         <span className="shrink-0 tabular-nums text-ink">
