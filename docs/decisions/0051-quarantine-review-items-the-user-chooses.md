@@ -51,7 +51,9 @@ Chosen option: **1**.
   proposed it or the person chose it, and the plan's hash covers that. The CLI takes
   chosen items explicitly (`lumen plan --choose <path>`, repeatable); the desktop app
   sends the chosen items' opaque assessment IDs with the plan request; the host
-  resolves paths from its latest assessment. The host plans only paths that
+  resolves paths from its latest assessment, and plans only the chosen items,
+  without the policy's proposals (owner, 2026-11-14: one item's own button moves
+  that item). The host plans only paths that
   the latest assessment left for review and that are eligible as above.
 - **Confirmation re-decides, as before:** just before the move, a chosen item must
   still be `REVIEW` (or `QUARANTINE`) with the same rules; `KEEP`, changed evidence or a

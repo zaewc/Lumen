@@ -13,7 +13,10 @@ describe("explicit review choices", () => {
     expect(automatic.items.every((c) => c.verdict === "quarantine")).toBe(true);
     expect(() => chosenPlan(automatic, [item.id])).toThrow();
     const selected = await transport.plan([item.id]);
-    expect(selected.items.some((c) => c.id === item.id && c.verdict === "review")).toBe(true);
+    expect(selected.items.map((c) => c.id)).toEqual([item.id]);
+    expect(() =>
+      chosenPlan({ ...selected, items: [...selected.items, ...automatic.items] }, [item.id]),
+    ).toThrow();
     expect(await transport.held()).toEqual(before);
     await expect(
       transport.execute({ plan: automatic.plan, confirmation: automatic.hash }),
