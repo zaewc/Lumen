@@ -21,9 +21,12 @@ export function chosenPlan(plan: PlanView, ids: readonly string[]): PlanView {
   if (wanted.size === 0) {
     return plan;
   }
+  const planned = new Set(plan.items.map((item) => item.id));
   if (
     plan.items.length !== wanted.size ||
-    plan.items.some((item) => !wanted.has(item.id) || !canChooseReview(item))
+    planned.size !== plan.items.length ||
+    [...wanted].some((id) => !planned.has(id)) ||
+    plan.items.some((item) => !canChooseReview(item))
   ) {
     throw new Error(
       "The host did not plan the selected review items; assess again or update Lumen.",

@@ -29,6 +29,17 @@ describe("explicit review choices", () => {
     await expect(transport.execute(request)).rejects.toThrow();
   });
 
+  it("needs every chosen ID exactly once in the plan", async () => {
+    const transport = memoryTransport();
+    const items = await transport.assess();
+    const [a, b] = items.filter(canChooseReview);
+    if (!a || !b) throw new Error("two review fixtures needed");
+    const both = await transport.plan([a.id, b.id]);
+    expect(chosenPlan(both, [a.id, b.id])).toBe(both);
+    const twice = { ...both, items: [a, a] };
+    expect(() => chosenPlan(twice, [a.id, b.id])).toThrow();
+  });
+
   it("refuses unknown, kept, tool-only and non-regenerable choices", async () => {
     const transport = memoryTransport();
     const items = await transport.assess();
