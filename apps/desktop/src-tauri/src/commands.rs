@@ -522,11 +522,19 @@ pub(crate) async fn run_tool_command(
     .await
 }
 
-/// Resolves opaque IDs only from the assessment shown by this host.
+/// Resolves opaque IDs only from the assessment shown by this host, at most
+/// [`crate::confirmation::MAX_CHOSEN`] distinct ones.
 fn chosen_paths(
     latest: &[Assessed],
     chosen: &[String],
 ) -> Result<Vec<(String, lumen_domain::RawPath)>, CommandError> {
+    let chosen: std::collections::BTreeSet<&String> = chosen.iter().collect();
+    if chosen.len() > crate::confirmation::MAX_CHOSEN {
+        return Err(CommandError::new(format!(
+            "choose at most {} review items at a time",
+            crate::confirmation::MAX_CHOSEN
+        )));
+    }
     let mut resolved = Vec::new();
     for id in chosen {
         let mut matches = latest.iter().filter(|item| candidate_id(item) == *id);
@@ -541,7 +549,7 @@ fn chosen_paths(
             lumen_app::assess::tool_action(item).is_some(),
         )
         .map_err(CommandError::new)?;
-        resolved.push((id.clone(), item.candidate.path.clone()));
+        resolved.push(((*id).clone(), item.candidate.path.clone()));
     }
     Ok(resolved)
 }
@@ -1255,7 +1263,16 @@ mod tests {
         assert_eq!(chosen_paths(&[], &[])?, []);
         assert!(chosen_paths(&[], std::slice::from_ref(&id)).is_err());
         assert!(chosen_paths(latest, &[item.candidate.path.display()]).is_err());
-        assert!(chosen_paths(&[item.clone(), item.clone()], &[id]).is_err());
+        assert!(chosen_paths(&[item.clone(), item.clone()], std::slice::from_ref(&id)).is_err());
+        assert_eq!(
+            chosen_paths(latest, &[id.clone(), id.clone()])?.len(),
+            1,
+            "a repeated ID is one choice"
+        );
+        let many: Vec<String> = (0..=crate::confirmation::MAX_CHOSEN)
+            .map(|n| format!("{id}-{n}"))
+            .collect();
+        assert!(chosen_paths(latest, &many).is_err(), "too many choices");
         check_chosen_identities(&selected, latest)?;
         check_chosen_identities(&[], &[])?;
         assert!(check_chosen_identities(&selected, &[]).is_err());
