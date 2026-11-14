@@ -144,7 +144,7 @@ export function Results({
             lens={lens}
             onOpen={setOpen}
           />
-          <CandidateList sections={sections} onOpen={setOpen} lens={lens} />
+          <CandidateList sections={sections} onOpen={setOpen} lens={lens} moving={move.moving} />
         </>
       )}
       <ScanDetails scan={scan} />
