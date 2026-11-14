@@ -7,10 +7,11 @@ import { Bytes, buttonClass, CheckIcon } from "@/shared/ui";
 /** One item: its name, the folder it is in, and what it frees when known. */
 function Row({ item }: { readonly item: HostAskItem }) {
   return (
-    <li className="flex items-baseline gap-3 py-2" title={item.path}>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-ink">{item.name}</span>
-        <span className="block truncate text-[12px] text-ink-3">{item.folder}</span>
+    <li className="flex items-baseline gap-3 py-2">
+      {/* Whole, never cut off: this is what the person confirms. */}
+      <span className="min-w-0 flex-1 select-text">
+        <span className="block break-words text-ink">{item.name}</span>
+        <span className="block break-all text-[12px] text-ink-3">{item.folder}</span>
       </span>
       {item.bytes !== null && (
         <span className="shrink-0 tabular-nums text-ink">
@@ -127,7 +128,7 @@ function useQuestion(ask: HostAsk): {
         danger: true,
         body: (
           <>
-            <pre className="mt-3 overflow-x-auto rounded bg-fill px-3 py-2 font-mono text-[13px] text-ink select-text">
+            <pre className="mt-3 whitespace-pre-wrap break-all rounded bg-fill px-3 py-2 font-mono text-[13px] text-ink select-text">
               {ask.command}
             </pre>
             <Rows items={ask.targets.items} more={ask.targets.more} />
