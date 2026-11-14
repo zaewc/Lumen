@@ -1,7 +1,7 @@
 import type { CandidateView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
 import { memoryTransport } from "@/shared/api";
-import { lastPlanWasItem, moveOffer, stillCurrent } from "./move";
+import { latestPlan, moveOffer, type PlanState, stillCurrent } from "./move";
 
 async function sample(): Promise<CandidateView> {
   const items = await memoryTransport().assess();
@@ -33,11 +33,17 @@ describe("moving a review item the person chooses", () => {
     expect(moveOffer(toolOnly, false)).toBe("unavailable");
   });
 
-  it("tells which action made the latest plan", () => {
-    expect(lastPlanWasItem([])).toBe(false);
-    expect(lastPlanWasItem([undefined])).toBe(false);
-    expect(lastPlanWasItem([undefined, { id: "a", scan: "s" }])).toBe(true);
-    expect(lastPlanWasItem([{ id: "a", scan: "s" }, undefined])).toBe(false);
+  it("tells which action made the latest plan and whether it failed", () => {
+    const toolbar: PlanState = { variables: undefined, status: "error", error: "x" };
+    const item: PlanState = { variables: { id: "a", scan: "s" }, status: "success", error: null };
+    expect(latestPlan([])).toBeNull();
+    expect(latestPlan([toolbar])).toEqual({ item: null, failed: true, error: "x" });
+    expect(latestPlan([toolbar, item])).toEqual({ item: "a", failed: false, error: null });
+    expect(latestPlan([item, { ...toolbar, status: "pending", error: null }])).toEqual({
+      item: null,
+      failed: false,
+      error: null,
+    });
   });
 
   it("drops a plan made for another scan", () => {

@@ -1,4 +1,5 @@
 import type { CandidateView } from "@lumen/api-client";
+import { useMutationState } from "@tanstack/react-query";
 import { canChooseReview } from "@/shared/api";
 
 /**
@@ -23,15 +24,39 @@ export function moveOffer(candidate: CandidateView, cleanedUp: boolean): MoveOff
   return canChooseReview(candidate) ? "move" : "unavailable";
 }
 
+/** One plan the page made, as the shared mutation cache keeps it. */
+export interface PlanState {
+  readonly variables: unknown;
+  readonly status: "idle" | "pending" | "success" | "error";
+  readonly error: unknown;
+}
+
+/** The latest plan: whose it was (an item's ID, or `null` for the toolbar's clean-up) and whether making it failed. */
+export interface LatestPlan {
+  readonly item: string | null;
+  readonly failed: boolean;
+  readonly error: unknown;
+}
+
 /**
- * Whether the latest plan of this page (the variables of its [`PLANNING`]
- * mutations, oldest first) was for one item the person chose rather than
- * the toolbar's clean-up: a failed move is shown, and retried, by the action
- * that made it.
+ * The latest of this page's plans (its [`PLANNING`] mutations, oldest first),
+ * or `null` before any. Only the action that made it shows its errors and
+ * retries it; the item's ID outlives the page in the mutation cache.
  */
-export function lastPlanWasItem(variables: readonly unknown[]): boolean {
-  const last = variables.at(-1);
-  return typeof last === "object" && last !== null && "id" in last;
+export function latestPlan(plans: readonly PlanState[]): LatestPlan | null {
+  const last = plans.at(-1);
+  if (last === undefined) {
+    return null;
+  }
+  const { variables } = last;
+  const item =
+    typeof variables === "object" &&
+    variables !== null &&
+    "id" in variables &&
+    typeof variables.id === "string"
+      ? variables.id
+      : null;
+  return { item, failed: last.status === "error", error: last.error };
 }
 
 /**
@@ -40,4 +65,18 @@ export function lastPlanWasItem(variables: readonly unknown[]): boolean {
  */
 export function stillCurrent(plannedFor: string | null, shown: string | null): boolean {
   return plannedFor !== null && plannedFor === shown;
+}
+
+/** [`latestPlan`] of this page's plans, kept in the shared mutation cache. */
+export function useLatestPlan(): LatestPlan | null {
+  return latestPlan(
+    useMutationState({
+      filters: { mutationKey: PLANNING },
+      select: (mutation): PlanState => ({
+        variables: mutation.state.variables,
+        status: mutation.state.status,
+        error: mutation.state.error,
+      }),
+    }),
+  );
 }

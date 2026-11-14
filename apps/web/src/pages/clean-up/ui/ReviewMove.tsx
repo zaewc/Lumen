@@ -1,11 +1,11 @@
 import type { CandidateView } from "@lumen/api-client";
-import { useIsMutating, useMutation, useMutationState } from "@tanstack/react-query";
-import { type ReactNode, useRef, useState } from "react";
+import { useIsMutating, useMutation } from "@tanstack/react-query";
+import { type ReactNode, useRef } from "react";
 import { useScanSession } from "@/entities/scan-session";
 import { declined, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice } from "@/shared/ui";
-import { lastPlanWasItem, PLANNING, stillCurrent } from "../model/move";
+import { PLANNING, stillCurrent, useLatestPlan } from "../model/move";
 
 /** Moving one review item the person chose, for the results to place. */
 export interface ReviewMove {
@@ -37,14 +37,11 @@ export function useReviewMove(): ReviewMove {
   // The scan shown now, read when the plan comes back.
   const shown = useRef(scan);
   shown.current = scan;
-  const [target, setTarget] = useState<string | null>(null);
   const planning = useIsMutating({ mutationKey: PLANNING }) > 0;
-  const itemMoved = lastPlanWasItem(
-    useMutationState({
-      filters: { mutationKey: PLANNING },
-      select: (mutation) => mutation.state.variables,
-    }),
-  );
+  // The item of the page's latest plan, if it was one chosen item's: only
+  // then are its errors this hook's, and it survives the page in the cache.
+  const latest = useLatestPlan();
+  const target = latest?.item ?? null;
   const plan = useMutation({
     mutationKey: PLANNING,
     mutationFn: async (request: { readonly id: string; readonly scan: string | null }) => ({
@@ -54,7 +51,6 @@ export function useReviewMove(): ReviewMove {
   });
   const { execute } = session;
   const run = (id: string) => {
-    setTarget(id);
     session.resetCleanUp();
     plan.mutate(
       { id, scan },
@@ -76,15 +72,16 @@ export function useReviewMove(): ReviewMove {
   return {
     start: (item) => run(item.id),
     busy: planning || session.cleaning || session.scanning,
-    moving: plan.isPending || session.cleaning ? target : null,
-    error: plan.isError ? (
-      <ErrorNotice message={m.action.planFailed} error={plan.error}>
-        {retry}
-      </ErrorNotice>
-    ) : itemMoved && session.cleanUpError !== null && !declined(session.cleanUpError) ? (
-      <ErrorNotice message={m.confirm.failed} error={session.cleanUpError}>
-        {retry}
-      </ErrorNotice>
-    ) : null,
+    moving: planning || session.cleaning ? target : null,
+    error:
+      target !== null && latest?.failed ? (
+        <ErrorNotice message={m.action.planFailed} error={latest.error}>
+          {retry}
+        </ErrorNotice>
+      ) : target !== null && session.cleanUpError !== null && !declined(session.cleanUpError) ? (
+        <ErrorNotice message={m.confirm.failed} error={session.cleanUpError}>
+          {retry}
+        </ErrorNotice>
+      ) : null,
   };
 }
