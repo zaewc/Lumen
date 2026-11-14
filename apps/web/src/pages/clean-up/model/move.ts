@@ -24,6 +24,17 @@ export function moveOffer(candidate: CandidateView, cleanedUp: boolean): MoveOff
 }
 
 /**
+ * Whether the latest plan of this page (the variables of its [`PLANNING`]
+ * mutations, oldest first) was for one item the person chose rather than
+ * the toolbar's clean-up: a failed move is shown, and retried, by the action
+ * that made it.
+ */
+export function lastPlanWasItem(variables: readonly unknown[]): boolean {
+  const last = variables.at(-1);
+  return typeof last === "object" && last !== null && "id" in last;
+}
+
+/**
  * A plan made for one item may be executed only while the scan it was made
  * for is still the one shown; otherwise it is dropped and nothing moves.
  */

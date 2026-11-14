@@ -1,11 +1,11 @@
 import type { CandidateView } from "@lumen/api-client";
-import { useIsMutating, useMutation } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useMutationState } from "@tanstack/react-query";
 import { type ReactNode, useRef, useState } from "react";
 import { useScanSession } from "@/entities/scan-session";
-import { useTransport } from "@/shared/api";
+import { declined, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
-import { ErrorNotice } from "@/shared/ui";
-import { PLANNING, stillCurrent } from "../model/move";
+import { buttonClass, ErrorNotice } from "@/shared/ui";
+import { lastPlanWasItem, PLANNING, stillCurrent } from "../model/move";
 
 /** Moving one review item the person chose, for the results to place. */
 export interface ReviewMove {
@@ -16,8 +16,8 @@ export interface ReviewMove {
   /** The item being planned or moved now, by ID, for its row to show. */
   readonly moving: string | null;
   /**
-   * Why the item could not be planned, for the top of the results; `null`
-   * when nothing went wrong. A failed move shows with the page's clean-up.
+   * Why the chosen item could not be planned or moved, with a retry of that
+   * item, for the top of the results; `null` when nothing went wrong.
    */
   readonly error: ReactNode;
 }
@@ -39,6 +39,12 @@ export function useReviewMove(): ReviewMove {
   shown.current = scan;
   const [target, setTarget] = useState<string | null>(null);
   const planning = useIsMutating({ mutationKey: PLANNING }) > 0;
+  const itemMoved = lastPlanWasItem(
+    useMutationState({
+      filters: { mutationKey: PLANNING },
+      select: (mutation) => mutation.state.variables,
+    }),
+  );
   const plan = useMutation({
     mutationKey: PLANNING,
     mutationFn: async (request: { readonly id: string; readonly scan: string | null }) => ({
@@ -47,23 +53,38 @@ export function useReviewMove(): ReviewMove {
     }),
   });
   const { execute } = session;
-  return {
-    start: (item) => {
-      setTarget(item.id);
-      session.resetCleanUp();
-      plan.mutate(
-        { id: item.id, scan },
-        {
-          onSuccess: ({ planned, scan: planScan }) => {
-            if (stillCurrent(planScan, shown.current)) {
-              execute(planned);
-            }
-          },
+  const run = (id: string) => {
+    setTarget(id);
+    session.resetCleanUp();
+    plan.mutate(
+      { id, scan },
+      {
+        onSuccess: ({ planned, scan: planScan }) => {
+          if (stillCurrent(planScan, shown.current)) {
+            execute(planned);
+          }
         },
-      );
-    },
+      },
+    );
+  };
+  const retry =
+    target === null ? null : (
+      <button type="button" onClick={() => run(target)} className={buttonClass("secondary", "sm")}>
+        {m.common.tryAgain}
+      </button>
+    );
+  return {
+    start: (item) => run(item.id),
     busy: planning || session.cleaning || session.scanning,
     moving: plan.isPending || session.cleaning ? target : null,
-    error: plan.isError ? <ErrorNotice message={m.action.planFailed} error={plan.error} /> : null,
+    error: plan.isError ? (
+      <ErrorNotice message={m.action.planFailed} error={plan.error}>
+        {retry}
+      </ErrorNotice>
+    ) : itemMoved && session.cleanUpError !== null && !declined(session.cleanUpError) ? (
+      <ErrorNotice message={m.confirm.failed} error={session.cleanUpError}>
+        {retry}
+      </ErrorNotice>
+    ) : null,
   };
 }

@@ -1,10 +1,10 @@
-import { useIsMutating, useMutation } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useMutationState } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useScanSession } from "@/entities/scan-session";
 import { declined, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice } from "@/shared/ui";
-import { PLANNING } from "../model/move";
+import { lastPlanWasItem, PLANNING } from "../model/move";
 
 /** The parts of the clean-up action, for the page to place. */
 export interface CleanUpAction {
@@ -34,6 +34,13 @@ export function useCleanUpAction({
   const transport = useTransport();
   const session = useScanSession();
   const planning = useIsMutating({ mutationKey: PLANNING }) > 0;
+  // A failed move of one chosen item is the item's to show and retry.
+  const itemMoved = lastPlanWasItem(
+    useMutationState({
+      filters: { mutationKey: PLANNING },
+      select: (mutation) => mutation.state.variables,
+    }),
+  );
   const plan = useMutation({
     mutationKey: PLANNING,
     mutationFn: () => transport.plan(),
@@ -72,7 +79,7 @@ export function useCleanUpAction({
       <ErrorNotice message={m.action.planFailed} error={plan.error}>
         {retry}
       </ErrorNotice>
-    ) : session.cleanUpError !== null && !declined(session.cleanUpError) ? (
+    ) : session.cleanUpError !== null && !declined(session.cleanUpError) && !itemMoved ? (
       <ErrorNotice message={m.confirm.failed} error={session.cleanUpError}>
         {retry}
       </ErrorNotice>

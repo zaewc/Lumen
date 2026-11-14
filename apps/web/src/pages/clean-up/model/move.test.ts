@@ -1,7 +1,7 @@
 import type { CandidateView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
 import { memoryTransport } from "@/shared/api";
-import { moveOffer, stillCurrent } from "./move";
+import { lastPlanWasItem, moveOffer, stillCurrent } from "./move";
 
 async function sample(): Promise<CandidateView> {
   const items = await memoryTransport().assess();
@@ -31,6 +31,13 @@ describe("moving a review item the person chooses", () => {
     };
     expect(moveOffer(notRegenerable, false)).toBe("unavailable");
     expect(moveOffer(toolOnly, false)).toBe("unavailable");
+  });
+
+  it("tells which action made the latest plan", () => {
+    expect(lastPlanWasItem([])).toBe(false);
+    expect(lastPlanWasItem([undefined])).toBe(false);
+    expect(lastPlanWasItem([undefined, { id: "a", scan: "s" }])).toBe(true);
+    expect(lastPlanWasItem([{ id: "a", scan: "s" }, undefined])).toBe(false);
   });
 
   it("drops a plan made for another scan", () => {
