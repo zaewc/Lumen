@@ -722,7 +722,7 @@ export function memoryTransport({
           ...planView,
           plan: `${planView.plan.slice(0, -12)}${plans.toString(16).padStart(12, "0")}`,
           hash: `${planView.hash.slice(0, -8)}${plans.toString(16).padStart(8, "0")}`,
-          items: [...proposed, ...selected],
+          items: selected.length > 0 ? selected : [...proposed],
         },
         chosen,
       );

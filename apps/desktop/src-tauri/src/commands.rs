@@ -569,7 +569,8 @@ fn check_chosen_identities(
     Ok(())
 }
 
-/// Plans policy proposals and explicitly chosen review items; moves nothing.
+/// Plans the policy's proposals, or, when the person chose review items,
+/// only those (ADR-0051); moves nothing.
 #[tauri::command]
 pub(crate) async fn plan(
     core: State<'_, Core>,
@@ -592,12 +593,21 @@ pub(crate) async fn plan(
             secrets.as_deref(),
             builtin.as_ref(),
             |judge, _describer| {
-                lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge, &paths)
-                    .map_err(CommandError::new)
+                if paths.is_empty() {
+                    lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge, &[])
+                } else {
+                    lumen_app::plan_chosen(&db, &SystemClock, &UuidV7Ids, judge, &paths)
+                }
+                .map_err(CommandError::new)
             },
             |planned| planned.items.as_slice(),
         )?;
         check_chosen_identities(&chosen, &planned.items)?;
+        if !chosen.is_empty() && planned.items.len() != chosen.len() {
+            return Err(CommandError::new(
+                "the plan holds more than the chosen items; nothing was planned",
+            ));
+        }
         Ok(PlanView::from(&planned))
     })
     .await
