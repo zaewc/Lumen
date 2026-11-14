@@ -1,11 +1,11 @@
 import type { CandidateView } from "@lumen/api-client";
-import { useMutation } from "@tanstack/react-query";
+import { useIsMutating, useMutation } from "@tanstack/react-query";
 import { type ReactNode, useRef, useState } from "react";
 import { useScanSession } from "@/entities/scan-session";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { ErrorNotice } from "@/shared/ui";
-import { stillCurrent } from "../model/move";
+import { PLANNING, stillCurrent } from "../model/move";
 
 /** Moving one review item the person chose, for the results to place. */
 export interface ReviewMove {
@@ -38,7 +38,9 @@ export function useReviewMove(): ReviewMove {
   const shown = useRef(scan);
   shown.current = scan;
   const [target, setTarget] = useState<string | null>(null);
+  const planning = useIsMutating({ mutationKey: PLANNING }) > 0;
   const plan = useMutation({
+    mutationKey: PLANNING,
     mutationFn: async (request: { readonly id: string; readonly scan: string | null }) => ({
       planned: await transport.plan([request.id]),
       scan: request.scan,
@@ -60,7 +62,7 @@ export function useReviewMove(): ReviewMove {
         },
       );
     },
-    busy: plan.isPending || session.cleaning || session.scanning,
+    busy: planning || session.cleaning || session.scanning,
     moving: plan.isPending || session.cleaning ? target : null,
     error: plan.isError ? <ErrorNotice message={m.action.planFailed} error={plan.error} /> : null,
   };

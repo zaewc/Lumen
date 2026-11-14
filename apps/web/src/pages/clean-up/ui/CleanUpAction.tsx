@@ -1,9 +1,10 @@
-import { useMutation } from "@tanstack/react-query";
+import { useIsMutating, useMutation } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useScanSession } from "@/entities/scan-session";
 import { declined, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice } from "@/shared/ui";
+import { PLANNING } from "../model/move";
 
 /** The parts of the clean-up action, for the page to place. */
 export interface CleanUpAction {
@@ -32,7 +33,9 @@ export function useCleanUpAction({
   const { m } = useI18n();
   const transport = useTransport();
   const session = useScanSession();
+  const planning = useIsMutating({ mutationKey: PLANNING }) > 0;
   const plan = useMutation({
+    mutationKey: PLANNING,
     mutationFn: () => transport.plan(),
     onSuccess: (planned) => {
       onConfirm();
@@ -54,7 +57,7 @@ export function useCleanUpAction({
       <button
         type="button"
         onClick={prepare}
-        disabled={nothing || plan.isPending || session.cleaning}
+        disabled={nothing || planning || session.cleaning}
         title={nothing ? m.action.nothing : undefined}
         className={buttonClass("primary")}
       >
