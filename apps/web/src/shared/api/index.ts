@@ -1,4 +1,6 @@
+export { confirmHost, type HostAsk, type HostAskItem, zHostAsk } from "./confirm";
 export { TransportContext, useTransport } from "./context";
+export { declined } from "./host-error";
 export { QUERY_KEYS } from "./keys";
 export { memoryTransport } from "./memory";
 export { followQuitHeld, MOVING_OPERATIONS, useMoving } from "./moving";

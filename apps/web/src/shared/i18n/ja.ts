@@ -454,6 +454,23 @@ export const ja: Messages = {
     planMade: (createdAt: string) => `この計画は${createdAt}に作成されました。24時間利用できます。`,
     planHash: "計画のハッシュ",
   },
+  hostConfirm: {
+    proposed: "Lumen の提案",
+    chosen: "自分で選んだ項目",
+    chosenNote:
+      "Lumen が提案した項目ではありません。アプリに影響する可能性があり、復元するか完全に削除するまで隔離に残ります。",
+    uninstallTitle: "このアプリを隔離に移動しますか？",
+    uninstallNote: "隔離から復元できます。",
+    finalizeTitle: "この項目を完全に削除しますか？",
+    finalizeNote: "元に戻せません。",
+    finalizeChosen: "自分で選んだ項目です。Lumen が提案したものではありません。",
+    finalizeButton: "完全に削除",
+    toolTitle: (tool: string) => `${tool} のコマンドを実行しますか？`,
+    toolNote: "削除されたものは復元できません。",
+    toolButton: "実行",
+    more: (n: number) => `…ほか ${items(n)}`,
+    unavailable: "確認する内容を表示できませんでした。何も変更されていません。",
+  },
   done: {
     title: (n: number, size: string) => `${items(n)}（${size}）を隔離に移動しました。`,
     noneMoved: "何も移動しませんでした。",

@@ -40,6 +40,16 @@ host-side authorization boundary.
 whose content is built by the host, or equivalent host-enforced authorization.
 Correct the threat-model statement that the host prevents select-all.
 
+**Status (2026-11-14): resolved.** Before `execute`, `uninstall`, `finalize` and
+`run_tool_command`, the desktop host opens its own confirmation window, a separate
+webview that only it opens and only it may answer (its own capability), with the
+question built from the stored plan, held item or knowledge-base command; closing
+it changes nothing
+([`confirmation.rs`](../../apps/desktop/src-tauri/src/confirmation.rs)). Every item
+the person chose is listed by path, and a plan with more than 32 of them is refused
+rather than summarised. Explore's own confirmation dialog was removed, so a clean-up
+is confirmed once, in that window.
+
 ### FS-2: Cloud-synced folders can be moved out of their sync domain
 
 **Evidence:** Cloud protection currently checks flags on the candidate itself;

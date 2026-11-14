@@ -478,6 +478,23 @@ export const ru: Messages = {
       `Lumen создал этот план ${createdAt}. Использовать его можно в течение 24 часов.`,
     planHash: "Хеш плана",
   },
+  hostConfirm: {
+    proposed: "Предложения Lumen",
+    chosen: "Выбранные вами",
+    chosenNote:
+      "Lumen их не предлагал. Их перемещение может повлиять на приложения. Они останутся в карантине, пока вы их не восстановите или не удалите окончательно.",
+    uninstallTitle: "Переместить это приложение в карантин?",
+    uninstallNote: "Его можно восстановить из карантина.",
+    finalizeTitle: "Удалить этот элемент окончательно?",
+    finalizeNote: "Это нельзя отменить.",
+    finalizeChosen: "Этот элемент вы выбрали сами; Lumen его не предлагал.",
+    finalizeButton: "Удалить окончательно",
+    toolTitle: (tool: string) => `Выполнить команду ${tool}?`,
+    toolNote: "Удалённое ею восстановить нельзя.",
+    toolButton: "Выполнить",
+    more: (n: number) => `…и ещё ${items(n)}`,
+    unavailable: "Lumen не смог показать, что нужно подтвердить. Ничего не изменено.",
+  },
   done: {
     title: (n: number, size: string) => `${items(n)} (${size}) перемещено в карантин.`,
     noneMoved: "Lumen ничего не переместил.",

@@ -436,6 +436,23 @@ export const zhCN: Messages = {
     planMade: (createdAt: string) => `Lumen 于 ${createdAt} 创建了此计划。你可以在 24 小时内使用。`,
     planHash: "计划哈希值",
   },
+  hostConfirm: {
+    proposed: "Lumen 的建议",
+    chosen: "你选择的项目",
+    chosenNote:
+      "这些不是 Lumen 建议的项目。移动它们可能影响应用，并会一直留在隔离区，直到你恢复或永久移除。",
+    uninstallTitle: "将此应用移至隔离区？",
+    uninstallNote: "你可以从隔离区恢复它。",
+    finalizeTitle: "永久移除此项目？",
+    finalizeNote: "此操作无法撤销。",
+    finalizeChosen: "此项目是你自己选择的，并非 Lumen 的建议。",
+    finalizeButton: "永久移除",
+    toolTitle: (tool: string) => `运行 ${tool} 的命令？`,
+    toolNote: "它删除的内容无法恢复。",
+    toolButton: "运行",
+    more: (n: number) => `……还有 ${items(n)}`,
+    unavailable: "Lumen 无法显示要确认的内容。没有做任何更改。",
+  },
   done: {
     title: (n: number, size: string) => `已将 ${items(n)}（${size}）移至隔离区。`,
     noneMoved: "Lumen 没有移动任何内容。",

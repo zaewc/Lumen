@@ -310,6 +310,17 @@ fn find(store: &LedgerStore, operation: OperationId) -> Result<HeldItem, HeldErr
         .ok_or(HeldError::UnknownOperation(operation))
 }
 
+/// Reads one persisted operation without reconciling or changing its state.
+///
+/// # Errors
+/// Returns a [`HeldError`] if the ledger cannot be read or the operation is unknown.
+pub fn get(db: &Path, operation: OperationId) -> Result<HeldItem, HeldError> {
+    let store = ledger(db)?;
+    let mut item = find(&store, operation)?;
+    item.chosen_by = store.choosers()?.get(&operation).copied();
+    Ok(item)
+}
+
 fn executor() -> Result<Executor, HeldError> {
     stores()?
         .executor()

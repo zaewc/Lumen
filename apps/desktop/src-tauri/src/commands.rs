@@ -67,6 +67,11 @@ pub(crate) struct Core {
     /// The icons of the apps in the latest software list, by its key, drawn
     /// on request and kept in memory (roadmap 16.4).
     pub(crate) icons: Arc<lumen_app::icons::AppIcons>,
+    /// The host's own confirmation before anything is moved, removed for
+    /// good or run (FS-1); a fixed answer in tests.
+    pub(crate) prompt: Arc<crate::confirmation::Prompt>,
+    /// The question the confirmation window shows, and where its answer goes.
+    pub(crate) pending: Arc<crate::confirmation::Pending>,
 }
 
 impl std::fmt::Debug for Core {
@@ -98,6 +103,8 @@ impl std::fmt::Debug for Core {
             .field("settled", &self.settled.is_completed())
             .field("activity", &self.activity)
             .field("icons", &self.icons)
+            .field("prompt", &"confirmation window")
+            .field("pending", &self.pending.ask().is_some())
             .finish()
     }
 }
@@ -497,11 +504,14 @@ pub(crate) async fn run_tool_command(
     let command = lumen_app::tools::builtin(&entry)
         .ok_or_else(|| CommandError::new("that command is not in Lumen's knowledge base"))?;
     let running = Arc::clone(&core.tool_running);
+    let prompt = Arc::clone(&core.prompt);
     blocking(move || {
         lumen_app::refuse_privileged().map_err(CommandError::new)?;
         let Ok(_one) = running.try_lock() else {
             return Err(CommandError::new("another command is still running"));
         };
+        let paths: Vec<_> = targets.iter().map(|(path, _)| path.clone()).collect();
+        crate::confirmation::tool(&command, &paths, &*prompt)?;
         let home =
             std::env::home_dir().ok_or_else(|| CommandError::new("the home folder is unknown"))?;
         let run =
@@ -793,6 +803,50 @@ pub(crate) async fn set_theme<R: tauri::Runtime>(app: tauri::AppHandle<R>, theme
     app.set_theme(appearance);
 }
 
+/// The question the confirmation window shows (FS-1). Only that window may
+/// call it: its capability grants it, and the label is checked here too.
+#[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri hands a command its window and state by value"
+)]
+pub(crate) fn confirm_request<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    core: State<'_, Core>,
+) -> Result<crate::confirmation::Ask, CommandError> {
+    confirming(&window)?;
+    core.pending
+        .ask()
+        .ok_or_else(|| CommandError::new("nothing to confirm"))
+}
+
+/// The person's answer in the confirmation window (FS-1); only that window
+/// may call it.
+#[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri hands a command its window and state by value"
+)]
+pub(crate) fn confirm_answer<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    core: State<'_, Core>,
+    yes: bool,
+) -> Result<(), CommandError> {
+    confirming(&window)?;
+    core.pending.answer(yes);
+    Ok(())
+}
+
+fn confirming<R: tauri::Runtime>(window: &tauri::Window<R>) -> Result<(), CommandError> {
+    if window.label() == crate::confirmation::WINDOW {
+        Ok(())
+    } else {
+        Err(CommandError::new(
+            "only the confirmation window may do that",
+        ))
+    }
+}
+
 /// Opens the Full Disk Access pane of System Settings, so the user can allow
 /// Lumen there. A fixed address with no input from the window; Lumen grants
 /// itself nothing. Only on macOS.
@@ -890,6 +944,7 @@ pub(crate) async fn execute(
     request: ExecuteRequest,
 ) -> Result<QuarantineReportView, CommandError> {
     let db = core.db.clone();
+    let prompt = Arc::clone(&core.prompt);
     let moving = core.activity.moving()?;
     blocking(move || {
         let _moving = moving;
@@ -897,6 +952,7 @@ pub(crate) async fn execute(
             .plan
             .parse()
             .map_err(|_| CommandError::new("not a plan ID"))?;
+        crate::confirmation::plan(&db, plan, &request.confirmation, false, &*prompt)?;
         let report = lumen_app::quarantine::quarantine(
             &db,
             plan,
@@ -951,12 +1007,14 @@ pub(crate) async fn uninstall(
     confirmation: String,
 ) -> Result<UninstallOutcomeView, CommandError> {
     let db = core.db.clone();
+    let prompt = Arc::clone(&core.prompt);
     let moving = core.activity.moving()?;
     blocking(move || {
         let _moving = moving;
         let plan: PlanId = preview
             .parse()
             .map_err(|_| CommandError::new("not a preview ID"))?;
+        crate::confirmation::plan(&db, plan, &confirmation, true, &*prompt)?;
         let report = lumen_app::uninstall::uninstall(
             &db,
             plan,
@@ -1059,11 +1117,14 @@ pub(crate) async fn finalize(
     operation_id: String,
 ) -> Result<FinalizeOutcomeView, CommandError> {
     let db = core.db.clone();
+    let prompt = Arc::clone(&core.prompt);
     let moving = core.activity.moving()?;
     blocking(move || {
         let _moving = moving;
-        let outcome = lumen_app::held::finalize(&db, operation(&operation_id)?, &SystemClock)
-            .map_err(CommandError::new)?;
+        let operation = operation(&operation_id)?;
+        crate::confirmation::finalize(&db, operation, &*prompt)?;
+        let outcome =
+            lumen_app::held::finalize(&db, operation, &SystemClock).map_err(CommandError::new)?;
         Ok(FinalizeOutcomeView::from(&outcome))
     })
     .await

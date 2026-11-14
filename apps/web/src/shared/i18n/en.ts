@@ -462,6 +462,23 @@ export const en = {
       `Lumen made this plan ${createdAt}. You can use it for 24 hours.`,
     planHash: "Plan hash",
   },
+  hostConfirm: {
+    proposed: "Lumen’s proposals",
+    chosen: "Items you chose",
+    chosenNote:
+      "Lumen did not propose these. Moving them may affect apps. They stay in Quarantine until you restore or permanently remove them.",
+    uninstallTitle: "Move this app to Quarantine?",
+    uninstallNote: "You can restore it from Quarantine.",
+    finalizeTitle: "Remove this item for good?",
+    finalizeNote: "This cannot be undone.",
+    finalizeChosen: "You chose this item yourself; Lumen did not propose it.",
+    finalizeButton: "Remove for Good",
+    toolTitle: (tool: string) => `Run ${tool}’s command?`,
+    toolNote: "What it removes cannot be restored.",
+    toolButton: "Run",
+    more: (n: number) => `…and ${items(n)} more`,
+    unavailable: "Lumen could not show what to confirm. Nothing was changed.",
+  },
   done: {
     title: (n: number, size: string) => `Moved ${items(n)} (${size}) to Quarantine.`,
     noneMoved: "Lumen did not move anything.",

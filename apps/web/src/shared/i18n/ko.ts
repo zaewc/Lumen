@@ -456,6 +456,23 @@ export const ko = {
       `${createdAt}에 만든 정리 계획이에요. 24시간 동안 쓸 수 있어요.`,
     planHash: "계획 해시",
   },
+  hostConfirm: {
+    proposed: "Lumen의 정리 제안",
+    chosen: "직접 선택한 항목",
+    chosenNote:
+      "Lumen이 정리를 제안한 항목은 아니에요. 앱 동작에 영향을 줄 수 있고, 직접 복원하거나 영구 삭제할 때까지 격리함에 보관해요.",
+    uninstallTitle: "이 앱을 격리함으로 옮길까요?",
+    uninstallNote: "격리함에서 다시 복원할 수 있어요.",
+    finalizeTitle: "이 항목을 영구 삭제할까요?",
+    finalizeNote: "영구 삭제하면 되돌릴 수 없어요.",
+    finalizeChosen: "직접 선택한 항목이에요. Lumen이 정리를 제안한 항목은 아니에요.",
+    finalizeButton: "영구 삭제",
+    toolTitle: (tool: string) => `${tool} 명령을 실행할까요?`,
+    toolNote: "명령이 지운 것은 복원할 수 없어요.",
+    toolButton: "실행",
+    more: (n: number) => `외 ${items(n)}`,
+    unavailable: "확인할 내용을 불러오지 못했어요. 아무것도 바뀌지 않았어요.",
+  },
   done: {
     title: (n: number, size: string) => `${items(n)}(${size})를 격리함으로 옮겼어요.`,
     noneMoved: "아무것도 옮기지 않았어요.",
