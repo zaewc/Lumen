@@ -35,6 +35,9 @@ static ANSWER: AtomicBool = AtomicBool::new(true);
 /// How often the host asked.
 static ASKED: AtomicUsize = AtomicUsize::new(0);
 
+/// The size the last removal-for-good question named, if any.
+static FINALIZE_BYTES: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
 /// How often the flow reached a command that must ask: the flow may stop
 /// early when an item is safely not moved, so the count follows the flow.
 static EXPECTED: AtomicUsize = AtomicUsize::new(0);
@@ -46,7 +49,13 @@ fn app_under_test() -> tauri::Builder<MockRuntime> {
         mock_builder(),
         Some(secrets),
         None,
-        Some(Arc::new(|_: &crate::confirmation::Ask| {
+        Some(Arc::new(|ask: &crate::confirmation::Ask| {
+            if let crate::confirmation::Ask::Finalize { item, .. } = ask {
+                FINALIZE_BYTES
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone_from(&item.bytes);
+            }
             ASKED.fetch_add(1, Ordering::SeqCst);
             ANSWER.load(Ordering::SeqCst)
         })),
@@ -290,6 +299,16 @@ fn the_desktop_flow_runs_end_to_end() {
             EXPECTED.load(Ordering::SeqCst),
             "the host asked each time"
         );
+        if EXPECTED.load(Ordering::SeqCst) == 5 {
+            let bytes = FINALIZE_BYTES
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            assert!(
+                bytes.is_some_and(|b| b.parse::<u64>().is_ok_and(|b| b >= 4096)),
+                "removing for good names the recorded size"
+            );
+        }
         return;
     }
     let fx = Fixture::build(&[

@@ -479,6 +479,7 @@ export const ru: Messages = {
     planHash: "Хеш плана",
   },
   hostConfirm: {
+    sizeUnknown: "Размер неизвестен",
     proposed: "Предложения Lumen",
     chosen: "Выбранные вами",
     chosenNote:

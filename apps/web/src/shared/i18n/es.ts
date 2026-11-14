@@ -469,6 +469,7 @@ export const es: Messages = {
     planHash: "Hash del plan",
   },
   hostConfirm: {
+    sizeUnknown: "Tamaño desconocido",
     proposed: "Propuestas de Lumen",
     chosen: "Elementos que elegiste",
     chosenNote:

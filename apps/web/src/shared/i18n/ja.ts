@@ -455,6 +455,7 @@ export const ja: Messages = {
     planHash: "計画のハッシュ",
   },
   hostConfirm: {
+    sizeUnknown: "サイズ不明",
     proposed: "Lumen の提案",
     chosen: "自分で選んだ項目",
     chosenNote:

@@ -463,6 +463,7 @@ export const en = {
     planHash: "Plan hash",
   },
   hostConfirm: {
+    sizeUnknown: "Size unknown",
     proposed: "Lumen’s proposals",
     chosen: "Items you chose",
     chosenNote:
