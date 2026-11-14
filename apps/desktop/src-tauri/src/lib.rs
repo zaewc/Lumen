@@ -10,6 +10,7 @@
 //! The binary (`main.rs`) only calls [`run`].
 
 mod commands;
+mod confirmation;
 #[cfg(all(test, target_os = "macos"))]
 mod e2e;
 mod update;
@@ -111,6 +112,15 @@ pub fn app<R: Runtime>(
     secrets: Option<Arc<dyn SecretStore>>,
     builtin: Option<lumen_app::ai::ApiKey>,
 ) -> Builder<R> {
+    app_with_confirmation(builder, secrets, builtin, Arc::new(confirmation::native))
+}
+
+fn app_with_confirmation<R: Runtime>(
+    builder: Builder<R>,
+    secrets: Option<Arc<dyn SecretStore>>,
+    builtin: Option<lumen_app::ai::ApiKey>,
+    prompt: Arc<confirmation::Prompt>,
+) -> Builder<R> {
     builder
         // In-app updates (ADR-0048); reached only through Lumen's own
         // `check_update` and `install_update`, never from the page.
@@ -132,6 +142,7 @@ pub fn app<R: Runtime>(
             commands::disk,
             commands::open_full_disk_access,
             commands::set_theme,
+            commands::set_language,
             commands::set_ai_review,
             commands::set_ai_key,
             commands::run_tool_command,
@@ -184,6 +195,8 @@ pub fn app<R: Runtime>(
                 settled,
                 activity: Arc::default(),
                 icons: Arc::default(),
+                prompt: Arc::clone(&prompt),
+                language: std::sync::Mutex::default(),
             });
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")

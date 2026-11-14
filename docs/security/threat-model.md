@@ -83,7 +83,7 @@ Assumptions:
 
 | Threat | Example | Controls |
 | --- | --- | --- |
-| Elevation of privilege | Compromised webview (XSS, webview 0-day) issues arbitrary deletes | No path-accepting mutation commands: mutations name a plan ID or an operation ID; per-window capabilities; no `fs`/`shell` plugins; isolation pattern; strict CSP ([ADR-0004](../decisions/0004-desktop-shell-tauri.md), [ADR-0023](../decisions/0023-ipc-security.md)). **Open gap ([FS-1](public-beta-readiness.md#fs-1-webview-only-confirmation-can-authorize-irreversible-actions)):** the confirmation is the plan's full hash, which the host returns to the webview, and `finalize` and tool commands take no confirmation, so a compromised webview can plan, confirm, quarantine and finalize whatever the policy lets through, and run offered tool commands. There is no host-rendered confirmation; CSP and isolation lower the likelihood but are not a host-side authorization boundary |
+| Elevation of privilege | Compromised webview (XSS, webview 0-day) issues arbitrary deletes | No path-accepting mutation commands: mutations name a plan ID or an operation ID; per-window capabilities; no `fs`/`shell` plugins; isolation pattern; strict CSP ([ADR-0004](../decisions/0004-desktop-shell-tauri.md), [ADR-0023](../decisions/0023-ipc-security.md)). **Host-rendered confirmation ([FS-1](public-beta-readiness.md#fs-1-webview-only-confirmation-can-authorize-irreversible-actions)):** `execute`, `uninstall`, `finalize` and `run_tool_command` first show a native dialog whose content the host builds from what it stored (the plan's items, each item the person chose listed by path, the held item's original path, the knowledge base's command and its targets); only its action button lets the command run, so a compromised webview holding a plan's hash can no longer move or remove anything without the person. The page sets only the language of the dialog's fixed sentences |
 | Information disclosure | Compromised webview makes Lumen read file contents outside the intended scan scope | `compare_scan` takes a scan ID, not paths; the host requires it to match the latest completed scan and reads roots from the index. The comparison skips protected locations and quarantine stores, verifies files while reading, is bounded and cancellable, and returns paths, sizes and counts, never content digests ([ADR-0065](../decisions/0065-compare-completed-scan-roots-for-identical-copies.md)). Residual risk: `scan` accepts roots from the webview, so a compromised page can request a scan of a scope and then trigger content comparison in that latest scope; there is no second confirmation |
 | Tampering | Compromised webview uses reassessment (ADR-0058) to make an item proposable | `reassess` takes item IDs from the latest assessment, never paths. It only reads (live in-use probe, re-listing, inventories); the unchanged policy decides, with no AI; protection precedence holds; an item that changed since the scan gets no verdict. Planning assesses again from the scan, and execution re-checks every item |
 | Tampering, elevation of privilege | Compromised webview uninstalls an app the person did not choose, or names a path to move ([ADR-0062](../decisions/0062-uninstall-macos-apps-into-quarantine.md)) | `uninstall_preview` takes a software-list key (at most 4 KiB), matched only against the bundle inventory's identifiers, never used as a path; it only reads and stores a preview. `uninstall` takes the preview ID and its full hash, nothing else; the core refuses cleanup plans, re-checks ADR-0062's gate right before the move and refuses an app changed since the preview. The move is reversible: the app is held in Quarantine, chosen by the person, never removed automatically. As for cleanup, a compromised webview can read the hash it confirms ([FS-1](public-beta-readiness.md#fs-1-webview-only-confirmation-can-authorize-irreversible-actions)), so it could uninstall into quarantine any app the gate lets through |
@@ -253,13 +253,12 @@ GOAL: a file the user needs is permanently lost because of Lumen
   Management cannot be read unprivileged, and a background item that starts the app
   through a script is not attributed to it; either can be left broken by the move,
   and restoring the app fixes it.
-- Desktop confirmation is given in the webview, not by the host: the host accepts the
-  plan hash it returned to the webview, and `finalize` and tool commands need no
-  confirmation. A compromised webview can therefore quarantine and permanently remove
-  whatever the policy lets through. Open as
-  [FS-1](public-beta-readiness.md#fs-1-webview-only-confirmation-can-authorize-irreversible-actions);
-  until a host-rendered confirmation exists, the TB2 controls lower the likelihood of
-  this, not its impact.
+- A compromised webview can still ask for a clean-up, an uninstall, a removal for good
+  or a tool command at any time, and a person who clicks through the host's own dialog
+  without reading it authorizes it. The dialog names what it acts on, so this needs
+  the person's mistake, not only the webview's
+  ([FS-1](public-beta-readiness.md#fs-1-webview-only-confirmation-can-authorize-irreversible-actions),
+  resolved by the host-rendered confirmation).
 
 ## 8. Security testing obligations
 

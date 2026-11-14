@@ -17,6 +17,7 @@
     "allow-disk",
     "allow-open-full-disk-access",
     "allow-set-theme",
+    "allow-set-language",
     "allow-check-update",
     "allow-install-update",
     "allow-run-tool-command",

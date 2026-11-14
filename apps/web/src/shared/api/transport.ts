@@ -29,6 +29,7 @@ import type {
   UnreadFoldersView,
   UpdateView,
 } from "@lumen/api-client";
+import type { Locale } from "@/shared/i18n";
 import type { Theme } from "@/shared/theme";
 
 /** An operation ID, as the core issued it; never built by the UI. */
@@ -72,6 +73,11 @@ export interface LumenTransport {
   openFullDiskAccess?(): Promise<void>;
   /** Sets the desktop window appearance; absent in a browser. */
   setTheme?(theme: Theme): Promise<void>;
+  /**
+   * Sets the language of the desktop host's own confirmation dialogs (FS-1);
+   * absent in a browser.
+   */
+  setLanguage?(locale: Locale): Promise<void>;
   /** Turns AI review on (the user's consent; needs a stored key) or off. */
   setAiReview(enabled: boolean): Promise<AiSettingsView>;
   /** Stores a Jeb API key in the system's secret store; it is never returned. */

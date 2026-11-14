@@ -26,6 +26,8 @@ lumen-telemetry.workspace = true
 serde.workspace = true
 # `generate_context!` embeds the plugins' configuration as JSON values.
 serde_json.workspace = true
+# Rust-only native authorization dialogs; reuses Tauri's GTK3 on Linux.
+rfd = { version = "=0.17.2", default-features = false, features = ["gtk3"] }
 # The desktop shell (ADR-0004), exact; `isolation` for the IPC isolation pattern.
 tauri = { version = "=2.12.3", features = ["isolation"] }
 thiserror.workspace = true

@@ -18,6 +18,7 @@ const allowed = new Set([
   "disk",
   "open_full_disk_access",
   "set_theme",
+  "set_language",
   "check_update",
   "install_update",
   "run_tool_command",
