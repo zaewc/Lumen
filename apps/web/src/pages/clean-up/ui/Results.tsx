@@ -14,6 +14,7 @@ import { candidatesIn, topographyOf, trailTo, unreadEntries } from "../model/top
 import { CandidateList } from "./CandidateList";
 import { CandidateSheet } from "./CandidateSheet";
 import { FlowStage } from "./FlowStage";
+import { useReviewMove } from "./ReviewMove";
 import { ScanDetails } from "./ScanDetails";
 import { StepHeading } from "./StepHeading";
 import { Topography } from "./Topography";
@@ -67,6 +68,7 @@ export function Results({
 }) {
   const { m } = useI18n();
   const [open, setOpen] = useState<CandidateView | null>(null);
+  const move = useReviewMove();
   const proposed = summary.quarantine;
   const groups = useMemo(() => topographyOf(candidates), [candidates]);
   // The group the map is zoomed into, if it is still in this assessment.
@@ -86,6 +88,7 @@ export function Results({
     <>
       {!cleanedUp && <FlowStage step="results" />}
       <div className="space-y-3">
+        {move.error}
         {cleanedUp ? (
           <div>
             <h3 className="text-section text-ink tabular-nums">{m.done.left(candidates.length)}</h3>
@@ -141,11 +144,27 @@ export function Results({
             lens={lens}
             onOpen={setOpen}
           />
-          <CandidateList sections={sections} onOpen={setOpen} lens={lens} />
+          <CandidateList sections={sections} onOpen={setOpen} lens={lens} moving={move.moving} />
         </>
       )}
       <ScanDetails scan={scan} />
-      <CandidateSheet candidate={shown} lens={lens} onClose={() => setOpen(null)} />
+      <CandidateSheet
+        candidate={shown}
+        lens={lens}
+        // After a clean-up the results are read-only: scan again to move more.
+        {...(cleanedUp
+          ? {}
+          : {
+              move: {
+                busy: move.busy,
+                onMove: (item: CandidateView) => {
+                  setOpen(null);
+                  move.start(item);
+                },
+              },
+            })}
+        onClose={() => setOpen(null)}
+      />
     </>
   );
 }

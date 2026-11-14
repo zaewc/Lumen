@@ -440,7 +440,7 @@ their sources before merge.
 | 15.7 | `feat`: say which running apps hold proposable caches ("quit Spotify to free 1.1 GB"), without changing a verdict | done (#565–#567) |
 | 15.8 | `feat(app)`: plans record who chose each item; chosen review items are confirmed as review items and never removed automatically (ADR-0051) | done in the core and CLI (#571–#573); desktop (#574) waits for a host-rendered confirmation (FS-1 in the [readiness audit](../security/public-beta-readiness.md)) |
 | 15.9 | `feat(application)`: large unrecognised folders as review candidates (ADR-0051) | done (#575), after FS-2 (#587, #588) and FS-3 (#591) made the policy keep folders below a sync root or holding cloud content, a protected location or a browser profile |
-| 15.10 | `feat(web)`: choose review items to quarantine, with AI notes beside them (ADR-0051) | open (#897); FS-1, the host-rendered confirmation it waited for, is resolved |
+| 15.10 | `feat(web)`: choose review items to quarantine, with AI notes beside them (ADR-0051) | done (#897): a review item's sheet has a "격리함으로 옮기기…" button that moves that item alone, after the host's confirmation window (FS-1) lists it as an item the person chose; "정리하기…" still moves only the policy's proposals |
 | 15.11 | Later: user-domain logs and Windows `%TEMP%` with age rules; orphaned app caches | open |
 
 ## Phase 16: Installed software after 0.10.0

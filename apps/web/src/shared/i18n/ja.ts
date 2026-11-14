@@ -266,6 +266,8 @@ export const ja: Messages = {
     planFailed: "整理を準備できませんでした。ファイルは変更されていません。",
   },
   detail: {
+    moveReview: "隔離に移動…",
+    reviewChoiceUnavailable: "この項目は隔離対象に選択できません。",
     size: "サイズ",
     location: "場所",
     decision: "判断",

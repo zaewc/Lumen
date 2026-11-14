@@ -266,6 +266,8 @@ export const fr: Messages = {
   },
   detail: {
     ...en.detail,
+    moveReview: "Déplacer en quarantaine…",
+    reviewChoiceUnavailable: "Cet élément ne peut pas être choisi pour la quarantaine.",
     size: "Taille",
     location: "Emplacement",
     decision: "Décision",
