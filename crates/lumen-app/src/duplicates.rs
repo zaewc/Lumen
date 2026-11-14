@@ -219,6 +219,11 @@ fn at_real(mut entry: FilesystemEntry, real: &[(Vec<u8>, Vec<u8>)]) -> Filesyste
             continue;
         }
         let mut moved = target.clone();
+        // One separator between them: a root given as `/alias/` leaves no `/`
+        // at the start of `rest`.
+        if !rest.is_empty() && !rest.starts_with(b"/") && !moved.ends_with(b"/") {
+            moved.push(b'/');
+        }
         moved.extend_from_slice(rest);
         if let Ok(path) = lumen_domain::RawPath::from_unix_bytes(moved) {
             entry.path = path;
@@ -392,6 +397,53 @@ mod tests {
         let stopped = find_in_scan(&db, scanned.scan, &cancel, &mut |_, _| {})?;
         assert!(stopped.report.cancelled && stopped.report.groups.is_empty());
         Ok(())
+    }
+
+    fn entry_at(path: &str) -> FilesystemEntry {
+        use lumen_domain::{
+            AccessState, ByteCount, EntryTimes, FileId, FileIdentity, Protection, RawPath,
+            SizeFacts, SizeFlags, VolumeId,
+        };
+        FilesystemEntry {
+            path: RawPath::from_unix_bytes(path.as_bytes().to_vec())
+                .unwrap_or_else(|e| unreachable!("{e}")),
+            kind: EntryKind::File,
+            access: AccessState::Readable,
+            protection: Protection::default(),
+            times: EntryTimes::default(),
+            size: SizeFacts {
+                identity: FileIdentity {
+                    volume: VolumeId::new("v").unwrap_or_else(|e| unreachable!("{e}")),
+                    file: FileId::new(1),
+                },
+                logical: ByteCount::new(1),
+                allocated: ByteCount::new(1),
+                private: None,
+                clone_id: None,
+                link_count: std::num::NonZeroU32::MIN,
+                flags: SizeFlags::default(),
+            },
+        }
+    }
+
+    #[test]
+    fn paths_move_to_the_real_root_with_one_separator() {
+        let at = |path: &str, root: &str, target: &str| {
+            let entry = at_real(
+                entry_at(path),
+                &[(root.as_bytes().to_vec(), target.as_bytes().to_vec())],
+            );
+            String::from_utf8_lossy(entry.path.as_bytes()).into_owned()
+        };
+        assert_eq!(at("/alias/file", "/alias", "/real"), "/real/file");
+        assert_eq!(at("/alias/file", "/alias/", "/real"), "/real/file");
+        assert_eq!(at("/alias/file", "/alias/", "/real/"), "/real/file");
+        assert_eq!(at("/alias", "/alias", "/real"), "/real");
+        assert_eq!(
+            at("/aliased/file", "/alias", "/real"),
+            "/aliased/file",
+            "whole segments"
+        );
     }
 
     #[cfg(any(target_os = "macos", target_os = "linux"))]
