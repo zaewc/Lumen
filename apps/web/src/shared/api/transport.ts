@@ -51,8 +51,8 @@ export interface LumenTransport {
   scan(request: ScanRequest, onProgress?: (progress: ScanProgressView) => void): Promise<ScanView>;
   /** Decides the latest completed scan; moves nothing. */
   assess(onProgress?: (progress: AssessProgressView) => void): Promise<readonly CandidateView[]>;
-  /** Plans every candidate proposed for quarantine; moves nothing. */
-  plan(): Promise<PlanView>;
+  /** Plans the policy's proposals, or only the chosen review IDs; moves nothing. */
+  plan(chosen?: readonly string[]): Promise<PlanView>;
   /** Executes one plan, confirmed by its full hash. */
   execute(request: ExecuteRequest): Promise<QuarantineReportView>;
   /** What quarantine holds. */

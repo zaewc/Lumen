@@ -522,23 +522,92 @@ pub(crate) async fn run_tool_command(
     .await
 }
 
-/// Plans every candidate proposed for quarantine; moves nothing.
+/// Resolves opaque IDs only from the assessment shown by this host, at most
+/// [`crate::confirmation::MAX_CHOSEN`] distinct ones.
+fn chosen_paths(
+    latest: &[Assessed],
+    chosen: &[String],
+) -> Result<Vec<(String, lumen_domain::RawPath)>, CommandError> {
+    let chosen: std::collections::BTreeSet<&String> = chosen.iter().collect();
+    if chosen.len() > crate::confirmation::MAX_CHOSEN {
+        return Err(CommandError::new(format!(
+            "choose at most {} review items at a time",
+            crate::confirmation::MAX_CHOSEN
+        )));
+    }
+    let mut resolved = Vec::new();
+    for id in chosen {
+        let mut matches = latest.iter().filter(|item| candidate_id(item) == *id);
+        let item = matches.next().ok_or_else(|| {
+            CommandError::new("that item is not in the latest assessment; assess again")
+        })?;
+        if matches.next().is_some() {
+            return Err(CommandError::new("that item is ambiguous; assess again"));
+        }
+        lumen_app::plan::choosable(
+            &item.decision,
+            lumen_app::assess::tool_action(item).is_some(),
+        )
+        .map_err(CommandError::new)?;
+        resolved.push(((*id).clone(), item.candidate.path.clone()));
+    }
+    Ok(resolved)
+}
+
+/// Reassessment may discover another object at a selected path. Never offer
+/// that replacement's plan for confirmation under the earlier object's ID.
+fn check_chosen_identities(
+    chosen: &[(String, lumen_domain::RawPath)],
+    planned: &[Assessed],
+) -> Result<(), CommandError> {
+    for (id, path) in chosen {
+        let mut matches = planned.iter().filter(|item| &item.candidate.path == path);
+        if matches.next().is_none_or(|item| candidate_id(item) != *id) || matches.next().is_some() {
+            return Err(CommandError::new("that item changed; assess again"));
+        }
+    }
+    Ok(())
+}
+
+/// Plans the policy's proposals, or, when the person chose review items,
+/// only those (ADR-0051); moves nothing.
 #[tauri::command]
-pub(crate) async fn plan(core: State<'_, Core>) -> Result<PlanView, CommandError> {
+pub(crate) async fn plan(
+    core: State<'_, Core>,
+    chosen: Option<Vec<String>>,
+) -> Result<PlanView, CommandError> {
+    let chosen = chosen_paths(
+        &core
+            .assessed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
+        chosen.as_deref().unwrap_or_default(),
+    )?;
     let db = core.db.clone();
     let secrets = core.secrets.clone();
     let builtin = core.builtin.clone();
     blocking(move || {
+        let paths: Vec<_> = chosen.iter().map(|(_, path)| path.clone()).collect();
         let planned = with_judge(
             &db,
             secrets.as_deref(),
             builtin.as_ref(),
             |judge, _describer| {
-                lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge, &[])
-                    .map_err(CommandError::new)
+                if paths.is_empty() {
+                    lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge, &[])
+                } else {
+                    lumen_app::plan_chosen(&db, &SystemClock, &UuidV7Ids, judge, &paths)
+                }
+                .map_err(CommandError::new)
             },
             |planned| planned.items.as_slice(),
         )?;
+        check_chosen_identities(&chosen, &planned.items)?;
+        if !chosen.is_empty() && planned.items.len() != chosen.len() {
+            return Err(CommandError::new(
+                "the plan holds more than the chosen items; nothing was planned",
+            ));
+        }
         Ok(PlanView::from(&planned))
     })
     .await
@@ -1137,6 +1206,93 @@ mod tests {
     use lumen_testkit::Fixture;
 
     use super::*;
+
+    #[test]
+    fn chosen_ids_require_cached_eligible_items_and_unchanged_planned_identities()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use lumen_domain::{FileId, FiredRule, PolicyDecision, PolicyStage, Verdict};
+        use lumen_testkit::Node;
+
+        let fixture = Fixture::build(&[
+            Node::File {
+                path: "project/Cargo.toml".into(),
+                contents: b"[package]\nname = \"fixture\"\n".to_vec(),
+            },
+            Node::File {
+                path: "project/target/debug/deps/libfixture.rlib".into(),
+                contents: vec![7; 8192],
+            },
+        ])?;
+        let db = fixture.path("index.db")?;
+        lumen_app::scan(
+            &[fixture.path("project")?],
+            Some(&db),
+            &SystemClock,
+            &UuidV7Ids,
+            &CancelToken::new(),
+            &mut |_| {},
+        )?;
+        let mut item = lumen_app::assess(&db, &SystemClock, &NoopJudge, &NoopJudge)?
+            .into_iter()
+            .next()
+            .ok_or("fixture build output is a candidate")?;
+        let decision = |verdict, rule: &str| {
+            PolicyDecision::new(
+                verdict,
+                item.decision.policy_version(),
+                item.decision.evidence_hash(),
+                [FiredRule {
+                    rule: rule.parse()?,
+                    stage: PolicyStage::Classification,
+                    evidence: std::collections::BTreeSet::default(),
+                }],
+                item.decision.risk().clone(),
+                item.decision.jev_effect(),
+            )
+            .map_err(Box::<dyn std::error::Error>::from)
+        };
+        let review = decision(Verdict::Review, "default.review")?;
+        for (verdict, rule) in [
+            (Verdict::Keep, "default.keep"),
+            (Verdict::Quarantine, "classify.devkb-regenerable"),
+            (Verdict::Review, lumen_application::confirm::NOT_REGENERABLE),
+            (Verdict::Review, "classify.devkb-tool-action"),
+        ] {
+            let mut refused = item.clone();
+            refused.decision = decision(verdict, rule)?;
+            assert!(
+                chosen_paths(&[refused], &[candidate_id(&item)]).is_err(),
+                "{rule}"
+            );
+        }
+        item.decision = review;
+        let latest = std::slice::from_ref(&item);
+        let id = candidate_id(&item);
+        let selected = chosen_paths(latest, std::slice::from_ref(&id))?;
+        assert_eq!(selected, [(id.clone(), item.candidate.path.clone())]);
+        assert_eq!(chosen_paths(&[], &[])?, []);
+        assert!(chosen_paths(&[], std::slice::from_ref(&id)).is_err());
+        assert!(chosen_paths(latest, &[item.candidate.path.display()]).is_err());
+        assert!(chosen_paths(&[item.clone(), item.clone()], std::slice::from_ref(&id)).is_err());
+        assert_eq!(
+            chosen_paths(latest, &[id.clone(), id.clone()])?.len(),
+            1,
+            "a repeated ID is one choice"
+        );
+        let many: Vec<String> = (0..=crate::confirmation::MAX_CHOSEN)
+            .map(|n| format!("{id}-{n}"))
+            .collect();
+        assert!(chosen_paths(latest, &many).is_err(), "too many choices");
+        check_chosen_identities(&selected, latest)?;
+        check_chosen_identities(&[], &[])?;
+        assert!(check_chosen_identities(&selected, &[]).is_err());
+        let mut replacement = item.clone();
+        replacement.candidate.size.identity.file = FileId::new(0);
+        assert_ne!(candidate_id(&replacement), candidate_id(&item));
+        assert!(check_chosen_identities(&selected, &[replacement]).is_err());
+        assert!(check_chosen_identities(&selected, &[item.clone(), item]).is_err());
+        Ok(())
+    }
 
     #[test]
     fn comparison_roots_are_limited_to_the_latest_completed_scan()
