@@ -249,10 +249,11 @@ fn text(language: Language) -> Text {
 /// The native dialog. Run on a blocking worker, never on the main thread:
 /// rfd hands the dialog to the main thread and waits for the answer.
 pub(crate) fn native(title: &str, description: &str, button: &str, cancel: &str) -> bool {
+    let description = literal(description);
     std::panic::catch_unwind(|| {
         rfd::MessageDialog::new()
             .set_title(title)
-            .set_description(description)
+            .set_description(description.as_ref())
             .set_level(rfd::MessageLevel::Warning)
             .set_buttons(rfd::MessageButtons::OkCancelCustom(
                 button.to_owned(),
@@ -264,6 +265,19 @@ pub(crate) fn native(title: &str, description: &str, button: &str, cancel: &str)
         answer == rfd::MessageDialogResult::Ok
             || answer == rfd::MessageDialogResult::Custom(button.to_owned())
     })
+}
+
+/// `description` as rfd's GTK backend must get it to show it as written: it
+/// hands the description to `gtk_message_dialog_format_secondary_text` as a
+/// printf format, so a `%` in a path would be read as a directive. Doubling
+/// each `%` makes GTK print it once. The title goes through `"%s"` already,
+/// and the other platforms show the text as it is.
+fn literal(description: &str) -> std::borrow::Cow<'_, str> {
+    if cfg!(all(unix, not(target_os = "macos"))) && description.contains('%') {
+        std::borrow::Cow::Owned(description.replace('%', "%%"))
+    } else {
+        std::borrow::Cow::Borrowed(description)
+    }
 }
 
 /// Shows the dialog and turns anything but the action into an error that
@@ -381,7 +395,12 @@ pub(crate) fn finalize(
         .original
         .ok_or_else(|| CommandError::new("where the item was is unknown; nothing was changed"))?;
     let t = text(language);
-    let mut parts = vec![original.display().to_string()];
+    // The core's escaped form, as the plan dialogs show paths: deceptive or
+    // non-UTF-8 names cannot pass as another path.
+    let shown_original = lumen_app::raw_path(&original)
+        .map(|path| path.display())
+        .map_err(CommandError::new)?;
+    let mut parts = vec![shown_original];
     if item.chosen_by == Some(Chooser::Person) {
         parts.push(t.finalize_chosen.to_owned());
     }
@@ -435,6 +454,21 @@ mod tests {
         assert!(ask(&no, "t", "d", "b", "c").is_err());
         let long = "x".repeat(MAX_TEXT + 1);
         assert!(ask(&yes, "t", &long, "b", "c").is_err(), "too long to read");
+    }
+
+    #[test]
+    fn percent_signs_reach_gtk_as_literal_text() {
+        let text = "/Users/a/100% done/%s%n";
+        let passed = literal(text);
+        if cfg!(all(unix, not(target_os = "macos"))) {
+            assert_eq!(passed, "/Users/a/100%% done/%%s%%n");
+        } else {
+            assert_eq!(passed, text);
+        }
+        assert!(matches!(
+            literal("/no/percent"),
+            std::borrow::Cow::Borrowed(_)
+        ));
     }
 
     #[test]

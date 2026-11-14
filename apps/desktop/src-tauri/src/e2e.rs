@@ -35,6 +35,10 @@ static ANSWER: AtomicBool = AtomicBool::new(true);
 /// How often the host asked.
 static ASKED: AtomicUsize = AtomicUsize::new(0);
 
+/// How often the flow reached a command that must ask: the flow may stop
+/// early when an item is safely not moved, so the count follows the flow.
+static EXPECTED: AtomicUsize = AtomicUsize::new(0);
+
 /// The app as the real one is built, with [`ANSWER`] for its dialogs.
 fn app_under_test() -> tauri::Builder<MockRuntime> {
     let secrets = Arc::new(MemorySecretStore::default());
@@ -158,6 +162,7 @@ fn ai_review(window: &WebviewWindow<MockRuntime>) {
 /// in place, however the page called `execute`.
 fn declining_moves_nothing(window: &WebviewWindow<MockRuntime>, plan: &Value, item: &Path) {
     ANSWER.store(false, Ordering::SeqCst);
+    EXPECTED.fetch_add(1, Ordering::SeqCst);
     let declined = invoke(
         window,
         "execute",
@@ -220,6 +225,7 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
         // REVIEW instead of QUARANTINE (in-use visibility): covered elsewhere.
         let plan = invoke(&window, "plan", json!({})).ok()?;
         declining_moves_nothing(&window, &plan, &item);
+        EXPECTED.fetch_add(1, Ordering::SeqCst);
         let report = ok(
             "execute",
             json!({ "request": { "plan": plan["plan"], "confirmation": plan["hash"] } }),
@@ -251,6 +257,7 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
     let Some(second) = cycle() else {
         return;
     };
+    EXPECTED.fetch_add(1, Ordering::SeqCst);
     let finalized = ok("finalize", json!({ "operationId": second }));
     assert_eq!(finalized["outcome"]["kind"], "finalized", "{finalized}");
     let measured = &finalized["space_change"];
@@ -276,8 +283,13 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
 fn the_desktop_flow_runs_end_to_end() {
     if let Some(home) = std::env::var_os(CHILD) {
         run_app(move |handle| flow(handle, Path::new(&home)));
-        // FS-1: before each execute (declined, then confirmed, twice) and the finalize.
-        assert_eq!(ASKED.load(Ordering::SeqCst), 5, "the host asked each time");
+        // FS-1: before each execute (declined, then confirmed) and the
+        // finalize the flow reached; 5 when it ran to the end.
+        assert_eq!(
+            ASKED.load(Ordering::SeqCst),
+            EXPECTED.load(Ordering::SeqCst),
+            "the host asked each time"
+        );
         return;
     }
     let fx = Fixture::build(&[
