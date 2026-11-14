@@ -454,6 +454,23 @@ export const fr: Messages = {
     planMade: (createdAt) => `Lumen a créé ce plan le ${createdAt}. Il est valable 24 heures.`,
     planHash: "Empreinte du plan",
   },
+  hostConfirm: {
+    proposed: "Propositions de Lumen",
+    chosen: "Éléments que vous avez choisis",
+    chosenNote:
+      "Lumen ne les a pas proposés. Les déplacer peut affecter des apps. Ils restent en quarantaine jusqu'à ce que vous les restauriez ou les supprimiez définitivement.",
+    uninstallTitle: "Déplacer cette app en quarantaine ?",
+    uninstallNote: "Vous pourrez la restaurer depuis la quarantaine.",
+    finalizeTitle: "Supprimer cet élément définitivement ?",
+    finalizeNote: "Cette action est irréversible.",
+    finalizeChosen: "Vous avez choisi cet élément vous-même ; Lumen ne l'a pas proposé.",
+    finalizeButton: "Supprimer définitivement",
+    toolTitle: (tool) => `Exécuter la commande de ${tool} ?`,
+    toolNote: "Ce qu'elle supprime ne pourra pas être restauré.",
+    toolButton: "Exécuter",
+    more: (n) => `…et ${items(n)} de plus`,
+    unavailable: "Lumen n'a pas pu afficher ce qu'il faut confirmer. Rien n'a été modifié.",
+  },
   done: {
     title: (n, size) => `${items(n)} (${size}) déplacés en quarantaine.`,
     noneMoved: "Lumen n'a rien déplacé.",

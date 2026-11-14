@@ -46,10 +46,10 @@ fn app_under_test() -> tauri::Builder<MockRuntime> {
         mock_builder(),
         Some(secrets),
         None,
-        Arc::new(|_: &str, _: &str, _: &str, _: &str| {
+        Some(Arc::new(|_: &crate::confirmation::Ask| {
             ASKED.fetch_add(1, Ordering::SeqCst);
             ANSWER.load(Ordering::SeqCst)
-        }),
+        })),
     )
 }
 

@@ -112,14 +112,15 @@ pub fn app<R: Runtime>(
     secrets: Option<Arc<dyn SecretStore>>,
     builtin: Option<lumen_app::ai::ApiKey>,
 ) -> Builder<R> {
-    app_with_confirmation(builder, secrets, builtin, Arc::new(confirmation::native))
+    app_with_confirmation(builder, secrets, builtin, None)
 }
 
 fn app_with_confirmation<R: Runtime>(
     builder: Builder<R>,
     secrets: Option<Arc<dyn SecretStore>>,
     builtin: Option<lumen_app::ai::ApiKey>,
-    prompt: Arc<confirmation::Prompt>,
+    // `None`: the confirmation window (FS-1); tests give a fixed answer.
+    prompt: Option<Arc<confirmation::Prompt>>,
 ) -> Builder<R> {
     builder
         // In-app updates (ADR-0048); reached only through Lumen's own
@@ -142,7 +143,8 @@ fn app_with_confirmation<R: Runtime>(
             commands::disk,
             commands::open_full_disk_access,
             commands::set_theme,
-            commands::set_language,
+            commands::confirm_request,
+            commands::confirm_answer,
             commands::set_ai_review,
             commands::set_ai_key,
             commands::run_tool_command,
@@ -184,6 +186,14 @@ fn app_with_confirmation<R: Runtime>(
             drop(tauri::async_runtime::spawn_blocking(move || {
                 commands::settle_once(&startup.0, &startup.1);
             }));
+            let pending = Arc::new(confirmation::Pending::default());
+            let prompt = prompt.unwrap_or_else(|| {
+                let handle = app.handle().clone();
+                let waiting = Arc::clone(&pending);
+                Arc::new(move |ask: &confirmation::Ask| {
+                    confirmation::window(&handle, &waiting, ask)
+                })
+            });
             app.manage(commands::Core {
                 db,
                 secrets,
@@ -195,8 +205,8 @@ fn app_with_confirmation<R: Runtime>(
                 settled,
                 activity: Arc::default(),
                 icons: Arc::default(),
-                prompt: Arc::clone(&prompt),
-                language: std::sync::Mutex::default(),
+                prompt,
+                pending,
             });
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")
@@ -261,15 +271,23 @@ mod tests {
     fn every_command_is_registered_permitted_and_let_through() {
         let built = quoted(include_str!("../build.rs"), "let commands = &[", "];");
         let isolated = quoted(include_str!("../../isolation/index.js"), "new Set([", "]);");
-        let permitted: BTreeSet<String> = quoted(
-            include_str!("../capabilities/main.json"),
-            "\"permissions\": [",
-            "]",
-        )
-        .iter()
-        .filter_map(|p| p.strip_prefix("allow-"))
-        .map(|c| c.replace('-', "_"))
-        .collect();
+        let commands = |capability: &str| -> BTreeSet<String> {
+            quoted(capability, "\"permissions\": [", "]")
+                .iter()
+                .filter_map(|p| p.strip_prefix("allow-"))
+                .map(|c| c.replace('-', "_"))
+                .collect()
+        };
+        let main = commands(include_str!("../capabilities/main.json"));
+        let confirm = commands(include_str!("../capabilities/confirm.json"));
+        // FS-1: only the confirmation window reads and answers its question.
+        assert_eq!(
+            confirm,
+            BTreeSet::from(["confirm_answer".to_owned(), "confirm_request".to_owned()]),
+            "capabilities/confirm.json"
+        );
+        assert!(main.is_disjoint(&confirm), "the main window cannot confirm");
+        let permitted: BTreeSet<String> = main.union(&confirm).cloned().collect();
         let handled: BTreeSet<String> = include_str!("lib.rs")
             .split("commands::")
             .flat_map(|part| part.split("update::"))

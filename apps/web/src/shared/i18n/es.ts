@@ -470,6 +470,23 @@ export const es: Messages = {
       `Lumen creó este plan ${createdAt}. Puedes usarlo durante 24 horas.`,
     planHash: "Hash del plan",
   },
+  hostConfirm: {
+    proposed: "Propuestas de Lumen",
+    chosen: "Elementos que elegiste",
+    chosenNote:
+      "Lumen no los propuso. Moverlos puede afectar a apps. Se quedan en Cuarentena hasta que los restaures o elimines definitivamente.",
+    uninstallTitle: "¿Mover esta app a Cuarentena?",
+    uninstallNote: "Puedes restaurarla desde Cuarentena.",
+    finalizeTitle: "¿Eliminar este elemento definitivamente?",
+    finalizeNote: "No se puede deshacer.",
+    finalizeChosen: "Elegiste este elemento tú mismo; Lumen no lo propuso.",
+    finalizeButton: "Eliminar definitivamente",
+    toolTitle: (tool: string) => `¿Ejecutar el comando de ${tool}?`,
+    toolNote: "Lo que elimine no se podrá restaurar.",
+    toolButton: "Ejecutar",
+    more: (n: number) => `…y ${items(n)} más`,
+    unavailable: "Lumen no pudo mostrar qué confirmar. No se cambió nada.",
+  },
   done: {
     title: (n: number, size: string) => `${items(n)} (${size}) se movieron a Cuarentena.`,
     noneMoved: "Lumen no movió nada.",

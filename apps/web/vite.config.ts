@@ -34,6 +34,13 @@ export default defineConfig({
   build: {
     target: "es2024",
     sourcemap: true,
+    // The app, and the desktop host's confirmation window (FS-1).
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        confirm: fileURLToPath(new URL("./confirm.html", import.meta.url)),
+      },
+    },
   },
   test: {
     environment: "node",

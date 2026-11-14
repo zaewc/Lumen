@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "confirm",
+  "description": "The host's confirmation window (FS-1) may read the question the host asks and answer it, and nothing else. The main window cannot call these.",
+  "windows": ["confirm"],
+  "permissions": ["allow-confirm-request", "allow-confirm-answer"]
+}

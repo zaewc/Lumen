@@ -104,9 +104,6 @@ export function tauriTransport(): LumenTransport {
     setTheme: async (theme) => {
       await call("set_theme", { theme });
     },
-    setLanguage: async (language) => {
-      await call("set_language", { language });
-    },
     checkUpdate: async () => zUpdateView.parse(await call("check_update")),
     installUpdate: async () => {
       await call("install_update");
