@@ -121,8 +121,6 @@ export const ko = {
       protectedFiles: (n: number) => `보호된 위치에 있는 파일 ${count(n)}개는 읽지 않았어요.`,
       incomplete: "일부 폴더를 끝까지 읽지 못했어요. 그 안의 파일은 비교하지 않았어요.",
       unsupported: "이 컴퓨터에서는 아직 파일을 비교할 수 없어요.",
-      tooMany: (limit: string) =>
-        `이번 검사는 파일이 ${count(limit)}개보다 많아 비교할 수 없어요. 범위를 좁혀 다시 검사해 주세요.`,
       failed: "검사한 경로의 파일을 비교하지 못했어요.",
       advice:
         "사본은 남겨 두고 싶은 백업일 수 있어요. Lumen은 어느 것도 고르거나 지우지 않아요. 사본을 지워도 그 크기보다 적게 비워질 수 있어요.",

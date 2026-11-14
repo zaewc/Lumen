@@ -122,8 +122,6 @@ export const es: Messages = {
       incomplete:
         "Algunas carpetas no se pudieron leer por completo. Sus archivos no se compararon.",
       unsupported: "Comparar archivos aún no está disponible en este ordenador.",
-      tooMany: (limit: string) =>
-        `El análisis abarca más de ${count(limit)} archivos. Vuelve a analizar un ámbito más pequeño para comparar menos.`,
       failed: "Lumen no pudo comparar los archivos del análisis.",
       advice:
         "Las copias pueden ser copias de seguridad que quieres conservar. Lumen no elige ni elimina ninguna. Eliminar una copia puede liberar menos espacio que su tamaño.",

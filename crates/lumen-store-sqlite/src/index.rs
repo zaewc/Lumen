@@ -7,6 +7,7 @@
 //! silently wrong entry.
 
 use std::num::NonZeroU32;
+use std::ops::ControlFlow;
 
 use lumen_application::ports::{DirOutcome, PendingDirectory};
 use lumen_domain::{
@@ -598,6 +599,80 @@ impl IndexStore {
             }
         }
         Ok(page)
+    }
+
+    /// The files of `scan` that share their logical size with another file
+    /// (empty files left out), one size at a time, largest first, each group
+    /// in the scan's order: what a duplicate comparison needs (ADR-0019),
+    /// without holding the whole scan in memory. `visit` may stop early.
+    /// Uses a temporary table on this connection, dropped at the end; the
+    /// scan's own rows are only read.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Corrupt`] for any row that fails validation, or
+    /// [`StoreError`] if SQLite fails.
+    pub fn same_size_files(
+        &self,
+        scan: ScanId,
+        visit: &mut dyn FnMut(Vec<FilesystemEntry>) -> ControlFlow<()>,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute_batch("DROP TABLE IF EXISTS temp.same_size")?;
+        self.conn.execute(
+            "CREATE TEMP TABLE same_size AS
+             SELECT d.flavor, d.path, e.name, e.volume, e.file_id, e.kind, e.logical, e.allocated,
+                    e.private, e.clone_id, e.link_count, e.size_flags, e.protection,
+                    e.modified_secs, e.modified_nanos, e.accessed_secs, e.accessed_nanos,
+                    e.changed_secs, e.changed_nanos, e.created_secs, e.created_nanos, e.access
+             FROM dirs d CROSS JOIN entries e ON e.dir = d.id
+             WHERE d.scan = (SELECT key FROM scans WHERE id = ?1) AND e.kind = ?2 AND e.logical > 0
+               AND e.logical IN (
+                   SELECT s.logical FROM dirs t CROSS JOIN entries s ON s.dir = t.id
+                   WHERE t.scan = (SELECT key FROM scans WHERE id = ?1) AND s.kind = ?2
+                     AND s.logical > 0
+                   GROUP BY s.logical HAVING COUNT(*) > 1)",
+            params![scan.to_string(), kind_text(EntryKind::File)],
+        )?;
+        let visited = self.visit_same_size(visit);
+        let dropped = self
+            .conn
+            .execute_batch("DROP TABLE IF EXISTS temp.same_size");
+        visited?;
+        Ok(dropped?)
+    }
+
+    /// [`Self::same_size_files`] over its filled temporary table.
+    fn visit_same_size(
+        &self,
+        visit: &mut dyn FnMut(Vec<FilesystemEntry>) -> ControlFlow<()>,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute_batch("CREATE INDEX temp.same_size_by_logical ON same_size (logical)")?;
+        let sizes: Vec<i64> = {
+            let mut query = self
+                .conn
+                .prepare("SELECT DISTINCT logical FROM temp.same_size ORDER BY logical DESC")?;
+            query
+                .query_map([], |row| row.get(0))?
+                .collect::<Result<_, _>>()?
+        };
+        let mut group = self.conn.prepare(
+            "SELECT flavor, path, name, volume, file_id, kind, logical, allocated, private, clone_id,
+                    link_count, size_flags, protection, modified_secs, modified_nanos, accessed_secs,
+                    accessed_nanos, changed_secs, changed_nanos, created_secs, created_nanos, access
+             FROM temp.same_size WHERE logical = ?1 ORDER BY flavor, path, name",
+        )?;
+        for size in sizes {
+            let files = group
+                .query_map([size], |row| Ok(entry_from_row(row)))?
+                .map(|row| row?)
+                .collect::<Result<Vec<_>, _>>()?;
+            if visit(files).is_break() {
+                break;
+            }
+        }
+        Ok(())
     }
 
     /// The entry stored for exactly `path`, if any.
@@ -1286,6 +1361,59 @@ pub(crate) mod tests {
             .query_map(params, |row| row.get::<_, String>(3))?
             .collect::<Result<Vec<_>, _>>()?
             .join("\n"))
+    }
+
+    #[test]
+    fn files_of_a_shared_size_come_one_size_at_a_time() -> Result<(), Box<dyn std::error::Error>> {
+        let (_fx, mut store) = store()?;
+        let scan = scan_id(9);
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[])?;
+        let sized = |path: &[u8], file: u128, logical: u64| {
+            let mut e = entry(path, file);
+            e.size.logical = ByteCount::new(logical);
+            e
+        };
+        let mut folder = sized(b"/d", 9, 7);
+        folder.kind = EntryKind::Directory;
+        store.insert_entries(
+            scan,
+            &[
+                sized(b"/a/one", 1, 7),
+                sized(b"/b/two", 2, 7),
+                sized(b"/a/big", 3, 70),
+                sized(b"/c/big", 4, 70),
+                sized(b"/c/alone", 5, 5),
+                sized(b"/e/empty", 6, 0),
+                sized(b"/f/empty", 7, 0),
+                folder,
+            ],
+        )?;
+        // Another scan's files never pair with these.
+        store.begin_scan(scan_id(10), Timestamp::UNIX_EPOCH, &[])?;
+        store.insert_entries(scan_id(10), &[sized(b"/x/alone", 8, 5)])?;
+        let mut groups = Vec::new();
+        store.same_size_files(scan, &mut |files| {
+            groups.push(
+                files
+                    .iter()
+                    .map(|e| String::from_utf8_lossy(e.path.as_bytes()).into_owned())
+                    .collect::<Vec<_>>(),
+            );
+            ControlFlow::Continue(())
+        })?;
+        assert_eq!(
+            groups,
+            [vec!["/a/big", "/c/big"], vec!["/a/one", "/b/two"]],
+            "largest first; no folders, empty files or sizes only one file has"
+        );
+        let mut first = 0;
+        store.same_size_files(scan, &mut |_| {
+            first += 1;
+            ControlFlow::Break(())
+        })?;
+        assert_eq!(first, 1, "stops when asked");
+        store.same_size_files(scan, &mut |_| ControlFlow::Continue(()))?;
+        Ok(())
     }
 
     #[test]

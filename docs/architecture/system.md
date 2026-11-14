@@ -505,9 +505,11 @@ case independently of metadata scanning. It collapses file identities before
 head/tail/full fingerprints and verifies members again before publishing groups.
 Groups are always `REVIEW`, including identical backups. Their logical redundancy
 does not promise physical savings: hard links are reported separately and clone or
-shared-block facts remain attached to each member. Inputs exceeding 100,000 entries
-or 32 MiB of path payload are rejected before reading. Readers must prevent link
-following and hydration; no content or fingerprint is sent to AI or telemetry.
+shared-block facts remain attached to each member. A `Detector` takes files one batch
+at a time, every file of a size in one batch, so a completed scan is compared from
+`index.db` one size at a time (`IndexStore::same_size_files`) with no limit on its
+file count. Readers must prevent link following and hydration; no content or
+fingerprint is sent to AI or telemetry.
 
 On macOS, `lumen_platform_macos::DuplicateReader` supplies the fingerprints: it
 opens with `O_NOFOLLOW_ANY` and dataless materialization off, attests the handle's

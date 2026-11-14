@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use lumen_app::duplicates::{Duplicates, DuplicatesError, HashStage, MAX_FILES};
+use lumen_app::duplicates::{Duplicates, DuplicatesError, HashStage};
 use lumen_domain::FilesystemEntry;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -78,11 +78,6 @@ pub struct DuplicatesView {
 pub enum CompareOutcomeView {
     /// This platform cannot read contents to compare yet.
     Unsupported,
-    /// The folders hold more files than one comparison covers.
-    TooMany {
-        /// The most files one comparison covers.
-        limit: String,
-    },
     /// The person stopped the comparison; no groups are shown, since a stopped
     /// comparison proves nothing about the files it did not finish.
     Cancelled,
@@ -110,11 +105,6 @@ impl CompareOutcomeView {
         let found = match found {
             Ok(found) => found,
             Err(DuplicatesError::Unsupported) => return Ok(Self::Unsupported),
-            Err(DuplicatesError::TooMany(_)) => {
-                return Ok(Self::TooMany {
-                    limit: MAX_FILES.to_string(),
-                });
-            }
             Err(other) => return Err(other),
         };
         let report = &found.report;
@@ -151,7 +141,7 @@ impl CompareOutcomeView {
 mod tests {
     use std::num::NonZeroU32;
 
-    use lumen_app::duplicates::{DuplicateGroup, DuplicateReport, TooManyFiles};
+    use lumen_app::duplicates::{DuplicateGroup, DuplicateReport};
     use lumen_domain::{
         AccessState, ByteCount, EntryKind, EntryTimes, FileId, FileIdentity, Protection, RawPath,
         SizeFacts, SizeFlags, VolumeId,
@@ -224,17 +214,11 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_too_many_and_cancelled_are_outcomes_not_empty_reports() {
+    fn unsupported_and_cancelled_are_outcomes_not_empty_reports() {
         let folders = [PathBuf::from("/chosen")];
         assert_eq!(
             CompareOutcomeView::new(&folders, Err(DuplicatesError::Unsupported)).ok(),
             Some(CompareOutcomeView::Unsupported)
-        );
-        assert_eq!(
-            CompareOutcomeView::new(&folders, Err(TooManyFiles.into())).ok(),
-            Some(CompareOutcomeView::TooMany {
-                limit: MAX_FILES.to_string()
-            })
         );
         let cancelled = Duplicates {
             report: DuplicateReport {
