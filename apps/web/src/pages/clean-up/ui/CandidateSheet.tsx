@@ -1,9 +1,10 @@
 import type { CandidateView } from "@lumen/api-client";
 import { useId, useRef } from "react";
 import { type Certainty, CertaintyDot, statusOf } from "@/entities/scan-session";
+import { canChooseReview } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { baseName } from "@/shared/lib";
-import { CloseIcon, Dialog } from "@/shared/ui";
+import { buttonClass, CloseIcon, Dialog } from "@/shared/ui";
 import { lineText } from "../lib/evidence";
 import type { Lens } from "../model/lens";
 import { evidenceStack } from "../model/stack";
@@ -29,9 +30,15 @@ const INK: { readonly [C in Certainty]: string } = {
 export function CandidateSheet({
   candidate,
   lens,
+  move,
   onClose,
 }: {
   readonly candidate: CandidateView | null;
+  /**
+   * Moving a review item the person chooses (ADR-0051); absent where it
+   * cannot be offered.
+   */
+  readonly move?: { readonly busy: boolean; readonly onMove: (item: CandidateView) => void };
   /** What the candidate is related to (the map and list draw it too). */
   readonly lens: Lens | null;
   readonly onClose: () => void;
@@ -125,6 +132,27 @@ export function CandidateSheet({
                 )}
               </div>
             </section>
+            {candidate.verdict === "review" && move !== undefined && (
+              <section>
+                {canChooseReview(candidate) ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={move.busy}
+                      onClick={() => move.onMove(candidate)}
+                      className={buttonClass("secondary")}
+                    >
+                      {m.detail.moveReview}
+                    </button>
+                    <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
+                      {m.hostConfirm.chosenNote}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[13px] text-ink-2">{m.detail.reviewChoiceUnavailable}</p>
+                )}
+              </section>
+            )}
             <CheckAgain key={candidate.path} candidate={candidate} />
             {candidate.tool_command !== null && <ToolCommand command={candidate.tool_command} />}
           </div>

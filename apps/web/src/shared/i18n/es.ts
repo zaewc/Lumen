@@ -276,6 +276,8 @@ export const es: Messages = {
     planFailed: "Lumen no pudo preparar la limpieza. Tus archivos no han cambiado.",
   },
   detail: {
+    moveReview: "Mover a Cuarentena…",
+    reviewChoiceUnavailable: "Este elemento no se puede elegir para Cuarentena.",
     size: "Tamaño",
     location: "Ubicación",
     decision: "Decisión",

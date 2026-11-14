@@ -261,6 +261,8 @@ export const zhCN: Messages = {
     planFailed: "Lumen 无法准备清理操作。你的文件没有变化。",
   },
   detail: {
+    moveReview: "移至隔离区…",
+    reviewChoiceUnavailable: "此项目无法手动选择移至隔离区。",
     size: "大小",
     location: "位置",
     decision: "决策",
