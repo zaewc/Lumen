@@ -110,8 +110,6 @@ export const zhCN: Messages = {
       protectedFiles: (n: number) => `受保护位置中的 ${count(n)} 个文件未读取。`,
       incomplete: "部分文件夹未能完整读取，其中的文件未比较。",
       unsupported: "这台电脑暂时还不能比较文件。",
-      tooMany: (limit: string) =>
-        `扫描范围内的文件超过 ${count(limit)} 个。请缩小扫描范围后重新扫描，再进行比较。`,
       failed: "Lumen 无法比较扫描路径中的文件。",
       advice:
         "副本可能是你想保留的备份。Lumen 不会选择或删除任何副本。删除一个副本释放的空间可能小于它的大小。",

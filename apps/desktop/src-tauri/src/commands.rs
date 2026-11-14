@@ -677,7 +677,7 @@ pub(crate) async fn compare_scan(
         }
         let mut listening = true;
         let mut last: Option<(lumen_app::duplicates::HashStage, std::time::Instant)> = None;
-        let found = lumen_app::duplicates::find(&folders, &cancel, &mut |stage, done| {
+        let found = lumen_app::duplicates::find_in_scan(&db, scan, &cancel, &mut |stage, done| {
             let now = std::time::Instant::now();
             let due = last
                 .is_none_or(|(seen, at)| seen != stage || now.duration_since(at) >= PROGRESS_EVERY);

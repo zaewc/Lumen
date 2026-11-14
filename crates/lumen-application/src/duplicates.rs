@@ -4,15 +4,11 @@
 //! savings remain unknown until a user selects copies and storage is measured.
 
 use std::collections::BTreeMap;
+use std::ops::ControlFlow;
 
 use lumen_domain::{ByteCount, EntryKind, FileIdentity, FilesystemEntry, RawPath, Verdict};
 
 use crate::CancelToken;
-
-/// Maximum input entries, bounding all grouping and diagnostic allocations.
-pub const MAX_FILES: usize = 100_000;
-/// Bound copied path payloads as well as the number of entries.
-pub const MAX_PATH_BYTES: usize = 32 * 1024 * 1024;
 
 /// Successively more expensive filters; only `Full` establishes content equality.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -97,13 +93,6 @@ pub struct DuplicateReport {
     pub cancelled: bool,
 }
 
-/// Input too large to analyze with the memory bound.
-#[derive(Debug, thiserror::Error)]
-#[error(
-    "duplicate scope exceeds {MAX_FILES} entries or {MAX_PATH_BYTES} path bytes; choose a smaller scope"
-)]
-pub struct TooManyFiles;
-
 fn verify_files(
     files: Vec<&FilesystemEntry>,
     reader: &dyn FingerprintReader,
@@ -163,84 +152,133 @@ fn group_sizes<'a>(
         .collect()
 }
 
-/// Analyze metadata from an explicitly selected scope, sequentially, with at most
-/// one reader active. Reports progress after every attempted fingerprint.
-///
-/// # Errors
-/// [`TooManyFiles`] when the input exceeds [`MAX_FILES`], before any read occurs.
-/// The combined path payload must also fit within [`MAX_PATH_BYTES`].
+/// The staged comparison, fed a batch of files at a time, sequentially, with at
+/// most one reader active. Every file of a given size must arrive in the same
+/// batch (files of one identity share a size, so hard links do too); then only
+/// one batch is held at a time, however many files the scope has. Reports
+/// progress after every attempted fingerprint.
+pub struct Detector<'a> {
+    reader: &'a dyn FingerprintReader,
+    cancel: &'a CancelToken,
+    report: DuplicateReport,
+    completed: usize,
+}
+
+impl std::fmt::Debug for Detector<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Detector")
+            .field("report", &self.report)
+            .field("completed", &self.completed)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<'a> Detector<'a> {
+    /// An empty comparison reading with `reader` until `cancel`.
+    #[must_use]
+    pub fn new(reader: &'a dyn FingerprintReader, cancel: &'a CancelToken) -> Self {
+        Self {
+            reader,
+            cancel,
+            report: DuplicateReport::default(),
+            completed: 0,
+        }
+    }
+
+    /// Compares `entries`, holding every file of each size among them.
+    /// Breaks once cancelled.
+    pub fn add(
+        &mut self,
+        entries: &[FilesystemEntry],
+        progress: &mut dyn FnMut(HashStage, usize),
+    ) -> ControlFlow<()> {
+        let mut groups = group_sizes(entries, &mut self.report);
+        for stage in [HashStage::Head, HashStage::Tail, HashStage::Full] {
+            let mut next = Vec::new();
+            for files in groups {
+                let mut hashes: BTreeMap<[u8; 32], Vec<&FilesystemEntry>> = BTreeMap::new();
+                for file in files {
+                    if self.cancel.is_cancelled() {
+                        self.report.cancelled = true;
+                        return ControlFlow::Break(());
+                    }
+                    match self.reader.fingerprint(file, stage, self.cancel) {
+                        Ok(digest) => hashes.entry(digest).or_default().push(file),
+                        Err(failure) => self.report.skipped.push((file.path.clone(), failure)),
+                    }
+                    self.completed += 1;
+                    progress(stage, self.completed);
+                }
+                for (digest, files) in hashes.into_iter().filter(|(_, files)| files.len() > 1) {
+                    if stage == HashStage::Full {
+                        let mut verified = verify_files(files, self.reader, &mut self.report);
+                        if verified.len() > 1 {
+                            verified.sort_by(|a, b| a.path.cmp(&b.path));
+                            self.report.groups.push(DuplicateGroup {
+                                content_id: digest,
+                                files: verified,
+                            });
+                        }
+                    } else {
+                        next.push(files);
+                    }
+                }
+            }
+            groups = next;
+        }
+        if self.cancel.is_cancelled() {
+            self.report.cancelled = true;
+            return ControlFlow::Break(());
+        }
+        ControlFlow::Continue(())
+    }
+
+    /// The report: hard links checked again, everything sorted; no groups at
+    /// all once cancelled.
+    #[must_use]
+    pub fn finish(self) -> DuplicateReport {
+        let mut report = self.report;
+        if report.cancelled || self.cancel.is_cancelled() {
+            report.groups.clear();
+            report.hard_links.clear();
+            report.cancelled = true;
+            return report;
+        }
+        let hard_links = std::mem::take(&mut report.hard_links);
+        for links in hard_links {
+            let verified = verify_files(links.iter().collect(), self.reader, &mut report);
+            if verified.len() > 1 {
+                report.hard_links.push(verified);
+            }
+        }
+        if self.cancel.is_cancelled() {
+            report.groups.clear();
+            report.hard_links.clear();
+            report.cancelled = true;
+        }
+        report
+            .groups
+            .sort_by(|a, b| a.files[0].path.cmp(&b.files[0].path));
+        report.hard_links.sort_by(|a, b| a[0].path.cmp(&b[0].path));
+        report.skipped.sort_by(|a, b| a.0.cmp(&b.0));
+        report
+    }
+}
+
+/// [`Detector`] over `entries` in one batch: an explicitly selected scope,
+/// held in memory.
 pub fn detect(
     entries: &[FilesystemEntry],
     reader: &dyn FingerprintReader,
     cancel: &CancelToken,
     progress: &mut dyn FnMut(HashStage, usize),
-) -> Result<DuplicateReport, TooManyFiles> {
-    if entries.len() > MAX_FILES
-        || entries
-            .iter()
-            .try_fold(0_usize, |total, file| {
-                total.checked_add(file.path.as_bytes().len())
-            })
-            .is_none_or(|total| total > MAX_PATH_BYTES)
-    {
-        return Err(TooManyFiles);
+) -> DuplicateReport {
+    let mut detector = Detector::new(reader, cancel);
+    // A break only means cancelled, which `finish` reports either way.
+    if detector.add(entries, progress).is_break() {
+        return detector.finish();
     }
-    let mut report = DuplicateReport::default();
-    let mut groups = group_sizes(entries, &mut report);
-    let mut completed = 0;
-    for stage in [HashStage::Head, HashStage::Tail, HashStage::Full] {
-        let mut next = Vec::new();
-        for files in groups {
-            let mut hashes: BTreeMap<[u8; 32], Vec<&FilesystemEntry>> = BTreeMap::new();
-            for file in files {
-                if cancel.is_cancelled() {
-                    report.cancelled = true;
-                    report.groups.clear();
-                    report.hard_links.clear();
-                    return Ok(report);
-                }
-                match reader.fingerprint(file, stage, cancel) {
-                    Ok(digest) => hashes.entry(digest).or_default().push(file),
-                    Err(failure) => report.skipped.push((file.path.clone(), failure)),
-                }
-                completed += 1;
-                progress(stage, completed);
-            }
-            for (digest, files) in hashes.into_iter().filter(|(_, files)| files.len() > 1) {
-                if stage == HashStage::Full {
-                    let mut verified = verify_files(files, reader, &mut report);
-                    if verified.len() > 1 {
-                        verified.sort_by(|a, b| a.path.cmp(&b.path));
-                        report.groups.push(DuplicateGroup {
-                            content_id: digest,
-                            files: verified,
-                        });
-                    }
-                } else {
-                    next.push(files);
-                }
-            }
-        }
-        groups = next;
-    }
-    let hard_links = std::mem::take(&mut report.hard_links);
-    for links in hard_links {
-        let verified = verify_files(links.iter().collect(), reader, &mut report);
-        if verified.len() > 1 {
-            report.hard_links.push(verified);
-        }
-    }
-    if cancel.is_cancelled() {
-        report.groups.clear();
-        report.hard_links.clear();
-        report.cancelled = true;
-    }
-    report
-        .groups
-        .sort_by(|a, b| a.files[0].path.cmp(&b.files[0].path));
-    report.hard_links.sort_by(|a, b| a[0].path.cmp(&b[0].path));
-    report.skipped.sort_by(|a, b| a.0.cmp(&b.0));
-    Ok(report)
+    detector.finish()
 }
 
 #[cfg(test)]
@@ -312,8 +350,7 @@ mod tests {
             reads: Cell::new(0),
             changed: false,
         };
-        let report = detect(&entries, &reader, &CancelToken::new(), &mut |_, _| {})
-            .unwrap_or_else(|_| unreachable!());
+        let report = detect(&entries, &reader, &CancelToken::new(), &mut |_, _| {});
         assert_eq!(report.groups.len(), 1);
         assert_eq!(report.groups[0].files, [file(1), file(3)]);
         assert_eq!(report.groups[0].verdict(), Verdict::Review);
@@ -323,9 +360,7 @@ mod tests {
             ..reader
         };
         assert_eq!(
-            detect(&entries, &changed, &CancelToken::new(), &mut |_, _| {})
-                .unwrap_or_else(|_| unreachable!())
-                .groups,
+            detect(&entries, &changed, &CancelToken::new(), &mut |_, _| {}).groups,
             Vec::<DuplicateGroup>::new()
         );
     }
@@ -344,15 +379,14 @@ mod tests {
             &reader,
             &CancelToken::new(),
             &mut |_, _| {},
-        )
-        .unwrap_or_else(|_| unreachable!());
+        );
         assert_eq!(report.groups, Vec::<DuplicateGroup>::new());
         assert_eq!(report.hard_links.len(), 1);
         assert_eq!(reader.reads.get(), 0);
         assert_eq!(report.skipped.len(), 1);
     }
     #[test]
-    fn cancellation_and_input_bound_prevent_publishing_partial_groups() {
+    fn cancellation_prevents_publishing_partial_groups() {
         let reader = Reader {
             reads: Cell::new(0),
             changed: false,
@@ -360,17 +394,27 @@ mod tests {
         let cancel = CancelToken::new();
         let report = detect(&[file(1), file(3)], &reader, &cancel, &mut |_, _| {
             cancel.cancel();
-        })
-        .unwrap_or_else(|_| unreachable!());
+        });
         assert!(report.cancelled && report.groups.is_empty());
-        assert!(
-            detect(
-                &vec![file(1); MAX_FILES + 1],
-                &reader,
-                &CancelToken::new(),
-                &mut |_, _| {}
-            )
-            .is_err()
-        );
+    }
+
+    #[test]
+    fn batches_of_one_size_give_the_report_of_one_batch() {
+        let reader = Reader {
+            reads: Cell::new(0),
+            changed: false,
+        };
+        let entries = [file(1), file(2), file(3)];
+        let whole = detect(&entries, &reader, &CancelToken::new(), &mut |_, _| {});
+        let cancel = CancelToken::new();
+        let mut detector = Detector::new(&reader, &cancel);
+        let mut sizes: BTreeMap<ByteCount, Vec<FilesystemEntry>> = BTreeMap::new();
+        for entry in entries {
+            sizes.entry(entry.size.logical).or_default().push(entry);
+        }
+        for batch in sizes.values() {
+            assert!(detector.add(batch, &mut |_, _| {}).is_continue());
+        }
+        assert_eq!(detector.finish(), whole);
     }
 }

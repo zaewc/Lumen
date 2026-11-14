@@ -333,26 +333,6 @@
           },
           {
             "type": "object",
-            "description": "The folders hold more files than one comparison covers.",
-            "required": [
-              "limit",
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "too_many"
-                ]
-              },
-              "limit": {
-                "type": "string",
-                "description": "The most files one comparison covers."
-              }
-            }
-          },
-          {
-            "type": "object",
             "description": "The person stopped the comparison; no groups are shown, since a stopped\ncomparison proves nothing about the files it did not finish.",
             "required": [
               "kind"

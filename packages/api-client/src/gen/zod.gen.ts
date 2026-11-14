@@ -129,10 +129,6 @@ export const zCompareOutcomeView = z.union([
     kind: z.enum(["unsupported"]),
   }),
   z.object({
-    kind: z.enum(["too_many"]),
-    limit: z.string(),
-  }),
-  z.object({
     kind: z.enum(["cancelled"]),
   }),
   z.object({

@@ -187,13 +187,6 @@ export type CompareOutcomeView =
       kind: "unsupported";
     }
   | {
-      kind: "too_many";
-      /**
-       * The most files one comparison covers.
-       */
-      limit: string;
-    }
-  | {
       kind: "cancelled";
     }
   | {

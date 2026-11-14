@@ -115,8 +115,6 @@ export const fr: Messages = {
       incomplete:
         "Certains dossiers n'ont pas pu être lus entièrement. Leurs fichiers n'ont pas été comparés.",
       unsupported: "La comparaison de fichiers n'est pas encore disponible sur cet ordinateur.",
-      tooMany: (limit) =>
-        `L'analyse couvre plus de ${count(limit)} fichiers. Relancez une analyse plus ciblée pour en comparer moins.`,
       failed: "Lumen n'a pas pu comparer les fichiers de l'analyse.",
       advice:
         "Certaines copies peuvent être des sauvegardes à conserver. Lumen ne choisit ni ne supprime aucune copie. La suppression d'une copie peut libérer moins d'espace que sa taille.",

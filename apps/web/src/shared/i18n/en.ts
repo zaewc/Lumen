@@ -125,8 +125,6 @@ export const en = {
         `${count(n)} ${n === 1 ? "file" : "files"} in protected locations left unread.`,
       incomplete: "Some folders could not be read completely. Files there were not compared.",
       unsupported: "Comparing files is not available on this computer yet.",
-      tooMany: (limit: string) =>
-        `The scan covers more than ${count(limit)} files. Run a narrower scan to compare fewer.`,
       failed: "Lumen could not compare the scan's files.",
       advice:
         "Copies can be backups you want to keep. Lumen does not choose or remove any. Removing a copy can free less space than its size.",
