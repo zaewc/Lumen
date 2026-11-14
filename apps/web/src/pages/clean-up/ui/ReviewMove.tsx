@@ -5,6 +5,7 @@ import { useScanSession } from "@/entities/scan-session";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { ErrorNotice } from "@/shared/ui";
+import { stillCurrent } from "../model/move";
 
 /** Moving one review item the person chose, for the results to place. */
 export interface ReviewMove {
@@ -52,7 +53,7 @@ export function useReviewMove(): ReviewMove {
         { id: item.id, scan },
         {
           onSuccess: ({ planned, scan: planScan }) => {
-            if (planScan === shown.current) {
+            if (stillCurrent(planScan, shown.current)) {
               execute(planned);
             }
           },

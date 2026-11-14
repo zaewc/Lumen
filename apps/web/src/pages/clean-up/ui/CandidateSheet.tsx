@@ -1,12 +1,12 @@
 import type { CandidateView } from "@lumen/api-client";
 import { useId, useRef } from "react";
 import { type Certainty, CertaintyDot, statusOf } from "@/entities/scan-session";
-import { canChooseReview } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { baseName } from "@/shared/lib";
 import { buttonClass, CloseIcon, Dialog } from "@/shared/ui";
 import { lineText } from "../lib/evidence";
 import type { Lens } from "../model/lens";
+import { moveOffer } from "../model/move";
 import { evidenceStack } from "../model/stack";
 import { CandidateSize } from "./CandidateSize";
 import { CheckAgain } from "./CheckAgain";
@@ -132,9 +132,9 @@ export function CandidateSheet({
                 )}
               </div>
             </section>
-            {candidate.verdict === "review" && move !== undefined && (
+            {move !== undefined && moveOffer(candidate, false) !== null && (
               <section>
-                {canChooseReview(candidate) ? (
+                {moveOffer(candidate, false) === "move" ? (
                   <>
                     <button
                       type="button"

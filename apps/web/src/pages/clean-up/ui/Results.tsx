@@ -151,13 +151,18 @@ export function Results({
       <CandidateSheet
         candidate={shown}
         lens={lens}
-        move={{
-          busy: move.busy,
-          onMove: (item) => {
-            setOpen(null);
-            move.start(item);
-          },
-        }}
+        // After a clean-up the results are read-only: scan again to move more.
+        {...(cleanedUp
+          ? {}
+          : {
+              move: {
+                busy: move.busy,
+                onMove: (item: CandidateView) => {
+                  setOpen(null);
+                  move.start(item);
+                },
+              },
+            })}
         onClose={() => setOpen(null)}
       />
     </>
