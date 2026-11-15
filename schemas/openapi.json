@@ -2299,7 +2299,8 @@
           "hidden",
           "explicit",
           "services",
-          "ai_note"
+          "ai_note",
+          "size"
         ],
         "properties": {
           "ai_note": {
@@ -2360,6 +2361,17 @@
               "$ref": "#/components/schemas/LinkedServiceView"
             },
             "description": "Background items linked to it, verified first."
+          },
+          "size": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SoftwareSizeView",
+                "description": "A macOS app's size from the latest scan (roadmap 16.2); `None` for\nother software and apps with no recorded location. Display only."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "vendor": {
             "type": [
@@ -2441,6 +2453,66 @@
           "runtime_or_library",
           "unknown"
         ]
+      },
+      "SoftwareSizeView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Every folder in it was read.",
+            "required": [
+              "bytes",
+              "kind"
+            ],
+            "properties": {
+              "bytes": {
+                "type": "string",
+                "description": "What removing it would free, in bytes."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "complete"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Some folder in it could not be read: at least this much.",
+            "required": [
+              "bytes",
+              "kind"
+            ],
+            "properties": {
+              "bytes": {
+                "type": "string",
+                "description": "Bytes, a lower bound."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "at_least"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The scan did not cover it, or there is no completed scan.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_scanned"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What the latest scan says about an app's size; never zero for unknown."
       },
       "SoftwareSourceStateView": {
         "type": "string",

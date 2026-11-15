@@ -6,6 +6,7 @@
 //! typed errors; presenting them is the caller's job.
 
 pub mod ai;
+pub mod app_sizes;
 pub mod assess;
 pub mod docker;
 pub mod duplicates;
