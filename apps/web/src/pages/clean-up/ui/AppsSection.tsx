@@ -6,7 +6,7 @@ import { MoveFlow, MoveResult, softwareTitle } from "@/entities/app-move";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, parentPath } from "@/shared/lib";
-import { Bytes } from "@/shared/ui";
+import { Bytes, buttonClass, ErrorNotice } from "@/shared/ui";
 import { type AppRow, appsSection } from "../model/apps";
 
 function Row({
@@ -46,7 +46,8 @@ function Row({
  * policy's sections, largest first, each opening the same move dialog as the
  * Apps page. Apps have no verdict, so they are outside the status filter, the
  * map and the "can clean up" total; the toolbar's "정리하기…" never moves them.
- * Left out where the host has no software list or the scan measured no app.
+ * Left out where the host has no software list or the scan measured no app;
+ * a list that could not be read says so, never an empty section.
  */
 export function AppsSection() {
   const { m } = useI18n();
@@ -60,6 +61,24 @@ export function AppsSection() {
     enabled: ask !== undefined,
   });
   const [moving, setMoving] = useState<SoftwareItemView | null>(null);
+  if (software.isError) {
+    return (
+      <section aria-labelledby={heading} className="space-y-2 border-b border-line pb-3">
+        <h3 id={heading} className="px-2 pt-6 text-section text-ink">
+          {t.title}
+        </h3>
+        <ErrorNotice message={m.apps.loadFailed} error={software.error}>
+          <button
+            type="button"
+            className={buttonClass("secondary", "sm")}
+            onClick={() => void software.refetch()}
+          >
+            {m.common.tryAgain}
+          </button>
+        </ErrorNotice>
+      </section>
+    );
+  }
   const items = software.data?.items ?? [];
   const section = appsSection(items);
   if (section === null) {
@@ -82,7 +101,11 @@ export function AppsSection() {
           </span>
         </span>
         <span className="font-normal tabular-nums text-ink-2">
-          <Bytes value={section.bytes} />
+          {section.atLeast ? (
+            m.details.atLeast(formatBytes(section.bytes))
+          ) : (
+            <Bytes value={section.bytes} />
+          )}
         </span>
       </h3>
       <p className="px-2 text-[12px] leading-snug text-ink-3">{t.line}</p>

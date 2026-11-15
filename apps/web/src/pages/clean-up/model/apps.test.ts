@@ -41,6 +41,8 @@ describe("Explore's Apps section", () => {
       ["Mid", false],
     ]);
     expect(section?.bytes).toBe("9300000000");
+    expect(section?.atLeast, "a lower bound in the list makes the total one").toBe(true);
+    expect(appsSection([app("Big", complete(5_000_000_000))])?.atLeast).toBe(false);
   });
 
   it("shows at most ten and counts the apps outside the scan", () => {

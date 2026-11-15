@@ -148,8 +148,10 @@ export function Results({
           <CandidateList sections={sections} onOpen={setOpen} lens={lens} moving={move.moving} />
         </>
       )}
-      {/* Apps have no verdict: only under "All", never in the filter or the map. */}
-      {filter === "all" && <AppsSection />}
+      {/* Apps have no verdict: only under "All", never in the filter or the map.
+          With no items the filter is not shown, so a filter left from an
+          earlier scan does not hide them. */}
+      {(filter === "all" || candidates.length === 0) && <AppsSection />}
       <ScanDetails scan={scan} />
       <CandidateSheet
         candidate={shown}

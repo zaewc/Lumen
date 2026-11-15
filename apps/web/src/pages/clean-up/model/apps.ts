@@ -21,6 +21,8 @@ export interface AppsSection {
   readonly rows: readonly AppRow[];
   /** What the listed apps take together, decimal bytes. */
   readonly bytes: string;
+  /** Some listed app's size is a lower bound, so `bytes` is one too. */
+  readonly atLeast: boolean;
   /** Apps in places this scan did not read: never given a made-up size. */
   readonly outside: number;
 }
@@ -55,5 +57,5 @@ export function appsSection(items: readonly SoftwareItemView[]): AppsSection | n
     })
     .slice(0, APPS_SHOWN);
   const bytes = rows.reduce((total, row) => total + BigInt(row.bytes), 0n).toString();
-  return { rows, bytes, outside };
+  return { rows, bytes, atLeast: rows.some((row) => row.atLeast), outside };
 }
