@@ -28,13 +28,13 @@ pub struct SubtreeSize {
 const SELECTED: &str = "
     WITH sel AS (
         SELECT e.dir, e.name, e.kind, e.volume, e.file_id, e.logical, e.allocated,
-               e.private, e.link_count, e.size_flags, 1 AS own
+               e.private, e.link_count, e.size_flags
         FROM dirs d CROSS JOIN entries e ON e.dir = d.id
         WHERE ?7 = 1 AND d.scan = (SELECT key FROM scans WHERE id = ?1)
           AND d.flavor = ?2 AND d.path = ?3 AND e.name = ?4
         UNION ALL
         SELECT e.dir, e.name, e.kind, e.volume, e.file_id, e.logical, e.allocated,
-               e.private, e.link_count, e.size_flags, 0 AS own
+               e.private, e.link_count, e.size_flags
         FROM dirs d CROSS JOIN entries e ON e.dir = d.id
         WHERE d.scan = (SELECT key FROM scans WHERE id = ?1)
           AND d.flavor = ?2 AND d.path >= ?5 AND d.path < ?6
@@ -51,8 +51,9 @@ const SELECTED: &str = "
 /// placeholder or dataless file (flags 8 and 4) frees nothing; a known
 /// private size frees at most the allocated size; shared blocks (flag 16)
 /// with no private size free nothing promised and make the total inexact.
-/// Then whether the top folder was found, and how many folders in the tree
-/// were not listed in full (`?8` directory, `?9` readable).
+/// Then whether the top folder's own entry exists, looked up on its own even
+/// when the range holds it (a root), and how many folders in the tree were
+/// not listed in full (`?8` directory, `?9` readable).
 const TOTALS: &str = "
     SELECT
         (SELECT count(*) FROM files),
@@ -67,7 +68,9 @@ const TOTALS: &str = "
         (SELECT count(*) FROM files WHERE links >= link_count AND flags & 12 = 0
             AND private IS NULL AND flags & 16 != 0),
         (SELECT count(*) FROM files WHERE links < link_count),
-        (SELECT count(*) FROM sel WHERE own = 1),
+        (SELECT count(*) FROM dirs d CROSS JOIN entries e ON e.dir = d.id
+            WHERE d.scan = (SELECT key FROM scans WHERE id = ?1)
+              AND d.flavor = ?2 AND d.path = ?3 AND e.name = ?4),
         (SELECT count(*) FROM sel s LEFT JOIN listings l ON l.dir = s.dir AND l.name = s.name
             WHERE s.kind = ?8 AND (l.dir IS NULL OR l.complete = 0 OR l.access != ?9))";
 
@@ -87,12 +90,12 @@ impl IndexStore {
         dir: &RawPath,
     ) -> Result<Option<SubtreeSize>, StoreError> {
         // `/a/b/` is `/a/b`: its own entry is stored under its last name.
-        let trimmed = trailing_slash_trimmed(dir);
+        let trimmed = trailing_separator_trimmed(dir);
         let dir = trimmed.as_ref().unwrap_or(dir);
         let (start, end) = dirs::below_range(dir);
         let (own_dir, own_name) = dirs::split(dir);
         // The range already holds `dir`'s own entry when `dir` is a root
-        // such as `/`; it is then found through the range alone.
+        // such as `/`; it is then not selected a second time.
         let own_apart = !own_dir.starts_with(&start);
         let mut query = self.conn.prepare_cached(&format!("{SELECTED} {TOTALS}"))?;
         let row = query
@@ -137,8 +140,7 @@ impl IndexStore {
         else {
             return Ok(None);
         };
-        let found = if own_apart { own > 0 } else { files > 0 };
-        if !found {
+        if own == 0 {
             return Ok(None);
         }
         Ok(Some(SubtreeSize {
@@ -155,28 +157,40 @@ impl IndexStore {
     }
 }
 
-/// A Unix `dir` without its trailing `/`s, unless that is all it is; `None`
-/// when there is nothing to trim.
-fn trailing_slash_trimmed(dir: &RawPath) -> Option<RawPath> {
-    if dir.flavor() != PathFlavor::Unix {
-        return None;
-    }
+/// `dir` without its trailing separators, unless it is a root, whose own
+/// entry is stored with one (`/`, `C:\`, `\\server\share\`); `None` when
+/// there is nothing to trim. A root this does not recognize stays trimmed
+/// and is then not found: `None`, never a wrong size.
+fn trailing_separator_trimmed(dir: &RawPath) -> Option<RawPath> {
+    let separator = dirs::separator(dir.flavor());
     let bytes = dir.as_bytes();
     let end = bytes
         .iter()
-        .rposition(|&b| b != b'/')
+        .rposition(|&b| b != separator)
         .map_or(1, |last| last + 1);
-    (end < bytes.len())
-        .then(|| RawPath::from_unix_bytes(bytes[..end].to_vec()).ok())
-        .flatten()
+    let kept = &bytes[..end];
+    if end >= bytes.len() || (dir.flavor() == PathFlavor::Windows && windows_root(kept)) {
+        return None;
+    }
+    RawPath::from_stored(dir.flavor(), kept.to_vec()).ok()
+}
+
+/// Whether a Windows path without its trailing `\` names a root: a drive
+/// (`C:`, `\\?\C:`) or a share (`\\server\share`).
+fn windows_root(kept: &[u8]) -> bool {
+    kept.ends_with(b":")
+        || kept.strip_prefix(b"\\\\").is_some_and(|rest| {
+            let mut at = rest.iter().filter(|&&b| b == b'\\');
+            at.next().is_some() && at.next().is_none()
+        })
 }
 
 #[cfg(test)]
 mod tests {
     use lumen_application::ports::DirOutcome;
     use lumen_domain::{
-        AccessState, ByteCount, CloneId, EntryKind, FilesystemEntry, RawPath, ReclaimEstimate,
-        Timestamp,
+        AccessState, ByteCount, CloneId, EntryKind, FilesystemEntry, PathFlavor, RawPath,
+        ReclaimEstimate, Timestamp,
     };
     use proptest::prelude::*;
     use rusqlite::params;
@@ -280,13 +294,79 @@ mod tests {
             None,
             "another scan"
         );
+        assert_eq!(
+            store.subtree_size(scan, &raw(b"/"))?,
+            None,
+            "the scan has no entry for / itself"
+        );
+        store.insert_entries(scan, &[folder(b"/", 20)])?;
         let whole = store.subtree_size(scan, &raw(b"/"))?;
         assert_eq!(
             whole.map(|s| (s.reclaim.files, s.reclaim.partially_linked_files)),
-            Some((9, 0)),
+            Some((10, 0)),
             "/ holds the rest; the two links of one file count once, both inside"
         );
         Ok(())
+    }
+
+    fn windows(p: &str) -> RawPath {
+        RawPath::from_stored(PathFlavor::Windows, p.as_bytes().to_vec())
+            .unwrap_or_else(|_| unreachable!())
+    }
+
+    fn at(path: RawPath, mut e: FilesystemEntry) -> FilesystemEntry {
+        e.path = path;
+        e
+    }
+
+    #[test]
+    fn a_windows_folder_is_found_with_a_trailing_separator_and_roots_keep_theirs()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let (_fx, mut store) = store()?;
+        let scan = scan_id(4);
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, &[])?;
+        store.insert_entries(
+            scan,
+            &[
+                at(windows(r"C:\"), folder(b"/", 1)),
+                at(windows(r"C:\empty"), folder(b"/", 2)),
+                at(windows(r"C:\unread"), folder(b"/", 3)),
+                at(windows(r"C:\unread\f"), entry(b"/", 4)),
+            ],
+        )?;
+        store.insert_listings(scan, &[(windows(r"C:\empty"), READ)])?;
+
+        let empty = store.subtree_size(scan, &windows(r"C:\empty\"))?;
+        assert_eq!(
+            empty.map(|s| (s.reclaim.files, s.complete)),
+            Some((1, true)),
+            "an empty folder, asked for with a trailing separator"
+        );
+        let unread = store.subtree_size(scan, &windows(r"C:\unread\"))?;
+        assert_eq!(
+            unread.map(|s| (s.reclaim.files, s.complete)),
+            Some((2, false)),
+            "a top folder with no listing is never complete"
+        );
+        let root = store.subtree_size(scan, &windows(r"C:\"))?;
+        assert_eq!(root.map(|s| s.reclaim.files), Some(4), "the drive root");
+        Ok(())
+    }
+
+    #[test]
+    fn only_non_root_trailing_separators_are_trimmed() {
+        let trimmed = |p: RawPath| super::trailing_separator_trimmed(&p).map(|t| t.display());
+        assert_eq!(trimmed(windows(r"C:\a\\")), Some(r"C:\a".to_owned()));
+        assert_eq!(trimmed(windows(r"C:\")), None);
+        assert_eq!(trimmed(windows(r"\\?\C:\")), None);
+        assert_eq!(trimmed(windows(r"\\srv\share\")), None);
+        assert_eq!(
+            trimmed(windows(r"\\srv\share\a\")),
+            Some(r"\\srv\share\a".to_owned())
+        );
+        assert_eq!(trimmed(raw(b"/a//")), Some("/a".to_owned()));
+        assert_eq!(trimmed(raw(b"//")), Some("/".to_owned()));
+        assert_eq!(trimmed(raw(b"/")), None);
     }
 
     #[test]
