@@ -2,6 +2,7 @@ import type { RootView, ScanView } from "@lumen/api-client";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { Disclosure } from "@/shared/ui";
+import { UnreadFolders } from "./UnreadFolders";
 
 /** One scanned folder: its sizes and whether all of it was read. */
 function RootDetails({ root }: { readonly root: RootView }) {
@@ -43,6 +44,7 @@ export function ScanDetails({ scan }: { readonly scan: ScanView }) {
             <RootDetails key={root.root} root={root} />
           ))}
         </ul>
+        <UnreadFolders scan={scan} />
       </Disclosure>
     </div>
   );

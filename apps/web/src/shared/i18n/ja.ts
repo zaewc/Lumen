@@ -116,8 +116,6 @@ export const ja: Messages = {
         `保護された場所にある ${count(n)}個のファイルは読んでいません。`,
       incomplete: "一部のフォルダを最後まで読めませんでした。そこにあるファイルは比べていません。",
       unsupported: "このコンピュータでは、まだファイルを比べられません。",
-      tooMany: (limit: string) =>
-        `スキャン範囲のファイルが ${count(limit)}個を超えています。範囲を狭めて再スキャンしてください。`,
       failed: "スキャンしたファイルを比較できませんでした。",
       advice:
         "コピーは残しておきたいバックアップかもしれません。Lumen はどれも選んだり削除したりしません。コピーを削除しても、そのサイズ分の空きが増えないことがあります。",
@@ -268,6 +266,8 @@ export const ja: Messages = {
     planFailed: "整理を準備できませんでした。ファイルは変更されていません。",
   },
   detail: {
+    moveReview: "隔離に移動…",
+    reviewChoiceUnavailable: "この項目は隔離対象に選択できません。",
     size: "サイズ",
     location: "場所",
     decision: "判断",
@@ -410,6 +410,29 @@ export const ja: Messages = {
   },
   details: {
     title: "スキャンの詳細",
+    unread: {
+      title: "読み取れなかったフォルダー",
+      loading: "読み込み中…",
+      failed: "一覧を読み込めませんでした。",
+      more: (n: string) => `ほか${count(n)}件`,
+      reasons: {
+        privacy:
+          "macOS のプライバシー保護により読み取れませんでした。フルディスクアクセスを許可すると読み取れる場合があります。",
+        system_protected:
+          "macOS が保護しているフォルダーです。正常なので、変更する必要はありません。",
+        permissions:
+          "このアカウントには読み取る権限がありません。システムフォルダーであれば正常です。",
+        out_of_scope: "このデバイスで Lumen が読み取れる範囲の外です。",
+        denied: "アクセスが拒否されました。",
+        vanished: "スキャン中に削除されました。",
+        timed_out:
+          "読み取りに時間がかかりすぎました。もう一度スキャンすると読み取れる場合があります。",
+        failed: "読み取れませんでした。",
+        cut_short: "一部だけ読み取りました。",
+        not_entered:
+          "スキャンしていません。別のディスクにある、除外されている、またはスキャンが届かなかったフォルダーです。",
+      },
+    },
     entries: (entries: string) => `${count(entries)}件を読み取り`,
     files: "ファイル",
     fileCount: (files: string) => count(files),
@@ -433,6 +456,24 @@ export const ja: Messages = {
     planMade: (createdAt: string) => `この計画は${createdAt}に作成されました。24時間利用できます。`,
     planHash: "計画のハッシュ",
   },
+  hostConfirm: {
+    sizeUnknown: "サイズ不明",
+    proposed: "Lumen の提案",
+    chosen: "自分で選んだ項目",
+    chosenNote:
+      "Lumen が提案した項目ではありません。アプリに影響する可能性があり、復元するか完全に削除するまで隔離に残ります。",
+    uninstallTitle: "このアプリを隔離に移動しますか？",
+    uninstallNote: "隔離から復元できます。",
+    finalizeTitle: "この項目を完全に削除しますか？",
+    finalizeNote: "元に戻せません。",
+    finalizeChosen: "自分で選んだ項目です。Lumen が提案したものではありません。",
+    finalizeButton: "完全に削除",
+    toolTitle: (tool: string) => `${tool} のコマンドを実行しますか？`,
+    toolNote: "削除されたものは復元できません。",
+    toolButton: "実行",
+    more: (n: number) => `…ほか ${items(n)}`,
+    unavailable: "確認する内容を表示できませんでした。何も変更されていません。",
+  },
   done: {
     title: (n: number, size: string) => `${items(n)}（${size}）を隔離に移動しました。`,
     noneMoved: "何も移動しませんでした。",
@@ -449,6 +490,7 @@ export const ja: Messages = {
     failIdentityMismatch: "スキャン後に変更されたため",
     failInUse: "プログラムが使用中のため",
     failVolumeUnsupported: "このドライブでは隔離を保持できないため",
+    failStoreUnavailable: "このドライブの隔離フォルダーを安全に開けなかったため",
     failMoveFailed: "移動中に問題が発生したため",
     failVerificationFailed: "移動後の状態が計画と一致しなかったため",
     failOther: "このバージョンでは原因を特定できないため",

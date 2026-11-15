@@ -1124,6 +1124,7 @@ mod tests {
                     self.root.join("home/Library/Application Support"),
                     vec![b"Lumen".to_vec(), b"Quarantine".to_vec()],
                 )],
+                former: Vec::new(),
                 volumes: None,
                 single_user: false,
             }

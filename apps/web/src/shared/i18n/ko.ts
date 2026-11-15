@@ -121,8 +121,6 @@ export const ko = {
       protectedFiles: (n: number) => `보호된 위치에 있는 파일 ${count(n)}개는 읽지 않았어요.`,
       incomplete: "일부 폴더를 끝까지 읽지 못했어요. 그 안의 파일은 비교하지 않았어요.",
       unsupported: "이 컴퓨터에서는 아직 파일을 비교할 수 없어요.",
-      tooMany: (limit: string) =>
-        `이번 검사는 파일이 ${count(limit)}개보다 많아 비교할 수 없어요. 범위를 좁혀 다시 검사해 주세요.`,
       failed: "검사한 경로의 파일을 비교하지 못했어요.",
       advice:
         "사본은 남겨 두고 싶은 백업일 수 있어요. Lumen은 어느 것도 고르거나 지우지 않아요. 사본을 지워도 그 크기보다 적게 비워질 수 있어요.",
@@ -273,6 +271,8 @@ export const ko = {
     planFailed: "정리를 준비하지 못했어요. 파일은 모두 그대로 있어요.",
   },
   detail: {
+    moveReview: "격리함으로 옮기기…",
+    reviewChoiceUnavailable: "이 항목은 직접 선택해 격리할 수 없어요.",
     size: "크기",
     location: "위치",
     decision: "판단",
@@ -415,6 +415,25 @@ export const ko = {
   },
   details: {
     title: "검사 세부 정보",
+    unread: {
+      title: "읽지 못한 폴더",
+      loading: "불러오는 중…",
+      failed: "목록을 불러오지 못했어요.",
+      more: (n: string) => `외 ${count(n)}개`,
+      reasons: {
+        privacy:
+          "macOS 개인정보 보호 때문에 읽지 못했어요. 전체 디스크 접근 권한을 허용하면 읽을 수 있어요.",
+        system_protected: "macOS가 보호하는 폴더예요. 정상이니 바꿀 것은 없어요.",
+        permissions: "이 계정에는 읽을 권한이 없어요. 시스템 폴더라면 정상이에요.",
+        out_of_scope: "이 기기에서 Lumen이 읽을 수 있는 범위 밖이에요.",
+        denied: "접근이 거부됐어요.",
+        vanished: "검사하는 동안 사라졌어요.",
+        timed_out: "읽는 데 너무 오래 걸렸어요. 다시 검사하면 읽을 수도 있어요.",
+        failed: "읽지 못했어요.",
+        cut_short: "일부만 읽었어요.",
+        not_entered: "검사하지 않았어요. 다른 디스크에 있거나, 제외됐거나, 검사가 닿지 않았어요.",
+      },
+    },
     entries: (entries: string) => `읽은 항목 ${count(entries)}개`,
     files: "파일",
     fileCount: (files: string) => `${count(files)}개`,
@@ -439,6 +458,24 @@ export const ko = {
       `${createdAt}에 만든 정리 계획이에요. 24시간 동안 쓸 수 있어요.`,
     planHash: "계획 해시",
   },
+  hostConfirm: {
+    sizeUnknown: "크기를 몰라요",
+    proposed: "Lumen의 정리 제안",
+    chosen: "직접 선택한 항목",
+    chosenNote:
+      "Lumen이 정리를 제안한 항목은 아니에요. 앱 동작에 영향을 줄 수 있고, 직접 복원하거나 영구 삭제할 때까지 격리함에 보관해요.",
+    uninstallTitle: "이 앱을 격리함으로 옮길까요?",
+    uninstallNote: "격리함에서 다시 복원할 수 있어요.",
+    finalizeTitle: "이 항목을 영구 삭제할까요?",
+    finalizeNote: "영구 삭제하면 되돌릴 수 없어요.",
+    finalizeChosen: "직접 선택한 항목이에요. Lumen이 정리를 제안한 항목은 아니에요.",
+    finalizeButton: "영구 삭제",
+    toolTitle: (tool: string) => `${tool} 명령을 실행할까요?`,
+    toolNote: "명령이 지운 것은 복원할 수 없어요.",
+    toolButton: "실행",
+    more: (n: number) => `외 ${items(n)}`,
+    unavailable: "확인할 내용을 불러오지 못했어요. 아무것도 바뀌지 않았어요.",
+  },
   done: {
     title: (n: number, size: string) => `${items(n)}(${size})를 격리함으로 옮겼어요.`,
     noneMoved: "아무것도 옮기지 않았어요.",
@@ -455,6 +492,7 @@ export const ko = {
     failIdentityMismatch: "검사한 뒤에 바뀌었어요",
     failInUse: "프로그램이 쓰고 있어요",
     failVolumeUnsupported: "이 드라이브에는 격리함을 둘 수 없어요",
+    failStoreUnavailable: "이 드라이브의 격리함 폴더를 안전하게 열 수 없어요",
     failMoveFailed: "옮기는 중에 문제가 생겼어요",
     failVerificationFailed: "옮긴 뒤 확인한 내용이 계획과 달랐어요",
     failOther: "알 수 없는 이유예요",

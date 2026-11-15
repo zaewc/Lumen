@@ -1,10 +1,10 @@
-import { useMutation } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useIsMutating, useMutation } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { useScanSession } from "@/entities/scan-session";
-import { useTransport } from "@/shared/api";
+import { declined, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice } from "@/shared/ui";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { PLANNING, useLatestPlan } from "../model/move";
 
 /** The parts of the clean-up action, for the page to place. */
 export interface CleanUpAction {
@@ -12,15 +12,15 @@ export interface CleanUpAction {
   readonly button: ReactNode;
   /** What went wrong, for the top of the content; `null` when nothing did. */
   readonly error: ReactNode;
-  /** The confirmation dialog. */
-  readonly dialog: ReactNode;
 }
 
 /**
  * The one action that cleans up: the button makes a plan of every proposed
- * item (which moves nothing), the dialog asks, and only "Move to
- * Quarantine" executes exactly that plan. With nothing proposed the button
- * is disabled and its tooltip says why.
+ * item (which moves nothing) and asks to execute exactly that plan. The
+ * desktop host then asks the person in its own confirmation window (FS-1),
+ * which lists what moves; nothing moves unless they confirm there, and
+ * closing it is no failure. With nothing proposed the button is disabled
+ * and its tooltip says why.
  */
 export function useCleanUpAction({
   proposed,
@@ -33,17 +33,19 @@ export function useCleanUpAction({
   const { m } = useI18n();
   const transport = useTransport();
   const session = useScanSession();
-  const button = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
+  const planning = useIsMutating({ mutationKey: PLANNING }) > 0;
+  // Only the toolbar's own latest plan is its to show and retry; one chosen
+  // item's is the item's.
+  const latest = useLatestPlan();
+  const mine = latest !== null && latest.item === null;
   const plan = useMutation({
+    mutationKey: PLANNING,
     mutationFn: () => transport.plan(),
-    onSuccess: () => setOpen(true),
+    onSuccess: (planned) => {
+      onConfirm();
+      session.execute(planned);
+    },
   });
-  useEffect(() => {
-    if (session.report !== null) {
-      setOpen(false);
-    }
-  }, [session.report]);
   const nothing = proposed === 0;
   const prepare = () => {
     session.resetCleanUp();
@@ -57,10 +59,9 @@ export function useCleanUpAction({
   return {
     button: (
       <button
-        ref={button}
         type="button"
         onClick={prepare}
-        disabled={nothing || plan.isPending || session.cleaning}
+        disabled={nothing || planning || session.cleaning}
         title={nothing ? m.action.nothing : undefined}
         className={buttonClass("primary")}
       >
@@ -71,30 +72,15 @@ export function useCleanUpAction({
             : m.action.cleanUp}
       </button>
     ),
-    error: plan.isError ? (
-      <ErrorNotice message={m.action.planFailed} error={plan.error}>
-        {retry}
-      </ErrorNotice>
-    ) : session.cleanUpError !== null && !open ? (
-      <ErrorNotice message={m.confirm.failed} error={session.cleanUpError}>
-        {retry}
-      </ErrorNotice>
-    ) : null,
-    dialog: plan.data ? (
-      <ConfirmDialog
-        open={open}
-        plan={plan.data}
-        busy={session.cleaning}
-        error={session.cleanUpError}
-        onConfirm={() => {
-          if (plan.data) {
-            onConfirm();
-            session.execute(plan.data);
-          }
-        }}
-        onClose={() => setOpen(false)}
-        returnFocus={button}
-      />
-    ) : null,
+    error:
+      mine && latest.failed ? (
+        <ErrorNotice message={m.action.planFailed} error={latest.error}>
+          {retry}
+        </ErrorNotice>
+      ) : mine && session.cleanUpError !== null && !declined(session.cleanUpError) ? (
+        <ErrorNotice message={m.confirm.failed} error={session.cleanUpError}>
+          {retry}
+        </ErrorNotice>
+      ) : null,
   };
 }

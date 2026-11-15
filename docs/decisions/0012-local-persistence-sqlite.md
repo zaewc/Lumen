@@ -30,8 +30,9 @@ Lumen stores three kinds of state with different durability needs:
 
 Chosen option: **1**.
 
-- `rusqlite` 0.40.x with `bundled` (SQLite 3.53.x). Bundling guarantees the WAL-reset
-  corruption fix, which a system SQLite may lack.
+- `rusqlite` 0.41.x with `bundled` (SQLite 3.54.x). Bundling guarantees the WAL-reset
+  corruption fix, and the fix for RUSTSEC-2026-0459 (stale page-cache bytes from a
+  mismatched `-wal`), which a system SQLite may lack.
 - Two files:
   - `index.db` holds the scan index and evidence graph. It uses `synchronous=NORMAL`
     and can be rebuilt.

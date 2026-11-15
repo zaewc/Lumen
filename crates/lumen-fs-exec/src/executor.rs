@@ -30,7 +30,7 @@ use crate::finalize::{Removed, finalize, forget};
 use crate::move_into::{Left, MoveError, move_into};
 use crate::restore::{RestoreError, restore};
 use crate::sidecar::write_sidecar;
-use crate::store::{Store, open_store};
+use crate::store::{Store, StoreError, open_store};
 use crate::verify::{
     ExpectedLeaf, LeafKind, PlanItem, UnixIdentity, check_held, identity, ownership, verify,
 };
@@ -119,8 +119,19 @@ impl Executor {
     }
 
     fn store(&self, volume: u64) -> Option<Store> {
+        self.open_on(volume).ok()
+    }
+
+    /// The store on `volume`, or why it cannot be used:
+    /// [`QuarantineFailure::VolumeUnsupported`] if the store is on another
+    /// volume, [`QuarantineFailure::StoreUnavailable`] if it failed a check
+    /// or cannot be reached (ADR-0066).
+    fn open_on(&self, volume: u64) -> Result<Store, QuarantineFailure> {
         let names: Vec<&[u8]> = self.store_names.iter().map(Vec::as_slice).collect();
-        open_store(&self.store_base, &names, volume).ok()
+        open_store(&self.store_base, &names, volume).map_err(|error| match error {
+            StoreError::OtherVolume => QuarantineFailure::VolumeUnsupported,
+            _ => QuarantineFailure::StoreUnavailable,
+        })
     }
 
     /// The store on the volume the store base is on now.
@@ -250,8 +261,8 @@ impl QuarantineExecutor for Executor {
         let plan = prepared.plan();
         let verified = verify(&plan).map_err(|_| at_source(QuarantineFailure::IdentityMismatch))?;
         let store = self
-            .store(plan.expected.identity.dev)
-            .ok_or_else(|| at_source(QuarantineFailure::VolumeUnsupported))?;
+            .open_on(plan.expected.identity.dev)
+            .map_err(at_source)?;
         let name = operation.to_string();
         move_into(&verified, &store, name.as_bytes(), &plan.expected).map_err(|error| {
             let reason = match error {
@@ -417,6 +428,34 @@ mod tests {
 
     fn relative() -> Vec<Vec<u8>> {
         vec![b"cache".to_vec(), b"app".to_vec(), b"data.bin".to_vec()]
+    }
+
+    #[test]
+    fn a_store_that_fails_its_checks_is_reported_as_unavailable() {
+        let (_fx, root, _executor) = setup();
+        let shared = root.join("Shared");
+        std::fs::create_dir(&shared).unwrap_or_else(|e| unreachable!("{e}"));
+        let mut perms = std::fs::metadata(&shared)
+            .unwrap_or_else(|e| unreachable!("{e}"))
+            .permissions();
+        perms.set_mode(0o777);
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "test fixture inside its own temporary directory"
+        )]
+        std::fs::set_permissions(&shared, perms).unwrap_or_else(|e| unreachable!("{e}"));
+        let executor = Executor::new(root.clone(), vec![b"Shared".to_vec()]);
+        let prepared = executor
+            .prepare(&raw(&root), &relative())
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            executor.quarantine(&prepared, op(12), b"{}"),
+            Err(ExecutionFailure {
+                reason: QuarantineFailure::StoreUnavailable,
+                left: ItemLocation::Source
+            })
+        );
+        assert!(root.join("cache/app/data.bin").exists());
     }
 
     #[test]

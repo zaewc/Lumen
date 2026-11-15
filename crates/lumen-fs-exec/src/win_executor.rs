@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use crate::location::{Left, Removed};
 use crate::win_finalize::{finalize, forget};
 use crate::win_move::{Direction, WinMoveError, move_into, restore, write_sidecar};
-use crate::win_store::{WinStore, open_store};
+use crate::win_store::{WinStore, WinStoreError, missing, open_existing_store, open_store};
 use crate::win_sys::{self, Want};
 use crate::win_verify::{WinExpected, WinIdentity, WinPlanItem, check_held, observe, verify};
 
@@ -92,6 +92,9 @@ impl Prepared {
 struct Location {
     base: Vec<u16>,
     names: Vec<Vec<u16>>,
+    /// A former location: it is never created and nothing new goes there,
+    /// but items held there are still found, restored and finalized.
+    former: bool,
 }
 
 /// The executor for one or more store locations (ADR-0015), at most one per
@@ -116,7 +119,7 @@ fn verbatim(path: &[u16]) -> Option<Vec<u16>> {
 }
 
 impl Location {
-    fn new(base: impl Into<PathBuf>, names: Vec<Vec<u8>>) -> Self {
+    fn new(base: impl Into<PathBuf>, names: Vec<Vec<u8>>, former: bool) -> Self {
         let base: Vec<u16> = base.into().as_os_str().encode_wide().collect();
         Self {
             base: verbatim(&base).unwrap_or(base),
@@ -124,15 +127,36 @@ impl Location {
                 .into_iter()
                 .map(|n| String::from_utf8_lossy(&n).encode_utf16().collect())
                 .collect(),
+            former,
         }
     }
+
+    /// The store here on `volume`, created if missing unless `former`.
+    fn open(&self, volume: u64) -> Result<WinStore, WinStoreError> {
+        let names: Vec<&[u16]> = self.names.iter().map(Vec::as_slice).collect();
+        if self.former {
+            open_existing_store(&self.base, &names, volume)
+        } else {
+            open_store(&self.base, &names, volume)
+        }
+    }
+}
+
+/// Whether `store` has anything under `name`: the item or its sidecar, or
+/// something there that cannot be told apart from them.
+fn has(store: &WinStore, name: &[u16], directory: bool) -> bool {
+    let mut sidecar = name.to_vec();
+    sidecar.extend(".manifest.json".encode_utf16());
+    let item = win_sys::open_at(&store.dir, name, Want::Movable { directory });
+    let side = win_sys::open_at(&store.dir, &sidecar, Want::Remove { directory: false });
+    !(item.is_err_and(|e| missing(&e)) && side.is_err_and(|e| missing(&e)))
 }
 
 impl Executor {
     /// An executor quarantining into `names` (UTF-8) below `base`.
     pub fn new(base: impl Into<PathBuf>, names: Vec<Vec<u8>>) -> Self {
         Self {
-            stores: vec![Location::new(base, names)],
+            stores: vec![Location::new(base, names, false)],
         }
     }
 
@@ -140,25 +164,69 @@ impl Executor {
     /// `base`, for items on that base's volume (ADR-0046).
     #[must_use]
     pub fn with_store(mut self, base: impl Into<PathBuf>, names: Vec<Vec<u8>>) -> Self {
-        self.stores.push(Location::new(base, names));
+        self.stores.push(Location::new(base, names, false));
         self
     }
 
-    /// The store on `volume`: the first location whose base is on that
-    /// volume and opens safely. `open_store` creates nothing below a base on
-    /// another volume.
-    fn store(&self, volume: u64) -> Option<WinStore> {
-        self.store_at(volume).map(|(store, _)| store)
+    /// The same executor with a former store location, `names` (UTF-8) below
+    /// `base` (ADR-0066): it is never created and nothing new goes there, but
+    /// items held there are still found, restored and finalized.
+    #[must_use]
+    pub fn with_former_store(mut self, base: impl Into<PathBuf>, names: Vec<Vec<u8>>) -> Self {
+        self.stores.push(Location::new(base, names, true));
+        self
     }
 
-    /// [`Self::store`] and the location it was opened at.
-    fn store_at(&self, volume: u64) -> Option<(WinStore, &Location)> {
-        self.stores.iter().find_map(|location| {
-            let names: Vec<&[u16]> = location.names.iter().map(Vec::as_slice).collect();
-            open_store(&location.base, &names, volume)
-                .ok()
-                .map(|store| (store, location))
-        })
+    /// The store new items on `volume` go into: the first location that is
+    /// not former, is on that volume and opens safely. `open_store` creates
+    /// nothing below a base on another volume.
+    ///
+    /// # Errors
+    ///
+    /// [`QuarantineFailure::StoreUnavailable`] if a location is on that
+    /// volume but its store failed a check; otherwise
+    /// [`QuarantineFailure::VolumeUnsupported`].
+    fn store(&self, volume: u64) -> Result<WinStore, QuarantineFailure> {
+        let mut reason = QuarantineFailure::VolumeUnsupported;
+        for location in self.stores.iter().filter(|location| !location.former) {
+            match location.open(volume) {
+                Ok(store) => return Ok(store),
+                Err(error) if error.on_volume() => reason = QuarantineFailure::StoreUnavailable,
+                Err(_) => {}
+            }
+        }
+        Err(reason)
+    }
+
+    /// The store on `volume` that has `name` (the first, in order), or else
+    /// the one new items go into, and the location it was opened at.
+    fn holding(&self, volume: u64, name: &[u16], directory: bool) -> Option<(WinStore, &Location)> {
+        let mut fallback = None;
+        for location in &self.stores {
+            let Ok(store) = location.open(volume) else {
+                continue;
+            };
+            if has(&store, name, directory) {
+                return Some((store, location));
+            }
+            if fallback.is_none() && !location.former {
+                fallback = Some((store, location));
+            }
+        }
+        fallback
+    }
+
+    /// [`Self::holding`] for `operation`'s item.
+    fn holding_item(
+        &self,
+        plan: &WinPlanItem,
+        operation: OperationId,
+    ) -> Option<(WinStore, &Location)> {
+        self.holding(
+            plan.expected.identity.volume,
+            &name_of(operation),
+            plan.expected.directory,
+        )
     }
 }
 
@@ -237,7 +305,7 @@ impl QuarantineExecutor for Executor {
         let verified = verify(&plan).map_err(|_| at_source(QuarantineFailure::IdentityMismatch))?;
         let store = self
             .store(plan.expected.identity.volume)
-            .ok_or_else(|| at_source(QuarantineFailure::VolumeUnsupported))?;
+            .map_err(at_source)?;
         let name = name_of(operation);
         move_into(&verified, &store, &name, &plan.expected).map_err(|error| {
             let reason = match error {
@@ -265,7 +333,7 @@ impl QuarantineExecutor for Executor {
         if verify(&plan).is_ok() {
             return Located::AtSource;
         }
-        let Some(store) = self.store(plan.expected.identity.volume) else {
+        let Some((store, _)) = self.holding_item(&plan, operation) else {
             return Located::Unknown;
         };
         let want = Want::Movable {
@@ -289,7 +357,7 @@ impl QuarantineExecutor for Executor {
             left: ItemLocation::Quarantine,
         };
         let plan = parse(item).ok_or(in_store)?;
-        let store = self.store(plan.expected.identity.volume).ok_or(in_store)?;
+        let (store, _) = self.holding_item(&plan, operation).ok_or(in_store)?;
         restore(&store, &name_of(operation), &plan)
             .map(|restored| RestoredItem {
                 parent_replaced: restored.parent_replaced,
@@ -308,8 +376,8 @@ impl QuarantineExecutor for Executor {
 
     fn finalize(&self, item: &PreparedItem, operation: OperationId) -> Result<(), Removal> {
         let plan = parse(item).ok_or(Removal::Nothing)?;
-        let store = self
-            .store(plan.expected.identity.volume)
+        let (store, _) = self
+            .holding_item(&plan, operation)
             .ok_or(Removal::Nothing)?;
         finalize(&store, &name_of(operation), &plan.expected).map_err(|error| {
             match error.removed() {
@@ -324,13 +392,13 @@ impl QuarantineExecutor for Executor {
         let Some(plan) = parse(item) else {
             return false;
         };
-        self.store(plan.expected.identity.volume)
-            .is_some_and(|store| forget(&store, &name_of(operation)).is_ok())
+        self.holding_item(&plan, operation)
+            .is_some_and(|(store, _)| forget(&store, &name_of(operation)).is_ok())
     }
 
     fn held(&self, item: &PreparedItem, operation: OperationId) -> Option<(RawPath, FileIdentity)> {
         let plan = parse(item)?;
-        let (store, location) = self.store_at(plan.expected.identity.volume)?;
+        let (store, location) = self.holding_item(&plan, operation)?;
         let name = name_of(operation);
         let want = Want::Movable {
             directory: plan.expected.directory,
@@ -410,6 +478,47 @@ mod tests {
     }
 
     #[test]
+    fn items_in_a_former_store_are_found_and_new_ones_go_to_the_current_one() {
+        let (_fx, root, _executor, raw) = setup();
+        let before = Executor::new(root.clone(), vec![b"Old".to_vec()]);
+        let item = before
+            .prepare(&raw, &relative())
+            .unwrap_or_else(|e| unreachable!("{e:?}"));
+        assert_eq!(before.quarantine(&item, op(5), b"{}"), Ok(()));
+        let executor = Executor::new(root.clone(), vec![b"New".to_vec()])
+            .with_former_store(root.clone(), vec![b"Old".to_vec()])
+            .with_former_store(root.clone(), vec![b"Gone".to_vec()]);
+        assert_eq!(executor.locate(&item, op(5)), Located::InStore);
+        let held = executor.held(&item, op(5)).map(|(path, _)| path);
+        let expected = root.join("Old").join(op(5).to_string());
+        let units: Vec<u16> = verbatim(&expected.as_os_str().encode_wide().collect::<Vec<_>>())
+            .unwrap_or_else(|| unreachable!());
+        assert_eq!(held, RawPath::from_windows_wide(&units).ok());
+        assert_eq!(
+            executor.restore(&item, op(5)),
+            Ok(RestoredItem {
+                parent_replaced: false,
+                matches_record: true
+            })
+        );
+        assert!(executor.forget(&item, op(5)));
+        assert!(
+            !root
+                .join("Old")
+                .join(format!("{}.manifest.json", op(5)))
+                .exists()
+        );
+        assert_eq!(executor.quarantine(&item, op(6), b"{}"), Ok(()));
+        assert!(root.join("New").join(op(6).to_string()).exists());
+        assert!(!root.join("Old").join(op(6).to_string()).exists());
+        assert_eq!(executor.finalize(&item, op(6)), Ok(()));
+        assert!(
+            !root.join("Gone").exists(),
+            "a former store is never created"
+        );
+    }
+
+    #[test]
     fn a_location_that_cannot_hold_the_store_is_passed_over() {
         let (_fx, root, _executor, raw) = setup();
         let executor = Executor::new(root.join("missing-base"), vec![b"Quarantine".to_vec()])
@@ -428,6 +537,44 @@ mod tests {
                 matches_record: true
             })
         );
+    }
+
+    #[test]
+    fn a_store_that_fails_its_checks_is_reported_as_unavailable_not_as_the_volume() {
+        let (_fx, root, _executor, raw) = setup();
+        // A folder the store would go into, made by someone else: its DACL is
+        // inherited, so it is not private (the installer's folder, ADR-0066).
+        std::fs::create_dir(root.join("Installed")).unwrap_or_else(|e| unreachable!("{e}"));
+        let executor = Executor::new(root.join("missing-base"), vec![b"Quarantine".to_vec()])
+            .with_store(
+                root.clone(),
+                vec![b"Installed".to_vec(), b"Quarantine".to_vec()],
+            );
+        let item = executor
+            .prepare(&raw, &relative())
+            .unwrap_or_else(|e| unreachable!("{e:?}"));
+        assert_eq!(
+            executor.quarantine(&item, op(7), b"{}"),
+            Err(ExecutionFailure {
+                reason: QuarantineFailure::StoreUnavailable,
+                left: ItemLocation::Source
+            })
+        );
+        assert!(root.join("cache/app/data.bin").exists());
+        assert!(
+            !root.join("Installed/Quarantine").exists(),
+            "nothing created"
+        );
+        let missing = Executor::new(root.join("missing-base"), vec![b"Quarantine".to_vec()]);
+        assert_eq!(
+            missing.quarantine(&item, op(8), b"{}"),
+            Err(ExecutionFailure {
+                reason: QuarantineFailure::StoreUnavailable,
+                left: ItemLocation::Source
+            }),
+            "a base that does not open on the item's own drive is that drive's store, unavailable"
+        );
+        assert!(!root.join("missing-base").exists(), "nothing created");
     }
 
     #[test]

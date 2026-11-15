@@ -11,6 +11,7 @@
 use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use lumen_testkit::{Fixture, MemorySecretStore, Node};
 use serde_json::{Value, json};
@@ -27,6 +28,39 @@ const RECOVERY: &str = "LUMEN_DESKTOP_RECOVERY_HOME";
 
 /// Set in the child process that tries to quit and update mid-cleanup.
 const HOLD: &str = "LUMEN_DESKTOP_HOLD_HOME";
+
+/// The answer the host's confirmation dialog gets in the child (FS-1).
+static ANSWER: AtomicBool = AtomicBool::new(true);
+
+/// How often the host asked.
+static ASKED: AtomicUsize = AtomicUsize::new(0);
+
+/// The size the last removal-for-good question named, if any.
+static FINALIZE_BYTES: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+/// How often the flow reached a command that must ask: the flow may stop
+/// early when an item is safely not moved, so the count follows the flow.
+static EXPECTED: AtomicUsize = AtomicUsize::new(0);
+
+/// The app as the real one is built, with [`ANSWER`] for its dialogs.
+fn app_under_test() -> tauri::Builder<MockRuntime> {
+    let secrets = Arc::new(MemorySecretStore::default());
+    crate::app_with_confirmation(
+        mock_builder(),
+        Some(secrets),
+        None,
+        Some(Arc::new(|ask: &crate::confirmation::Ask| {
+            if let crate::confirmation::Ask::Finalize { item, .. } = ask {
+                FINALIZE_BYTES
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone_from(&item.bytes);
+            }
+            ASKED.fetch_add(1, Ordering::SeqCst);
+            ANSWER.load(Ordering::SeqCst)
+        })),
+    )
+}
 
 /// Re-runs `test` in a child process with `HOME` (and `var`) at `home`.
 fn in_child(test: &str, var: &str, home: &Path) {
@@ -47,8 +81,7 @@ fn in_child(test: &str, var: &str, home: &Path) {
 
 /// Runs `flow` once the app, built as the real one is, has set itself up.
 fn run_app(flow: impl Fn(&AppHandle<MockRuntime>) + 'static) {
-    let secrets = Arc::new(MemorySecretStore::default());
-    let app = crate::app(mock_builder(), Some(secrets), None)
+    let app = app_under_test()
         .build(crate::context())
         .unwrap_or_else(|e| unreachable!("{e}"));
     let exit = app.run_return(move |handle, event| {
@@ -134,6 +167,21 @@ fn ai_review(window: &WebviewWindow<MockRuntime>) {
     assert_eq!(ok("ai_settings", json!({})), off);
 }
 
+/// FS-1: declining the host's own dialog leaves `plan` unexecuted and `item`
+/// in place, however the page called `execute`.
+fn declining_moves_nothing(window: &WebviewWindow<MockRuntime>, plan: &Value, item: &Path) {
+    ANSWER.store(false, Ordering::SeqCst);
+    EXPECTED.fetch_add(1, Ordering::SeqCst);
+    let declined = invoke(
+        window,
+        "execute",
+        json!({ "request": { "plan": plan["plan"], "confirmation": plan["hash"] } }),
+    );
+    ANSWER.store(true, Ordering::SeqCst);
+    assert!(declined.is_err(), "declined in the host's own dialog");
+    assert!(item.exists(), "declining moves nothing");
+}
+
 /// The flow itself, in the child: AI review's switch, then scan → plan →
 /// execute → held → restore → plan → execute → finalize, plus a command the
 /// capability does not grant.
@@ -185,6 +233,8 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
         );
         // REVIEW instead of QUARANTINE (in-use visibility): covered elsewhere.
         let plan = invoke(&window, "plan", json!({})).ok()?;
+        declining_moves_nothing(&window, &plan, &item);
+        EXPECTED.fetch_add(1, Ordering::SeqCst);
         let report = ok(
             "execute",
             json!({ "request": { "plan": plan["plan"], "confirmation": plan["hash"] } }),
@@ -216,6 +266,7 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
     let Some(second) = cycle() else {
         return;
     };
+    EXPECTED.fetch_add(1, Ordering::SeqCst);
     let finalized = ok("finalize", json!({ "operationId": second }));
     assert_eq!(finalized["outcome"]["kind"], "finalized", "{finalized}");
     let measured = &finalized["space_change"];
@@ -241,6 +292,23 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
 fn the_desktop_flow_runs_end_to_end() {
     if let Some(home) = std::env::var_os(CHILD) {
         run_app(move |handle| flow(handle, Path::new(&home)));
+        // FS-1: before each execute (declined, then confirmed) and the
+        // finalize the flow reached; 5 when it ran to the end.
+        assert_eq!(
+            ASKED.load(Ordering::SeqCst),
+            EXPECTED.load(Ordering::SeqCst),
+            "the host asked each time"
+        );
+        if EXPECTED.load(Ordering::SeqCst) == 5 {
+            let bytes = FINALIZE_BYTES
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            assert!(
+                bytes.is_some_and(|b| b.parse::<u64>().is_ok_and(|b| b >= 4096)),
+                "removing for good names the recorded size"
+            );
+        }
         return;
     }
     let fx = Fixture::build(&[
@@ -343,8 +411,7 @@ fn an_interrupted_cleanup_is_listed_after_the_next_launch() {
 /// item action runs, the update and closing the window wait; while an update
 /// installs, no item action starts; and once both are done the window closes.
 fn hold_quit_and_updates() {
-    let secrets = Arc::new(MemorySecretStore::default());
-    let app = crate::app(mock_builder(), Some(secrets), None)
+    let app = app_under_test()
         .build(crate::context())
         .unwrap_or_else(|e| unreachable!("{e}"));
     let mut moving = None;

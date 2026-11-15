@@ -201,9 +201,50 @@ pub fn plan(
     judge: &dyn lumen_application::ports::JudgeModel,
     chosen: &[RawPath],
 ) -> Result<Planned, PlanError> {
+    plan_in(db, clock, ids, judge, chosen, true)
+}
+
+/// Plans only the review items at the `chosen` paths (ADR-0051), without
+/// the policy's proposals, as [`plan`] does otherwise: the person moves the
+/// items they chose, and nothing else comes with them.
+///
+/// # Errors
+///
+/// As [`plan`]; [`PlanError::NothingToPlan`] when nothing is chosen.
+#[tracing::instrument(name = "plan_chosen", skip_all, fields(chosen = chosen.len()))]
+pub fn plan_chosen(
+    db: &Path,
+    clock: &dyn Clock,
+    ids: &dyn IdGenerator,
+    judge: &dyn lumen_application::ports::JudgeModel,
+    chosen: &[RawPath],
+) -> Result<Planned, PlanError> {
+    plan_in(db, clock, ids, judge, chosen, false)
+}
+
+/// `picked`, without the policy's proposals unless `proposed`.
+fn scoped(mut picked: Vec<(Assessed, Chooser)>, proposed: bool) -> Vec<(Assessed, Chooser)> {
+    if !proposed {
+        picked.retain(|(_, chooser)| *chooser == Chooser::Person);
+    }
+    picked
+}
+
+/// [`plan`] with the policy's proposals (`proposed`) or without them.
+fn plan_in(
+    db: &Path,
+    clock: &dyn Clock,
+    ids: &dyn IdGenerator,
+    judge: &dyn lumen_application::ports::JudgeModel,
+    chosen: &[RawPath],
+    proposed: bool,
+) -> Result<Planned, PlanError> {
     let assessed = crate::assess::assess(db, clock, judge, &lumen_application::ports::NoopJudge)?;
     let assessed = carry_demotions(assessed, &recorded_demotions(db)?);
-    let picked = pick(assessed, chosen, |a| tool_action(a).is_some())?;
+    let picked = scoped(
+        pick(assessed, chosen, |a| tool_action(a).is_some())?,
+        proposed,
+    );
     if picked.is_empty() {
         return Err(PlanError::NothingToPlan);
     }
@@ -391,6 +432,14 @@ mod tests {
             ],
             "nothing is chosen that the person did not choose"
         );
+        let only: Vec<String> = scoped(
+            pick(items.clone(), &chosen, |_| false).unwrap_or_else(|e| unreachable!("{e}")),
+            false,
+        )
+        .into_iter()
+        .map(|(a, _)| a.candidate.path.display())
+        .collect();
+        assert_eq!(only, ["/h/chosen"], "without the policy's proposals");
         for (path, why) in [
             ("/h/kept", NotChoosable::Kept),
             ("/h/proposed", NotChoosable::Proposed),

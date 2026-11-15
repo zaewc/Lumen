@@ -42,13 +42,13 @@ name arbitrary paths directly to the comparison command.
 Choose **option 1**. After a non-partial scan completes, Explore starts a separate
 read-only comparison. `compare_scan` receives only the scan ID. The host checks
 that it is still the latest completed scan, loads its roots from `index.db`, and
-calls `lumen_app::duplicates::find`. The webview never supplies paths. A stale
+calls `lumen_app::duplicates::find_in_scan`. The webview never supplies paths. A stale
 scan ID, an empty root list, an unsupported platform, or a comparison error is
 reported rather than treated as an empty result.
 
 The existing duplicate engine retains its safety controls: it skips protected
 locations and quarantine stores, refuses unsafe links, verifies file identity
-while reading, supports cancellation, and stops above `MAX_FILES`. Partial or
+while reading, and supports cancellation. Partial or
 cancelled scans do not automatically start a comparison. The report contains
 paths, sizes and counts; digests remain in the host, and no copy is selected,
 moved or removed.
@@ -71,8 +71,12 @@ no longer needed.
   broader information-disclosure capability than ADR-0057's host dialog. The
   host limits the comparison to the persisted latest scan and retains all
   duplicate-engine protections, but does not ask for a second confirmation.
-- Trade-off: a broad scan can exceed `MAX_FILES`, in which case the report says
-  it could not compare that scope; the user can run a narrower scan.
+- Good: there is no limit on how many files a scan holds (owner, 2026-11-14). The
+  comparison reads the scan's recorded sizes from `index.db` and compares one size
+  at a time (`lumen_app::duplicates::find_in_scan`), so memory holds one group of
+  same-size files rather than the whole scan; the earlier 100,000-file limit is
+  gone. Each read still checks the file is the one the scan saw, and skips it
+  otherwise; files are read at their root's real path.
 
 ## More information
 

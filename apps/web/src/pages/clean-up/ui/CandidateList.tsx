@@ -30,10 +30,13 @@ function Row({
   active,
   mark,
   hint,
+  moving,
   onOpen,
   onMove,
 }: {
   readonly candidate: CandidateView;
+  /** It is being moved to Quarantine now. */
+  readonly moving: boolean;
   readonly index: number;
   /** The row the keyboard is on: the list's one tab stop. */
   readonly active: boolean;
@@ -92,6 +95,15 @@ function Row({
       {note !== null && (
         <p className="mx-2 mb-1.5 truncate text-[12px] text-ink-3">{aiNoteText(m, note)}</p>
       )}
+      {moving && (
+        <div
+          role="progressbar"
+          aria-label={m.confirm.moving}
+          className="mx-2 mb-2 h-1 overflow-hidden rounded-full bg-accent-soft"
+        >
+          <div className="h-full w-2/5 animate-[indeterminate_1.4s_ease-in-out_infinite] rounded-full bg-accent motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50" />
+        </div>
+      )}
     </li>
   );
 }
@@ -137,9 +149,12 @@ export function CandidateList({
   sections,
   onOpen,
   lens,
+  moving = null,
 }: {
   readonly sections: readonly KindSection[];
   readonly onOpen: (candidate: CandidateView) => void;
+  /** The item being moved to Quarantine now, by ID; its row shows it. */
+  readonly moving?: string | null;
   /** The open item's lens: it lowers what is unrelated to that item. */
   readonly lens: Lens | null;
 }) {
@@ -180,6 +195,7 @@ export function CandidateList({
             active={at === active}
             mark={lensMark(lens, candidate.path)}
             hint={hint}
+            moving={candidate.id === moving}
             onOpen={(opened) => {
               setSelected(at);
               onOpen(opened);

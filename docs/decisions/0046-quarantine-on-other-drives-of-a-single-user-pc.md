@@ -1,6 +1,7 @@
 # ADR-0046: Quarantine on other drives of a single-user PC
 
-- Status: Accepted
+- Status: Accepted; the system drive's store location amended by
+  [ADR-0066](0066-keep-the-windows-store-out-of-the-install-folder.md)
 - Date: 2026-10-27
 - Amends: [ADR-0015](0015-quarantine-and-reversible-cleanup.md) (stores on other
   volumes), [ADR-0030](0030-partial-in-use-visibility.md) (condition 1);

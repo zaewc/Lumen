@@ -18,6 +18,8 @@ const allowed = new Set([
   "disk",
   "open_full_disk_access",
   "set_theme",
+  "confirm_request",
+  "confirm_answer",
   "check_update",
   "install_update",
   "run_tool_command",
@@ -35,6 +37,7 @@ const allowed = new Set([
   "helper_disable",
   "helper_open_login_items",
   "app_icon",
+  "unread_folders",
 ]);
 
 window.__TAURI_ISOLATION_HOOK__ = (payload) => {

@@ -6,6 +6,7 @@ import type {
   SoftwareOriginView,
   SoftwarePurposeView,
   UninstallReasonView,
+  UnreadReasonView,
 } from "@lumen/api-client";
 import { countFormat } from "./format";
 import type { RuleId } from "./rules";
@@ -124,8 +125,6 @@ export const en = {
         `${count(n)} ${n === 1 ? "file" : "files"} in protected locations left unread.`,
       incomplete: "Some folders could not be read completely. Files there were not compared.",
       unsupported: "Comparing files is not available on this computer yet.",
-      tooMany: (limit: string) =>
-        `The scan covers more than ${count(limit)} files. Run a narrower scan to compare fewer.`,
       failed: "Lumen could not compare the scan's files.",
       advice:
         "Copies can be backups you want to keep. Lumen does not choose or remove any. Removing a copy can free less space than its size.",
@@ -279,6 +278,8 @@ export const en = {
     planFailed: "Lumen could not prepare the clean-up. Your files are unchanged.",
   },
   detail: {
+    moveReview: "Move to Quarantine…",
+    reviewChoiceUnavailable: "This item cannot be chosen for Quarantine.",
     size: "Size",
     location: "Location",
     decision: "Decision",
@@ -419,6 +420,24 @@ export const en = {
   },
   details: {
     title: "Scan details",
+    unread: {
+      title: "Folders Lumen could not read",
+      loading: "Loading…",
+      failed: "Lumen could not list them.",
+      more: (n: string) => `and ${count(n)} more`,
+      reasons: {
+        privacy: "Blocked by macOS privacy protection. Allowing Full Disk Access can help.",
+        system_protected: "Protected by macOS. This is normal; there is nothing to change.",
+        permissions: "Your account may not read these. For system folders this is normal.",
+        out_of_scope: "Outside what Lumen may read on this device.",
+        denied: "Access was refused.",
+        vanished: "Removed while Lumen was scanning.",
+        timed_out: "Took too long to read. Scanning again may help.",
+        failed: "Could not be read.",
+        cut_short: "Read only in part.",
+        not_entered: "Not scanned: on another disk, excluded, or not reached.",
+      } satisfies { readonly [R in UnreadReasonView]: string },
+    },
     entries: (entries: string) => `${count(entries)} entries read`,
     files: "Files",
     fileCount: (files: string) => count(files),
@@ -445,6 +464,24 @@ export const en = {
       `Lumen made this plan ${createdAt}. You can use it for 24 hours.`,
     planHash: "Plan hash",
   },
+  hostConfirm: {
+    sizeUnknown: "Size unknown",
+    proposed: "Lumen’s proposals",
+    chosen: "Items you chose",
+    chosenNote:
+      "Lumen did not propose these. Moving them may affect apps. They stay in Quarantine until you restore or permanently remove them.",
+    uninstallTitle: "Move this app to Quarantine?",
+    uninstallNote: "You can restore it from Quarantine.",
+    finalizeTitle: "Remove this item for good?",
+    finalizeNote: "This cannot be undone.",
+    finalizeChosen: "You chose this item yourself; Lumen did not propose it.",
+    finalizeButton: "Remove for Good",
+    toolTitle: (tool: string) => `Run ${tool}’s command?`,
+    toolNote: "What it removes cannot be restored.",
+    toolButton: "Run",
+    more: (n: number) => `…and ${items(n)} more`,
+    unavailable: "Lumen could not show what to confirm. Nothing was changed.",
+  },
   done: {
     title: (n: number, size: string) => `Moved ${items(n)} (${size}) to Quarantine.`,
     noneMoved: "Lumen did not move anything.",
@@ -461,6 +498,7 @@ export const en = {
     failIdentityMismatch: "it changed after the scan",
     failInUse: "a program is using it",
     failVolumeUnsupported: "this drive cannot hold a quarantine",
+    failStoreUnavailable: "the quarantine folder on this drive could not be opened safely",
     failMoveFailed: "moving it went wrong",
     failVerificationFailed: "after the move it did not match the plan",
     failOther: "for a reason this version does not know",

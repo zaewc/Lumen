@@ -33,6 +33,7 @@
     "allow-helper-enable",
     "allow-helper-disable",
     "allow-helper-open-login-items",
-    "allow-app-icon"
+    "allow-app-icon",
+    "allow-unread-folders"
   ]
 }

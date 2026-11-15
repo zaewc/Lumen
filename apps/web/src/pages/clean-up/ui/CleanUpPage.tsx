@@ -172,7 +172,6 @@ export function CleanUpPage() {
           <>
             {cleanUp.error}
             {results(false)}
-            {cleanUp.dialog}
           </>
         );
       case "done":

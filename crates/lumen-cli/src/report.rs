@@ -1,7 +1,8 @@
 //! The text and JSON forms of a scan summary.
 
 use lumen_app::ScanSummary;
-use lumen_domain::{ByteCount, DenialReason, RootCoverage};
+use lumen_app::unread::{Unread, UnreadFolders};
+use lumen_domain::{ByteCount, DenialReason, FailureKind, RootCoverage};
 use lumen_scan::StopReason;
 use serde_json::{Value, json};
 
@@ -137,9 +138,132 @@ pub(crate) fn to_json(summary: &ScanSummary) -> Value {
     })
 }
 
+/// Why a folder was not read, in a few words.
+fn unread_reason(why: Unread) -> &'static str {
+    match why {
+        Unread::Denied(DenialReason::Tcc) => {
+            "denied by privacy protection (Full Disk Access may help)"
+        }
+        Unread::Denied(DenialReason::Sip) => "denied by System Integrity Protection",
+        Unread::Denied(DenialReason::Posix) => "denied by file permissions",
+        Unread::Denied(DenialReason::Acl) => "denied by an access-control list",
+        Unread::Denied(DenialReason::Scope) => "outside what this app may read",
+        Unread::Denied(_) => "denied",
+        Unread::Failed(FailureKind::Vanished) => "removed while scanning",
+        Unread::Failed(FailureKind::TimedOut) => "timed out (scanning again may help)",
+        Unread::Failed(_) => "read failed",
+        Unread::CutShort => "read only in part",
+        Unread::NotEntered => "not entered (another disk, excluded or not reached)",
+        _ => "not read",
+    }
+}
+
+/// A stable code for each reason, for JSON: the domain's serde names.
+fn unread_code(why: Unread) -> &'static str {
+    match why {
+        Unread::Denied(DenialReason::Tcc) => "denied.tcc",
+        Unread::Denied(DenialReason::Sip) => "denied.sip",
+        Unread::Denied(DenialReason::Posix) => "denied.posix",
+        Unread::Denied(DenialReason::Acl) => "denied.acl",
+        Unread::Denied(DenialReason::Scope) => "denied.scope",
+        Unread::Denied(_) => "denied.unknown",
+        Unread::Failed(FailureKind::Vanished) => "failed.vanished",
+        Unread::Failed(FailureKind::TimedOut) => "failed.timed_out",
+        Unread::Failed(_) => "failed.io",
+        Unread::CutShort => "cut_short",
+        Unread::NotEntered => "not_entered",
+        _ => "unknown",
+    }
+}
+
+/// The folders the scan did not read, as text after the summary.
+pub(crate) fn unread_text(unread: &UnreadFolders) -> String {
+    let mut out = String::new();
+    if unread.total == 0 {
+        line(&mut out, "unread folders: none");
+        return out;
+    }
+    line(&mut out, &format!("unread folders ({}):", unread.total));
+    for folder in &unread.folders {
+        line(
+            &mut out,
+            &format!(
+                "  {}  [{}]",
+                folder.path.display(),
+                unread_reason(folder.why)
+            ),
+        );
+    }
+    let shown = u64::try_from(unread.folders.len()).unwrap_or(u64::MAX);
+    if unread.total > shown {
+        line(
+            &mut out,
+            &format!("  ... and {} more", unread.total - shown),
+        );
+    }
+    out
+}
+
+/// The folders the scan did not read, as JSON.
+pub(crate) fn unread_json(unread: &UnreadFolders) -> Value {
+    json!({
+        "total": unread.total,
+        "folders": unread.folders.iter().map(|f| json!({
+            "path": f.path.display(),
+            "reason": unread_code(f.why),
+        })).collect::<Vec<_>>(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
+    use lumen_app::unread::UnreadFolder;
+    use lumen_domain::RawPath;
+
     use super::*;
+
+    fn folders(total: u64, listed: &[(&str, Unread)]) -> UnreadFolders {
+        UnreadFolders {
+            scan: "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a9"
+                .parse()
+                .unwrap_or_else(|_| unreachable!()),
+            total,
+            folders: listed
+                .iter()
+                .map(|(path, why)| UnreadFolder {
+                    path: RawPath::from_unix_bytes(path.as_bytes().to_vec())
+                        .unwrap_or_else(|_| unreachable!()),
+                    why: *why,
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn unread_folders_are_listed_with_why_and_what_is_left_out() {
+        let unread = folders(
+            3,
+            &[
+                ("/h/mail", Unread::Denied(DenialReason::Tcc)),
+                ("/h/slow", Unread::Failed(FailureKind::TimedOut)),
+            ],
+        );
+        assert_eq!(
+            unread_text(&unread),
+            "unread folders (3):\n  /h/mail  [denied by privacy protection (Full Disk Access may help)]\n  /h/slow  [timed out (scanning again may help)]\n  ... and 1 more\n"
+        );
+        assert_eq!(
+            unread_json(&unread),
+            json!({
+                "total": 3,
+                "folders": [
+                    {"path": "/h/mail", "reason": "denied.tcc"},
+                    {"path": "/h/slow", "reason": "failed.timed_out"},
+                ],
+            })
+        );
+        assert_eq!(unread_text(&folders(0, &[])), "unread folders: none\n");
+    }
 
     #[test]
     fn human_sizes_use_decimal_units_and_truncate() {

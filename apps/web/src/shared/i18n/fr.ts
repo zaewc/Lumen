@@ -115,8 +115,6 @@ export const fr: Messages = {
       incomplete:
         "Certains dossiers n'ont pas pu être lus entièrement. Leurs fichiers n'ont pas été comparés.",
       unsupported: "La comparaison de fichiers n'est pas encore disponible sur cet ordinateur.",
-      tooMany: (limit) =>
-        `L'analyse couvre plus de ${count(limit)} fichiers. Relancez une analyse plus ciblée pour en comparer moins.`,
       failed: "Lumen n'a pas pu comparer les fichiers de l'analyse.",
       advice:
         "Certaines copies peuvent être des sauvegardes à conserver. Lumen ne choisit ni ne supprime aucune copie. La suppression d'une copie peut libérer moins d'espace que sa taille.",
@@ -268,6 +266,8 @@ export const fr: Messages = {
   },
   detail: {
     ...en.detail,
+    moveReview: "Déplacer en quarantaine…",
+    reviewChoiceUnavailable: "Cet élément ne peut pas être choisi pour la quarantaine.",
     size: "Taille",
     location: "Emplacement",
     decision: "Décision",
@@ -408,6 +408,26 @@ export const fr: Messages = {
   },
   details: {
     title: "Détails de l'analyse",
+    unread: {
+      title: "Dossiers que Lumen n'a pas pu lire",
+      loading: "Chargement…",
+      failed: "Lumen n'a pas pu les afficher.",
+      more: (n) => `et ${count(n)} de plus`,
+      reasons: {
+        privacy:
+          "Bloqués par la protection de la vie privée de macOS. Autoriser l'accès complet au disque peut aider.",
+        system_protected: "Protégés par macOS. C'est normal ; il n'y a rien à changer.",
+        permissions:
+          "Votre compte n'a pas le droit de les lire. Pour les dossiers système, c'est normal.",
+        out_of_scope: "Hors de ce que Lumen peut lire sur cet appareil.",
+        denied: "L'accès a été refusé.",
+        vanished: "Supprimés pendant l'analyse.",
+        timed_out: "La lecture a pris trop de temps. Une nouvelle analyse peut aider.",
+        failed: "Impossible de les lire.",
+        cut_short: "Lus en partie seulement.",
+        not_entered: "Non analysés : sur un autre disque, exclus ou non atteints.",
+      },
+    },
     entries: (entries) => `${count(entries)} entrées lues`,
     files: "Fichiers",
     fileCount: (files) => count(files),
@@ -434,6 +454,24 @@ export const fr: Messages = {
     planMade: (createdAt) => `Lumen a créé ce plan le ${createdAt}. Il est valable 24 heures.`,
     planHash: "Empreinte du plan",
   },
+  hostConfirm: {
+    sizeUnknown: "Taille inconnue",
+    proposed: "Propositions de Lumen",
+    chosen: "Éléments que vous avez choisis",
+    chosenNote:
+      "Lumen ne les a pas proposés. Les déplacer peut affecter des apps. Ils restent en quarantaine jusqu'à ce que vous les restauriez ou les supprimiez définitivement.",
+    uninstallTitle: "Déplacer cette app en quarantaine ?",
+    uninstallNote: "Vous pourrez la restaurer depuis la quarantaine.",
+    finalizeTitle: "Supprimer cet élément définitivement ?",
+    finalizeNote: "Cette action est irréversible.",
+    finalizeChosen: "Vous avez choisi cet élément vous-même ; Lumen ne l'a pas proposé.",
+    finalizeButton: "Supprimer définitivement",
+    toolTitle: (tool) => `Exécuter la commande de ${tool} ?`,
+    toolNote: "Ce qu'elle supprime ne pourra pas être restauré.",
+    toolButton: "Exécuter",
+    more: (n) => `…et ${items(n)} de plus`,
+    unavailable: "Lumen n'a pas pu afficher ce qu'il faut confirmer. Rien n'a été modifié.",
+  },
   done: {
     title: (n, size) => `${items(n)} (${size}) déplacés en quarantaine.`,
     noneMoved: "Lumen n'a rien déplacé.",
@@ -451,6 +489,8 @@ export const fr: Messages = {
     failIdentityMismatch: "il a changé depuis l'analyse",
     failInUse: "un programme l'utilise",
     failVolumeUnsupported: "ce disque ne peut pas accueillir une quarantaine",
+    failStoreUnavailable:
+      "le dossier de quarantaine de ce disque n'a pas pu être ouvert en toute sécurité",
     failMoveFailed: "le déplacement a échoué",
     failVerificationFailed: "après le déplacement, il ne correspondait pas au plan",
     failOther: "pour une raison inconnue de cette version",

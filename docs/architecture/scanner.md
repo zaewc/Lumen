@@ -89,7 +89,9 @@ point is not a directory.
 A directory that could not be read is `Denied(reason)`, `Failed(kind)` or
 `NotScanned`, never an empty listing. An entry that cannot be parsed or mapped
 makes its listing incomplete. Coverage reports every such gap, and sizes over an
-incomplete subtree are lower bounds.
+incomplete subtree are lower bounds. `lumen_app::unread::unread_folders` lists the
+gaps themselves, by path and reason, from the index alone, so people can see what
+was not read; the paths stay on the device and are never sent to a model.
 
 - Proof: `unreadable_directory_is_denied_not_empty` (portable and macOS);
   `a_missing_path_is_an_incomplete_scan_not_an_empty_one` (CLI, both platforms).

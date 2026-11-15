@@ -74,3 +74,4 @@ recommended option.
 | [0063](0063-use-administrator-rights-through-an-opt-in-helper.md) | Use administrator rights through an opt-in helper, so permissions never stand in the way | Accepted |
 | [0064](0064-read-package-relations-from-each-managers-own-records.md) | Read package relations from each manager's own records | Accepted |
 | [0065](0065-compare-completed-scan-roots-for-identical-copies.md) | Compare completed scan roots for identical copies | Accepted |
+| [0066](0066-keep-the-windows-store-out-of-the-install-folder.md) | Keep the Windows store out of the install folder | Accepted |

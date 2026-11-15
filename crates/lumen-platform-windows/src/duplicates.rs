@@ -199,7 +199,7 @@ mod tests {
             &DuplicateReader,
             &CancelToken::new(),
             &mut |_, _| {},
-        )?;
+        );
         assert_eq!(report.groups.len(), 1);
         assert_eq!(names(&report.groups[0].files), ["a.bin", "b.bin"]);
         assert_eq!(report.groups[0].verdict(), Verdict::Review);
@@ -254,7 +254,7 @@ mod tests {
             DuplicateReader.fingerprint(named(&entries, "a.bin"), HashStage::Full, &cancel),
             Err(HashFailure::Excluded)
         );
-        let report = detect(&entries, &DuplicateReader, &cancel, &mut |_, _| {})?;
+        let report = detect(&entries, &DuplicateReader, &cancel, &mut |_, _| {});
         assert!(report.cancelled && report.groups.is_empty());
         Ok(())
     }

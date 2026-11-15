@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-unread-folders"
+description = "Enables the unread_folders command without any pre-configured scope."
+commands.allow = ["unread_folders"]
+
+[[permission]]
+identifier = "deny-unread-folders"
+description = "Denies the unread_folders command without any pre-configured scope."
+commands.deny = ["unread_folders"]

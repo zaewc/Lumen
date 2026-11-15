@@ -128,9 +128,64 @@ fn a_missing_path_is_an_incomplete_scan_not_an_empty_one() -> Result<(), Box<dyn
 }
 
 #[test]
+fn unread_lists_a_refused_folder_by_path_and_reason() -> Result<(), Box<dyn std::error::Error>> {
+    // The fixture restores the folder's permissions before it is removed.
+    let fx = Fixture::build(&[
+        Node::File {
+            path: "root/open/one".into(),
+            contents: vec![1; 10],
+        },
+        Node::File {
+            path: "root/locked/secret".into(),
+            contents: vec![2; 10],
+        },
+        Node::Mode {
+            path: "root/locked".into(),
+            mode: 0o000,
+        },
+    ])?;
+    if std::fs::read_dir(fx.path("root/locked")?).is_ok() {
+        // Root reads it anyway: nothing is refused, so there is nothing to list.
+        return Ok(());
+    }
+    let db = fx.path("index.db")?;
+    let out = lumen(&[
+        "scan".as_ref(),
+        fx.path("root")?.as_os_str(),
+        "--db".as_ref(),
+        db.as_os_str(),
+        "--unread".as_ref(),
+        "--json".as_ref(),
+    ])?;
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&out.stdout)?;
+    let unread = &report["unread"];
+    assert_eq!(unread["total"], 1, "{unread}");
+    let folder = &unread["folders"][0];
+    assert!(
+        folder["path"]
+            .as_str()
+            .is_some_and(|p| p.ends_with("/root/locked")),
+        "{folder}"
+    );
+    assert!(
+        folder["reason"]
+            .as_str()
+            .is_some_and(|r| r.starts_with("denied.")),
+        "{folder}"
+    );
+    Ok(())
+}
+
+#[test]
 fn usage_errors_exit_with_status_2() -> Result<(), Box<dyn std::error::Error>> {
     for args in [
         &["scan", "--db"][..],
+        &["scan", "/tmp", "--unread"],
         &["scan", "/tmp", "--frobnicate"],
         &["remove", "/tmp"],
     ] {

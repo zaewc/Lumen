@@ -537,6 +537,7 @@ mod tests {
                 ),
                 (fx.path("other")?, vec![b"$LumenQuarantine.SID".to_vec()]),
             ],
+            former: Vec::new(),
             volumes: None,
             single_user: false,
         }

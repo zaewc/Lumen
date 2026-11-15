@@ -129,10 +129,6 @@ export const zCompareOutcomeView = z.union([
     kind: z.enum(["unsupported"]),
   }),
   z.object({
-    kind: z.enum(["too_many"]),
-    limit: z.string(),
-  }),
-  z.object({
     kind: z.enum(["cancelled"]),
   }),
   z.object({
@@ -239,6 +235,7 @@ export const zFailureView = z.enum([
   "identity_mismatch",
   "in_use",
   "volume_unsupported",
+  "store_unavailable",
   "move_failed",
   "verification_failed",
   "other",
@@ -1014,6 +1011,39 @@ export const zUninstallOutcomeView = z.object({
   result: zUninstallResultView,
   size_bytes: z.string(),
   warnings: z.array(z.string()),
+});
+
+/**
+ * Why a folder was not read in full.
+ */
+export const zUnreadReasonView = z.enum([
+  "privacy",
+  "system_protected",
+  "permissions",
+  "out_of_scope",
+  "denied",
+  "vanished",
+  "timed_out",
+  "failed",
+  "cut_short",
+  "not_entered",
+]);
+
+/**
+ * One folder not read in full.
+ */
+export const zUnreadFolderView = z.object({
+  path: z.string(),
+  reason: zUnreadReasonView,
+});
+
+/**
+ * The folders a scan did not read in full.
+ */
+export const zUnreadFoldersView = z.object({
+  folders: z.array(zUnreadFolderView),
+  scan: z.string(),
+  total: z.string(),
 });
 
 /**

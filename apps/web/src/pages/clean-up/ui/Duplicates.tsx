@@ -77,8 +77,6 @@ function Outcome({ outcome }: { readonly outcome: CompareOutcomeView }) {
   switch (outcome.kind) {
     case "unsupported":
       return <p className="text-[13px] text-ink-2">{t.unsupported}</p>;
-    case "too_many":
-      return <p className="text-[13px] text-ink-2">{t.tooMany(outcome.limit)}</p>;
     case "cancelled":
       return <p className="text-[13px] text-ink-2">{t.stopped}</p>;
     case "compared":

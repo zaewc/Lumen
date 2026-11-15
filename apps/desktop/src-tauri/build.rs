@@ -16,6 +16,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "disk",
         "open_full_disk_access",
         "set_theme",
+        "confirm_request",
+        "confirm_answer",
         "check_update",
         "install_update",
         "run_tool_command",
@@ -33,6 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "helper_disable",
         "helper_open_login_items",
         "app_icon",
+        "unread_folders",
     ];
     tauri_build::try_build(
         tauri_build::Attributes::new()

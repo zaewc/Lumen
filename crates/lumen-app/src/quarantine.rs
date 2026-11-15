@@ -210,7 +210,10 @@ fn age_secs(now: Timestamp, then: Timestamp) -> i64 {
 /// The stored plan, if it may be executed now with `confirm` (ADR-0034): the
 /// full hash matches, and it is at most 24 hours old. The caller refuses a
 /// privileged process first.
-pub(crate) fn checked_plan(
+///
+/// # Errors
+/// Refuses an unknown plan, mismatched full hash or expired proposal.
+pub fn checked_plan(
     index: &IndexStore,
     plan: PlanId,
     confirm: &str,

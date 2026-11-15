@@ -1,7 +1,7 @@
 //! `lumen`: the developer command line.
 //!
 //! ```text
-//! lumen scan [<PATH>...] [--db <FILE>] [--json]
+//! lumen scan [<PATH>...] [--db <FILE>] [--unread] [--json]
 //! lumen assess --db <FILE> [--json] [--jev | --no-ai]
 //! lumen plan --db <FILE> [--choose <PATH>]... [--jev | --no-ai]
 //! lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>
@@ -63,7 +63,7 @@ mod reassess;
 #[cfg(any(unix, windows))]
 mod report;
 
-const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--json]   (no path: the whole disk)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)\n       lumen inspect xcode|docker|packages [--json]   (read-only tool storage inventory)\n       lumen duplicates <PATH>... [--json]   (identical copies in chosen folders, for review)\n       lumen reassess --db <FILE> [--choose <PATH>]... [--json]   (check items again with fresh read-only evidence)";
+const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--unread] [--json]   (no path: the whole disk; --unread: list the folders not read, needs --db)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)\n       lumen inspect xcode|docker|packages [--json]   (read-only tool storage inventory)\n       lumen duplicates <PATH>... [--json]   (identical copies in chosen folders, for review)\n       lumen reassess --db <FILE> [--choose <PATH>]... [--json]   (check items again with fresh read-only evidence)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -71,6 +71,8 @@ struct ScanArgs {
     roots: Vec<PathBuf>,
     db: Option<PathBuf>,
     json: bool,
+    /// List the folders the scan did not read, from the database.
+    unread: bool,
 }
 
 /// Parsed `assess` arguments.
@@ -308,9 +310,11 @@ fn parse(args: &[String]) -> Result<Command, String> {
     let mut roots = Vec::new();
     let mut db = None;
     let mut json = false;
+    let mut unread = false;
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--json" => json = true,
+            "--unread" => unread = true,
             "--db" => {
                 let path = iter.next().ok_or("--db needs a file path")?;
                 if db.replace(PathBuf::from(path)).is_some() {
@@ -322,8 +326,17 @@ fn parse(args: &[String]) -> Result<Command, String> {
             path => roots.push(PathBuf::from(path)),
         }
     }
+    // The list is read from the recorded scan, so it needs the database.
+    if unread && db.is_none() {
+        return Err("--unread needs --db: the list is read from the recorded scan".into());
+    }
     // No path: the whole disk, chosen when the scan runs.
-    Ok(Command::Scan(ScanArgs { roots, db, json }))
+    Ok(Command::Scan(ScanArgs {
+        roots,
+        db,
+        json,
+        unread,
+    }))
 }
 
 /// The database a command works on, if any.
@@ -391,6 +404,10 @@ fn main() -> ExitCode {
     }
 }
 
+/// The most unread folders `scan --unread` prints; it says how many more.
+#[cfg(any(unix, windows))]
+const UNREAD_SHOWN: usize = 1000;
+
 #[cfg(any(unix, windows))]
 fn run(args: &ScanArgs) -> Result<(), Box<dyn Error>> {
     let started = std::time::Instant::now();
@@ -428,13 +445,25 @@ fn run(args: &ScanArgs) -> Result<(), Box<dyn Error>> {
         eprintln!("{line}");
     }
     eprintln!("[{:>7.1}s] done", started.elapsed().as_secs_f64());
+    let unread = match &args.db {
+        Some(db) if args.unread => Some(lumen_app::unread::unread_folders(
+            db,
+            summary.scan,
+            UNREAD_SHOWN,
+        )?),
+        _ => None,
+    };
     if args.json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&report::to_json(&summary))?
-        );
+        let mut json = report::to_json(&summary);
+        if let Some(unread) = &unread {
+            json["unread"] = report::unread_json(unread);
+        }
+        println!("{}", serde_json::to_string_pretty(&json)?);
     } else {
         print!("{}", report::to_text(&summary));
+        if let Some(unread) = &unread {
+            print!("{}", report::unread_text(unread));
+        }
     }
     Ok(())
 }
@@ -747,6 +776,7 @@ mod tests {
                 roots: vec!["/a".into(), "/b".into()],
                 db: Some("x.db".into()),
                 json: true,
+                unread: false,
             }))
         );
         assert_eq!(
@@ -755,8 +785,22 @@ mod tests {
                 roots: Vec::new(),
                 db: Some("x.db".into()),
                 json: false,
+                unread: false,
             })),
             "no path means the whole disk"
+        );
+        assert_eq!(
+            parse(&args(&["scan", "/a", "--unread", "--db", "x.db"])),
+            Ok(Command::Scan(ScanArgs {
+                roots: vec!["/a".into()],
+                db: Some("x.db".into()),
+                json: false,
+                unread: true,
+            }))
+        );
+        assert!(
+            parse(&args(&["scan", "/a", "--unread"])).is_err(),
+            "the list is read from the database"
         );
     }
 

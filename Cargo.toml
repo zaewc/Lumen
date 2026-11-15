@@ -6,7 +6,7 @@ resolver = "3"
 [workspace.package]
 edition = "2024"
 rust-version = "1.95"
-version = "0.11.0"
+version = "0.12.0"
 publish = false
 repository = "https://github.com/zaewc/Lumen"
 license = "Apache-2.0"
@@ -62,8 +62,8 @@ objc2-security = { version = "0.3.2", default-features = false, features = ["std
 jsonschema = { version = "0.58.5", default-features = false }
 proptest = "1.11.0"
 # Bundled SQLite guarantees the WAL-reset fix (ADR-0012); defaults add a wasm FFI we do not use.
-rusqlite = { version = "0.40.2", default-features = false, features = ["bundled", "cache"] }
-rusqlite_migration = "2.6.0"
+rusqlite = { version = "0.41.1", default-features = false, features = ["bundled", "cache"] }
+rusqlite_migration = "2.7.0"
 # Handle-relative filesystem calls for the executor (ADR-0016): openat, statat,
 # renameat with no-replace (renameatx_np on Apple, renameat2 on Linux).
 rustix = { version = "1.1.5", default-features = false, features = ["fs", "process", "std"] }

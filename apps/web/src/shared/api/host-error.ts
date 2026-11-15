@@ -17,3 +17,14 @@ export function hostError(rejection: unknown): Error {
   }
   return new HostError(errorMessage(rejection) ?? "", { cause: rejection });
 }
+
+/**
+ * The host's answer when the person closed its confirmation window without
+ * confirming (FS-1): nothing changed, and it is not a failure to show.
+ */
+const DECLINED = "not confirmed; nothing was changed";
+
+/** The person declined in the host's confirmation window. */
+export function declined(error: unknown): boolean {
+  return error instanceof HostError && error.message === DECLINED;
+}

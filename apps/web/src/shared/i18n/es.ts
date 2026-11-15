@@ -122,8 +122,6 @@ export const es: Messages = {
       incomplete:
         "Algunas carpetas no se pudieron leer por completo. Sus archivos no se compararon.",
       unsupported: "Comparar archivos aún no está disponible en este ordenador.",
-      tooMany: (limit: string) =>
-        `El análisis abarca más de ${count(limit)} archivos. Vuelve a analizar un ámbito más pequeño para comparar menos.`,
       failed: "Lumen no pudo comparar los archivos del análisis.",
       advice:
         "Las copias pueden ser copias de seguridad que quieres conservar. Lumen no elige ni elimina ninguna. Eliminar una copia puede liberar menos espacio que su tamaño.",
@@ -278,6 +276,8 @@ export const es: Messages = {
     planFailed: "Lumen no pudo preparar la limpieza. Tus archivos no han cambiado.",
   },
   detail: {
+    moveReview: "Mover a Cuarentena…",
+    reviewChoiceUnavailable: "Este elemento no se puede elegir para Cuarentena.",
     size: "Tamaño",
     location: "Ubicación",
     decision: "Decisión",
@@ -424,6 +424,25 @@ export const es: Messages = {
   },
   details: {
     title: "Detalles del análisis",
+    unread: {
+      title: "Carpetas que Lumen no pudo leer",
+      loading: "Cargando…",
+      failed: "Lumen no pudo mostrarlas.",
+      more: (n: string) => `y ${count(n)} más`,
+      reasons: {
+        privacy:
+          "Bloqueadas por la protección de privacidad de macOS. Permitir el acceso total al disco puede ayudar.",
+        system_protected: "Protegidas por macOS. Es normal; no hay nada que cambiar.",
+        permissions: "Tu cuenta no tiene permiso para leerlas. En carpetas del sistema es normal.",
+        out_of_scope: "Fuera de lo que Lumen puede leer en este dispositivo.",
+        denied: "Se denegó el acceso.",
+        vanished: "Se eliminaron mientras Lumen analizaba.",
+        timed_out: "Tardaron demasiado en leerse. Volver a analizar puede ayudar.",
+        failed: "No se pudieron leer.",
+        cut_short: "Se leyeron solo en parte.",
+        not_entered: "No analizadas: en otro disco, excluidas o no alcanzadas.",
+      },
+    },
     entries: (entries: string) => `${count(entries)} entradas leídas`,
     files: "Archivos",
     fileCount: (files: string) => count(files),
@@ -451,6 +470,24 @@ export const es: Messages = {
       `Lumen creó este plan ${createdAt}. Puedes usarlo durante 24 horas.`,
     planHash: "Hash del plan",
   },
+  hostConfirm: {
+    sizeUnknown: "Tamaño desconocido",
+    proposed: "Propuestas de Lumen",
+    chosen: "Elementos que elegiste",
+    chosenNote:
+      "Lumen no los propuso. Moverlos puede afectar a apps. Se quedan en Cuarentena hasta que los restaures o elimines definitivamente.",
+    uninstallTitle: "¿Mover esta app a Cuarentena?",
+    uninstallNote: "Puedes restaurarla desde Cuarentena.",
+    finalizeTitle: "¿Eliminar este elemento definitivamente?",
+    finalizeNote: "No se puede deshacer.",
+    finalizeChosen: "Elegiste este elemento tú mismo; Lumen no lo propuso.",
+    finalizeButton: "Eliminar definitivamente",
+    toolTitle: (tool: string) => `¿Ejecutar el comando de ${tool}?`,
+    toolNote: "Lo que elimine no se podrá restaurar.",
+    toolButton: "Ejecutar",
+    more: (n: number) => `…y ${items(n)} más`,
+    unavailable: "Lumen no pudo mostrar qué confirmar. No se cambió nada.",
+  },
   done: {
     title: (n: number, size: string) => `${items(n)} (${size}) se movieron a Cuarentena.`,
     noneMoved: "Lumen no movió nada.",
@@ -467,6 +504,8 @@ export const es: Messages = {
     failIdentityMismatch: "cambió después del análisis",
     failInUse: "un programa lo está usando",
     failVolumeUnsupported: "esta unidad no puede alojar una cuarentena",
+    failStoreUnavailable:
+      "la carpeta de cuarentena de esta unidad no se pudo abrir de forma segura",
     failMoveFailed: "se produjo un error al moverlo",
     failVerificationFailed: "después de moverlo no coincidía con el plan",
     failOther: "por un motivo que esta versión desconoce",

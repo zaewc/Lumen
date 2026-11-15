@@ -10,14 +10,23 @@ export function Disclosure({
   children,
   defaultOpen = false,
   className = "",
+  onOpen,
 }: {
   readonly summary: ReactNode;
   readonly children: ReactNode;
   readonly defaultOpen?: boolean;
   readonly className?: string;
+  /** Called each time it opens, e.g. to load what it shows only then. */
+  readonly onOpen?: () => void;
 }) {
   return (
-    <details open={defaultOpen} className={className}>
+    <details
+      open={defaultOpen}
+      className={className}
+      onToggle={(event) => {
+        if (event.currentTarget.open) onOpen?.();
+      }}
+    >
       <summary className="-mx-2 flex cursor-pointer list-none items-center gap-1.5 rounded-md px-2 py-1 select-none hover:bg-fill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
         <ChevronIcon className="text-ink-3 transition-transform motion-reduce:transition-none [details[open]>summary>&]:rotate-90" />
         {summary}

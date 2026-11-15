@@ -158,6 +158,11 @@
           "const": "volume_unsupported"
         },
         {
+          "description": "The item's volume has a store location, but the store there could not\nbe opened safely: a directory is not private to the user, is a link,\nor cannot be reached. It is refused, never repaired (ADR-0066).",
+          "type": "string",
+          "const": "store_unavailable"
+        },
+        {
           "description": "The move itself failed.",
           "type": "string",
           "const": "move_failed"

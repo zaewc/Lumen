@@ -87,6 +87,9 @@ export type {
   UninstallPreviewView,
   UninstallReasonView,
   UninstallResultView,
+  UnreadFoldersView,
+  UnreadFolderView,
+  UnreadReasonView,
   UpdateView,
   VerdictView,
 } from "./types.gen";

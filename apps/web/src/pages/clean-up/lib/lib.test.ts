@@ -35,6 +35,9 @@ describe("outcomeText", () => {
     expect(outcomeText(ko, { kind: "failed", reason: "volume_unsupported", left: "source" })).toBe(
       "옮기지 못했어요. 이 드라이브에는 격리함을 둘 수 없어요. 원래 위치에 그대로 있어요.",
     );
+    expect(outcomeText(ko, { kind: "failed", reason: "store_unavailable", left: "source" })).toBe(
+      "옮기지 못했어요. 이 드라이브의 격리함 폴더를 안전하게 열 수 없어요. 원래 위치에 그대로 있어요.",
+    );
   });
 });
 

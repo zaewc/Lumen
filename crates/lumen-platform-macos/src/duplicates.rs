@@ -193,15 +193,13 @@ mod tests {
             .collect()
     }
 
-    fn analyze(
-        entries: &[FilesystemEntry],
-    ) -> Result<lumen_application::duplicates::DuplicateReport, Box<dyn std::error::Error>> {
-        Ok(detect(
+    fn analyze(entries: &[FilesystemEntry]) -> lumen_application::duplicates::DuplicateReport {
+        detect(
             entries,
             &DuplicateReader,
             &CancelToken::new(),
             &mut |_, _| {},
-        )?)
+        )
     }
 
     #[test]
@@ -222,7 +220,7 @@ mod tests {
                 target: "a".into(),
             },
         ])?;
-        let report = analyze(&scanned(&fx, "d")?)?;
+        let report = analyze(&scanned(&fx, "d")?);
         assert_eq!(report.groups.len(), 1);
         let names = names(&report.groups[0].files);
         assert!(names == ["a", "b"] || names == ["a-link", "b"], "{names:?}");
@@ -244,7 +242,7 @@ mod tests {
                 len: 16 << 20,
             },
         ])?;
-        let report = analyze(&scanned(&fx, "d")?)?;
+        let report = analyze(&scanned(&fx, "d")?);
         assert_eq!(report.groups.len(), 1);
         assert_eq!(report.groups[0].files.len(), 2);
         Ok(())
@@ -301,7 +299,7 @@ mod tests {
                 mode: 0o000,
             },
         ])?;
-        let report = analyze(&scanned(&fx, "d")?)?;
+        let report = analyze(&scanned(&fx, "d")?);
         // Root can read mode 000; then the files simply match.
         if report.groups.is_empty() {
             assert!(
@@ -324,7 +322,7 @@ mod tests {
             DuplicateReader.fingerprint(&entries[0], HashStage::Full, &cancel),
             Err(HashFailure::Excluded)
         );
-        let report = detect(&entries, &DuplicateReader, &cancel, &mut |_, _| {})?;
+        let report = detect(&entries, &DuplicateReader, &cancel, &mut |_, _| {});
         assert!(report.cancelled && report.groups.is_empty());
         Ok(())
     }

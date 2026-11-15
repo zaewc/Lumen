@@ -69,9 +69,10 @@ pub fn store_location() -> Result<StoreLocation, LocationError> {
     }
 }
 
-/// Where quarantine stores live (ADR-0015): the user's local, non-roaming
-/// application data. Items on other volumes cannot be moved there and stay
-/// in place.
+/// Where quarantine stores live (ADR-0015, ADR-0066): the user's local,
+/// non-roaming application data, in a folder of its own, because the
+/// installer puts the app in `%LOCALAPPDATA%\Lumen`. Items on other volumes
+/// cannot be moved there and stay in place.
 ///
 /// # Errors
 ///
@@ -79,11 +80,25 @@ pub fn store_location() -> Result<StoreLocation, LocationError> {
 /// absolute.
 #[cfg(windows)]
 pub fn store_location() -> Result<StoreLocation, LocationError> {
-    let local = std::env::var_os("LOCALAPPDATA")
+    Ok((local_app_data()?, vec![b"LumenQuarantine".to_vec()]))
+}
+
+#[cfg(windows)]
+fn local_app_data() -> Result<PathBuf, LocationError> {
+    std::env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
         .filter(|path| path.is_absolute())
-        .ok_or(LocationError::NoLocalAppData)?;
-    Ok((local, vec![b"Lumen".to_vec(), b"Quarantine".to_vec()]))
+        .ok_or(LocationError::NoLocalAppData)
+}
+
+/// Where the main store used to be (ADR-0066): items held there before are
+/// still found, restored and finalized, but nothing new goes there.
+#[cfg(windows)]
+fn former_locations() -> Result<Vec<StoreLocation>, LocationError> {
+    Ok(vec![(
+        local_app_data()?,
+        vec![b"Lumen".to_vec(), b"Quarantine".to_vec()],
+    )])
 }
 
 /// Where quarantine goes on this computer.
@@ -91,6 +106,9 @@ pub fn store_location() -> Result<StoreLocation, LocationError> {
 pub struct Stores {
     /// The store locations, the main one ([`store_location`]) first.
     pub locations: Vec<StoreLocation>,
+    /// Former store locations (ADR-0066): searched for held items, never
+    /// created, never quarantined into.
+    pub former: Vec<StoreLocation>,
     /// The volumes with a store, or `None` when every volume is offered to
     /// the executor, which refuses those it cannot serve.
     pub volumes: Option<BTreeSet<VolumeId>>,
@@ -99,10 +117,12 @@ pub struct Stores {
 }
 
 impl Stores {
-    /// Every store path, including stores on other Windows volumes.
+    /// Every store path, including stores on other Windows volumes and
+    /// former locations.
     pub fn paths(&self) -> Vec<PathBuf> {
         self.locations
             .iter()
+            .chain(&self.former)
             .map(|(base, names)| {
                 let mut path = base.clone();
                 for name in names {
@@ -121,7 +141,7 @@ impl Stores {
     }
 
     /// An executor using every location: an item goes into the store on its
-    /// own volume.
+    /// own volume, and is found there or in a former location.
     pub fn executor(&self) -> Option<Executor> {
         let mut locations = self.locations.iter().cloned();
         let (base, names) = locations.next()?;
@@ -130,6 +150,14 @@ impl Stores {
         let executor = locations.fold(executor, |executor, (base, names)| {
             executor.with_store(base, names)
         });
+        #[cfg(windows)]
+        let executor = self
+            .former
+            .iter()
+            .cloned()
+            .fold(executor, |executor, (base, names)| {
+                executor.with_former_store(base, names)
+            });
         Some(executor)
     }
 }
@@ -144,6 +172,7 @@ impl Stores {
 pub fn stores() -> Result<Stores, LocationError> {
     Ok(Stores {
         locations: vec![store_location()?],
+        former: Vec::new(),
         volumes: None,
         single_user: false,
     })
@@ -163,6 +192,7 @@ pub fn stores() -> Result<Stores, LocationError> {
     use lumen_platform_windows::volumes;
 
     let main = store_location()?;
+    let former = former_locations()?;
     let letter = |path: &Path| {
         path.to_string_lossy()
             .chars()
@@ -181,6 +211,7 @@ pub fn stores() -> Result<Stores, LocationError> {
     let Some(main_volume) = main_volume else {
         return Ok(Stores {
             locations: vec![main],
+            former,
             volumes: None,
             single_user,
         });
@@ -201,6 +232,7 @@ pub fn stores() -> Result<Stores, LocationError> {
     }
     Ok(Stores {
         locations,
+        former,
         volumes: Some(ids),
         single_user,
     })
@@ -269,5 +301,28 @@ pub fn lock_ledger(db: &Path, wait: bool) -> std::io::Result<Option<File>> {
         Ok(()) => Ok(Some(file)),
         Err(TryLockError::WouldBlock) => Ok(None),
         Err(TryLockError::Error(error)) => Err(error),
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_windows_store_is_not_in_the_install_folder_and_the_former_one_is_still_known() {
+        let (base, names) = store_location().unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(names, vec![b"LumenQuarantine".to_vec()]);
+        let stores = stores().unwrap_or_else(|e| unreachable!("{e}"));
+        let former = base.join("Lumen").join("Quarantine");
+        assert_eq!(
+            stores.former,
+            vec![(
+                base.clone(),
+                vec![b"Lumen".to_vec(), b"Quarantine".to_vec()]
+            )]
+        );
+        let paths = stores.paths();
+        assert_eq!(paths.first(), Some(&base.join("LumenQuarantine")));
+        assert!(paths.contains(&former), "a former store is never scanned");
     }
 }

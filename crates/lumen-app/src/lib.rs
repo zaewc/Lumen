@@ -35,12 +35,13 @@ pub mod system;
 pub mod tools;
 #[cfg(any(unix, windows))]
 pub mod uninstall;
+pub mod unread;
 #[cfg(target_os = "macos")]
 pub mod usage;
 pub mod xcode;
 
 pub use assess::{AssessError, Assessment, assess, block_on, prepare, with_probes};
-pub use plan::{NotChoosable, PlanError, Planned, plan};
+pub use plan::{NotChoosable, PlanError, Planned, plan, plan_chosen};
 pub use scan::{RootSummary, ScanError, ScanEvent, ScanSummary, raw_path, scan};
 #[cfg(any(unix, windows))]
 pub use store::{

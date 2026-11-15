@@ -106,6 +106,9 @@ use utoipa::OpenApi;
         views::HelperRegistrationView,
         views::HelperReachView,
         views::HelperView,
+        views::UnreadReasonView,
+        views::UnreadFolderView,
+        views::UnreadFoldersView,
     ))
 )]
 pub struct ApiDoc;
@@ -151,7 +154,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 87);
+        assert_eq!(schemas, 90);
     }
 
     #[test]

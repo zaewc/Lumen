@@ -28,6 +28,8 @@ function failureText(m: Messages, reason: FailureView): string {
       return m.item.failInUse;
     case "volume_unsupported":
       return m.item.failVolumeUnsupported;
+    case "store_unavailable":
+      return m.item.failStoreUnavailable;
     case "move_failed":
       return m.item.failMoveFailed;
     case "verification_failed":

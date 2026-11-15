@@ -26,12 +26,14 @@ import {
   zToolStorageView,
   zUninstallOutcomeView,
   zUninstallPreviewView,
+  zUnreadFoldersView,
   zUpdateView,
 } from "@lumen/api-client";
 import { Channel, type InvokeArgs, invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { hostError } from "./host-error";
 import { zAppIcon } from "./icon";
+import { chosenPlan } from "./review-choice";
 import type { LumenTransport } from "./transport";
 
 // Older hosts omit these additive descriptors. Normalize them at the boundary
@@ -88,7 +90,8 @@ export function tauriTransport(): LumenTransport {
       };
       return zCompatibleCandidate.array().parse(await call("assess", { progress }));
     },
-    plan: async () => zCompatiblePlan.parse(await call("plan")),
+    plan: async (chosen = []) =>
+      chosenPlan(zCompatiblePlan.parse(await call("plan", { chosen: [...chosen] })), chosen),
     execute: async (request) => zQuarantineReportView.parse(await call("execute", { request })),
     held: async () => zHeldItemView.array().parse(await call("held")),
     restore: async (operationId) =>
@@ -135,6 +138,7 @@ export function tauriTransport(): LumenTransport {
       await call("helper_open_login_items");
     },
     appIcon: async (key) => zAppIcon.parse(await call("app_icon", { key })),
+    unreadFolders: async (scan) => zUnreadFoldersView.parse(await call("unread_folders", { scan })),
     setAiReview: async (enabled) => zAiSettingsView.parse(await call("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await call("set_ai_key", { key })),
   };
