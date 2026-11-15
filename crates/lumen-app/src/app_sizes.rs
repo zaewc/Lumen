@@ -12,9 +12,12 @@ use lumen_store_sqlite::{IndexStore, StoreError, open_index};
 /// (ADR-0008).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScanSize {
-    /// Every folder in the app was read: what removing it would free.
+    /// Every folder in the app was read and every file's private size is
+    /// known: what removing it would free.
     Complete(ByteCount),
-    /// Some folder in it could not be read: at least this much.
+    /// Some folder in it could not be read, or some file may share blocks
+    /// with another (a clone, or a filesystem that cannot say): at least this
+    /// much.
     AtLeast(ByteCount),
     /// The scan did not cover it (outside its folders, or newer than it), or
     /// there is no completed scan.
@@ -40,7 +43,9 @@ pub fn scan_sizes(db: &Path, locations: &[RawPath]) -> Result<Vec<ScanSize>, Sto
         .map(|location| {
             Ok(match store.subtree_size(scan, location)? {
                 None => ScanSize::NotScanned,
-                Some(size) if size.complete => ScanSize::Complete(size.reclaim.reclaimable_now),
+                Some(size) if size.complete && size.reclaim.exact => {
+                    ScanSize::Complete(size.reclaim.reclaimable_now)
+                }
                 Some(size) => ScanSize::AtLeast(size.reclaim.reclaimable_now),
             })
         })
@@ -86,14 +91,18 @@ mod tests {
                 crate::raw_path(&apps.join("Gone.app"))?,
             ],
         )?;
-        assert!(
-            matches!(sizes[0], ScanSize::Complete(b) if b.get() >= 20_000),
-            "{sizes:?}"
-        );
-        assert!(
-            matches!((sizes[0], sizes[1]), (ScanSize::Complete(big), ScanSize::Complete(small)) if big > small),
-            "{sizes:?}"
-        );
+        // APFS reports each file's private size, so the size is exact there;
+        // elsewhere a file may share blocks and the size is a lower bound.
+        for (size, least) in [(sizes[0], 20_000), (sizes[1], 10)] {
+            match size {
+                ScanSize::Complete(bytes) if bytes.get() >= least => {}
+                ScanSize::AtLeast(_) if !cfg!(target_os = "macos") => {}
+                _ => return Err(format!("unexpected sizes: {sizes:?}").into()),
+            }
+        }
+        if let (ScanSize::Complete(big), ScanSize::Complete(small)) = (sizes[0], sizes[1]) {
+            assert!(big > small, "{sizes:?}");
+        }
         assert_eq!(sizes[2], ScanSize::NotScanned, "not in the scan");
         Ok(())
     }

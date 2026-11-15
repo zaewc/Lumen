@@ -2458,7 +2458,7 @@
         "oneOf": [
           {
             "type": "object",
-            "description": "Every folder in it was read.",
+            "description": "Every folder in it was read and every file's private size is known.",
             "required": [
               "bytes",
               "kind"
@@ -2478,7 +2478,7 @@
           },
           {
             "type": "object",
-            "description": "Some folder in it could not be read: at least this much.",
+            "description": "Some folder in it could not be read, or some file may share blocks:\nat least this much.",
             "required": [
               "bytes",
               "kind"

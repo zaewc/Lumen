@@ -290,12 +290,13 @@ pub struct SoftwareItemView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SoftwareSizeView {
-    /// Every folder in it was read.
+    /// Every folder in it was read and every file's private size is known.
     Complete {
         /// What removing it would free, in bytes.
         bytes: String,
     },
-    /// Some folder in it could not be read: at least this much.
+    /// Some folder in it could not be read, or some file may share blocks:
+    /// at least this much.
     AtLeast {
         /// Bytes, a lower bound.
         bytes: String,
