@@ -321,7 +321,9 @@ impl From<lumen_app::app_sizes::ScanSize> for SoftwareSizeView {
 }
 
 /// Each macOS app in `reports` with its install location, by the list's key:
-/// what [`SoftwareView::with_sizes`] needs sizes for.
+/// what [`SoftwareView::with_sizes`] needs sizes for. Only the first record
+/// of a key counts, as in the list, so a row shown without a location never
+/// gets a size from a later record.
 #[must_use]
 pub fn app_locations(reports: &[InventoryReport]) -> Vec<(String, lumen_domain::RawPath)> {
     let mut seen = std::collections::BTreeSet::new();
@@ -330,9 +332,11 @@ pub fn app_locations(reports: &[InventoryReport]) -> Vec<(String, lumen_domain::
         .flat_map(|report| &report.applications)
         .filter_map(|app| {
             let (row, _) = application(app)?;
+            if !seen.insert(row.key.clone()) || row.origin != SoftwareOriginView::MacApp {
+                return None;
+            }
             let location = app.install_locations.first()?.clone();
-            (row.origin == SoftwareOriginView::MacApp && seen.insert(row.key.clone()))
-                .then_some((row.key, location))
+            Some((row.key, location))
         })
         .collect()
 }
@@ -758,6 +762,27 @@ mod tests {
         );
         assert_eq!(size("com.example.Old"), Some(SoftwareSizeView::NotScanned));
         assert_eq!(size("act"), None, "packages have no app size");
+    }
+
+    #[test]
+    fn a_later_record_never_sizes_a_row_shown_without_a_location() {
+        let mut first = report("macos.applications", SourceStatus::Complete);
+        let mut unlocated = app(
+            AppIdScheme::BundleId,
+            "com.example.Zed",
+            "Zed",
+            "/Applications/Zed.app",
+        );
+        unlocated.install_locations.clear();
+        first.applications = vec![unlocated];
+        let mut second = report("macos.spotlight", SourceStatus::Complete);
+        second.applications = vec![app(
+            AppIdScheme::BundleId,
+            "com.example.Zed",
+            "Zed",
+            "/Applications/Zed.app",
+        )];
+        assert_eq!(app_locations(&[first, second]), []);
     }
 
     #[test]
