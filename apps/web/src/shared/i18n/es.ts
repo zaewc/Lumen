@@ -625,6 +625,7 @@ export const es: Messages = {
     notFinalizable: "Este elemento solo se puede restaurar.",
   },
   apps: {
+    order: { label: "Orden", name: "Por nombre", size: "Por tamaño" },
     title: "Apps",
     desktopOnly: "Lumen muestra las apps instaladas en la app de escritorio.",
     reading: "Leyendo las apps instaladas…",

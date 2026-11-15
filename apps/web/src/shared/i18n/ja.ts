@@ -605,6 +605,7 @@ export const ja: Messages = {
     notFinalizable: "この項目は復元のみ可能です。",
   },
   apps: {
+    order: { label: "並べ替え", name: "名前順", size: "サイズ順" },
     title: "アプリ",
     desktopOnly: "インストール済みのアプリはデスクトップアプリで表示できます。",
     reading: "インストール済みのアプリを読み込んでいます…",

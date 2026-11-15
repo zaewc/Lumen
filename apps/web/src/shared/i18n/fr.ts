@@ -605,6 +605,7 @@ export const fr: Messages = {
     notFinalizable: "Vous pouvez uniquement restaurer cet élément.",
   },
   apps: {
+    order: { label: "Ordre", name: "Par nom", size: "Par taille" },
     title: "Apps",
     desktopOnly: "Lumen affiche les apps installées dans l'app de bureau.",
     reading: "Lecture des apps installées…",

@@ -616,6 +616,7 @@ export const en = {
     notFinalizable: "You can only restore this item.",
   },
   apps: {
+    order: { label: "Order", name: "By name", size: "By size" },
     title: "Apps",
     desktopOnly: "Lumen lists installed apps in the desktop app.",
     reading: "Reading installed apps…",

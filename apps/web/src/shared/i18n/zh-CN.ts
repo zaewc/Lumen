@@ -586,6 +586,7 @@ export const zhCN: Messages = {
     notFinalizable: "此项目只能恢复。",
   },
   apps: {
+    order: { label: "排序", name: "按名称", size: "按大小" },
     title: "应用",
     desktopOnly: "已安装的应用列表可在桌面应用中查看。",
     reading: "正在读取已安装的应用…",
