@@ -6,10 +6,7 @@ export interface Filter {
   readonly all: boolean;
 }
 
-/** The text a row is listed and searched by: its name, or its identifier without one. */
-export function title(item: SoftwareItemView): string {
-  return item.name ?? item.id;
-}
+export { softwareTitle as title } from "@/entities/app-move";
 
 /**
  * The rows the filter keeps. Without `all`, packages installed only as
