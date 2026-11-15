@@ -76,6 +76,9 @@ export function AppsSection() {
             {m.common.tryAgain}
           </button>
         </ErrorNotice>
+        {/* A move refetches the list; if that fails, its dialog and result stay. */}
+        <MoveResult name={() => null} />
+        {moving !== null && <MoveFlow item={moving} onClose={() => setMoving(null)} />}
       </section>
     );
   }
