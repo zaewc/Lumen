@@ -208,6 +208,12 @@ export const zhCN: Messages = {
     failed: "Lumen 无法判断找到的内容。你的文件没有变化。",
   },
   results: {
+    apps: {
+      title: "应用",
+      line: "应用会逐个检查后再移至隔离区。",
+      seeAll: "查看所有已安装的应用",
+      outside: (n: number) => `还有 ${count(n)} 个应用位于本次扫描未读取的位置。`,
+    },
     map: {
       label: "已评估项目分布图，按大小排列",
       all: "所有类型",

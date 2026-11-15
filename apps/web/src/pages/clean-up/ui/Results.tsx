@@ -11,6 +11,7 @@ import { type Filter, shows } from "../model/filter";
 import { lensOf } from "../model/lens";
 import { sectionsOf } from "../model/sections";
 import { candidatesIn, topographyOf, trailTo, unreadEntries } from "../model/topography";
+import { AppsSection } from "./AppsSection";
 import { CandidateList } from "./CandidateList";
 import { CandidateSheet } from "./CandidateSheet";
 import { FlowStage } from "./FlowStage";
@@ -147,6 +148,8 @@ export function Results({
           <CandidateList sections={sections} onOpen={setOpen} lens={lens} moving={move.moving} />
         </>
       )}
+      {/* Apps have no verdict: only under "All", never in the filter or the map. */}
+      {filter === "all" && <AppsSection />}
       <ScanDetails scan={scan} />
       <CandidateSheet
         candidate={shown}
