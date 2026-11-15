@@ -283,6 +283,8 @@ export const ru: Messages = {
     planFailed: "Не удалось подготовить очистку. Ваши файлы не изменены.",
   },
   detail: {
+    moveReview: "Переместить в карантин…",
+    reviewChoiceUnavailable: "Этот объект нельзя выбрать для карантина.",
     size: "Размер",
     location: "Расположение",
     decision: "Решение",

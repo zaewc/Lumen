@@ -271,6 +271,8 @@ export const ko = {
     planFailed: "정리를 준비하지 못했어요. 파일은 모두 그대로 있어요.",
   },
   detail: {
+    moveReview: "격리함으로 옮기기…",
+    reviewChoiceUnavailable: "이 항목은 직접 선택해 격리할 수 없어요.",
     size: "크기",
     location: "위치",
     decision: "판단",

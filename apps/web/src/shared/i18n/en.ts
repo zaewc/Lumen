@@ -278,6 +278,8 @@ export const en = {
     planFailed: "Lumen could not prepare the clean-up. Your files are unchanged.",
   },
   detail: {
+    moveReview: "Move to Quarantine…",
+    reviewChoiceUnavailable: "This item cannot be chosen for Quarantine.",
     size: "Size",
     location: "Location",
     decision: "Decision",
