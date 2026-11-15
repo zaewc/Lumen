@@ -37,10 +37,16 @@ describe("moving a review item the person chooses", () => {
     const toolbar: PlanState = { variables: undefined, status: "error", error: "x" };
     const item: PlanState = { variables: { id: "a", scan: "s" }, status: "success", error: null };
     expect(latestPlan([])).toBeNull();
-    expect(latestPlan([toolbar])).toEqual({ item: null, failed: true, error: "x" });
-    expect(latestPlan([toolbar, item])).toEqual({ item: "a", failed: false, error: null });
+    expect(latestPlan([toolbar])).toEqual({ item: null, scan: null, failed: true, error: "x" });
+    expect(latestPlan([toolbar, item])).toEqual({
+      item: "a",
+      scan: "s",
+      failed: false,
+      error: null,
+    });
     expect(latestPlan([item, { ...toolbar, status: "pending", error: null }])).toEqual({
       item: null,
+      scan: null,
       failed: false,
       error: null,
     });

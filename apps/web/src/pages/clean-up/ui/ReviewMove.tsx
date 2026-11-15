@@ -41,7 +41,8 @@ export function useReviewMove(): ReviewMove {
   // The item of the page's latest plan, if it was one chosen item's: only
   // then are its errors this hook's, and it survives the page in the cache.
   const latest = useLatestPlan();
-  const target = latest?.item ?? null;
+  // Only for the scan shown now: another scan's choice is never retried.
+  const target = latest !== null && latest.scan === scan ? latest.item : null;
   const plan = useMutation({
     mutationKey: PLANNING,
     mutationFn: async (request: { readonly id: string; readonly scan: string | null }) => ({

@@ -34,6 +34,8 @@ export interface PlanState {
 /** The latest plan: whose it was (an item's ID, or `null` for the toolbar's clean-up) and whether making it failed. */
 export interface LatestPlan {
   readonly item: string | null;
+  /** The scan an item's plan was made for; `null` for the toolbar's. */
+  readonly scan: string | null;
   readonly failed: boolean;
   readonly error: unknown;
 }
@@ -49,14 +51,10 @@ export function latestPlan(plans: readonly PlanState[]): LatestPlan | null {
     return null;
   }
   const { variables } = last;
-  const item =
-    typeof variables === "object" &&
-    variables !== null &&
-    "id" in variables &&
-    typeof variables.id === "string"
-      ? variables.id
-      : null;
-  return { item, failed: last.status === "error", error: last.error };
+  const fields = typeof variables === "object" && variables !== null ? variables : {};
+  const item = "id" in fields && typeof fields.id === "string" ? fields.id : null;
+  const scan = "scan" in fields && typeof fields.scan === "string" ? fields.scan : null;
+  return { item, scan, failed: last.status === "error", error: last.error };
 }
 
 /**
