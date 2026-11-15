@@ -16,6 +16,7 @@ function row(id: string, extra: Partial<SoftwareItemView> = {}): SoftwareItemVie
     explicit: null,
     services: [],
     ai_note: null,
+    size: null,
     ...extra,
   };
 }

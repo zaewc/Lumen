@@ -69,6 +69,7 @@ export type {
   SoftwareNoteView,
   SoftwareOriginView,
   SoftwarePurposeView,
+  SoftwareSizeView,
   SoftwareSourceStateView,
   SoftwareSourceView,
   SoftwareView,

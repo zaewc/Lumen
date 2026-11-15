@@ -279,6 +279,66 @@ pub struct SoftwareItemView {
     /// What AI review said about it, when it may be shown (ADR-0061).
     #[schema(required = true)]
     pub ai_note: Option<SoftwareNoteView>,
+    /// A macOS app's size from the latest scan (roadmap 16.2); `None` for
+    /// other software and apps with no recorded location. Display only.
+    #[serde(default)]
+    #[schema(required = true)]
+    pub size: Option<SoftwareSizeView>,
+}
+
+/// What the latest scan says about an app's size; never zero for unknown.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum SoftwareSizeView {
+    /// Every folder in it was read and every file's private size is known.
+    Complete {
+        /// What removing it would free, in bytes.
+        bytes: String,
+    },
+    /// Some folder in it could not be read, or some file may share blocks:
+    /// at least this much.
+    AtLeast {
+        /// Bytes, a lower bound.
+        bytes: String,
+    },
+    /// The scan did not cover it, or there is no completed scan.
+    NotScanned,
+}
+
+impl From<lumen_app::app_sizes::ScanSize> for SoftwareSizeView {
+    fn from(size: lumen_app::app_sizes::ScanSize) -> Self {
+        use lumen_app::app_sizes::ScanSize;
+        match size {
+            ScanSize::Complete(bytes) => Self::Complete {
+                bytes: bytes.get().to_string(),
+            },
+            ScanSize::AtLeast(bytes) => Self::AtLeast {
+                bytes: bytes.get().to_string(),
+            },
+            ScanSize::NotScanned => Self::NotScanned,
+        }
+    }
+}
+
+/// Each macOS app in `reports` with its install location, by the list's key:
+/// what [`SoftwareView::with_sizes`] needs sizes for. Only the first record
+/// of a key counts, as in the list, so a row shown without a location never
+/// gets a size from a later record.
+#[must_use]
+pub fn app_locations(reports: &[InventoryReport]) -> Vec<(String, lumen_domain::RawPath)> {
+    let mut seen = std::collections::BTreeSet::new();
+    reports
+        .iter()
+        .flat_map(|report| &report.applications)
+        .filter_map(|app| {
+            let (row, _) = application(app)?;
+            if !seen.insert(row.key.clone()) || row.origin != SoftwareOriginView::MacApp {
+                return None;
+            }
+            let location = app.install_locations.first()?.clone();
+            Some((row.key, location))
+        })
+        .collect()
 }
 
 /// The installed software list.
@@ -393,6 +453,7 @@ fn package(package: &Package) -> (SoftwareItemView, Raw) {
         explicit: package.explicit,
         services: Vec::new(),
         ai_note: None,
+        size: None,
         id,
     };
     (view, raw)
@@ -451,6 +512,7 @@ fn application(app: &Application) -> Option<(SoftwareItemView, Raw)> {
         explicit: None,
         services: Vec::new(),
         ai_note: None,
+        size: None,
         id,
     };
     Some((view, raw))
@@ -585,6 +647,19 @@ impl SoftwareView {
         Self { items, sources }
     }
 
+    /// The list with each app's size from `sizes`, by key (see
+    /// [`app_locations`]); other items keep none.
+    #[must_use]
+    pub fn with_sizes(
+        mut self,
+        sizes: &std::collections::BTreeMap<String, lumen_app::app_sizes::ScanSize>,
+    ) -> Self {
+        for item in &mut self.items {
+            item.size = sizes.get(&item.key).copied().map(SoftwareSizeView::from);
+        }
+        self
+    }
+
     /// The list with each row's cached AI note, when one may be shown
     /// (ADR-0061).
     #[must_use]
@@ -600,7 +675,7 @@ impl SoftwareView {
 mod tests {
     use std::collections::BTreeSet;
 
-    use lumen_domain::{AppId, RawPath, SourceName, UninstallRecord, UntrustedText};
+    use lumen_domain::{AppId, ByteCount, RawPath, SourceName, UninstallRecord, UntrustedText};
 
     use super::*;
 
@@ -643,6 +718,71 @@ mod tests {
             explicit: Some(true),
             relations: None,
         }
+    }
+
+    #[test]
+    fn only_macos_apps_get_a_size_by_their_key() {
+        use lumen_app::app_sizes::ScanSize;
+        let mut apps = report("macos.applications", SourceStatus::Complete);
+        apps.applications = vec![
+            app(
+                AppIdScheme::BundleId,
+                "com.example.Zed",
+                "Zed",
+                "/Applications/Zed.app",
+            ),
+            app(
+                AppIdScheme::BundleId,
+                "com.example.Old",
+                "Old",
+                "/Applications/Old.app",
+            ),
+        ];
+        let mut brew = report("macos.homebrew", SourceStatus::Complete);
+        brew.packages = vec![package(PackageManager::Homebrew, "act", false)];
+        let reports = [apps, brew];
+        let located = app_locations(&reports);
+        let keys: Vec<_> = located.iter().map(|(key, _)| key.as_str()).collect();
+        assert_eq!(keys, ["MacApp:com.example.Zed", "MacApp:com.example.Old"]);
+        assert_eq!(located[0].1.display(), "/Applications/Zed.app");
+        let sizes = std::collections::BTreeMap::from([
+            (located[0].0.clone(), ScanSize::AtLeast(ByteCount::new(7))),
+            (located[1].0.clone(), ScanSize::NotScanned),
+        ]);
+        let view = SoftwareView::from_reports(&reports).with_sizes(&sizes);
+        let size = |id: &str| {
+            view.items
+                .iter()
+                .find(|item| item.id == id)
+                .and_then(|item| item.size.clone())
+        };
+        assert_eq!(
+            size("com.example.Zed"),
+            Some(SoftwareSizeView::AtLeast { bytes: "7".into() })
+        );
+        assert_eq!(size("com.example.Old"), Some(SoftwareSizeView::NotScanned));
+        assert_eq!(size("act"), None, "packages have no app size");
+    }
+
+    #[test]
+    fn a_later_record_never_sizes_a_row_shown_without_a_location() {
+        let mut first = report("macos.applications", SourceStatus::Complete);
+        let mut unlocated = app(
+            AppIdScheme::BundleId,
+            "com.example.Zed",
+            "Zed",
+            "/Applications/Zed.app",
+        );
+        unlocated.install_locations.clear();
+        first.applications = vec![unlocated];
+        let mut second = report("macos.spotlight", SourceStatus::Complete);
+        second.applications = vec![app(
+            AppIdScheme::BundleId,
+            "com.example.Zed",
+            "Zed",
+            "/Applications/Zed.app",
+        )];
+        assert_eq!(app_locations(&[first, second]), []);
     }
 
     #[test]

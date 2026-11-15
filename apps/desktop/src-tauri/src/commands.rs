@@ -670,9 +670,29 @@ pub(crate) async fn software(core: State<'_, Core>) -> Result<SoftwareView, Comm
         let reports = lumen_app::software::inventory(&CancelToken::new());
         icons.remember(&reports);
         let notes = lumen_app::software_notes::NoteCache::load(&db);
-        Ok(SoftwareView::from_reports(&reports).with_notes(&notes))
+        Ok(SoftwareView::from_reports(&reports)
+            .with_sizes(&app_sizes(&db, &reports))
+            .with_notes(&notes))
     })
     .await
+}
+
+/// Each macOS app's size from the latest scan, by the list's key (roadmap
+/// 16.2). An unreadable index leaves every size out rather than failing the
+/// list.
+fn app_sizes(
+    db: &Path,
+    reports: &[lumen_application::ports::InventoryReport],
+) -> std::collections::BTreeMap<String, lumen_app::app_sizes::ScanSize> {
+    let apps = lumen_api::views::app_locations(reports);
+    let locations: Vec<_> = apps.iter().map(|(_, location)| location.clone()).collect();
+    match lumen_app::app_sizes::scan_sizes(db, &locations) {
+        Ok(sizes) => apps.into_iter().map(|(key, _)| key).zip(sizes).collect(),
+        Err(error) => {
+            tracing::warn!(%error, "app sizes could not be read from the scan");
+            std::collections::BTreeMap::new()
+        }
+    }
 }
 
 /// The installed software list, after asking AI review about software it has
@@ -696,7 +716,9 @@ pub(crate) async fn explain_software(core: State<'_, Core>) -> Result<SoftwareVi
             }
             None => lumen_app::software_notes::NoteCache::load(&db),
         };
-        Ok(SoftwareView::from_reports(&reports).with_notes(&notes))
+        Ok(SoftwareView::from_reports(&reports)
+            .with_sizes(&app_sizes(&db, &reports))
+            .with_notes(&notes))
     })
     .await
 }

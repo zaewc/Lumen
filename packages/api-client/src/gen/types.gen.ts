@@ -1262,6 +1262,7 @@ export type SoftwareItemView = {
    * Background items linked to it, verified first.
    */
   services: Array<LinkedServiceView>;
+  size: SoftwareSizeView | null;
   /**
    * Its publisher or vendor, as recorded; display-escaped.
    */
@@ -1329,6 +1330,28 @@ export type SoftwarePurposeView =
   | "utility"
   | "runtime_or_library"
   | "unknown";
+
+/**
+ * What the latest scan says about an app's size; never zero for unknown.
+ */
+export type SoftwareSizeView =
+  | {
+      /**
+       * What removing it would free, in bytes.
+       */
+      bytes: string;
+      kind: "complete";
+    }
+  | {
+      /**
+       * Bytes, a lower bound.
+       */
+      bytes: string;
+      kind: "at_least";
+    }
+  | {
+      kind: "not_scanned";
+    };
 
 /**
  * How completely one inventory was read.

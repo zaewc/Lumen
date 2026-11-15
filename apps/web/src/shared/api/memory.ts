@@ -42,6 +42,7 @@ function softwareList(explained: boolean): SoftwareView {
     explicit: null,
     services: [],
     ai_note: null,
+    size: null,
     ...extra,
   });
   return {
@@ -51,6 +52,7 @@ function softwareList(explained: boolean): SoftwareView {
         explicit: true,
       }),
       row("mac_app", "com.apple.calculator", "Calculator", "11.0", {
+        size: { kind: "not_scanned" },
         location: "/System/Applications/Calculator.app",
         protected: true,
       }),
@@ -60,6 +62,7 @@ function softwareList(explained: boolean): SoftwareView {
       }),
       row("mac_installer", "com.example.driver.pkg", null, "2.4.1", { location: "/" }),
       row("mac_app", "com.example.OldEditor", "OldEditor", "3.2", {
+        size: { kind: "complete", bytes: "441000000" },
         location: "/Applications/OldEditor.app",
         services: [
           {
@@ -83,6 +86,7 @@ function softwareList(explained: boolean): SoftwareView {
         },
       }),
       row("mac_app", "com.spotify.client", "Spotify", "1.2.48", {
+        size: { kind: "at_least", bytes: "325000000" },
         location: "/Applications/Spotify.app",
         ai_note: explained
           ? {

@@ -741,6 +741,23 @@ export const zSoftwareNoteView = z.object({
 });
 
 /**
+ * What the latest scan says about an app's size; never zero for unknown.
+ */
+export const zSoftwareSizeView = z.union([
+  z.object({
+    bytes: z.string(),
+    kind: z.enum(["complete"]),
+  }),
+  z.object({
+    bytes: z.string(),
+    kind: z.enum(["at_least"]),
+  }),
+  z.object({
+    kind: z.enum(["not_scanned"]),
+  }),
+]);
+
+/**
  * One application or package.
  */
 export const zSoftwareItemView = z.object({
@@ -754,6 +771,7 @@ export const zSoftwareItemView = z.object({
   origin: zSoftwareOriginView,
   protected: z.boolean(),
   services: z.array(zLinkedServiceView),
+  size: zSoftwareSizeView.nullable(),
   vendor: z.string().nullable(),
   version: z.string().nullable(),
 });
