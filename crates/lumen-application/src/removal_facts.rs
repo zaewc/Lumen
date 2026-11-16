@@ -14,8 +14,8 @@
 //!   package it names, listed or not: the record's own statement), and which
 //!   listed packages' records say they need it, counted only where the
 //!   relation is verified. "None needs it" holds only where every inventory
-//!   was read whole and every package's relations were read (ADR-0008): a
-//!   dependent may sit in any report.
+//!   was read whole, every package's relations were read, and no dependency
+//!   naming it is ambiguous (ADR-0008): a dependent may sit in any report.
 //!
 //! Protection is the list's to decide (it also looks at install locations), so
 //! it is left `false` here. The model's answer is never an input.
@@ -117,13 +117,22 @@ pub fn inventory_facts(reports: &[InventoryReport]) -> InventoryFacts {
                 .map(|r| r.package)
                 .filter(|&d| packages[d].package_id() != package.package_id())
                 .collect();
+            // A dependency that names this package but also another listed
+            // entry (ambiguous) may be on this one: the count is then at
+            // least, never all.
+            let unsure = resolved.iter().any(|r| {
+                !r.verified()
+                    && r.target == RelationTarget::Package(p)
+                    && matches!(r.kind, ResolvedKind::DependsOn { .. })
+                    && packages[r.package].package_id() != package.package_id()
+            });
             RemovalFacts {
                 protected: false,
                 mechanism,
                 installed_by: None,
                 needs_administrator,
                 needs,
-                needed_by: Some(count(dependents.len(), all_read)),
+                needed_by: Some(count(dependents.len(), all_read && !unsure)),
             }
         })
         .collect();
@@ -344,6 +353,11 @@ mod tests {
             facts.packages[0].needed_by.map(|c| c.count),
             Some(0),
             "two `lib`s: ambiguous"
+        );
+        assert_eq!(
+            facts.packages[0].needed_by.map(|c| c.complete),
+            Some(false),
+            "`tool` may need either `lib`: never \"nothing needs it\""
         );
         assert_eq!(
             facts.packages[2].needed_by.map(|c| c.count),
