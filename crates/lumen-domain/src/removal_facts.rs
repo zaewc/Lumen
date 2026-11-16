@@ -14,6 +14,8 @@
 //! or `false` as each field documents, and a count says whether every record
 //! it rests on was read.
 
+use crate::PackageManager;
+
 /// How a piece of software's own mechanism removes it, as its record shows
 /// (ADR-0060 rule 1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -56,6 +58,11 @@ pub struct RemovalFacts {
     pub protected: bool,
     /// How its own mechanism removes it; `None` where no record says.
     pub mechanism: Option<RemovalMechanism>,
+    /// For an application, the manager of the package whose record verifiably
+    /// says it installed it: the source of `mechanism` and
+    /// `needs_administrator`. `None` when they come from the software's own
+    /// record, or nothing installed it verifiably.
+    pub installed_by: Option<PackageManager>,
     /// Removing it is known to need administrator rights: its mechanism always
     /// does (a system package manager, a system-wide installer receipt).
     /// `false` where Lumen does not know, never "not needed".

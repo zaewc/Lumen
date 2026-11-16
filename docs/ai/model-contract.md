@@ -243,6 +243,30 @@ executor; it never selects software, a mechanism or an argument, never marks sof
 safe to remove, and never overrides a protected item or turns a heuristic link into a
 verified one. A note that suspects injection is recorded but not shown.
 
+### Lumen's facts beside the note
+
+What Lumen itself knows about removing the software (`lumen_domain::RemovalFacts`,
+built from inventory records by `lumen_application::removal_facts`, #850) is never
+asked of the model and never sent to it (ADR-0061 rule 2, ADR-0064 rule 7):
+
+- how its own mechanism removes it: its package manager, Windows Installer, an
+  uninstaller its installer recorded, or none recorded (a macOS installer receipt). An
+  application gets the mechanism of the package that installed it only when that
+  relation is verified;
+- whether removal is known to need administrator rights: dpkg, RPM, pacman and snap,
+  and the system receipts in `/var/db/receipts`. Elsewhere it is not known, never "not
+  needed";
+- what its package record says it needs, and which listed packages' records say they
+  need it (verified relations only), with whether every record was read, so "none"
+  holds only where it was (ADR-0008).
+
+They are shown apart from the note, as observations with their source, while the note
+is labelled as AI review's guess (ADR-0061 rule 5). Where they disagree, the facts
+decide: `SoftwareNote::guarded` also turns `only_this_app` into `unknown` (confidence
+`low`) when a listed package needs the software. The guard only ever makes the note
+more cautious, so it runs when the answer arrives and again with current facts when
+the note is shown.
+
 ## Trace: `jev.trace/1`
 
 Stored in `ledger.db` for every judgment that a policy decision consumed, and for every
