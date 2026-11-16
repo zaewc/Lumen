@@ -125,6 +125,7 @@ pub fn inventory_facts(reports: &[InventoryReport]) -> InventoryFacts {
             RemovalFacts {
                 protected: false,
                 mechanism,
+                installed_by: None,
                 needs_administrator,
                 needs,
                 needed_by: Some(count(dependents.len(), complete)),
@@ -144,17 +145,22 @@ pub fn inventory_facts(reports: &[InventoryReport]) -> InventoryFacts {
                 .map(|r| r.package)
                 .collect();
             let installer = match installers.iter().collect::<Vec<_>>().as_slice() {
-                [only] => Some(manager_facts(packages[**only].manager)),
+                [only] => Some(packages[**only].manager),
                 _ => None,
             };
-            let (mechanism, needs_administrator) = match (recorded_mechanism(app), installer) {
-                (Some(mechanism), _) => (Some(mechanism), false),
-                (None, Some(facts)) => facts,
-                (None, None) => (None, false),
-            };
+            let (mechanism, installed_by, needs_administrator) =
+                match (recorded_mechanism(app), installer) {
+                    (Some(mechanism), _) => (Some(mechanism), None, false),
+                    (None, Some(manager)) => {
+                        let (mechanism, administrator) = manager_facts(manager);
+                        (mechanism, Some(manager), administrator)
+                    }
+                    (None, None) => (None, None, false),
+                };
             RemovalFacts {
                 protected: false,
                 mechanism,
+                installed_by,
                 needs_administrator,
                 needs: None,
                 needed_by: None,
@@ -458,5 +464,16 @@ mod tests {
         );
         assert_eq!(of(2), (None, false), "an inferred location proves nothing");
         assert_eq!(of(3), (None, false), "two unrelated owners: no owner");
+        let by: Vec<_> = facts.applications.iter().map(|f| f.installed_by).collect();
+        assert_eq!(
+            by,
+            [
+                Some(PackageManager::HomebrewCask),
+                Some(PackageManager::MacInstaller),
+                None,
+                None
+            ],
+            "the source of the mechanism"
+        );
     }
 }
