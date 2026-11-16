@@ -138,13 +138,16 @@ pub(super) fn relation_views(
         let Some(own) = package_keys.get(resolved.package).cloned() else {
             continue;
         };
+        // Proven only where the other side is a row: an application the list
+        // does not show is matched to no row.
+        let verified = resolved.verified() && other.is_some();
         let view = |kind, other, label| SoftwareRelationView {
             kind,
             other,
             label,
             method: method(resolved.method),
             direct,
-            verified: resolved.verified(),
+            verified,
             ambiguous: resolved.ambiguous,
         };
         if let Some(other) = &other {
@@ -303,6 +306,64 @@ mod tests {
             row(&view, "Homebrew:unread").relations_read,
             Some(false),
             "an unread record is unknown, never none"
+        );
+    }
+
+    #[test]
+    fn a_package_two_sources_report_is_one_target() {
+        let mut first = report("macos.homebrew");
+        first.packages = vec![
+            package(
+                PackageManager::Homebrew,
+                "ffmpeg",
+                Some(vec![needs("x264", true)]),
+            ),
+            package(PackageManager::Homebrew, "x264", Some(Vec::new())),
+        ];
+        let mut second = report("macos.homebrew.other");
+        second.packages = vec![package(PackageManager::Homebrew, "x264", Some(Vec::new()))];
+        let view = SoftwareView::from_reports(&[first, second]);
+        assert_eq!(
+            brief(row(&view, "Homebrew:ffmpeg")),
+            [(
+                SoftwareRelationKindView::Needs,
+                Some("Homebrew:x264"),
+                "x264",
+                true,
+                false
+            )]
+        );
+    }
+
+    #[test]
+    fn an_app_the_list_does_not_show_is_never_verified() {
+        let mut apps = report("android.packages");
+        let mut hidden = app("com.example.Zed", "/Applications/Zed.app");
+        hidden.ids = BTreeSet::from([AppId {
+            scheme: AppIdScheme::AndroidPackage,
+            value: UntrustedText::new("com.example.zed"),
+        }]);
+        apps.applications = vec![hidden];
+        let mut receipts = report("macos.receipts");
+        receipts.packages = vec![package(
+            PackageManager::MacInstaller,
+            "com.example.zed.pkg",
+            Some(vec![installed(
+                "/Applications/Zed.app",
+                RelationMethod::ReceiptFileList,
+            )]),
+        )];
+        let view = SoftwareView::from_reports(&[apps, receipts]);
+        assert_eq!(view.items.len(), 1, "the app has no row");
+        assert_eq!(
+            brief(&view.items[0]),
+            [(
+                SoftwareRelationKindView::Installed,
+                None,
+                "/Applications/Zed.app",
+                false,
+                false
+            )]
         );
     }
 

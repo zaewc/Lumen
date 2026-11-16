@@ -630,12 +630,19 @@ fn rows(reports: &[InventoryReport]) -> Vec<(SoftwareItemView, Raw)> {
             ));
         }
     }
-    let packages: Vec<&Package> = reports.iter().flat_map(|r| &r.packages).collect();
+    // One record per key, the first, as the rows show: a package two
+    // sources report is one target, not an ambiguous pair.
+    let mut seen = std::collections::HashSet::new();
+    let (packages, package_keys): (Vec<&Package>, Vec<String>) = reports
+        .iter()
+        .flat_map(|r| &r.packages)
+        .map(|record| (record, package(record).0.key))
+        .filter(|(_, key)| seen.insert(key.clone()))
+        .unzip();
     let app_keys: Vec<Option<String>> = apps
         .iter()
         .map(|app| application(app).map(|(row, _)| row.key))
         .collect();
-    let package_keys: Vec<String> = packages.iter().map(|p| package(p).0.key).collect();
     let rows_by_key: std::collections::HashMap<String, usize> = items
         .iter()
         .enumerate()
