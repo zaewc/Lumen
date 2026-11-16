@@ -30,16 +30,18 @@ pub(super) fn formula(receipt: &Value) -> Option<Vec<PackageRelation>> {
 
 /// A cask's relations: from its install receipt when that lists its
 /// uninstall artifacts, else from its stored definition's `artifacts`;
-/// `None` if neither is readable.
+/// `None` if neither is a readable list.
 pub(super) fn cask(
     receipt: Option<&Value>,
     definition: Option<&Value>,
     config: Option<&Value>,
 ) -> Option<Vec<PackageRelation>> {
-    let (artifacts, method) = match receipt.and_then(|r| r.get("uninstall_artifacts")) {
+    // Only a list counts: Homebrew writes `null` where it recorded none.
+    let listed = receipt.and_then(|r| r.get("uninstall_artifacts")?.as_array());
+    let (artifacts, method) = match listed {
         Some(artifacts) => (artifacts, RelationMethod::CaskUninstallArtifacts),
         None => (
-            definition?.get("artifacts")?,
+            definition?.get("artifacts")?.as_array()?,
             RelationMethod::CaskDefinition,
         ),
     };
@@ -55,7 +57,7 @@ pub(super) fn cask(
         }
     }
     let appdir = config.and_then(appdir);
-    for artifact in artifacts.as_array().into_iter().flatten() {
+    for artifact in artifacts {
         if let Some(app) = artifact.get("app").and_then(Value::as_array) {
             relations.extend(app_location(app, appdir, method));
         }
@@ -295,5 +297,28 @@ mod tests {
         assert_eq!(recorded[0].method, RelationMethod::CaskDefinition);
         assert_eq!(cask(None, Some(&json!({"url_specs": {}})), None), None);
         assert_eq!(cask(None, None, None), None);
+    }
+
+    #[test]
+    fn a_null_artifact_list_falls_back_to_the_definition_or_stays_unknown() {
+        let receipt = json!({"uninstall_artifacts": null});
+        let definition = json!({"artifacts": [{"app": ["Docker.app"]}]});
+        let relations = cask(Some(&receipt), Some(&definition), None).unwrap_or_default();
+        let apps: Vec<_> = relations.iter().filter_map(location).collect();
+        assert_eq!(
+            apps,
+            [(
+                &b"/Applications/Docker.app"[..],
+                RelationMethod::CaskDefaultAppFolder
+            )]
+        );
+        assert_eq!(cask(Some(&receipt), None, None), None);
+        let not_a_list = json!({"artifacts": {"app": ["Docker.app"]}});
+        assert_eq!(cask(None, Some(&not_a_list), None), None);
+        assert_eq!(
+            cask(Some(&json!({"uninstall_artifacts": []})), None, None),
+            Some(Vec::new()),
+            "an empty list is a record of none"
+        );
     }
 }

@@ -121,9 +121,10 @@ fn package(manager: PackageManager, name: &str, dir: &Path) -> Option<Package> {
     let (explicit, relations) = if manager == PackageManager::HomebrewCask {
         let metadata = dir.join(".metadata");
         let receipt = read_json(&metadata.join("INSTALL_RECEIPT.json"));
-        let lists_artifacts = receipt
-            .as_ref()
-            .is_some_and(|r| r.get("uninstall_artifacts").is_some());
+        let lists_artifacts = receipt.as_ref().is_some_and(|r| {
+            r.get("uninstall_artifacts")
+                .is_some_and(serde_json::Value::is_array)
+        });
         let definition = if lists_artifacts {
             None
         } else {
