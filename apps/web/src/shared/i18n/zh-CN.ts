@@ -465,6 +465,8 @@ export const zhCN: Messages = {
     finalizeTitle: "永久移除此项目？",
     finalizeNote: "此操作无法撤销。",
     finalizeChosen: "此项目是你自己选择的，并非 Lumen 的建议。",
+    finalizeManyTitle: (n: number, size: string) => `永久移除 ${items(n)}（${size}）？`,
+    finalizeManyChosen: (n: number) => `其中 ${items(n)}是你自己选择的，并非 Lumen 的建议。`,
     finalizeButton: "永久移除",
     toolTitle: (tool: string) => `运行 ${tool} 的命令？`,
     toolNote: "它删除的内容无法恢复。",

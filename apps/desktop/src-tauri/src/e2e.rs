@@ -35,6 +35,11 @@ static ANSWER: AtomicBool = AtomicBool::new(true);
 /// How often the host asked.
 static ASKED: AtomicUsize = AtomicUsize::new(0);
 
+/// How often the host asks when the flow runs to the end: each of its two
+/// cycles declines `execute` once and confirms it once (4), then removing
+/// asks 3 more times (see [`confirming_several_removals`]).
+const ASKED_TO_THE_END: usize = 7;
+
 /// The size the last removal-for-good question named, if any.
 static FINALIZE_BYTES: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
@@ -182,6 +187,27 @@ fn declining_moves_nothing(window: &WebviewWindow<MockRuntime>, plan: &Value, it
     assert!(item.exists(), "declining moves nothing");
 }
 
+/// FS-1: declining the question about several removals approves nothing, so
+/// removing held `operation` still asks and declining that keeps it held;
+/// once confirmed, the next `finalize` of it does not ask again.
+fn confirming_several_removals(window: &WebviewWindow<MockRuntime>, operation: &str) {
+    ANSWER.store(false, Ordering::SeqCst);
+    EXPECTED.fetch_add(2, Ordering::SeqCst);
+    let ids = json!({ "operationIds": [operation] });
+    assert!(invoke(window, "confirm_finalize", ids.clone()).is_err());
+    assert!(invoke(window, "finalize", json!({ "operationId": operation })).is_err());
+    ANSWER.store(true, Ordering::SeqCst);
+    let held = invoke(window, "held", json!({})).unwrap_or_else(|e| unreachable!("held: {e}"));
+    assert!(
+        held.as_array()
+            .is_some_and(|items| items.iter().any(|i| i["operation"] == operation)),
+        "declining removes nothing: {held}"
+    );
+    EXPECTED.fetch_add(1, Ordering::SeqCst);
+    let confirmed = invoke(window, "confirm_finalize", ids);
+    assert_eq!(confirmed, Ok(Value::Null), "confirmed once for all of them");
+}
+
 /// The flow itself, in the child: AI review's switch, then scan → plan →
 /// execute → held → restore → plan → execute → finalize, plus a command the
 /// capability does not grant.
@@ -266,7 +292,7 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
     let Some(second) = cycle() else {
         return;
     };
-    EXPECTED.fetch_add(1, Ordering::SeqCst);
+    confirming_several_removals(&window, &second);
     let finalized = ok("finalize", json!({ "operationId": second }));
     assert_eq!(finalized["outcome"]["kind"], "finalized", "{finalized}");
     let measured = &finalized["space_change"];
@@ -292,14 +318,15 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
 fn the_desktop_flow_runs_end_to_end() {
     if let Some(home) = std::env::var_os(CHILD) {
         run_app(move |handle| flow(handle, Path::new(&home)));
-        // FS-1: before each execute (declined, then confirmed) and the
-        // finalize the flow reached; 5 when it ran to the end.
+        // FS-1: before each execute (declined, then confirmed), the question
+        // about several removals (declined, then confirmed) and the declined
+        // single removal, but not the removal confirmed with several.
         assert_eq!(
             ASKED.load(Ordering::SeqCst),
             EXPECTED.load(Ordering::SeqCst),
             "the host asked each time"
         );
-        if EXPECTED.load(Ordering::SeqCst) == 5 {
+        if EXPECTED.load(Ordering::SeqCst) == ASKED_TO_THE_END {
             let bytes = FINALIZE_BYTES
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)

@@ -11,6 +11,7 @@
     "allow-held",
     "allow-restore",
     "allow-finalize",
+    "allow-confirm-finalize",
     "allow-ai-settings",
     "allow-set-ai-review",
     "allow-set-ai-key",
