@@ -69,8 +69,11 @@ Chosen option: **3**.
    3. **Nothing installed is related to it:**
       - no installed app's bundle ID equals it, extends it, or is extended by it;
       - no installed app shares its vendor part (its first two labels);
-      - Spotlight finds no app with it (ADR-0059). Every claimed owner is looked up,
-        with no cap, and an owner that could not be looked up is not claimed.
+      - Spotlight finds no application whose bundle ID equals it or extends it,
+        compared without case (ADR-0059's lookup, widened to `<id>.*`), so a helper
+        installed outside the inventory's folders also counts. Every claimed owner is
+        looked up, with no cap, and an owner that could not be looked up is not
+        claimed.
 2. **Never claimed:**
    - `com.apple.*`;
    - app groups (`group.*`, and names starting with a ten-character Team ID, Apple's
@@ -80,9 +83,15 @@ Chosen option: **3**.
 3. **Its own source.** The fact is `OwningApplication` with the source
    `macos.support-location.removed-app`, recorded with an `AppDataLocation` as for an
    installed app. It can never be mistaken for a link to an installed app. Absence is
-   still established separately, from complete inventories only (ADR-0008, ADR-0039),
-   and the item stays `REVIEW` (`classify.orphan`); a removed app's cache is `REVIEW`
-   too, because the most cautious proposal wins.
+   still established separately (ADR-0008, ADR-0039): only when **every** inventory
+   source was read completely. One complete source is not enough while another,
+   which could list the app, is partial. The item stays `REVIEW` (`classify.orphan`);
+   a removed app's cache is `REVIEW` too, because the most cautious proposal wins.
+5. **A bundle without an identifier does not make the bundle inventory partial.** If
+   a bundle's information property list was read and has no `CFBundleIdentifier`,
+   the bundle has no ID, so it cannot be the owner of anything named by ID (on the
+   owner's Mac: a game shortcut). A bundle whose property list could not be read
+   still makes the inventory partial.
 4. **Everything else is unknown ownership**, decided exactly as before (ADR-0039's
    default rules).
 

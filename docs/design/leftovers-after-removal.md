@@ -97,8 +97,10 @@ Each question was open until the owner accepted its recommended answer.
    vouches for its app. Alternatively, Lumen's own uninstall record names the ID (Q3).
 3. **No installed app is related to it.** No installed app's ID equals it, extends
    it, or is extended by it, and none shares its vendor part (the first two labels).
-   Spotlight finds no app with it (ADR-0059). Every claimed owner is looked up, with
-   no cap. An owner that could not be looked up is not claimed.
+   Spotlight finds no app whose ID equals it or extends it (ADR-0059's lookup,
+   widened to `<id>.*`). Every claimed owner is looked up, with no cap. An owner that
+   could not be looked up is not claimed. Absence counts only when every inventory
+   source was read completely (added in review; see ADR-0068 rules 3 and 5).
 
 The fact gets its own source (`macos.support-location.removed-app`), so it can never
 be mistaken for a link to an installed app. Everything that fails these checks stays
