@@ -257,10 +257,13 @@ export const es: Messages = {
       command: "Limpiar con su propio comando",
       developer: "Herramientas de desarrollo",
       app_cache: "Cachés de aplicaciones",
+      removed_app: "Datos de aplicaciones eliminadas",
       app_data: "Datos de aplicaciones",
       other: "Otros",
     },
     otherTools: "Otras herramientas",
+    removedNote:
+      "Las aplicaciones ya no están, pero sus datos siguen aquí. Comprueba que no los necesitas antes de moverlos.",
     commandNote:
       "Solo la herramienta correspondiente debería eliminar estos elementos. Abre uno para ejecutar su comando; antes comprueba qué elimina, porque no se puede deshacer.",
     status: {

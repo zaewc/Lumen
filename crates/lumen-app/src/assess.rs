@@ -938,9 +938,16 @@ pub enum GroupKind {
     AppCache,
     /// An application's other data: container, support files, preferences.
     AppData,
+    /// Data left by an application that is no longer installed (ADR-0068):
+    /// linked to it by a corroborated bundle ID, and its absence stated.
+    RemovedApp,
     /// Anything else.
     Other,
 }
+
+/// The provenance of links to an app that is no longer installed, as
+/// `lumen_platform_macos::removed` records it.
+const REMOVED_APP_SOURCE: &str = "macos.support-location.removed-app";
 
 /// The group an item is presented in, and what it belongs to when known.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -983,6 +990,26 @@ fn group_of(kb: Option<&KnowledgeBase>, subject: &Subject, evidence: &[Evidence]
         return Group {
             kind: GroupKind::Developer,
             source: Some(tool),
+        };
+    }
+    let removed = evidence.iter().find_map(|record| match &record.fact {
+        Fact::OwningApplication(app)
+            if &record.subject == subject
+                && record.provenance.source.as_str() == REMOVED_APP_SOURCE =>
+        {
+            Some(app)
+        }
+        _ => None,
+    });
+    let absent = |app: &lumen_domain::AppId| {
+        evidence.iter().any(|record| {
+            matches!(&record.fact, Fact::ApplicationPresent { app: a, present: false } if a == app)
+        })
+    };
+    if let Some(app) = removed.filter(|app| absent(app)) {
+        return Group {
+            kind: GroupKind::RemovedApp,
+            source: Some(app.value.raw().to_owned()),
         };
     }
     let owner = about().find_map(|fact| match fact {
@@ -2578,6 +2605,61 @@ mod tests {
             }
         );
         Ok(())
+    }
+
+    #[test]
+    fn a_removed_apps_data_is_its_own_group_once_its_absence_is_stated() {
+        use lumen_domain::{AppId, AppIdScheme, UntrustedText};
+        let app = AppId {
+            scheme: AppIdScheme::BundleId,
+            value: UntrustedText::new("net.example.Notes"),
+        };
+        let mut with = input(&[Fact::AppDataLocation {
+            kind: AppDataKind::Caches,
+        }]);
+        let subject = with.subject.clone();
+        let record = |fact: Fact, source: &str| Evidence {
+            subject: subject.clone(),
+            fact,
+            basis: Basis::Observed,
+            provenance: Provenance {
+                source: SourceName::new(source).unwrap_or_else(|e| unreachable!("{e}")),
+                observed_at: Timestamp::UNIX_EPOCH,
+            },
+        };
+        with.evidence.push(record(
+            Fact::OwningApplication(app.clone()),
+            REMOVED_APP_SOURCE,
+        ));
+        let group = |with: &PolicyInput| group_of(None, &with.subject, &with.evidence);
+        assert_eq!(
+            group(&with).kind,
+            GroupKind::AppCache,
+            "absence not stated yet"
+        );
+        with.evidence.push(record(
+            Fact::ApplicationPresent {
+                app: app.clone(),
+                present: false,
+            },
+            "lumen.inventory",
+        ));
+        assert_eq!(
+            group(&with),
+            Group {
+                kind: GroupKind::RemovedApp,
+                source: Some("net.example.Notes".to_owned())
+            }
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn the_removed_app_source_matches_the_producer() {
+        assert_eq!(
+            REMOVED_APP_SOURCE,
+            lumen_platform_macos::removed::REMOVED_APP_SOURCE
+        );
     }
 
     #[test]

@@ -248,10 +248,13 @@ export const ja: Messages = {
       command: "専用コマンドで整理",
       developer: "開発者ツール",
       app_cache: "アプリのキャッシュ",
+      removed_app: "削除したアプリが残したデータ",
       app_data: "アプリデータ",
       other: "その他",
     },
     otherTools: "その他のツール",
+    removedNote:
+      "アプリはもうありませんが、データは残っています。不要なことを確認してから移動してください。",
     commandNote:
       "これらは各ツールでのみ削除してください。項目を開いてコマンドを実行できます。元に戻せないため、実行前に削除内容を確認してください。",
     status: {
