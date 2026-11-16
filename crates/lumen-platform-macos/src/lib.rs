@@ -17,6 +17,7 @@ mod apps;
 pub mod attrbuf;
 #[cfg(target_os = "macos")]
 mod backup;
+pub mod bom;
 #[cfg(target_os = "macos")]
 mod bulk;
 #[cfg(target_os = "macos")]
