@@ -140,7 +140,6 @@ export const ru: Messages = {
     scanStage: "Сканирование",
     resultsStage: "Результаты",
     cleanUpStage: "Очистка",
-    activeCommand: "Выполняется команда",
     quitHeld:
       "Lumen перемещает или удаляет элементы. Приложение можно закрыть, когда операция завершится.",
   },
@@ -168,10 +167,6 @@ export const ru: Messages = {
       stored: (service: string) => `${service} (ваш ключ)`,
     },
     checking: "Проверка…",
-    short: {
-      on: "Проверка ИИ включена",
-      off: "Проверка ИИ выключена",
-    },
     loadFailed: "Не удалось загрузить настройку проверки ИИ.",
     changeFailed: "Не удалось изменить настройку проверки ИИ.",
     consent: {
@@ -828,7 +823,6 @@ export const ru: Messages = {
         installFailed: "Не удалось установить обновление. Текущая версия не изменилась.",
         waitForItems:
           "Обновление станет доступно, когда Lumen закончит перемещение или удаление элементов.",
-        sidebar: (version: string) => `Доступна версия ${version}`,
         notice: (version: string) => `Доступна Lumen ${version}.`,
         noticeAction: "Посмотреть обновление",
         later: "Позже",

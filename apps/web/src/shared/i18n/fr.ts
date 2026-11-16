@@ -129,7 +129,6 @@ export const fr: Messages = {
     scanStage: "Analyser",
     resultsStage: "Voir les résultats",
     cleanUpStage: "Nettoyer",
-    activeCommand: "Commande en cours",
     quitHeld:
       "Lumen déplace ou supprime des éléments. Vous pourrez le fermer une fois l'opération terminée.",
   },
@@ -158,7 +157,6 @@ export const fr: Messages = {
       stored: (service) => `${service} (votre clé)`,
     },
     checking: "Vérification…",
-    short: { on: "Analyse par IA activée", off: "Analyse par IA désactivée" },
     loadFailed: "Lumen n'a pas pu charger le réglage de l'analyse par IA.",
     changeFailed: "Lumen n'a pas pu modifier le réglage de l'analyse par IA.",
     consent: {
@@ -802,7 +800,6 @@ export const fr: Messages = {
         installFailed: "La mise à jour n'a pas été installée. Cette version reste inchangée.",
         waitForItems:
           "Vous pourrez mettre à jour une fois les déplacements et suppressions terminés.",
-        sidebar: (version) => `Version ${version} disponible`,
         notice: (version) => `Lumen ${version} est disponible.`,
         noticeAction: "Voir la mise à jour",
         later: "Plus tard",

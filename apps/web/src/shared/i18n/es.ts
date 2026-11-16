@@ -136,7 +136,6 @@ export const es: Messages = {
     scanStage: "Analizar",
     resultsStage: "Ver resultados",
     cleanUpStage: "Limpiar",
-    activeCommand: "Comando en ejecución",
     quitHeld: "Lumen está moviendo o eliminando elementos. Puedes cerrarlo cuando termine.",
   },
   start: {
@@ -162,10 +161,6 @@ export const es: Messages = {
       stored: (service: string) => `${service} (tu clave)`,
     },
     checking: "Comprobando…",
-    short: {
-      on: "Revisión con IA activada",
-      off: "Revisión con IA desactivada",
-    },
     loadFailed: "Lumen no pudo cargar el ajuste de revisión con IA.",
     changeFailed: "Lumen no pudo cambiar el ajuste de revisión con IA.",
     consent: {
@@ -820,7 +815,6 @@ export const es: Messages = {
           "Lumen descarga la nueva versión, comprueba su firma, la instala y se reinicia.",
         installFailed: "No se instaló la actualización. Esta versión no ha cambiado.",
         waitForItems: "Puedes actualizar cuando Lumen termine de mover o eliminar elementos.",
-        sidebar: (version: string) => `Versión ${version} disponible`,
         notice: (version: string) => `Lumen ${version} está disponible.`,
         noticeAction: "Ver actualización",
         later: "Más tarde",
