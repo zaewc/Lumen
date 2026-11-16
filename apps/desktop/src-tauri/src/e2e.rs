@@ -183,16 +183,21 @@ fn declining_moves_nothing(window: &WebviewWindow<MockRuntime>, plan: &Value, it
 }
 
 /// FS-1: declining the question about several removals approves nothing, so
-/// removing `operation` still asks and declining that leaves `item` in
-/// place; once confirmed, the next `finalize` of it does not ask again.
-fn confirming_several_removals(window: &WebviewWindow<MockRuntime>, operation: &str, item: &Path) {
+/// removing held `operation` still asks and declining that keeps it held;
+/// once confirmed, the next `finalize` of it does not ask again.
+fn confirming_several_removals(window: &WebviewWindow<MockRuntime>, operation: &str) {
     ANSWER.store(false, Ordering::SeqCst);
     EXPECTED.fetch_add(2, Ordering::SeqCst);
     let ids = json!({ "operationIds": [operation] });
     assert!(invoke(window, "confirm_finalize", ids.clone()).is_err());
     assert!(invoke(window, "finalize", json!({ "operationId": operation })).is_err());
     ANSWER.store(true, Ordering::SeqCst);
-    assert!(item.exists(), "declining removes nothing");
+    let held = invoke(window, "held", json!({})).unwrap_or_else(|e| unreachable!("held: {e}"));
+    assert!(
+        held.as_array()
+            .is_some_and(|items| items.iter().any(|i| i["operation"] == operation)),
+        "declining removes nothing: {held}"
+    );
     EXPECTED.fetch_add(1, Ordering::SeqCst);
     let confirmed = invoke(window, "confirm_finalize", ids);
     assert_eq!(confirmed, Ok(Value::Null), "confirmed once for all of them");
@@ -282,7 +287,7 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
     let Some(second) = cycle() else {
         return;
     };
-    confirming_several_removals(&window, &second, &item);
+    confirming_several_removals(&window, &second);
     let finalized = ok("finalize", json!({ "operationId": second }));
     assert_eq!(finalized["outcome"]["kind"], "finalized", "{finalized}");
     let measured = &finalized["space_change"];
