@@ -192,12 +192,19 @@ impl<'a> Store<'a> {
 /// [`MAX_DEPTH`] steps, so a missing parent or a loop fails the whole file
 /// instead of hiding the paths below it.
 fn check_chains(entries: &HashMap<u32, Entry<'_>>) -> Result<(), BomError> {
-    let mut reach_top: HashSet<u32> = HashSet::with_capacity(entries.len());
+    // Each checked path's number of steps to the top, so a later chain that
+    // meets it is bounded by its whole length, whatever the visiting order.
+    let mut depth: HashMap<u32, usize> = HashMap::with_capacity(entries.len());
     let mut chain = Vec::new();
     for &id in entries.keys() {
         chain.clear();
         let mut at = id;
-        while at != 0 && !reach_top.contains(&at) {
+        let mut above = 0;
+        while at != 0 {
+            if let Some(&known) = depth.get(&at) {
+                above = known;
+                break;
+            }
             if chain.len() >= MAX_DEPTH {
                 return Err(BomError("a path is too deep or loops"));
             }
@@ -207,7 +214,12 @@ fn check_chains(entries: &HashMap<u32, Entry<'_>>) -> Result<(), BomError> {
                 .ok_or(BomError("a path's parent is not recorded"))?
                 .parent;
         }
-        reach_top.extend(chain.iter().copied());
+        if chain.len() + above > MAX_DEPTH {
+            return Err(BomError("a path is too deep or loops"));
+        }
+        for (i, &path) in chain.iter().enumerate() {
+            depth.insert(path, chain.len() - i + above);
+        }
     }
     Ok(())
 }
@@ -470,6 +482,20 @@ pub(crate) mod tests {
             bundles(&orphan),
             Err(BomError("a path's parent is not recorded"))
         );
+        // One step past the limit fails whichever path is checked first.
+        let limit = u32::try_from(MAX_DEPTH).unwrap_or_else(|_| unreachable!());
+        let deep: Vec<(u32, u32, String)> = (1..=limit + 1)
+            .map(|id| (id, id - 1, format!("d{id}")))
+            .collect();
+        let deep: Vec<(u32, u32, &str, u8)> = deep
+            .iter()
+            .map(|(id, parent, name)| (*id, *parent, name.as_str(), DIR))
+            .collect();
+        assert_eq!(
+            bundles(&build(&deep)),
+            Err(BomError("a path is too deep or loops"))
+        );
+        assert!(bundles(&build(&deep[..MAX_DEPTH])).is_ok());
         let looped = build(&[(2, 3, "Foo.app", DIR), (3, 2, "Contents", DIR)]);
         assert_eq!(
             bundles(&looped),
