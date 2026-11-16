@@ -164,9 +164,17 @@ impl<'a> Store<'a> {
                     .block(u32_at(info, 4)?)?
                     .first()
                     .ok_or(BomError("an empty path record"))?;
+                if id == 0 {
+                    // Zero is the top's parent, never a path.
+                    return Err(BomError("a path has ID zero"));
+                }
                 let parent = u32_at(file, 0)?;
                 let name = file.get(4..).unwrap_or_default();
-                let name = name.split(|b| *b == 0).next().unwrap_or_default();
+                let end = name
+                    .iter()
+                    .position(|b| *b == 0)
+                    .ok_or(BomError("a name has no terminator"))?;
+                let name = &name[..end];
                 if entries.insert(id, Entry { parent, name, kind }).is_some() {
                     return Err(BomError("two paths share an ID"));
                 }
@@ -178,6 +186,30 @@ impl<'a> Store<'a> {
         }
         Err(BomError("the leaves form a cycle"))
     }
+}
+
+/// Checks that every path's parent chain reaches the top (parent 0) within
+/// [`MAX_DEPTH`] steps, so a missing parent or a loop fails the whole file
+/// instead of hiding the paths below it.
+fn check_chains(entries: &HashMap<u32, Entry<'_>>) -> Result<(), BomError> {
+    let mut reach_top: HashSet<u32> = HashSet::with_capacity(entries.len());
+    let mut chain = Vec::new();
+    for &id in entries.keys() {
+        chain.clear();
+        let mut at = id;
+        while at != 0 && !reach_top.contains(&at) {
+            if chain.len() >= MAX_DEPTH {
+                return Err(BomError("a path is too deep or loops"));
+            }
+            chain.push(at);
+            at = entries
+                .get(&at)
+                .ok_or(BomError("a path's parent is not recorded"))?
+                .parent;
+        }
+        reach_top.extend(chain.iter().copied());
+    }
+    Ok(())
 }
 
 /// The application bundles a bill of materials records: each outermost
@@ -194,6 +226,7 @@ impl<'a> Store<'a> {
 /// understands.
 pub fn bundles(bom: &[u8]) -> Result<Vec<Vec<u8>>, BomError> {
     let entries = Store::open(bom)?.entries()?;
+    check_chains(&entries)?;
     let is_dir = |id: u32, name: &dyn Fn(&[u8]) -> bool| {
         entries
             .get(&id)
@@ -212,39 +245,33 @@ pub fn bundles(bom: &[u8]) -> Result<Vec<Vec<u8>>, BomError> {
             })
         })
         .collect();
-    let mut paths: Vec<Vec<u8>> = found
-        .iter()
-        .filter_map(|&bundle| {
-            // Names from the bundle up to the top, or `None` for a bundle
-            // inside another or a chain that does not reach the top.
-            let mut names = Vec::new();
-            let mut at = bundle;
-            for _ in 0..MAX_DEPTH {
-                if at == 0 {
-                    break;
-                }
-                if at != bundle && found.contains(&at) {
-                    return None;
-                }
-                let entry = entries.get(&at)?;
-                names.push(entry.name);
-                at = entry.parent;
+    let mut paths = Vec::new();
+    'bundles: for &bundle in &found {
+        // Names from the bundle up to the top (every chain reaches it, as
+        // checked above); a bundle inside another is not outermost.
+        let mut names = Vec::new();
+        let mut at = bundle;
+        while at != 0 {
+            if at != bundle && found.contains(&at) {
+                continue 'bundles;
             }
-            if at != 0 {
-                return None;
-            }
-            names.reverse();
-            if names.first() == Some(&b".".as_slice()) {
-                names.remove(0);
-            }
-            let unsafe_name =
-                |n: &&[u8]| n.is_empty() || *n == b"." || *n == b".." || n.contains(&b'/');
-            if names.iter().any(unsafe_name) {
-                return None;
-            }
-            Some(names.join(&b'/'))
-        })
-        .collect();
+            let entry = entries
+                .get(&at)
+                .ok_or(BomError("a path's parent is not recorded"))?;
+            names.push(entry.name);
+            at = entry.parent;
+        }
+        names.reverse();
+        if names.first() == Some(&b".".as_slice()) {
+            names.remove(0);
+        }
+        let unsafe_name =
+            |n: &&[u8]| n.is_empty() || *n == b"." || *n == b".." || n.contains(&b'/');
+        if names.iter().any(unsafe_name) {
+            return Err(BomError("a path has an unusable name"));
+        }
+        paths.push(names.join(&b'/'));
+    }
     paths.sort();
     Ok(paths)
 }
@@ -429,12 +456,55 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn a_chain_that_does_not_reach_the_top_names_nothing() {
-        let bom = build(&[
-            (2, 99, "Foo.app", DIR),
+    fn a_chain_that_does_not_reach_the_top_fails_whole() {
+        let orphan = build(&[
+            (1, 0, ".", DIR),
+            (2, 1, "Foo.app", DIR),
             (3, 2, "Contents", DIR),
             (4, 3, "Info.plist", FILE),
+            (5, 99, "Bar.app", DIR),
+            (6, 5, "Contents", DIR),
+            (7, 6, "Info.plist", FILE),
         ]);
-        assert_eq!(bundles(&bom), Ok(Vec::new()));
+        assert_eq!(
+            bundles(&orphan),
+            Err(BomError("a path's parent is not recorded"))
+        );
+        let looped = build(&[(2, 3, "Foo.app", DIR), (3, 2, "Contents", DIR)]);
+        assert_eq!(
+            bundles(&looped),
+            Err(BomError("a path is too deep or loops"))
+        );
+    }
+
+    #[test]
+    fn id_zero_and_unterminated_names_fail_whole() {
+        let zero = build(&[
+            (1, 0, ".", DIR),
+            (0, 1, "Foo.app", DIR),
+            (2, 0, "Contents", DIR),
+            (3, 2, "Info.plist", FILE),
+        ]);
+        assert_eq!(bundles(&zero), Err(BomError("a path has ID zero")));
+        let mut cut = build(&[
+            (1, 0, ".", DIR),
+            (2, 1, "Foo.app", DIR),
+            (3, 2, "Contents", DIR),
+            (4, 3, "Info.plist.bak", FILE),
+        ]);
+        // Drop the terminator and ".bak" by shortening the name's block.
+        let name = cut
+            .windows(15)
+            .position(|w| w == b"Info.plist.bak\0")
+            .unwrap_or_else(|| unreachable!());
+        let entry = cut
+            .windows(8)
+            .rposition(|w| {
+                let offset = u32::from_be_bytes([w[0], w[1], w[2], w[3]]) as usize;
+                offset + 4 == name
+            })
+            .unwrap_or_else(|| unreachable!());
+        cut[entry + 4..entry + 8].copy_from_slice(&14u32.to_be_bytes());
+        assert_eq!(bundles(&cut), Err(BomError("a name has no terminator")));
     }
 }
