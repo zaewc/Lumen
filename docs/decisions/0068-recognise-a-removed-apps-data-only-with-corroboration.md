@@ -70,10 +70,11 @@ Chosen option: **3**.
       - no installed app's bundle ID equals it, extends it, or is extended by it;
       - no installed app shares its vendor part (its first two labels);
       - Spotlight finds no bundle of the same vendor: none whose bundle ID is the
-        vendor part or starts with it (`<vendor>`, `<vendor>.*`, compared without
-        case; ADR-0059's lookup, widened). This covers, outside the inventory's
-        folders, the same relations as above: the ID itself, its extensions, its
-        parent and its siblings, apps and helpers alike. Every claimed owner is
+        vendor part, its first label alone, or starts with the vendor part
+        (`<vendor>`, `<first label>`, `<vendor>.*`, compared without case;
+        ADR-0059's lookup, widened). This covers, outside the inventory's folders,
+        the same relations as above: the ID itself, its extensions, its parents
+        (a one-label one too) and its siblings, apps and helpers alike. Every claimed owner is
         looked up, with no cap, and an owner that could not be looked up is not
         claimed.
 

@@ -97,7 +97,8 @@ Each question was open until the owner accepted its recommended answer.
    vouches for its app. Alternatively, Lumen's own uninstall record names the ID (Q3).
 3. **No installed app is related to it.** No installed app's ID equals it, extends
    it, or is extended by it, and none shares its vendor part (the first two labels).
-   Spotlight finds no bundle of the same vendor (`<vendor>`, `<vendor>.*`;
+   Spotlight finds no bundle of the same vendor (`<vendor>`, its first label,
+   `<vendor>.*`;
    ADR-0059's lookup, widened in review). Spotlight only vetoes; absence comes
    from the inventories. Every claimed owner is looked up, with no cap. An owner that
    could not be looked up is not claimed. Absence counts only when every inventory
