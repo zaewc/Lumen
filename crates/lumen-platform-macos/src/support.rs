@@ -16,7 +16,8 @@
 //! the policy can tell an app's cache from its container or preferences.
 //!
 //! Only direct children of those locations are linked; anything deeper belongs
-//! to its parent. Pure and platform-independent.
+//! to its parent. Items of an app that is no longer installed are
+//! [`crate::removed`]'s. Pure and platform-independent.
 
 use std::collections::HashMap;
 
@@ -32,7 +33,7 @@ pub const NAME_SOURCE: &str = "macos.support-location.app-name";
 
 /// `~/Library` subdirectories whose children are named `<bundle id><suffix>`,
 /// and what each holds.
-const BY_BUNDLE_ID: &[(&str, &str, AppDataKind)] = &[
+pub(crate) const BY_BUNDLE_ID: &[(&str, &str, AppDataKind)] = &[
     ("Caches", "", AppDataKind::Caches),
     ("Containers", "", AppDataKind::Container),
     ("HTTPStorages", "", AppDataKind::WebData),
@@ -63,19 +64,19 @@ pub struct Link {
 
 /// The last path component and the parent directory, if `path` is a direct
 /// child of `dir` (a directory path without trailing slash).
-fn child_name<'a>(path: &'a [u8], dir: &[u8]) -> Option<&'a [u8]> {
+pub(crate) fn child_name<'a>(path: &'a [u8], dir: &[u8]) -> Option<&'a [u8]> {
     let rest = path.strip_prefix(dir)?.strip_prefix(b"/")?;
     (!rest.is_empty() && !rest.contains(&b'/')).then_some(rest)
 }
 
-fn join(base: &[u8], part: &str) -> Vec<u8> {
+pub(crate) fn join(base: &[u8], part: &str) -> Vec<u8> {
     let mut out = base.to_vec();
     out.push(b'/');
     out.extend_from_slice(part.as_bytes());
     out
 }
 
-fn link(
+pub(crate) fn link(
     entry: &FilesystemEntry,
     app: &AppId,
     kind: AppDataKind,

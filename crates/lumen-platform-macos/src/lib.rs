@@ -46,6 +46,7 @@ mod probe;
 mod quit;
 #[cfg(target_os = "macos")]
 mod receipts;
+pub mod removed;
 pub mod support;
 #[cfg(target_os = "macos")]
 mod sys;

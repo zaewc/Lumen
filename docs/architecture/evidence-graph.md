@@ -136,6 +136,7 @@ validation and acyclic containment hold for whatever the database contains.
 | Adapter | Produces |
 | --- | --- |
 | `lumen-platform-macos::support` | `owned_by` edges with `OwningApplication` evidence for `~/Library` items named after an installed app. Bundle-ID matches and unique-name matches use separate sources, so the policy can weigh them differently. |
+| `lumen-platform-macos::removed` | `owned_by` edges for `~/Library` items named after a **removed-app candidate** (`macos.support-location.removed-app`): an ID a sandbox container corroborates and no listed app is related to. The link does not say the app is absent; absence is stated only from complete inventories ([ADR-0068](../decisions/0068-recognise-a-removed-apps-data-only-with-corroboration.md)). Not yet called: gathering wires it in next (roadmap 16.9), dropping IDs Spotlight finds installed. |
 | `lumen-platform-windows::cleanup` | `VendorDeclaredCache` evidence for folders declared by data-driven Disk Cleanup handlers. No edge: a handler name does not identify an application. |
 | Inventory sources (macOS apps and launchd; Windows apps, startup entries, services) | `Application` and `Service` records with signatures, for later `launches` and `owned_by` edges |
 | In-use probes (`libproc`, Restart Manager) | answers for `opened_by` edges and `InUse` evidence; a partial answer is recorded as `NotInUseByVisibleProcesses`, never as `InUse(false)` (ADR-0030). |
