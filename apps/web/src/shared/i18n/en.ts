@@ -713,6 +713,10 @@ export const en = {
         running: "This app is running. Quit it and check again.",
         store_unknown: "Lumen could not check whether this drive has a quarantine store.",
         no_store_on_volume: "This drive has no quarantine store.",
+        security_unknown: "Lumen could not check whether this is security software.",
+        security_software: "This is security software. Remove it with its own uninstaller.",
+        managed_unknown: "Lumen could not check whether your organization manages this app.",
+        managed: "Your organization may manage this app, so Lumen leaves it to its administrator.",
       } satisfies { readonly [R in UninstallReasonView]: string },
     },
     facts: {

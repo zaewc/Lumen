@@ -700,6 +700,10 @@ export const ko = {
         running: "앱이 실행 중이에요. 앱을 종료한 뒤 다시 확인해 주세요.",
         store_unknown: "이 드라이브에 격리함을 둘 수 있는지 확인하지 못했어요.",
         no_store_on_volume: "이 드라이브에는 격리함이 없어요.",
+        security_unknown: "보안 소프트웨어인지 확인하지 못했어요.",
+        security_software: "보안 소프트웨어예요. 앱에 있는 제거 프로그램으로 지워 주세요.",
+        managed_unknown: "조직이 이 앱을 관리하는지 확인하지 못했어요.",
+        managed: "조직에서 관리하는 앱일 수 있어서 관리자에게 맡겨요.",
       },
     },
     facts: {

@@ -727,6 +727,11 @@ export const es: Messages = {
         running: "La app está en ejecución. Ciérrala y vuelve a comprobarla.",
         store_unknown: "Lumen no pudo comprobar si esta unidad tiene un almacén de Cuarentena.",
         no_store_on_volume: "Esta unidad no tiene un almacén de Cuarentena.",
+        security_unknown: "Lumen no pudo comprobar si es software de seguridad.",
+        security_software: "Es software de seguridad. Elimínalo con su propio desinstalador.",
+        managed_unknown: "Lumen no pudo comprobar si tu organización gestiona esta app.",
+        managed:
+          "Tu organización puede gestionar esta app, así que Lumen la deja a su administrador.",
       },
     },
     facts: {

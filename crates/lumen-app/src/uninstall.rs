@@ -325,6 +325,12 @@ mod unix {
         fn running(&self, bundle: &RawPath) -> Option<bool>;
         /// Asks the person's instances of the bundle at `bundle` to quit.
         fn quit(&self, bundle_id: &UntrustedText, bundle: &RawPath) -> QuitResult;
+        /// Whether the bundle's signature carries the Endpoint Security
+        /// entitlement (security software, ADR-0060 rule 4).
+        fn security_software(&self, bundle: &RawPath) -> Option<bool>;
+        /// Whether an organization may manage the app `bundle_id` (MDM
+        /// enrollment or managed preferences, ADR-0060 rule 4).
+        fn managed(&self, bundle_id: &UntrustedText) -> Option<bool>;
     }
 
     /// Everything an uninstall uses besides the database.
@@ -465,6 +471,8 @@ mod unix {
         let linked_services = linked_services(&apps, app, &services, resolve);
         let helpers = helpers(&bundle);
         let running = computer.software.running(&path);
+        let security_software = computer.software.security_software(&path);
+        let managed = bundle_id(app).and_then(|id| computer.software.managed(id));
         let store_on_volume = computer.stores.locations.first().and_then(|(base, _)| {
             let store = std::fs::metadata(base).ok()?.dev();
             let bundle = std::fs::symlink_metadata(&bundle).ok()?.dev();
@@ -479,6 +487,8 @@ mod unix {
             helpers,
             running,
             store_on_volume,
+            security_software,
+            managed,
         };
         let bundle_id = bundle_id(app).ok_or(UninstallError::UnknownApp)?.clone();
         Ok(Observed {
@@ -818,7 +828,9 @@ mod mac {
     use lumen_application::CancelToken;
     use lumen_application::ports::{InUseProbe, InventoryReport, InventorySource as _};
     use lumen_domain::{RawPath, UntrustedText};
-    use lumen_platform_macos::{AppInventory, LaunchdInventory, ProcessProbe, QuitRequest};
+    use lumen_platform_macos::{
+        AppInventory, LaunchdInventory, ProcessProbe, QuitRequest, management,
+    };
 
     use super::unix::Computer;
     use super::{QuitResult, UninstallError};
@@ -849,6 +861,16 @@ mod mac {
                 QuitRequest::Itself => QuitResult::Itself,
                 QuitRequest::Failed => QuitResult::Failed,
             }
+        }
+
+        fn security_software(&self, bundle: &RawPath) -> Option<bool> {
+            use std::os::unix::ffi::OsStrExt as _;
+            let path = std::path::Path::new(std::ffi::OsStr::from_bytes(bundle.as_bytes()));
+            management::endpoint_security_client(path, management::Run::AsCaller)
+        }
+
+        fn managed(&self, bundle_id: &UntrustedText) -> Option<bool> {
+            management::managed(bundle_id.raw())
         }
     }
 
@@ -948,6 +970,9 @@ mod tests {
         apps: RefCell<Vec<Application>>,
         services: RefCell<InventoryReport>,
         running: Cell<Option<bool>>,
+        /// The security-software and managed answers.
+        security: Cell<Option<bool>>,
+        managed: Cell<Option<bool>>,
         /// Every quit request: the bundle ID and the bundle.
         quits: RefCell<Vec<(String, RawPath)>>,
     }
@@ -973,6 +998,14 @@ mod tests {
                 .borrow_mut()
                 .push((bundle_id.raw().to_owned(), bundle.clone()));
             QuitResult::Asked
+        }
+
+        fn security_software(&self, _: &RawPath) -> Option<bool> {
+            self.security.get()
+        }
+
+        fn managed(&self, _: &UntrustedText) -> Option<bool> {
+            self.managed.get()
         }
     }
 
@@ -1033,6 +1066,8 @@ mod tests {
                     apps: RefCell::new(vec![app(&bundle)]),
                     services: RefCell::new(report("test.launchd", SourceStatus::Complete)),
                     running: Cell::new(Some(false)),
+                    security: Cell::new(Some(false)),
+                    managed: Cell::new(Some(false)),
                     quits: RefCell::new(Vec::new()),
                 },
                 db: root.join("data/index.db"),
@@ -1261,6 +1296,14 @@ mod tests {
         running.software.running.set(Some(true));
         let unknown = Env::eligible()?;
         unknown.software.running.set(None);
+        let security = Env::eligible()?;
+        security.software.security.set(Some(true));
+        let security_unknown = Env::eligible()?;
+        security_unknown.software.security.set(None);
+        let managed = Env::eligible()?;
+        managed.software.managed.set(Some(true));
+        let managed_unknown = Env::eligible()?;
+        managed_unknown.software.managed.set(None);
         let link = Env::new(
             "elsewhere/Zed.app",
             &[
@@ -1281,6 +1324,10 @@ mod tests {
             (&unread, Ineligible::ServicesUnknown),
             (&running, Ineligible::Running),
             (&unknown, Ineligible::RunningUnknown),
+            (&security, Ineligible::SecuritySoftware),
+            (&security_unknown, Ineligible::SecurityUnknown),
+            (&managed, Ineligible::Managed),
+            (&managed_unknown, Ineligible::ManagedUnknown),
         ] {
             let preview = env.preview();
             assert_eq!(preview.ready, Err(vec![reason]), "{reason:?}");
