@@ -38,6 +38,8 @@ const allowed = new Set([
   "helper_open_login_items",
   "app_icon",
   "unread_folders",
+  "drag_window",
+  "zoom_window",
 ]);
 
 window.__TAURI_ISOLATION_HOOK__ = (payload) => {

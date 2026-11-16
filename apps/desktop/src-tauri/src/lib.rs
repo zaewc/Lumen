@@ -21,6 +21,12 @@ use lumen_application::ports::SecretStore;
 use tauri::webview::WebviewWindowBuilder;
 use tauri::{AppHandle, Builder, Manager as _, RunEvent, Runtime, Url, WebviewUrl, WebviewWindow};
 
+/// Where the window buttons sit in the header's first row (56 px tall), in
+/// logical pixels from the window's top left; the header leaves room for
+/// them (`apps/web`, the header in `widgets/sidebar`).
+#[cfg(target_os = "macos")]
+const TRAFFIC_LIGHTS: (f64, f64) = (20.0, 30.0);
+
 /// Whether the main window may show `url`: only the app itself, never the
 /// web (ADR-0004).
 fn allowed(url: &Url) -> bool {
@@ -163,6 +169,8 @@ fn app_with_confirmation<R: Runtime>(
             commands::helper_open_login_items,
             commands::app_icon,
             commands::unread_folders,
+            commands::drag_window,
+            commands::zoom_window,
             update::check_update,
             update::install_update,
         ])
@@ -208,15 +216,26 @@ fn app_with_confirmation<R: Runtime>(
                 prompt,
                 pending,
             });
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")
                 // Wide enough for the sidebar and the clean-up list's columns
                 // and filters on one line; narrower windows still work, and
                 // the page never scrolls sideways.
                 .inner_size(1120.0, 800.0)
                 .min_inner_size(420.0, 560.0)
-                .on_navigation(allowed)
-                .build()?;
+                .on_navigation(allowed);
+            // On macOS the header is the title bar: the window buttons sit in
+            // its first row, and the header drags and zooms the window
+            // through `drag_window` and `zoom_window`.
+            #[cfg(target_os = "macos")]
+            let window = window
+                .title_bar_style(tauri::TitleBarStyle::Overlay)
+                .hidden_title(true)
+                .traffic_light_position(tauri::LogicalPosition::new(
+                    TRAFFIC_LIGHTS.0,
+                    TRAFFIC_LIGHTS.1,
+                ));
+            window.build()?;
             Ok(())
         })
 }

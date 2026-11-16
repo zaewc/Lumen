@@ -141,5 +141,18 @@ export function tauriTransport(): LumenTransport {
     unreadFolders: async (scan) => zUnreadFoldersView.parse(await call("unread_folders", { scan })),
     setAiReview: async (enabled) => zAiSettingsView.parse(await call("set_ai_review", { enabled })),
     setAiKey: async (key) => zAiSettingsView.parse(await call("set_ai_key", { key })),
+    // On macOS the host draws the window buttons over the header.
+    ...(/Macintosh/.test(navigator.userAgent)
+      ? {
+          titleBar: {
+            drag: async () => {
+              await call("drag_window");
+            },
+            zoom: async () => {
+              await call("zoom_window");
+            },
+          },
+        }
+      : {}),
   };
 }
