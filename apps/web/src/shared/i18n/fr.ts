@@ -255,10 +255,13 @@ export const fr: Messages = {
       command: "Nettoyer avec la commande dédiée",
       developer: "Outils de développement",
       app_cache: "Caches d'applications",
+      removed_app: "Données d'applications supprimées",
       app_data: "Données d'applications",
       other: "Autre",
     },
     otherTools: "Autres outils",
+    removedNote:
+      "Les applications ne sont plus là, mais leurs données restent. Vérifiez que vous n'en avez plus besoin avant de les déplacer.",
     commandNote:
       "Seul l'outil concerné devrait supprimer ces éléments. Ouvrez-le pour exécuter sa commande et vérifiez d'abord ce qu'elle supprime : cette action est irréversible.",
     status: {

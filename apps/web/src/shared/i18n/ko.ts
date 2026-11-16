@@ -252,10 +252,12 @@ export const ko = {
       command: "명령으로 정리",
       developer: "개발 도구",
       app_cache: "앱 캐시",
+      removed_app: "지운 앱이 남긴 데이터",
       app_data: "앱 데이터",
       other: "기타",
     },
     otherTools: "기타 도구",
+    removedNote: "앱은 이미 없지만 데이터는 남아 있어요. 필요 없는지 확인한 뒤 옮겨 주세요.",
     commandNote:
       "도구의 명령으로만 정리할 수 있는 항목이에요. 항목을 열어 명령을 실행할 수 있어요. 실행하면 되돌릴 수 없으니 무엇을 지우는지 먼저 확인해 주세요.",
     status: {

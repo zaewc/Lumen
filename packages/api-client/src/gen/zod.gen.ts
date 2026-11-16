@@ -251,7 +251,13 @@ export const zFreeWhenClosedView = z.object({
 /**
  * The kind of group an item is presented in.
  */
-export const zGroupKindView = z.enum(["developer", "app_cache", "app_data", "other"]);
+export const zGroupKindView = z.enum([
+  "developer",
+  "app_cache",
+  "app_data",
+  "removed_app",
+  "other",
+]);
 
 /**
  * The group an item is presented in, and what it belongs to when known.

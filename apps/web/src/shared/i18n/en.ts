@@ -260,10 +260,13 @@ export const en = {
       command: "Clean up with its own command",
       developer: "Developer tools",
       app_cache: "App caches",
+      removed_app: "Left by removed apps",
       app_data: "App data",
       other: "Other",
     },
     otherTools: "Other tools",
+    removedNote:
+      "The apps are gone, but their data is still here. Check that you don't need it before moving it.",
     commandNote:
       "Only their tool should remove these. Open one to run its command; check what it removes first, as it cannot be undone.",
     status: {

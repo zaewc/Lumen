@@ -522,7 +522,7 @@ const candidates: readonly CandidateView[] = [
       },
     ],
     tool_command: null,
-    group: { kind: "app_data", source: "com.example.OldEditor" },
+    group: { kind: "removed_app", source: "com.example.OldEditor" },
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2025-03-18T10:12:44Z", "2025-11-30T21:03:10Z"),

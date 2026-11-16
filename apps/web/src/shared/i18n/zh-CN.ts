@@ -242,10 +242,12 @@ export const zhCN: Messages = {
       command: "使用对应工具的命令清理",
       developer: "开发者工具",
       app_cache: "应用缓存",
+      removed_app: "已删除应用留下的数据",
       app_data: "应用数据",
       other: "其他",
     },
     otherTools: "其他工具",
+    removedNote: "应用已经不在了，但数据还在。请确认不再需要后再移走。",
     commandNote:
       "这些项目只能由对应工具移除。打开某项即可运行其命令；运行前请检查移除的内容，因为操作无法撤销。",
     status: {
