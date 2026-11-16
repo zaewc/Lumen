@@ -39,6 +39,8 @@ mod keychain;
 #[cfg(target_os = "macos")]
 mod launchd;
 #[cfg(target_os = "macos")]
+pub mod management;
+#[cfg(target_os = "macos")]
 pub mod metadata;
 #[cfg(target_os = "macos")]
 mod probe;
