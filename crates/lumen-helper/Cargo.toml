@@ -15,6 +15,7 @@ path = "src/main.rs"
 [dependencies]
 # The protocol and its decisions, IO-free (ADR-0063 rule 5).
 lumen-application.workspace = true
+lumen-domain.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # The XPC listener with the peer code-signing requirement (ADR-0063 rule 4).

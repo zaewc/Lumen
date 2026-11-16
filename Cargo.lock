@@ -2534,6 +2534,7 @@ version = "0.12.0"
 dependencies = [
  "libc",
  "lumen-application",
+ "lumen-domain",
  "lumen-platform-macos",
 ]
 
