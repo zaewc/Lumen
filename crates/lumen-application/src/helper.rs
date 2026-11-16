@@ -9,6 +9,8 @@
 //! [`answer`] is the whole decision, free of IO, so it is tested without
 //! privileges in fixtures (ADR-0063 rule 9).
 
+pub mod gate;
+
 use serde::{Deserialize, Serialize};
 
 /// The protocol version; a client and helper that differ set the helper up
