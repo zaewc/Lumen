@@ -15,6 +15,13 @@ function row(id: string, extra: Partial<SoftwareItemView> = {}): SoftwareItemVie
     hidden: false,
     explicit: null,
     services: [],
+    facts: {
+      mechanism: null,
+      installed_by: null,
+      needs_administrator: false,
+      needs: null,
+      needed_by: null,
+    },
     ai_note: null,
     size: null,
     relations: [],
