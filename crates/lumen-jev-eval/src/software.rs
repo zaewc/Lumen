@@ -17,8 +17,8 @@ use std::time::Duration;
 
 use lumen_application::ports::{Answer, JudgeError, SoftwareExplainer, SoftwareNoteFuture};
 use lumen_domain::{
-    JudgeDescriptor, JudgmentConfidence, PayloadHash, RemovalImpact, ServiceKind, SoftwareFacts,
-    SoftwareNote, SoftwareOrigin, SoftwarePurpose, SoftwareRequest, SoftwareService,
+    JudgeDescriptor, JudgmentConfidence, PayloadHash, RemovalFacts, RemovalImpact, ServiceKind,
+    SoftwareFacts, SoftwareNote, SoftwareOrigin, SoftwarePurpose, SoftwareRequest, SoftwareService,
 };
 use lumen_jev::software::{SOFTWARE_PROMPT_VERSION, software_note_for};
 use serde::{Deserialize, Serialize};
@@ -451,7 +451,10 @@ pub fn run_software(
                 .removal_impact
                 .contains(&RemovalImpact::OnlyThisApp)
             && o.note.is_some_and(|n| {
-                let shown = n.guarded(c.protected);
+                let shown = n.guarded(&RemovalFacts {
+                    protected: c.protected,
+                    ..RemovalFacts::default()
+                });
                 shown.shown() && shown.removal_impact == RemovalImpact::OnlyThisApp
             })
     });

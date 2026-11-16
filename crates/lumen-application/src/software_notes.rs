@@ -14,7 +14,7 @@
 //! `jev.software-note/2`), accepted or not.
 
 use lumen_domain::{
-    EvidenceHash, JevEffect, JevTrace, JudgeDescriptor, SchemaVersion, SoftwareNote,
+    EvidenceHash, JevEffect, JevTrace, JudgeDescriptor, RemovalFacts, SchemaVersion, SoftwareNote,
     SoftwareRequest, TraceValidation,
 };
 
@@ -97,9 +97,14 @@ pub async fn explain<K: Clone>(
         );
         let (validation, note) = match answer.result {
             // Answers that contradict what is known become unknown (guard).
+            // The caller guards again with Lumen's fuller facts when it shows
+            // the note; here only what was sent is known.
             Ok(note) => (
                 TraceValidation::Accepted,
-                Some(note.guarded(subject.request.protected())),
+                Some(note.guarded(&RemovalFacts {
+                    protected: subject.request.protected(),
+                    ..RemovalFacts::default()
+                })),
             ),
             Err(JudgeError::Rejected(reason)) => (TraceValidation::Rejected(reason), None),
             Err(_) => (TraceValidation::Unavailable, None),
