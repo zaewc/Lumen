@@ -23,6 +23,42 @@ pub fn found_installed(bundle_id: &str) -> Result<Vec<PathBuf>, InspectionError>
     )
 }
 
+/// Where Spotlight finds any bundle whose identifier is `prefix`, its first
+/// label alone, or starts with `prefix.`, compared without case, on every
+/// indexed volume: apps, helpers and system extensions alike. ADR-0068 rule
+/// 1.3 asks it about an app's vendor part, so the app's own ID, its
+/// extensions, its parents and its siblings all count. Empty says only that
+/// Spotlight found none.
+///
+/// # Errors
+///
+/// The identifier is not a plain bundle identifier, or the query failed.
+pub fn found_related(prefix: &str) -> Result<Vec<PathBuf>, InspectionError> {
+    related_with(
+        &mut crate::inspection::Program::system("/usr/bin/mdfind")?,
+        prefix,
+    )
+}
+
+fn related_with(
+    commands: &mut impl Commands,
+    prefix: &str,
+) -> Result<Vec<PathBuf>, InspectionError> {
+    if !plain_bundle_id(prefix) {
+        return Err(InspectionError::Format("bundle identifier"));
+    }
+    let first = prefix.split('.').next().unwrap_or(prefix);
+    let query = format!(
+        "kMDItemCFBundleIdentifier == \"{prefix}\"c || kMDItemCFBundleIdentifier == \"{first}\"c || kMDItemCFBundleIdentifier == \"{prefix}.*\"c"
+    );
+    let out = commands.query(&["-0", &query])?;
+    Ok(out
+        .split('\0')
+        .filter(|path| path.starts_with('/'))
+        .map(PathBuf::from)
+        .collect())
+}
+
 /// A bundle identifier as Apple allows it (letters, digits, `.` and `-`), so
 /// it can stand in a Spotlight query without changing the query.
 fn plain_bundle_id(id: &str) -> bool {
@@ -106,6 +142,34 @@ mod tests {
             found_with(&mut fake(Ok("")), "com.example.Chat")?,
             Vec::<PathBuf>::new()
         );
+        Ok(())
+    }
+
+    #[test]
+    fn related_bundles_of_any_kind_count_and_hostile_ids_never_run() -> Result<(), InspectionError>
+    {
+        let mut spotlight = fake(Ok(
+            "/Library/SystemExtensions/1/net.example.vpn.network-extension.systemextension\0\0",
+        ));
+        assert_eq!(
+            related_with(&mut spotlight, "net.example")?,
+            [PathBuf::from(
+                "/Library/SystemExtensions/1/net.example.vpn.network-extension.systemextension"
+            )]
+        );
+        assert_eq!(
+            spotlight.asked,
+            [[
+                "-0",
+                "kMDItemCFBundleIdentifier == \"net.example\"c || kMDItemCFBundleIdentifier == \"net\"c || kMDItemCFBundleIdentifier == \"net.example.*\"c"
+            ]]
+        );
+        for hostile in ["", "net.x\" || kMDItemFSName == \"*", "net x", "net.*"] {
+            let mut never = fake(Ok("/Applications/X.app"));
+            assert!(related_with(&mut never, hostile).is_err(), "{hostile:?}");
+            assert!(never.asked.is_empty(), "nothing runs for {hostile:?}");
+        }
+        assert!(related_with(&mut fake(Err("failed")), "net.example.vpn").is_err());
         Ok(())
     }
 }

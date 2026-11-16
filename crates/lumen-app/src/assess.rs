@@ -155,6 +155,12 @@ struct PlatformMarkers {
     /// Apps' `Caches` folders that hold a browser profile.
     #[cfg(target_os = "macos")]
     web_profiles: lumen_platform_macos::web_profile::WebProfiles,
+    /// Names in `~/Library` that may belong to a removed app (ADR-0068).
+    #[cfg(target_os = "macos")]
+    removed: lumen_platform_macos::removed::RemovedApps,
+    /// The removed apps whose data is linked: [`claim_removed_apps`].
+    #[cfg(target_os = "macos")]
+    claimed: BTreeSet<lumen_domain::AppId>,
 }
 
 #[cfg(target_os = "macos")]
@@ -165,7 +171,54 @@ fn add_platform_markers(
 ) {
     if let Some(home) = home {
         markers.web_profiles.add(home, entries);
+        markers.removed.add(home, entries);
     }
+}
+
+/// After pass 1: the removed apps whose data pass 2 links (ADR-0068). None
+/// unless every inventory was read completely, since only then can the
+/// owner's absence be stated and the data reviewed rather than decided as an
+/// installed app's. Each candidate is claimed only when `spotlight`, asked
+/// about its vendor part (the first two labels), answers that no bundle of
+/// that vendor is installed anywhere it sees (`Some(false)`); an unanswered
+/// lookup claims nothing. Every candidate is looked up; Spotlight only vetoes.
+#[cfg(target_os = "macos")]
+fn claim_removed_apps(
+    markers: &mut PlatformMarkers,
+    inventory: &PlatformInventory,
+    spotlight: &mut dyn FnMut(&str) -> Option<bool>,
+) {
+    let complete = !inventory.reports.is_empty()
+        && inventory
+            .reports
+            .iter()
+            .all(|r| r.status == lumen_domain::SourceStatus::Complete);
+    markers.claimed = if complete {
+        markers
+            .removed
+            .candidates(&inventory.apps)
+            .into_iter()
+            .filter(|id| {
+                let raw = id.value.raw();
+                let vendor = raw
+                    .match_indices('.')
+                    .nth(1)
+                    .map_or(raw, |(end, _)| &raw[..end]);
+                spotlight(vendor) == Some(false)
+            })
+            .collect()
+    } else {
+        BTreeSet::new()
+    };
+}
+
+/// Whether Spotlight finds a bundle whose ID is `vendor` or starts with it;
+/// `None` if it could not answer.
+#[cfg(target_os = "macos")]
+fn spotlight_related(vendor: &str) -> Option<bool> {
+    crate::usage::found_related(vendor)
+        .ok()
+        .map(|found| !found.is_empty())
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -208,6 +261,7 @@ fn platform_contributions(
     home: Option<&RawPath>,
     times: (lumen_domain::Timestamp, lumen_domain::Timestamp),
 ) -> Contributions {
+    use lumen_platform_macos::removed::link_removed_app_locations;
     use lumen_platform_macos::support::link_support_locations;
     let (scanned_at, now) = times;
     let mut contributions = Contributions::default();
@@ -219,6 +273,12 @@ fn platform_contributions(
         }
         let usage = usage_evidence(&inventory.apps, &contributions.evidence, now);
         contributions.evidence.extend(usage);
+        // After usage: Spotlight already answered for these owners.
+        for link in link_removed_app_locations(home, &markers.claimed, entries, now) {
+            contributions.evidence.push(link.evidence);
+            contributions.evidence.push(link.location);
+            contributions.relationships.push(link.relationship);
+        }
         // Derived from the scan alone, so dated by it.
         contributions
             .evidence
@@ -663,6 +723,8 @@ fn find(
         completed = completed.saturating_add(u64::try_from(page.len()).unwrap_or(u64::MAX));
         report(progress, AssessStage::Markers, completed, total);
     })?;
+    #[cfg(target_os = "macos")]
+    claim_removed_apps(&mut platform_markers, inventory, &mut spotlight_related);
     let mut found = Found {
         evidence: Vec::new(),
         relationships: Vec::new(),
@@ -1785,6 +1847,26 @@ mod tests {
         gathered: &lumen_application::gather::Gathered,
         found: &[FilesystemEntry],
     ) -> Result<Vec<Decided>, Box<dyn std::error::Error>> {
+        let context = Context {
+            platform: Platform::Linux,
+            home: RawPath::from_unix_bytes(b"/home/t".to_vec()).ok(),
+            windows_dir: None,
+            local_app_data: None,
+            mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
+            complete_sources: BTreeSet::new(),
+            single_user: false,
+        };
+        decided_with(entries, gathered, found, &context)
+    }
+
+    /// Every candidate in `gathered`, decided by the policy in `context` with
+    /// nothing in use and every directory fully listed.
+    fn decided_with(
+        entries: &[FilesystemEntry],
+        gathered: &lumen_application::gather::Gathered,
+        found: &[FilesystemEntry],
+        context: &Context,
+    ) -> Result<Vec<Decided>, Box<dyn std::error::Error>> {
         let mut graph = lumen_graph::Graph::new();
         for relationship in &gathered.relationships {
             graph.add(relationship.clone())?;
@@ -1798,15 +1880,6 @@ mod tests {
             .filter(|e| e.kind == EntryKind::Directory)
             .map(|e| (e.path.clone(), listed))
             .collect();
-        let context = Context {
-            platform: Platform::Linux,
-            home: RawPath::from_unix_bytes(b"/home/t".to_vec()).ok(),
-            windows_dir: None,
-            local_app_data: None,
-            mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
-            complete_sources: BTreeSet::new(),
-            single_user: false,
-        };
         let knowledge = KnowledgeBase::builtin()?.knowledge();
         let index = lumen_application::gather::EvidenceIndex::new(gathered);
         let sources = Sources {
@@ -1815,7 +1888,7 @@ mod tests {
             index: &index,
             scanned: entries,
             listings: &listings,
-            context: &context,
+            context,
             knowledge: &knowledge,
             store_volumes: None,
         };
@@ -1843,6 +1916,189 @@ mod tests {
                 Ok((candidate.path.display(), decision.verdict(), rules))
             })
             .collect()
+    }
+
+    #[cfg(target_os = "macos")]
+    fn app_report(status: lumen_domain::SourceStatus, ids: &[&str]) -> InventoryReport {
+        InventoryReport {
+            source: SourceName::new("macos.applications").unwrap_or_else(|e| unreachable!("{e}")),
+            status,
+            applications: ids
+                .iter()
+                .map(|id| lumen_domain::Application {
+                    ids: BTreeSet::from([lumen_domain::AppId {
+                        scheme: lumen_domain::AppIdScheme::BundleId,
+                        value: lumen_domain::UntrustedText::new(*id),
+                    }]),
+                    name: None,
+                    version: None,
+                    vendor: None,
+                    signature: None,
+                    install_locations: Vec::new(),
+                    sources: BTreeSet::new(),
+                    uninstall: None,
+                })
+                .collect(),
+            services: Vec::new(),
+            packages: Vec::new(),
+        }
+    }
+
+    /// A removed app's data, as pass 1 notes it on a Mac with `home` `/Users/ana`.
+    #[cfg(target_os = "macos")]
+    fn removed_app_entries() -> Vec<FilesystemEntry> {
+        vec![
+            scanned("/Users/ana/Library/Containers/net.example.Notes", 1, 0),
+            scanned(
+                "/Users/ana/Library/Containers/net.example.Notes/Data",
+                2,
+                300_000_000,
+            ),
+            scanned("/Users/ana/Library/Caches/net.example.Notes", 3, 0),
+            scanned(
+                "/Users/ana/Library/Caches/net.example.Notes/Cache.db",
+                4,
+                200_000_000,
+            ),
+            scanned(
+                "/Users/ana/Library/Preferences/net.example.Notes.plist",
+                5,
+                4_096,
+            ),
+            scanned("/Users/ana/Library/Caches/com.segment.storage.abc", 6, 0),
+        ]
+    }
+
+    #[cfg(target_os = "macos")]
+    fn markers_for(entries: &[FilesystemEntry]) -> PlatformMarkers {
+        let mut markers = PlatformMarkers::default();
+        let home = RawPath::from_unix_bytes(b"/Users/ana".to_vec()).ok();
+        add_platform_markers(&mut markers, entries, home.as_ref());
+        markers
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn removed_apps_are_claimed_only_from_complete_inventories_and_spotlight_silence() {
+        use lumen_domain::SourceStatus;
+        let entries = [
+            scanned("/Users/ana/Library/Containers/net.example.Notes", 1, 0),
+            scanned("/Users/ana/Library/Containers/org.vendor.Vpn", 2, 0),
+            scanned("/Users/ana/Library/Containers/io.other.Unasked", 3, 0),
+        ];
+        let inventory = |status| PlatformInventory {
+            reports: vec![app_report(status, &["com.other.App"])],
+            apps: Vec::new(),
+        };
+        let mut asked = Vec::new();
+        let mut spotlight = |id: &str| {
+            asked.push(id.to_owned());
+            match id {
+                "net.example" => Some(false),
+                "org.vendor" => Some(true),
+                _ => None,
+            }
+        };
+        let mut markers = markers_for(&entries);
+        claim_removed_apps(
+            &mut markers,
+            &inventory(SourceStatus::Partial),
+            &mut spotlight,
+        );
+        assert!(markers.claimed.is_empty());
+        claim_removed_apps(
+            &mut markers,
+            &inventory(SourceStatus::Complete),
+            &mut spotlight,
+        );
+        assert_eq!(
+            markers
+                .claimed
+                .iter()
+                .map(|id| id.value.raw())
+                .collect::<Vec<_>>(),
+            ["net.example.Notes"],
+            "found related, or not answered: not claimed"
+        );
+        assert_eq!(
+            asked,
+            ["io.other", "net.example", "org.vendor"],
+            "every candidate's vendor is looked up, only when complete"
+        );
+    }
+
+    /// End to end on a Mac: a removed app's data is linked, its absence comes
+    /// from the complete inventory, and the policy reviews every item as an
+    /// orphan, its cache included; a name without a container stays unknown.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn a_removed_apps_data_is_reviewed_as_orphaned() -> Result<(), Box<dyn std::error::Error>> {
+        let entries = removed_app_entries();
+        let reports = vec![app_report(
+            lumen_domain::SourceStatus::Complete,
+            &["com.other.App"],
+        )];
+        let inventory = PlatformInventory {
+            reports: reports.clone(),
+            apps: reports
+                .iter()
+                .flat_map(|r| r.applications.clone())
+                .collect(),
+        };
+        let mut markers = markers_for(&entries);
+        claim_removed_apps(&mut markers, &inventory, &mut |_| Some(false));
+        let home = RawPath::from_unix_bytes(b"/Users/ana".to_vec()).ok();
+        let produced = platform_contributions(
+            &PlatformInventory {
+                reports: Vec::new(),
+                apps: Vec::new(),
+            },
+            &markers,
+            &entries,
+            home.as_ref(),
+            (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
+        );
+        let mut domains = ScanDomains::new();
+        domains.add(&entries);
+        let summary = summarize(&reports);
+        let gathered = gather(
+            &entries,
+            &domains,
+            &summary,
+            produced.evidence,
+            produced.relationships,
+            Timestamp::UNIX_EPOCH,
+            Timestamp::UNIX_EPOCH,
+        );
+        let context = Context {
+            platform: Platform::Macos,
+            home,
+            windows_dir: None,
+            local_app_data: None,
+            mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
+            complete_sources: summary.complete_sources.clone(),
+            single_user: false,
+        };
+        let mut decided = decided_with(&entries, &gathered, &entries, &context)?;
+        decided.sort();
+        let paths: Vec<&str> = decided.iter().map(|(p, _, _)| p.as_str()).collect();
+        assert_eq!(
+            paths,
+            [
+                "/Users/ana/Library/Caches/net.example.Notes",
+                "/Users/ana/Library/Containers/net.example.Notes",
+                "/Users/ana/Library/Preferences/net.example.Notes.plist",
+            ],
+            "{decided:?}"
+        );
+        for (path, verdict, rules) in &decided {
+            assert_eq!(*verdict, Verdict::Review, "{path}: {rules:?}");
+            assert!(
+                rules.iter().any(|r| r == "classify.orphan"),
+                "{path}: {rules:?}"
+            );
+        }
+        Ok(())
     }
 
     /// A known cache with a browser profile somewhere inside it, and a cache
