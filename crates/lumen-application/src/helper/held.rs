@@ -6,8 +6,9 @@
 //! caller's root-owned store when it was quarantined), never on a path or an
 //! executor record from the request:
 //!
-//! 1. The request must name the helper's own [`PROTOCOL`], and the caller
-//!    (from the connection) must be an administrator.
+//! 1. The request must name the helper's own [`PROTOCOL`]. The caller is
+//!    any account but root, from the connection (ADR-0063 as amended
+//!    2026-11-16).
 //! 2. The record must be in the caller's store, readable, of this helper's
 //!    form, for this caller and this operation. Otherwise the helper holds
 //!    nothing for them under that operation, and does nothing.
@@ -142,11 +143,6 @@ fn admitted(
     if request.protocol != PROTOCOL {
         return Err(HelperResponse::Refused {
             reason: HelperRefusal::OtherProtocol,
-        });
-    }
-    if host.administrator(caller) != Some(true) {
-        return Err(HelperResponse::Refused {
-            reason: HelperRefusal::NotAdministrator,
         });
     }
     record(host, caller, request.operation)
@@ -330,19 +326,8 @@ mod tests {
     }
 
     #[test]
-    fn another_protocol_or_a_non_administrator_is_refused_before_reading() {
+    fn another_protocol_or_a_root_caller_is_refused_before_reading() {
         for verb in VERBS {
-            let host = Host {
-                admin: Some(false),
-                ..holding()
-            };
-            assert_eq!(
-                ask(&host, verb),
-                Some(HelperResponse::Refused {
-                    reason: HelperRefusal::NotAdministrator
-                })
-            );
-            assert_eq!(host.calls(), [Call::Administrator(CALLER)]);
             let host = holding();
             let body = encode(&verb(HeldRequest {
                 protocol: PROTOCOL - 1,

@@ -2,7 +2,8 @@
 
 - Status: Accepted (owner decisions, 2026-11-08); amended by
   [ADR-0067](0067-set-up-the-helper-and-full-disk-access-on-first-launch.md) (offered on
-  first launch)
+  first launch); rule 4 amended 2026-11-16 (any account may use the helper once it is
+  set up)
 - Date: 2026-11-08
 - Amends:
   - [ADR-0005](0005-process-topology-and-privilege.md): the opt-in privileged
@@ -134,6 +135,24 @@ there is no new destructive code.
 **Never from the request:** the target user is never read from a field in the request,
 nor from the helper's own `HOME`, `HKCU` or `%TEMP%`.
 
+**Any account (amended 2026-11-16, owner decision).** Once an administrator has set
+the helper up, any account on the computer may use it, not only administrators; only
+root is refused. Nothing else in this ADR changes for it:
+- every item goes into the caller's own store, keyed by the user ID (or SID) from the
+  connection, and only that account can restore or finalize it;
+- the personal folders of other accounts stay untouched, and every protection in
+  rule 1 still applies;
+- the helper still re-decides everything on fresh evidence and acts by handle (rule 5);
+- on Windows (16.3f–g), the pipe's DACL therefore admits the computer's interactive
+  accounts, not only the one that installed the helper; the caller's SID still comes
+  from impersonation, never from the request.
+
+So a standard account can move an app that another account owns, such as one an
+administrator installed in `/Applications`, into its own quarantine, where it can be
+restored. The draft had required the caller to be an administrator, as the Finder
+does. The owner chose otherwise, because permissions must not make cleanup awkward
+(the goal of this ADR) and the move stays reversible.
+
 ### 5. What it accepts
 
 Only items of a plan the person confirmed by hash (ADR-0034), never a free path from
@@ -229,6 +248,10 @@ release. So Windows uses **Lumen's own code key**:
   prompts after the first.
 - Good: the helper is opt-in and narrow: a few verbs, one caller, and everything
   re-checked with full rights.
+- Bad (amended 2026-11-16): any account on the computer can move an app another
+  account owns into its own quarantine. The app stays restorable, but until then it
+  is gone for every account. A shared computer's administrator can turn the helper
+  off in Settings.
 - Bad: Lumen ships a component that runs as root or SYSTEM, a standing attack surface
   while it is installed. A bug in its checks could move something it should not; the
   rules above and the shared executor are the defence, and quarantine stays

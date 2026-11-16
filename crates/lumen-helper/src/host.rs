@@ -60,8 +60,6 @@ pub(crate) struct Mac {
     pub(crate) applications: PathBuf,
     /// The folder the stores are created in.
     pub(crate) store_base: PathBuf,
-    /// Whether an account is an administrator.
-    pub(crate) administrator: fn(u32) -> Option<bool>,
     /// An account's home folder.
     pub(crate) home: fn(u32) -> Option<PathBuf>,
     /// The background items of the system and of the account with this home.
@@ -129,7 +127,6 @@ impl Mac {
         Self {
             applications: PathBuf::from(OsStr::from_bytes(APPLICATIONS)),
             store_base: PathBuf::from(STORE_BASE),
-            administrator: accounts::administrator,
             home: accounts::home,
             services: |home| {
                 LaunchdInventory::for_home(Some(home))
@@ -192,10 +189,6 @@ impl Mac {
 }
 
 impl HelperHost for Mac {
-    fn administrator(&self, uid: u32) -> Option<bool> {
-        (self.administrator)(uid)
-    }
-
     fn observe(&self, caller: u32, path: &RawPath) -> HelperEvidence {
         let native = self.native(path);
         let meta = native
@@ -369,7 +362,7 @@ mod tests {
         std::fs::metadata(std::env::temp_dir()).map_or(0, |m| m.uid())
     }
 
-    /// An administrator who is not the fixture's owner.
+    /// An account that is not the fixture's owner.
     fn caller() -> u32 {
         me().wrapping_add(1)
     }
@@ -403,7 +396,6 @@ mod tests {
         let mac = Mac {
             applications: root.join("Applications"),
             store_base: root.join("Support"),
-            administrator: |_| Some(true),
             home: |_| Some(PathBuf::from("/var/empty")),
             services: |_| InventoryReport {
                 source: SourceName::new("test").unwrap_or_else(|_| unreachable!()),

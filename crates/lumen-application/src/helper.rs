@@ -89,10 +89,6 @@ pub enum HelperRefusal {
     /// The request names another protocol than the helper's; set the helper
     /// up again.
     OtherProtocol,
-    /// The caller is not an administrator, or that could not be read. Moving
-    /// an app another account owns needs an administrator, as it does in the
-    /// Finder.
-    NotAdministrator,
 }
 
 /// The helper's answer.
