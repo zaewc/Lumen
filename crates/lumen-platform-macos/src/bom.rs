@@ -229,14 +229,15 @@ fn check_chains(entries: &HashMap<u32, Entry<'_>>) -> Result<(), BomError> {
 /// Paths are relative to the package's install prefix, without `./`, sorted.
 /// An empty path is the prefix itself, for a package whose prefix is its
 /// bundle (`Applications/Tailscale.app`) and which records `./Contents/Info.plist`;
-/// the caller checks that the prefix is a bundle. A directory alone is never
-/// enough: packages share directories.
+/// the top is a candidate only where the caller says the prefix is a bundle
+/// (`top_is_bundle`), so a folder prefix never hides the bundles inside it.
+/// A directory alone is never enough: packages share directories.
 ///
 /// # Errors
 ///
 /// [`BomError`] if the file is not a bill of materials this reader
 /// understands.
-pub fn bundles(bom: &[u8]) -> Result<Vec<Vec<u8>>, BomError> {
+pub fn bundles(bom: &[u8], top_is_bundle: bool) -> Result<Vec<Vec<u8>>, BomError> {
     let entries = Store::open(bom)?.entries()?;
     check_chains(&entries)?;
     let is_dir = |id: u32, name: &dyn Fn(&[u8]) -> bool| {
@@ -252,7 +253,7 @@ pub fn bundles(bom: &[u8]) -> Result<Vec<Vec<u8>>, BomError> {
         .filter(|&bundle| {
             let top = entries.get(&bundle).is_some_and(|e| e.parent == 0);
             is_dir(bundle, &|name| {
-                (top && name == b".")
+                (top && top_is_bundle && name == b".")
                     || (name.len() > 4 && name[name.len() - 4..].eq_ignore_ascii_case(b".app"))
             })
         })
@@ -393,7 +394,7 @@ pub(crate) mod tests {
             (15, 14, "Info.plist", FILE),
         ]);
         assert_eq!(
-            bundles(&bom),
+            bundles(&bom, false),
             Ok(vec![b"Foo.app".to_vec(), b"Sub/Bar.APP".to_vec()])
         );
     }
@@ -408,7 +409,12 @@ pub(crate) mod tests {
             (5, 4, "Contents", DIR),
             (6, 5, "Info.plist", FILE),
         ]);
-        assert_eq!(bundles(&bom), Ok(vec![Vec::new()]));
+        assert_eq!(bundles(&bom, true), Ok(vec![Vec::new()]));
+        // Under a folder prefix the top is no bundle and hides nothing.
+        assert_eq!(
+            bundles(&bom, false),
+            Ok(vec![b"Contents/Helper.app".to_vec()])
+        );
     }
 
     #[test]
@@ -419,7 +425,7 @@ pub(crate) mod tests {
             (3, 2, "Contents", DIR),
             (4, 3, "Info.plist", 3),
         ]);
-        assert_eq!(bundles(&bom), Ok(Vec::new()));
+        assert_eq!(bundles(&bom, false), Ok(Vec::new()));
     }
 
     #[test]
@@ -430,13 +436,16 @@ pub(crate) mod tests {
             (3, 2, "Contents", DIR),
             (4, 3, "Info.plist", FILE),
         ]);
-        assert!(bundles(b"not a bom").is_err());
-        assert!(bundles(&good[..good.len() / 2]).is_err());
+        assert!(bundles(b"not a bom", false).is_err());
+        assert!(bundles(&good[..good.len() / 2], false).is_err());
         let mut wrong_version = good.clone();
         wrong_version[11] = 2;
-        assert!(bundles(&wrong_version).is_err());
+        assert!(bundles(&wrong_version, false).is_err());
         let duplicate = build(&[(1, 0, ".", DIR), (1, 0, "x", DIR)]);
-        assert_eq!(bundles(&duplicate), Err(BomError("two paths share an ID")));
+        assert_eq!(
+            bundles(&duplicate, false),
+            Err(BomError("two paths share an ID"))
+        );
     }
 
     proptest::proptest! {
@@ -463,7 +472,7 @@ pub(crate) mod tests {
             }
             let length = cut.index(bom.len() + 1);
             // Either outcome is fine; reaching here is the property.
-            drop(bundles(&bom[..length]));
+            drop(bundles(&bom[..length], true));
         }
     }
 
@@ -479,7 +488,7 @@ pub(crate) mod tests {
             (7, 6, "Info.plist", FILE),
         ]);
         assert_eq!(
-            bundles(&orphan),
+            bundles(&orphan, false),
             Err(BomError("a path's parent is not recorded"))
         );
         // One step past the limit fails whichever path is checked first.
@@ -492,13 +501,13 @@ pub(crate) mod tests {
             .map(|(id, parent, name)| (*id, *parent, name.as_str(), DIR))
             .collect();
         assert_eq!(
-            bundles(&build(&deep)),
+            bundles(&build(&deep), false),
             Err(BomError("a path is too deep or loops"))
         );
-        assert!(bundles(&build(&deep[..MAX_DEPTH])).is_ok());
+        assert!(bundles(&build(&deep[..MAX_DEPTH]), false).is_ok());
         let looped = build(&[(2, 3, "Foo.app", DIR), (3, 2, "Contents", DIR)]);
         assert_eq!(
-            bundles(&looped),
+            bundles(&looped, false),
             Err(BomError("a path is too deep or loops"))
         );
     }
@@ -511,7 +520,7 @@ pub(crate) mod tests {
             (2, 0, "Contents", DIR),
             (3, 2, "Info.plist", FILE),
         ]);
-        assert_eq!(bundles(&zero), Err(BomError("a path has ID zero")));
+        assert_eq!(bundles(&zero, false), Err(BomError("a path has ID zero")));
         let mut cut = build(&[
             (1, 0, ".", DIR),
             (2, 1, "Foo.app", DIR),
@@ -531,6 +540,9 @@ pub(crate) mod tests {
             })
             .unwrap_or_else(|| unreachable!());
         cut[entry + 4..entry + 8].copy_from_slice(&14u32.to_be_bytes());
-        assert_eq!(bundles(&cut), Err(BomError("a name has no terminator")));
+        assert_eq!(
+            bundles(&cut, false),
+            Err(BomError("a name has no terminator"))
+        );
     }
 }
