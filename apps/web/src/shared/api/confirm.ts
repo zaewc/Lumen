@@ -24,6 +24,14 @@ export const zHostAsk = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("uninstall"), items: z.array(zItem) }),
   z.object({ kind: z.literal("finalize"), item: zItem, chosen: z.boolean() }),
+  z.object({
+    kind: z.literal("finalize_many"),
+    count: z.number().int().positive(),
+    total_bytes: z.string(),
+    exact: z.boolean(),
+    items: zListed,
+    chosen: z.number().int().nonnegative(),
+  }),
   z.object({ kind: z.literal("tool"), tool: z.string(), command: z.string(), targets: zListed }),
 ]);
 

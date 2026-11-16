@@ -12,8 +12,10 @@
 //! can neither see nor answer it. Closing the window, Escape or Cancel is a
 //! refusal that changed nothing.
 
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError, mpsc};
+use std::time::{Duration, Instant};
 
 use lumen_app::SystemClock;
 use lumen_application::ports::Clock as _;
@@ -84,6 +86,17 @@ pub(crate) enum Ask {
     Uninstall { items: Vec<AskItem> },
     /// Removing a held item for good.
     Finalize { item: AskItem, chosen: bool },
+    /// Removing several held items for good, confirmed once for all of them.
+    FinalizeMany {
+        count: usize,
+        /// What the items with a known size free together (bytes).
+        total_bytes: String,
+        /// Whether every item's size is known, so the total is exact.
+        exact: bool,
+        items: Listed,
+        /// How many of them the person chose themselves (ADR-0051).
+        chosen: usize,
+    },
     /// Running a tool's own command, which cannot be undone (ADR-0049).
     Tool {
         tool: String,
@@ -284,6 +297,93 @@ pub(crate) fn finalize(
     )
 }
 
+/// Confirms removing the held items `operations` for good in one question,
+/// naming where each was. Nothing is changed here; the caller grants the
+/// confirmed operations to [`Approved`].
+pub(crate) fn finalize_many(
+    db: &Path,
+    operations: &[OperationId],
+    prompt: &Prompt,
+) -> Result<(), CommandError> {
+    if operations.is_empty() {
+        return Err(CommandError::new("nothing to remove; nothing was changed"));
+    }
+    let mut items = Vec::with_capacity(operations.len());
+    let mut total: u64 = 0;
+    let mut exact = true;
+    let mut chosen = 0;
+    for &operation in operations {
+        let held = lumen_app::held::get(db, operation).map_err(CommandError::new)?;
+        let original = held.original.ok_or_else(|| {
+            CommandError::new("where an item was is unknown; nothing was changed")
+        })?;
+        let path = lumen_app::raw_path(&original).map_err(CommandError::new)?;
+        let bytes = held.reclaim.map(lumen_domain::ByteCount::get);
+        match bytes {
+            Some(bytes) => total = total.saturating_add(bytes),
+            None => exact = false,
+        }
+        if held.chosen_by == Some(Chooser::Person) {
+            chosen += 1;
+        }
+        items.push(item(&path, bytes));
+    }
+    ask(
+        prompt,
+        &Ask::FinalizeMany {
+            count: items.len(),
+            total_bytes: total.to_string(),
+            exact,
+            items: Listed::of(items),
+            chosen,
+        },
+    )
+}
+
+/// How long a confirmation of several removals stays usable. Removing them
+/// one by one starts right after the person confirms; an item not reached by
+/// then is asked about again on its own.
+const APPROVAL_LIFETIME: Duration = Duration::from_secs(15 * 60);
+
+/// Held items the person confirmed removing for good in one question
+/// ([`finalize_many`]), so `finalize` does not ask about each again. Only
+/// the operations the host listed in that question, each once, and only for
+/// [`APPROVAL_LIFETIME`]; a new question replaces the last one's.
+#[derive(Debug, Default)]
+pub(crate) struct Approved {
+    granted: Mutex<Option<(BTreeSet<OperationId>, Instant)>>,
+}
+
+impl Approved {
+    /// Forgets every approval, before a new question is asked.
+    pub(crate) fn clear(&self) {
+        *self.granted.lock().unwrap_or_else(PoisonError::into_inner) = None;
+    }
+
+    /// Approves `operations`, which the person just confirmed.
+    pub(crate) fn grant(&self, operations: impl IntoIterator<Item = OperationId>) {
+        *self.granted.lock().unwrap_or_else(PoisonError::into_inner) =
+            Some((operations.into_iter().collect(), Instant::now()));
+    }
+
+    /// Whether `operation` was approved and still is; uses the approval up.
+    pub(crate) fn take(&self, operation: OperationId) -> bool {
+        self.take_at(operation, Instant::now())
+    }
+
+    fn take_at(&self, operation: OperationId, now: Instant) -> bool {
+        let mut granted = self.granted.lock().unwrap_or_else(PoisonError::into_inner);
+        let Some((operations, at)) = granted.as_mut() else {
+            return false;
+        };
+        if now.saturating_duration_since(*at) > APPROVAL_LIFETIME {
+            *granted = None;
+            return false;
+        }
+        operations.remove(&operation)
+    }
+}
+
 /// Confirms running the knowledge base's `command` for `targets`.
 pub(crate) fn tool(
     command: &lumen_app::tools::ToolCommand,
@@ -357,6 +457,53 @@ mod tests {
             "the first answer is the only one"
         );
         assert_eq!(pending.ask(), None);
+    }
+
+    fn op(n: u8) -> OperationId {
+        format!("00000000-0000-0000-0000-0000000000{n:02x}")
+            .parse()
+            .unwrap_or_else(|e| unreachable!("{e:?}"))
+    }
+
+    #[test]
+    fn an_approval_covers_only_the_confirmed_items_once() {
+        let approved = Approved::default();
+        assert!(!approved.take(op(1)), "nothing approved yet");
+        approved.grant([op(1), op(2)]);
+        assert!(approved.take(op(1)));
+        assert!(!approved.take(op(1)), "each approval is used once");
+        assert!(!approved.take(op(3)), "an item not in the question");
+        assert!(approved.take(op(2)));
+    }
+
+    #[test]
+    fn a_new_question_replaces_the_last_approval() {
+        let approved = Approved::default();
+        approved.grant([op(1)]);
+        approved.clear();
+        assert!(!approved.take(op(1)));
+        approved.grant([op(2)]);
+        approved.grant([op(3)]);
+        assert!(!approved.take(op(2)));
+        assert!(approved.take(op(3)));
+    }
+
+    #[test]
+    fn an_approval_expires() {
+        let approved = Approved::default();
+        approved.grant([op(1), op(2)]);
+        let later = Instant::now() + APPROVAL_LIFETIME + Duration::from_secs(1);
+        assert!(!approved.take_at(op(1), later));
+        assert!(
+            !approved.take(op(2)),
+            "an expired approval is forgotten whole"
+        );
+    }
+
+    #[test]
+    fn removing_nothing_asks_nothing() {
+        let asked = |_: &Ask| unreachable!("no question for an empty list");
+        assert!(finalize_many(Path::new("unused.db"), &[], &asked).is_err());
     }
 
     #[test]

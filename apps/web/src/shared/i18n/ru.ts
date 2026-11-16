@@ -507,6 +507,9 @@ export const ru: Messages = {
     finalizeTitle: "Удалить этот элемент окончательно?",
     finalizeNote: "Это нельзя отменить.",
     finalizeChosen: "Этот элемент вы выбрали сами; Lumen его не предлагал.",
+    finalizeManyTitle: (n: number, size: string) => `Удалить ${items(n)} (${size}) окончательно?`,
+    finalizeManyChosen: (n: number) =>
+      `${items(n)} из них вы выбрали сами; Lumen ${n === 1 ? "его" : "их"} не предлагал.`,
     finalizeButton: "Удалить окончательно",
     toolTitle: (tool: string) => `Выполнить команду ${tool}?`,
     toolNote: "Удалённое ею восстановить нельзя.",

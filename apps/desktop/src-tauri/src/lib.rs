@@ -145,6 +145,7 @@ fn app_with_confirmation<R: Runtime>(
             commands::held,
             commands::restore,
             commands::finalize,
+            commands::confirm_finalize,
             commands::ai_settings,
             commands::disk,
             commands::open_full_disk_access,
@@ -215,6 +216,7 @@ fn app_with_confirmation<R: Runtime>(
                 icons: Arc::default(),
                 prompt,
                 pending,
+                approved: Arc::default(),
             });
             let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")

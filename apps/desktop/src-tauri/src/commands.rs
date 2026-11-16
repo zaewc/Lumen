@@ -72,6 +72,9 @@ pub(crate) struct Core {
     pub(crate) prompt: Arc<crate::confirmation::Prompt>,
     /// The question the confirmation window shows, and where its answer goes.
     pub(crate) pending: Arc<crate::confirmation::Pending>,
+    /// Held items the person just confirmed removing together, so each
+    /// `finalize` does not ask again.
+    pub(crate) approved: Arc<crate::confirmation::Approved>,
 }
 
 impl std::fmt::Debug for Core {
@@ -105,6 +108,7 @@ impl std::fmt::Debug for Core {
             .field("icons", &self.icons)
             .field("prompt", &"confirmation window")
             .field("pending", &self.pending.ask().is_some())
+            .field("approved", &self.approved)
             .finish()
     }
 }
@@ -1233,7 +1237,34 @@ pub(crate) async fn restore(
     .await
 }
 
-/// Removes one item for good, only if nothing uses it (ADR-0030).
+/// Asks once, in the host's own window, about removing several held items
+/// for good (FS-1), and lets `finalize` remove exactly those without asking
+/// about each again. Removes nothing itself.
+#[tauri::command]
+pub(crate) async fn confirm_finalize(
+    core: State<'_, Core>,
+    operation_ids: Vec<String>,
+) -> Result<(), CommandError> {
+    let db = core.db.clone();
+    let prompt = Arc::clone(&core.prompt);
+    let approved = Arc::clone(&core.approved);
+    blocking(move || {
+        let mut operations = operation_ids
+            .iter()
+            .map(|id| operation(id))
+            .collect::<Result<Vec<_>, _>>()?;
+        operations.sort_unstable();
+        operations.dedup();
+        approved.clear();
+        crate::confirmation::finalize_many(&db, &operations, &*prompt)?;
+        approved.grant(operations);
+        Ok(())
+    })
+    .await
+}
+
+/// Removes one item for good, only if nothing uses it (ADR-0030). Asks in
+/// the host's own window first, unless `confirm_finalize` just asked about it.
 #[tauri::command]
 pub(crate) async fn finalize(
     core: State<'_, Core>,
@@ -1241,11 +1272,14 @@ pub(crate) async fn finalize(
 ) -> Result<FinalizeOutcomeView, CommandError> {
     let db = core.db.clone();
     let prompt = Arc::clone(&core.prompt);
+    let approved = Arc::clone(&core.approved);
     let moving = core.activity.moving()?;
     blocking(move || {
         let _moving = moving;
         let operation = operation(&operation_id)?;
-        crate::confirmation::finalize(&db, operation, &*prompt)?;
+        if !approved.take(operation) {
+            crate::confirmation::finalize(&db, operation, &*prompt)?;
+        }
         let outcome =
             lumen_app::held::finalize(&db, operation, &SystemClock).map_err(CommandError::new)?;
         Ok(FinalizeOutcomeView::from(&outcome))

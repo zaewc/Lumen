@@ -498,6 +498,10 @@ export const es: Messages = {
     finalizeTitle: "¿Eliminar este elemento definitivamente?",
     finalizeNote: "No se puede deshacer.",
     finalizeChosen: "Elegiste este elemento tú mismo; Lumen no lo propuso.",
+    finalizeManyTitle: (n: number, size: string) =>
+      `¿Eliminar ${items(n)} (${size}) definitivamente?`,
+    finalizeManyChosen: (n: number) =>
+      `Elegiste ${items(n)} de estos tú mismo; Lumen no ${n === 1 ? "lo" : "los"} propuso.`,
     finalizeButton: "Eliminar definitivamente",
     toolTitle: (tool: string) => `¿Ejecutar el comando de ${tool}?`,
     toolNote: "Lo que elimine no se podrá restaurar.",

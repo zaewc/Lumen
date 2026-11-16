@@ -98,6 +98,9 @@ export function tauriTransport(): LumenTransport {
       zRestoreOutcomeView.parse(await call("restore", { operationId })),
     finalize: async (operationId) =>
       zFinalizeOutcomeView.parse(await call("finalize", { operationId })),
+    confirmFinalize: async (operationIds) => {
+      await call("confirm_finalize", { operationIds: [...operationIds] });
+    },
     aiSettings: async () => zAiSettingsView.parse(await call("ai_settings")),
     disk: async () => zDiskView.parse(await call("disk")),
     openFullDiskAccess: async () => {

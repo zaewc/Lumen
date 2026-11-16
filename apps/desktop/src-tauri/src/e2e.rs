@@ -266,7 +266,18 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
     let Some(second) = cycle() else {
         return;
     };
+    // Declining the question about several items grants nothing: removing
+    // one of them still asks, and declining that removes nothing.
+    ANSWER.store(false, Ordering::SeqCst);
+    EXPECTED.fetch_add(2, Ordering::SeqCst);
+    let ids = json!({ "operationIds": [second] });
+    assert!(invoke(&window, "confirm_finalize", ids.clone()).is_err());
+    assert!(invoke(&window, "finalize", json!({ "operationId": second })).is_err());
+    ANSWER.store(true, Ordering::SeqCst);
+    assert!(item.exists(), "declining removes nothing");
+    // Confirmed once for all of them, each is then removed without asking.
     EXPECTED.fetch_add(1, Ordering::SeqCst);
+    assert_eq!(ok("confirm_finalize", ids), Value::Null);
     let finalized = ok("finalize", json!({ "operationId": second }));
     assert_eq!(finalized["outcome"]["kind"], "finalized", "{finalized}");
     let measured = &finalized["space_change"];
@@ -292,8 +303,10 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
 fn the_desktop_flow_runs_end_to_end() {
     if let Some(home) = std::env::var_os(CHILD) {
         run_app(move |handle| flow(handle, Path::new(&home)));
-        // FS-1: before each execute (declined, then confirmed) and the
-        // finalize the flow reached; 5 when it ran to the end.
+        // FS-1: before each execute (declined, then confirmed), the question
+        // about several removals (declined, then confirmed) and the declined
+        // single removal, but not the removal confirmed with several; 7 when
+        // it ran to the end.
         assert_eq!(
             ASKED.load(Ordering::SeqCst),
             EXPECTED.load(Ordering::SeqCst),

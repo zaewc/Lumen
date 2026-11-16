@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useId, useRef, useState } from "react";
 import { heldTotal, inQuarantine, useHeld } from "@/entities/held";
+import { declined } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { baseName, formatBytes } from "@/shared/lib";
 import {
@@ -191,7 +192,10 @@ export function QuarantinePage() {
           </div>
         </div>
       )}
-      {bulk.status === "error" && <ErrorNotice message={m.held.failed} error={bulk.error} />}
+      {/* Declining in the host's own window changed nothing; not a failure. */}
+      {bulk.status === "error" && !declined(bulk.error) && (
+        <ErrorNotice message={m.held.failed} error={bulk.error} />
+      )}
       {held.isPending && <p className="text-ink-3">{m.common.loading}</p>}
       {held.isError && (
         <ErrorNotice message={m.quarantine.loadFailed} error={held.error}>
