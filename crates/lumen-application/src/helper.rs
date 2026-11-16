@@ -8,19 +8,24 @@
 //! - `status` (roadmap 16.3b): which helper answers, and whom it sees asking;
 //! - `quarantine` (16.3c): move an app another account owns into the
 //!   caller's store, after deciding everything again itself
-//!   ([`quarantine`](mod@quarantine), [`gate`]).
+//!   ([`quarantine`](mod@quarantine), [`gate`]);
+//! - `locate`, `restore` and `finalize` (16.3d): act on an item the helper
+//!   holds for the caller, named by its operation alone, from the helper's own
+//!   record of it ([`held`]).
 //!
 //! [`answer`] is the whole decision. Everything it reads or does on the
 //! computer goes through [`HelperHost`], so it is tested without privileges
 //! (ADR-0063 rule 9).
 //!
-//! Versions: [`PROTOCOL`] 2 added `quarantine`. A client asks `status` first
-//! and sends `quarantine` only to a helper of its own protocol; a helper of
-//! protocol 1 does not know the verb and answers it as malformed. Each
-//! `quarantine` request also names the client's protocol, and a helper of
-//! another refuses it ([`HelperRefusal::OtherProtocol`]).
+//! Versions: [`PROTOCOL`] 2 added `quarantine`, 3 added `locate`, `restore`
+//! and `finalize`. A client asks `status` first and sends the other verbs only
+//! to a helper of its own protocol; an older helper does not know a newer verb
+//! and answers it as malformed. Each request but `status` also names the
+//! client's protocol, and a helper of another refuses it
+//! ([`HelperRefusal::OtherProtocol`]).
 
 pub mod gate;
+pub mod held;
 pub mod quarantine;
 
 use lumen_domain::{
@@ -28,11 +33,12 @@ use lumen_domain::{
 };
 use serde::{Deserialize, Serialize};
 
+pub use held::{FinalizeRefusal, HeldRequest, RestoreRefusal, Whereabouts};
 pub use quarantine::{HELD_SCHEMA, HeldRecord, HelperHost};
 
 /// The protocol version; a client and helper that differ set the helper up
 /// again.
-pub const PROTOCOL: u32 = 2;
+pub const PROTOCOL: u32 = 3;
 
 /// A request to the helper.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -43,6 +49,12 @@ pub enum HelperRequest {
     Status,
     /// Move a planned app another account owns into the caller's store.
     Quarantine(QuarantineRequest),
+    /// Where an item the helper holds for the caller is.
+    Locate(HeldRequest),
+    /// Move an item the helper holds for the caller back to where it was.
+    Restore(HeldRequest),
+    /// Remove an item the helper holds for the caller for good.
+    Finalize(HeldRequest),
 }
 
 /// A planned item the person confirmed by hash (ADR-0034), as Lumen sends
@@ -120,6 +132,35 @@ pub enum HelperResponse {
         /// Where it is.
         left: ItemLocation,
     },
+    /// The helper holds nothing for the caller under the request's operation;
+    /// nothing was done.
+    NotHeld,
+    /// The answer to [`HelperRequest::Locate`].
+    Located {
+        /// Where the item is.
+        whereabouts: Whereabouts,
+    },
+    /// The item is back where it was.
+    Restored {
+        /// Its original parent had been recreated.
+        parent_replaced: bool,
+        /// It matched its record in full after the move.
+        matches_record: bool,
+    },
+    /// The item was not restored; `left` says where it is.
+    NotRestored {
+        /// Why.
+        reason: RestoreRefusal,
+        /// Where it is.
+        left: ItemLocation,
+    },
+    /// The item is removed for good.
+    Finalized,
+    /// The item was not removed for good.
+    NotFinalized {
+        /// Why, and how much was removed.
+        reason: FinalizeRefusal,
+    },
 }
 
 /// The helper's answer to `body`, sent by the account `caller_uid`, from a
@@ -141,6 +182,9 @@ pub fn answer(body: &str, caller_uid: u32, version: &str, host: &dyn HelperHost)
         Ok(HelperRequest::Quarantine(request)) => {
             quarantine::quarantine(caller_uid, &request, version, host)
         }
+        Ok(HelperRequest::Locate(request)) => held::locate(caller_uid, &request, host),
+        Ok(HelperRequest::Restore(request)) => held::restore(caller_uid, &request, host),
+        Ok(HelperRequest::Finalize(request)) => held::finalize(caller_uid, &request, host),
     };
     serde_json::to_string(&response).unwrap_or_else(|_| {
         // Serializing these plain types cannot fail; refuse rather than panic.
