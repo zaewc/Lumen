@@ -557,6 +557,11 @@ mod unix {
     }
 
     /// Decides the planned bundle again and, if it may still go, moves it.
+    /// The app observed right before the move is left in `moving`.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the app it moves is handed back beside the result"
+    )]
     fn execute_item(
         computer: &Computer<'_>,
         executor: &dyn QuarantineExecutor,
@@ -565,6 +570,7 @@ mod unix {
         stored: &PolicyDecision,
         manifest: impl Fn(&FilesystemEntry, &PreparedItem, OperationId) -> Option<Vec<u8>>,
         ids: &dyn lumen_application::ports::IdGenerator,
+        moving: &mut Option<UninstallApp>,
     ) -> Result<UninstallResult, UninstallError> {
         let Subject::File { identity } = &planned.subject else {
             return Ok(UninstallResult::Changed);
@@ -640,6 +646,7 @@ mod unix {
             // which the rename keeps working. `Yes` and `Unknown` still refuse.
             partial_in_use_accepted: true,
         };
+        *moving = Some(observed.app.clone());
         Ok(
             match quarantine_item(executor, journal, computer.in_use, &ready)? {
                 Outcome::Retained => UninstallResult::Quarantined(operation),
@@ -648,12 +655,26 @@ mod unix {
         )
     }
 
-    /// Records what the held app frees and that the person chose it, so it
-    /// is never removed automatically (ADR-0051). It is already safe in the
-    /// store, so a failure only warns: an item without a recorded chooser
-    /// waits for the person too.
-    fn record(ledger: &mut LedgerStore, operation: OperationId, reclaim: ByteCount) -> Vec<String> {
+    /// Records what the held app frees, that the person chose it, so it is
+    /// never removed automatically (ADR-0051), and which app it was, so its
+    /// data in `~/Library` is recognised as left by a removed app (ADR-0068).
+    /// It is already safe in the store, so a failure only warns: an item
+    /// without a recorded chooser waits for the person too.
+    fn record(
+        ledger: &mut LedgerStore,
+        operation: OperationId,
+        reclaim: ByteCount,
+        app: Option<&UninstallApp>,
+    ) -> Vec<String> {
         let mut warnings = Vec::new();
+        if let Some(app) = app
+            && let Err(error) =
+                ledger.record_uninstalled_app(operation, &app.bundle_id, app.name.as_ref())
+        {
+            warnings.push(format!(
+                "which app was uninstalled was not recorded, so its data may not be recognised: {error}"
+            ));
+        }
         if let Err(error) = ledger.record_reclaim(operation, reclaim) {
             warnings.push(format!(
                 "the size of the uninstalled app was not recorded: {error}"
@@ -665,6 +686,18 @@ mod unix {
             ));
         }
         warnings
+    }
+
+    /// Marks `plan` finished after an error stopped it. Nothing more runs
+    /// under it; a journal failure after the move is settled by
+    /// reconciliation, and the error that stopped it is the one reported.
+    fn stopped(index: &mut IndexStore, plan: PlanId) {
+        let finish = PlanEvent::Finish {
+            all_succeeded: false,
+        };
+        if let Err(error) = index.apply_plan_event(plan, finish) {
+            tracing::warn!(%error, "the stopped uninstall plan was not marked finished");
+        }
     }
 
     pub(super) fn uninstall_with(
@@ -733,7 +766,8 @@ mod unix {
             };
             serde_json::to_vec(&manifest).ok()
         };
-        let result = execute_item(
+        let mut moving = None;
+        let result = match execute_item(
             computer,
             &executor,
             &mut journal,
@@ -741,27 +775,17 @@ mod unix {
             planned_decision,
             manifest,
             ids,
-        );
-        let result = match result {
+            &mut moving,
+        ) {
             Ok(result) => result,
             Err(error) => {
-                // Nothing more runs under this plan; a journal failure after
-                // the move is settled by reconciliation. The error that
-                // stopped it is the one reported.
-                if let Err(finish) = index.apply_plan_event(
-                    plan,
-                    PlanEvent::Finish {
-                        all_succeeded: false,
-                    },
-                ) {
-                    tracing::warn!(%finish, "the stopped uninstall plan was not marked finished");
-                }
+                stopped(&mut index, plan);
                 return Err(error);
             }
         };
         let reclaim = planned.reclaim.reclaimable_now;
         if let UninstallResult::Quarantined(operation) = result {
-            warnings.extend(record(&mut ledger, operation, reclaim));
+            warnings.extend(record(&mut ledger, operation, reclaim, moving.as_ref()));
         }
         let all_succeeded = matches!(result, UninstallResult::Quarantined(_));
         index.apply_plan_event(plan, PlanEvent::Finish { all_succeeded })?;
@@ -1159,6 +1183,19 @@ mod tests {
         // Restored with one action...
         let executor = env.stores().executor().unwrap();
         let mut ledger = LedgerStore::new(open_ledger(&env.db.with_file_name("ledger.db"))?);
+        // Lumen keeps which app it was, for its data left in ~/Library (ADR-0068).
+        let recorded = ledger.uninstalled_apps()?;
+        assert_eq!(
+            recorded
+                .iter()
+                .map(|a| (
+                    a.operation,
+                    a.bundle_id.raw(),
+                    a.name.as_ref().map(UntrustedText::raw)
+                ))
+                .collect::<Vec<_>>(),
+            [(operation, "dev.zed.Zed", Some("Zed"))]
+        );
         let restored = restore_item(
             &executor,
             &mut LedgerJournal::new(&mut ledger, &env.clock),
