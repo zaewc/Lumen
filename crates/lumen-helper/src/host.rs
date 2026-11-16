@@ -11,7 +11,10 @@
 //!   into `/Library/Application Support/Lumen/Quarantine/<uid>/`. The store's
 //!   directories are created mode 0700 and must belong to the user the helper
 //!   runs as, root, and be writable by no one else, or the executor refuses
-//!   them (ADR-0015); the store is kept out of Time Machine like Lumen's own.
+//!   them (ADR-0015); the store is kept out of Time Machine like Lumen's own;
+//! - what it holds: its record next to each item, read from the caller's
+//!   store, and the same executor to locate, restore (by handle, without
+//!   replacing) and finalize (after checking the whole held tree) the item.
 //!
 //! The paths are fields so that tests run the same code on fixtures, without
 //! privileges (ADR-0063 rule 9).
@@ -27,8 +30,8 @@ use lumen_application::CancelToken;
 use lumen_application::helper::HelperHost;
 use lumen_application::helper::gate::{APPLICATIONS, HelperEvidence};
 use lumen_application::ports::{
-    ExecutionFailure, InUse, InUseProbe as _, InventoryReport, InventorySource as _, PreparedItem,
-    QuarantineExecutor as _,
+    ExecutionFailure, InUse, InUseProbe as _, InventoryReport, InventorySource as _, Located,
+    PreparedItem, QuarantineExecutor as _, Removal, RestoreFailure, RestoredItem,
 };
 use lumen_application::uninstall::BundleEvidence;
 use lumen_application::uninstall::evidence::{Lookup, helper_folders, linked_services};
@@ -36,7 +39,7 @@ use lumen_domain::{
     AppId, AppIdScheme, Application, FileId, FileIdentity, ItemLocation, OperationId,
     QuarantineFailure, RawPath, Timestamp, UntrustedText, VolumeId,
 };
-use lumen_fs_exec::{Executor, StoreError, open_store, recorded_identity};
+use lumen_fs_exec::{Executor, StoreError, open_store, read_sidecar, recorded_identity};
 use lumen_platform_macos::{LaunchdInventory, ProcessProbe, accounts, bundle_identifier};
 
 /// Where the helper's stores live.
@@ -128,6 +131,11 @@ impl Mac {
             running: |bundle| ProcessProbe.snapshot().running(bundle),
             in_use: |path, identity| ProcessProbe.probe(path, identity),
         }
+    }
+
+    /// The executor for `caller`'s store.
+    fn executor(&self, caller: u32) -> Executor {
+        Executor::new(&self.store_base, names(caller))
     }
 
     /// `path`, one name directly in `/Applications`, on this host.
@@ -262,7 +270,7 @@ impl HelperHost for Mac {
                 }));
             }
         }
-        Executor::new(&self.store_base, names).quarantine(item, operation, record)
+        self.executor(caller).quarantine(item, operation, record)
     }
 
     fn now(&self) -> Timestamp {
@@ -275,6 +283,45 @@ impl HelperHost for Mac {
             })
             .unwrap_or(Timestamp::UNIX_EPOCH)
     }
+
+    fn record(&self, caller: u32, operation: OperationId) -> Option<Vec<u8>> {
+        let names = names(caller);
+        let refs: Vec<&[u8]> = names.iter().map(Vec::as_slice).collect();
+        let volume = std::fs::metadata(&self.store_base).ok()?.dev();
+        let store = open_store(&self.store_base, &refs, volume).ok()?;
+        read_sidecar(&store, operation.to_string().as_bytes()).ok()
+    }
+
+    fn locate(&self, caller: u32, item: &PreparedItem, operation: OperationId) -> Located {
+        self.executor(caller).locate(item, operation)
+    }
+
+    fn restore(
+        &self,
+        caller: u32,
+        item: &PreparedItem,
+        operation: OperationId,
+    ) -> Result<RestoredItem, RestoreFailure> {
+        self.executor(caller).restore(item, operation)
+    }
+
+    fn held(
+        &self,
+        caller: u32,
+        item: &PreparedItem,
+        operation: OperationId,
+    ) -> Option<(RawPath, FileIdentity)> {
+        self.executor(caller).held(item, operation)
+    }
+
+    fn finalize(
+        &self,
+        caller: u32,
+        item: &PreparedItem,
+        operation: OperationId,
+    ) -> Result<(), Removal> {
+        self.executor(caller).finalize(item, operation)
+    }
 }
 
 #[cfg(test)]
@@ -286,8 +333,8 @@ mod tests {
 
     use lumen_application::helper::gate::Reason;
     use lumen_application::helper::{
-        HeldRecord, HelperRequest, HelperResponse, PROTOCOL, QuarantineRequest, answer, request,
-        response,
+        FinalizeRefusal, HeldRecord, HeldRequest, HelperRequest, HelperResponse, PROTOCOL,
+        QuarantineRequest, RestoreRefusal, Whereabouts, answer, request, response,
     };
     use lumen_application::uninstall::Ineligible;
     use lumen_domain::{EvidenceHash, SourceName, SourceStatus};
@@ -591,6 +638,114 @@ mod tests {
             })
         );
         assert!(mac.applications.join("Word.app").is_dir());
+    }
+
+    fn held(
+        mac: &Mac,
+        caller: u32,
+        verb: fn(HeldRequest) -> HelperRequest,
+    ) -> Option<HelperResponse> {
+        let body = request(&verb(HeldRequest {
+            protocol: PROTOCOL,
+            operation: OPERATION.parse().unwrap_or_else(|_| unreachable!()),
+        }));
+        response(&answer(&body, caller, "0.11.0", mac))
+    }
+
+    #[test]
+    fn a_held_app_is_located_and_restored_from_the_helpers_record() {
+        let (_fx, mac) = computer(&app("Word.app"));
+        let id = identity_of(&mac, "Word.app");
+        assert!(matches!(
+            ask(&mac, caller(), "Word.app", id.clone()),
+            Some(HelperResponse::Quarantined { .. })
+        ));
+        let located = |whereabouts| Some(HelperResponse::Located { whereabouts });
+        assert_eq!(
+            held(&mac, caller(), HelperRequest::Locate),
+            located(Whereabouts::InStore)
+        );
+        // Another account holds nothing under that operation.
+        for verb in [
+            HelperRequest::Locate,
+            HelperRequest::Restore,
+            HelperRequest::Finalize,
+        ] {
+            assert_eq!(
+                held(&mac, caller() + 1, verb),
+                Some(HelperResponse::NotHeld)
+            );
+        }
+        assert_eq!(
+            held(&mac, caller(), HelperRequest::Restore),
+            Some(HelperResponse::Restored {
+                parent_replaced: false,
+                matches_record: true
+            })
+        );
+        assert_eq!(identity_of(&mac, "Word.app"), id);
+        assert_eq!(
+            held(&mac, caller(), HelperRequest::Locate),
+            located(Whereabouts::AtSource)
+        );
+        assert_eq!(
+            held(&mac, caller(), HelperRequest::Finalize),
+            Some(HelperResponse::NotFinalized {
+                reason: FinalizeRefusal::AtSource
+            })
+        );
+        assert!(mac.applications.join("Word.app").is_dir());
+    }
+
+    #[test]
+    fn a_restore_never_replaces_what_now_has_the_name() {
+        let (_fx, mac) = computer(&app("Word.app"));
+        let id = identity_of(&mac, "Word.app");
+        assert!(matches!(
+            ask(&mac, caller(), "Word.app", id),
+            Some(HelperResponse::Quarantined { .. })
+        ));
+        std::fs::create_dir(mac.applications.join("Word.app"))
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(
+            held(&mac, caller(), HelperRequest::Restore),
+            Some(HelperResponse::NotRestored {
+                reason: RestoreRefusal::NameTaken,
+                left: ItemLocation::Quarantine
+            })
+        );
+        assert!(store(&mac, caller()).join(OPERATION).is_dir());
+    }
+
+    #[test]
+    fn a_held_app_nothing_uses_is_removed_for_good_with_its_record() {
+        let (_fx, mut mac) = computer(&app("Word.app"));
+        let id = identity_of(&mac, "Word.app");
+        assert!(matches!(
+            ask(&mac, caller(), "Word.app", id),
+            Some(HelperResponse::Quarantined { .. })
+        ));
+        mac.in_use = |_, _| InUse::Partial { unseen: Some(1) };
+        assert_eq!(
+            held(&mac, caller(), HelperRequest::Finalize),
+            Some(HelperResponse::NotFinalized {
+                reason: FinalizeRefusal::InUse
+            })
+        );
+        assert!(store(&mac, caller()).join(OPERATION).is_dir());
+        mac.in_use = |_, _| InUse::No;
+        assert_eq!(
+            held(&mac, caller(), HelperRequest::Finalize),
+            Some(HelperResponse::Finalized)
+        );
+        let left = std::fs::read_dir(store(&mac, caller()))
+            .unwrap_or_else(|e| unreachable!("{e}"))
+            .count();
+        assert_eq!(left, 0, "the item and the helper's record are gone");
+        assert_eq!(
+            held(&mac, caller(), HelperRequest::Locate),
+            Some(HelperResponse::NotHeld)
+        );
     }
 
     #[test]
