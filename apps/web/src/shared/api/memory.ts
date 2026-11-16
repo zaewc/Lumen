@@ -43,6 +43,8 @@ function softwareList(explained: boolean): SoftwareView {
     services: [],
     ai_note: null,
     size: null,
+    relations: [],
+    relations_read: null,
     ...extra,
   });
   return {

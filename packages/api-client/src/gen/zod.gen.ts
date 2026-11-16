@@ -741,6 +741,41 @@ export const zSoftwareNoteView = z.object({
 });
 
 /**
+ * What a relation states, from the row's side.
+ */
+export const zSoftwareRelationKindView = z.enum([
+  "needs",
+  "needed_by",
+  "installed",
+  "installed_by",
+]);
+
+/**
+ * The record a relation was read from, or the default it assumed.
+ */
+export const zSoftwareRelationMethodView = z.enum([
+  "homebrew_runtime_dependencies",
+  "cask_uninstall_artifacts",
+  "cask_definition",
+  "cask_default_app_folder",
+  "receipt_file_list",
+  "other",
+]);
+
+/**
+ * One relation of a row.
+ */
+export const zSoftwareRelationView = z.object({
+  ambiguous: z.boolean(),
+  direct: z.boolean().nullable(),
+  kind: zSoftwareRelationKindView,
+  label: z.string(),
+  method: zSoftwareRelationMethodView,
+  other: z.string().nullable(),
+  verified: z.boolean(),
+});
+
+/**
  * What the latest scan says about an app's size; never zero for unknown.
  */
 export const zSoftwareSizeView = z.union([
@@ -770,6 +805,8 @@ export const zSoftwareItemView = z.object({
   name: z.string().nullable(),
   origin: zSoftwareOriginView,
   protected: z.boolean(),
+  relations: z.array(zSoftwareRelationView),
+  relations_read: z.boolean().nullable(),
   services: z.array(zLinkedServiceView),
   size: zSoftwareSizeView.nullable(),
   vendor: z.string().nullable(),

@@ -17,6 +17,8 @@ function app(id: string, size: SoftwareItemView["size"], extra: Partial<Software
     services: [],
     ai_note: null,
     size,
+    relations: [],
+    relations_read: null,
     ...extra,
   };
   return item;

@@ -48,7 +48,8 @@ pub use reassess::{
 pub use relations::{MAX_RELATIONS, NodeView, RelationKindView, RelationView, RelationsView};
 pub use software::{
     LinkedServiceView, RemovalImpactView, ServiceKindView, ServiceLinkMethodView, ServiceScopeView,
-    SoftwareItemView, SoftwareNoteView, SoftwareOriginView, SoftwarePurposeView, SoftwareSizeView,
+    SoftwareItemView, SoftwareNoteView, SoftwareOriginView, SoftwarePurposeView,
+    SoftwareRelationKindView, SoftwareRelationMethodView, SoftwareRelationView, SoftwareSizeView,
     SoftwareSourceStateView, SoftwareSourceView, SoftwareView, app_locations, software_key,
     software_subjects,
 };

@@ -1259,6 +1259,17 @@ export type SoftwareItemView = {
    */
   protected: boolean;
   /**
+   * What it needs, installed, is needed by and was installed by, from the
+   * package managers' own records (ADR-0064): verified first.
+   */
+  relations: Array<SoftwareRelationView>;
+  /**
+   * For a package, whether its own record of relations was read: `false`
+   * means what it needs and installed is unknown, never none. `None` for
+   * an application, which has no such record of its own.
+   */
+  relations_read: boolean | null;
+  /**
    * Background items linked to it, verified first.
    */
   services: Array<LinkedServiceView>;
@@ -1330,6 +1341,63 @@ export type SoftwarePurposeView =
   | "utility"
   | "runtime_or_library"
   | "unknown";
+
+/**
+ * What a relation states, from the row's side.
+ */
+export type SoftwareRelationKindView = "needs" | "needed_by" | "installed" | "installed_by";
+
+/**
+ * The record a relation was read from, or the default it assumed.
+ */
+export type SoftwareRelationMethodView =
+  | "homebrew_runtime_dependencies"
+  | "cask_uninstall_artifacts"
+  | "cask_definition"
+  | "cask_default_app_folder"
+  | "receipt_file_list"
+  | "other";
+
+/**
+ * One relation of a row.
+ */
+export type SoftwareRelationView = {
+  /**
+   * It matched several rows, or another package claims the same app: one
+   * candidate, not a fact.
+   */
+  ambiguous: boolean;
+  /**
+   * For a dependency, whether the needing package declares it itself
+   * rather than through another dependency; `None` where not recorded or
+   * not a dependency.
+   */
+  direct: boolean | null;
+  /**
+   * What it states, from this row's side.
+   */
+  kind: SoftwareRelationKindView;
+  /**
+   * The other side as recorded: a package identifier, or an installed
+   * location; display-escaped.
+   */
+  label: string;
+  /**
+   * The record it was read from.
+   */
+  method: SoftwareRelationMethodView;
+  /**
+   * The other row's key, or `None` where no row shows the other. That
+   * means "not installed" only where the inventory that would list it was
+   * read whole (see `sources`).
+   */
+  other: string | null;
+  /**
+   * Proven: recorded, matched to one row, and claimed by no unrelated
+   * package.
+   */
+  verified: boolean;
+};
 
 /**
  * What the latest scan says about an app's size; never zero for unknown.
