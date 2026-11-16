@@ -15,6 +15,13 @@ function app(id: string, size: SoftwareItemView["size"], extra: Partial<Software
     hidden: false,
     explicit: null,
     services: [],
+    facts: {
+      mechanism: null,
+      installed_by: null,
+      needs_administrator: false,
+      needs: null,
+      needed_by: null,
+    },
     ai_note: null,
     size,
     relations: [],

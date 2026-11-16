@@ -939,6 +939,21 @@ export type ReassessedItemView = {
 };
 
 /**
+ * How many entries a package relation reaches.
+ */
+export type RelationCountView = {
+  /**
+   * Every record it rests on was read; otherwise it is at least `count`,
+   * and zero means unknown, never none.
+   */
+  complete: boolean;
+  /**
+   * Entries the records name.
+   */
+  count: number;
+};
+
+/**
  * The kind of a relationship, read `from <kind> to`.
  */
 export type RelationKindView =
@@ -992,6 +1007,23 @@ export type RelationsView = {
 };
 
 /**
+ * What Lumen itself observed about removing a piece of software, from its
+ * inventory records (#850): shown apart from the AI note and never sent to
+ * AI review (ADR-0061 rule 2, ADR-0064 rule 7).
+ */
+export type RemovalFactsView = {
+  installed_by: SoftwareOriginView | null;
+  mechanism: RemovalMechanismView | null;
+  needed_by: RelationCountView | null;
+  needs: RelationCountView | null;
+  /**
+   * Removing it is known to need administrator rights; `false` where Lumen
+   * does not know, never "not needed".
+   */
+  needs_administrator: boolean;
+};
+
+/**
  * What AI review says removing a piece of software could affect besides
  * itself (ADR-0061): a description, never a statement that removal is safe.
  */
@@ -1002,6 +1034,16 @@ export type RemovalImpactView =
   | "security_or_access"
   | "system_function"
   | "unknown";
+
+/**
+ * How a piece of software's own mechanism removes it, as its record shows
+ * (#850). Lumen's observation, never AI review's.
+ */
+export type RemovalMechanismView =
+  | "package_manager"
+  | "windows_installer"
+  | "own_uninstaller"
+  | "none_recorded";
 
 /**
  * How much a failed removal took.
@@ -1229,6 +1271,10 @@ export type SoftwareItemView = {
    * dependency; `None` where the record does not say.
    */
   explicit: boolean | null;
+  /**
+   * What Lumen observed about removing it, from its records (#850).
+   */
+  facts: RemovalFactsView;
   /**
    * The platform's own list hides it (Windows `SystemComponent`).
    */
