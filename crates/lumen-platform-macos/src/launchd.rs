@@ -6,7 +6,9 @@
 //! volume (`/System`): macOS ships some of its own agents that way, as links into
 //! `/System/Cryptexes`. A property list without a `Label` is not a job (launchd
 //! refuses to load it; Google's updater leaves empty ones behind). Each item's
-//! program is signature-checked like applications are.
+//! program is signature-checked like applications are, except for Lumen's
+//! helper, which reads as root and needs no signatures
+//! ([`LaunchdInventory::without_signatures`]).
 //!
 //! `enabled` is left unknown: a plist's `Disabled` key is only a default that
 //! launchd's override database (`launchctl enable`/`disable`) can change.
@@ -40,6 +42,8 @@ struct Location {
 #[derive(Debug, Clone)]
 pub struct LaunchdInventory {
     locations: Vec<Location>,
+    /// Whether each item's program is signature-checked.
+    signatures: bool,
 }
 
 impl LaunchdInventory {
@@ -47,6 +51,14 @@ impl LaunchdInventory {
     /// `/Library/Launch{Agents,Daemons}` and `~/Library/LaunchAgents`. Agents run
     /// as the user, daemons as root.
     pub fn new() -> Self {
+        Self::for_home(std::env::var_os("HOME").as_deref().map(Path::new))
+    }
+
+    /// The system's directories and the agents of the account whose home is
+    /// `home`. Lumen's helper names the caller's home, looked up by user ID,
+    /// rather than its own `HOME` (ADR-0063 rule 4).
+    #[must_use]
+    pub fn for_home(home: Option<&Path>) -> Self {
         let agent = |dir: &str| Location {
             dir: PathBuf::from(dir),
             kind: ServiceKind::LaunchAgent,
@@ -63,14 +75,29 @@ impl LaunchdInventory {
             agent("/Library/LaunchAgents"),
             daemon("/Library/LaunchDaemons"),
         ];
-        if let Some(home) = std::env::var_os("HOME") {
+        if let Some(home) = home {
             locations.push(Location {
-                dir: Path::new(&home).join("Library/LaunchAgents"),
+                dir: home.join("Library/LaunchAgents"),
                 kind: ServiceKind::LaunchAgent,
                 scope: ServiceScope::User,
             });
         }
-        Self { locations }
+        Self {
+            locations,
+            signatures: true,
+        }
+    }
+
+    /// The same, without checking any program's signature. Lumen's helper
+    /// runs as root and needs only labels and programs; checking a signature
+    /// would have root's Security framework read whatever file a plist in the
+    /// caller's home names.
+    #[must_use]
+    pub fn without_signatures(self) -> Self {
+        Self {
+            signatures: false,
+            ..self
+        }
     }
 
     /// One directory of agents, for tests.
@@ -81,6 +108,7 @@ impl LaunchdInventory {
                 kind: ServiceKind::LaunchAgent,
                 scope: ServiceScope::User,
             }],
+            signatures: true,
         }
     }
 }
@@ -110,11 +138,16 @@ enum Read {
     Unknown,
 }
 
-/// The file to read for the plist at `path`: itself if it is a regular file,
-/// or the target of a symlink that resolves to a regular file under `/System`
-/// (the sealed, read-only system volume). Anything else, including a FIFO or a
-/// device that would block, is not read.
-fn readable(path: &Path) -> Option<PathBuf> {
+/// The bytes of the plist at `path`: the file itself, or the target of a
+/// symlink that resolves under `/System` (the sealed, read-only system
+/// volume). The file is opened without following a link and without waiting
+/// (`O_NOFOLLOW | O_NONBLOCK`), then checked by its handle, so only a regular
+/// file of at most [`MAX_PLIST_BYTES`] is read, even if the name is swapped for
+/// a FIFO or a device after it was looked at.
+fn read_plist(path: &Path) -> Option<Vec<u8>> {
+    use std::io::Read as _;
+    use std::os::unix::fs::OpenOptionsExt as _;
+
     let meta = std::fs::symlink_metadata(path).ok()?;
     let file = if meta.file_type().is_symlink() {
         let target = std::fs::canonicalize(path).ok()?;
@@ -122,19 +155,24 @@ fn readable(path: &Path) -> Option<PathBuf> {
     } else {
         path.to_path_buf()
     };
-    let meta = std::fs::symlink_metadata(&file).ok()?;
-    (meta.is_file() && meta.len() <= MAX_PLIST_BYTES).then_some(file)
+    let opened = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(file)
+        .ok()?;
+    let meta = opened.metadata().ok()?;
+    if !meta.is_file() || meta.len() > MAX_PLIST_BYTES {
+        return None;
+    }
+    let mut bytes = Vec::new();
+    opened.take(MAX_PLIST_BYTES).read_to_end(&mut bytes).ok()?;
+    Some(bytes)
 }
 
-/// Reads one plist into a service.
-fn service(path: &Path, location: &Location) -> Read {
-    let Some(file) = readable(path) else {
-        return Read::Unknown;
-    };
-    let Some(list) = std::fs::read(&file)
-        .ok()
-        .and_then(|b| cf::property_list(&b))
-    else {
+/// Reads one plist into a service, checking its program's signature if
+/// `signatures`.
+fn service(path: &Path, location: &Location, signatures: bool) -> Read {
+    let Some(list) = read_plist(path).and_then(|b| cf::property_list(&b)) else {
         return Read::Unknown;
     };
     let Some(job) = list.downcast_ref::<CFDictionary>() else {
@@ -156,6 +194,7 @@ fn service(path: &Path, location: &Location) -> Read {
         .filter(|p| p.starts_with('/'));
     let signature = program
         .as_deref()
+        .filter(|_| signatures)
         .and_then(CFURL::from_file_path)
         .map(|url| crate::apps::verify_signature(&url));
     Read::Job(Service {
@@ -199,7 +238,7 @@ impl InventorySource for LaunchdInventory {
                 if path.extension().is_none_or(|e| e != "plist") {
                     continue;
                 }
-                match service(&path, location) {
+                match service(&path, location, self.signatures) {
                     Read::Job(found) => services.push(found),
                     Read::NotAJob => {}
                     // An unreadable or malformed job is unknown, not absent.
@@ -320,6 +359,38 @@ mod tests {
     }
 
     #[test]
+    fn a_named_home_is_read_instead_of_the_environments() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let fx = Fixture::build(&[file(
+            "home/Library/LaunchAgents/com.example.mine.plist",
+            plist(
+                "<key>Label</key><string>com.example.mine</string>\
+                 <key>Program</key><string>/bin/ls</string>",
+            ),
+        )])?;
+        let mine = |inventory: &LaunchdInventory| {
+            inventory
+                .collect(&CancelToken::new())
+                .services
+                .iter()
+                .any(|s| s.label.raw() == "com.example.mine")
+        };
+        let home = fx.path("home")?;
+        let named = LaunchdInventory::for_home(Some(&home));
+        assert!(mine(&named));
+        assert_eq!(named.locations.len(), 5);
+        assert_eq!(LaunchdInventory::for_home(None).locations.len(), 4);
+        let dir = fx.path("home/Library/LaunchAgents")?;
+        let agents = || LaunchdInventory::agents_in(dir.clone());
+        let checked = agents().collect(&CancelToken::new());
+        assert!(checked.services.iter().all(|s| s.signature.is_some()));
+        let bare = agents().without_signatures().collect(&CancelToken::new());
+        assert_eq!(bare.services.len(), 1);
+        assert!(bare.services.iter().all(|s| s.signature.is_none()));
+        Ok(())
+    }
+
+    #[test]
     fn a_list_without_a_label_is_not_a_job_and_a_link_into_the_system_is_read()
     -> Result<(), Box<dyn std::error::Error>> {
         // A job macOS itself ships, as the target of a link.
@@ -330,7 +401,7 @@ mod tests {
                 p.extension().is_some_and(|e| e == "plist")
                     && std::fs::symlink_metadata(p).is_ok_and(|m| m.is_file())
                     && matches!(
-                        service(p, &LaunchdInventory::new().locations[1]),
+                        service(p, &LaunchdInventory::new().locations[1], true),
                         Read::Job(_)
                     )
             })
@@ -371,6 +442,16 @@ mod tests {
             assert_eq!(report.status, SourceStatus::Partial, "{nodes:?}");
             assert_eq!(report.services.len(), 0);
         }
+        // A FIFO is not read, and does not hold the reader.
+        let fx = Fixture::build(&[Node::Dir {
+            path: "agents".into(),
+        }])?;
+        let status = std::process::Command::new("/usr/bin/mkfifo")
+            .arg(fx.path("agents")?.join("fifo.plist"))
+            .status()?;
+        assert!(status.success());
+        let report = LaunchdInventory::agents_in(fx.path("agents")?).collect(&CancelToken::new());
+        assert_eq!(report.status, SourceStatus::Partial);
         Ok(())
     }
 }

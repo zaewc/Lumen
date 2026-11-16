@@ -20,7 +20,7 @@ use lumen_application::ports::{InventoryReport, InventorySource};
 use lumen_domain::{
     AppId, AppIdScheme, Application, RawPath, SourceName, SourceStatus, UntrustedText,
 };
-use objc2_core_foundation::{CFBundle, CFString, CFURL};
+use objc2_core_foundation::{CFBundle, CFDictionary, CFString, CFURL};
 
 /// The inventory source name.
 const SOURCE: &str = "macos.applications";
@@ -129,6 +129,41 @@ fn application(path: &Path) -> Option<Application> {
         sources: BTreeSet::from([source()]),
         uninstall: None,
     })
+}
+
+/// The largest `Info.plist` [`bundle_identifier`] reads; real ones are a few
+/// kilobytes.
+const MAX_INFO_PLIST: u64 = 1024 * 1024;
+
+/// The identifier in the bundle's `Contents/Info.plist`, for Lumen's helper,
+/// which reads it as root (ADR-0063); `None` if it cannot be read or has none.
+///
+/// Unlike [`AppInventory`], which goes through `CFBundle`, it reads only that
+/// one file, by handle: no link is followed anywhere in the path
+/// (`O_NOFOLLOW_ANY`), opening never waits (`O_NONBLOCK`), and only a regular
+/// file of at most 1 MiB is read. A bundle another account can write therefore
+/// cannot point root at another file or hold it on a FIFO. No signature is
+/// checked, which would read every file in the bundle as root.
+#[must_use]
+pub fn bundle_identifier(bundle: &Path) -> Option<String> {
+    use std::io::Read as _;
+    use std::os::unix::fs::OpenOptionsExt as _;
+
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW_ANY | libc::O_NONBLOCK)
+        .open(bundle.join("Contents/Info.plist"))
+        .ok()?;
+    let meta = file.metadata().ok()?;
+    if !meta.is_file() || meta.len() > MAX_INFO_PLIST {
+        return None;
+    }
+    let mut bytes = Vec::new();
+    file.take(MAX_INFO_PLIST).read_to_end(&mut bytes).ok()?;
+    let list = crate::cf::property_list(&bytes)?;
+    let info = list.downcast_ref::<CFDictionary>()?;
+    let id = crate::cf::get::<CFString>(info, &CFString::from_str("CFBundleIdentifier"))?;
+    Some(id.to_string()).filter(|id| !id.is_empty())
 }
 
 impl InventorySource for AppInventory {
@@ -285,6 +320,54 @@ mod tests {
                 "{id}"
             );
         }
+    }
+
+    #[test]
+    fn the_helper_reads_one_identifier_by_handle() -> Result<(), Box<dyn std::error::Error>> {
+        let fx = Fixture::build(&[
+            Node::File {
+                path: "Word.app/Contents/Info.plist".into(),
+                contents: info_plist("com.example.word"),
+            },
+            Node::File {
+                path: "target/Info.plist".into(),
+                contents: info_plist("com.example.secret"),
+            },
+            Node::Dir {
+                path: "Linked.app/Contents".into(),
+            },
+            Node::Symlink {
+                path: "Linked.app/Contents/Info.plist".into(),
+                target: "../../target/Info.plist".into(),
+            },
+            Node::Symlink {
+                path: "Through.app".into(),
+                target: "Word.app".into(),
+            },
+            Node::File {
+                path: "Empty.app/Contents/Info.plist".into(),
+                contents: info_plist(""),
+            },
+            Node::Dir {
+                path: "Bare.app".into(),
+            },
+        ])?;
+        // The temporary folder's own path may pass through a link (`/var`).
+        let root = std::fs::canonicalize(fx.root())?;
+        let id = |name: &str| bundle_identifier(&root.join(name));
+        assert_eq!(id("Word.app").as_deref(), Some("com.example.word"));
+        for refused in ["Linked.app", "Through.app", "Empty.app", "Bare.app"] {
+            assert_eq!(id(refused), None, "{refused}");
+        }
+        // A FIFO does not hold the reader.
+        let fifo = root.join("Bare.app/Contents");
+        std::fs::create_dir(&fifo)?;
+        let status = std::process::Command::new("/usr/bin/mkfifo")
+            .arg(fifo.join("Info.plist"))
+            .status()?;
+        assert!(status.success());
+        assert_eq!(id("Bare.app"), None);
+        Ok(())
     }
 
     fn info_plist(id: &str) -> Vec<u8> {
