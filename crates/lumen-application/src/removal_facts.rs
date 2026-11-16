@@ -10,11 +10,12 @@
 //!   always needs them: dpkg, RPM, pacman and snap keep a system-wide
 //!   database, and the receipts in `/var/db/receipts` are written by system
 //!   installs. Anything else is not known, never "not needed".
-//! - **Dependencies.** What a package's record says it needs, and which listed
-//!   packages' records say they need it, counted only where the relation is
-//!   verified. "None" holds only where every package of its own inventory was
-//!   read and that inventory was read whole (ADR-0008); a manager's records
-//!   name only its own packages (ADR-0064).
+//! - **Dependencies.** What a package's record says it needs (every other
+//!   package it names, listed or not: the record's own statement), and which
+//!   listed packages' records say they need it, counted only where the
+//!   relation is verified. "None needs it" holds only where every inventory
+//!   was read whole and every package's relations were read (ADR-0008): a
+//!   dependent may sit in any report.
 //!
 //! Protection is the list's to decide (it also looks at install locations), so
 //! it is left `false` here. The model's answer is never an input.
@@ -84,19 +85,11 @@ fn count(n: usize, complete: bool) -> RelationCount {
 pub fn inventory_facts(reports: &[InventoryReport]) -> InventoryFacts {
     let applications: Vec<&Application> = reports.iter().flat_map(|r| &r.applications).collect();
     let packages: Vec<&Package> = reports.iter().flat_map(|r| &r.packages).collect();
-    // Each package's report, and whether all of that report's dependents are
-    // known: read whole, and every package's relations read.
-    let report_of: Vec<usize> = reports
-        .iter()
-        .enumerate()
-        .flat_map(|(i, r)| std::iter::repeat_n(i, r.packages.len()))
-        .collect();
-    let whole: Vec<bool> = reports
-        .iter()
-        .map(|r| {
-            r.status == SourceStatus::Complete && r.packages.iter().all(|p| p.relations.is_some())
-        })
-        .collect();
+    // Whether every dependent is known: every report read whole, and every
+    // package's relations read. A dependent can sit in any report.
+    let all_read = reports.iter().all(|r| {
+        r.status == SourceStatus::Complete && r.packages.iter().all(|p| p.relations.is_some())
+    });
     let resolved = resolve_relations(&applications, &packages);
 
     let package_facts = packages
@@ -108,9 +101,12 @@ pub fn inventory_facts(reports: &[InventoryReport]) -> InventoryFacts {
                 let needed: BTreeSet<_> = relations
                     .iter()
                     .filter_map(|r| match &r.kind {
-                        PackageRelationKind::DependsOn { package, .. } => Some(package),
+                        PackageRelationKind::DependsOn {
+                            package: needed, ..
+                        } => Some(needed),
                         _ => None,
                     })
+                    .filter(|&needed| *needed != package.package_id())
                     .collect();
                 count(needed.len(), true)
             });
@@ -121,14 +117,13 @@ pub fn inventory_facts(reports: &[InventoryReport]) -> InventoryFacts {
                 .map(|r| r.package)
                 .filter(|&d| packages[d].package_id() != package.package_id())
                 .collect();
-            let complete = report_of.get(p).is_some_and(|&r| whole[r]);
             RemovalFacts {
                 protected: false,
                 mechanism,
                 installed_by: None,
                 needs_administrator,
                 needs,
-                needed_by: Some(count(dependents.len(), complete)),
+                needed_by: Some(count(dependents.len(), all_read)),
             }
         })
         .collect();
@@ -316,6 +311,21 @@ mod tests {
             unread.packages[3].needs, None,
             "an unread record needs unknown"
         );
+
+        // A dependent can sit in another report: one unread there leaves
+        // every count incomplete.
+        let lone = vec![package(BREW, "lone", Some(Vec::new()))];
+        let casks = vec![package(PackageManager::HomebrewCask, "x", None)];
+        let elsewhere = inventory_facts(&[
+            report(SourceStatus::Complete, Vec::new(), lone),
+            report(SourceStatus::Complete, Vec::new(), casks),
+        ]);
+        assert_eq!(
+            elsewhere.packages[0]
+                .needed_by
+                .map(|c| (c.count, c.complete)),
+            Some((0, false))
+        );
     }
 
     #[test]
@@ -339,6 +349,11 @@ mod tests {
             facts.packages[2].needed_by.map(|c| c.count),
             Some(0),
             "itself is not another"
+        );
+        assert_eq!(
+            facts.packages[2].needs.map(|c| c.count),
+            Some(1),
+            "the record names `lib` once, and itself does not count"
         );
     }
 
