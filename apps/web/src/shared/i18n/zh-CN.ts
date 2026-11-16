@@ -662,8 +662,29 @@ export const zhCN: Messages = {
         no_store_on_volume: "此驱动器没有隔离区存储位置。",
       },
     },
+    facts: {
+      title: "Lumen 发现的情况",
+      source: (name: string) => `来源：${name}`,
+      uninstallEntry: "卸载条目",
+      backgroundRecords: "后台项目记录",
+      installedBy: "由一个软件包安装。",
+      mechanisms: {
+        package_manager: "由其软件包管理器移除。",
+        windows_installer: "由 Windows Installer 移除。",
+        own_uninstaller: "它有自己的卸载程序。",
+        none_recorded: "没有记录卸载方式。",
+      },
+      administrator: "移除它需要管理员权限。",
+      neededBy: (n: number, complete: boolean) =>
+        `${complete ? "" : "至少"}有 ${count(n)} 个其他软件包需要它。`,
+      neededByNone: "没有其他已安装的软件包需要它。",
+      neededByUnknown: "Lumen 无法读取哪些软件包需要它。",
+      needs: (n: number) => `它需要 ${count(n)} 个其他软件包。`,
+      background: (n: number) => `有 ${count(n)} 个后台项目随它运行。`,
+    },
     ai: {
       explaining: "AI 检查正在说明这些应用…",
+      source: "这是 AI 审查根据名称、发布者和版本做出的推测，不会改变 Lumen 的操作。",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI：很可能是${purpose}（${confidence}）。${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact}（${confidence}）`,

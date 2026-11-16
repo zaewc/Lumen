@@ -7,6 +7,7 @@ import { useTransport } from "@/shared/api";
 import { softwareNoteText, useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { Bytes, buttonClass, ErrorNotice, Notice, Page } from "@/shared/ui";
+import { removalFacts } from "../model/facts";
 import { iconsShown, type Order, ordered, partial, title, tucked, visible } from "../model/list";
 import { AppIcon } from "./AppIcon";
 
@@ -27,6 +28,7 @@ function AppRow({
     item.version,
     item.vendor,
   ].filter((part): part is string => part !== null);
+  const facts = removalFacts(m, item);
   return (
     <li className="flex items-start justify-between gap-4 py-3">
       <div className="flex min-w-0 items-start gap-3">
@@ -46,8 +48,23 @@ function AppRow({
               )}
             </p>
           )}
+          {facts.length > 0 && (
+            <div className="pt-1">
+              <p className="text-[11px] font-medium text-ink-3">{a.facts.title}</p>
+              <ul className="text-[12px] text-ink-2">
+                {facts.map((fact) => (
+                  <li key={fact.text}>
+                    {fact.text} <span className="text-ink-3">· {fact.source}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {item.ai_note !== null && (
-            <p className="text-[12px] text-ink-2">{softwareNoteText(m, item.ai_note)}</p>
+            <div className="pt-1">
+              <p className="text-[12px] text-ink-2">{softwareNoteText(m, item.ai_note)}</p>
+              <p className="text-[11px] text-ink-3">{a.ai.source}</p>
+            </div>
           )}
         </div>
       </div>

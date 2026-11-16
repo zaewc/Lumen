@@ -690,8 +690,29 @@ export const ja: Messages = {
         no_store_on_volume: "このドライブには隔離用の保存場所がありません。",
       },
     },
+    facts: {
+      title: "Lumenが確認したこと",
+      source: (name: string) => `出典: ${name}`,
+      uninstallEntry: "アンインストール情報",
+      backgroundRecords: "バックグラウンド項目の記録",
+      installedBy: "パッケージによってインストールされました。",
+      mechanisms: {
+        package_manager: "パッケージマネージャーで削除します。",
+        windows_installer: "Windows Installerで削除します。",
+        own_uninstaller: "専用のアンインストーラーがあります。",
+        none_recorded: "削除方法は記録されていません。",
+      },
+      administrator: "削除には管理者権限が必要です。",
+      neededBy: (n: number, complete: boolean) =>
+        `ほかの${count(n)}個${complete ? "" : "以上"}のパッケージがこれを必要としています。`,
+      neededByNone: "これを必要とするほかのパッケージはありません。",
+      neededByUnknown: "何がこれを必要としているかを読み取れませんでした。",
+      needs: (n: number) => `ほかの${count(n)}個のパッケージが必要です。`,
+      background: (n: number) => `${count(n)}個のバックグラウンド項目が一緒に実行されます。`,
+    },
     ai: {
       explaining: "AIレビューがアプリを説明しています…",
+      source: "名前、発行元、バージョンからのAIレビューの推測です。Lumenの動作は変わりません。",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI: ${purpose}の可能性が高い（${confidence}）。${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact}（${confidence}）`,

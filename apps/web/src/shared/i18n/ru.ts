@@ -723,8 +723,32 @@ export const ru: Messages = {
         no_store_on_volume: "На этом диске нет хранилища карантина.",
       },
     },
+    facts: {
+      title: "Что нашёл Lumen",
+      source: (name: string) => `источник: ${name}`,
+      uninstallEntry: "запись об удалении",
+      backgroundRecords: "записи фоновых объектов",
+      installedBy: "Установлено пакетом.",
+      mechanisms: {
+        package_manager: "Удаляется через менеджер пакетов.",
+        windows_installer: "Удаляется через Windows Installer.",
+        own_uninstaller: "Есть собственный деинсталлятор.",
+        none_recorded: "Способ удаления не записан.",
+      },
+      administrator: "Для удаления нужны права администратора.",
+      neededBy: (n: number, complete: boolean) =>
+        `Он нужен ${complete ? "" : "как минимум "}ещё ${count(n)} ${plural(n, "пакету", "пакетам", "пакетам")}.`,
+      neededByNone: "Ни одному другому установленному пакету он не нужен.",
+      neededByUnknown: "Lumen не удалось прочитать, каким пакетам он нужен.",
+      needs: (n: number) =>
+        `Нужно ${count(n)} ${plural(n, "другой пакет", "других пакета", "других пакетов")}.`,
+      background: (n: number) =>
+        `Вместе с ним работает ${count(n)} ${plural(n, "фоновый объект", "фоновых объекта", "фоновых объектов")}.`,
+    },
     ai: {
       explaining: "ИИ-проверка описывает приложения…",
+      source:
+        "Предположение ИИ-проверки по названию, издателю и версии. Оно не меняет действия Lumen.",
       note: (purpose: string, confidence: string, impact: string) =>
         `ИИ: вероятно, ${purpose} (${confidence}). ${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
