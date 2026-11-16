@@ -165,6 +165,19 @@ try {
         ["Turn on AI review", "AI 검토 켜기"].includes(element.textContent.trim()))`);
       await click(`[...document.querySelectorAll('main button')].find(element =>
         ["Turn on AI review", "AI 검토 켜기"].includes(element.textContent.trim()))`);
+      // The first-launch setup goes on with the helper (and Full Disk Access on
+      // a Mac) where the transport offers them (ADR-0067): leave both for later.
+      const later = ["Later", "나중에", "Start", "시작하기"];
+      const workspace = ["Scan disk", "디스크 검사"];
+      for (let step = 0; step < 3; step += 1) {
+        await until(`[...document.querySelectorAll('main button')].some(element =>
+          ${JSON.stringify([...later, ...workspace])}.includes(element.textContent.trim()))`);
+        const skipped = await evaluate(`(() => {
+          const element = [...document.querySelectorAll('main button')].find(each =>
+            ${JSON.stringify(later)}.includes(each.textContent.trim()));
+          if (!element) return false; element.click(); return true; })()`);
+        if (!skipped) break;
+      }
       await until(`document.documentElement.lang === ${JSON.stringify(locale)} &&
         [...document.querySelectorAll('main button')].some(element =>
           ["Scan disk", "디스크 검사"].includes(element.textContent.trim()))`);

@@ -23,7 +23,7 @@ export function DiskStep({
   const opening = useMutation({ mutationFn: async () => open?.() });
   return (
     <>
-      <StepHeading id={titleId} title={s.disk.title} intro={s.disk.intro} />
+      <StepHeading id={titleId} title={s.disk.title} intro={s.disk.intro} focus />
       <ol className="mt-5 list-decimal space-y-1 pl-5 text-ink-2 marker:text-ink-3">
         <li>{p.step2}</li>
         <li>{p.step3}</li>

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { helperLine, useHelper } from "@/entities/helper";
+import { type HelperAction, helperActions, helperLine, useHelper } from "@/entities/helper";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice } from "@/shared/ui";
 import { StepHeading } from "./StepHeading";
@@ -40,22 +40,23 @@ export function HelperStep({
         return h.problems[line.problem];
     }
   })();
-  const primary = (() => {
-    switch (line?.kind) {
-      case "off":
-      case "problem":
-        return { label: h.enable, run: () => change.mutate("enable") };
-      case "waiting":
-        return { label: h.openLoginItems, run: () => change.mutate("open_login_items") };
-      case "on":
-        return { label: s.next, run: onDone };
-      case undefined:
-        return null;
-    }
-  })();
+  const label: Record<HelperAction, string> = {
+    enable: h.enable,
+    disable: h.disable,
+    open_login_items: h.openLoginItems,
+  };
+  // Off: turn it on. Waiting or a problem: what Settings offers first (an
+  // enabled helper with a problem is turned off before it can be turned on).
+  const action = state.data === undefined ? undefined : helperActions(state.data)[0];
+  const primary =
+    line?.kind === "on"
+      ? { label: s.next, run: onDone }
+      : action === undefined
+        ? null
+        : { label: label[action], run: () => change.mutate(action) };
   return (
     <>
-      <StepHeading id={titleId} title={s.helper.title} intro={h.intro} />
+      <StepHeading id={titleId} title={s.helper.title} intro={h.intro} focus />
       <p className="mt-2 text-ink-2">{s.helper.approval}</p>
       <p className="mt-2 text-[13px] text-ink-3">{h.notYet}</p>
       {status !== null && (
