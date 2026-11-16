@@ -135,7 +135,6 @@ export const ko = {
     scanStage: "검사",
     resultsStage: "결과 보기",
     cleanUpStage: "정리",
-    activeCommand: "명령 실행 중",
     quitHeld: "Lumen이 항목을 옮기거나 지우고 있어요. 끝나면 닫을 수 있어요.",
   },
   start: {
@@ -161,10 +160,6 @@ export const ko = {
       stored: (service: string) => `${service}, 내 키`,
     },
     checking: "확인하는 중…",
-    short: {
-      on: "AI 검토 켜짐",
-      off: "AI 검토 꺼짐",
-    },
     loadFailed: "AI 검토 설정을 불러오지 못했어요.",
     changeFailed: "AI 검토 설정을 바꾸지 못했어요.",
     consent: {
@@ -788,7 +783,6 @@ export const ko = {
         installingNote: "새 버전을 내려받아 서명을 확인한 뒤 설치하고 다시 시작해요.",
         installFailed: "업데이트하지 못했어요. 지금 버전은 그대로예요.",
         waitForItems: "Lumen이 항목을 옮기거나 지우고 나면 업데이트할 수 있어요.",
-        sidebar: (version: string) => `새 버전 ${version}`,
         notice: (version: string) => `Lumen ${version} 업데이트가 있어요.`,
         noticeAction: "업데이트 보기",
         later: "나중에",

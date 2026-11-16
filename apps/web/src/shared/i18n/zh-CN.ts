@@ -124,7 +124,6 @@ export const zhCN: Messages = {
     scanStage: "扫描",
     resultsStage: "查看结果",
     cleanUpStage: "清理",
-    activeCommand: "命令正在运行",
     quitHeld: "Lumen 正在移动或移除项目。操作完成后即可关闭。",
   },
   start: {
@@ -150,10 +149,6 @@ export const zhCN: Messages = {
       stored: (service: string) => `${service}（你的密钥）`,
     },
     checking: "正在检查…",
-    short: {
-      on: "AI 检查已开启",
-      off: "AI 检查已关闭",
-    },
     loadFailed: "Lumen 无法加载 AI 检查设置。",
     changeFailed: "Lumen 无法更改 AI 检查设置。",
     consent: {
@@ -760,7 +755,6 @@ export const zhCN: Messages = {
         installingNote: "Lumen 会下载新版本、检查其签名、完成安装并重新启动。",
         installFailed: "更新未能安装。当前版本未发生变化。",
         waitForItems: "Lumen 完成项目移动或移除后，即可更新。",
-        sidebar: (version: string) => `有新版本 ${version}`,
         notice: (version: string) => `Lumen ${version} 已发布。`,
         noticeAction: "查看更新",
         later: "稍后",

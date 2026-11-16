@@ -139,7 +139,6 @@ export const en = {
     scanStage: "Scan",
     resultsStage: "See results",
     cleanUpStage: "Clean up",
-    activeCommand: "Command running",
     quitHeld: "Lumen is moving or removing items. You can close it once that finishes.",
   },
   start: {
@@ -165,10 +164,6 @@ export const en = {
       stored: (service: string) => `${service} (your key)`,
     },
     checking: "Checking…",
-    short: {
-      on: "AI review on",
-      off: "AI review off",
-    },
     loadFailed: "Lumen could not load the AI review setting.",
     changeFailed: "Lumen could not change the AI review setting.",
     consent: {
@@ -802,7 +797,6 @@ export const en = {
           "Lumen downloads the new version, checks its signature, installs it and restarts.",
         installFailed: "The update did not install. This version is unchanged.",
         waitForItems: "You can update once Lumen finishes moving or removing items.",
-        sidebar: (version: string) => `Version ${version} available`,
         notice: (version: string) => `Lumen ${version} is available.`,
         noticeAction: "View update",
         later: "Later",

@@ -130,7 +130,6 @@ export const ja: Messages = {
     scanStage: "スキャン",
     resultsStage: "結果を確認",
     cleanUpStage: "整理",
-    activeCommand: "コマンド実行中",
     quitHeld: "項目を移動または削除しています。完了後にLumenを閉じられます。",
   },
   start: {
@@ -156,10 +155,6 @@ export const ja: Messages = {
       stored: (service: string) => `${service}（自分のキー）`,
     },
     checking: "確認中…",
-    short: {
-      on: "AIレビュー：有効",
-      off: "AIレビュー：無効",
-    },
     loadFailed: "AIレビューの設定を読み込めませんでした。",
     changeFailed: "AIレビューの設定を変更できませんでした。",
     consent: {
@@ -796,7 +791,6 @@ export const ja: Messages = {
         installFailed:
           "アップデートをインストールできませんでした。現在のバージョンに変更はありません。",
         waitForItems: "項目の移動または削除が完了するとアップデートできます。",
-        sidebar: (version: string) => `バージョン${version}を利用できます`,
         notice: (version: string) => `Lumen ${version}を利用できます。`,
         noticeAction: "アップデートを確認",
         later: "後で",
