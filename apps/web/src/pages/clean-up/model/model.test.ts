@@ -83,6 +83,27 @@ describe("sectionsOf", () => {
   it("has no sections without candidates", () => {
     expect(sectionsOf([])).toEqual([]);
   });
+
+  it("splits a removed app's data by app, and a lower bound stays one", () => {
+    const notes = { kind: "removed_app", source: "net.example.Notes" } as const;
+    const chat = { kind: "removed_app", source: "org.example.Chat" } as const;
+    const sections = sectionsOf([
+      candidate("/notes-cache", "review", "200", notes),
+      { ...candidate("/notes-box", "review", "300", notes), reclaimable_exact: false },
+      candidate("/chat", "review", "50", chat),
+      candidate("/cache-a", "quarantine", "10", cache),
+      candidate("/data", "keep", "1", { kind: "app_data", source: "com.example.app" }),
+    ]);
+    expect(sections.map((s) => [s.kind, s.count, s.bytes, s.exact])).toEqual([
+      ["app_cache", 1, "10", true],
+      ["removed_app", 3, "550", false],
+      ["app_data", 1, "1", true],
+    ]);
+    expect(sections[1]?.sources.map((g) => [g.source, g.bytes, g.exact])).toEqual([
+      ["net.example.Notes", "500", false],
+      ["org.example.Chat", "50", true],
+    ]);
+  });
 });
 
 describe("sectionsOf with commands", () => {
