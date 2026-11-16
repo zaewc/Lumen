@@ -8,25 +8,32 @@
 
 #![allow(unsafe_code)]
 
-use std::ffi::{CStr, CString, c_char, c_int};
+use std::ffi::{CStr, c_char, c_int};
 use std::mem::MaybeUninit;
 use std::os::unix::ffi::OsStrExt as _;
 use std::path::PathBuf;
 
 /// The `admin` group's ID on macOS: its members are the administrators.
-const ADMIN_GID: c_int = 80;
+const ADMIN_GID: libc::gid_t = 80;
 
 /// The largest buffer tried for one account's record.
 const MAX_RECORD: usize = 1 << 20;
 
-/// The most groups read for one account.
-const MAX_GROUPS: usize = 4096;
+/// A UUID as `<uuid/uuid.h>` declares it (`uuid_t`).
+type Uuid = [u8; 16];
 
-/// An account's name, primary group and home folder.
+// The membership API (`<membership.h>`, in libSystem), which the directory
+// service answers with nested groups resolved; `libc` does not declare it.
+// Each returns 0 on success or an error number (`mbr_check_membership(3)`).
+unsafe extern "C" {
+    fn mbr_uid_to_uuid(uid: libc::uid_t, uu: *mut u8) -> c_int;
+    fn mbr_gid_to_uuid(gid: libc::gid_t, uu: *mut u8) -> c_int;
+    fn mbr_check_membership(user: *const u8, group: *const u8, ismember: *mut c_int) -> c_int;
+}
+
+/// An account's home folder.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Account {
-    name: CString,
-    gid: u32,
     home: PathBuf,
 }
 
@@ -63,20 +70,14 @@ fn account(uid: u32) -> Option<Account> {
         // reading memory written by C. Why it holds: the call returned 0 with
         // `found` pointing at `record`, and `buffer` is still alive; the
         // strings are copied before it is dropped.
-        let (name, home, gid) = unsafe {
+        let home = unsafe {
             let record = record.assume_init_ref();
-            if record.pw_name.is_null() || record.pw_dir.is_null() {
+            if record.pw_dir.is_null() {
                 return None;
             }
-            (
-                CStr::from_ptr(record.pw_name).to_owned(),
-                CStr::from_ptr(record.pw_dir).to_bytes().to_vec(),
-                record.pw_gid,
-            )
+            CStr::from_ptr(record.pw_dir).to_bytes().to_vec()
         };
         return Some(Account {
-            name,
-            gid,
             home: PathBuf::from(std::ffi::OsStr::from_bytes(&home)),
         });
     }
@@ -93,32 +94,36 @@ pub fn home(uid: u32) -> Option<PathBuf> {
 }
 
 /// Whether the account with user ID `uid` is an administrator (a member of
-/// the `admin` group, directly or through nested groups); `None` if that
-/// cannot be read.
+/// the `admin` group, directly or through nested groups), as the directory
+/// service answers `mbr_check_membership`; `None` if there is no such account
+/// or any lookup fails.
+///
+/// `getgrouplist` is not used: when the directory service cannot be reached
+/// it can succeed with only the primary group, which would read as "not an
+/// administrator" rather than unknown.
 #[must_use]
 pub fn administrator(uid: u32) -> Option<bool> {
-    let account = account(uid)?;
-    let base = c_int::try_from(account.gid).ok()?;
-    let mut groups: Vec<c_int> = vec![0; MAX_GROUPS];
-    let mut count = c_int::try_from(groups.len()).ok()?;
-    // SAFETY: invariant: `name` is NUL-terminated, `groups` is valid for
-    // writes of `count` entries and `count` for one `int`. Why unsafe: FFI.
-    // Why it holds: `name` is a `CString` and `count` starts at the vector's
-    // own length; both outlive the call.
+    // The membership API makes up a UUID for an ID with no account, so the
+    // account must exist first.
+    account(uid)?;
+    let mut user: Uuid = [0; 16];
+    let mut group: Uuid = [0; 16];
+    let mut member: c_int = 0;
+    // SAFETY: invariant: `user` and `group` are valid for writes of 16 bytes
+    // (`uuid_t`), and `member` for one `int`, for each call. Why unsafe: FFI
+    // into libSystem's membership API. Why it holds: all three are locals of
+    // exactly those sizes that outlive the calls, and each call only writes
+    // its out-parameter.
     let status = unsafe {
-        libc::getgrouplist(
-            account.name.as_ptr(),
-            base,
-            groups.as_mut_ptr(),
-            &raw mut count,
-        )
+        match mbr_uid_to_uuid(uid, user.as_mut_ptr()) {
+            0 => match mbr_gid_to_uuid(ADMIN_GID, group.as_mut_ptr()) {
+                0 => mbr_check_membership(user.as_ptr(), group.as_ptr(), &raw mut member),
+                error => error,
+            },
+            error => error,
+        }
     };
-    if status != 0 {
-        // The list did not fit, so membership is not known.
-        return None;
-    }
-    let count = usize::try_from(count).ok()?.min(groups.len());
-    Some(groups.get(..count)?.contains(&ADMIN_GID))
+    (status == 0).then_some(member != 0)
 }
 
 #[cfg(test)]
