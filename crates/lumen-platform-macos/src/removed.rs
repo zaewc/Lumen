@@ -29,8 +29,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use lumen_domain::{
-    AppDataKind, AppId, AppIdScheme, Application, FilesystemEntry, RawPath, SourceName, Timestamp,
-    UntrustedText,
+    AppDataKind, AppId, AppIdScheme, Application, EntryKind, FilesystemEntry, RawPath, SourceName,
+    Timestamp, UntrustedText,
 };
 
 use crate::support::{BY_BUNDLE_ID, Link, child_name, join, link};
@@ -139,7 +139,10 @@ impl RemovedApps {
                     continue;
                 };
                 let lower = id.to_ascii_lowercase();
-                if *container {
+                // Only a folder is a sandbox container; a file of that name
+                // corroborates nothing.
+                let container = *container && entry.kind == EntryKind::Directory;
+                if container {
                     self.containers.insert(lower.clone());
                 }
                 let spelling = Spelling {
@@ -235,8 +238,8 @@ mod tests {
     use std::num::NonZeroU32;
 
     use lumen_domain::{
-        AccessState, ByteCount, EntryKind, EntryTimes, Fact, FileId, FileIdentity, Protection,
-        RelationKind, SizeFacts, SizeFlags, Subject, VolumeId,
+        AccessState, ByteCount, EntryTimes, Fact, FileId, FileIdentity, Protection, RelationKind,
+        SizeFacts, SizeFlags, Subject, VolumeId,
     };
 
     use super::*;
@@ -363,6 +366,15 @@ mod tests {
             found,
             ["org.example.Chat", "org.example.Chat.ShareExtension"]
         );
+    }
+
+    #[test]
+    fn a_file_named_like_a_container_corroborates_nothing() {
+        let mut noted = RemovedApps::new();
+        let mut file = entry("Containers/net.example.Tool", 1);
+        file.kind = EntryKind::File;
+        noted.add(&home(), &[file, entry("Caches/net.example.Tool", 2)]);
+        assert!(noted.candidates(&[]).is_empty());
     }
 
     #[test]
