@@ -17,7 +17,9 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{JudgmentConfidence, PayloadHash, SchemaVersion, ServiceKind, UntrustedText};
+use crate::{
+    JudgmentConfidence, PayloadHash, RemovalFacts, SchemaVersion, ServiceKind, UntrustedText,
+};
 
 /// Domain separator for software request hashes.
 const SOFTWARE_REQUEST_HASH_DOMAIN: &[u8] = b"lumen.jev.software-request/1\0";
@@ -352,23 +354,29 @@ impl SoftwareNote {
 
     /// The note with a removal impact that contradicts what is known set to
     /// [`RemovalImpact::Unknown`] with low confidence, like the judgment
-    /// guards (ADR-0043): "only this app" is never said of software the
-    /// platform marks protected, nor of software whose own purpose means other
-    /// things rely on it (security or banking, a system component or driver, a
-    /// runtime or library). The model's answer can never make removal look
-    /// harmless there.
+    /// guards (ADR-0043): "only this app" is never said of software
     ///
-    /// Roadmap 16.8 hook: once Lumen knows what depends on a package, that
-    /// fact, not the model's guess, decides the impact; it belongs here.
+    /// - the platform marks protected;
+    /// - whose own purpose means other things rely on it (security or
+    ///   banking, a system component or driver, a runtime or library);
+    /// - that Lumen's package records show other listed software needs
+    ///   ([`RemovalFacts::relied_on`], #850): Lumen's fact decides over the
+    ///   model's guess.
+    ///
+    /// The model's answer can never make removal look harmless there. The
+    /// guard only ever makes the note more cautious, so applying it again with
+    /// newer facts is safe.
     #[must_use]
-    pub const fn guarded(self, protected: bool) -> Self {
+    pub const fn guarded(self, facts: &RemovalFacts) -> Self {
         let relied_on = matches!(
             self.purpose,
             SoftwarePurpose::SecurityOrBanking
                 | SoftwarePurpose::SystemOrDriver
                 | SoftwarePurpose::RuntimeOrLibrary
-        );
-        if matches!(self.removal_impact, RemovalImpact::OnlyThisApp) && (protected || relied_on) {
+        ) || facts.relied_on();
+        if matches!(self.removal_impact, RemovalImpact::OnlyThisApp)
+            && (facts.protected || relied_on)
+        {
             Self {
                 removal_impact: RemovalImpact::Unknown,
                 removal_impact_confidence: JudgmentConfidence::Low,
@@ -488,14 +496,18 @@ mod tests {
             removal_impact_confidence: JudgmentConfidence::High,
             injection_suspected: false,
         };
+        let protected = RemovalFacts {
+            protected: true,
+            ..RemovalFacts::default()
+        };
         let media = note(SoftwarePurpose::Media);
         assert_eq!(
-            media.guarded(false),
+            media.guarded(&RemovalFacts::default()),
             media,
             "an ordinary app keeps its answer"
         );
         assert_eq!(
-            media.guarded(true),
+            media.guarded(&protected),
             SoftwareNote {
                 removal_impact: RemovalImpact::Unknown,
                 removal_impact_confidence: JudgmentConfidence::Low,
@@ -509,7 +521,9 @@ mod tests {
             SoftwarePurpose::RuntimeOrLibrary,
         ] {
             assert_eq!(
-                note(purpose).guarded(false).removal_impact,
+                note(purpose)
+                    .guarded(&RemovalFacts::default())
+                    .removal_impact,
                 RemovalImpact::Unknown
             );
         }
@@ -517,6 +531,48 @@ mod tests {
             removal_impact: RemovalImpact::SystemFunction,
             ..note(SoftwarePurpose::SystemOrDriver)
         };
-        assert_eq!(other.guarded(true), other, "other answers are kept");
+        assert_eq!(other.guarded(&protected), other, "other answers are kept");
+    }
+
+    #[test]
+    fn lumen_s_dependents_decide_over_the_model_s_guess() {
+        use crate::RelationCount;
+        // Contradictory evidence: the model says nothing else is affected,
+        // Lumen's package records say another listed package needs it.
+        let guess = SoftwareNote {
+            purpose: SoftwarePurpose::DevelopmentTool,
+            removal_impact: RemovalImpact::OnlyThisApp,
+            purpose_confidence: JudgmentConfidence::High,
+            removal_impact_confidence: JudgmentConfidence::High,
+            injection_suspected: false,
+        };
+        let needed_by = |count, complete| RemovalFacts {
+            needed_by: Some(RelationCount { count, complete }),
+            ..RemovalFacts::default()
+        };
+        for facts in [needed_by(1, true), needed_by(3, false)] {
+            assert_eq!(
+                guess.guarded(&facts),
+                SoftwareNote {
+                    removal_impact: RemovalImpact::Unknown,
+                    removal_impact_confidence: JudgmentConfidence::Low,
+                    ..guess
+                },
+                "{facts:?}"
+            );
+        }
+        // No recorded dependent, or none known: the guess stays, labelled as
+        // AI review's; Lumen's own facts are shown beside it.
+        assert_eq!(guess.guarded(&needed_by(0, true)), guess);
+        assert_eq!(guess.guarded(&needed_by(0, false)), guess);
+        // A cautious answer is never loosened, whatever the facts.
+        let cautious = SoftwareNote {
+            removal_impact: RemovalImpact::OtherSoftwareDepends,
+            ..guess
+        };
+        assert_eq!(cautious.guarded(&needed_by(0, true)), cautious);
+        // Guarding twice changes nothing more.
+        let once = guess.guarded(&needed_by(1, true));
+        assert_eq!(once.guarded(&needed_by(1, true)), once);
     }
 }
