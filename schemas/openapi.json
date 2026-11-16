@@ -1890,6 +1890,26 @@
           }
         }
       },
+      "RelationCountView": {
+        "type": "object",
+        "description": "How many entries a package relation reaches.",
+        "required": [
+          "count",
+          "complete"
+        ],
+        "properties": {
+          "complete": {
+            "type": "boolean",
+            "description": "Every record it rests on was read; otherwise it is at least `count`,\nand zero means unknown, never none."
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Entries the records name.",
+            "minimum": 0
+          }
+        }
+      },
       "RelationKindView": {
         "type": "string",
         "description": "The kind of a relationship, read `from <kind> to`.",
@@ -1957,6 +1977,67 @@
           }
         }
       },
+      "RemovalFactsView": {
+        "type": "object",
+        "description": "What Lumen itself observed about removing a piece of software, from its\ninventory records (#850): shown apart from the AI note and never sent to\nAI review (ADR-0061 rule 2, ADR-0064 rule 7).",
+        "required": [
+          "mechanism",
+          "installed_by",
+          "needs_administrator",
+          "needs",
+          "needed_by"
+        ],
+        "properties": {
+          "installed_by": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SoftwareOriginView",
+                "description": "For an app, the kind of package whose record verifiably says it\ninstalled it: where `mechanism` and `needs_administrator` come from.\n`None` when they come from the item's own record."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mechanism": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RemovalMechanismView",
+                "description": "How its own mechanism removes it; `None` where no record says."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "needed_by": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RelationCountView",
+                "description": "The listed packages whose records say they need it (verified only);\n`None` when not a package."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "needs": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RelationCountView",
+                "description": "The packages its own record says it needs; `None` when not a package\nor its record was not read."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "needs_administrator": {
+            "type": "boolean",
+            "description": "Removing it is known to need administrator rights; `false` where Lumen\ndoes not know, never \"not needed\"."
+          }
+        }
+      },
       "RemovalImpactView": {
         "type": "string",
         "description": "What AI review says removing a piece of software could affect besides\nitself (ADR-0061): a description, never a statement that removal is safe.",
@@ -1967,6 +2048,16 @@
           "security_or_access",
           "system_function",
           "unknown"
+        ]
+      },
+      "RemovalMechanismView": {
+        "type": "string",
+        "description": "How a piece of software's own mechanism removes it, as its record shows\n(#850). Lumen's observation, never AI review's.",
+        "enum": [
+          "package_manager",
+          "windows_installer",
+          "own_uninstaller",
+          "none_recorded"
         ]
       },
       "RemovedView": {
@@ -2300,6 +2391,7 @@
           "hidden",
           "explicit",
           "services",
+          "facts",
           "ai_note",
           "size",
           "relations",
@@ -2323,6 +2415,10 @@
               "null"
             ],
             "description": "Whether it was installed on request rather than as another package's\ndependency; `None` where the record does not say."
+          },
+          "facts": {
+            "$ref": "#/components/schemas/RemovalFactsView",
+            "description": "What Lumen observed about removing it, from its records (#850)."
           },
           "hidden": {
             "type": "boolean",

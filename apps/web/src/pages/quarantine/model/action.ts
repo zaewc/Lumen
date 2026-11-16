@@ -42,6 +42,11 @@ export function useHeldAction() {
       const { act } = actionable(action, items);
       const changes: SpaceChangeView[] = [];
       let fullyMeasured = true;
+      // Several removals are confirmed once in the host's own window, not
+      // once per item; declining there rejects before anything is removed.
+      if (action === "finalize" && mode === "many" && transport.confirmFinalize !== undefined) {
+        await transport.confirmFinalize(act.map(operationOf));
+      }
       try {
         const { done, stopped } = await runBatch(
           act,

@@ -488,6 +488,10 @@ export const fr: Messages = {
     finalizeTitle: "Supprimer cet élément définitivement ?",
     finalizeNote: "Cette action est irréversible.",
     finalizeChosen: "Vous avez choisi cet élément vous-même ; Lumen ne l'a pas proposé.",
+    finalizeManyTitle: (n: number, size: string) =>
+      `Supprimer ${items(n)} (${size}) définitivement ?`,
+    finalizeManyChosen: (n: number) =>
+      `Vous avez choisi ${items(n)} vous-même ; Lumen ${n > 1 ? "ne les a pas proposés" : "ne l'a pas proposé"}.`,
     finalizeButton: "Supprimer définitivement",
     toolTitle: (tool) => `Exécuter la commande de ${tool} ?`,
     toolNote: "Ce qu'elle supprime ne pourra pas être restauré.",

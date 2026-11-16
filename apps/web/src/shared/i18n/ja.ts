@@ -487,6 +487,9 @@ export const ja: Messages = {
     finalizeTitle: "この項目を完全に削除しますか？",
     finalizeNote: "元に戻せません。",
     finalizeChosen: "自分で選んだ項目です。Lumen が提案したものではありません。",
+    finalizeManyTitle: (n: number, size: string) => `${items(n)}（${size}）を完全に削除しますか？`,
+    finalizeManyChosen: (n: number) =>
+      `このうち${items(n)}は自分で選んだ項目です。Lumen が提案したものではありません。`,
     finalizeButton: "完全に削除",
     toolTitle: (tool: string) => `${tool} のコマンドを実行しますか？`,
     toolNote: "削除されたものは復元できません。",

@@ -3,19 +3,42 @@
 //! A request and its answer are one JSON object each. The helper treats every
 //! request as untrusted input: anything it cannot read is refused, and who is
 //! asking comes from the connection (the caller's user ID), never from the
-//! request. The first step (roadmap 16.3b) has one verb, `status`; moving,
-//! restoring and finalizing come with the helper's store.
+//! request. Its verbs so far:
 //!
-//! [`answer`] is the whole decision, free of IO, so it is tested without
-//! privileges in fixtures (ADR-0063 rule 9).
+//! - `status` (roadmap 16.3b): which helper answers, and whom it sees asking;
+//! - `quarantine` (16.3c): move an app another account owns into the
+//!   caller's store, after deciding everything again itself
+//!   ([`quarantine`](mod@quarantine), [`gate`]);
+//! - `locate`, `restore` and `finalize` (16.3d): act on an item the helper
+//!   holds for the caller, named by its operation alone, from the helper's own
+//!   record of it ([`held`]).
+//!
+//! [`answer`] is the whole decision. Everything it reads or does on the
+//! computer goes through [`HelperHost`], so it is tested without privileges
+//! (ADR-0063 rule 9).
+//!
+//! Versions: [`PROTOCOL`] 2 added `quarantine`, 3 added `locate`, `restore`
+//! and `finalize`. A client asks `status` first and sends the other verbs only
+//! to a helper of its own protocol; an older helper does not know a newer verb
+//! and answers it as malformed. Each request but `status` also names the
+//! client's protocol, and a helper of another refuses it
+//! ([`HelperRefusal::OtherProtocol`]).
 
 pub mod gate;
+pub mod held;
+pub mod quarantine;
 
+use lumen_domain::{
+    EvidenceHash, FileIdentity, ItemLocation, OperationId, QuarantineFailure, RawPath,
+};
 use serde::{Deserialize, Serialize};
+
+pub use held::{FinalizeRefusal, HeldRequest, RestoreRefusal, Whereabouts};
+pub use quarantine::{HELD_SCHEMA, HeldRecord, HelperHost};
 
 /// The protocol version; a client and helper that differ set the helper up
 /// again.
-pub const PROTOCOL: u32 = 1;
+pub const PROTOCOL: u32 = 3;
 
 /// A request to the helper.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -24,6 +47,33 @@ pub const PROTOCOL: u32 = 1;
 pub enum HelperRequest {
     /// Which helper answers, and whom it sees asking.
     Status,
+    /// Move a planned app another account owns into the caller's store.
+    Quarantine(QuarantineRequest),
+    /// Where an item the helper holds for the caller is.
+    Locate(HeldRequest),
+    /// Move an item the helper holds for the caller back to where it was.
+    Restore(HeldRequest),
+    /// Remove an item the helper holds for the caller for good.
+    Finalize(HeldRequest),
+}
+
+/// A planned item the person confirmed by hash (ADR-0034), as Lumen sends
+/// it. Nothing in it is trusted: the helper finds the item again by path and
+/// checks its identity, and decides everything else from its own evidence.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct QuarantineRequest {
+    /// The client's [`PROTOCOL`].
+    pub protocol: u32,
+    /// The operation Lumen journaled before asking: the item's name in the
+    /// store, and what restoring or finalizing it will name.
+    pub operation: OperationId,
+    /// The planned item's path.
+    pub path: RawPath,
+    /// Its identity when the person confirmed it.
+    pub identity: FileIdentity,
+    /// The confirmed decision's evidence hash, kept in the helper's record.
+    pub evidence_hash: EvidenceHash,
 }
 
 /// Why the helper refused a request; nothing was done.
@@ -36,6 +86,13 @@ pub enum HelperRefusal {
     /// The caller runs as root. The helper acts for a person's own account,
     /// and Lumen itself never runs privileged.
     RootCaller,
+    /// The request names another protocol than the helper's; set the helper
+    /// up again.
+    OtherProtocol,
+    /// The caller is not an administrator, or that could not be read. Moving
+    /// an app another account owns needs an administrator, as it does in the
+    /// Finder.
+    NotAdministrator,
 }
 
 /// The helper's answer.
@@ -57,12 +114,59 @@ pub enum HelperResponse {
         /// Why.
         reason: HelperRefusal,
     },
+    /// The item is in the caller's store as `operation`, verified, with the
+    /// helper's record next to it.
+    Quarantined {
+        /// The request's operation.
+        operation: OperationId,
+    },
+    /// The helper's decision refused the item; it was not moved.
+    Ineligible {
+        /// Every reason, at least one.
+        reasons: Vec<gate::Reason>,
+    },
+    /// The move failed; `left` says where the item is.
+    Failed {
+        /// Why.
+        reason: QuarantineFailure,
+        /// Where it is.
+        left: ItemLocation,
+    },
+    /// The helper holds nothing for the caller under the request's operation;
+    /// nothing was done.
+    NotHeld,
+    /// The answer to [`HelperRequest::Locate`].
+    Located {
+        /// Where the item is.
+        whereabouts: Whereabouts,
+    },
+    /// The item is back where it was.
+    Restored {
+        /// Its original parent had been recreated.
+        parent_replaced: bool,
+        /// It matched its record in full after the move.
+        matches_record: bool,
+    },
+    /// The item was not restored; `left` says where it is.
+    NotRestored {
+        /// Why.
+        reason: RestoreRefusal,
+        /// Where it is.
+        left: ItemLocation,
+    },
+    /// The item is removed for good.
+    Finalized,
+    /// The item was not removed for good.
+    NotFinalized {
+        /// Why, and how much was removed.
+        reason: FinalizeRefusal,
+    },
 }
 
 /// The helper's answer to `body`, sent by the account `caller_uid`, from a
-/// helper of `version`.
+/// helper of `version` acting through `host`.
 #[must_use]
-pub fn answer(body: &str, caller_uid: u32, version: &str) -> String {
+pub fn answer(body: &str, caller_uid: u32, version: &str, host: &dyn HelperHost) -> String {
     let response = match serde_json::from_str::<HelperRequest>(body) {
         Err(_) => HelperResponse::Refused {
             reason: HelperRefusal::Malformed,
@@ -75,9 +179,15 @@ pub fn answer(body: &str, caller_uid: u32, version: &str) -> String {
             version: version.to_owned(),
             caller_uid,
         },
+        Ok(HelperRequest::Quarantine(request)) => {
+            quarantine::quarantine(caller_uid, &request, version, host)
+        }
+        Ok(HelperRequest::Locate(request)) => held::locate(caller_uid, &request, host),
+        Ok(HelperRequest::Restore(request)) => held::restore(caller_uid, &request, host),
+        Ok(HelperRequest::Finalize(request)) => held::finalize(caller_uid, &request, host),
     };
     serde_json::to_string(&response).unwrap_or_else(|_| {
-        // Serializing these plain enums cannot fail; refuse rather than panic.
+        // Serializing these plain types cannot fail; refuse rather than panic.
         r#"{"kind":"refused","reason":"malformed"}"#.to_owned()
     })
 }
@@ -96,6 +206,7 @@ pub fn response(body: &str) -> Option<HelperResponse> {
 
 #[cfg(test)]
 mod tests {
+    use super::quarantine::fake::Host;
     use super::*;
 
     fn refused(reason: HelperRefusal) -> HelperResponse {
@@ -107,7 +218,7 @@ mod tests {
         let body = request(&HelperRequest::Status);
         assert_eq!(body, r#"{"verb":"status"}"#);
         assert_eq!(
-            response(&answer(&body, 501, "0.10.0")),
+            response(&answer(&body, 501, "0.10.0", &Host::eligible())),
             Some(HelperResponse::Status {
                 protocol: PROTOCOL,
                 version: "0.10.0".into(),
@@ -118,7 +229,12 @@ mod tests {
 
     #[test]
     fn a_caller_named_in_the_request_is_ignored() {
-        let answered = response(&answer(r#"{"verb":"status","caller_uid":0}"#, 501, "1"));
+        let answered = response(&answer(
+            r#"{"verb":"status","caller_uid":0}"#,
+            501,
+            "1",
+            &Host::eligible(),
+        ));
         assert!(matches!(
             answered,
             Some(HelperResponse::Status {
@@ -139,7 +255,7 @@ mod tests {
             "[]",
         ] {
             assert_eq!(
-                response(&answer(body, 501, "1")),
+                response(&answer(body, 501, "1", &Host::eligible())),
                 Some(refused(HelperRefusal::Malformed)),
                 "{body}"
             );
@@ -149,7 +265,7 @@ mod tests {
     #[test]
     fn a_root_caller_is_refused() {
         assert_eq!(
-            response(&answer(r#"{"verb":"status"}"#, 0, "1")),
+            response(&answer(r#"{"verb":"status"}"#, 0, "1", &Host::eligible())),
             Some(refused(HelperRefusal::RootCaller))
         );
     }

@@ -12,6 +12,7 @@ const allowed = new Set([
   "held",
   "restore",
   "finalize",
+  "confirm_finalize",
   "ai_settings",
   "set_ai_review",
   "set_ai_key",

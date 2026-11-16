@@ -495,6 +495,9 @@ export const en = {
     finalizeTitle: "Remove this item for good?",
     finalizeNote: "This cannot be undone.",
     finalizeChosen: "You chose this item yourself; Lumen did not propose it.",
+    finalizeManyTitle: (n: number, size: string) => `Remove ${items(n)} (${size}) for good?`,
+    finalizeManyChosen: (n: number) =>
+      `You chose ${items(n)} of these yourself; Lumen did not propose ${n === 1 ? "it" : "them"}.`,
     finalizeButton: "Remove for Good",
     toolTitle: (tool: string) => `Run ${tool}’s command?`,
     toolNote: "What it removes cannot be restored.",

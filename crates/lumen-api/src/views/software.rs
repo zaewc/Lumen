@@ -12,12 +12,14 @@
 
 use lumen_app::software_notes::{NoteCache, SoftwareKey};
 use lumen_application::ports::InventoryReport;
+use lumen_application::removal_facts::inventory_facts;
 use lumen_application::software_links::{LinkMethod, link_services};
 use lumen_application::software_notes::SoftwareSubject;
 use lumen_domain::{
-    AppIdScheme, Application, JudgmentConfidence, Package, PackageManager, RemovalImpact, Service,
-    ServiceKind, ServiceScope, SoftwareFacts, SoftwareNote, SoftwareOrigin, SoftwarePurpose,
-    SoftwareRequest, SoftwareService, SourceStatus,
+    AppIdScheme, Application, JudgmentConfidence, Package, PackageManager, RelationCount,
+    RemovalFacts, RemovalImpact, RemovalMechanism, Service, ServiceKind, ServiceScope,
+    SoftwareFacts, SoftwareNote, SoftwareOrigin, SoftwarePurpose, SoftwareRequest, SoftwareService,
+    SourceStatus,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -248,6 +250,99 @@ impl From<SoftwareNote> for SoftwareNoteView {
     }
 }
 
+/// How a piece of software's own mechanism removes it, as its record shows
+/// (#850). Lumen's observation, never AI review's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RemovalMechanismView {
+    /// Its package manager removes it.
+    PackageManager,
+    /// Windows Installer removes it.
+    WindowsInstaller,
+    /// Its installer recorded an uninstaller of its own.
+    OwnUninstaller,
+    /// Its record names no way to remove it (a macOS installer receipt, or a
+    /// Windows entry with no removal command).
+    NoneRecorded,
+}
+
+/// How many entries a package relation reaches.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct RelationCountView {
+    /// Entries the records name.
+    pub count: u32,
+    /// Every record it rests on was read; otherwise it is at least `count`,
+    /// and zero means unknown, never none.
+    pub complete: bool,
+}
+
+/// What Lumen itself observed about removing a piece of software, from its
+/// inventory records (#850): shown apart from the AI note and never sent to
+/// AI review (ADR-0061 rule 2, ADR-0064 rule 7).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct RemovalFactsView {
+    /// How its own mechanism removes it; `None` where no record says.
+    #[schema(required = true)]
+    pub mechanism: Option<RemovalMechanismView>,
+    /// For an app, the kind of package whose record verifiably says it
+    /// installed it: where `mechanism` and `needs_administrator` come from.
+    /// `None` when they come from the item's own record.
+    #[schema(required = true)]
+    pub installed_by: Option<SoftwareOriginView>,
+    /// Removing it is known to need administrator rights; `false` where Lumen
+    /// does not know, never "not needed".
+    pub needs_administrator: bool,
+    /// The packages its own record says it needs; `None` when not a package
+    /// or its record was not read.
+    #[schema(required = true)]
+    pub needs: Option<RelationCountView>,
+    /// The listed packages whose records say they need it (verified only);
+    /// `None` when not a package.
+    #[schema(required = true)]
+    pub needed_by: Option<RelationCountView>,
+}
+
+const fn count_view(count: RelationCount) -> RelationCountView {
+    RelationCountView {
+        count: count.count,
+        complete: count.complete,
+    }
+}
+
+const fn count_domain(count: RelationCountView) -> RelationCount {
+    RelationCount {
+        count: count.count,
+        complete: count.complete,
+    }
+}
+
+impl From<RemovalFacts> for RemovalFactsView {
+    fn from(facts: RemovalFacts) -> Self {
+        Self {
+            mechanism: facts.mechanism.map(|m| match m {
+                RemovalMechanism::PackageManager => RemovalMechanismView::PackageManager,
+                RemovalMechanism::WindowsInstaller => RemovalMechanismView::WindowsInstaller,
+                RemovalMechanism::OwnUninstaller => RemovalMechanismView::OwnUninstaller,
+                RemovalMechanism::NoneRecorded => RemovalMechanismView::NoneRecorded,
+            }),
+            installed_by: facts.installed_by.map(origin),
+            needs_administrator: facts.needs_administrator,
+            needs: facts.needs.map(count_view),
+            needed_by: facts.needed_by.map(count_view),
+        }
+    }
+}
+
+/// The facts the AI note's guard weighs for `item` (`SoftwareNote::guarded`):
+/// its protection and its recorded dependents.
+fn guard_facts(item: &SoftwareItemView) -> RemovalFacts {
+    RemovalFacts {
+        protected: item.protected,
+        needed_by: item.facts.needed_by.map(count_domain),
+        ..RemovalFacts::default()
+    }
+}
+
 /// One application or package.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct SoftwareItemView {
@@ -280,6 +375,10 @@ pub struct SoftwareItemView {
     pub explicit: Option<bool>,
     /// Background items linked to it, verified first.
     pub services: Vec<LinkedServiceView>,
+    /// What Lumen observed about removing it, from its records (#850).
+    #[serde(default)]
+    #[schema(required = true)]
+    pub facts: RemovalFactsView,
     /// What AI review said about it, when it may be shown (ADR-0061).
     #[schema(required = true)]
     pub ai_note: Option<SoftwareNoteView>,
@@ -467,6 +566,7 @@ fn package(package: &Package) -> (SoftwareItemView, Raw) {
         hidden: false,
         explicit: package.explicit,
         services: Vec::new(),
+        facts: RemovalFactsView::default(),
         ai_note: None,
         size: None,
         relations: Vec::new(),
@@ -528,6 +628,7 @@ fn application(app: &Application) -> Option<(SoftwareItemView, Raw)> {
         hidden: record.is_some_and(|r| r.hidden),
         explicit: None,
         services: Vec::new(),
+        facts: RemovalFactsView::default(),
         ai_note: None,
         size: None,
         relations: Vec::new(),
@@ -599,13 +700,20 @@ pub fn software_subjects(reports: &[InventoryReport]) -> Vec<SoftwareSubject<Sof
 /// sorted by name (then key).
 fn rows(reports: &[InventoryReport]) -> Vec<(SoftwareItemView, Raw)> {
     let mut items: Vec<(SoftwareItemView, Raw)> = Vec::new();
+    let facts = inventory_facts(reports);
+    let mut app_facts = facts.applications.into_iter();
+    let mut package_facts = facts.packages.into_iter();
     for report in reports {
-        let rows = report
-            .applications
-            .iter()
-            .filter_map(application)
-            .chain(report.packages.iter().map(package));
-        for row in rows {
+        let apps = report.applications.iter().filter_map(|app| {
+            let facts = app_facts.next().unwrap_or_default();
+            application(app).map(|row| (row, facts))
+        });
+        let packages = report.packages.iter().map(|p| {
+            let facts = package_facts.next().unwrap_or_default();
+            (package(p), facts)
+        });
+        for (mut row, facts) in apps.chain(packages).collect::<Vec<_>>() {
+            row.0.facts = RemovalFactsView::from(facts);
             if !items.iter().any(|(item, _)| item.key == row.0.key) {
                 items.push(row);
             }
@@ -707,11 +815,15 @@ impl SoftwareView {
     }
 
     /// The list with each row's cached AI note, when one may be shown
-    /// (ADR-0061).
+    /// (ADR-0061), guarded again with the row's current facts: where Lumen's
+    /// records show other software needs it, "only this app" is not shown
+    /// (#850).
     #[must_use]
     pub fn with_notes(mut self, notes: &NoteCache) -> Self {
         for item in &mut self.items {
-            item.ai_note = notes.shown(&software_key(item)).map(SoftwareNoteView::from);
+            item.ai_note = notes
+                .shown(&software_key(item))
+                .map(|note| SoftwareNoteView::from(note.guarded(&guard_facts(item))));
         }
         self
     }
@@ -1103,6 +1215,112 @@ mod tests {
                 ),
             ]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn lumen_s_facts_come_from_records_and_decide_over_the_note()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use lumen_domain::{
+            JudgeDescriptor, ModelId, PackageId, PackageRelation, PackageRelationKind,
+            RelationMethod,
+        };
+        let needs = |id: &str| PackageRelation {
+            kind: PackageRelationKind::DependsOn {
+                package: PackageId {
+                    manager: PackageManager::Homebrew,
+                    id: UntrustedText::new(id),
+                },
+                direct: Some(true),
+            },
+            method: RelationMethod::HomebrewRuntimeDependencies,
+        };
+        let with = |id: &str, relations| Package {
+            relations: Some(relations),
+            ..package(PackageManager::Homebrew, id, false)
+        };
+        let mut brew = report("macos.homebrew", SourceStatus::Complete);
+        brew.packages = vec![
+            with("openssl", Vec::new()),
+            with("curl", vec![needs("openssl")]),
+        ];
+        let mut deb = report("linux.dpkg", SourceStatus::Partial);
+        deb.packages = vec![package(PackageManager::Dpkg, "tar", true)];
+        let view = SoftwareView::from_reports(&[brew, deb]);
+        let facts = |id: &str| {
+            view.items
+                .iter()
+                .find(|i| i.id == id)
+                .map(|i| serde_json::to_value(i.facts).unwrap_or_default())
+        };
+        assert_eq!(
+            facts("openssl"),
+            Some(serde_json::json!({
+                "mechanism": "package_manager",
+                "installed_by": null,
+                "needs_administrator": false,
+                "needs": {"count": 0, "complete": true},
+                "needed_by": {"count": 1, "complete": false},
+            })),
+            "curl needs it; the partial dpkg list leaves the count at least one"
+        );
+        assert_eq!(
+            facts("tar"),
+            Some(serde_json::json!({
+                "mechanism": "package_manager",
+                "installed_by": null,
+                "needs_administrator": true,
+                "needs": null,
+                "needed_by": {"count": 0, "complete": false},
+            })),
+            "unread relations and a partial list: dependents unknown"
+        );
+
+        // The model says removing either affects nothing else.
+        let judge = JudgeDescriptor {
+            provider: SourceName::new("fake")?,
+            model: ModelId::new("fake-1")?,
+            model_version: None,
+            prompt_version: "jev-software/1".parse()?,
+        };
+        let guess = SoftwareNote {
+            purpose: SoftwarePurpose::DevelopmentTool,
+            removal_impact: RemovalImpact::OnlyThisApp,
+            purpose_confidence: JudgmentConfidence::High,
+            removal_impact_confidence: JudgmentConfidence::High,
+            injection_suspected: false,
+        };
+        let mut cache = NoteCache::default();
+        for id in ["openssl", "curl"] {
+            let key = SoftwareKey {
+                origin: SoftwareOrigin::Homebrew,
+                id: id.to_owned(),
+                version: Some("2.0".to_owned()),
+            };
+            cache.insert(key, &judge, guess);
+        }
+        let before: Vec<_> = view.items.iter().map(|i| i.facts).collect();
+        let noted = view.with_notes(&cache);
+        let impact = |id: &str| {
+            noted
+                .items
+                .iter()
+                .find(|i| i.id == id)
+                .and_then(|i| i.ai_note)
+                .map(|n| (n.removal_impact, n.removal_impact_confidence))
+        };
+        assert_eq!(
+            impact("openssl"),
+            Some((RemovalImpactView::Unknown, ConfidenceView::Low)),
+            "curl needs openssl: Lumen's record decides"
+        );
+        assert_eq!(
+            impact("curl"),
+            Some((RemovalImpactView::OnlyThisApp, ConfidenceView::High)),
+            "nothing recorded needs curl: the guess stays, labelled as AI's"
+        );
+        let after: Vec<_> = noted.items.iter().map(|i| i.facts).collect();
+        assert_eq!(before, after, "the note never changes Lumen's facts");
         Ok(())
     }
 }

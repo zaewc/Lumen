@@ -121,6 +121,50 @@ pub fn app<R: Runtime>(
     app_with_confirmation(builder, secrets, builtin, None)
 }
 
+/// `builder` with Lumen's own commands, the only ones the page may call
+/// (ADR-0004). Keep in step with `build.rs`, the capabilities and the
+/// isolation frame; a test below checks.
+fn with_commands<R: Runtime>(builder: Builder<R>) -> Builder<R> {
+    builder.invoke_handler(tauri::generate_handler![
+        commands::scan,
+        commands::assess,
+        commands::plan,
+        commands::execute,
+        commands::held,
+        commands::restore,
+        commands::finalize,
+        commands::confirm_finalize,
+        commands::ai_settings,
+        commands::disk,
+        commands::open_full_disk_access,
+        commands::set_theme,
+        commands::confirm_request,
+        commands::confirm_answer,
+        commands::set_ai_review,
+        commands::set_ai_key,
+        commands::run_tool_command,
+        commands::tool_storage,
+        commands::software,
+        commands::explain_software,
+        commands::compare_scan,
+        commands::cancel_comparison,
+        commands::reassess,
+        commands::uninstall_preview,
+        commands::uninstall,
+        commands::quit_app,
+        commands::helper_state,
+        commands::helper_enable,
+        commands::helper_disable,
+        commands::helper_open_login_items,
+        commands::app_icon,
+        commands::unread_folders,
+        commands::drag_window,
+        commands::zoom_window,
+        update::check_update,
+        update::install_update,
+    ])
+}
+
 fn app_with_confirmation<R: Runtime>(
     builder: Builder<R>,
     secrets: Option<Arc<dyn SecretStore>>,
@@ -128,7 +172,7 @@ fn app_with_confirmation<R: Runtime>(
     // `None`: the confirmation window (FS-1); tests give a fixed answer.
     prompt: Option<Arc<confirmation::Prompt>>,
 ) -> Builder<R> {
-    builder
+    with_commands(builder)
         // In-app updates (ADR-0048); reached only through Lumen's own
         // `check_update` and `install_update`, never from the page.
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -137,43 +181,6 @@ fn app_with_confirmation<R: Runtime>(
                 tell_page(window.get_webview_window(window.label()), "lumen:window-focus");
             }
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::scan,
-            commands::assess,
-            commands::plan,
-            commands::execute,
-            commands::held,
-            commands::restore,
-            commands::finalize,
-            commands::ai_settings,
-            commands::disk,
-            commands::open_full_disk_access,
-            commands::set_theme,
-            commands::confirm_request,
-            commands::confirm_answer,
-            commands::set_ai_review,
-            commands::set_ai_key,
-            commands::run_tool_command,
-            commands::tool_storage,
-            commands::software,
-            commands::explain_software,
-            commands::compare_scan,
-            commands::cancel_comparison,
-            commands::reassess,
-            commands::uninstall_preview,
-            commands::uninstall,
-            commands::quit_app,
-            commands::helper_state,
-            commands::helper_enable,
-            commands::helper_disable,
-            commands::helper_open_login_items,
-            commands::app_icon,
-            commands::unread_folders,
-            commands::drag_window,
-            commands::zoom_window,
-            update::check_update,
-            update::install_update,
-        ])
         .setup(move |app| {
             let data = app.path().app_local_data_dir()?;
             std::fs::create_dir_all(&data)?;
@@ -215,6 +222,7 @@ fn app_with_confirmation<R: Runtime>(
                 icons: Arc::default(),
                 prompt,
                 pending,
+                approved: Arc::default(),
             });
             let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")

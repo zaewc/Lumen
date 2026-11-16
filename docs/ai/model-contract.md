@@ -260,7 +260,8 @@ asked of the model and never sent to it (ADR-0061 rule 2, ADR-0064 rule 7):
   need it (verified relations only), with whether every record was read, so "none"
   holds only where it was (ADR-0008).
 
-They are shown apart from the note, as observations with their source, while the note
+The API lists them as `facts` on each software row (`RemovalFactsView`). They are
+shown apart from the note, as observations with their source, while the note
 is labelled as AI review's guess (ADR-0061 rule 5). Where they disagree, the facts
 decide: `SoftwareNote::guarded` also turns `only_this_app` into `unknown` (confidence
 `low`) when a listed package needs the software. The guard only ever makes the note

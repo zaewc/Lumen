@@ -487,6 +487,9 @@ export const ko = {
     finalizeTitle: "이 항목을 영구 삭제할까요?",
     finalizeNote: "영구 삭제하면 되돌릴 수 없어요.",
     finalizeChosen: "직접 선택한 항목이에요. Lumen이 정리를 제안한 항목은 아니에요.",
+    finalizeManyTitle: (n: number, size: string) => `${items(n)}(${size})를 영구 삭제할까요?`,
+    finalizeManyChosen: (n: number) =>
+      `이 중 ${items(n)}는 직접 선택한 항목이에요. Lumen이 정리를 제안한 항목은 아니에요.`,
     finalizeButton: "영구 삭제",
     toolTitle: (tool: string) => `${tool} 명령을 실행할까요?`,
     toolNote: "명령이 지운 것은 복원할 수 없어요.",

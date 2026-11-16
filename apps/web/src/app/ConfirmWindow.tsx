@@ -126,6 +126,23 @@ function useQuestion(ask: HostAsk): {
           </>
         ),
       };
+    case "finalize_many": {
+      const size = formatBytes(ask.total_bytes);
+      return {
+        title: h.finalizeManyTitle(ask.count, ask.exact ? size : m.quarantine.atLeast(size)),
+        action: h.finalizeButton,
+        danger: true,
+        body: (
+          <>
+            <Rows items={ask.items.items} more={ask.items.more} />
+            {ask.chosen > 0 && (
+              <p className="mt-3 text-[13px] text-ink-2">{h.finalizeManyChosen(ask.chosen)}</p>
+            )}
+            <p className="mt-3 text-[14px] font-medium text-ink">{h.finalizeNote}</p>
+          </>
+        ),
+      };
+    }
     case "tool":
       return {
         title: h.toolTitle(ask.tool),

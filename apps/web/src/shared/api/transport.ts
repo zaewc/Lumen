@@ -69,6 +69,13 @@ export interface LumenTransport {
   restore(operation: OperationId): Promise<RestoreOutcomeView>;
   /** Removes one item for good, only if nothing uses it. */
   finalize(operation: OperationId): Promise<FinalizeOutcomeView>;
+  /**
+   * Asks once, in the host's own window, about removing several held items
+   * for good, so `finalize` does not ask about each of them again; rejects
+   * when the person declines. Only where the host asks itself (the desktop
+   * app), absent elsewhere.
+   */
+  confirmFinalize?(operations: readonly OperationId[]): Promise<void>;
   /** Whether AI review is on, and which key is stored (never the key). */
   aiSettings(): Promise<AiSettingsView>;
   /** How full the disk holding the home folder is. */
