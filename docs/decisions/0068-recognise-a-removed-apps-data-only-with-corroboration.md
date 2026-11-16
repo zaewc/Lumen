@@ -69,11 +69,18 @@ Chosen option: **3**.
    3. **Nothing installed is related to it:**
       - no installed app's bundle ID equals it, extends it, or is extended by it;
       - no installed app shares its vendor part (its first two labels);
-      - Spotlight finds no application whose bundle ID equals it or extends it,
-        compared without case (ADR-0059's lookup, widened to `<id>.*`), so a helper
-        installed outside the inventory's folders also counts. Every claimed owner is
+      - Spotlight finds no bundle of the same vendor: none whose bundle ID is the
+        vendor part or starts with it (`<vendor>`, `<vendor>.*`, compared without
+        case; ADR-0059's lookup, widened). This covers, outside the inventory's
+        folders, the same relations as above: the ID itself, its extensions, its
+        parent and its siblings, apps and helpers alike. Every claimed owner is
         looked up, with no cap, and an owner that could not be looked up is not
         claimed.
+
+      Spotlight can only veto a claim. An empty result is not evidence of absence
+      (it does not see unindexed or unmounted volumes); absence comes from the
+      complete inventories alone (rule 3). An app kept only on such a volume can
+      therefore be claimed, and its data is then reviewed, never proposed.
 2. **Never claimed:**
    - `com.apple.*`;
    - app groups (`group.*`, and names starting with a ten-character Team ID, Apple's
