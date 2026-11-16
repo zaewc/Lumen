@@ -195,6 +195,21 @@ export const en = {
       off: "Continue without AI review",
     },
   },
+  setup: {
+    next: "Next",
+    later: "Later",
+    start: "Start",
+    helper: {
+      title: "Turn on the administrator helper?",
+      approval:
+        "macOS will ask you to allow it in System Settings › General › Login Items, with an administrator password. You can turn it off in Settings at any time.",
+    },
+    disk: {
+      title: "Allow Full Disk Access",
+      intro:
+        "With it, Lumen also scans protected folders. Without it, Lumen still scans every folder it can read, and marks the rest as not read.",
+    },
+  },
   scanning: {
     title: "Scanning…",
     deciding: "Deciding…",

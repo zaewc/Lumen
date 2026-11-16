@@ -180,6 +180,21 @@ export const zhCN: Messages = {
       off: "不使用 AI 检查，继续",
     },
   },
+  setup: {
+    next: "下一步",
+    later: "稍后",
+    start: "开始使用",
+    helper: {
+      title: "要开启管理员权限助手吗？",
+      approval:
+        "开启后，macOS 会请你在“系统设置 › 通用 › 登录项”中允许它，需要管理员密码。你随时可以在设置中关闭。",
+    },
+    disk: {
+      title: "请允许完全磁盘访问权限",
+      intro:
+        "允许后，Lumen 也会扫描受保护的文件夹。不允许时，Lumen 仍会扫描所有能读取的文件夹，并将其余标记为未读取。",
+    },
+  },
   scanning: {
     title: "正在扫描…",
     deciding: "正在判断…",

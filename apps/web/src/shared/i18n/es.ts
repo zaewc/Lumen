@@ -193,6 +193,21 @@ export const es: Messages = {
       off: "Continuar sin revisión con IA",
     },
   },
+  setup: {
+    next: "Siguiente",
+    later: "Más tarde",
+    start: "Empezar",
+    helper: {
+      title: "¿Activar el asistente de administrador?",
+      approval:
+        "macOS te pedirá que lo permitas en Ajustes del Sistema › General › Ítems de inicio, con una contraseña de administrador. Puedes desactivarlo en Ajustes cuando quieras.",
+    },
+    disk: {
+      title: "Permite el acceso total al disco",
+      intro:
+        "Con él, Lumen también analiza las carpetas protegidas. Sin él, Lumen analiza todas las carpetas que puede leer y marca el resto como no leídas.",
+    },
+  },
   scanning: {
     title: "Analizando…",
     deciding: "Tomando decisiones…",
