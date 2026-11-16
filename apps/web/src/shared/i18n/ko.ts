@@ -691,8 +691,30 @@ export const ko = {
         no_store_on_volume: "이 드라이브에는 격리함이 없어요.",
       },
     },
+    facts: {
+      title: "Lumen이 확인한 내용",
+      source: (name: string) => `출처: ${name}`,
+      uninstallEntry: "프로그램 제거 항목",
+      backgroundRecords: "백그라운드 항목 기록",
+      installedBy: "패키지가 설치했어요.",
+      mechanisms: {
+        package_manager: "패키지 관리자가 제거해요.",
+        windows_installer: "Windows Installer가 제거해요.",
+        own_uninstaller: "자체 제거 프로그램이 있어요.",
+        none_recorded: "기록된 제거 방법이 없어요.",
+      },
+      administrator: "제거하려면 관리자 권한이 필요해요.",
+      neededBy: (n: number, complete: boolean) =>
+        `다른 패키지 ${count(n)}개${complete ? "가" : " 이상이"} 이 패키지를 필요로 해요.`,
+      neededByNone: "이 패키지를 필요로 하는 다른 패키지는 없어요.",
+      neededByUnknown: "무엇이 이 패키지를 필요로 하는지 읽지 못했어요.",
+      needs: (n: number) => `다른 패키지 ${count(n)}개가 필요해요.`,
+      background: (n: number) => `백그라운드 항목 ${count(n)}개가 함께 실행돼요.`,
+    },
     ai: {
       explaining: "AI 검토가 앱을 설명하고 있어요…",
+      source:
+        "AI 검토가 이름, 게시자, 버전을 보고 추측한 내용이에요. Lumen의 동작은 바뀌지 않아요.",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI: ${purpose}일 가능성이 높아요(${confidence}). ${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
