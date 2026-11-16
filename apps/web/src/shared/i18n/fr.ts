@@ -698,8 +698,32 @@ export const fr: Messages = {
         no_store_on_volume: "Ce disque n’a pas d’espace de quarantaine.",
       },
     },
+    facts: {
+      title: "Ce que Lumen a constaté",
+      source: (name: string) => `d’après ${name}`,
+      uninstallEntry: "son entrée de désinstallation",
+      backgroundRecords: "ses éléments d’arrière-plan",
+      installedBy: "Un paquet l’a installée.",
+      mechanisms: {
+        package_manager: "Son gestionnaire de paquets la supprime.",
+        windows_installer: "Windows Installer la supprime.",
+        own_uninstaller: "Elle a son propre programme de désinstallation.",
+        none_recorded: "Aucun moyen de la désinstaller n’est enregistré.",
+      },
+      administrator: "La supprimer demande les droits d’administrateur.",
+      neededBy: (n: number, complete: boolean) =>
+        `${complete ? "" : "Au moins "}${count(n)} ${n > 1 ? "autres paquets en ont besoin" : "autre paquet en a besoin"}.`,
+      neededByNone: "Aucun autre paquet installé n’en a besoin.",
+      neededByUnknown: "Lumen n’a pas pu lire ce qui en a besoin.",
+      needs: (n: number) =>
+        `Elle a besoin de ${count(n)} ${n > 1 ? "autres paquets" : "autre paquet"}.`,
+      background: (n: number) =>
+        `${count(n)} ${n > 1 ? "éléments d’arrière-plan s’exécutent" : "élément d’arrière-plan s’exécute"} avec elle.`,
+    },
     ai: {
       explaining: "L'analyse par IA décrit les apps…",
+      source:
+        "Une estimation de l’analyse par IA d’après le nom, l’éditeur et la version. Elle ne change pas ce que fait Lumen.",
       note: (purpose: string, confidence: string, impact: string) =>
         `IA : probablement ${purpose} (${confidence}). ${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,

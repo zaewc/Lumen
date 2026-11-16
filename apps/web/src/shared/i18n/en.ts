@@ -3,6 +3,7 @@ import type {
   ItemKindView,
   LocationView,
   RemovalImpactView,
+  RemovalMechanismView,
   SoftwareOriginView,
   SoftwarePurposeView,
   UninstallReasonView,
@@ -699,8 +700,31 @@ export const en = {
         no_store_on_volume: "This drive has no quarantine store.",
       } satisfies { readonly [R in UninstallReasonView]: string },
     },
+    facts: {
+      title: "Lumen found",
+      source: (name: string) => `from ${name}`,
+      uninstallEntry: "its uninstall entry",
+      backgroundRecords: "its background items",
+      installedBy: "A package installed it.",
+      mechanisms: {
+        package_manager: "Its package manager removes it.",
+        windows_installer: "Windows Installer removes it.",
+        own_uninstaller: "It has its own uninstaller.",
+        none_recorded: "No uninstaller is recorded for it.",
+      } satisfies { readonly [M in RemovalMechanismView]: string },
+      administrator: "Removing it needs administrator rights.",
+      neededBy: (n: number, complete: boolean) =>
+        `${complete ? "" : "At least "}${count(n)} other ${n === 1 ? "package needs" : "packages need"} it.`,
+      neededByNone: "No other installed package needs it.",
+      neededByUnknown: "Lumen could not read what needs it.",
+      needs: (n: number) => `It needs ${count(n)} other ${n === 1 ? "package" : "packages"}.`,
+      background: (n: number) =>
+        `${count(n)} background ${n === 1 ? "item runs" : "items run"} with it.`,
+    },
     ai: {
       explaining: "AI review is explaining the apps…",
+      source:
+        "AI review's guess from the name, publisher and version. It does not change what Lumen does.",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI: likely ${purpose} (${confidence}). ${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,

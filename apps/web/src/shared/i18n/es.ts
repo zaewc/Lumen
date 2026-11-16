@@ -714,8 +714,31 @@ export const es: Messages = {
         no_store_on_volume: "Esta unidad no tiene un almacén de Cuarentena.",
       },
     },
+    facts: {
+      title: "Lo que encontró Lumen",
+      source: (name: string) => `según ${name}`,
+      uninstallEntry: "su entrada de desinstalación",
+      backgroundRecords: "sus elementos en segundo plano",
+      installedBy: "La instaló un paquete.",
+      mechanisms: {
+        package_manager: "La elimina su gestor de paquetes.",
+        windows_installer: "La elimina Windows Installer.",
+        own_uninstaller: "Tiene su propio desinstalador.",
+        none_recorded: "No hay un desinstalador registrado.",
+      },
+      administrator: "Eliminarla requiere permisos de administrador.",
+      neededBy: (n: number, complete: boolean) =>
+        `${complete ? "" : "Al menos "}${count(n)} ${n === 1 ? "paquete más la necesita" : "paquetes más la necesitan"}.`,
+      neededByNone: "Ningún otro paquete instalado la necesita.",
+      neededByUnknown: "Lumen no pudo leer qué la necesita.",
+      needs: (n: number) => `Necesita ${count(n)} ${n === 1 ? "paquete más" : "paquetes más"}.`,
+      background: (n: number) =>
+        `${count(n)} ${n === 1 ? "elemento en segundo plano se ejecuta" : "elementos en segundo plano se ejecutan"} con ella.`,
+    },
     ai: {
       explaining: "La revisión con IA está describiendo las apps…",
+      source:
+        "Una suposición de la revisión con IA a partir del nombre, el editor y la versión. No cambia lo que hace Lumen.",
       note: (purpose: string, confidence: string, impact: string) =>
         `IA: probablemente ${purpose} (${confidence}). ${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
