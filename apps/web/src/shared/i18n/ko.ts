@@ -606,6 +606,7 @@ export const ko = {
     notFinalizable: "이 항목은 복원만 할 수 있어요.",
   },
   apps: {
+    order: { label: "정렬", name: "이름순", size: "크기순" },
     title: "앱",
     desktopOnly: "설치된 앱 목록은 데스크톱 앱에서 볼 수 있어요.",
     reading: "설치된 앱을 읽고 있어요…",
