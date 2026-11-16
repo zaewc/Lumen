@@ -58,7 +58,7 @@ recommended option.
 | [0047](0047-ai-review-on-by-default.md) | AI review on by default | Superseded in part by [0050](0050-ask-about-ai-review-on-first-launch.md) |
 | [0048](0048-in-app-updates.md) | In-app updates with Tauri's updater | Accepted |
 | [0049](0049-run-tool-commands-on-request.md) | Run a tool's own cleanup command when the user asks | Accepted |
-| [0050](0050-ask-about-ai-review-on-first-launch.md) | Ask about AI review once, on first launch | Accepted |
+| [0050](0050-ask-about-ai-review-on-first-launch.md) | Ask about AI review once, on first launch | Accepted (amended 2026-11-16) |
 | [0051](0051-quarantine-review-items-the-user-chooses.md) | Quarantine review items the user chooses, and show large unrecognised folders | Accepted |
 | [0052](0052-restrained-navigation-without-glass.md) | Restrained navigation and opaque surfaces, without glass | Accepted |
 | [0053](0053-show-the-evidence-behind-each-candidate.md) | Show the evidence behind each candidate | Accepted |
@@ -71,7 +71,8 @@ recommended option.
 | [0060](0060-list-software-and-remove-it-only-through-its-own-mechanism.md) | List installed software, and remove it only through its own mechanism | Accepted |
 | [0061](0061-send-installed-software-to-ai-review.md) | While AI review is on, it also explains installed software | Accepted |
 | [0062](0062-uninstall-macos-apps-into-quarantine.md) | Uninstall a user-owned macOS app by moving it into quarantine | Accepted (amended 2026-11-08) |
-| [0063](0063-use-administrator-rights-through-an-opt-in-helper.md) | Use administrator rights through an opt-in helper, so permissions never stand in the way | Accepted |
+| [0063](0063-use-administrator-rights-through-an-opt-in-helper.md) | Use administrator rights through an opt-in helper, so permissions never stand in the way | Accepted (amended 2026-11-16) |
 | [0064](0064-read-package-relations-from-each-managers-own-records.md) | Read package relations from each manager's own records | Accepted |
 | [0065](0065-compare-completed-scan-roots-for-identical-copies.md) | Compare completed scan roots for identical copies | Accepted |
 | [0066](0066-keep-the-windows-store-out-of-the-install-folder.md) | Keep the Windows store out of the install folder | Accepted |
+| [0067](0067-set-up-the-helper-and-full-disk-access-on-first-launch.md) | Set up the helper and Full Disk Access on first launch | Accepted |

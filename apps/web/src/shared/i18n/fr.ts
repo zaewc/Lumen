@@ -189,6 +189,21 @@ export const fr: Messages = {
       off: "Continuer sans l'analyse par IA",
     },
   },
+  setup: {
+    next: "Suivant",
+    later: "Plus tard",
+    start: "Commencer",
+    helper: {
+      title: "Activer l'assistant administrateur ?",
+      approval:
+        "macOS vous demandera de l'autoriser dans Réglages Système › Général › Ouverture, avec un mot de passe administrateur. Vous pouvez le désactiver dans les réglages à tout moment.",
+    },
+    disk: {
+      title: "Autorisez l'accès complet au disque",
+      intro:
+        "Avec lui, Lumen analyse aussi les dossiers protégés. Sans lui, Lumen analyse tous les dossiers lisibles et marque les autres comme non lus.",
+    },
+  },
   scanning: {
     title: "Analyse en cours…",
     deciding: "Décision en cours…",
