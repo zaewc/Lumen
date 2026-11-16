@@ -24,6 +24,10 @@ use utoipa::ToSchema;
 
 use super::ConfidenceView;
 
+mod relations;
+
+pub use relations::{SoftwareRelationKindView, SoftwareRelationMethodView, SoftwareRelationView};
+
 /// Which inventory recorded a piece of software, and so how it is identified.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -284,6 +288,17 @@ pub struct SoftwareItemView {
     #[serde(default)]
     #[schema(required = true)]
     pub size: Option<SoftwareSizeView>,
+    /// What it needs, installed, is needed by and was installed by, from the
+    /// package managers' own records (ADR-0064): verified first.
+    #[serde(default)]
+    #[schema(required = true)]
+    pub relations: Vec<SoftwareRelationView>,
+    /// For a package, whether its own record of relations was read: `false`
+    /// means what it needs and installed is unknown, never none. `None` for
+    /// an application, which has no such record of its own.
+    #[serde(default)]
+    #[schema(required = true)]
+    pub relations_read: Option<bool>,
 }
 
 /// What the latest scan says about an app's size; never zero for unknown.
@@ -454,6 +469,8 @@ fn package(package: &Package) -> (SoftwareItemView, Raw) {
         services: Vec::new(),
         ai_note: None,
         size: None,
+        relations: Vec::new(),
+        relations_read: Some(package.relations.is_some()),
         id,
     };
     (view, raw)
@@ -513,6 +530,8 @@ fn application(app: &Application) -> Option<(SoftwareItemView, Raw)> {
         services: Vec::new(),
         ai_note: None,
         size: None,
+        relations: Vec::new(),
+        relations_read: None,
         id,
     };
     Some((view, raw))
@@ -611,9 +630,36 @@ fn rows(reports: &[InventoryReport]) -> Vec<(SoftwareItemView, Raw)> {
             ));
         }
     }
+    // One record per key, the first, as the rows show: a package two
+    // sources report is one target, not an ambiguous pair.
+    let mut seen = std::collections::HashSet::new();
+    let (packages, package_keys): (Vec<&Package>, Vec<String>) = reports
+        .iter()
+        .flat_map(|r| &r.packages)
+        .map(|record| (record, package(record).0.key))
+        .filter(|(_, key)| seen.insert(key.clone()))
+        .unzip();
+    let app_keys: Vec<Option<String>> = apps
+        .iter()
+        .map(|app| application(app).map(|(row, _)| row.key))
+        .collect();
+    let rows_by_key: std::collections::HashMap<String, usize> = items
+        .iter()
+        .enumerate()
+        .map(|(i, (item, _))| (item.key.clone(), i))
+        .collect();
+    for (key, view) in relations::relation_views(&apps, &packages, &app_keys, &package_keys) {
+        if let Some(&i) = rows_by_key.get(&key)
+            && !items[i].0.relations.contains(&view)
+        {
+            items[i].0.relations.push(view);
+        }
+    }
     for (item, _) in &mut items {
         item.services
             .sort_by_key(|s| (!s.verified, s.label.clone()));
+        item.relations
+            .sort_by_key(|r| (r.kind, !r.verified, r.label.clone()));
     }
     items.sort_by_cached_key(|(item, _)| {
         (

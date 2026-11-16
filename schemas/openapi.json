@@ -2300,7 +2300,9 @@
           "explicit",
           "services",
           "ai_note",
-          "size"
+          "size",
+          "relations",
+          "relations_read"
         ],
         "properties": {
           "ai_note": {
@@ -2354,6 +2356,20 @@
           "protected": {
             "type": "boolean",
             "description": "Part of the operating system or marked by its platform as not\nremovable: never removable from Lumen (ADR-0060)."
+          },
+          "relations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SoftwareRelationView"
+            },
+            "description": "What it needs, installed, is needed by and was installed by, from the\npackage managers' own records (ADR-0064): verified first."
+          },
+          "relations_read": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "For a package, whether its own record of relations was read: `false`\nmeans what it needs and installed is unknown, never none. `None` for\nan application, which has no such record of its own."
           },
           "services": {
             "type": "array",
@@ -2453,6 +2469,77 @@
           "runtime_or_library",
           "unknown"
         ]
+      },
+      "SoftwareRelationKindView": {
+        "type": "string",
+        "description": "What a relation states, from the row's side.",
+        "enum": [
+          "needs",
+          "needed_by",
+          "installed",
+          "installed_by"
+        ]
+      },
+      "SoftwareRelationMethodView": {
+        "type": "string",
+        "description": "The record a relation was read from, or the default it assumed.",
+        "enum": [
+          "homebrew_runtime_dependencies",
+          "cask_uninstall_artifacts",
+          "cask_definition",
+          "cask_default_app_folder",
+          "receipt_file_list",
+          "other"
+        ]
+      },
+      "SoftwareRelationView": {
+        "type": "object",
+        "description": "One relation of a row.",
+        "required": [
+          "kind",
+          "other",
+          "label",
+          "method",
+          "direct",
+          "verified",
+          "ambiguous"
+        ],
+        "properties": {
+          "ambiguous": {
+            "type": "boolean",
+            "description": "It matched several rows, or another package claims the same app: one\ncandidate, not a fact."
+          },
+          "direct": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "For a dependency, whether the needing package declares it itself\nrather than through another dependency; `None` where not recorded or\nnot a dependency."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SoftwareRelationKindView",
+            "description": "What it states, from this row's side."
+          },
+          "label": {
+            "type": "string",
+            "description": "The other side as recorded: a package identifier, or an installed\nlocation; display-escaped."
+          },
+          "method": {
+            "$ref": "#/components/schemas/SoftwareRelationMethodView",
+            "description": "The record it was read from."
+          },
+          "other": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The other row's key, or `None` where no row shows the other. That\nmeans \"not installed\" only where the inventory that would list it was\nread whole (see `sources`)."
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Proven: recorded, matched to one row, and claimed by no unrelated\npackage."
+          }
+        }
       },
       "SoftwareSizeView": {
         "oneOf": [
