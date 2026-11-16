@@ -7,6 +7,8 @@
   are presented), [ADR-0037](0037-keep-ai-review-on-once-turned-on.md) (what AI review
   is asked about, as a later change)
 - Amended by: [ADR-0041](0041-ai-describes-what-review-items-are.md) (point 4 carried out)
+- Refined by: [ADR-0068](0068-recognise-a-removed-apps-data-only-with-corroboration.md)
+  (which data of a removed app counts as orphaned)
 
 ## Context and problem statement
 

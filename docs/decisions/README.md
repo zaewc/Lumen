@@ -76,3 +76,4 @@ recommended option.
 | [0065](0065-compare-completed-scan-roots-for-identical-copies.md) | Compare completed scan roots for identical copies | Accepted |
 | [0066](0066-keep-the-windows-store-out-of-the-install-folder.md) | Keep the Windows store out of the install folder | Accepted |
 | [0067](0067-set-up-the-helper-and-full-disk-access-on-first-launch.md) | Set up the helper and Full Disk Access on first launch | Accepted |
+| [0068](0068-recognise-a-removed-apps-data-only-with-corroboration.md) | Recognise a removed app's data only when macOS or Lumen corroborates the ID | Accepted |

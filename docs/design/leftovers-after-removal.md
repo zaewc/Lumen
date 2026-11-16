@@ -1,7 +1,7 @@
 # Leftovers after removal (roadmap 16.9)
 
-- Status: **Proposed, open questions for the owner** (2026-11-16). Nothing is built
-  until the questions below are answered.
+- Status: **Accepted** (owner, 2026-11-16): every recommended answer below, Q1–Q6.
+  Q1–Q2 are recorded as [ADR-0068](../decisions/0068-recognise-a-removed-apps-data-only-with-corroboration.md).
 - Roadmap: [Phase 16, item 16.9](../architecture/roadmap.md#phase-16-installed-software-after-0100),
   issue #810 (part of #804)
 - Builds on: [ADR-0008](../decisions/0008-capability-model-and-coverage.md),
@@ -79,11 +79,13 @@ Folder and file names only, in the eight locations `support.rs` reads (`Caches`,
 A name alone is too weak. A name with a container is strong, because macOS creates
 `~/Library/Containers/<bundle ID>` itself, only for signed, sandboxed bundles.
 
-## Open questions (recommended answer first)
+## Decisions (owner, 2026-11-16)
+
+Each question was open until the owner accepted its recommended answer.
 
 ### Q1. What establishes that a removed app owned an item?
 
-**Recommended:** claim an owner that is not installed only when all of these hold:
+**Decided:** claim an owner that is not installed only when all of these hold:
 
 1. **The name is shaped like a bundle ID.** It has three or more labels, uses only the
    characters Apple allows (`A–Z a–z 0–9 - .`), and sits directly in a location macOS
@@ -107,13 +109,13 @@ on the measured Mac.
 
 ### Q2. Which names are never claimed for a removed app?
 
-**Recommended:**
+**Decided:**
 
 - `com.apple.*`;
 - app groups (`group.*`, and names starting with a 10-character Team ID);
 - names that extend an installed app's ID. These are its extensions and helpers.
   Should they instead be linked to the installed app as its data (then `KEEP` under
-  `classify.app-state`, which is more cautious than today)? Recommended: yes, as a
+  `classify.app-state`, which is more cautious than today)? Decided: yes, as a
   separate PR.
 
 ### Q3. Use Lumen's own uninstall records?
@@ -121,7 +123,7 @@ on the measured Mac.
 When Lumen moved an app into Quarantine (ADR-0062), its ledger knows the bundle ID and
 name.
 
-**Recommended:** yes, as corroboration for Q1.2 and to show the app's name instead of
+**Decided:** yes, as corroboration for Q1.2 and to show the app's name instead of
 its ID. While the app can still be restored, its data shows with "{app} is in
 Quarantine; restoring it uses this data". It stays `REVIEW`. This is a second step,
 after the name-and-container step.
@@ -131,14 +133,14 @@ after the name-and-container step.
 This covers `Application Support/<Name>`, `Logs/<Name>`, `Group Containers` and
 team-prefixed groups.
 
-**Recommended:** not linked to a removed app. The display name is not reliable
+**Decided:** not linked to a removed app. The display name is not reliable
 (research 36: "never link by display name"), and groups are shared by several apps.
 Large ones still appear as unrecognised items over 100 MB (`default.review`). They
 could be revisited with Q3's names later.
 
 ### Q5. How does Explore show them?
 
-**Recommended:**
+**Decided:**
 
 - A group of its own, "지운 앱이 남긴 데이터" (EN "Left by removed apps"), in the
   results list. Items are grouped per app, with the app's ID (or name from Q3) and a
@@ -155,12 +157,12 @@ simpler, but a person cannot see which app left them.
 
 ### Q6. Before/after snapshots (issue #810)?
 
-**Recommended:** no separate snapshot store for now. The scan after a removal is the
+**Decided:** no separate snapshot store for now. The scan after a removal is the
 "after"; the complete inventory and Spotlight are the comparison. ADR-0062's preview
 already says the data stays. Startup entries and services of removed software are the
 Orphan Hunter's (system.md §12.1) and #807's, not this item's.
 
-## Plan once answered (one PR each, about 400 lines at most)
+## Plan (one PR each, about 400 lines at most)
 
 1. `feat(macos)`: removed-app owner evidence in `support.rs` (Q1, Q2), pure, with
    fixtures from the measurements above; new source name; docs in `evidence-graph.md`.
@@ -171,6 +173,4 @@ Orphan Hunter's (system.md §12.1) and #807's, not this item's.
 3. `feat(api)` and `feat(web)`: the Explore group (Q5), in 7 locales.
 4. Optional: Lumen's uninstall records (Q3); extensions linked to installed apps (Q2).
 
-Because the evidence rule decides when a name stands for an app that is gone, the
-answers to Q1–Q2 should become an ADR (or an amendment to ADR-0039) before step 1
-merges.
+The evidence rule (Q1–Q2) is [ADR-0068](../decisions/0068-recognise-a-removed-apps-data-only-with-corroboration.md).
