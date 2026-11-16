@@ -84,13 +84,20 @@ export function AppsSection() {
   }
   const items = software.data?.items ?? [];
   const section = appsSection(items);
-  if (section === null) {
-    return null;
-  }
   const name = (key: string) => {
     const item = items.find((each) => each.key === key);
     return item === undefined ? null : softwareTitle(item);
   };
+  const dialog = moving !== null && <MoveFlow item={moving} onClose={() => setMoving(null)} />;
+  if (section === null) {
+    // Moving the last measured app leaves no section; its outcome and dialog stay.
+    return (
+      <>
+        <MoveResult name={name} />
+        {dialog}
+      </>
+    );
+  }
   return (
     <section aria-labelledby={heading} className="@container space-y-2 border-b border-line pb-3">
       <h3
@@ -126,7 +133,7 @@ export function AppsSection() {
           {t.seeAll}
         </Link>
       </div>
-      {moving !== null && <MoveFlow item={moving} onClose={() => setMoving(null)} />}
+      {dialog}
     </section>
   );
 }
