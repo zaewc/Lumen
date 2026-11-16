@@ -2,12 +2,12 @@ import type { CandidateView } from "@lumen/api-client";
 import { type KeyboardEvent, type ReactNode, useId, useRef, useState } from "react";
 import { statusOf } from "@/entities/scan-session";
 import { aiNoteText, useI18n } from "@/shared/i18n";
-import { baseName, parentPath } from "@/shared/lib";
+import { baseName, formatBytes, parentPath } from "@/shared/lib";
 import { Bytes } from "@/shared/ui";
 import { commandLine } from "../lib/command";
 import { moveIndex } from "../lib/keys";
 import { type Lens, type LensMark, lensMark } from "../model/lens";
-import type { KindSection, SourceGroup } from "../model/sections";
+import { type KindSection, type SourceGroup, splitBySource } from "../model/sections";
 import { CandidateSize } from "./CandidateSize";
 import { StatusText } from "./Status";
 
@@ -70,7 +70,7 @@ function Row({
       >
         <span
           title={candidate.path}
-          className={`truncate font-medium ${candidate.group.kind === "developer" ? "border-l border-line-strong pl-3" : ""} ${keep ? "text-ink-2" : "text-ink"}`}
+          className={`truncate font-medium ${splitBySource(candidate.group.kind) ? "border-l border-line-strong pl-3" : ""} ${keep ? "text-ink-2" : "text-ink"}`}
         >
           {baseName(candidate.path)}
         </span>
@@ -115,12 +115,15 @@ function ListHeading({
   name,
   count,
   bytes,
+  exact,
 }: {
   readonly level: 3 | 4;
   readonly id?: string;
   readonly name: string;
   readonly count: number;
   readonly bytes: string;
+  /** Whether `bytes` is exact; otherwise it shows as "at least". */
+  readonly exact: boolean;
 }) {
   const { m } = useI18n();
   const Tag = level === 3 ? "h3" : "h4";
@@ -134,7 +137,7 @@ function ListHeading({
         <span className="ml-2 font-normal tabular-nums text-ink-3">{m.common.items(count)}</span>
       </span>
       <span className="text-right font-normal tabular-nums text-ink-2">
-        <Bytes value={bytes} />
+        {exact ? <Bytes value={bytes} /> : m.details.atLeast(formatBytes(bytes))}
       </span>
     </Tag>
   );
@@ -228,7 +231,10 @@ export function CandidateList({
   );
 }
 
-/** One kind of group: its heading with totals, then its rows (by tool, for developer tools). */
+/**
+ * One kind of group: its heading with totals, then its rows (by tool for
+ * developer tools, by app for a removed app's data).
+ */
 function Section({
   section,
   rows,
@@ -246,11 +252,15 @@ function Section({
         name={m.results.groups[section.kind]}
         count={section.count}
         bytes={section.bytes}
+        exact={section.exact}
       />
       {section.kind === "command" && (
         <p className="px-2 pb-1.5 text-[12px] leading-snug text-ink-3">{m.results.commandNote}</p>
       )}
-      {section.kind === "developer"
+      {section.kind === "removed_app" && (
+        <p className="px-2 pb-1.5 text-[12px] leading-snug text-ink-3">{m.results.removedNote}</p>
+      )}
+      {splitBySource(section.kind)
         ? section.sources.map((group) => (
             <div key={group.source ?? ""}>
               <ListHeading
@@ -258,6 +268,7 @@ function Section({
                 name={group.source ?? m.results.otherTools}
                 count={group.items.length}
                 bytes={group.bytes}
+                exact={group.exact}
               />
               {rows(group)}
             </div>

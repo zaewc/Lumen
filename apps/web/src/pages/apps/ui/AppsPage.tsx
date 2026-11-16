@@ -2,12 +2,14 @@ import type { SoftwareItemView } from "@lumen/api-client";
 import { useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useAiSettings } from "@/entities/ai-review";
+import { MoveFlow, MoveResult } from "@/entities/app-move";
 import { useTransport } from "@/shared/api";
 import { softwareNoteText, useI18n } from "@/shared/i18n";
-import { buttonClass, ErrorNotice, Notice, Page } from "@/shared/ui";
-import { iconsShown, partial, title, tucked, visible } from "../model/list";
+import { formatBytes } from "@/shared/lib";
+import { Bytes, buttonClass, ErrorNotice, Notice, Page } from "@/shared/ui";
+import { removalFacts } from "../model/facts";
+import { iconsShown, type Order, ordered, partial, title, tucked, visible } from "../model/list";
 import { AppIcon } from "./AppIcon";
-import { MoveFlow, MoveResult } from "./MoveFlow";
 
 function AppRow({
   item,
@@ -26,6 +28,7 @@ function AppRow({
     item.version,
     item.vendor,
   ].filter((part): part is string => part !== null);
+  const facts = removalFacts(m, item);
   return (
     <li className="flex items-start justify-between gap-4 py-3">
       <div className="flex min-w-0 items-start gap-3">
@@ -36,8 +39,32 @@ function AppRow({
           {item.location !== null && (
             <p className="truncate font-mono text-[11px] text-ink-3">{item.location}</p>
           )}
+          {item.size !== null && item.size.kind !== "not_scanned" && (
+            <p className="text-[12px] tabular-nums text-ink-2">
+              {item.size.kind === "at_least" ? (
+                m.details.atLeast(formatBytes(item.size.bytes))
+              ) : (
+                <Bytes value={item.size.bytes} />
+              )}
+            </p>
+          )}
+          {facts.length > 0 && (
+            <div className="pt-1">
+              <p className="text-[11px] font-medium text-ink-3">{a.facts.title}</p>
+              <ul className="text-[12px] text-ink-2">
+                {facts.map((fact) => (
+                  <li key={fact.text}>
+                    {fact.text} <span className="text-ink-3">· {fact.source}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {item.ai_note !== null && (
-            <p className="text-[12px] text-ink-2">{softwareNoteText(m, item.ai_note)}</p>
+            <div className="pt-1">
+              <p className="text-[12px] text-ink-2">{softwareNoteText(m, item.ai_note)}</p>
+              <p className="text-[11px] text-ink-3">{a.ai.source}</p>
+            </div>
           )}
         </div>
       </div>
@@ -78,6 +105,7 @@ export function AppsPage() {
   const searchId = useId();
   const [query, setQuery] = useState("");
   const [all, setAll] = useState(false);
+  const [order, setOrder] = useState<Order>("name");
   const [moving, setMoving] = useState<SoftwareItemView | null>(null);
   const canMove = transport.uninstallPreview !== undefined && transport.uninstall !== undefined;
   const software = useQuery({
@@ -97,7 +125,8 @@ export function AppsPage() {
   });
   const list = explained.data ?? software.data;
   const items = list?.items ?? [];
-  const shown = visible(items, { query, all });
+  const shown = ordered(visible(items, { query, all }), order);
+  const anySized = items.some((item) => item.size !== null && item.size.kind !== "not_scanned");
   const missing = partial(list?.sources ?? []);
   const hiddenCount = tucked(items);
   const icons = transport.appIcon !== undefined && iconsShown(items);
@@ -164,6 +193,22 @@ export function AppsPage() {
               placeholder={a.search}
               className="h-9 w-full max-w-xs rounded-lg border border-line-strong bg-canvas px-3 text-[13px] text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
             />
+            {anySized && (
+              <fieldset className="flex items-center gap-3 text-[13px] text-ink-2">
+                <legend className="sr-only">{a.order.label}</legend>
+                {(["name", "size"] as const).map((each) => (
+                  <label key={each} className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="apps-order"
+                      checked={order === each}
+                      onChange={() => setOrder(each)}
+                    />
+                    {a.order[each]}
+                  </label>
+                ))}
+              </fieldset>
+            )}
             {hiddenCount > 0 && (
               <label className="flex items-center gap-2 text-[13px] text-ink-2">
                 <input type="checkbox" checked={all} onChange={() => setAll(!all)} />

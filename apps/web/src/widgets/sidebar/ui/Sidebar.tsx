@@ -1,6 +1,5 @@
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
-import { isOn, useAiSettings } from "@/entities/ai-review";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { type MouseEvent, useState } from "react";
 import {
   dismissedUpdate,
   storeDismissedUpdate,
@@ -8,12 +7,13 @@ import {
   useUpdate,
 } from "@/entities/app-update";
 import { inQuarantine, useHeld } from "@/entities/held";
-import { useScanSession } from "@/entities/scan-session";
-import { useToolRun } from "@/entities/tool-run";
+import { type TitleBar, useTransport } from "@/shared/api";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
 import { buttonClass, LogoMark } from "@/shared/ui";
-import { type Activity, headerActivity, type Place } from "../model/activity";
+
+/** The places of the app, as the navigation lists them. */
+type Place = "/" | "/clean" | "/quarantine" | "/apps" | "/settings";
 
 /**
  * A place's text label. The current place is ink with a cobalt rule under its
@@ -72,86 +72,41 @@ function NavItem({ to, label, badge }: PlaceItem) {
   );
 }
 
-/** A newer version, when one is out; it opens Settings, where it installs. */
-function UpdateStatus({ version }: { readonly version: string | null }) {
-  const { m } = useI18n();
-  if (version === null) {
-    return null;
+/** What a press on the header does where it is the title bar. */
+function titleBarProps(bar: TitleBar | undefined) {
+  if (bar === undefined) {
+    return {};
   }
-  const label = m.settings.about.update.sidebar(version);
-  return (
-    <Link
-      to="/settings"
-      hash="app-update"
-      title={label}
-      className="flex h-8 items-center gap-2 rounded px-2 text-[12px] font-medium text-accent-ink hover:bg-fill focus-visible:outline-2 focus-visible:outline-accent"
-    >
-      <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-accent" />
-      <span className="truncate">{label}</span>
-    </Link>
-  );
-}
-
-/** Whether AI review is on, at the foot of the sidebar; it opens its setting. */
-function AiStatus() {
-  const { m } = useI18n();
-  const settings = useAiSettings();
-  if (!settings.isSuccess) {
-    return null;
-  }
-  const on = isOn(settings.data) !== null;
-  const label = on ? m.ai.short.on : m.ai.short.off;
-  return (
-    <Link
-      to="/settings"
-      hash="ai-review"
-      activeOptions={{ includeHash: true }}
-      title={label}
-      className="flex h-8 items-center gap-2 rounded px-2 text-[12px] text-ink-2 hover:bg-fill hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
-    >
-      <span
-        aria-hidden="true"
-        className={`size-1.5 rounded-full ${on ? "bg-accent" : "bg-ink-3"}`}
-      />
-      <span className="truncate">{label}</span>
-    </Link>
-  );
+  return {
+    onMouseDown: (event: MouseEvent<HTMLElement>) => {
+      // Links and buttons keep their own presses.
+      if (
+        event.button !== 0 ||
+        !(event.target instanceof Element) ||
+        event.target.closest("a, button, input, select, textarea") !== null
+      ) {
+        return;
+      }
+      // A window that did not move or zoom is only that; there is nothing to tell.
+      (event.detail === 2 ? bar.zoom() : bar.drag()).catch(() => undefined);
+    },
+  };
 }
 
 /**
- * The workspace navigation. On narrow windows the four labelled places
- * form a second row; none of the destinations disappears into an icon.
- * Its right side names running work the current page does not show, and
- * whether AI review is on.
+ * The workspace navigation. On narrow windows the labelled places form a
+ * second row; none of the destinations disappears into an icon. It names
+ * places only: no status sits in it.
  */
 export function Sidebar() {
   const { locale, m } = useI18n();
   const held = useHeld();
-  const command = useToolRun();
   const install = useInstallUpdate();
   const update = useUpdate();
   const version = update.data?.available ?? null;
   const [dismissed, dismiss] = useState(dismissedUpdate);
   const showUpdate = version !== null && version !== dismissed && install.status !== "pending";
-  const session = useScanSession();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const activity = headerActivity(
-    {
-      installing: install.status === "pending",
-      moving: session.cleaning,
-      command: command.status === "pending",
-      scanning: session.scanning,
-      deciding: session.scan !== null && session.assessment === "pending",
-    },
-    PLACES.find((place) => place === pathname) ?? null,
-  );
-  const activityText: { readonly [A in Activity]: string } = {
-    installing: m.settings.about.update.installing,
-    moving: m.confirm.moving,
-    command: m.workspace.activeCommand,
-    scanning: m.common.scanning,
-    deciding: m.scanning.deciding,
-  };
+  const titleBar = useTransport().titleBar;
   const count = inQuarantine(held.data ?? []).length;
   usePlaceShortcut("/");
   usePlaceShortcut("/clean");
@@ -173,7 +128,14 @@ export function Sidebar() {
   ];
   return (
     <>
-      <header className="flex shrink-0 flex-wrap items-center border-b border-line bg-plane px-3 min-[960px]:gap-4 min-[960px]:px-6">
+      <header
+        {...titleBarProps(titleBar)}
+        className={`flex shrink-0 flex-wrap items-center border-b border-line bg-plane px-3 min-[960px]:gap-4 min-[960px]:px-6 ${titleBar === undefined ? "" : "select-none"}`}
+      >
+        {/* Room for the window buttons the host draws here (lib.rs, TRAFFIC_LIGHTS). */}
+        {titleBar !== undefined && (
+          <div aria-hidden="true" className="h-14 w-[62px] shrink-0 min-[960px]:w-[50px]" />
+        )}
         <div className="flex h-14 shrink-0 items-center gap-2.5 px-2 min-[960px]:pr-6">
           <LogoMark className="size-8" />
           <span className="text-[17px] font-semibold tracking-[-0.03em] text-ink">Lumen</span>
@@ -188,15 +150,6 @@ export function Sidebar() {
             ))}
           </ul>
         </nav>
-        <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-x-2">
-          {!showUpdate && <UpdateStatus version={version} />}
-          {activity !== null && (
-            <span role="status" className="max-w-52 truncate px-2 text-[12px] text-ink-2">
-              {activityText[activity]}
-            </span>
-          )}
-          <AiStatus />
-        </div>
       </header>
       {showUpdate && (
         <aside

@@ -59,10 +59,12 @@ mod plans;
 mod prune;
 #[cfg(test)]
 mod size;
+mod subtree;
 
 use dirs::DirCache;
 pub use plans::StoredPlan;
 pub use prune::Pruned;
+pub use subtree::SubtreeSize;
 
 /// An entry query for scan `?1`: its directory and name first, then the
 /// columns [`entry_from_row`] reads. `$filter` narrows it, `$tail` follows the

@@ -286,18 +286,20 @@ mod unix {
     use lumen_application::ports::{DirEnumerator as _, OwnershipProbe as _, QuarantineExecutor};
     use lumen_application::quarantine::{ConfirmedItem, Outcome, quarantine_item};
     use lumen_application::reconcile::reconcile;
-    use lumen_application::software_links::link_services;
     use lumen_application::uninstall::{
         Binding, BundleEvidence, GATE_VERSION, decision, gate, is_uninstall,
     };
-    use std::collections::{BTreeMap, BTreeSet};
+    use std::collections::BTreeMap;
 
     use lumen_application::ports::{InUseProbe, InventoryReport, PreparedItem, QuarantineJournal};
     use lumen_application::uninstall::HelperFolder;
+    use lumen_application::uninstall::evidence::{
+        Lookup, bundle_id, helper_folders, linked_services,
+    };
     use lumen_domain::{
-        AppIdScheme, Application, Chooser, CleanupPlan, Confirmation, ConfirmationSurface,
-        EntryKind, FilesystemEntry, OperationId, PlanEvent, PlanId, PlannedItem, PolicyDecision,
-        QuarantineManifest, RawPath, ReclaimEstimate, SourceStatus, Subject, UntrustedText,
+        Application, Chooser, CleanupPlan, Confirmation, ConfirmationSurface, EntryKind,
+        FilesystemEntry, OperationId, PlanEvent, PlanId, PlannedItem, PolicyDecision,
+        QuarantineManifest, RawPath, ReclaimEstimate, Subject, UntrustedText,
     };
     use lumen_scan::{ScanItem, UnixOwnershipProbe, scan as run_scan};
     use lumen_store_sqlite::{
@@ -351,40 +353,20 @@ mod unix {
         Ok(app)
     }
 
-    fn bundle_id(app: &Application) -> Option<&UntrustedText> {
-        app.ids
-            .iter()
-            .find(|id| id.scheme == AppIdScheme::BundleId)
-            .map(|id| &id.value)
+    /// What `symlink_metadata` says of `path`, without following a link.
+    fn lookup(path: &Path) -> Lookup {
+        match std::fs::symlink_metadata(path) {
+            Ok(meta) if meta.is_dir() => Lookup::Directory,
+            Ok(_) => Lookup::Other,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Lookup::Missing,
+            Err(_) => Lookup::Unknown,
+        }
     }
 
     /// Whether each helper folder exists below `bundle`, from metadata only,
-    /// without following links: a `Contents` or `Contents/Library` that is a
-    /// link, or any answer other than "exists" or "not found", leaves every
-    /// folder unknown.
+    /// without following links ([`helper_folders`]).
     fn helpers(bundle: &Path) -> BTreeMap<HelperFolder, Option<bool>> {
-        let all = |answer| HelperFolder::ALL.map(|f| (f, answer)).into();
-        let mut parent = bundle.to_path_buf();
-        for name in ["Contents", "Library"] {
-            parent.push(name);
-            match std::fs::symlink_metadata(&parent) {
-                Ok(meta) if meta.is_dir() => {}
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                    return all(Some(false));
-                }
-                Ok(_) | Err(_) => return all(None),
-            }
-        }
-        HelperFolder::ALL
-            .map(|folder| {
-                let answer = match std::fs::symlink_metadata(parent.join(folder.name())) {
-                    Ok(_) => Some(true),
-                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => Some(false),
-                    Err(_) => None,
-                };
-                (folder, answer)
-            })
-            .into()
+        helper_folders(|parts| lookup(&parts.iter().fold(bundle.to_path_buf(), |p, n| p.join(n))))
     }
 
     /// How long listing a bundle for its size may take.
@@ -430,92 +412,11 @@ mod unix {
         (reclaim, complete)
     }
 
-    /// Programs whose job is to start other applications (`open -a X.app`).
-    /// Which app a background item running one starts is in its arguments,
-    /// which the inventory does not keep, so such an item may start any app.
-    const LAUNCHERS: [&[u8]; 1] = [b"/usr/bin/open"];
-
-    /// `path` lowercased in ASCII, followed by `/`: a prefix for anything
-    /// inside it, however a case-insensitive volume lets it be spelled.
-    fn folded_prefix(path: &[u8]) -> Vec<u8> {
-        let mut prefix = path.to_ascii_lowercase();
-        if !prefix.ends_with(b"/") {
-            prefix.push(b'/');
-        }
-        prefix
-    }
-
-    /// How many background items may run `app` (ADR-0062), or `None` when
-    /// that cannot be known.
-    ///
-    /// The list's links ([`link_services`]) only ever miss a link, which is
-    /// right for display and wrong for this gate, where a missed link passes.
-    /// So this counts those links and, on top, any item whose program lies
-    /// inside the bundle ignoring letter case, whose program is a link that
-    /// resolves inside it, or whose label starts with the bundle ID ignoring
-    /// case. An item running a launcher ([`LAUNCHERS`]) may start any app, so
-    /// the answer is unknown. Counting too many only refuses.
-    fn linked(
-        apps: &[Application],
-        app: &Application,
-        services: &InventoryReport,
-    ) -> Option<usize> {
-        if services.status != SourceStatus::Complete {
-            return None;
-        }
-        let all: Vec<&_> = apps.iter().collect();
-        let items: Vec<&_> = services.services.iter().collect();
-        let target = apps.iter().position(|a| std::ptr::eq(a, app));
-        let listed: BTreeSet<usize> = link_services(&all, &items)
-            .iter()
-            .filter(|link| Some(link.application) == target)
-            .map(|link| link.service)
-            .collect();
-        let bundles: Vec<Vec<u8>> = app
-            .install_locations
-            .iter()
-            .flat_map(|path| {
-                let canonical = std::fs::canonicalize(native(path))
-                    .ok()
-                    .and_then(|p| raw(&p));
-                [Some(path.clone()), canonical]
-            })
-            .flatten()
-            .map(|path| folded_prefix(path.as_bytes()))
-            .collect();
-        let ids: Vec<String> = bundle_id(app)
-            .map(|id| id.raw().to_ascii_lowercase())
-            .filter(|id| !id.is_empty())
-            .into_iter()
-            .collect();
-        let mut count = 0;
-        for (index, service) in services.services.iter().enumerate() {
-            let program = service.program.as_ref();
-            if program.is_some_and(|p| LAUNCHERS.contains(&p.as_bytes())) {
-                return None;
-            }
-            let inside = |path: &RawPath| {
-                let folded = path.as_bytes().to_ascii_lowercase();
-                bundles.iter().any(|bundle| folded.starts_with(bundle))
-            };
-            let resolved = program
-                .and_then(|p| std::fs::canonicalize(native(p)).ok())
-                .and_then(|p| raw(&p));
-            let label = service.label.raw().to_ascii_lowercase();
-            let named = ids.iter().any(|id| {
-                label
-                    .strip_prefix(id.as_str())
-                    .is_some_and(|rest| rest.is_empty() || rest.starts_with('.'))
-            });
-            if listed.contains(&index)
-                || program.is_some_and(inside)
-                || resolved.as_ref().is_some_and(inside)
-                || named
-            {
-                count += 1;
-            }
-        }
-        Some(count)
+    /// Where `path` leads with every link followed.
+    fn resolve(path: &RawPath) -> Option<RawPath> {
+        std::fs::canonicalize(native(path))
+            .ok()
+            .and_then(|p| raw(&p))
     }
 
     /// The application and the gate's evidence about it, observed now.
@@ -561,7 +462,7 @@ mod unix {
             .as_ref()
             .and_then(|e| UnixOwnershipProbe.owned_by_current_user(&path, e.identity()));
         let services = computer.software.services();
-        let linked_services = linked(&apps, app, &services);
+        let linked_services = linked_services(&apps, app, &services, resolve);
         let helpers = helpers(&bundle);
         let running = computer.software.running(&path);
         let store_on_volume = computer.stores.locations.first().and_then(|(base, _)| {
@@ -656,6 +557,11 @@ mod unix {
     }
 
     /// Decides the planned bundle again and, if it may still go, moves it.
+    /// The app observed right before the move is left in `moving`.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the app it moves is handed back beside the result"
+    )]
     fn execute_item(
         computer: &Computer<'_>,
         executor: &dyn QuarantineExecutor,
@@ -664,6 +570,7 @@ mod unix {
         stored: &PolicyDecision,
         manifest: impl Fn(&FilesystemEntry, &PreparedItem, OperationId) -> Option<Vec<u8>>,
         ids: &dyn lumen_application::ports::IdGenerator,
+        moving: &mut Option<UninstallApp>,
     ) -> Result<UninstallResult, UninstallError> {
         let Subject::File { identity } = &planned.subject else {
             return Ok(UninstallResult::Changed);
@@ -739,6 +646,7 @@ mod unix {
             // which the rename keeps working. `Yes` and `Unknown` still refuse.
             partial_in_use_accepted: true,
         };
+        *moving = Some(observed.app.clone());
         Ok(
             match quarantine_item(executor, journal, computer.in_use, &ready)? {
                 Outcome::Retained => UninstallResult::Quarantined(operation),
@@ -747,12 +655,26 @@ mod unix {
         )
     }
 
-    /// Records what the held app frees and that the person chose it, so it
-    /// is never removed automatically (ADR-0051). It is already safe in the
-    /// store, so a failure only warns: an item without a recorded chooser
-    /// waits for the person too.
-    fn record(ledger: &mut LedgerStore, operation: OperationId, reclaim: ByteCount) -> Vec<String> {
+    /// Records what the held app frees, that the person chose it, so it is
+    /// never removed automatically (ADR-0051), and which app it was, so its
+    /// data in `~/Library` is recognised as left by a removed app (ADR-0068).
+    /// It is already safe in the store, so a failure only warns: an item
+    /// without a recorded chooser waits for the person too.
+    fn record(
+        ledger: &mut LedgerStore,
+        operation: OperationId,
+        reclaim: ByteCount,
+        app: Option<&UninstallApp>,
+    ) -> Vec<String> {
         let mut warnings = Vec::new();
+        if let Some(app) = app
+            && let Err(error) =
+                ledger.record_uninstalled_app(operation, &app.bundle_id, app.name.as_ref())
+        {
+            warnings.push(format!(
+                "which app was uninstalled was not recorded, so its data may not be recognised: {error}"
+            ));
+        }
         if let Err(error) = ledger.record_reclaim(operation, reclaim) {
             warnings.push(format!(
                 "the size of the uninstalled app was not recorded: {error}"
@@ -764,6 +686,18 @@ mod unix {
             ));
         }
         warnings
+    }
+
+    /// Marks `plan` finished after an error stopped it. Nothing more runs
+    /// under it; a journal failure after the move is settled by
+    /// reconciliation, and the error that stopped it is the one reported.
+    fn stopped(index: &mut IndexStore, plan: PlanId) {
+        let finish = PlanEvent::Finish {
+            all_succeeded: false,
+        };
+        if let Err(error) = index.apply_plan_event(plan, finish) {
+            tracing::warn!(%error, "the stopped uninstall plan was not marked finished");
+        }
     }
 
     pub(super) fn uninstall_with(
@@ -832,7 +766,8 @@ mod unix {
             };
             serde_json::to_vec(&manifest).ok()
         };
-        let result = execute_item(
+        let mut moving = None;
+        let result = match execute_item(
             computer,
             &executor,
             &mut journal,
@@ -840,27 +775,17 @@ mod unix {
             planned_decision,
             manifest,
             ids,
-        );
-        let result = match result {
+            &mut moving,
+        ) {
             Ok(result) => result,
             Err(error) => {
-                // Nothing more runs under this plan; a journal failure after
-                // the move is settled by reconciliation. The error that
-                // stopped it is the one reported.
-                if let Err(finish) = index.apply_plan_event(
-                    plan,
-                    PlanEvent::Finish {
-                        all_succeeded: false,
-                    },
-                ) {
-                    tracing::warn!(%finish, "the stopped uninstall plan was not marked finished");
-                }
+                stopped(&mut index, plan);
                 return Err(error);
             }
         };
         let reclaim = planned.reclaim.reclaimable_now;
         if let UninstallResult::Quarantined(operation) = result {
-            warnings.extend(record(&mut ledger, operation, reclaim));
+            warnings.extend(record(&mut ledger, operation, reclaim, moving.as_ref()));
         }
         let all_succeeded = matches!(result, UninstallResult::Quarantined(_));
         index.apply_plan_event(plan, PlanEvent::Finish { all_succeeded })?;
@@ -1258,6 +1183,19 @@ mod tests {
         // Restored with one action...
         let executor = env.stores().executor().unwrap();
         let mut ledger = LedgerStore::new(open_ledger(&env.db.with_file_name("ledger.db"))?);
+        // Lumen keeps which app it was, for its data left in ~/Library (ADR-0068).
+        let recorded = ledger.uninstalled_apps()?;
+        assert_eq!(
+            recorded
+                .iter()
+                .map(|a| (
+                    a.operation,
+                    a.bundle_id.raw(),
+                    a.name.as_ref().map(UntrustedText::raw)
+                ))
+                .collect::<Vec<_>>(),
+            [(operation, "dev.zed.Zed", Some("Zed"))]
+        );
         let restored = restore_item(
             &executor,
             &mut LedgerJournal::new(&mut ledger, &env.clock),

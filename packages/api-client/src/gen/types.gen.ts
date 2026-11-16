@@ -524,7 +524,7 @@ export type FreeWhenClosedView = {
 /**
  * The kind of group an item is presented in.
  */
-export type GroupKindView = "developer" | "app_cache" | "app_data" | "other";
+export type GroupKindView = "developer" | "app_cache" | "app_data" | "removed_app" | "other";
 
 /**
  * The group an item is presented in, and what it belongs to when known.
@@ -939,6 +939,21 @@ export type ReassessedItemView = {
 };
 
 /**
+ * How many entries a package relation reaches.
+ */
+export type RelationCountView = {
+  /**
+   * Every record it rests on was read; otherwise it is at least `count`,
+   * and zero means unknown, never none.
+   */
+  complete: boolean;
+  /**
+   * Entries the records name.
+   */
+  count: number;
+};
+
+/**
  * The kind of a relationship, read `from <kind> to`.
  */
 export type RelationKindView =
@@ -992,6 +1007,23 @@ export type RelationsView = {
 };
 
 /**
+ * What Lumen itself observed about removing a piece of software, from its
+ * inventory records (#850): shown apart from the AI note and never sent to
+ * AI review (ADR-0061 rule 2, ADR-0064 rule 7).
+ */
+export type RemovalFactsView = {
+  installed_by: SoftwareOriginView | null;
+  mechanism: RemovalMechanismView | null;
+  needed_by: RelationCountView | null;
+  needs: RelationCountView | null;
+  /**
+   * Removing it is known to need administrator rights; `false` where Lumen
+   * does not know, never "not needed".
+   */
+  needs_administrator: boolean;
+};
+
+/**
  * What AI review says removing a piece of software could affect besides
  * itself (ADR-0061): a description, never a statement that removal is safe.
  */
@@ -1002,6 +1034,16 @@ export type RemovalImpactView =
   | "security_or_access"
   | "system_function"
   | "unknown";
+
+/**
+ * How a piece of software's own mechanism removes it, as its record shows
+ * (#850). Lumen's observation, never AI review's.
+ */
+export type RemovalMechanismView =
+  | "package_manager"
+  | "windows_installer"
+  | "own_uninstaller"
+  | "none_recorded";
 
 /**
  * How much a failed removal took.
@@ -1230,6 +1272,10 @@ export type SoftwareItemView = {
    */
   explicit: boolean | null;
   /**
+   * What Lumen observed about removing it, from its records (#850).
+   */
+  facts: RemovalFactsView;
+  /**
    * The platform's own list hides it (Windows `SystemComponent`).
    */
   hidden: boolean;
@@ -1259,9 +1305,21 @@ export type SoftwareItemView = {
    */
   protected: boolean;
   /**
+   * What it needs, installed, is needed by and was installed by, from the
+   * package managers' own records (ADR-0064): verified first.
+   */
+  relations: Array<SoftwareRelationView>;
+  /**
+   * For a package, whether its own record of relations was read: `false`
+   * means what it needs and installed is unknown, never none. `None` for
+   * an application, which has no such record of its own.
+   */
+  relations_read: boolean | null;
+  /**
    * Background items linked to it, verified first.
    */
   services: Array<LinkedServiceView>;
+  size: SoftwareSizeView | null;
   /**
    * Its publisher or vendor, as recorded; display-escaped.
    */
@@ -1329,6 +1387,85 @@ export type SoftwarePurposeView =
   | "utility"
   | "runtime_or_library"
   | "unknown";
+
+/**
+ * What a relation states, from the row's side.
+ */
+export type SoftwareRelationKindView = "needs" | "needed_by" | "installed" | "installed_by";
+
+/**
+ * The record a relation was read from, or the default it assumed.
+ */
+export type SoftwareRelationMethodView =
+  | "homebrew_runtime_dependencies"
+  | "cask_uninstall_artifacts"
+  | "cask_definition"
+  | "cask_default_app_folder"
+  | "receipt_file_list"
+  | "other";
+
+/**
+ * One relation of a row.
+ */
+export type SoftwareRelationView = {
+  /**
+   * It matched several rows, or another package claims the same app: one
+   * candidate, not a fact.
+   */
+  ambiguous: boolean;
+  /**
+   * For a dependency, whether the needing package declares it itself
+   * rather than through another dependency; `None` where not recorded or
+   * not a dependency.
+   */
+  direct: boolean | null;
+  /**
+   * What it states, from this row's side.
+   */
+  kind: SoftwareRelationKindView;
+  /**
+   * The other side as recorded: a package identifier, or an installed
+   * location; display-escaped.
+   */
+  label: string;
+  /**
+   * The record it was read from.
+   */
+  method: SoftwareRelationMethodView;
+  /**
+   * The other row's key, or `None` where no row shows the other. That
+   * means "not installed" only where the inventory that would list it was
+   * read whole (see `sources`).
+   */
+  other: string | null;
+  /**
+   * Proven: recorded, matched to one row, and claimed by no unrelated
+   * package.
+   */
+  verified: boolean;
+};
+
+/**
+ * What the latest scan says about an app's size; never zero for unknown.
+ */
+export type SoftwareSizeView =
+  | {
+      /**
+       * What removing it would free, in bytes.
+       */
+      bytes: string;
+      kind: "complete";
+    }
+  | {
+      /**
+       * Bytes, a lower bound.
+       */
+      bytes: string;
+      kind: "at_least";
+    }
+  | {
+      kind: "not_scanned";
+    };
 
 /**
  * How completely one inventory was read.

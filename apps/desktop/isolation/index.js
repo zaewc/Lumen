@@ -12,6 +12,7 @@ const allowed = new Set([
   "held",
   "restore",
   "finalize",
+  "confirm_finalize",
   "ai_settings",
   "set_ai_review",
   "set_ai_key",
@@ -38,6 +39,8 @@ const allowed = new Set([
   "helper_open_login_items",
   "app_icon",
   "unread_folders",
+  "drag_window",
+  "zoom_window",
 ]);
 
 window.__TAURI_ISOLATION_HOOK__ = (payload) => {

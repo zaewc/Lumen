@@ -135,7 +135,6 @@ export const ko = {
     scanStage: "검사",
     resultsStage: "결과 보기",
     cleanUpStage: "정리",
-    activeCommand: "명령 실행 중",
     quitHeld: "Lumen이 항목을 옮기거나 지우고 있어요. 끝나면 닫을 수 있어요.",
   },
   start: {
@@ -161,10 +160,6 @@ export const ko = {
       stored: (service: string) => `${service}, 내 키`,
     },
     checking: "확인하는 중…",
-    short: {
-      on: "AI 검토 켜짐",
-      off: "AI 검토 꺼짐",
-    },
     loadFailed: "AI 검토 설정을 불러오지 못했어요.",
     changeFailed: "AI 검토 설정을 바꾸지 못했어요.",
     consent: {
@@ -195,6 +190,21 @@ export const ko = {
       off: "AI 검토 없이 쓰기",
     },
   },
+  setup: {
+    next: "다음",
+    later: "나중에",
+    start: "시작하기",
+    helper: {
+      title: "관리자 권한 도우미를 켤까요?",
+      approval:
+        "켜면 macOS가 시스템 설정 › 일반 › 로그인 항목에서 허용할지 물어봐요. 관리자 암호가 필요해요. 설정에서 언제든 끌 수 있어요.",
+    },
+    disk: {
+      title: "전체 디스크 접근 권한을 허용해 주세요",
+      intro:
+        "허용하면 보호된 폴더까지 검사해요. 허용하지 않아도 읽을 수 있는 폴더는 모두 검사하고, 읽지 못한 폴더는 ‘읽지 못함’으로 표시해요.",
+    },
+  },
   scanning: {
     title: "검사하는 중…",
     deciding: "판단하는 중…",
@@ -218,6 +228,12 @@ export const ko = {
     failed: "검사한 항목을 판단하지 못했어요. 파일은 모두 그대로 있어요.",
   },
   results: {
+    apps: {
+      title: "앱",
+      line: "앱은 하나씩 확인한 뒤 격리함으로 옮겨요.",
+      seeAll: "설치된 앱 모두 보기",
+      outside: (n: number) => `검사하지 않은 위치에 앱이 ${count(n)}개 더 있어요.`,
+    },
     map: {
       label: "이번 검사에서 살펴본 항목 지도, 크기 기준",
       all: "모든 종류",
@@ -236,10 +252,12 @@ export const ko = {
       command: "명령으로 정리",
       developer: "개발 도구",
       app_cache: "앱 캐시",
+      removed_app: "지운 앱이 남긴 데이터",
       app_data: "앱 데이터",
       other: "기타",
     },
     otherTools: "기타 도구",
+    removedNote: "앱은 이미 없지만 데이터는 남아 있어요. 필요 없는지 확인한 뒤 옮겨 주세요.",
     commandNote:
       "도구의 명령으로만 정리할 수 있는 항목이에요. 항목을 열어 명령을 실행할 수 있어요. 실행하면 되돌릴 수 없으니 무엇을 지우는지 먼저 확인해 주세요.",
     status: {
@@ -469,6 +487,9 @@ export const ko = {
     finalizeTitle: "이 항목을 영구 삭제할까요?",
     finalizeNote: "영구 삭제하면 되돌릴 수 없어요.",
     finalizeChosen: "직접 선택한 항목이에요. Lumen이 정리를 제안한 항목은 아니에요.",
+    finalizeManyTitle: (n: number, size: string) => `${items(n)}(${size})를 영구 삭제할까요?`,
+    finalizeManyChosen: (n: number) =>
+      `이 중 ${items(n)}는 직접 선택한 항목이에요. Lumen이 정리를 제안한 항목은 아니에요.`,
     finalizeButton: "영구 삭제",
     toolTitle: (tool: string) => `${tool} 명령을 실행할까요?`,
     toolNote: "명령이 지운 것은 복원할 수 없어요.",
@@ -600,6 +621,7 @@ export const ko = {
     notFinalizable: "이 항목은 복원만 할 수 있어요.",
   },
   apps: {
+    order: { label: "정렬", name: "이름순", size: "크기순" },
     title: "앱",
     desktopOnly: "설치된 앱 목록은 데스크톱 앱에서 볼 수 있어요.",
     reading: "설치된 앱을 읽고 있어요…",
@@ -669,8 +691,30 @@ export const ko = {
         no_store_on_volume: "이 드라이브에는 격리함이 없어요.",
       },
     },
+    facts: {
+      title: "Lumen이 확인한 내용",
+      source: (name: string) => `출처: ${name}`,
+      uninstallEntry: "프로그램 제거 항목",
+      backgroundRecords: "백그라운드 항목 기록",
+      installedBy: "패키지가 설치했어요.",
+      mechanisms: {
+        package_manager: "패키지 관리자가 제거해요.",
+        windows_installer: "Windows Installer가 제거해요.",
+        own_uninstaller: "자체 제거 프로그램이 있어요.",
+        none_recorded: "기록된 제거 방법이 없어요.",
+      },
+      administrator: "제거하려면 관리자 권한이 필요해요.",
+      neededBy: (n: number, complete: boolean) =>
+        `다른 패키지 ${count(n)}개${complete ? "가" : " 이상이"} 이 패키지를 필요로 해요.`,
+      neededByNone: "이 패키지를 필요로 하는 다른 패키지는 없어요.",
+      neededByUnknown: "무엇이 이 패키지를 필요로 하는지 읽지 못했어요.",
+      needs: (n: number) => `다른 패키지 ${count(n)}개가 필요해요.`,
+      background: (n: number) => `백그라운드 항목 ${count(n)}개가 함께 실행돼요.`,
+    },
     ai: {
       explaining: "AI 검토가 앱을 설명하고 있어요…",
+      source:
+        "AI 검토가 이름, 게시자, 버전을 보고 추측한 내용이에요. Lumen의 동작은 바뀌지 않아요.",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI: ${purpose}일 가능성이 높아요(${confidence}). ${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
@@ -781,7 +825,6 @@ export const ko = {
         installingNote: "새 버전을 내려받아 서명을 확인한 뒤 설치하고 다시 시작해요.",
         installFailed: "업데이트하지 못했어요. 지금 버전은 그대로예요.",
         waitForItems: "Lumen이 항목을 옮기거나 지우고 나면 업데이트할 수 있어요.",
-        sidebar: (version: string) => `새 버전 ${version}`,
         notice: (version: string) => `Lumen ${version} 업데이트가 있어요.`,
         noticeAction: "업데이트 보기",
         later: "나중에",

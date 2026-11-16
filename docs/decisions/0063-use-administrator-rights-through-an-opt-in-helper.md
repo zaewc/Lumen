@@ -1,6 +1,8 @@
 # ADR-0063: Use administrator rights through an opt-in helper, so permissions never stand in the way
 
-- Status: Accepted (owner decisions, 2026-11-08)
+- Status: Accepted (owner decisions, 2026-11-08); amended by
+  [ADR-0067](0067-set-up-the-helper-and-full-disk-access-on-first-launch.md) (offered on
+  first launch)
 - Date: 2026-11-08
 - Amends:
   - [ADR-0005](0005-process-topology-and-privilege.md): the opt-in privileged

@@ -8,8 +8,11 @@
 //! It answers only Lumen signed with a Developer ID by the same team as
 //! itself, checked by XPC on every message; it reads who is asking from the
 //! connection, never from the request; and it decides every request itself
-//! ([`lumen_application::helper::answer`]). This first step (roadmap 16.3b)
-//! answers `status` only: it moves, deletes and opens nothing.
+//! ([`lumen_application::helper::answer`]). It answers `status` (roadmap
+//! 16.3b) and `quarantine` (16.3c): moving an app another account owns from
+//! `/Applications` into the caller's root-owned store, through
+//! `lumen-fs-exec`, after gathering its own evidence as root ([`host`]). It
+//! deletes nothing.
 
 #![allow(
     clippy::print_stderr,
@@ -29,6 +32,9 @@ fn main() -> ExitCode {
         ExitCode::FAILURE
     }
 }
+
+#[cfg(target_os = "macos")]
+mod host;
 
 #[cfg(target_os = "macos")]
 #[allow(unsafe_code)]
@@ -84,11 +90,16 @@ mod mac {
         });
         activity.started.get_or_init(Instant::now);
         let seen = Arc::clone(&activity);
+        let host = crate::host::Mac::system();
         let listener = serve(Arc::new(move |peer: Peer, body: &str| {
             seen.busy.fetch_add(1, Ordering::SeqCst);
             seen.last.store(seen.now(), Ordering::SeqCst);
-            let answer =
-                lumen_application::helper::answer(body, peer.euid, env!("CARGO_PKG_VERSION"));
+            let answer = lumen_application::helper::answer(
+                body,
+                peer.euid,
+                env!("CARGO_PKG_VERSION"),
+                &host,
+            );
             seen.busy.fetch_sub(1, Ordering::SeqCst);
             answer
         }));

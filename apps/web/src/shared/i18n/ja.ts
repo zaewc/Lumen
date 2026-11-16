@@ -130,7 +130,6 @@ export const ja: Messages = {
     scanStage: "スキャン",
     resultsStage: "結果を確認",
     cleanUpStage: "整理",
-    activeCommand: "コマンド実行中",
     quitHeld: "項目を移動または削除しています。完了後にLumenを閉じられます。",
   },
   start: {
@@ -156,10 +155,6 @@ export const ja: Messages = {
       stored: (service: string) => `${service}（自分のキー）`,
     },
     checking: "確認中…",
-    short: {
-      on: "AIレビュー：有効",
-      off: "AIレビュー：無効",
-    },
     loadFailed: "AIレビューの設定を読み込めませんでした。",
     changeFailed: "AIレビューの設定を変更できませんでした。",
     consent: {
@@ -190,6 +185,21 @@ export const ja: Messages = {
       off: "AIレビューを使わずに続ける",
     },
   },
+  setup: {
+    next: "次へ",
+    later: "後で",
+    start: "始める",
+    helper: {
+      title: "管理者権限ヘルパーをオンにしますか？",
+      approval:
+        "オンにすると、macOSがシステム設定 › 一般 › ログイン項目で許可するか確認します。管理者パスワードが必要です。設定からいつでもオフにできます。",
+    },
+    disk: {
+      title: "フルディスクアクセスを許可してください",
+      intro:
+        "許可すると、保護されたフォルダもスキャンします。許可しなくても、読めるフォルダはすべてスキャンし、読めなかったフォルダはその旨を表示します。",
+    },
+  },
   scanning: {
     title: "スキャン中…",
     deciding: "判断中…",
@@ -213,6 +223,13 @@ export const ja: Messages = {
     failed: "見つかった項目を判断できませんでした。ファイルは変更されていません。",
   },
   results: {
+    apps: {
+      title: "アプリ",
+      line: "アプリは 1 つずつ確認してから隔離に移動します。",
+      seeAll: "インストール済みのアプリをすべて表示",
+      outside: (n: number) =>
+        `このスキャンで読み取っていない場所に、さらに ${count(n)} 個のアプリがあります。`,
+    },
     map: {
       label: "確認済み項目のサイズ別マップ",
       all: "すべての種類",
@@ -231,10 +248,13 @@ export const ja: Messages = {
       command: "専用コマンドで整理",
       developer: "開発者ツール",
       app_cache: "アプリのキャッシュ",
+      removed_app: "削除したアプリが残したデータ",
       app_data: "アプリデータ",
       other: "その他",
     },
     otherTools: "その他のツール",
+    removedNote:
+      "アプリはもうありませんが、データは残っています。不要なことを確認してから移動してください。",
     commandNote:
       "これらは各ツールでのみ削除してください。項目を開いてコマンドを実行できます。元に戻せないため、実行前に削除内容を確認してください。",
     status: {
@@ -467,6 +487,9 @@ export const ja: Messages = {
     finalizeTitle: "この項目を完全に削除しますか？",
     finalizeNote: "元に戻せません。",
     finalizeChosen: "自分で選んだ項目です。Lumen が提案したものではありません。",
+    finalizeManyTitle: (n: number, size: string) => `${items(n)}（${size}）を完全に削除しますか？`,
+    finalizeManyChosen: (n: number) =>
+      `このうち${items(n)}は自分で選んだ項目です。Lumen が提案したものではありません。`,
     finalizeButton: "完全に削除",
     toolTitle: (tool: string) => `${tool} のコマンドを実行しますか？`,
     toolNote: "削除されたものは復元できません。",
@@ -598,6 +621,7 @@ export const ja: Messages = {
     notFinalizable: "この項目は復元のみ可能です。",
   },
   apps: {
+    order: { label: "並べ替え", name: "名前順", size: "サイズ順" },
     title: "アプリ",
     desktopOnly: "インストール済みのアプリはデスクトップアプリで表示できます。",
     reading: "インストール済みのアプリを読み込んでいます…",
@@ -669,8 +693,29 @@ export const ja: Messages = {
         no_store_on_volume: "このドライブには隔離用の保存場所がありません。",
       },
     },
+    facts: {
+      title: "Lumenが確認したこと",
+      source: (name: string) => `出典: ${name}`,
+      uninstallEntry: "アンインストール情報",
+      backgroundRecords: "バックグラウンド項目の記録",
+      installedBy: "パッケージによってインストールされました。",
+      mechanisms: {
+        package_manager: "パッケージマネージャーで削除します。",
+        windows_installer: "Windows Installerで削除します。",
+        own_uninstaller: "専用のアンインストーラーがあります。",
+        none_recorded: "削除方法は記録されていません。",
+      },
+      administrator: "削除には管理者権限が必要です。",
+      neededBy: (n: number, complete: boolean) =>
+        `ほかの${count(n)}個${complete ? "" : "以上"}のパッケージがこれを必要としています。`,
+      neededByNone: "これを必要とするほかのパッケージはありません。",
+      neededByUnknown: "何がこれを必要としているかを読み取れませんでした。",
+      needs: (n: number) => `ほかの${count(n)}個のパッケージが必要です。`,
+      background: (n: number) => `${count(n)}個のバックグラウンド項目が一緒に実行されます。`,
+    },
     ai: {
       explaining: "AIレビューがアプリを説明しています…",
+      source: "名前、発行元、バージョンからのAIレビューの推測です。Lumenの動作は変わりません。",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI: ${purpose}の可能性が高い（${confidence}）。${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact}（${confidence}）`,
@@ -788,7 +833,6 @@ export const ja: Messages = {
         installFailed:
           "アップデートをインストールできませんでした。現在のバージョンに変更はありません。",
         waitForItems: "項目の移動または削除が完了するとアップデートできます。",
-        sidebar: (version: string) => `バージョン${version}を利用できます`,
         notice: (version: string) => `Lumen ${version}を利用できます。`,
         noticeAction: "アップデートを確認",
         later: "後で",

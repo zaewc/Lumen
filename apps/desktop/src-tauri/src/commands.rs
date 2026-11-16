@@ -72,6 +72,9 @@ pub(crate) struct Core {
     pub(crate) prompt: Arc<crate::confirmation::Prompt>,
     /// The question the confirmation window shows, and where its answer goes.
     pub(crate) pending: Arc<crate::confirmation::Pending>,
+    /// Held items the person just confirmed removing together, so each
+    /// `finalize` does not ask again.
+    pub(crate) approved: Arc<crate::confirmation::Approved>,
 }
 
 impl std::fmt::Debug for Core {
@@ -105,6 +108,7 @@ impl std::fmt::Debug for Core {
             .field("icons", &self.icons)
             .field("prompt", &"confirmation window")
             .field("pending", &self.pending.ask().is_some())
+            .field("approved", &self.approved)
             .finish()
     }
 }
@@ -670,9 +674,29 @@ pub(crate) async fn software(core: State<'_, Core>) -> Result<SoftwareView, Comm
         let reports = lumen_app::software::inventory(&CancelToken::new());
         icons.remember(&reports);
         let notes = lumen_app::software_notes::NoteCache::load(&db);
-        Ok(SoftwareView::from_reports(&reports).with_notes(&notes))
+        Ok(SoftwareView::from_reports(&reports)
+            .with_sizes(&app_sizes(&db, &reports))
+            .with_notes(&notes))
     })
     .await
+}
+
+/// Each macOS app's size from the latest scan, by the list's key (roadmap
+/// 16.2). An unreadable index leaves every size out rather than failing the
+/// list.
+fn app_sizes(
+    db: &Path,
+    reports: &[lumen_application::ports::InventoryReport],
+) -> std::collections::BTreeMap<String, lumen_app::app_sizes::ScanSize> {
+    let apps = lumen_api::views::app_locations(reports);
+    let locations: Vec<_> = apps.iter().map(|(_, location)| location.clone()).collect();
+    match lumen_app::app_sizes::scan_sizes(db, &locations) {
+        Ok(sizes) => apps.into_iter().map(|(key, _)| key).zip(sizes).collect(),
+        Err(error) => {
+            tracing::warn!(%error, "app sizes could not be read from the scan");
+            std::collections::BTreeMap::new()
+        }
+    }
 }
 
 /// The installed software list, after asking AI review about software it has
@@ -696,7 +720,9 @@ pub(crate) async fn explain_software(core: State<'_, Core>) -> Result<SoftwareVi
             }
             None => lumen_app::software_notes::NoteCache::load(&db),
         };
-        Ok(SoftwareView::from_reports(&reports).with_notes(&notes))
+        Ok(SoftwareView::from_reports(&reports)
+            .with_sizes(&app_sizes(&db, &reports))
+            .with_notes(&notes))
     })
     .await
 }
@@ -870,6 +896,38 @@ pub(crate) async fn set_theme<R: tauri::Runtime>(app: tauri::AppHandle<R>, theme
         ThemePreference::Dark => Some(tauri::Theme::Dark),
     };
     app.set_theme(appearance);
+}
+
+/// Moves the window that asked with the pointer, from a press on the header
+/// (the macOS title bar is the header). Only the window itself moves; nothing
+/// comes in but the press.
+#[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri hands a command its window by value"
+)]
+pub(crate) fn drag_window<R: tauri::Runtime>(
+    window: tauri::WebviewWindow<R>,
+) -> Result<(), CommandError> {
+    window.start_dragging().map_err(CommandError::new)
+}
+
+/// Zooms the window that asked, or zooms it back, from a double click on the
+/// header, as the macOS title bar does.
+#[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri hands a command its window by value"
+)]
+pub(crate) fn zoom_window<R: tauri::Runtime>(
+    window: tauri::WebviewWindow<R>,
+) -> Result<(), CommandError> {
+    if window.is_maximized().map_err(CommandError::new)? {
+        window.unmaximize()
+    } else {
+        window.maximize()
+    }
+    .map_err(CommandError::new)
 }
 
 /// The question the confirmation window shows (FS-1). Only that window may
@@ -1179,7 +1237,34 @@ pub(crate) async fn restore(
     .await
 }
 
-/// Removes one item for good, only if nothing uses it (ADR-0030).
+/// Asks once, in the host's own window, about removing several held items
+/// for good (FS-1), and lets `finalize` remove exactly those without asking
+/// about each again. Removes nothing itself.
+#[tauri::command]
+pub(crate) async fn confirm_finalize(
+    core: State<'_, Core>,
+    operation_ids: Vec<String>,
+) -> Result<(), CommandError> {
+    let db = core.db.clone();
+    let prompt = Arc::clone(&core.prompt);
+    let approved = Arc::clone(&core.approved);
+    blocking(move || {
+        let mut operations = operation_ids
+            .iter()
+            .map(|id| operation(id))
+            .collect::<Result<Vec<_>, _>>()?;
+        operations.sort_unstable();
+        operations.dedup();
+        approved.clear();
+        crate::confirmation::finalize_many(&db, &operations, &*prompt)?;
+        approved.grant(operations);
+        Ok(())
+    })
+    .await
+}
+
+/// Removes one item for good, only if nothing uses it (ADR-0030). Asks in
+/// the host's own window first, unless `confirm_finalize` just asked about it.
 #[tauri::command]
 pub(crate) async fn finalize(
     core: State<'_, Core>,
@@ -1187,11 +1272,14 @@ pub(crate) async fn finalize(
 ) -> Result<FinalizeOutcomeView, CommandError> {
     let db = core.db.clone();
     let prompt = Arc::clone(&core.prompt);
+    let approved = Arc::clone(&core.approved);
     let moving = core.activity.moving()?;
     blocking(move || {
         let _moving = moving;
         let operation = operation(&operation_id)?;
-        crate::confirmation::finalize(&db, operation, &*prompt)?;
+        if !approved.take(operation) {
+            crate::confirmation::finalize(&db, operation, &*prompt)?;
+        }
         let outcome =
             lumen_app::held::finalize(&db, operation, &SystemClock).map_err(CommandError::new)?;
         Ok(FinalizeOutcomeView::from(&outcome))

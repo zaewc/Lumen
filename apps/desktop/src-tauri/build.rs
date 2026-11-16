@@ -10,6 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "held",
         "restore",
         "finalize",
+        "confirm_finalize",
         "ai_settings",
         "set_ai_review",
         "set_ai_key",
@@ -36,6 +37,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "helper_open_login_items",
         "app_icon",
         "unread_folders",
+        "drag_window",
+        "zoom_window",
     ];
     tauri_build::try_build(
         tauri_build::Attributes::new()

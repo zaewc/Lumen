@@ -6,14 +6,18 @@
 //! platform. On macOS, [`BulkEnumerator`] lists directories with them, and
 //! [`FsEventsFeed`] reports changes through `FSEvents` after [`events`] decides
 //! what each event means. The only `unsafe` code is the system calls in `sys`,
-//! the stream lifecycle in `feed`, and the framework calls in `keychain` and
-//! `backup` (which excludes quarantine stores from Time Machine).
+//! the stream lifecycle in `feed`, the framework calls in `keychain` and
+//! `backup` (which excludes quarantine stores from Time Machine), and the
+//! account lookups in [`accounts`] for Lumen's helper.
 
+#[cfg(target_os = "macos")]
+pub mod accounts;
 #[cfg(target_os = "macos")]
 mod apps;
 pub mod attrbuf;
 #[cfg(target_os = "macos")]
 mod backup;
+pub mod bom;
 #[cfg(target_os = "macos")]
 mod bulk;
 #[cfg(target_os = "macos")]
@@ -35,6 +39,8 @@ mod keychain;
 #[cfg(target_os = "macos")]
 mod launchd;
 #[cfg(target_os = "macos")]
+pub mod management;
+#[cfg(target_os = "macos")]
 pub mod metadata;
 #[cfg(target_os = "macos")]
 mod probe;
@@ -42,6 +48,7 @@ mod probe;
 mod quit;
 #[cfg(target_os = "macos")]
 mod receipts;
+pub mod removed;
 pub mod support;
 #[cfg(target_os = "macos")]
 mod sys;
@@ -52,7 +59,7 @@ pub mod web_profile;
 pub mod xpc;
 
 #[cfg(target_os = "macos")]
-pub use apps::AppInventory;
+pub use apps::{AppInventory, bundle_identifier};
 #[cfg(target_os = "macos")]
 pub use backup::{BackupExclusionError, exclude_from_backup};
 #[cfg(target_os = "macos")]

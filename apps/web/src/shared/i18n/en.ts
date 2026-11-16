@@ -3,6 +3,7 @@ import type {
   ItemKindView,
   LocationView,
   RemovalImpactView,
+  RemovalMechanismView,
   SoftwareOriginView,
   SoftwarePurposeView,
   UninstallReasonView,
@@ -139,7 +140,6 @@ export const en = {
     scanStage: "Scan",
     resultsStage: "See results",
     cleanUpStage: "Clean up",
-    activeCommand: "Command running",
     quitHeld: "Lumen is moving or removing items. You can close it once that finishes.",
   },
   start: {
@@ -165,10 +165,6 @@ export const en = {
       stored: (service: string) => `${service} (your key)`,
     },
     checking: "Checking…",
-    short: {
-      on: "AI review on",
-      off: "AI review off",
-    },
     loadFailed: "Lumen could not load the AI review setting.",
     changeFailed: "Lumen could not change the AI review setting.",
     consent: {
@@ -200,6 +196,21 @@ export const en = {
       off: "Continue without AI review",
     },
   },
+  setup: {
+    next: "Next",
+    later: "Later",
+    start: "Start",
+    helper: {
+      title: "Turn on the administrator helper?",
+      approval:
+        "macOS will ask you to allow it in System Settings › General › Login Items, with an administrator password. You can turn it off in Settings at any time.",
+    },
+    disk: {
+      title: "Allow Full Disk Access",
+      intro:
+        "With it, Lumen also scans protected folders. Without it, Lumen still scans every folder it can read, and marks the rest as not read.",
+    },
+  },
   scanning: {
     title: "Scanning…",
     deciding: "Deciding…",
@@ -224,6 +235,13 @@ export const en = {
     failed: "Lumen could not decide about what it found. Your files are unchanged.",
   },
   results: {
+    apps: {
+      title: "Apps",
+      line: "Apps are checked one at a time before they move to Quarantine.",
+      seeAll: "See all installed apps",
+      outside: (n: number) =>
+        `${count(n)} more ${n === 1 ? "app is" : "apps are"} in places this scan did not read.`,
+    },
     map: {
       label: "Map of the assessed items, by size",
       all: "All kinds",
@@ -243,10 +261,13 @@ export const en = {
       command: "Clean up with its own command",
       developer: "Developer tools",
       app_cache: "App caches",
+      removed_app: "Left by removed apps",
       app_data: "App data",
       other: "Other",
     },
     otherTools: "Other tools",
+    removedNote:
+      "The apps are gone, but their data is still here. Check that you don't need it before moving it.",
     commandNote:
       "Only their tool should remove these. Open one to run its command; check what it removes first, as it cannot be undone.",
     status: {
@@ -475,6 +496,9 @@ export const en = {
     finalizeTitle: "Remove this item for good?",
     finalizeNote: "This cannot be undone.",
     finalizeChosen: "You chose this item yourself; Lumen did not propose it.",
+    finalizeManyTitle: (n: number, size: string) => `Remove ${items(n)} (${size}) for good?`,
+    finalizeManyChosen: (n: number) =>
+      `You chose ${items(n)} of these yourself; Lumen did not propose ${n === 1 ? "it" : "them"}.`,
     finalizeButton: "Remove for Good",
     toolTitle: (tool: string) => `Run ${tool}’s command?`,
     toolNote: "What it removes cannot be restored.",
@@ -609,6 +633,7 @@ export const en = {
     notFinalizable: "You can only restore this item.",
   },
   apps: {
+    order: { label: "Order", name: "By name", size: "By size" },
     title: "Apps",
     desktopOnly: "Lumen lists installed apps in the desktop app.",
     reading: "Reading installed apps…",
@@ -678,8 +703,31 @@ export const en = {
         no_store_on_volume: "This drive has no quarantine store.",
       } satisfies { readonly [R in UninstallReasonView]: string },
     },
+    facts: {
+      title: "Lumen found",
+      source: (name: string) => `from ${name}`,
+      uninstallEntry: "its uninstall entry",
+      backgroundRecords: "its background items",
+      installedBy: "A package installed it.",
+      mechanisms: {
+        package_manager: "Its package manager removes it.",
+        windows_installer: "Windows Installer removes it.",
+        own_uninstaller: "It has its own uninstaller.",
+        none_recorded: "No uninstaller is recorded for it.",
+      } satisfies { readonly [M in RemovalMechanismView]: string },
+      administrator: "Removing it needs administrator rights.",
+      neededBy: (n: number, complete: boolean) =>
+        `${complete ? "" : "At least "}${count(n)} other ${n === 1 ? "package needs" : "packages need"} it.`,
+      neededByNone: "No other installed package needs it.",
+      neededByUnknown: "Lumen could not read what needs it.",
+      needs: (n: number) => `It needs ${count(n)} other ${n === 1 ? "package" : "packages"}.`,
+      background: (n: number) =>
+        `${count(n)} background ${n === 1 ? "item runs" : "items run"} with it.`,
+    },
     ai: {
       explaining: "AI review is explaining the apps…",
+      source:
+        "AI review's guess from the name, publisher and version. It does not change what Lumen does.",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI: likely ${purpose} (${confidence}). ${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
@@ -794,7 +842,6 @@ export const en = {
           "Lumen downloads the new version, checks its signature, installs it and restarts.",
         installFailed: "The update did not install. This version is unchanged.",
         waitForItems: "You can update once Lumen finishes moving or removing items.",
-        sidebar: (version: string) => `Version ${version} available`,
         notice: (version: string) => `Lumen ${version} is available.`,
         noticeAction: "View update",
         later: "Later",

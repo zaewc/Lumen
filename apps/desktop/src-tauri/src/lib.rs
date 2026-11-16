@@ -21,6 +21,12 @@ use lumen_application::ports::SecretStore;
 use tauri::webview::WebviewWindowBuilder;
 use tauri::{AppHandle, Builder, Manager as _, RunEvent, Runtime, Url, WebviewUrl, WebviewWindow};
 
+/// Where the window buttons sit in the header's first row (56 px tall), in
+/// logical pixels from the window's top left; the header leaves room for
+/// them (`apps/web`, the header in `widgets/sidebar`).
+#[cfg(target_os = "macos")]
+const TRAFFIC_LIGHTS: (f64, f64) = (20.0, 30.0);
+
 /// Whether the main window may show `url`: only the app itself, never the
 /// web (ADR-0004).
 fn allowed(url: &Url) -> bool {
@@ -115,6 +121,50 @@ pub fn app<R: Runtime>(
     app_with_confirmation(builder, secrets, builtin, None)
 }
 
+/// `builder` with Lumen's own commands, the only ones the page may call
+/// (ADR-0004). Keep in step with `build.rs`, the capabilities and the
+/// isolation frame; a test below checks.
+fn with_commands<R: Runtime>(builder: Builder<R>) -> Builder<R> {
+    builder.invoke_handler(tauri::generate_handler![
+        commands::scan,
+        commands::assess,
+        commands::plan,
+        commands::execute,
+        commands::held,
+        commands::restore,
+        commands::finalize,
+        commands::confirm_finalize,
+        commands::ai_settings,
+        commands::disk,
+        commands::open_full_disk_access,
+        commands::set_theme,
+        commands::confirm_request,
+        commands::confirm_answer,
+        commands::set_ai_review,
+        commands::set_ai_key,
+        commands::run_tool_command,
+        commands::tool_storage,
+        commands::software,
+        commands::explain_software,
+        commands::compare_scan,
+        commands::cancel_comparison,
+        commands::reassess,
+        commands::uninstall_preview,
+        commands::uninstall,
+        commands::quit_app,
+        commands::helper_state,
+        commands::helper_enable,
+        commands::helper_disable,
+        commands::helper_open_login_items,
+        commands::app_icon,
+        commands::unread_folders,
+        commands::drag_window,
+        commands::zoom_window,
+        update::check_update,
+        update::install_update,
+    ])
+}
+
 fn app_with_confirmation<R: Runtime>(
     builder: Builder<R>,
     secrets: Option<Arc<dyn SecretStore>>,
@@ -122,7 +172,7 @@ fn app_with_confirmation<R: Runtime>(
     // `None`: the confirmation window (FS-1); tests give a fixed answer.
     prompt: Option<Arc<confirmation::Prompt>>,
 ) -> Builder<R> {
-    builder
+    with_commands(builder)
         // In-app updates (ADR-0048); reached only through Lumen's own
         // `check_update` and `install_update`, never from the page.
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -131,41 +181,6 @@ fn app_with_confirmation<R: Runtime>(
                 tell_page(window.get_webview_window(window.label()), "lumen:window-focus");
             }
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::scan,
-            commands::assess,
-            commands::plan,
-            commands::execute,
-            commands::held,
-            commands::restore,
-            commands::finalize,
-            commands::ai_settings,
-            commands::disk,
-            commands::open_full_disk_access,
-            commands::set_theme,
-            commands::confirm_request,
-            commands::confirm_answer,
-            commands::set_ai_review,
-            commands::set_ai_key,
-            commands::run_tool_command,
-            commands::tool_storage,
-            commands::software,
-            commands::explain_software,
-            commands::compare_scan,
-            commands::cancel_comparison,
-            commands::reassess,
-            commands::uninstall_preview,
-            commands::uninstall,
-            commands::quit_app,
-            commands::helper_state,
-            commands::helper_enable,
-            commands::helper_disable,
-            commands::helper_open_login_items,
-            commands::app_icon,
-            commands::unread_folders,
-            update::check_update,
-            update::install_update,
-        ])
         .setup(move |app| {
             let data = app.path().app_local_data_dir()?;
             std::fs::create_dir_all(&data)?;
@@ -207,16 +222,28 @@ fn app_with_confirmation<R: Runtime>(
                 icons: Arc::default(),
                 prompt,
                 pending,
+                approved: Arc::default(),
             });
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")
                 // Wide enough for the sidebar and the clean-up list's columns
                 // and filters on one line; narrower windows still work, and
                 // the page never scrolls sideways.
                 .inner_size(1120.0, 800.0)
                 .min_inner_size(420.0, 560.0)
-                .on_navigation(allowed)
-                .build()?;
+                .on_navigation(allowed);
+            // On macOS the header is the title bar: the window buttons sit in
+            // its first row, and the header drags and zooms the window
+            // through `drag_window` and `zoom_window`.
+            #[cfg(target_os = "macos")]
+            let window = window
+                .title_bar_style(tauri::TitleBarStyle::Overlay)
+                .hidden_title(true)
+                .traffic_light_position(tauri::LogicalPosition::new(
+                    TRAFFIC_LIGHTS.0,
+                    TRAFFIC_LIGHTS.1,
+                ));
+            window.build()?;
             Ok(())
         })
 }

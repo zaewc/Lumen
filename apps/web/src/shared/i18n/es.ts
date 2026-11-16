@@ -136,7 +136,6 @@ export const es: Messages = {
     scanStage: "Analizar",
     resultsStage: "Ver resultados",
     cleanUpStage: "Limpiar",
-    activeCommand: "Comando en ejecución",
     quitHeld: "Lumen está moviendo o eliminando elementos. Puedes cerrarlo cuando termine.",
   },
   start: {
@@ -162,10 +161,6 @@ export const es: Messages = {
       stored: (service: string) => `${service} (tu clave)`,
     },
     checking: "Comprobando…",
-    short: {
-      on: "Revisión con IA activada",
-      off: "Revisión con IA desactivada",
-    },
     loadFailed: "Lumen no pudo cargar el ajuste de revisión con IA.",
     changeFailed: "Lumen no pudo cambiar el ajuste de revisión con IA.",
     consent: {
@@ -198,6 +193,21 @@ export const es: Messages = {
       off: "Continuar sin revisión con IA",
     },
   },
+  setup: {
+    next: "Siguiente",
+    later: "Más tarde",
+    start: "Empezar",
+    helper: {
+      title: "¿Activar el asistente de administrador?",
+      approval:
+        "macOS te pedirá que lo permitas en Ajustes del Sistema › General › Ítems de inicio, con una contraseña de administrador. Puedes desactivarlo en Ajustes cuando quieras.",
+    },
+    disk: {
+      title: "Permite el acceso total al disco",
+      intro:
+        "Con él, Lumen también analiza las carpetas protegidas. Sin él, Lumen analiza todas las carpetas que puede leer y marca el resto como no leídas.",
+    },
+  },
   scanning: {
     title: "Analizando…",
     deciding: "Tomando decisiones…",
@@ -221,6 +231,13 @@ export const es: Messages = {
     failed: "Lumen no pudo decidir qué hacer con lo encontrado. Tus archivos no han cambiado.",
   },
   results: {
+    apps: {
+      title: "Apps",
+      line: "Las apps se revisan una a una antes de moverlas a Cuarentena.",
+      seeAll: "Ver todas las apps instaladas",
+      outside: (n: number) =>
+        `Hay ${count(n)} ${n === 1 ? "app más" : "apps más"} en lugares que este análisis no leyó.`,
+    },
     map: {
       label: "Mapa de los elementos evaluados, por tamaño",
       all: "Todos los tipos",
@@ -240,10 +257,13 @@ export const es: Messages = {
       command: "Limpiar con su propio comando",
       developer: "Herramientas de desarrollo",
       app_cache: "Cachés de aplicaciones",
+      removed_app: "Datos de aplicaciones eliminadas",
       app_data: "Datos de aplicaciones",
       other: "Otros",
     },
     otherTools: "Otras herramientas",
+    removedNote:
+      "Las aplicaciones ya no están, pero sus datos siguen aquí. Comprueba que no los necesitas antes de moverlos.",
     commandNote:
       "Solo la herramienta correspondiente debería eliminar estos elementos. Abre uno para ejecutar su comando; antes comprueba qué elimina, porque no se puede deshacer.",
     status: {
@@ -481,6 +501,10 @@ export const es: Messages = {
     finalizeTitle: "¿Eliminar este elemento definitivamente?",
     finalizeNote: "No se puede deshacer.",
     finalizeChosen: "Elegiste este elemento tú mismo; Lumen no lo propuso.",
+    finalizeManyTitle: (n: number, size: string) =>
+      `¿Eliminar ${items(n)} (${size}) definitivamente?`,
+    finalizeManyChosen: (n: number) =>
+      `Elegiste ${items(n)} de estos tú mismo; Lumen no ${n === 1 ? "lo" : "los"} propuso.`,
     finalizeButton: "Eliminar definitivamente",
     toolTitle: (tool: string) => `¿Ejecutar el comando de ${tool}?`,
     toolNote: "Lo que elimine no se podrá restaurar.",
@@ -618,6 +642,7 @@ export const es: Messages = {
     notFinalizable: "Este elemento solo se puede restaurar.",
   },
   apps: {
+    order: { label: "Orden", name: "Por nombre", size: "Por tamaño" },
     title: "Apps",
     desktopOnly: "Lumen muestra las apps instaladas en la app de escritorio.",
     reading: "Leyendo las apps instaladas…",
@@ -692,8 +717,31 @@ export const es: Messages = {
         no_store_on_volume: "Esta unidad no tiene un almacén de Cuarentena.",
       },
     },
+    facts: {
+      title: "Lo que encontró Lumen",
+      source: (name: string) => `según ${name}`,
+      uninstallEntry: "su entrada de desinstalación",
+      backgroundRecords: "sus elementos en segundo plano",
+      installedBy: "La instaló un paquete.",
+      mechanisms: {
+        package_manager: "La elimina su gestor de paquetes.",
+        windows_installer: "La elimina Windows Installer.",
+        own_uninstaller: "Tiene su propio desinstalador.",
+        none_recorded: "No hay un desinstalador registrado.",
+      },
+      administrator: "Eliminarla requiere permisos de administrador.",
+      neededBy: (n: number, complete: boolean) =>
+        `${complete ? "" : "Al menos "}${count(n)} ${n === 1 ? "paquete más la necesita" : "paquetes más la necesitan"}.`,
+      neededByNone: "Ningún otro paquete instalado la necesita.",
+      neededByUnknown: "Lumen no pudo leer qué la necesita.",
+      needs: (n: number) => `Necesita ${count(n)} ${n === 1 ? "paquete más" : "paquetes más"}.`,
+      background: (n: number) =>
+        `${count(n)} ${n === 1 ? "elemento en segundo plano se ejecuta" : "elementos en segundo plano se ejecutan"} con ella.`,
+    },
     ai: {
       explaining: "La revisión con IA está describiendo las apps…",
+      source:
+        "Una suposición de la revisión con IA a partir del nombre, el editor y la versión. No cambia lo que hace Lumen.",
       note: (purpose: string, confidence: string, impact: string) =>
         `IA: probablemente ${purpose} (${confidence}). ${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
@@ -812,7 +860,6 @@ export const es: Messages = {
           "Lumen descarga la nueva versión, comprueba su firma, la instala y se reinicia.",
         installFailed: "No se instaló la actualización. Esta versión no ha cambiado.",
         waitForItems: "Puedes actualizar cuando Lumen termine de mover o eliminar elementos.",
-        sidebar: (version: string) => `Versión ${version} disponible`,
         notice: (version: string) => `Lumen ${version} está disponible.`,
         noticeAction: "Ver actualización",
         later: "Más tarde",

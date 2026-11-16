@@ -124,7 +124,6 @@ export const zhCN: Messages = {
     scanStage: "扫描",
     resultsStage: "查看结果",
     cleanUpStage: "清理",
-    activeCommand: "命令正在运行",
     quitHeld: "Lumen 正在移动或移除项目。操作完成后即可关闭。",
   },
   start: {
@@ -150,10 +149,6 @@ export const zhCN: Messages = {
       stored: (service: string) => `${service}（你的密钥）`,
     },
     checking: "正在检查…",
-    short: {
-      on: "AI 检查已开启",
-      off: "AI 检查已关闭",
-    },
     loadFailed: "Lumen 无法加载 AI 检查设置。",
     changeFailed: "Lumen 无法更改 AI 检查设置。",
     consent: {
@@ -185,6 +180,21 @@ export const zhCN: Messages = {
       off: "不使用 AI 检查，继续",
     },
   },
+  setup: {
+    next: "下一步",
+    later: "稍后",
+    start: "开始使用",
+    helper: {
+      title: "要开启管理员权限助手吗？",
+      approval:
+        "开启后，macOS 会请你在“系统设置 › 通用 › 登录项”中允许它，需要管理员密码。你随时可以在设置中关闭。",
+    },
+    disk: {
+      title: "请允许完全磁盘访问权限",
+      intro:
+        "允许后，Lumen 也会扫描受保护的文件夹。不允许时，Lumen 仍会扫描所有能读取的文件夹，并将其余标记为未读取。",
+    },
+  },
   scanning: {
     title: "正在扫描…",
     deciding: "正在判断…",
@@ -208,6 +218,12 @@ export const zhCN: Messages = {
     failed: "Lumen 无法判断找到的内容。你的文件没有变化。",
   },
   results: {
+    apps: {
+      title: "应用",
+      line: "应用会逐个检查后再移至隔离区。",
+      seeAll: "查看所有已安装的应用",
+      outside: (n: number) => `还有 ${count(n)} 个应用位于本次扫描未读取的位置。`,
+    },
     map: {
       label: "已评估项目分布图，按大小排列",
       all: "所有类型",
@@ -226,10 +242,12 @@ export const zhCN: Messages = {
       command: "使用对应工具的命令清理",
       developer: "开发者工具",
       app_cache: "应用缓存",
+      removed_app: "已删除应用留下的数据",
       app_data: "应用数据",
       other: "其他",
     },
     otherTools: "其他工具",
+    removedNote: "应用已经不在了，但数据还在。请确认不再需要后再移走。",
     commandNote:
       "这些项目只能由对应工具移除。打开某项即可运行其命令；运行前请检查移除的内容，因为操作无法撤销。",
     status: {
@@ -449,6 +467,8 @@ export const zhCN: Messages = {
     finalizeTitle: "永久移除此项目？",
     finalizeNote: "此操作无法撤销。",
     finalizeChosen: "此项目是你自己选择的，并非 Lumen 的建议。",
+    finalizeManyTitle: (n: number, size: string) => `永久移除 ${items(n)}（${size}）？`,
+    finalizeManyChosen: (n: number) => `其中 ${items(n)}是你自己选择的，并非 Lumen 的建议。`,
     finalizeButton: "永久移除",
     toolTitle: (tool: string) => `运行 ${tool} 的命令？`,
     toolNote: "它删除的内容无法恢复。",
@@ -580,6 +600,7 @@ export const zhCN: Messages = {
     notFinalizable: "此项目只能恢复。",
   },
   apps: {
+    order: { label: "排序", name: "按名称", size: "按大小" },
     title: "应用",
     desktopOnly: "已安装的应用列表可在桌面应用中查看。",
     reading: "正在读取已安装的应用…",
@@ -643,8 +664,29 @@ export const zhCN: Messages = {
         no_store_on_volume: "此驱动器没有隔离区存储位置。",
       },
     },
+    facts: {
+      title: "Lumen 发现的情况",
+      source: (name: string) => `来源：${name}`,
+      uninstallEntry: "卸载条目",
+      backgroundRecords: "后台项目记录",
+      installedBy: "由一个软件包安装。",
+      mechanisms: {
+        package_manager: "由其软件包管理器移除。",
+        windows_installer: "由 Windows Installer 移除。",
+        own_uninstaller: "它有自己的卸载程序。",
+        none_recorded: "没有记录卸载方式。",
+      },
+      administrator: "移除它需要管理员权限。",
+      neededBy: (n: number, complete: boolean) =>
+        `${complete ? "" : "至少"}有 ${count(n)} 个其他软件包需要它。`,
+      neededByNone: "没有其他已安装的软件包需要它。",
+      neededByUnknown: "Lumen 无法读取哪些软件包需要它。",
+      needs: (n: number) => `它需要 ${count(n)} 个其他软件包。`,
+      background: (n: number) => `有 ${count(n)} 个后台项目随它运行。`,
+    },
     ai: {
       explaining: "AI 检查正在说明这些应用…",
+      source: "这是 AI 审查根据名称、发布者和版本做出的推测，不会改变 Lumen 的操作。",
       note: (purpose: string, confidence: string, impact: string) =>
         `AI：很可能是${purpose}（${confidence}）。${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact}（${confidence}）`,
@@ -753,7 +795,6 @@ export const zhCN: Messages = {
         installingNote: "Lumen 会下载新版本、检查其签名、完成安装并重新启动。",
         installFailed: "更新未能安装。当前版本未发生变化。",
         waitForItems: "Lumen 完成项目移动或移除后，即可更新。",
-        sidebar: (version: string) => `有新版本 ${version}`,
         notice: (version: string) => `Lumen ${version} 已发布。`,
         noticeAction: "查看更新",
         later: "稍后",

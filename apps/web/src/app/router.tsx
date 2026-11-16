@@ -5,6 +5,7 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
+import { useState } from "react";
 import { useAiSettings } from "@/entities/ai-review";
 import { AppsPage } from "@/pages/apps";
 import { CleanUpPage, cleanUpSearch } from "@/pages/clean-up";
@@ -18,19 +19,25 @@ import { QuitHeld } from "./QuitHeld";
 /**
  * A workspace navigation above the independently scrolling page. Storage
  * and evidence get the full window width. Until the user has chosen whether
- * to use AI review, the first screen asks instead (ADR-0050); while the
- * setting is being read, only the empty window shows; if it cannot be read,
- * the app opens as usual and AI review stays off.
+ * to use AI review, the first screen is the first-launch setup instead
+ * (ADR-0050, ADR-0067), and it stays until its last step even though the AI
+ * choice is stored at its first; while the setting is being read, only the
+ * empty window shows; if it cannot be read, the app opens as usual and AI
+ * review stays off.
  */
 function Layout() {
   const ai = useAiSettings();
+  const [setup, setSetup] = useState<"none" | "open" | "done">("none");
+  if (setup === "none" && ai.data !== undefined && !ai.data.chosen) {
+    setSetup("open");
+  }
   // Until the setting is read, draw only the window: the workspace must not
   // show for a moment before the first-launch question replaces it.
   if (ai.isPending) {
     return <div className="h-dvh bg-canvas" />;
   }
-  if (ai.data !== undefined && !ai.data.chosen) {
-    return <FirstLaunchPage settings={ai.data} />;
+  if (setup === "open" && ai.data !== undefined) {
+    return <FirstLaunchPage settings={ai.data} onDone={() => setSetup("done")} />;
   }
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-canvas text-[14px] leading-relaxed text-ink">

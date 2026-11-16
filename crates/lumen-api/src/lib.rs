@@ -94,6 +94,13 @@ use utoipa::OpenApi;
         views::SoftwarePurposeView,
         views::RemovalImpactView,
         views::SoftwareNoteView,
+        views::RemovalMechanismView,
+        views::RelationCountView,
+        views::RemovalFactsView,
+        views::SoftwareSizeView,
+        views::SoftwareRelationKindView,
+        views::SoftwareRelationMethodView,
+        views::SoftwareRelationView,
         views::SoftwareItemView,
         views::SoftwareView,
         views::UninstallReasonView,
@@ -154,7 +161,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 90);
+        assert_eq!(schemas, 97);
     }
 
     #[test]

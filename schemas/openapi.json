@@ -7,7 +7,7 @@
       "name": "Apache-2.0",
       "identifier": "Apache-2.0"
     },
-    "version": "0.12.0"
+    "version": "0.13.0"
   },
   "paths": {},
   "components": {
@@ -1056,6 +1056,7 @@
           "developer",
           "app_cache",
           "app_data",
+          "removed_app",
           "other"
         ]
       },
@@ -1889,6 +1890,26 @@
           }
         }
       },
+      "RelationCountView": {
+        "type": "object",
+        "description": "How many entries a package relation reaches.",
+        "required": [
+          "count",
+          "complete"
+        ],
+        "properties": {
+          "complete": {
+            "type": "boolean",
+            "description": "Every record it rests on was read; otherwise it is at least `count`,\nand zero means unknown, never none."
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Entries the records name.",
+            "minimum": 0
+          }
+        }
+      },
       "RelationKindView": {
         "type": "string",
         "description": "The kind of a relationship, read `from <kind> to`.",
@@ -1956,6 +1977,67 @@
           }
         }
       },
+      "RemovalFactsView": {
+        "type": "object",
+        "description": "What Lumen itself observed about removing a piece of software, from its\ninventory records (#850): shown apart from the AI note and never sent to\nAI review (ADR-0061 rule 2, ADR-0064 rule 7).",
+        "required": [
+          "mechanism",
+          "installed_by",
+          "needs_administrator",
+          "needs",
+          "needed_by"
+        ],
+        "properties": {
+          "installed_by": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SoftwareOriginView",
+                "description": "For an app, the kind of package whose record verifiably says it\ninstalled it: where `mechanism` and `needs_administrator` come from.\n`None` when they come from the item's own record."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mechanism": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RemovalMechanismView",
+                "description": "How its own mechanism removes it; `None` where no record says."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "needed_by": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RelationCountView",
+                "description": "The listed packages whose records say they need it (verified only);\n`None` when not a package."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "needs": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RelationCountView",
+                "description": "The packages its own record says it needs; `None` when not a package\nor its record was not read."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "needs_administrator": {
+            "type": "boolean",
+            "description": "Removing it is known to need administrator rights; `false` where Lumen\ndoes not know, never \"not needed\"."
+          }
+        }
+      },
       "RemovalImpactView": {
         "type": "string",
         "description": "What AI review says removing a piece of software could affect besides\nitself (ADR-0061): a description, never a statement that removal is safe.",
@@ -1966,6 +2048,16 @@
           "security_or_access",
           "system_function",
           "unknown"
+        ]
+      },
+      "RemovalMechanismView": {
+        "type": "string",
+        "description": "How a piece of software's own mechanism removes it, as its record shows\n(#850). Lumen's observation, never AI review's.",
+        "enum": [
+          "package_manager",
+          "windows_installer",
+          "own_uninstaller",
+          "none_recorded"
         ]
       },
       "RemovedView": {
@@ -2299,7 +2391,11 @@
           "hidden",
           "explicit",
           "services",
-          "ai_note"
+          "facts",
+          "ai_note",
+          "size",
+          "relations",
+          "relations_read"
         ],
         "properties": {
           "ai_note": {
@@ -2319,6 +2415,10 @@
               "null"
             ],
             "description": "Whether it was installed on request rather than as another package's\ndependency; `None` where the record does not say."
+          },
+          "facts": {
+            "$ref": "#/components/schemas/RemovalFactsView",
+            "description": "What Lumen observed about removing it, from its records (#850)."
           },
           "hidden": {
             "type": "boolean",
@@ -2354,12 +2454,37 @@
             "type": "boolean",
             "description": "Part of the operating system or marked by its platform as not\nremovable: never removable from Lumen (ADR-0060)."
           },
+          "relations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SoftwareRelationView"
+            },
+            "description": "What it needs, installed, is needed by and was installed by, from the\npackage managers' own records (ADR-0064): verified first."
+          },
+          "relations_read": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "For a package, whether its own record of relations was read: `false`\nmeans what it needs and installed is unknown, never none. `None` for\nan application, which has no such record of its own."
+          },
           "services": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LinkedServiceView"
             },
             "description": "Background items linked to it, verified first."
+          },
+          "size": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SoftwareSizeView",
+                "description": "A macOS app's size from the latest scan (roadmap 16.2); `None` for\nother software and apps with no recorded location. Display only."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "vendor": {
             "type": [
@@ -2441,6 +2566,137 @@
           "runtime_or_library",
           "unknown"
         ]
+      },
+      "SoftwareRelationKindView": {
+        "type": "string",
+        "description": "What a relation states, from the row's side.",
+        "enum": [
+          "needs",
+          "needed_by",
+          "installed",
+          "installed_by"
+        ]
+      },
+      "SoftwareRelationMethodView": {
+        "type": "string",
+        "description": "The record a relation was read from, or the default it assumed.",
+        "enum": [
+          "homebrew_runtime_dependencies",
+          "cask_uninstall_artifacts",
+          "cask_definition",
+          "cask_default_app_folder",
+          "receipt_file_list",
+          "other"
+        ]
+      },
+      "SoftwareRelationView": {
+        "type": "object",
+        "description": "One relation of a row.",
+        "required": [
+          "kind",
+          "other",
+          "label",
+          "method",
+          "direct",
+          "verified",
+          "ambiguous"
+        ],
+        "properties": {
+          "ambiguous": {
+            "type": "boolean",
+            "description": "It matched several rows, or another package claims the same app: one\ncandidate, not a fact."
+          },
+          "direct": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "For a dependency, whether the needing package declares it itself\nrather than through another dependency; `None` where not recorded or\nnot a dependency."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SoftwareRelationKindView",
+            "description": "What it states, from this row's side."
+          },
+          "label": {
+            "type": "string",
+            "description": "The other side as recorded: a package identifier, or an installed\nlocation; display-escaped."
+          },
+          "method": {
+            "$ref": "#/components/schemas/SoftwareRelationMethodView",
+            "description": "The record it was read from."
+          },
+          "other": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The other row's key, or `None` where no row shows the other. That\nmeans \"not installed\" only where the inventory that would list it was\nread whole (see `sources`)."
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Proven: recorded, matched to one row, and claimed by no unrelated\npackage."
+          }
+        }
+      },
+      "SoftwareSizeView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Every folder in it was read and every file's private size is known.",
+            "required": [
+              "bytes",
+              "kind"
+            ],
+            "properties": {
+              "bytes": {
+                "type": "string",
+                "description": "What removing it would free, in bytes."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "complete"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Some folder in it could not be read, or some file may share blocks:\nat least this much.",
+            "required": [
+              "bytes",
+              "kind"
+            ],
+            "properties": {
+              "bytes": {
+                "type": "string",
+                "description": "Bytes, a lower bound."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "at_least"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The scan did not cover it, or there is no completed scan.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_scanned"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What the latest scan says about an app's size; never zero for unknown."
       },
       "SoftwareSourceStateView": {
         "type": "string",

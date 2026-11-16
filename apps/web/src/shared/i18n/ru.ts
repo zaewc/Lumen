@@ -140,7 +140,6 @@ export const ru: Messages = {
     scanStage: "Сканирование",
     resultsStage: "Результаты",
     cleanUpStage: "Очистка",
-    activeCommand: "Выполняется команда",
     quitHeld:
       "Lumen перемещает или удаляет элементы. Приложение можно закрыть, когда операция завершится.",
   },
@@ -168,10 +167,6 @@ export const ru: Messages = {
       stored: (service: string) => `${service} (ваш ключ)`,
     },
     checking: "Проверка…",
-    short: {
-      on: "Проверка ИИ включена",
-      off: "Проверка ИИ выключена",
-    },
     loadFailed: "Не удалось загрузить настройку проверки ИИ.",
     changeFailed: "Не удалось изменить настройку проверки ИИ.",
     consent: {
@@ -204,6 +199,21 @@ export const ru: Messages = {
       off: "Продолжить без проверки ИИ",
     },
   },
+  setup: {
+    next: "Далее",
+    later: "Позже",
+    start: "Начать",
+    helper: {
+      title: "Включить помощника администратора?",
+      approval:
+        "macOS попросит разрешить его в Системных настройках › Основные › Объекты входа, с паролем администратора. Выключить его можно в любой момент в настройках.",
+    },
+    disk: {
+      title: "Разрешите полный доступ к диску",
+      intro:
+        "С ним Lumen проверяет и защищённые папки. Без него Lumen проверяет все папки, которые может прочитать, а остальные отмечает как непрочитанные.",
+    },
+  },
   scanning: {
     title: "Сканирование…",
     deciding: "Принятие решений…",
@@ -228,6 +238,12 @@ export const ru: Messages = {
     failed: "Lumen не удалось принять решение по найденным элементам. Ваши файлы не изменены.",
   },
   results: {
+    apps: {
+      title: "Приложения",
+      line: "Приложения проверяются по одному перед перемещением в карантин.",
+      seeAll: "Все установленные приложения",
+      outside: (n: number) => `Ещё приложений в местах, которые не сканировались: ${count(n)}.`,
+    },
     map: {
       label: "Карта проверенных элементов по размеру",
       all: "Все типы",
@@ -247,10 +263,13 @@ export const ru: Messages = {
       command: "Очистка собственной командой",
       developer: "Инструменты разработчика",
       app_cache: "Кэши приложений",
+      removed_app: "Данные удалённых приложений",
       app_data: "Данные приложений",
       other: "Другое",
     },
     otherTools: "Другие инструменты",
+    removedNote:
+      "Приложений уже нет, но их данные остались. Убедитесь, что они не нужны, прежде чем перемещать их.",
     commandNote:
       "Удалять эти элементы следует только соответствующим инструментом. Откройте его, чтобы запустить команду; сначала проверьте, что она удаляет, — отменить это нельзя.",
     status: {
@@ -491,6 +510,9 @@ export const ru: Messages = {
     finalizeTitle: "Удалить этот элемент окончательно?",
     finalizeNote: "Это нельзя отменить.",
     finalizeChosen: "Этот элемент вы выбрали сами; Lumen его не предлагал.",
+    finalizeManyTitle: (n: number, size: string) => `Удалить ${items(n)} (${size}) окончательно?`,
+    finalizeManyChosen: (n: number) =>
+      `${items(n)} из них вы выбрали сами; Lumen ${n === 1 ? "его" : "их"} не предлагал.`,
     finalizeButton: "Удалить окончательно",
     toolTitle: (tool: string) => `Выполнить команду ${tool}?`,
     toolNote: "Удалённое ею восстановить нельзя.",
@@ -628,6 +650,7 @@ export const ru: Messages = {
     notFinalizable: "Этот элемент можно только восстановить.",
   },
   apps: {
+    order: { label: "Порядок", name: "По имени", size: "По размеру" },
     title: "Приложения",
     desktopOnly: "Список установленных приложений доступен в настольном приложении.",
     reading: "Читаем установленные приложения…",
@@ -703,8 +726,32 @@ export const ru: Messages = {
         no_store_on_volume: "На этом диске нет хранилища карантина.",
       },
     },
+    facts: {
+      title: "Что нашёл Lumen",
+      source: (name: string) => `источник: ${name}`,
+      uninstallEntry: "запись об удалении",
+      backgroundRecords: "записи фоновых объектов",
+      installedBy: "Установлено пакетом.",
+      mechanisms: {
+        package_manager: "Удаляется через менеджер пакетов.",
+        windows_installer: "Удаляется через Windows Installer.",
+        own_uninstaller: "Есть собственный деинсталлятор.",
+        none_recorded: "Способ удаления не записан.",
+      },
+      administrator: "Для удаления нужны права администратора.",
+      neededBy: (n: number, complete: boolean) =>
+        `Он нужен ${complete ? "" : "как минимум "}ещё ${count(n)} ${plural(n, "пакету", "пакетам", "пакетам")}.`,
+      neededByNone: "Ни одному другому установленному пакету он не нужен.",
+      neededByUnknown: "Lumen не удалось прочитать, каким пакетам он нужен.",
+      needs: (n: number) =>
+        `Нужно ${count(n)} ${plural(n, "другой пакет", "других пакета", "других пакетов")}.`,
+      background: (n: number) =>
+        `Вместе с ним работает ${count(n)} ${plural(n, "фоновый объект", "фоновых объекта", "фоновых объектов")}.`,
+    },
     ai: {
       explaining: "ИИ-проверка описывает приложения…",
+      source:
+        "Предположение ИИ-проверки по названию, издателю и версии. Оно не меняет действия Lumen.",
       note: (purpose: string, confidence: string, impact: string) =>
         `ИИ: вероятно, ${purpose} (${confidence}). ${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
@@ -821,7 +868,6 @@ export const ru: Messages = {
         installFailed: "Не удалось установить обновление. Текущая версия не изменилась.",
         waitForItems:
           "Обновление станет доступно, когда Lumen закончит перемещение или удаление элементов.",
-        sidebar: (version: string) => `Доступна версия ${version}`,
         notice: (version: string) => `Доступна Lumen ${version}.`,
         noticeAction: "Посмотреть обновление",
         later: "Позже",

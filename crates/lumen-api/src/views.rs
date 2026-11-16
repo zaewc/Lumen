@@ -47,9 +47,12 @@ pub use reassess::{
 };
 pub use relations::{MAX_RELATIONS, NodeView, RelationKindView, RelationView, RelationsView};
 pub use software::{
-    LinkedServiceView, RemovalImpactView, ServiceKindView, ServiceLinkMethodView, ServiceScopeView,
+    LinkedServiceView, RelationCountView, RemovalFactsView, RemovalImpactView,
+    RemovalMechanismView, ServiceKindView, ServiceLinkMethodView, ServiceScopeView,
     SoftwareItemView, SoftwareNoteView, SoftwareOriginView, SoftwarePurposeView,
-    SoftwareSourceStateView, SoftwareSourceView, SoftwareView, software_key, software_subjects,
+    SoftwareRelationKindView, SoftwareRelationMethodView, SoftwareRelationView, SoftwareSizeView,
+    SoftwareSourceStateView, SoftwareSourceView, SoftwareView, app_locations, software_key,
+    software_subjects,
 };
 pub use times::{TimeView, TimesView};
 pub use uninstall::{
@@ -388,6 +391,8 @@ pub enum GroupKindView {
     AppCache,
     /// An application's other data.
     AppData,
+    /// Data left by an application that is no longer installed (ADR-0068).
+    RemovedApp,
     /// Anything else.
     Other,
 }
@@ -411,6 +416,7 @@ impl From<lumen_app::assess::Group> for GroupView {
                 GroupKind::Developer => GroupKindView::Developer,
                 GroupKind::AppCache => GroupKindView::AppCache,
                 GroupKind::AppData => GroupKindView::AppData,
+                GroupKind::RemovedApp => GroupKindView::RemovedApp,
                 GroupKind::Other => GroupKindView::Other,
             },
             source: group.source,

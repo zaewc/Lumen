@@ -41,6 +41,7 @@ mod path;
 mod plan;
 mod quarantine;
 mod relationship;
+mod removal_facts;
 mod review;
 mod size;
 mod text;
@@ -103,6 +104,7 @@ pub use quarantine::{
     ItemLocation, QuarantineEvent, QuarantineFailure, QuarantineState, TransitionError,
 };
 pub use relationship::{RelationKind, Relationship, RelationshipError, SubjectType};
+pub use removal_facts::{RelationCount, RemovalFacts, RemovalMechanism};
 pub use review::{REVIEW_REASONS_SCHEMA, ReviewReason};
 pub use size::{ByteCount, CloneId, ReclaimEstimate, SizeFacts, SizeFlags};
 pub use text::{UntrustedText, UntrustedTextTooLong};

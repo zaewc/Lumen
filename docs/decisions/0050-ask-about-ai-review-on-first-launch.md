@@ -1,6 +1,8 @@
 # ADR-0050: Ask about AI review once, on first launch
 
-- Status: Accepted (owner decision, 2026-10-31)
+- Status: Accepted (owner decision, 2026-10-31); amended by
+  [ADR-0067](0067-set-up-the-helper-and-full-disk-access-on-first-launch.md) (the question
+  is the first step of a first-launch setup)
 - Date: 2026-10-31
 - Supersedes in part: [ADR-0047](0047-ai-review-on-by-default.md) (on without a
   choice); its disclosure and kept off switch stand

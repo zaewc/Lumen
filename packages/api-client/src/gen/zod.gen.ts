@@ -251,7 +251,13 @@ export const zFreeWhenClosedView = z.object({
 /**
  * The kind of group an item is presented in.
  */
-export const zGroupKindView = z.enum(["developer", "app_cache", "app_data", "other"]);
+export const zGroupKindView = z.enum([
+  "developer",
+  "app_cache",
+  "app_data",
+  "removed_app",
+  "other",
+]);
 
 /**
  * The group an item is presented in, and what it belongs to when known.
@@ -440,6 +446,17 @@ export const zReassessRequest = z.object({
 });
 
 /**
+ * How many entries a package relation reaches.
+ */
+export const zRelationCountView = z.object({
+  complete: z.boolean(),
+  count: z
+    .int()
+    .gte(0)
+    .max(2147483647, { error: "Invalid value: Expected int32 to be <= 2147483647" }),
+});
+
+/**
  * The kind of a relationship, read `from <kind> to`.
  */
 export const zRelationKindView = z.enum([
@@ -487,6 +504,17 @@ export const zRemovalImpactView = z.enum([
   "security_or_access",
   "system_function",
   "unknown",
+]);
+
+/**
+ * How a piece of software's own mechanism removes it, as its record shows
+ * (#850). Lumen's observation, never AI review's.
+ */
+export const zRemovalMechanismView = z.enum([
+  "package_manager",
+  "windows_installer",
+  "own_uninstaller",
+  "none_recorded",
 ]);
 
 /**
@@ -711,6 +739,19 @@ export const zSoftwareOriginView = z.enum([
 ]);
 
 /**
+ * What Lumen itself observed about removing a piece of software, from its
+ * inventory records (#850): shown apart from the AI note and never sent to
+ * AI review (ADR-0061 rule 2, ADR-0064 rule 7).
+ */
+export const zRemovalFactsView = z.object({
+  installed_by: zSoftwareOriginView.nullable(),
+  mechanism: zRemovalMechanismView.nullable(),
+  needed_by: zRelationCountView.nullable(),
+  needs: zRelationCountView.nullable(),
+  needs_administrator: z.boolean(),
+});
+
+/**
  * What AI review says a piece of software is mainly for (ADR-0061).
  */
 export const zSoftwarePurposeView = z.enum([
@@ -741,11 +782,64 @@ export const zSoftwareNoteView = z.object({
 });
 
 /**
+ * What a relation states, from the row's side.
+ */
+export const zSoftwareRelationKindView = z.enum([
+  "needs",
+  "needed_by",
+  "installed",
+  "installed_by",
+]);
+
+/**
+ * The record a relation was read from, or the default it assumed.
+ */
+export const zSoftwareRelationMethodView = z.enum([
+  "homebrew_runtime_dependencies",
+  "cask_uninstall_artifacts",
+  "cask_definition",
+  "cask_default_app_folder",
+  "receipt_file_list",
+  "other",
+]);
+
+/**
+ * One relation of a row.
+ */
+export const zSoftwareRelationView = z.object({
+  ambiguous: z.boolean(),
+  direct: z.boolean().nullable(),
+  kind: zSoftwareRelationKindView,
+  label: z.string(),
+  method: zSoftwareRelationMethodView,
+  other: z.string().nullable(),
+  verified: z.boolean(),
+});
+
+/**
+ * What the latest scan says about an app's size; never zero for unknown.
+ */
+export const zSoftwareSizeView = z.union([
+  z.object({
+    bytes: z.string(),
+    kind: z.enum(["complete"]),
+  }),
+  z.object({
+    bytes: z.string(),
+    kind: z.enum(["at_least"]),
+  }),
+  z.object({
+    kind: z.enum(["not_scanned"]),
+  }),
+]);
+
+/**
  * One application or package.
  */
 export const zSoftwareItemView = z.object({
   ai_note: zSoftwareNoteView.nullable(),
   explicit: z.boolean().nullable(),
+  facts: zRemovalFactsView,
   hidden: z.boolean(),
   id: z.string(),
   key: z.string(),
@@ -753,7 +847,10 @@ export const zSoftwareItemView = z.object({
   name: z.string().nullable(),
   origin: zSoftwareOriginView,
   protected: z.boolean(),
+  relations: z.array(zSoftwareRelationView),
+  relations_read: z.boolean().nullable(),
   services: z.array(zLinkedServiceView),
+  size: zSoftwareSizeView.nullable(),
   vendor: z.string().nullable(),
   version: z.string().nullable(),
 });

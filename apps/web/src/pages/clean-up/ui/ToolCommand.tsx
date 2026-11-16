@@ -1,10 +1,10 @@
 import type { ToolCommandView, ToolRunView } from "@lumen/api-client";
 import { useEffect, useId, useState } from "react";
-import { useToolRun } from "@/entities/tool-run";
 import { useTransport } from "@/shared/api";
 import { type Messages, useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice, Notice, SpaceChangeResult } from "@/shared/ui";
 import { commandLine } from "../lib/command";
+import { useToolRun } from "../model/tool-run";
 
 /** Whether the command was just copied, or copying failed. */
 type CopyState = "idle" | "copied" | "failed";

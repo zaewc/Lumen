@@ -29,8 +29,8 @@ use rusqlite::Connection;
 use rusqlite::config::DbConfig;
 use rusqlite_migration::{M, Migrations};
 
-pub use index::{IndexStore, Pruned, RootSnapshot, StoredPlan};
-pub use ledger::{JournalEntry, LedgerJournal, LedgerStore};
+pub use index::{IndexStore, Pruned, RootSnapshot, StoredPlan, SubtreeSize};
+pub use ledger::{JournalEntry, LedgerJournal, LedgerStore, UninstalledApp};
 pub use writer::{IndexWriter, WriteStats, WriterConfig};
 
 /// How long a connection waits for a lock held by another connection.
@@ -61,6 +61,7 @@ const LEDGER_MIGRATIONS: &[M<'static>] = &[
         "migrations/ledger/0004_quarantine_choosers.sql"
     )),
     M::up(include_str!("migrations/ledger/0005_jev_demotions.sql")),
+    M::up(include_str!("migrations/ledger/0006_uninstalled_apps.sql")),
 ];
 
 /// Errors opening or migrating a database.
@@ -263,7 +264,7 @@ mod tests {
     fn the_ledger_is_durable_and_hardened() -> Result<(), Box<dyn std::error::Error>> {
         let fx = Fixture::build(&[])?;
         let conn = open_ledger(&fx.path("ledger.db")?)?;
-        assert_eq!(pragma::<i64>(&conn, "user_version")?, 5);
+        assert_eq!(pragma::<i64>(&conn, "user_version")?, 6);
         assert_eq!(
             pragma::<String>(&conn, "journal_mode")?.to_lowercase(),
             "wal"

@@ -129,7 +129,6 @@ export const fr: Messages = {
     scanStage: "Analyser",
     resultsStage: "Voir les résultats",
     cleanUpStage: "Nettoyer",
-    activeCommand: "Commande en cours",
     quitHeld:
       "Lumen déplace ou supprime des éléments. Vous pourrez le fermer une fois l'opération terminée.",
   },
@@ -158,7 +157,6 @@ export const fr: Messages = {
       stored: (service) => `${service} (votre clé)`,
     },
     checking: "Vérification…",
-    short: { on: "Analyse par IA activée", off: "Analyse par IA désactivée" },
     loadFailed: "Lumen n'a pas pu charger le réglage de l'analyse par IA.",
     changeFailed: "Lumen n'a pas pu modifier le réglage de l'analyse par IA.",
     consent: {
@@ -191,6 +189,21 @@ export const fr: Messages = {
       off: "Continuer sans l'analyse par IA",
     },
   },
+  setup: {
+    next: "Suivant",
+    later: "Plus tard",
+    start: "Commencer",
+    helper: {
+      title: "Activer l'assistant administrateur ?",
+      approval:
+        "macOS vous demandera de l'autoriser dans Réglages Système › Général › Ouverture, avec un mot de passe administrateur. Vous pouvez le désactiver dans les réglages à tout moment.",
+    },
+    disk: {
+      title: "Autorisez l'accès complet au disque",
+      intro:
+        "Avec lui, Lumen analyse aussi les dossiers protégés. Sans lui, Lumen analyse tous les dossiers lisibles et marque les autres comme non lus.",
+    },
+  },
   scanning: {
     title: "Analyse en cours…",
     deciding: "Décision en cours…",
@@ -218,6 +231,13 @@ export const fr: Messages = {
   },
   results: {
     ...en.results,
+    apps: {
+      title: "Apps",
+      line: "Les apps sont vérifiées une par une avant d'être déplacées en quarantaine.",
+      seeAll: "Voir toutes les apps installées",
+      outside: (n) =>
+        `${count(n)} ${n > 1 ? "autres apps se trouvent" : "autre app se trouve"} dans des emplacements que cette analyse n'a pas lus.`,
+    },
     map: {
       label: "Carte des éléments évalués, par taille",
       all: "Toutes les catégories",
@@ -235,10 +255,13 @@ export const fr: Messages = {
       command: "Nettoyer avec la commande dédiée",
       developer: "Outils de développement",
       app_cache: "Caches d'applications",
+      removed_app: "Données d'applications supprimées",
       app_data: "Données d'applications",
       other: "Autre",
     },
     otherTools: "Autres outils",
+    removedNote:
+      "Les applications ne sont plus là, mais leurs données restent. Vérifiez que vous n'en avez plus besoin avant de les déplacer.",
     commandNote:
       "Seul l'outil concerné devrait supprimer ces éléments. Ouvrez-le pour exécuter sa commande et vérifiez d'abord ce qu'elle supprime : cette action est irréversible.",
     status: {
@@ -465,6 +488,10 @@ export const fr: Messages = {
     finalizeTitle: "Supprimer cet élément définitivement ?",
     finalizeNote: "Cette action est irréversible.",
     finalizeChosen: "Vous avez choisi cet élément vous-même ; Lumen ne l'a pas proposé.",
+    finalizeManyTitle: (n: number, size: string) =>
+      `Supprimer ${items(n)} (${size}) définitivement ?`,
+    finalizeManyChosen: (n: number) =>
+      `Vous avez choisi ${items(n)} vous-même ; Lumen ${n > 1 ? "ne les a pas proposés" : "ne l'a pas proposé"}.`,
     finalizeButton: "Supprimer définitivement",
     toolTitle: (tool) => `Exécuter la commande de ${tool} ?`,
     toolNote: "Ce qu'elle supprime ne pourra pas être restauré.",
@@ -598,6 +625,7 @@ export const fr: Messages = {
     notFinalizable: "Vous pouvez uniquement restaurer cet élément.",
   },
   apps: {
+    order: { label: "Ordre", name: "Par nom", size: "Par taille" },
     title: "Apps",
     desktopOnly: "Lumen affiche les apps installées dans l'app de bureau.",
     reading: "Lecture des apps installées…",
@@ -673,8 +701,32 @@ export const fr: Messages = {
         no_store_on_volume: "Ce disque n’a pas d’espace de quarantaine.",
       },
     },
+    facts: {
+      title: "Ce que Lumen a constaté",
+      source: (name: string) => `d’après ${name}`,
+      uninstallEntry: "son entrée de désinstallation",
+      backgroundRecords: "ses éléments d’arrière-plan",
+      installedBy: "Un paquet l’a installée.",
+      mechanisms: {
+        package_manager: "Son gestionnaire de paquets la supprime.",
+        windows_installer: "Windows Installer la supprime.",
+        own_uninstaller: "Elle a son propre programme de désinstallation.",
+        none_recorded: "Aucun moyen de la désinstaller n’est enregistré.",
+      },
+      administrator: "La supprimer demande les droits d’administrateur.",
+      neededBy: (n: number, complete: boolean) =>
+        `${complete ? "" : "Au moins "}${count(n)} ${n > 1 ? "autres paquets en ont besoin" : "autre paquet en a besoin"}.`,
+      neededByNone: "Aucun autre paquet installé n’en a besoin.",
+      neededByUnknown: "Lumen n’a pas pu lire ce qui en a besoin.",
+      needs: (n: number) =>
+        `Elle a besoin de ${count(n)} ${n > 1 ? "autres paquets" : "autre paquet"}.`,
+      background: (n: number) =>
+        `${count(n)} ${n > 1 ? "éléments d’arrière-plan s’exécutent" : "élément d’arrière-plan s’exécute"} avec elle.`,
+    },
     ai: {
       explaining: "L'analyse par IA décrit les apps…",
+      source:
+        "Une estimation de l’analyse par IA d’après le nom, l’éditeur et la version. Elle ne change pas ce que fait Lumen.",
       note: (purpose: string, confidence: string, impact: string) =>
         `IA : probablement ${purpose} (${confidence}). ${impact}`,
       withConfidence: (impact: string, confidence: string) => `${impact} (${confidence})`,
@@ -794,7 +846,6 @@ export const fr: Messages = {
         installFailed: "La mise à jour n'a pas été installée. Cette version reste inchangée.",
         waitForItems:
           "Vous pourrez mettre à jour une fois les déplacements et suppressions terminés.",
-        sidebar: (version) => `Version ${version} disponible`,
         notice: (version) => `Lumen ${version} est disponible.`,
         noticeAction: "Voir la mise à jour",
         later: "Plus tard",

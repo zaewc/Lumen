@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice, Notice } from "@/shared/ui";
-import { title } from "../model/list";
 import { failureText, useAppMove } from "../model/move";
 import { onlyRunning, QUIT_CHECK_MS, QUIT_WAIT_MS, quitStage } from "../model/quit";
+import { softwareTitle as title } from "../model/title";
 import { MoveDialog, MoveReasons } from "./MoveDialog";
 
 /**

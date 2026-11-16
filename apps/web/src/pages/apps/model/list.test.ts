@@ -1,6 +1,6 @@
 import type { SoftwareItemView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
-import { iconsShown, partial, title, tucked, visible } from "./list";
+import { iconsShown, ordered, partial, title, tucked, visible } from "./list";
 
 function row(id: string, extra: Partial<SoftwareItemView> = {}): SoftwareItemView {
   return {
@@ -15,7 +15,17 @@ function row(id: string, extra: Partial<SoftwareItemView> = {}): SoftwareItemVie
     hidden: false,
     explicit: null,
     services: [],
+    facts: {
+      mechanism: null,
+      installed_by: null,
+      needs_administrator: false,
+      needs: null,
+      needed_by: null,
+    },
     ai_note: null,
+    size: null,
+    relations: [],
+    relations_read: null,
     ...extra,
   };
 }
@@ -57,5 +67,20 @@ describe("software list", () => {
     expect(iconsShown(items)).toBe(false);
     expect(iconsShown([...items, row("dev.zed.Zed", { origin: "mac_app" })])).toBe(true);
     expect(iconsShown([])).toBe(false);
+  });
+});
+
+describe("ordering by size", () => {
+  it("puts measured apps first, largest first, and keeps the rest in order", () => {
+    const sized = (id: string, size: SoftwareItemView["size"]) => row(id, { size });
+    const list = [
+      sized("a", null),
+      sized("b", { kind: "complete", bytes: "10" }),
+      sized("c", { kind: "not_scanned" }),
+      sized("d", { kind: "at_least", bytes: "30" }),
+      sized("e", { kind: "complete", bytes: "20" }),
+    ];
+    expect(ordered(list, "size").map((item) => item.id)).toEqual(["d", "e", "b", "a", "c"]);
+    expect(ordered(list, "name")).toBe(list);
   });
 });

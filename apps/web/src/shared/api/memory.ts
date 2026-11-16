@@ -41,7 +41,17 @@ function softwareList(explained: boolean): SoftwareView {
     hidden: false,
     explicit: null,
     services: [],
+    facts: {
+      mechanism: null,
+      installed_by: null,
+      needs_administrator: false,
+      needs: null,
+      needed_by: null,
+    },
     ai_note: null,
+    size: null,
+    relations: [],
+    relations_read: null,
     ...extra,
   });
   return {
@@ -49,17 +59,42 @@ function softwareList(explained: boolean): SoftwareView {
       row("homebrew", "act", null, "0.2.79", {
         location: "/opt/homebrew/Cellar/act",
         explicit: true,
+        facts: {
+          mechanism: "package_manager",
+          installed_by: null,
+          needs_administrator: false,
+          needs: { count: 0, complete: true },
+          needed_by: { count: 0, complete: true },
+        },
       }),
       row("mac_app", "com.apple.calculator", "Calculator", "11.0", {
+        size: { kind: "not_scanned" },
         location: "/System/Applications/Calculator.app",
         protected: true,
       }),
       row("homebrew_cask", "docker", null, "4.30.0", {
         location: "/opt/homebrew/Caskroom/docker",
         explicit: true,
+        facts: {
+          mechanism: "package_manager",
+          installed_by: null,
+          needs_administrator: false,
+          needs: { count: 0, complete: true },
+          needed_by: { count: 0, complete: true },
+        },
       }),
-      row("mac_installer", "com.example.driver.pkg", null, "2.4.1", { location: "/" }),
+      row("mac_installer", "com.example.driver.pkg", null, "2.4.1", {
+        location: "/",
+        facts: {
+          mechanism: "none_recorded",
+          installed_by: null,
+          needs_administrator: true,
+          needs: null,
+          needed_by: { count: 0, complete: false },
+        },
+      }),
       row("mac_app", "com.example.OldEditor", "OldEditor", "3.2", {
+        size: { kind: "complete", bytes: "441000000" },
         location: "/Applications/OldEditor.app",
         services: [
           {
@@ -75,6 +110,13 @@ function softwareList(explained: boolean): SoftwareView {
       row("homebrew", "openssl@3", null, "3.5.0", {
         location: "/opt/homebrew/Cellar/openssl@3",
         explicit: false,
+        facts: {
+          mechanism: "package_manager",
+          installed_by: null,
+          needs_administrator: false,
+          needs: { count: 1, complete: true },
+          needed_by: { count: 2, complete: true },
+        },
         ai_note: {
           purpose: "runtime_or_library",
           removal_impact: "other_software_depends",
@@ -83,6 +125,7 @@ function softwareList(explained: boolean): SoftwareView {
         },
       }),
       row("mac_app", "com.spotify.client", "Spotify", "1.2.48", {
+        size: { kind: "at_least", bytes: "325000000" },
         location: "/Applications/Spotify.app",
         ai_note: explained
           ? {
@@ -479,7 +522,7 @@ const candidates: readonly CandidateView[] = [
       },
     ],
     tool_command: null,
-    group: { kind: "app_data", source: "com.example.OldEditor" },
+    group: { kind: "removed_app", source: "com.example.OldEditor" },
     ai_note: null,
     free_when_closed: null,
     times: folderTimes("2025-03-18T10:12:44Z", "2025-11-30T21:03:10Z"),
