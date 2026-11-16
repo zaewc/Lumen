@@ -343,7 +343,7 @@ pub(crate) fn finalize_many(
 /// How long a confirmation of several removals stays usable. Removing them
 /// one by one starts right after the person confirms; an item not reached by
 /// then is asked about again on its own.
-const APPROVAL_LIFETIME: Duration = Duration::from_secs(15 * 60);
+const APPROVAL_LIFETIME: Duration = Duration::from_mins(15);
 
 /// Held items the person confirmed removing for good in one question
 /// ([`finalize_many`]), so `finalize` does not ask about each again. Only
