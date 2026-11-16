@@ -224,6 +224,13 @@ export const en = {
     failed: "Lumen could not decide about what it found. Your files are unchanged.",
   },
   results: {
+    apps: {
+      title: "Apps",
+      line: "Apps are checked one at a time before they move to Quarantine.",
+      seeAll: "See all installed apps",
+      outside: (n: number) =>
+        `${count(n)} more ${n === 1 ? "app is" : "apps are"} in places this scan did not read.`,
+    },
     map: {
       label: "Map of the assessed items, by size",
       all: "All kinds",

@@ -2,12 +2,12 @@ import type { SoftwareItemView } from "@lumen/api-client";
 import { useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useAiSettings } from "@/entities/ai-review";
+import { MoveFlow, MoveResult } from "@/entities/app-move";
 import { useTransport } from "@/shared/api";
 import { softwareNoteText, useI18n } from "@/shared/i18n";
 import { buttonClass, ErrorNotice, Notice, Page } from "@/shared/ui";
 import { iconsShown, partial, title, tucked, visible } from "../model/list";
 import { AppIcon } from "./AppIcon";
-import { MoveFlow, MoveResult } from "./MoveFlow";
 
 function AppRow({
   item,

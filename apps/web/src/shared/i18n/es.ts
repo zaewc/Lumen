@@ -221,6 +221,13 @@ export const es: Messages = {
     failed: "Lumen no pudo decidir qué hacer con lo encontrado. Tus archivos no han cambiado.",
   },
   results: {
+    apps: {
+      title: "Apps",
+      line: "Las apps se revisan una a una antes de moverlas a Cuarentena.",
+      seeAll: "Ver todas las apps instaladas",
+      outside: (n: number) =>
+        `Hay ${count(n)} ${n === 1 ? "app más" : "apps más"} en lugares que este análisis no leyó.`,
+    },
     map: {
       label: "Mapa de los elementos evaluados, por tamaño",
       all: "Todos los tipos",

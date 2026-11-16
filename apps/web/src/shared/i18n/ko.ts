@@ -218,6 +218,12 @@ export const ko = {
     failed: "검사한 항목을 판단하지 못했어요. 파일은 모두 그대로 있어요.",
   },
   results: {
+    apps: {
+      title: "앱",
+      line: "앱은 하나씩 확인한 뒤 격리함으로 옮겨요.",
+      seeAll: "설치된 앱 모두 보기",
+      outside: (n: number) => `검사하지 않은 위치에 앱이 ${count(n)}개 더 있어요.`,
+    },
     map: {
       label: "이번 검사에서 살펴본 항목 지도, 크기 기준",
       all: "모든 종류",

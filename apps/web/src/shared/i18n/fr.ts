@@ -218,6 +218,13 @@ export const fr: Messages = {
   },
   results: {
     ...en.results,
+    apps: {
+      title: "Apps",
+      line: "Les apps sont vérifiées une par une avant d'être déplacées en quarantaine.",
+      seeAll: "Voir toutes les apps installées",
+      outside: (n) =>
+        `${count(n)} ${n > 1 ? "autres apps se trouvent" : "autre app se trouve"} dans des emplacements que cette analyse n'a pas lus.`,
+    },
     map: {
       label: "Carte des éléments évalués, par taille",
       all: "Toutes les catégories",

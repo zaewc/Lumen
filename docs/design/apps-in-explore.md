@@ -1,6 +1,6 @@
 # Apps inside the scan (roadmap 16.2)
 
-- Status: **Accepted: Option A** (owner, 2026-11-09). See [Decisions](#decisions) at the end.
+- Status: **Accepted: Option A** (owner, 2026-11-09), steps 1–4 built (the section, without the other-account hint: the host has no cheap owner check yet, so the move dialog says it). See [Decisions](#decisions) at the end.
 - Roadmap: [Phase 16, item 16.2](../architecture/roadmap.md#phase-16-installed-software-after-0100)
 - Builds on: [ui-principles.md](ui-principles.md), [ux-writing.md](ux-writing.md),
   [ADR-0039](../decisions/0039-ask-for-review-only-where-a-person-can-act.md),
