@@ -8,8 +8,11 @@
 //! It answers only Lumen signed with a Developer ID by the same team as
 //! itself, checked by XPC on every message; it reads who is asking from the
 //! connection, never from the request; and it decides every request itself
-//! ([`lumen_application::helper::answer`]). This first step (roadmap 16.3b)
-//! answers `status` only: it moves, deletes and opens nothing.
+//! ([`lumen_application::helper::answer`]). It answers `status` (roadmap
+//! 16.3b) and `quarantine` (16.3c): moving an app another account owns from
+//! `/Applications` into the caller's root-owned store, through
+//! `lumen-fs-exec`, after gathering its own evidence as root ([`host`]). It
+//! deletes nothing.
 
 #![allow(
     clippy::print_stderr,
@@ -31,6 +34,9 @@ fn main() -> ExitCode {
 }
 
 #[cfg(target_os = "macos")]
+mod host;
+
+#[cfg(target_os = "macos")]
 #[allow(unsafe_code)]
 mod mac {
     //! The daemon's lifetime: check in on the Mach service, answer, idle-exit.
@@ -40,15 +46,6 @@ mod mac {
     use std::sync::{Arc, OnceLock};
     use std::time::{Duration, Instant};
 
-    use std::collections::BTreeMap;
-
-    use lumen_application::helper::HelperHost;
-    use lumen_application::helper::gate::HelperEvidence;
-    use lumen_application::ports::{ExecutionFailure, InUse, PreparedItem};
-    use lumen_application::uninstall::BundleEvidence;
-    use lumen_domain::{
-        FileIdentity, ItemLocation, OperationId, QuarantineFailure, RawPath, Timestamp,
-    };
     use lumen_platform_macos::helper::serve;
     use lumen_platform_macos::xpc::Peer;
 
@@ -79,70 +76,6 @@ mod mac {
         }
     }
 
-    /// The computer as this step of the helper sees it: nothing yet. Every
-    /// `quarantine` request is refused before anything is looked at (no
-    /// caller counts as an administrator), and nothing is moved. The next
-    /// step gathers the evidence as root and moves through `lumen-fs-exec`.
-    struct Unequipped;
-
-    impl HelperHost for Unequipped {
-        fn administrator(&self, _uid: u32) -> Option<bool> {
-            None
-        }
-
-        fn observe(&self, _caller: u32, path: &RawPath) -> HelperEvidence {
-            HelperEvidence {
-                bundle: BundleEvidence {
-                    path: path.clone(),
-                    folders: Vec::new(),
-                    directory: None,
-                    owned_by_user: None,
-                    linked_services: None,
-                    helpers: BTreeMap::new(),
-                    running: None,
-                    store_on_volume: None,
-                },
-                identity: None,
-                owner: None,
-                restricted: None,
-            }
-        }
-
-        fn prepare(
-            &self,
-            _root: &RawPath,
-            _relative: &[Vec<u8>],
-        ) -> Result<(PreparedItem, FileIdentity), ExecutionFailure> {
-            Err(UNEQUIPPED)
-        }
-
-        fn in_use(&self, _path: &RawPath, _identity: &FileIdentity) -> InUse {
-            InUse::Unknown {
-                reason: "this helper does not read the process list yet",
-            }
-        }
-
-        fn quarantine(
-            &self,
-            _caller: u32,
-            _item: &PreparedItem,
-            _operation: OperationId,
-            _record: &[u8],
-        ) -> Result<(), ExecutionFailure> {
-            Err(UNEQUIPPED)
-        }
-
-        fn now(&self) -> Timestamp {
-            Timestamp::UNIX_EPOCH
-        }
-    }
-
-    /// Nothing was moved.
-    const UNEQUIPPED: ExecutionFailure = ExecutionFailure {
-        reason: QuarantineFailure::VolumeUnsupported,
-        left: ItemLocation::Source,
-    };
-
     pub(super) fn run() -> ExitCode {
         // SAFETY: invariant: none. Why unsafe: `geteuid` is an FFI call. Why it
         // holds: it takes no arguments, cannot fail and touches no memory.
@@ -157,6 +90,7 @@ mod mac {
         });
         activity.started.get_or_init(Instant::now);
         let seen = Arc::clone(&activity);
+        let host = crate::host::Mac::system();
         let listener = serve(Arc::new(move |peer: Peer, body: &str| {
             seen.busy.fetch_add(1, Ordering::SeqCst);
             seen.last.store(seen.now(), Ordering::SeqCst);
@@ -164,7 +98,7 @@ mod mac {
                 body,
                 peer.euid,
                 env!("CARGO_PKG_VERSION"),
-                &Unequipped,
+                &host,
             );
             seen.busy.fetch_sub(1, Ordering::SeqCst);
             answer

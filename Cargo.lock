@@ -2535,7 +2535,10 @@ dependencies = [
  "libc",
  "lumen-application",
  "lumen-domain",
+ "lumen-fs-exec",
  "lumen-platform-macos",
+ "lumen-testkit",
+ "serde_json",
 ]
 
 [[package]]

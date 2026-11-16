@@ -54,7 +54,7 @@ mod win_sys;
 mod win_verify;
 
 #[cfg(unix)]
-pub use executor::{Executor, original_path};
+pub use executor::{Executor, original_path, recorded_identity};
 #[cfg(unix)]
 pub use finalize::{FinalizeError, MAX_DEPTH, finalize, forget};
 pub use location::{Left, Removed};
