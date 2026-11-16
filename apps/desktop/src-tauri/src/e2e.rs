@@ -35,6 +35,11 @@ static ANSWER: AtomicBool = AtomicBool::new(true);
 /// How often the host asked.
 static ASKED: AtomicUsize = AtomicUsize::new(0);
 
+/// How often the host asks when the flow runs to the end: each of its two
+/// cycles declines `execute` once and confirms it once (4), then removing
+/// asks 3 more times (see [`confirming_several_removals`]).
+const ASKED_TO_THE_END: usize = 7;
+
 /// The size the last removal-for-good question named, if any.
 static FINALIZE_BYTES: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
@@ -315,14 +320,13 @@ fn the_desktop_flow_runs_end_to_end() {
         run_app(move |handle| flow(handle, Path::new(&home)));
         // FS-1: before each execute (declined, then confirmed), the question
         // about several removals (declined, then confirmed) and the declined
-        // single removal, but not the removal confirmed with several; 7 when
-        // it ran to the end.
+        // single removal, but not the removal confirmed with several.
         assert_eq!(
             ASKED.load(Ordering::SeqCst),
             EXPECTED.load(Ordering::SeqCst),
             "the host asked each time"
         );
-        if EXPECTED.load(Ordering::SeqCst) == 5 {
+        if EXPECTED.load(Ordering::SeqCst) == ASKED_TO_THE_END {
             let bytes = FINALIZE_BYTES
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
