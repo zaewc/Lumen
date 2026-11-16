@@ -111,18 +111,21 @@ fn installed(bom: &Path, prefix: Option<&str>) -> Option<Vec<PackageRelation>> {
     if bytes.len() as u64 > MAX_BOM {
         return None;
     }
-    crate::bom::bundles(&bytes)
+    let prefix_is_bundle = {
+        let trimmed = prefix.trim_end_matches('/');
+        trimmed.len() > 4 && trimmed.to_ascii_lowercase().ends_with(".app")
+    };
+    crate::bom::bundles(&bytes, prefix_is_bundle)
         .ok()?
         .into_iter()
         .filter_map(|relative| {
             let mut path = prefix.as_bytes().to_vec();
             if relative.is_empty() {
-                // The prefix itself, which must then be a bundle.
-                let trimmed = prefix.trim_end_matches('/');
-                if !trimmed.to_ascii_lowercase().ends_with(".app") {
+                // The prefix itself, given only when it is a bundle.
+                if !prefix_is_bundle {
                     return None;
                 }
-                path = trimmed.as_bytes().to_vec();
+                path = prefix.trim_end_matches('/').as_bytes().to_vec();
             } else {
                 if !path.ends_with(b"/") {
                     path.push(b'/');
@@ -281,10 +284,18 @@ mod tests {
             (4, 3, "Contents", 2),
             (5, 4, "Info.plist", 1),
         ]);
+        let folder = crate::bom::tests::build(&[
+            (1, 0, ".", 2),
+            (2, 1, "Contents", 2),
+            (3, 2, "Info.plist", 1),
+            (4, 1, "Child.app", 2),
+            (5, 4, "Contents", 2),
+            (6, 5, "Info.plist", 1),
+        ]);
         for (id, prefix, bom) in [
             ("root", "", &nested),
             ("bundle", "Applications/Tool.app", &top),
-            ("folder", "Library/Tool", &top),
+            ("folder", "Library/Tool", &folder),
         ] {
             let plist = RECEIPT.replace("com.example.tool", id).replace(
                 "<string>Applications</string>",
@@ -313,8 +324,12 @@ mod tests {
                     "bundle".to_owned(),
                     vec!["/Applications/Tool.app".to_owned()]
                 ),
-                // A prefix that is not a bundle cannot be the bundle.
-                ("folder".to_owned(), vec![]),
+                // A prefix that is not a bundle is not one, and hides none
+                // of the bundles inside it.
+                (
+                    "folder".to_owned(),
+                    vec!["/Library/Tool/Child.app".to_owned()]
+                ),
                 ("root".to_owned(), vec!["/Applications/Tool.app".to_owned()]),
             ]
         );
