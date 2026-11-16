@@ -2,8 +2,9 @@
 //!
 //! In order, each step refusing before anything moves:
 //!
-//! 1. The request must name the helper's own [`PROTOCOL`], and the caller
-//!    (from the connection) must be an administrator.
+//! 1. The request must name the helper's own [`PROTOCOL`]. The caller, from
+//!    the connection, is any account but root (ADR-0063, amended 2026-11-16):
+//!    the item goes into that account's own store.
 //! 2. The helper gathers fresh evidence about the item at the requested path
 //!    and decides again itself ([`decide`]).
 //! 3. The executor records the item by handle from `/Applications`, and the
@@ -37,9 +38,6 @@ pub const HELD_SCHEMA: u32 = 1;
 /// What the helper reads and does on the computer, with full rights. The
 /// daemon implements it as root; tests implement it in memory.
 pub trait HelperHost {
-    /// Whether the account `uid` is an administrator; `None` if unknown.
-    fn administrator(&self, uid: u32) -> Option<bool>;
-
     /// Fresh evidence about the item at `path`, for the account `caller`.
     fn observe(&self, caller: u32, path: &RawPath) -> HelperEvidence;
 
@@ -201,9 +199,6 @@ pub(super) fn quarantine(
     if request.protocol != PROTOCOL {
         return refused(HelperRefusal::OtherProtocol);
     }
-    if host.administrator(caller) != Some(true) {
-        return refused(HelperRefusal::NotAdministrator);
-    }
     let evidence = host.observe(caller, &request.path);
     if let Err(reasons) = decide(caller, &request.path, &request.identity, &evidence) {
         return HelperResponse::Ineligible { reasons };
@@ -284,7 +279,6 @@ pub(crate) mod fake {
     /// What the host is asked to do, in order.
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub(crate) enum Call {
-        Administrator(u32),
         Observe(u32, RawPath),
         Prepare(RawPath, Vec<Vec<u8>>),
         InUse,
@@ -297,7 +291,6 @@ pub(crate) mod fake {
     }
 
     pub(crate) struct Host {
-        pub(crate) admin: Option<bool>,
         pub(crate) evidence: HelperEvidence,
         pub(crate) prepared: Result<(PreparedItem, FileIdentity), ExecutionFailure>,
         pub(crate) in_use: InUse,
@@ -311,10 +304,9 @@ pub(crate) mod fake {
     }
 
     impl Host {
-        /// An administrator asking about a quiet root-owned app.
+        /// An account asking about a quiet root-owned app.
         pub(crate) fn eligible() -> Self {
             Self {
-                admin: Some(true),
                 evidence: HelperEvidence {
                     bundle: BundleEvidence {
                         path: raw(APP),
@@ -361,11 +353,6 @@ pub(crate) mod fake {
     }
 
     impl HelperHost for Host {
-        fn administrator(&self, uid: u32) -> Option<bool> {
-            self.call(Call::Administrator(uid));
-            self.admin
-        }
-
         fn observe(&self, caller: u32, path: &RawPath) -> HelperEvidence {
             self.call(Call::Observe(caller, path.clone()));
             self.evidence.clone()
@@ -486,17 +473,16 @@ mod tests {
             })
         );
         let calls = host.calls();
-        assert_eq!(calls[0], Call::Administrator(CALLER));
-        assert_eq!(calls[1], Call::Observe(CALLER, raw(APP)));
+        assert_eq!(calls[0], Call::Observe(CALLER, raw(APP)));
         assert_eq!(
-            calls[2],
+            calls[1],
             Call::Prepare(raw("/Applications"), vec![b"Word.app".to_vec()])
         );
-        assert_eq!(calls[3], Call::InUse);
-        let Some(Call::Quarantine(caller, op, record)) = calls.get(4) else {
+        assert_eq!(calls[2], Call::InUse);
+        let Some(Call::Quarantine(caller, op, record)) = calls.get(3) else {
             unreachable!("moved last: {calls:?}")
         };
-        assert_eq!((*caller, *op, calls.len()), (CALLER, operation(), 5));
+        assert_eq!((*caller, *op, calls.len()), (CALLER, operation(), 4));
         let record: HeldRecord =
             serde_json::from_slice(record).unwrap_or_else(|e| unreachable!("{e}"));
         assert_eq!(record.schema, HELD_SCHEMA);
@@ -508,7 +494,7 @@ mod tests {
     }
 
     #[test]
-    fn another_protocol_or_a_non_administrator_is_refused_before_looking() {
+    fn another_protocol_is_refused_before_looking() {
         let host = Host::eligible();
         let mut old = request();
         old.protocol = 1;
@@ -519,18 +505,25 @@ mod tests {
             })
         );
         assert_eq!(host.calls(), []);
-        for admin in [Some(false), None] {
-            let host = Host {
-                admin,
-                ..Host::eligible()
-            };
+    }
+
+    #[test]
+    fn any_account_but_root_may_ask() {
+        // A standard account moves an app another account owns into its own
+        // store (ADR-0063, amended 2026-11-16).
+        for caller in [CALLER, 502, 1_000_000] {
+            let host = Host::eligible();
             assert_eq!(
-                ask(&host, &request(), CALLER),
-                Some(HelperResponse::Refused {
-                    reason: HelperRefusal::NotAdministrator
+                ask(&host, &request(), caller),
+                Some(HelperResponse::Quarantined {
+                    operation: operation()
                 })
             );
-            assert_eq!(host.calls(), [Call::Administrator(CALLER)]);
+            assert!(
+                host.calls()
+                    .iter()
+                    .any(|call| matches!(call, Call::Quarantine(c, ..) if *c == caller))
+            );
         }
     }
 
@@ -557,7 +550,7 @@ mod tests {
                 reasons: vec![Reason::OwnedByCaller, Reason::Gate(Ineligible::Running)]
             })
         );
-        assert_eq!(host.calls().len(), 2);
+        assert_eq!(host.calls().len(), 1);
     }
 
     #[test]
@@ -577,7 +570,7 @@ mod tests {
                 matches!(answer, Some(HelperResponse::Ineligible { .. })),
                 "{path}: {answer:?}"
             );
-            assert_eq!(host.calls().len(), 2, "{path}");
+            assert_eq!(host.calls().len(), 1, "{path}");
         }
     }
 

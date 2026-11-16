@@ -2,34 +2,19 @@
 //! (ADR-0063 rule 4).
 //!
 //! The helper learns the caller's user ID from the connection. Everything else
-//! about that account (its home folder, whether it is an administrator) is
-//! read here from the directory service by that ID, never from the helper's
-//! own environment (`HOME`) or from the request.
+//! it needs about that account (its home folder) is read here from the
+//! directory service by that ID, never from the helper's own environment
+//! (`HOME`) or from the request.
 
 #![allow(unsafe_code)]
 
-use std::ffi::{CStr, c_char, c_int};
+use std::ffi::{CStr, c_char};
 use std::mem::MaybeUninit;
 use std::os::unix::ffi::OsStrExt as _;
 use std::path::PathBuf;
 
-/// The `admin` group's ID on macOS: its members are the administrators.
-const ADMIN_GID: libc::gid_t = 80;
-
 /// The largest buffer tried for one account's record.
 const MAX_RECORD: usize = 1 << 20;
-
-/// A UUID as `<uuid/uuid.h>` declares it (`uuid_t`).
-type Uuid = [u8; 16];
-
-// The membership API (`<membership.h>`, in libSystem), which the directory
-// service answers with nested groups resolved; `libc` does not declare it.
-// Each returns 0 on success or an error number (`mbr_check_membership(3)`).
-unsafe extern "C" {
-    fn mbr_uid_to_uuid(uid: libc::uid_t, uu: *mut u8) -> c_int;
-    fn mbr_gid_to_uuid(gid: libc::gid_t, uu: *mut u8) -> c_int;
-    fn mbr_check_membership(user: *const u8, group: *const u8, ismember: *mut c_int) -> c_int;
-}
 
 /// An account's home folder.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,39 +78,6 @@ pub fn home(uid: u32) -> Option<PathBuf> {
         .filter(|home| home.is_absolute())
 }
 
-/// Whether the account with user ID `uid` is an administrator (a member of
-/// the `admin` group, directly or through nested groups), as the directory
-/// service answers `mbr_check_membership`; `None` if there is no such account
-/// or any lookup fails.
-///
-/// `getgrouplist` is not used: when the directory service cannot be reached
-/// it can succeed with only the primary group, which would read as "not an
-/// administrator" rather than unknown.
-#[must_use]
-pub fn administrator(uid: u32) -> Option<bool> {
-    // The membership API makes up a UUID for an ID with no account, so the
-    // account must exist first.
-    account(uid)?;
-    let mut user: Uuid = [0; 16];
-    let mut group: Uuid = [0; 16];
-    let mut member: c_int = 0;
-    // SAFETY: invariant: `user` and `group` are valid for writes of 16 bytes
-    // (`uuid_t`), and `member` for one `int`, for each call. Why unsafe: FFI
-    // into libSystem's membership API. Why it holds: all three are locals of
-    // exactly those sizes that outlive the calls, and each call only writes
-    // its out-parameter.
-    let status = unsafe {
-        match mbr_uid_to_uuid(uid, user.as_mut_ptr()) {
-            0 => match mbr_gid_to_uuid(ADMIN_GID, group.as_mut_ptr()) {
-                0 => mbr_check_membership(user.as_ptr(), group.as_ptr(), &raw mut member),
-                error => error,
-            },
-            error => error,
-        }
-    };
-    (status == 0).then_some(member != 0)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,8 +89,7 @@ mod tests {
     }
 
     #[test]
-    fn root_is_an_administrator_with_its_own_home() {
-        assert_eq!(administrator(0), Some(true));
+    fn root_has_its_own_home() {
         assert_eq!(home(0), Some(PathBuf::from("/var/root")));
     }
 
@@ -146,7 +97,6 @@ mod tests {
     fn the_running_account_is_found_by_its_id() {
         let found = account(me());
         assert!(found.is_some());
-        assert!(administrator(me()).is_some());
         assert!(home(me()).is_some_and(|home| home.is_absolute()));
     }
 
@@ -154,6 +104,5 @@ mod tests {
     fn an_account_that_does_not_exist_is_unknown() {
         let nobody_has = 0x7fff_fff0;
         assert_eq!(home(nobody_has), None);
-        assert_eq!(administrator(nobody_has), None);
     }
 }
