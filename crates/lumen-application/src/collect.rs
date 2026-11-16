@@ -145,6 +145,9 @@ pub struct Inventory {
     /// Sources read completely; only their silence counts as absence, and they
     /// become `Context.complete_sources`.
     pub complete_sources: BTreeSet<SourceName>,
+    /// Sources that were partial or unavailable. While any is, nothing is
+    /// absent: it could have listed the application (ADR-0068 rule 3).
+    pub incomplete_sources: BTreeSet<SourceName>,
     /// Every identifier of every application any source found, with a source
     /// that reported it.
     pub found: BTreeMap<AppId, SourceName>,
@@ -156,6 +159,8 @@ pub fn summarize(reports: &[InventoryReport]) -> Inventory {
     for report in reports {
         if report.status == SourceStatus::Complete {
             inventory.complete_sources.insert(report.source.clone());
+        } else {
+            inventory.incomplete_sources.insert(report.source.clone());
         }
         for app in &report.applications {
             for id in &app.ids {
@@ -172,10 +177,10 @@ pub fn summarize(reports: &[InventoryReport]) -> Inventory {
 /// Whether each application in `apps` is installed, as `inventory` shows.
 ///
 /// A found application is present (observed by the source that reported it).
-/// One no source found is absent only as far as complete sources were
-/// searched (`Basis::Absence`); with no complete source nothing is stated,
-/// because silence from a partial or unavailable source proves nothing
-/// (ADR-0008).
+/// One no source found is absent (`Basis::Absence`) only when every source
+/// was read completely. With no complete source, or while any source is
+/// partial or unavailable, nothing is stated: that source could have listed
+/// it, and its silence proves nothing (ADR-0008, ADR-0068 rule 3).
 pub fn application_evidence<'a>(
     apps: impl IntoIterator<Item = &'a AppId>,
     inventory: &Inventory,
@@ -190,13 +195,17 @@ pub fn application_evidence<'a>(
         .filter_map(|app| {
             let (present, basis, source) = match inventory.found.get(app) {
                 Some(source) => (true, Basis::Observed, source.clone()),
-                None if !inventory.complete_sources.is_empty() => (
-                    false,
-                    Basis::Absence {
-                        searched: inventory.complete_sources.clone(),
-                    },
-                    conclusion.clone(),
-                ),
+                None if !inventory.complete_sources.is_empty()
+                    && inventory.incomplete_sources.is_empty() =>
+                {
+                    (
+                        false,
+                        Basis::Absence {
+                            searched: inventory.complete_sources.clone(),
+                        },
+                        conclusion.clone(),
+                    )
+                }
                 None => return None,
             };
             Some(Evidence {
@@ -370,7 +379,7 @@ mod tests {
     }
 
     #[test]
-    fn found_apps_are_present_and_missing_ones_absent_only_from_complete_sources() {
+    fn found_apps_are_present_and_missing_ones_absent_only_when_every_source_is_complete() {
         let inventory = summarize(&[
             report(
                 "macos.applications",
@@ -402,25 +411,38 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert_eq!(by_app.len(), 3);
+        assert_eq!(by_app.len(), 2, "the partial source could have listed it");
+        assert!(!by_app.contains_key(&gone));
         assert_eq!(by_app[&kept].basis, Basis::Observed);
         assert_eq!(
             by_app[&agent].provenance.source.as_str(),
             "macos.launchd-plists",
             "found by a partial source still counts as present"
         );
+
+        let complete = summarize(&[
+            report(
+                "macos.applications",
+                SourceStatus::Complete,
+                &["com.example.kept"],
+            ),
+            report("macos.launchd-plists", SourceStatus::Complete, &[]),
+        ]);
+        let absent = application_evidence([&gone], &complete, at(1));
         assert_eq!(
-            by_app[&gone].fact,
-            Fact::ApplicationPresent {
-                app: gone.clone(),
-                present: false
-            }
-        );
-        assert_eq!(
-            by_app[&gone].basis,
-            Basis::Absence {
-                searched: inventory.complete_sources.clone()
-            }
+            absent
+                .iter()
+                .map(|e| (&e.fact, &e.basis))
+                .collect::<Vec<_>>(),
+            [(
+                &Fact::ApplicationPresent {
+                    app: gone.clone(),
+                    present: false
+                },
+                &Basis::Absence {
+                    searched: complete.complete_sources.clone()
+                }
+            )]
         );
     }
 
