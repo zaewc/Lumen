@@ -26,7 +26,10 @@ use serde::{Deserialize, Serialize};
 
 use super::gate::{APPLICATIONS, HelperEvidence, Reason, decide};
 use super::{HelperRefusal, HelperResponse, PROTOCOL, QuarantineRequest};
-use crate::ports::{ExecutionFailure, InUse, PreparedItem};
+use crate::ports::{
+    ExecutionFailure, InUse, Located, NotRestored, PreparedItem, Removal, RestoreFailure,
+    RestoredItem,
+};
 
 /// The version of [`HeldRecord`]'s form.
 pub const HELD_SCHEMA: u32 = 1;
@@ -71,6 +74,67 @@ pub trait HelperHost {
 
     /// Now.
     fn now(&self) -> Timestamp;
+
+    /// The helper's record of `operation` in `caller`'s store, as written
+    /// there, or `None` if there is none or it cannot be read. A host that
+    /// holds nothing keeps the default.
+    fn record(&self, caller: u32, operation: OperationId) -> Option<Vec<u8>> {
+        let _ = (caller, operation);
+        None
+    }
+
+    /// Where the item `item` records, held as `operation` in `caller`'s
+    /// store, is now.
+    fn locate(&self, caller: u32, item: &PreparedItem, operation: OperationId) -> Located {
+        let _ = (caller, item, operation);
+        Located::Unknown
+    }
+
+    /// Moves the held item back to where it was, without replacing anything.
+    ///
+    /// # Errors
+    ///
+    /// A [`RestoreFailure`] saying why and where the item is.
+    fn restore(
+        &self,
+        caller: u32,
+        item: &PreparedItem,
+        operation: OperationId,
+    ) -> Result<RestoredItem, RestoreFailure> {
+        let _ = (caller, item, operation);
+        Err(RestoreFailure {
+            reason: NotRestored::Failed,
+            left: ItemLocation::Quarantine,
+        })
+    }
+
+    /// Where the held item is in the store, and its identity, to ask every
+    /// process about it; `None` unless it is there, unchanged.
+    fn held(
+        &self,
+        caller: u32,
+        item: &PreparedItem,
+        operation: OperationId,
+    ) -> Option<(RawPath, FileIdentity)> {
+        let _ = (caller, item, operation);
+        None
+    }
+
+    /// Removes the held item for good, after checking its whole tree, then
+    /// its record.
+    ///
+    /// # Errors
+    ///
+    /// How much a failed removal removed.
+    fn finalize(
+        &self,
+        caller: u32,
+        item: &PreparedItem,
+        operation: OperationId,
+    ) -> Result<(), Removal> {
+        let _ = (caller, item, operation);
+        Err(Removal::Nothing)
+    }
 }
 
 /// The helper's record of an item it holds, written next to it in the store,
@@ -225,6 +289,11 @@ pub(crate) mod fake {
         Prepare(RawPath, Vec<Vec<u8>>),
         InUse,
         Quarantine(u32, OperationId, Vec<u8>),
+        Record(u32, OperationId),
+        Locate(u32, Vec<u8>, OperationId),
+        Restore(u32, Vec<u8>, OperationId),
+        Held(u32, OperationId),
+        Finalize(u32, Vec<u8>, OperationId),
     }
 
     pub(crate) struct Host {
@@ -233,6 +302,11 @@ pub(crate) mod fake {
         pub(crate) prepared: Result<(PreparedItem, FileIdentity), ExecutionFailure>,
         pub(crate) in_use: InUse,
         pub(crate) moved: Result<(), ExecutionFailure>,
+        pub(crate) record: Option<Vec<u8>>,
+        pub(crate) located: Located,
+        pub(crate) restored: Result<RestoredItem, RestoreFailure>,
+        pub(crate) held: Option<(RawPath, FileIdentity)>,
+        pub(crate) finalized: Result<(), Removal>,
         pub(crate) calls: Mutex<Vec<Call>>,
     }
 
@@ -259,6 +333,14 @@ pub(crate) mod fake {
                 prepared: Ok((PreparedItem(br#"{"leaf":[87]}"#.to_vec()), identity(7))),
                 in_use: InUse::No,
                 moved: Ok(()),
+                record: None,
+                located: Located::InStore,
+                restored: Ok(RestoredItem {
+                    parent_replaced: false,
+                    matches_record: true,
+                }),
+                held: Some((raw("/Library/held"), identity(7))),
+                finalized: Ok(()),
                 calls: Mutex::new(Vec::new()),
             }
         }
@@ -316,6 +398,46 @@ pub(crate) mod fake {
 
         fn now(&self) -> Timestamp {
             Timestamp::from_unix(1_800_000_000, 0).unwrap_or_else(|_| unreachable!())
+        }
+
+        fn record(&self, caller: u32, operation: OperationId) -> Option<Vec<u8>> {
+            self.call(Call::Record(caller, operation));
+            self.record.clone()
+        }
+
+        fn locate(&self, caller: u32, item: &PreparedItem, operation: OperationId) -> Located {
+            self.call(Call::Locate(caller, item.0.clone(), operation));
+            self.located
+        }
+
+        fn restore(
+            &self,
+            caller: u32,
+            item: &PreparedItem,
+            operation: OperationId,
+        ) -> Result<RestoredItem, RestoreFailure> {
+            self.call(Call::Restore(caller, item.0.clone(), operation));
+            self.restored
+        }
+
+        fn held(
+            &self,
+            caller: u32,
+            _item: &PreparedItem,
+            operation: OperationId,
+        ) -> Option<(RawPath, FileIdentity)> {
+            self.call(Call::Held(caller, operation));
+            self.held.clone()
+        }
+
+        fn finalize(
+            &self,
+            caller: u32,
+            item: &PreparedItem,
+            operation: OperationId,
+        ) -> Result<(), Removal> {
+            self.call(Call::Finalize(caller, item.0.clone(), operation));
+            self.finalized
         }
     }
 }
@@ -549,7 +671,7 @@ mod tests {
         let host = Host::eligible();
         let body = encode(&HelperRequest::Quarantine(request()));
         let extra = body.replacen('{', r#"{"caller":0,"#, 1);
-        let missing = body.replace(r#""protocol":2,"#, "");
+        let missing = body.replace(&format!(r#""protocol":{PROTOCOL},"#), "");
         assert_ne!(missing, body);
         for body in [extra, missing] {
             assert_eq!(
