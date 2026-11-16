@@ -6,6 +6,6 @@ export { memoryTransport } from "./memory";
 export { followQuitHeld, MOVING_OPERATIONS, useMoving } from "./moving";
 export { canChooseReview } from "./review-choice";
 export { tauriTransport } from "./tauri";
-export type { LumenTransport, OperationId } from "./transport";
+export type { LumenTransport, OperationId, TitleBar } from "./transport";
 export { operationOf } from "./transport";
 export { useSessionOperation } from "./useOperation";

@@ -894,6 +894,38 @@ pub(crate) async fn set_theme<R: tauri::Runtime>(app: tauri::AppHandle<R>, theme
     app.set_theme(appearance);
 }
 
+/// Moves the window that asked with the pointer, from a press on the header
+/// (the macOS title bar is the header). Only the window itself moves; nothing
+/// comes in but the press.
+#[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri hands a command its window by value"
+)]
+pub(crate) fn drag_window<R: tauri::Runtime>(
+    window: tauri::WebviewWindow<R>,
+) -> Result<(), CommandError> {
+    window.start_dragging().map_err(CommandError::new)
+}
+
+/// Zooms the window that asked, or zooms it back, from a double click on the
+/// header, as the macOS title bar does.
+#[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri hands a command its window by value"
+)]
+pub(crate) fn zoom_window<R: tauri::Runtime>(
+    window: tauri::WebviewWindow<R>,
+) -> Result<(), CommandError> {
+    if window.is_maximized().map_err(CommandError::new)? {
+        window.unmaximize()
+    } else {
+        window.maximize()
+    }
+    .map_err(CommandError::new)
+}
+
 /// The question the confirmation window shows (FS-1). Only that window may
 /// call it: its capability grants it, and the label is checked here too.
 #[tauri::command]

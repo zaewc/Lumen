@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { type MouseEvent, useState } from "react";
 import { isOn, useAiSettings } from "@/entities/ai-review";
 import {
   dismissedUpdate,
@@ -10,6 +10,7 @@ import {
 import { inQuarantine, useHeld } from "@/entities/held";
 import { useScanSession } from "@/entities/scan-session";
 import { useToolRun } from "@/entities/tool-run";
+import { type TitleBar, useTransport } from "@/shared/api";
 import { countFormat, useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
 import { buttonClass, LogoMark } from "@/shared/ui";
@@ -70,6 +71,27 @@ function NavItem({ to, label, badge }: PlaceItem) {
       </Link>
     </li>
   );
+}
+
+/** What a press on the header does where it is the title bar. */
+function titleBarProps(bar: TitleBar | undefined) {
+  if (bar === undefined) {
+    return {};
+  }
+  return {
+    onMouseDown: (event: MouseEvent<HTMLElement>) => {
+      // Links and buttons keep their own presses.
+      if (
+        event.button !== 0 ||
+        !(event.target instanceof Element) ||
+        event.target.closest("a, button, input, select, textarea") !== null
+      ) {
+        return;
+      }
+      // A window that did not move or zoom is only that; there is nothing to tell.
+      (event.detail === 2 ? bar.zoom() : bar.drag()).catch(() => undefined);
+    },
+  };
 }
 
 /** A newer version, when one is out; it opens Settings, where it installs. */
@@ -152,6 +174,7 @@ export function Sidebar() {
     scanning: m.common.scanning,
     deciding: m.scanning.deciding,
   };
+  const titleBar = useTransport().titleBar;
   const count = inQuarantine(held.data ?? []).length;
   usePlaceShortcut("/");
   usePlaceShortcut("/clean");
@@ -173,7 +196,14 @@ export function Sidebar() {
   ];
   return (
     <>
-      <header className="flex shrink-0 flex-wrap items-center border-b border-line bg-plane px-3 min-[960px]:gap-4 min-[960px]:px-6">
+      <header
+        {...titleBarProps(titleBar)}
+        className={`flex shrink-0 flex-wrap items-center border-b border-line bg-plane px-3 min-[960px]:gap-4 min-[960px]:px-6 ${titleBar === undefined ? "" : "select-none"}`}
+      >
+        {/* Room for the window buttons the host draws here (lib.rs, TRAFFIC_LIGHTS). */}
+        {titleBar !== undefined && (
+          <div aria-hidden="true" className="h-14 w-[62px] shrink-0 min-[960px]:w-[50px]" />
+        )}
         <div className="flex h-14 shrink-0 items-center gap-2.5 px-2 min-[960px]:pr-6">
           <LogoMark className="size-8" />
           <span className="text-[17px] font-semibold tracking-[-0.03em] text-ink">Lumen</span>

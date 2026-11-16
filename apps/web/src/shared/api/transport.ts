@@ -43,6 +43,14 @@ export function operationOf(view: { readonly operation: string }): OperationId {
 }
 
 /** What the UI can ask of the core. Mutations name plans and operations, never paths. */
+/** What a press on a header that is the window's title bar does. */
+export interface TitleBar {
+  /** Moves the window with the pointer, from a press. */
+  drag(): Promise<void>;
+  /** Zooms the window, or zooms it back, from a double click. */
+  zoom(): Promise<void>;
+}
+
 export interface LumenTransport {
   /**
    * Scans the chosen roots (none: the whole disk), read-only; `onProgress`
@@ -72,6 +80,11 @@ export interface LumenTransport {
   openFullDiskAccess?(): Promise<void>;
   /** Sets the desktop window appearance; absent in a browser. */
   setTheme?(theme: Theme): Promise<void>;
+  /**
+   * The window's title bar, where the header is it (the macOS desktop app:
+   * the window buttons sit in the header); absent elsewhere.
+   */
+  titleBar?: TitleBar;
   /** Turns AI review on (the user's consent; needs a stored key) or off. */
   setAiReview(enabled: boolean): Promise<AiSettingsView>;
   /** Stores a Jeb API key in the system's secret store; it is never returned. */

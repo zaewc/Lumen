@@ -34,6 +34,8 @@
     "allow-helper-disable",
     "allow-helper-open-login-items",
     "allow-app-icon",
-    "allow-unread-folders"
+    "allow-unread-folders",
+    "allow-drag-window",
+    "allow-zoom-window"
   ]
 }
