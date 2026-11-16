@@ -36,7 +36,7 @@ use lumen_domain::{
     AppId, AppIdScheme, Application, FileId, FileIdentity, ItemLocation, OperationId,
     QuarantineFailure, RawPath, Timestamp, UntrustedText, VolumeId,
 };
-use lumen_fs_exec::{Executor, open_store, recorded_identity};
+use lumen_fs_exec::{Executor, StoreError, open_store, recorded_identity};
 use lumen_platform_macos::{LaunchdInventory, ProcessProbe, accounts, bundle_identifier};
 
 /// Where the helper's stores live.
@@ -236,8 +236,12 @@ impl HelperHost for Mac {
     ) -> Result<(), ExecutionFailure> {
         let names = names(caller);
         let refs: Vec<&[u8]> = names.iter().map(Vec::as_slice).collect();
+        let unavailable = |reason| ExecutionFailure {
+            reason,
+            left: ItemLocation::Source,
+        };
         let volume = std::fs::metadata(&self.store_base)
-            .map_err(|_| AT_SOURCE)?
+            .map_err(|_| unavailable(QuarantineFailure::StoreUnavailable))?
             .dev();
         match open_store(&self.store_base, &refs, volume) {
             Ok(store) => {
@@ -251,10 +255,11 @@ impl HelperHost for Mac {
             }
             Err(error) => {
                 eprintln!("lumen-helper: the store cannot be used: {error}");
-                return Err(ExecutionFailure {
-                    reason: QuarantineFailure::VolumeUnsupported,
-                    left: ItemLocation::Source,
-                });
+                // As the executor's own store check reports it (ADR-0066).
+                return Err(unavailable(match error {
+                    StoreError::OtherVolume => QuarantineFailure::VolumeUnsupported,
+                    _ => QuarantineFailure::StoreUnavailable,
+                }));
             }
         }
         Executor::new(&self.store_base, names).quarantine(item, operation, record)
@@ -533,7 +538,7 @@ mod tests {
         assert_eq!(
             ask(&mac, caller(), "Word.app", identity_of(&mac, "Word.app")),
             Some(HelperResponse::Failed {
-                reason: QuarantineFailure::VolumeUnsupported,
+                reason: QuarantineFailure::StoreUnavailable,
                 left: ItemLocation::Source
             })
         );
