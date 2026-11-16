@@ -182,6 +182,22 @@ fn declining_moves_nothing(window: &WebviewWindow<MockRuntime>, plan: &Value, it
     assert!(item.exists(), "declining moves nothing");
 }
 
+/// FS-1: declining the question about several removals approves nothing, so
+/// removing `operation` still asks and declining that leaves `item` in
+/// place; once confirmed, the next `finalize` of it does not ask again.
+fn confirming_several_removals(window: &WebviewWindow<MockRuntime>, operation: &str, item: &Path) {
+    ANSWER.store(false, Ordering::SeqCst);
+    EXPECTED.fetch_add(2, Ordering::SeqCst);
+    let ids = json!({ "operationIds": [operation] });
+    assert!(invoke(window, "confirm_finalize", ids.clone()).is_err());
+    assert!(invoke(window, "finalize", json!({ "operationId": operation })).is_err());
+    ANSWER.store(true, Ordering::SeqCst);
+    assert!(item.exists(), "declining removes nothing");
+    EXPECTED.fetch_add(1, Ordering::SeqCst);
+    let confirmed = invoke(window, "confirm_finalize", ids);
+    assert_eq!(confirmed, Ok(Value::Null), "confirmed once for all of them");
+}
+
 /// The flow itself, in the child: AI review's switch, then scan → plan →
 /// execute → held → restore → plan → execute → finalize, plus a command the
 /// capability does not grant.
@@ -266,18 +282,7 @@ fn flow(app: &AppHandle<MockRuntime>, home: &Path) {
     let Some(second) = cycle() else {
         return;
     };
-    // Declining the question about several items grants nothing: removing
-    // one of them still asks, and declining that removes nothing.
-    ANSWER.store(false, Ordering::SeqCst);
-    EXPECTED.fetch_add(2, Ordering::SeqCst);
-    let ids = json!({ "operationIds": [second] });
-    assert!(invoke(&window, "confirm_finalize", ids.clone()).is_err());
-    assert!(invoke(&window, "finalize", json!({ "operationId": second })).is_err());
-    ANSWER.store(true, Ordering::SeqCst);
-    assert!(item.exists(), "declining removes nothing");
-    // Confirmed once for all of them, each is then removed without asking.
-    EXPECTED.fetch_add(1, Ordering::SeqCst);
-    assert_eq!(ok("confirm_finalize", ids), Value::Null);
+    confirming_several_removals(&window, &second, &item);
     let finalized = ok("finalize", json!({ "operationId": second }));
     assert_eq!(finalized["outcome"]["kind"], "finalized", "{finalized}");
     let measured = &finalized["space_change"];
