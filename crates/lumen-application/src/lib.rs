@@ -30,6 +30,7 @@ pub mod profiles;
 pub mod quarantine;
 pub mod reassess;
 pub mod reconcile;
+pub mod removal_facts;
 pub mod restore;
 pub mod review;
 pub mod software_links;
