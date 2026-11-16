@@ -40,7 +40,9 @@ use lumen_domain::{
     QuarantineFailure, RawPath, Timestamp, UntrustedText, VolumeId,
 };
 use lumen_fs_exec::{Executor, StoreError, open_store, read_sidecar, recorded_identity};
-use lumen_platform_macos::{LaunchdInventory, ProcessProbe, accounts, bundle_identifier};
+use lumen_platform_macos::{
+    LaunchdInventory, ProcessProbe, accounts, bundle_identifier, management,
+};
 
 /// Where the helper's stores live.
 const STORE_BASE: &str = "/Library/Application Support";
@@ -68,6 +70,12 @@ pub(crate) struct Mac {
     pub(crate) running: fn(&RawPath) -> Option<bool>,
     /// Whether any process uses an item.
     pub(crate) in_use: fn(&RawPath, &FileIdentity) -> InUse,
+    /// Whether a bundle's signature carries the Endpoint Security
+    /// entitlement (security software).
+    pub(crate) security_software: fn(&Path) -> Option<bool>,
+    /// Whether an organization may manage the app with this bundle
+    /// identifier (MDM enrollment or managed preferences).
+    pub(crate) managed: fn(&str) -> Option<bool>,
 }
 
 impl std::fmt::Debug for Mac {
@@ -130,6 +138,12 @@ impl Mac {
             },
             running: |bundle| ProcessProbe.snapshot().running(bundle),
             in_use: |path, identity| ProcessProbe.probe(path, identity),
+            // `codesign` runs as `nobody`, so root never parses a binary
+            // another account could have written.
+            security_software: |bundle| {
+                management::endpoint_security_client(bundle, management::Run::AsNobody)
+            },
+            managed: management::managed,
         }
     }
 
@@ -207,6 +221,11 @@ impl HelperHost for Mac {
                 store_on_volume: store
                     .zip(meta.as_ref())
                     .map(|(store, meta)| store == meta.dev()),
+                security_software: bundle.and_then(self.security_software),
+                // The identifier read by handle, as for the background items.
+                managed: bundle
+                    .and_then(bundle_identifier)
+                    .and_then(|id| (self.managed)(&id)),
             },
             identity: meta.as_ref().and_then(identity),
             owner: meta.as_ref().map(std::os::unix::fs::MetadataExt::uid),
@@ -395,6 +414,8 @@ mod tests {
             },
             running: |_| Some(false),
             in_use: |_, _| InUse::No,
+            security_software: |_| Some(false),
+            managed: |_| Some(false),
         };
         (fx, mac)
     }
@@ -570,6 +591,35 @@ mod tests {
     }
 
     #[test]
+    fn security_software_and_managed_apps_stay_and_unknown_refuses() {
+        type Case = (fn(&mut Mac), Ineligible);
+        let cases: [Case; 4] = [
+            (
+                |m| m.security_software = |_| Some(true),
+                Ineligible::SecuritySoftware,
+            ),
+            (
+                |m| m.security_software = |_| None,
+                Ineligible::SecurityUnknown,
+            ),
+            (|m| m.managed = |_| Some(true), Ineligible::Managed),
+            (|m| m.managed = |_| None, Ineligible::ManagedUnknown),
+        ];
+        for (change, reason) in cases {
+            let (_fx, mut mac) = computer(&app("Word.app"));
+            change(&mut mac);
+            assert_eq!(
+                ask(&mac, caller(), "Word.app", identity_of(&mac, "Word.app")),
+                Some(HelperResponse::Ineligible {
+                    reasons: vec![Reason::Gate(reason)]
+                }),
+                "{reason:?}"
+            );
+            assert!(mac.applications.join("Word.app").is_dir());
+        }
+    }
+
+    #[test]
     fn a_store_someone_else_could_reach_is_refused_and_nothing_moves() {
         let (_fx, mac) = computer(&app("Word.app"));
         std::fs::create_dir(mac.store_base.join("Lumen")).unwrap_or_else(|e| unreachable!("{e}"));
@@ -601,7 +651,8 @@ mod tests {
             target: "../../Word.app/Contents/Info.plist".into(),
         });
         let (_fx, mut mac) = computer(&nodes);
-        // The Info.plist that is a link is not read: the check is unknown.
+        // The Info.plist that is a link is not read: without the identifier,
+        // the background items and management checks are unknown.
         let linked = ask(
             &mac,
             caller(),
@@ -611,7 +662,10 @@ mod tests {
         assert_eq!(
             linked,
             Some(HelperResponse::Ineligible {
-                reasons: vec![Reason::Gate(Ineligible::ServicesUnknown)]
+                reasons: vec![
+                    Reason::Gate(Ineligible::ServicesUnknown),
+                    Reason::Gate(Ineligible::ManagedUnknown)
+                ]
             })
         );
         // An item labelled with the bundle's identifier keeps it in place.

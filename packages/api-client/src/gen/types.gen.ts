@@ -2064,7 +2064,11 @@ export type UninstallReasonView =
   | "running_unknown"
   | "running"
   | "store_unknown"
-  | "no_store_on_volume";
+  | "no_store_on_volume"
+  | "security_unknown"
+  | "security_software"
+  | "managed_unknown"
+  | "managed";
 
 /**
  * What became of the application.

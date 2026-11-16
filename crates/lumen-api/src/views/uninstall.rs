@@ -47,6 +47,16 @@ pub enum UninstallReasonView {
     StoreUnknown,
     /// Its drive has no quarantine store.
     NoStoreOnVolume,
+    /// Whether it is security software could not be told.
+    SecurityUnknown,
+    /// It is security software (its signature carries the Endpoint Security
+    /// entitlement); remove it with its own uninstaller.
+    SecuritySoftware,
+    /// Whether an organization manages it could not be told.
+    ManagedUnknown,
+    /// An organization may manage it (the Mac is enrolled in MDM, or managed
+    /// preferences exist for it); its administrator removes it.
+    Managed,
 }
 
 impl From<Ineligible> for UninstallReasonView {
@@ -65,6 +75,10 @@ impl From<Ineligible> for UninstallReasonView {
             Ineligible::Running => Self::Running,
             Ineligible::StoreUnknown => Self::StoreUnknown,
             Ineligible::NoStoreOnVolume => Self::NoStoreOnVolume,
+            Ineligible::SecurityUnknown => Self::SecurityUnknown,
+            Ineligible::SecuritySoftware => Self::SecuritySoftware,
+            Ineligible::ManagedUnknown => Self::ManagedUnknown,
+            Ineligible::Managed => Self::Managed,
         }
     }
 }

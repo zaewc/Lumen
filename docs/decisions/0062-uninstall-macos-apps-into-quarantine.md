@@ -1,7 +1,8 @@
 # ADR-0062: Uninstall a user-owned macOS app by moving it into quarantine
 
 - Status: Accepted (owner decision, 2026-11-07); rule 1 amended 2026-11-08 (running
-  check, partial in-use answers); the owner check is extended by
+  check, partial in-use answers) and 2026-11-16 (security software and managed
+  apps); the owner check is extended by
   [ADR-0063](0063-use-administrator-rights-through-an-opt-in-helper.md) (apps owned
   by another account, through the privileged helper)
 - Amended by: [ADR-0069](0069-show-storage-in-one-place-grouped-by-owner.md) (rule 4: an
@@ -52,7 +53,18 @@ way does, and also makes it restorable until it is finalized.
      kernel spells differently (letter case, Unicode form) is compared by
      identity;
    - its volume has a quarantine store, so the move is a same-volume rename
-     (ADR-0015).
+     (ADR-0015);
+   - **(amended 2026-11-16, owner decision)** it is not security software: its main
+     executable's signature does not carry the Endpoint Security entitlement
+     (`com.apple.developer.endpoint-security.client`, read with `codesign`; code
+     with no signature cannot hold it). ADR-0060 rule 4 keeps security software
+     list-only;
+   - **(amended 2026-11-16, owner decision)** no organization may manage it: the Mac
+     is not enrolled in MDM (`profiles status -type enrollment`), and no managed
+     preferences exist for its bundle identifier in `/Library/Managed Preferences`.
+     macOS keeps no documented local record of which apps an MDM server installed
+     or manages, so on an enrolled Mac every app counts as possibly managed and is
+     refused (ADR-0060 rule 4, enterprise-managed applications).
 
    Any check that fails or cannot be answered refuses the uninstall, with the reason
    shown. Unknown is never "eligible".
