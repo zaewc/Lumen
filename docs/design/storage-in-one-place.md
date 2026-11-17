@@ -108,7 +108,10 @@ selection (proposed and chosen items, apps, other copies). The host checks this 
 every group when it plans and again before anything moves: a chosen copy whose group
 would have no copy that stays is refused before the move starts, with "하나는 남겨
 둬요.". Since a copy that stays is outside everything that moves, the order of the
-moves cannot take it away. Just before moving, the host reads the chosen copy and a
+moves cannot take it away. The rule is about choosing copies: it never changes what a
+selected item or app moves. A folder proposed or chosen as a whole moves with
+everything in it, copies included, as it does today, and stays restorable from
+Quarantine. Just before moving, the host reads the chosen copy and a
 copy that stays again, by handle, and moves the chosen one only if both still have the
 compared contents; otherwise that copy is refused alone. A copy is still moved into
 Quarantine, never deleted, and is listed there as chosen by the person.

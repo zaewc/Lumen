@@ -61,7 +61,9 @@ Chosen option: **1**.
      one copy of every group stays: a copy stays only if neither it nor any folder
      above it is anywhere in the confirmed selection (items, apps, copies). The host
      refuses, before anything moves, a chosen copy whose group would have none that
-     stays, so the order of the moves cannot remove the last one. Just before the
+     stays, so the order of the moves cannot remove the last one. This guards
+     the choice of copies only; a folder or app selected as a whole still moves with
+     everything in it, as before. Just before the
      move, the host re-reads the chosen copy and a copy that stays by handle and moves
      it only if both still hold the compared contents.
    - Tool-command items (ADR-0049), kept items and protected software have no
