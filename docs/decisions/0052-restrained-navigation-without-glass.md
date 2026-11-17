@@ -1,6 +1,8 @@
 # ADR-0052: Restrained navigation and opaque surfaces, without glass
 
 - Status: Accepted (owner decision, 2026-11-01)
+- Amended by: [ADR-0069](0069-show-storage-in-one-place-grouped-by-owner.md) (the places
+  are 저장 공간 · 격리함 · 설정)
 - Date: 2026-11-01
 - Supersedes in part: the navigation optics and the integrated and floating material
   layers of [app-materials.md](../design/app-materials.md) (#581, #592, #594)

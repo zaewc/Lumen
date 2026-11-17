@@ -4,6 +4,9 @@
   check, partial in-use answers); the owner check is extended by
   [ADR-0063](0063-use-administrator-rights-through-an-opt-in-helper.md) (apps owned
   by another account, through the privileged helper)
+- Amended by: [ADR-0069](0069-show-storage-in-one-place-grouped-by-owner.md) (rule 4: an
+  app's preview may be confirmed in one host confirmation together with a plan, bound
+  to each preview's hash)
 - Date: 2026-11-07
 - Refines: [ADR-0060](0060-list-software-and-remove-it-only-through-its-own-mechanism.md)
   rule 2 (macOS: quarantine instead of the Trash),

@@ -59,8 +59,8 @@ recommended option.
 | [0048](0048-in-app-updates.md) | In-app updates with Tauri's updater | Accepted |
 | [0049](0049-run-tool-commands-on-request.md) | Run a tool's own cleanup command when the user asks | Accepted |
 | [0050](0050-ask-about-ai-review-on-first-launch.md) | Ask about AI review once, on first launch | Accepted (amended 2026-11-16) |
-| [0051](0051-quarantine-review-items-the-user-chooses.md) | Quarantine review items the user chooses, and show large unrecognised folders | Accepted |
-| [0052](0052-restrained-navigation-without-glass.md) | Restrained navigation and opaque surfaces, without glass | Accepted |
+| [0051](0051-quarantine-review-items-the-user-chooses.md) | Quarantine review items the user chooses, and show large unrecognised folders | Accepted (amended by 0069) |
+| [0052](0052-restrained-navigation-without-glass.md) | Restrained navigation and opaque surfaces, without glass | Accepted (amended by 0069) |
 | [0053](0053-show-the-evidence-behind-each-candidate.md) | Show the evidence behind each candidate | Accepted |
 | [0054](0054-release-on-every-push-to-main.md) | Release on every push to main, developing on develop | Accepted |
 | [0055](0055-sign-and-notarize-the-macos-app-in-its-own-job.md) | Sign and notarize the macOS app in its own job | Accepted |
@@ -70,10 +70,11 @@ recommended option.
 | [0059](0059-use-application-usage-as-cautious-evidence.md) | Use application usage only as cautious, explained evidence | Accepted |
 | [0060](0060-list-software-and-remove-it-only-through-its-own-mechanism.md) | List installed software, and remove it only through its own mechanism | Accepted |
 | [0061](0061-send-installed-software-to-ai-review.md) | While AI review is on, it also explains installed software | Accepted |
-| [0062](0062-uninstall-macos-apps-into-quarantine.md) | Uninstall a user-owned macOS app by moving it into quarantine | Accepted (amended 2026-11-08) |
+| [0062](0062-uninstall-macos-apps-into-quarantine.md) | Uninstall a user-owned macOS app by moving it into quarantine | Accepted (amended 2026-11-08; amended by 0069) |
 | [0063](0063-use-administrator-rights-through-an-opt-in-helper.md) | Use administrator rights through an opt-in helper, so permissions never stand in the way | Accepted (amended 2026-11-16) |
 | [0064](0064-read-package-relations-from-each-managers-own-records.md) | Read package relations from each manager's own records | Accepted |
 | [0065](0065-compare-completed-scan-roots-for-identical-copies.md) | Compare completed scan roots for identical copies | Accepted |
 | [0066](0066-keep-the-windows-store-out-of-the-install-folder.md) | Keep the Windows store out of the install folder | Accepted |
 | [0067](0067-set-up-the-helper-and-full-disk-access-on-first-launch.md) | Set up the helper and Full Disk Access on first launch | Accepted |
 | [0068](0068-recognise-a-removed-apps-data-only-with-corroboration.md) | Recognise a removed app's data only when macOS or Lumen corroborates the ID | Accepted |
+| [0069](0069-show-storage-in-one-place-grouped-by-owner.md) | Show storage in one place, grouped by what owns it | Accepted |
