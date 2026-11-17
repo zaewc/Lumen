@@ -138,7 +138,11 @@ impl Pending {
 
 /// The confirmation window. Called on a blocking worker, never the main
 /// thread: building the window hands it to the main thread and this waits
-/// for the answer. The main window is disabled while it is open.
+/// for the answer. On Windows and Linux the main window is disabled while it
+/// is open. Not on macOS: Tauri disables a window there by attaching a
+/// half-transparent sheet over it, which also covers this child window and
+/// greys everything out. Disabling is only a convenience; the answer can come
+/// from this window alone, and a second question is refused while one is open.
 pub(crate) fn window<R: Runtime>(
     app: &tauri::AppHandle<R>,
     pending: &Arc<Pending>,
@@ -187,16 +191,28 @@ pub(crate) fn window<R: Runtime>(
         return false;
     }
     if let Some(main) = &main {
-        main.set_enabled(false).ok();
+        disable(main, true);
     }
+    confirm.set_focus().ok();
     let yes = answer.recv().unwrap_or(false);
     confirm.destroy().ok();
     if let Some(main) = &main {
-        main.set_enabled(true).ok();
+        disable(main, false);
         main.set_focus().ok();
     }
     yes
 }
+
+/// Disables (`true`) or enables the main window while the confirmation
+/// window is open, where that does not cover the confirmation window too.
+#[cfg(not(target_os = "macos"))]
+fn disable<R: Runtime>(main: &tauri::WebviewWindow<R>, disabled: bool) {
+    main.set_enabled(!disabled).ok();
+}
+
+/// macOS: nothing (see [`window`]).
+#[cfg(target_os = "macos")]
+const fn disable<R: Runtime>(_main: &tauri::WebviewWindow<R>, _disabled: bool) {}
 
 /// Asks, and turns anything but a confirmation into an error that changed
 /// nothing.
