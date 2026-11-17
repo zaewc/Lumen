@@ -3,7 +3,8 @@
 - Status: Accepted (owner decision on direction and name, 2026-11-18; details by the
   lead, open to the owner's revision)
 - Date: 2026-11-18
-- Amends: [ADR-0051](0051-quarantine-review-items-the-user-chooses.md) (a person may
+- Amends: [ADR-0065](0065-compare-completed-scan-roots-for-identical-copies.md) (a person
+  may move copies they choose), [ADR-0051](0051-quarantine-review-items-the-user-chooses.md) (a person may
   also leave proposed items out of a plan),
   [ADR-0052](0052-restrained-navigation-without-glass.md) (the navigation's places),
   [ADR-0062](0062-uninstall-macos-apps-into-quarantine.md) rule 4 (an app's preview
@@ -55,10 +56,15 @@ Chosen option: **1**.
    - Choosable review items (ADR-0051) start unchecked.
    - A user-owned macOS app (ADR-0062) starts unchecked; checking it makes a fresh
      preview, and a refusal unchecks it with its reason.
+   - A copy in a group of identical files (ADR-0065) starts unchecked. Lumen never
+     picks a copy, at least one copy of every group stays (the page and the host both
+     refuse otherwise), and the page names copies only by the comparison's IDs. Just
+     before the move, the host re-reads the chosen copy and a kept copy by handle and
+     moves it only if both still hold the compared contents.
    - Tool-command items (ADR-0049), kept items and protected software have no
      checkbox. Nothing is selected in bulk.
-4. **Confirmation.** One host confirmation (FS-1) lists the proposals, the chosen items
-   and the chosen apps apart, and is bound to the plan's hash and each app's preview
+4. **Confirmation.** One host confirmation (FS-1) lists the proposals, the chosen items,
+   the chosen apps and the chosen copies apart, and is bound to the plan's hash and each app's preview
    hash. Each item and app is checked again by its own gate just before it moves; a
    refused app does not stop the others, and the report says why. AI never selects,
    and the cleanup policy is still never asked about an app (ADR-0062 rule 3).
@@ -71,6 +77,9 @@ Chosen option: **1**.
 - Good: the button says exactly what moves; leaving proposals out is new control that
   can only make a plan smaller.
 - Good: no verdict, rule or gate becomes less cautious.
+- Bad: identical copies, which are often a person's own documents, become movable by
+  the person's choice. Quarantine keeps them restorable, one copy always stays, and
+  each move is checked against the compared contents.
 - Bad: the host's plan and confirmation change (leaving items out; a plan with app
   previews), and the confirmation window shows more kinds of items.
 - Bad: the web UI is largely rebuilt over about nine pull requests, and the glossary
@@ -78,6 +87,7 @@ Chosen option: **1**.
 
 ## More information
 
-- Owner requests: 2026-11-08 (one flow), 2026-11-18 (direction and the name 저장 공간).
+- Owner requests: 2026-11-08 (one flow), 2026-11-18 (direction, the name 저장 공간,
+  and identical copies handled like apps).
 - Prior patterns: macOS Storage settings (by category), DaisyDisk's collector (gather,
   then delete once), app uninstallers that show an app with its leftovers.

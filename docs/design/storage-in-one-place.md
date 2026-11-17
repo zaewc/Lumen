@@ -71,7 +71,10 @@ cleaned up, never one verdict for the whole owner:
  ▸ Steam                               최소 9.4 GB
  ▸ 지운 앱이 남긴 데이터  3개             2.3 GB · 검토 필요
  ▸ 기타                                 4.4 GB · 2.4 GB 정리할 수 있어요
- ── 똑같은 파일 ──────────────────────────────────────────────────────────────
+ ▾ 똑같은 파일  묶음 12개                  6.1 GB 중복
+     tutorial.mov  2개                                                   1.8 GB
+       [ ] ~/Downloads/tutorial.mov
+       [ ] ~/Movies/tutorial.mov
 ```
 
 **One selection, one primary action.** Checkboxes mark what will move; the toolbar's
@@ -83,6 +86,7 @@ Quarantine, never "space freed" (space comes when it is removed for good).
 | 정리 제안 (Proposed) | Yes | Checked | Today's "정리하기…" moves every proposal; unchecking only makes the plan smaller |
 | 검토 필요, choosable (ADR-0051) | Yes | Unchecked | A person's explicit choice, recorded as such |
 | 앱 본체, a macOS app (ADR-0062) | Yes | Unchecked | Never preselected or selected in bulk; checking it asks for a fresh preview |
+| A copy in a group of identical files (ADR-0065) | Yes, all but one per group | Unchecked | Lumen never picks a copy; at least one always stays |
 | 명령으로 정리 | No | — | Cannot be undone; runs from its sheet after its own confirmation (ADR-0049) |
 | 유지, other review items, protected software | No | — | Lumen leaves it alone |
 
@@ -93,8 +97,19 @@ apps in bulk.
 dialog does today). A refusal (running, another account, App Store, …) shows on the
 row with its reason and unchecks it; "종료하기" (16.3a) stays available there.
 
+**Checking a copy.** Copies are grouped as the comparison found them, largest group
+first, under one "똑같은 파일" owner. A person checks the copies to move; once all but
+one are checked, the last one's checkbox is disabled ("하나는 남겨 둬요."). Hard links
+and copies the comparison skipped have no checkbox (moving them frees nothing or is
+not verified). The page sends only the comparison's group and copy IDs, never a path.
+Just before moving, the host reads the chosen copy and a kept copy of the same group
+again, by handle, and moves the chosen one only if both still have the compared
+contents; otherwise that copy is refused alone. A copy is still moved into
+Quarantine, never deleted, and is listed there as chosen by the person.
+
 **Confirmation.** The button opens the host's confirmation window (FS-1), which lists
-three groups: "Lumen이 제안한 항목", "직접 고른 항목" and "직접 고른 앱", each app with
+four groups: "Lumen이 제안한 항목", "직접 고른 항목", "직접 고른 앱" and "직접 고른
+똑같은 파일" (each copy with the copy that stays), each app with
 its preview facts (its `~/Library` data stays; Quarantine restores it). One confirm
 moves them all. Just before moving, every item and every app is checked again by its
 own gate; an app that fails is refused alone and the report says why. Doing this needs
@@ -131,7 +146,7 @@ ADR-0062 rule 4).
 | A review item's "격리함으로 옮기기…" (15.10) | Its checkbox |
 | Apps page rows, search, facts, AI notes, services | App owners, the page's search, the owner's details ("앱 정보 보기") |
 | Apps page packages | The package manager's owner and its details |
-| Identical copies (ADR-0065) | A section after the owners; never owned, never checkable |
+| Identical copies (ADR-0065), a separate read-only section | The "똑같은 파일" owner: groups as parts, copies checkable by the person |
 
 ## Key strings
 
@@ -149,6 +164,8 @@ Lumen's words.
 | Sizes from an earlier scan | 지난 검사 기준 | As of the last scan |
 | Confirmation groups | Lumen이 제안한 항목 / 직접 고른 항목 / 직접 고른 앱 | Proposed by Lumen / Chosen by you / Apps chosen by you |
 | App refused | 이 앱은 지금 옮길 수 없어요: {이유} | This app can't be moved now: {reason} |
+| Last copy of a group | 하나는 남겨 둬요. | One copy always stays. |
+| Copy refused | 내용이 바뀌어서 옮기지 않았어요. | Not moved: its contents changed. |
 
 ## Implementation (one PR each)
 
@@ -164,6 +181,8 @@ Lumen's words.
 6. `feat(desktop)`: one confirmation for a plan and app previews (ADR-0062 rule 4 as
    amended), each re-checked before it moves.
 7. `feat(web)`: the app part's checkbox, with its preview on checking.
+7b. `feat(app)`: chosen copies of identical files in a plan, by comparison IDs, each
+   re-read with a kept copy before it moves; then their checkboxes on the page.
 8. `feat(web)`: before-scan state, search (⌘F) and app details; the Apps page and its
    navigation item go; `/apps` leads to 저장 공간.
 9. `feat(web)`: the map with one tile per owner.
@@ -176,6 +195,8 @@ The Apps page stays until step 8, so no release loses a feature midway.
 - **Direction (owner, 2026-11-18):** one page for storage, owners with parts, one
   selection with one primary action.
 - **Name (owner, 2026-11-18):** 저장 공간.
+- **Identical copies like apps (owner, 2026-11-18):** a person may move copies they
+  check; Lumen never picks one, and one copy of every group always stays.
 - **App part checkable (lead's recommendation, open to the owner):** yes, never
   preselected. Without it, apps keep their own dialog and the page has two ways to
   move things.

@@ -73,7 +73,7 @@ recommended option.
 | [0062](0062-uninstall-macos-apps-into-quarantine.md) | Uninstall a user-owned macOS app by moving it into quarantine | Accepted (amended 2026-11-08; amended by 0069) |
 | [0063](0063-use-administrator-rights-through-an-opt-in-helper.md) | Use administrator rights through an opt-in helper, so permissions never stand in the way | Accepted (amended 2026-11-16) |
 | [0064](0064-read-package-relations-from-each-managers-own-records.md) | Read package relations from each manager's own records | Accepted |
-| [0065](0065-compare-completed-scan-roots-for-identical-copies.md) | Compare completed scan roots for identical copies | Accepted |
+| [0065](0065-compare-completed-scan-roots-for-identical-copies.md) | Compare completed scan roots for identical copies | Accepted (amended by 0069) |
 | [0066](0066-keep-the-windows-store-out-of-the-install-folder.md) | Keep the Windows store out of the install folder | Accepted |
 | [0067](0067-set-up-the-helper-and-full-disk-access-on-first-launch.md) | Set up the helper and Full Disk Access on first launch | Accepted |
 | [0068](0068-recognise-a-removed-apps-data-only-with-corroboration.md) | Recognise a removed app's data only when macOS or Lumen corroborates the ID | Accepted |
