@@ -133,3 +133,28 @@ never untrusted input. The fix exists only in minimatch 11, a major version \
 Expo 58 does not accept. Re-check for an Expo release on minimatch 11 before \
 expiry.\
 """
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0543"
+ignoreUntil = 2027-01-31T00:00:00Z
+reason = """
+chrono is unmaintained (not a vulnerability; advisory listed 2026-11-17). It \
+is in Cargo.lock only as an optional dependency of serde_with 3, which \
+tauri-utils uses with its default features (alloc, macros, std) and without \
+"chrono", so chrono is never compiled into any Lumen crate, tool or app \
+(`cargo tree -i chrono --target all -e all` prints nothing). Re-check if a \
+dependency enables serde_with's chrono feature, or when serde_with drops it.\
+"""
+
+[[IgnoredVulns]]
+id = "GHSA-fc5q-39xc-vjpf"
+ignoreUntil = 2027-01-31T00:00:00Z
+reason = """
+picomatch <= 4.0.7: single-branch repeated extglobs such as +(*) backtrack \
+exponentially (denial of service); no fixed version exists. picomatch 2.3.2 \
+and 4.0.7 come only through build and dev tools (Vite, Vitest, Astro's static \
+build, the Expo CLI, Metro, Jest, micromatch under steiger), which match glob \
+patterns from Lumen's own configuration over its own source tree. No app or \
+site bundle imports it, and no untrusted pattern reaches it. Re-check for a \
+fixed picomatch before expiry.\
+"""
