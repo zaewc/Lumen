@@ -102,9 +102,15 @@ first, under one "똑같은 파일" owner. A person checks the copies to move; o
 one are checked, the last one's checkbox is disabled ("하나는 남겨 둬요."). Hard links
 and copies the comparison skipped have no checkbox (moving them frees nothing or is
 not verified). The page sends only the comparison's group and copy IDs, never a path.
-Just before moving, the host reads the chosen copy and a kept copy of the same group
-again, by handle, and moves the chosen one only if both still have the compared
-contents; otherwise that copy is refused alone. A copy is still moved into
+
+A copy **stays** only if neither it nor any folder above it is in the whole confirmed
+selection (proposed and chosen items, apps, other copies). The host checks this for
+every group when it plans and again before anything moves: a chosen copy whose group
+would have no copy that stays is refused before the move starts, with "하나는 남겨
+둬요.". Since a copy that stays is outside everything that moves, the order of the
+moves cannot take it away. Just before moving, the host reads the chosen copy and a
+copy that stays again, by handle, and moves the chosen one only if both still have the
+compared contents; otherwise that copy is refused alone. A copy is still moved into
 Quarantine, never deleted, and is listed there as chosen by the person.
 
 **Confirmation.** The button opens the host's confirmation window (FS-1), which lists

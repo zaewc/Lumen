@@ -57,10 +57,13 @@ Chosen option: **1**.
    - A user-owned macOS app (ADR-0062) starts unchecked; checking it makes a fresh
      preview, and a refusal unchecks it with its reason.
    - A copy in a group of identical files (ADR-0065) starts unchecked. Lumen never
-     picks a copy, at least one copy of every group stays (the page and the host both
-     refuse otherwise), and the page names copies only by the comparison's IDs. Just
-     before the move, the host re-reads the chosen copy and a kept copy by handle and
-     moves it only if both still hold the compared contents.
+     picks a copy, and the page names copies only by the comparison's IDs. At least
+     one copy of every group stays: a copy stays only if neither it nor any folder
+     above it is anywhere in the confirmed selection (items, apps, copies). The host
+     refuses, before anything moves, a chosen copy whose group would have none that
+     stays, so the order of the moves cannot remove the last one. Just before the
+     move, the host re-reads the chosen copy and a copy that stays by handle and moves
+     it only if both still hold the compared contents.
    - Tool-command items (ADR-0049), kept items and protected software have no
      checkbox. Nothing is selected in bulk.
 4. **Confirmation.** One host confirmation (FS-1) lists the proposals, the chosen items,
