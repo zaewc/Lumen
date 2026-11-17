@@ -2,6 +2,8 @@
 
 - Status: Accepted (owner request to recover as much space as the reference cleaners,
   2026-10-31; design by the lead, open to the owner's revision)
+- Amended by: [ADR-0069](0069-show-storage-in-one-place-grouped-by-owner.md) (a person may
+  also leave proposed items out of a plan; review items are chosen by checkbox)
 - Date: 2026-10-31
 - Amends: [ADR-0014](0014-deterministic-safety-policy-engine.md) (only proposed items
   enter a plan), [ADR-0015](0015-quarantine-and-reversible-cleanup.md) (automatic
