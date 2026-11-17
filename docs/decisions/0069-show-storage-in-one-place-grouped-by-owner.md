@@ -1,7 +1,7 @@
 # ADR-0069: Show storage in one place, grouped by what owns it
 
-- Status: Accepted (owner decision on direction and name, 2026-11-18; details by the
-  lead, open to the owner's revision)
+- Status: Accepted (owner decision on direction, name, identical copies and checkable
+  apps, 2026-11-18; other details by the lead, open to the owner's revision)
 - Date: 2026-11-18
 - Amends: [ADR-0065](0065-compare-completed-scan-roots-for-identical-copies.md) (a person
   may move copies they choose), [ADR-0051](0051-quarantine-review-items-the-user-chooses.md) (a person may

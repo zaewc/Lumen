@@ -206,6 +206,5 @@ The Apps page stays until step 9, so no release loses a feature midway.
 - **Name (owner, 2026-11-18):** 저장 공간.
 - **Identical copies like apps (owner, 2026-11-18):** a person may move copies they
   check; Lumen never picks one, and one copy of every group always stays.
-- **App part checkable (lead's recommendation, open to the owner):** yes, never
-  preselected. Without it, apps keep their own dialog and the page has two ways to
-  move things.
+- **App part checkable (owner, 2026-11-18):** yes, never preselected, so the page has
+  one way to move things.
