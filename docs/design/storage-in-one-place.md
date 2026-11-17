@@ -181,14 +181,14 @@ Lumen's words.
 6. `feat(desktop)`: one confirmation for a plan and app previews (ADR-0062 rule 4 as
    amended), each re-checked before it moves.
 7. `feat(web)`: the app part's checkbox, with its preview on checking.
-7b. `feat(app)`: chosen copies of identical files in a plan, by comparison IDs, each
+8. `feat(app)`: chosen copies of identical files in a plan, by comparison IDs, each
    re-read with a kept copy before it moves; then their checkboxes on the page.
-8. `feat(web)`: before-scan state, search (⌘F) and app details; the Apps page and its
+9. `feat(web)`: before-scan state, search (⌘F) and app details; the Apps page and its
    navigation item go; `/apps` leads to 저장 공간.
-9. `feat(web)`: the map with one tile per owner.
-10. `docs`: glossary (탐색 retired), ui-principles and screenshots.
+10. `feat(web)`: the map with one tile per owner.
+11. `docs`: glossary (탐색 retired), ui-principles and screenshots.
 
-The Apps page stays until step 8, so no release loses a feature midway.
+The Apps page stays until step 9, so no release loses a feature midway.
 
 ## Decisions
 

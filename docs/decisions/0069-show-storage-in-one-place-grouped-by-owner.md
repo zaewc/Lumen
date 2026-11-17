@@ -82,7 +82,7 @@ Chosen option: **1**.
   each move is checked against the compared contents.
 - Bad: the host's plan and confirmation change (leaving items out; a plan with app
   previews), and the confirmation window shows more kinds of items.
-- Bad: the web UI is largely rebuilt over about nine pull requests, and the glossary
+- Bad: the web UI is largely rebuilt over about ten pull requests, and the glossary
   retires 탐색.
 
 ## More information
