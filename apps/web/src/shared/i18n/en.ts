@@ -35,7 +35,6 @@ export const en = {
     label: "Main",
     overview: "Storage",
     quarantine: "Quarantine",
-    apps: "Apps",
     settings: "Settings",
     held: (n: number) => `${items(n)} in Quarantine`,
   },

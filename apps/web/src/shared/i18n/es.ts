@@ -24,7 +24,6 @@ export const es: Messages = {
     label: "Principal",
     overview: "Almacenamiento",
     quarantine: "Cuarentena",
-    apps: "Apps",
     settings: "Ajustes",
     held: (n: number) => `${items(n)} en Cuarentena`,
   },

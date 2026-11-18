@@ -1,6 +1,6 @@
 import type { SoftwareItemView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
-import { iconsShown, ordered, partial, title, tucked, visible } from "./list";
+import { iconsShown, ordered, partial, title, tucked, visible } from "./apps-list";
 
 function row(id: string, extra: Partial<SoftwareItemView> = {}): SoftwareItemView {
   return {

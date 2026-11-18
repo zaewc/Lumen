@@ -26,7 +26,6 @@ export const ja: Messages = {
     label: "メイン",
     overview: "ストレージ",
     quarantine: "隔離",
-    apps: "アプリ",
     settings: "設定",
     held: (n: number) => `隔離中：${items(n)}`,
   },

@@ -20,7 +20,6 @@ export const fr: Messages = {
     label: "Menu principal",
     overview: "Stockage",
     quarantine: "Quarantaine",
-    apps: "Apps",
     settings: "Paramètres",
     held: (n) => `${items(n)} en quarantaine`,
   },

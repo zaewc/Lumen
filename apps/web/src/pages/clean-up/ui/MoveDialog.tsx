@@ -3,8 +3,8 @@ import { useId, useRef } from "react";
 import { formatDateTime, useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { buttonClass, Dialog, Disclosure, ErrorNotice } from "@/shared/ui";
-import type { ReadyPreview } from "../model/move";
-import { mayBeRunning, type QuitStage } from "../model/quit";
+import type { ReadyPreview } from "../model/app-move";
+import { mayBeRunning, type QuitStage } from "../model/app-quit";
 
 export function MoveReasons({ reasons }: { readonly reasons: readonly UninstallReasonView[] }) {
   const { m } = useI18n();

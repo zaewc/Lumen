@@ -7,7 +7,6 @@ import {
 } from "@tanstack/react-router";
 import { useState } from "react";
 import { useAiSettings } from "@/entities/ai-review";
-import { AppsPage } from "@/pages/apps";
 import { CleanUpPage, cleanUpSearch } from "@/pages/clean-up";
 import { FirstLaunchPage } from "@/pages/first-launch";
 import { QuarantinePage } from "@/pages/quarantine";
@@ -71,10 +70,13 @@ const quarantine = createRoute({
   path: "/quarantine",
   component: QuarantinePage,
 });
-const apps = createRoute({
+// The installed apps are a section of Storage (ADR-0069).
+const formerApps = createRoute({
   getParentRoute: () => root,
   path: "/apps",
-  component: AppsPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/", hash: "apps" });
+  },
 });
 const settings = createRoute({
   getParentRoute: () => root,
@@ -102,7 +104,7 @@ export const router = createRouter({
     storage,
     formerExplore,
     quarantine,
-    apps,
+    formerApps,
     settings,
     formerScan,
     formerPlan,
