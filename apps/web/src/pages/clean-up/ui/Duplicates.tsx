@@ -192,10 +192,13 @@ function Outcome({
 export function Duplicates({
   scanId,
   check,
+  onCompare,
 }: {
   readonly scanId: string;
   /** The copies' checkboxes; none when copies cannot be moved here. */
   readonly check?: CopyCheckProps;
+  /** A comparison starts: copies checked in the last one no longer count. */
+  readonly onCompare?: () => void;
 }) {
   const { m } = useI18n();
   const transport = useTransport();
@@ -218,6 +221,7 @@ export function Duplicates({
   useEffect(() => {
     if (compare !== undefined && run.status === "idle" && started.current !== scanId) {
       started.current = scanId;
+      onCompare?.();
       void run.run(scanId);
     }
   }, [compare, run.run, run.status, scanId]);
@@ -256,6 +260,7 @@ export function Duplicates({
               onClick={() => {
                 started.current = scanId;
                 setStopError(null);
+                onCompare?.();
                 void run.run(scanId);
               }}
               className={buttonClass("secondary", "sm")}

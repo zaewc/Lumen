@@ -28,10 +28,13 @@ export interface CleanUpAction {
 export function useCleanUpAction({
   selected,
   onConfirm,
+  onSent,
 }: {
   /** What is checked. */
   readonly selected: Selected;
   readonly onConfirm: () => void;
+  /** What was sent to be moved, once planned. */
+  readonly onSent: (sent: Selected) => void;
 }): CleanUpAction {
   const { m } = useI18n();
   const transport = useTransport();
@@ -43,20 +46,20 @@ export function useCleanUpAction({
   const mine = latest !== null && latest.item === null;
   const plan = useMutation({
     mutationKey: PLANNING,
-    // Only apps checked: no clean-up plan, the apps alone.
-    mutationFn: () =>
-      selected.items > 0
-        ? transport.plan(selected.chosen, selected.leftOut)
-        : Promise.resolve(null),
-    onSuccess: (planned) => {
+    // What was checked when the button was pressed, for planning and moving
+    // alike; only apps or copies checked: no clean-up plan.
+    mutationFn: (sent: Selected) =>
+      sent.items > 0 ? transport.plan(sent.chosen, sent.leftOut) : Promise.resolve(null),
+    onSuccess: (planned, sent) => {
       onConfirm();
-      session.execute(planned, selected.apps, selected.copies);
+      onSent(sent);
+      session.execute(planned, sent.apps, sent.copies);
     },
   });
   const nothing = selected.count === 0;
   const prepare = () => {
     session.resetCleanUp();
-    plan.mutate();
+    plan.mutate(selected);
   };
   const retry = (
     <button type="button" onClick={prepare} className={buttonClass("secondary", "sm")}>
