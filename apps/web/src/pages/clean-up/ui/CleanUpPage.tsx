@@ -1,11 +1,19 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { summarize, useScanSession } from "@/entities/scan-session";
+import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
 import { buttonClass, ErrorDetails, Page } from "@/shared/ui";
 import type { Filter } from "../model/filter";
-import { isChecked, PROPOSED, type Selection, selectedOf, toggled } from "../model/selection";
+import {
+  isChecked,
+  PROPOSED,
+  type Selection,
+  selectedOf,
+  toggled,
+  withApp,
+} from "../model/selection";
 import { cleanUpStep } from "../model/step";
 import { useCleanUpAction } from "./CleanUpAction";
 import { DiskUsage } from "./DiskUsage";
@@ -62,6 +70,41 @@ export function CleanUpPage() {
     readonly selection: Selection;
   }>({ of: null, selection: PROPOSED });
   const selection = checks.of === session.candidates ? checks.selection : PROPOSED;
+  const transport = useTransport();
+  const update = (change: (earlier: Selection) => Selection) =>
+    setChecks((earlier) => ({
+      of: session.candidates,
+      selection: change(earlier.of === session.candidates ? earlier.selection : PROPOSED),
+    }));
+  // Checking an app asks the host for a fresh preview (ADR-0062); only a
+  // ready one joins the selection, a refused one says so on its row.
+  const toggleApp = (key: string) => {
+    if (selection.apps.has(key)) {
+      update((earlier) => withApp(earlier, key, undefined));
+      return;
+    }
+    const preview = transport.uninstallPreview;
+    if (preview === undefined) return;
+    update((earlier) => withApp(earlier, key, { kind: "checking" }));
+    const settle = (check: Parameters<typeof withApp>[2]) =>
+      update((earlier) =>
+        earlier.apps.get(key)?.kind === "checking" ? withApp(earlier, key, check) : earlier,
+      );
+    preview(key).then(
+      (answer) =>
+        settle(
+          answer.kind === "ready"
+            ? {
+                kind: "ready",
+                preview: answer.preview,
+                hash: answer.hash,
+                bytes: answer.app.size_bytes,
+              }
+            : { kind: "refused" },
+        ),
+      () => settle({ kind: "refused" }),
+    );
+  };
   const selected = selectedOf(selection, session.candidates ?? []);
   const cleanUp = useCleanUpAction({
     selected,
@@ -141,8 +184,9 @@ export function CleanUpPage() {
             cleanedUp={cleanedUp}
             check={{
               isChecked: (candidate) => isChecked(selection, candidate),
-              toggle: (candidate) =>
-                setChecks({ of: session.candidates, selection: toggled(selection, candidate) }),
+              toggle: (candidate) => update((earlier) => toggled(earlier, candidate)),
+              appState: (key) => selection.apps.get(key),
+              toggleApp,
             }}
           />
         )

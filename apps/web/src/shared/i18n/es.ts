@@ -234,6 +234,10 @@ export const es: Messages = {
       part: "La app",
       proposed: (size: string) => `${size} propuesto`,
       notMeasured: "Tamaño desconocido",
+      checking: "Comprobando si se puede mover…",
+      refused: "Esta app no se puede mover ahora.",
+      moved: (n: number) => `Se movieron ${n} apps a Cuarentena.`,
+      notMoved: (n: number) => `${n} apps no se movieron.`,
       title: "Apps",
       seeAll: "Ver todas las apps instaladas",
       outside: (n: number) =>

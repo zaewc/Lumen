@@ -222,4 +222,20 @@ describe("memoryTransport", () => {
     );
     expect(verdicts).toEqual(new Set(["quarantine", "review", "keep"]));
   });
+
+  it("moves a selection's plan and reports each app apart, one refusal leaving the rest", async () => {
+    const transport = memoryTransport();
+    await transport.assess();
+    const plan = await transport.plan([], []);
+    const select = transport.executeSelection;
+    if (select === undefined) throw new Error("the sample host moves selections");
+    const report = await select({
+      plan: { plan: plan.plan, confirmation: plan.hash },
+      apps: [{ preview: "unknown-preview", confirmation: "0000" }],
+    });
+    expect(report.cleanup?.items.length).toBeGreaterThan(0);
+    expect(report.apps).toHaveLength(1);
+    expect(report.apps[0]?.outcome).toBeNull();
+    expect(report.apps[0]?.error).toMatch(/already confirmed or executed/);
+  });
 });

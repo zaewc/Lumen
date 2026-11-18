@@ -238,6 +238,10 @@ export const en = {
       part: "The app itself",
       proposed: (size: string) => `${size} proposed`,
       notMeasured: "Size unknown",
+      checking: "Checking whether it can move…",
+      refused: "This app can’t be moved now.",
+      moved: (n: number) => `Moved ${n} ${n === 1 ? "app" : "apps"} to Quarantine.`,
+      notMoved: (n: number) => `${n} ${n === 1 ? "app was" : "apps were"} not moved.`,
       title: "Apps",
       seeAll: "See all installed apps",
       outside: (n: number) =>

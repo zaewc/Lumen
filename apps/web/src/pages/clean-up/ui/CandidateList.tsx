@@ -9,7 +9,7 @@ import { commandLine } from "../lib/command";
 import { moveIndex } from "../lib/keys";
 import { type Lens, type LensMark, lensMark } from "../model/lens";
 import type { Owner, OwnerPart } from "../model/owners";
-import { checkable } from "../model/selection";
+import { type AppCheck, checkable } from "../model/selection";
 import { CandidateSize } from "./CandidateSize";
 import { StatusText } from "./Status";
 
@@ -17,6 +17,9 @@ import { StatusText } from "./Status";
 export interface Check {
   readonly isChecked: (candidate: CandidateView) => boolean;
   readonly toggle: (candidate: CandidateView) => void;
+  /** A checked app's preview state, by software-list key. */
+  readonly appState: (key: string) => AppCheck | undefined;
+  readonly toggleApp: (key: string) => void;
 }
 
 /** The column every row keeps for a checkbox, so names line up. */
@@ -206,8 +209,11 @@ function AppRow({
   hint,
   onOpen,
   onMove,
+  check,
 }: {
   readonly part: Extract<OwnerPart, { kind: "app" }>;
+  /** The checkboxes; an app is never checked unless the person checks it. */
+  readonly check?: Check;
   readonly index: number;
   readonly active: boolean;
   readonly hint: string;
@@ -216,41 +222,66 @@ function AppRow({
 }) {
   const { m } = useI18n();
   const location = part.app.location ?? "";
+  const state = check?.appState(part.app.key);
   return (
-    <li className="flex">
-      <span className="w-7 shrink-0" />
-      <button
-        type="button"
-        data-row={index}
-        aria-haspopup="dialog"
-        tabIndex={active ? 0 : -1}
-        aria-describedby={active ? hint : undefined}
-        onClick={onOpen}
-        onKeyDown={(event) => onMove(event, index)}
-        className={`${GRID} min-w-0 flex-1 items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
-      >
-        <span className="truncate border-l border-line-strong pl-3 font-medium text-ink">
-          {m.results.apps.part}
-        </span>
-        <span className="col-start-2 row-start-1 justify-self-end text-right whitespace-nowrap tabular-nums text-ink @xl:col-start-4">
-          {part.bytes === null ? (
-            m.results.apps.notMeasured
-          ) : part.atLeast ? (
-            m.details.atLeast(formatBytes(part.bytes))
-          ) : (
-            <Bytes value={part.bytes} />
+    <li>
+      <div className="flex">
+        <span className="flex w-7 shrink-0 justify-center pt-3">
+          {check !== undefined && (
+            <input
+              type="checkbox"
+              checked={state !== undefined && state.kind !== "refused"}
+              disabled={state?.kind === "checking"}
+              onChange={() => check.toggleApp(part.app.key)}
+              aria-label={m.action.check(softwareTitle(part.app))}
+              className="size-4 cursor-pointer accent-accent disabled:cursor-wait"
+            />
           )}
         </span>
-        <span
-          title={location}
-          className="row-start-2 truncate text-[12px] text-ink-3 @xl:col-start-2 @xl:row-start-1 @xl:text-[13px]"
+        <button
+          type="button"
+          data-row={index}
+          aria-haspopup="dialog"
+          tabIndex={active ? 0 : -1}
+          aria-describedby={active ? hint : undefined}
+          onClick={onOpen}
+          onKeyDown={(event) => onMove(event, index)}
+          className={`${GRID} min-w-0 flex-1 items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
         >
-          {location}
-        </span>
-        <span className="col-start-2 row-start-2 text-right text-[12px] text-ink-2 @xl:col-start-3 @xl:row-start-1 @xl:text-left @xl:text-[13px]">
-          {m.results.apps.title}
-        </span>
-      </button>
+          <span className="truncate border-l border-line-strong pl-3 font-medium text-ink">
+            {m.results.apps.part}
+          </span>
+          <span className="col-start-2 row-start-1 justify-self-end text-right whitespace-nowrap tabular-nums text-ink @xl:col-start-4">
+            {part.bytes === null ? (
+              m.results.apps.notMeasured
+            ) : part.atLeast ? (
+              m.details.atLeast(formatBytes(part.bytes))
+            ) : (
+              <Bytes value={part.bytes} />
+            )}
+          </span>
+          <span
+            title={location}
+            className="row-start-2 truncate text-[12px] text-ink-3 @xl:col-start-2 @xl:row-start-1 @xl:text-[13px]"
+          >
+            {location}
+          </span>
+          <span className="col-start-2 row-start-2 text-right text-[12px] text-ink-2 @xl:col-start-3 @xl:row-start-1 @xl:text-left @xl:text-[13px]">
+            {m.results.apps.title}
+          </span>
+        </button>
+      </div>
+      {state?.kind === "checking" && (
+        <p className="mr-2 mb-1.5 ml-9 text-[12px] text-ink-3">{m.results.apps.checking}</p>
+      )}
+      {state?.kind === "refused" && (
+        <p className="mr-2 mb-1.5 ml-9 text-[12px] text-attention">
+          {m.results.apps.refused}{" "}
+          <button type="button" onClick={onOpen} className="text-accent-ink hover:underline">
+            {m.common.details}
+          </button>
+        </p>
+      )}
     </li>
   );
 }
@@ -316,6 +347,7 @@ export function CandidateList({
           <AppRow
             key={part.app.key}
             part={part}
+            {...(check === undefined ? {} : { check })}
             index={at}
             active={at === active}
             hint={hint}

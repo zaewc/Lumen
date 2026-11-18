@@ -719,7 +719,7 @@ export function memoryTransport({
     held = held.filter((h) => h.operation !== operation);
     return item;
   };
-  return {
+  const transport: LumenTransport = {
     scan: async (_request, onProgress) => {
       // Paced, the scan reports a few growing totals, as a real one does.
       const steps = pace > 0 ? PROGRESS : PROGRESS.slice(-1);
@@ -1146,6 +1146,25 @@ export function memoryTransport({
       }
       ai = { ...ai, key: "jeb", key_source: "stored" };
       return Promise.resolve(ai);
+    },
+  };
+  return {
+    ...transport,
+    executeSelection: async (request) => {
+      const { execute, uninstall } = transport;
+      const cleanup = request.plan === null ? null : await execute(request.plan);
+      const apps = [];
+      for (const app of request.apps) {
+        try {
+          const outcome = await (uninstall === undefined
+            ? Promise.reject(new Error("unsupported"))
+            : uninstall(app.preview, app.confirmation));
+          apps.push({ preview: app.preview, outcome, error: null });
+        } catch (error) {
+          apps.push({ preview: app.preview, outcome: null, error: String(error) });
+        }
+      }
+      return { cleanup, apps };
     },
   };
 }
