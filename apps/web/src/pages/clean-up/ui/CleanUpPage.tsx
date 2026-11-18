@@ -7,6 +7,7 @@ import { buttonClass, ErrorDetails, Page } from "@/shared/ui";
 import type { Filter } from "../model/filter";
 import { cleanUpStep } from "../model/step";
 import { useCleanUpAction } from "./CleanUpAction";
+import { DiskUsage } from "./DiskUsage";
 import { DonePanel } from "./DonePanel";
 import { Duplicates } from "./Duplicates";
 import { ProgressPanel } from "./ProgressPanel";
@@ -15,7 +16,7 @@ import { StartPanel } from "./StartPanel";
 import { StepHeading } from "./StepHeading";
 
 /**
- * The guided clean-up: scan (read-only), let the policy decide, then move
+ * Storage (ADR-0069): the disk, then the guided clean-up: scan (read-only), let the policy decide, then move
  * what it proposes to quarantine after one explicit confirmation (ADR-0034).
  * Nothing is deleted here; everything moved can be restored. The scan
  * belongs to the session, so it goes on while another page is open. The
@@ -27,7 +28,7 @@ export function CleanUpPage() {
   const { m } = useI18n();
   const session = useScanSession();
   const navigate = useNavigate();
-  const { show } = useSearch({ from: "/clean" });
+  const { show } = useSearch({ from: "/" });
   const filter: Filter = show ?? "all";
   const [folders, setFolders] = useState("");
   // Focus follows the flow once the user has started it (here, or on Overview).
@@ -122,7 +123,7 @@ export function CleanUpPage() {
             filter={filter}
             onFilterChange={(next) => {
               void navigate({
-                to: "/clean",
+                to: "/",
                 search: next === "all" ? {} : { show: next },
                 replace: true,
               });
@@ -185,7 +186,8 @@ export function CleanUpPage() {
   };
 
   return (
-    <Page title={m.nav.cleanUp} actions={actions()}>
+    <Page title={m.nav.overview} actions={actions()}>
+      <DiskUsage />
       {view()}
       {scan !== null && !session.scanning && !scan.partial && (
         <Duplicates key={scan.scan} scanId={scan.scan} />

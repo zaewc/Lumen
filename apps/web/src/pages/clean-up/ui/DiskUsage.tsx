@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { useId } from "react";
 import { useScanSession } from "@/entities/scan-session";
 import { QUERY_KEYS, useTransport } from "@/shared/api";
@@ -11,8 +10,7 @@ import { assessedPermille, diskUsage, percentText } from "../model/disk";
 /**
  * The disk as one band (docs/design/visual-language.md, storage topography):
  * used space filled, free space open, and a bracket under the share the last
- * assessment's items take, linking to the map of them on Explore. Shares are
- * in tenths of a percent.
+ * assessment's items take, named below it. Shares are in tenths of a percent.
  */
 function DiskStrip({
   used,
@@ -45,13 +43,12 @@ function DiskStrip({
             className="absolute top-0 h-1.5 min-w-1 border-x border-b border-accent"
             style={{ left: `${start / 10}%`, width: `${assessed / 10}%` }}
           />
-          <Link
-            to="/clean"
-            className="absolute top-3 rounded-sm text-[12px] whitespace-nowrap text-accent-ink tabular-nums hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+          <span
+            className="absolute top-3 text-[12px] whitespace-nowrap text-accent-ink tabular-nums"
             style={anchor}
           >
             {label}
-          </Link>
+          </span>
         </div>
       )}
     </div>

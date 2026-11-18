@@ -224,10 +224,7 @@ export function QuarantinePage() {
         <section className="max-w-xl space-y-3 py-4">
           <h2 className="text-section text-ink">{m.quarantine.empty}</h2>
           <p className="text-[14px] leading-relaxed text-ink-2">{m.quarantine.emptyHint}</p>
-          <Link
-            to="/clean"
-            className="inline-block pt-1 text-[14px] text-accent-ink hover:underline"
-          >
+          <Link to="/" className="inline-block pt-1 text-[14px] text-accent-ink hover:underline">
             {m.quarantine.goCleanUp}
           </Link>
         </section>

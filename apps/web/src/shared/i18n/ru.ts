@@ -35,7 +35,6 @@ export const ru: Messages = {
   nav: {
     label: "Главное меню",
     overview: "Хранилище",
-    cleanUp: "Обзор",
     quarantine: "Карантин",
     apps: "Приложения",
     settings: "Настройки",

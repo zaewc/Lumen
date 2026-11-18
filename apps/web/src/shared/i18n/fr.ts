@@ -19,7 +19,6 @@ export const fr: Messages = {
   nav: {
     label: "Menu principal",
     overview: "Stockage",
-    cleanUp: "Explorer",
     quarantine: "Quarantaine",
     apps: "Apps",
     settings: "Paramètres",

@@ -13,7 +13,7 @@ import { shortcutProps, useShortcut } from "@/shared/lib";
 import { buttonClass, LogoMark } from "@/shared/ui";
 
 /** The places of the app, as the navigation lists them. */
-type Place = "/" | "/clean" | "/quarantine" | "/apps" | "/settings";
+type Place = "/" | "/quarantine" | "/apps" | "/settings";
 
 /**
  * A place's text label. The current place is ink with a cobalt rule under its
@@ -23,7 +23,7 @@ const ITEM =
   "relative flex h-12 items-center justify-center gap-2 px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-[current=page]:text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-transparent hover:after:bg-line-strong aria-[current=page]:after:bg-accent motion-reduce:transition-none min-[960px]:h-14";
 
 /** The app's places, in the sidebar's order; ⌘1–⌘5 (Ctrl+1–5) open them. */
-const PLACES: readonly Place[] = ["/", "/clean", "/quarantine", "/apps", "/settings"];
+const PLACES: readonly Place[] = ["/", "/quarantine", "/apps", "/settings"];
 
 /** The shortcut key of a place: its position in the sidebar. */
 function placeKey(place: Place): string {
@@ -109,13 +109,11 @@ export function Sidebar() {
   const titleBar = useTransport().titleBar;
   const count = inQuarantine(held.data ?? []).length;
   usePlaceShortcut("/");
-  usePlaceShortcut("/clean");
   usePlaceShortcut("/quarantine");
   usePlaceShortcut("/apps");
   usePlaceShortcut("/settings");
   const places: readonly PlaceItem[] = [
     { to: "/", label: m.nav.overview },
-    { to: "/clean", label: m.nav.cleanUp },
     {
       to: "/quarantine",
       label: m.nav.quarantine,

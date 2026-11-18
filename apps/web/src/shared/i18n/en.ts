@@ -34,7 +34,6 @@ export const en = {
   nav: {
     label: "Main",
     overview: "Storage",
-    cleanUp: "Explore",
     quarantine: "Quarantine",
     apps: "Apps",
     settings: "Settings",
