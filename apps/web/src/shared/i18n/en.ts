@@ -270,7 +270,6 @@ export const en = {
       app_data: "App data",
       other: "Other",
     },
-    otherTools: "Other tools",
     removedNote:
       "The apps are gone, but their data is still here. Check that you don't need it before moving it.",
     commandNote:

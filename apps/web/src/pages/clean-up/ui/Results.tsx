@@ -102,11 +102,6 @@ export function Results({
   const [open, setOpen] = useState<CandidateView | null>(null);
   const move = useReviewMove();
   const proposed = summary.quarantine;
-  const groups = useMemo(() => topographyOf(candidates), [candidates]);
-  // The group the map is zoomed into, if it is still in this assessment.
-  const [zoom, setZoom] = useState<string | null>(null);
-  const zoomed = zoom === null ? undefined : trailTo(groups, zoom)?.at(-1);
-  const listed = zoomed === undefined ? candidates : candidatesIn(zoomed);
   const transport = useTransport();
   const ask = transport.software;
   const software = useQuery({
@@ -115,6 +110,11 @@ export function Results({
     enabled: ask !== undefined,
   });
   const installed = software.data?.items;
+  const groups = useMemo(() => topographyOf(candidates, installed), [candidates, installed]);
+  // The group the map is zoomed into, if it is still in this assessment.
+  const [zoom, setZoom] = useState<string | null>(null);
+  const zoomed = zoom === null ? undefined : trailTo(groups, zoom)?.at(-1);
+  const listed = zoomed === undefined ? candidates : candidatesIn(zoomed);
   const [app, setApp] = useState<SoftwareItemView | null>(null);
   // Apps have no verdict: only under "All" and the whole map (ADR-0069). With
   // no items the filter is not shown, so a filter left from before cannot hide them.

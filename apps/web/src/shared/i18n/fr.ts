@@ -264,7 +264,6 @@ export const fr: Messages = {
       app_data: "Données d'applications",
       other: "Autre",
     },
-    otherTools: "Autres outils",
     removedNote:
       "Les applications ne sont plus là, mais leurs données restent. Vérifiez que vous n'en avez plus besoin avant de les déplacer.",
     commandNote:
