@@ -1,5 +1,6 @@
+import type { CopyRequest } from "@lumen/api-client";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { summarize, useScanSession } from "@/entities/scan-session";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
@@ -7,12 +8,15 @@ import { shortcutProps, useShortcut } from "@/shared/lib";
 import { buttonClass, ErrorDetails, Page } from "@/shared/ui";
 import type { Filter } from "../model/filter";
 import {
+  type AppCheck,
   isChecked,
   PROPOSED,
+  type Selected,
   type Selection,
   selectedOf,
   toggled,
   withApp,
+  withCopy,
 } from "../model/selection";
 import { cleanUpStep } from "../model/step";
 import { useCleanUpAction } from "./CleanUpAction";
@@ -69,13 +73,33 @@ export function CleanUpPage() {
     readonly of: typeof session.candidates;
     readonly selection: Selection;
   }>({ of: null, selection: PROPOSED });
-  const selection = checks.of === session.candidates ? checks.selection : PROPOSED;
+  // A new assessment starts the items from Lumen's proposal again; the apps
+  // and copies checked stay, since their previews do not depend on it.
+  const current = (checked: typeof checks, candidates: typeof session.candidates) =>
+    checked.of === candidates
+      ? checked.selection
+      : { ...PROPOSED, apps: checked.selection.apps, copies: checked.selection.copies };
+  const selection = current(checks, session.candidates);
   const transport = useTransport();
+  // Read when an update applies, not when it was made: a preview answering
+  // later must not bring back an earlier assessment's choices.
+  const latestCandidates = useRef(session.candidates);
+  latestCandidates.current = session.candidates;
   const update = (change: (earlier: Selection) => Selection) =>
     setChecks((earlier) => ({
-      of: session.candidates,
-      selection: change(earlier.of === session.candidates ? earlier.selection : PROPOSED),
+      of: latestCandidates.current,
+      selection: change(current(earlier, latestCandidates.current)),
     }));
+  // What was sent to be moved is no longer checked: each preview moves once.
+  const forgetSent = (sent: Selected) => {
+    const gone = new Set([...sent.apps, ...sent.copies].map((each) => each.preview));
+    const sentOff = (check: AppCheck) => check.kind === "ready" && gone.has(check.preview);
+    update((earlier) => ({
+      ...earlier,
+      apps: new Map([...earlier.apps].filter(([, check]) => !sentOff(check))),
+      copies: new Map([...earlier.copies].filter(([, copy]) => !sentOff(copy.check))),
+    }));
+  };
   // Checking an app asks the host for a fresh preview (ADR-0062); only a
   // ready one joins the selection, a refused one says so on its row.
   const toggleApp = (key: string) => {
@@ -105,10 +129,38 @@ export function CleanUpPage() {
       () => settle({ kind: "refused" }),
     );
   };
+  // Checking a copy asks the host for its preview, with the copy that stays
+  // (ADR-0069); only a ready one joins the selection.
+  const toggleCopy = (key: string, request: CopyRequest) => {
+    if (selection.copies.has(key)) {
+      update((earlier) => withCopy(earlier, key, undefined));
+      return;
+    }
+    const preview = transport.copyPreview;
+    if (preview === undefined) return;
+    const { stays } = request;
+    update((earlier) => withCopy(earlier, key, { check: { kind: "checking" }, stays }));
+    const settle = (check: AppCheck) =>
+      update((earlier) =>
+        earlier.copies.get(key)?.check.kind === "checking"
+          ? withCopy(earlier, key, { check, stays })
+          : earlier,
+      );
+    preview(request).then(
+      (answer) =>
+        settle(
+          answer.kind === "ready"
+            ? { kind: "ready", preview: answer.preview, hash: answer.hash, bytes: answer.bytes }
+            : { kind: "refused" },
+        ),
+      () => settle({ kind: "refused" }),
+    );
+  };
   const selected = selectedOf(selection, session.candidates ?? []);
   const cleanUp = useCleanUpAction({
     selected,
     onConfirm: () => setActed(true),
+    onSent: forgetSent,
   });
   const canRescan = step === "results" || step === "done" || step === "decideFailed";
   useShortcut("r", rescan, canRescan && !session.cleaning);
@@ -248,7 +300,19 @@ export function CleanUpPage() {
       <DiskUsage />
       {view()}
       {scan !== null && !session.scanning && !scan.partial && (
-        <Duplicates key={scan.scan} scanId={scan.scan} />
+        <Duplicates
+          key={scan.scan}
+          scanId={scan.scan}
+          onCompare={() => update((earlier) => ({ ...earlier, copies: new Map() }))}
+          {...(session.report === null && transport.copyPreview !== undefined
+            ? {
+                check: {
+                  state: (key: string) => selection.copies.get(key),
+                  toggle: toggleCopy,
+                },
+              }
+            : {})}
+        />
       )}
     </Page>
   );

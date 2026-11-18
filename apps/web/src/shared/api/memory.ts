@@ -689,6 +689,9 @@ function operationId(n: number): string {
  * With `builtinKey`, it acts like a release build carrying Lumen's built-in
  * Jeb key (ADR-0042).
  */
+/** The sample comparison's ID. */
+const SAMPLE_COMPARISON = "0190f0d2-6c1e-7a3b-8c4d-5e6f70819300";
+
 export function memoryTransport({
   pace = 0,
   builtinKey = false,
@@ -719,6 +722,8 @@ export function memoryTransport({
     held = held.filter((h) => h.operation !== operation);
     return item;
   };
+  // Copy previews made from the sample comparison, by preview ID.
+  const copyPreviews = new Map<string, string>();
   const transport: LumenTransport = {
     scan: async (_request, onProgress) => {
       // Paced, the scan reports a few growing totals, as a real one does.
@@ -965,7 +970,7 @@ export function memoryTransport({
       return {
         kind: "compared",
         report: {
-          comparison: "0190f0d2-6c1e-7a3b-8c4d-5e6f70819300",
+          comparison: SAMPLE_COMPARISON,
           folders: ["/Users/demo"],
           groups: [
             {
@@ -1165,13 +1170,45 @@ export function memoryTransport({
           apps.push({ preview: app.preview, outcome: null, error: String(error) });
         }
       }
-      // The sample host keeps no comparison, so it has no copy to move.
-      const copies = (request.copies ?? []).map((copy) => ({
-        preview: copy.preview,
-        outcome: null,
-        error: "that copy was not previewed here; compare again",
-      }));
+      const copies = (request.copies ?? []).map((copy) => {
+        const path = copyPreviews.get(copy.preview);
+        copyPreviews.delete(copy.preview);
+        return path === undefined
+          ? {
+              preview: copy.preview,
+              outcome: null,
+              error: "that copy was not previewed here; compare again",
+            }
+          : {
+              preview: copy.preview,
+              outcome: {
+                preview: copy.preview,
+                path,
+                size_bytes: "1800000000",
+                result: { kind: "quarantined" as const, operation: operationId(900) },
+                warnings: [],
+              },
+              error: null,
+            };
+      });
       return { cleanup, apps, copies };
+    },
+    copyPreview: async (request) => {
+      await wait(pace / 2);
+      if (request.comparison !== SAMPLE_COMPARISON || request.copy === request.stays) {
+        return { kind: "stale" };
+      }
+      const preview = `copy-preview-${request.group}-${request.copy}`;
+      const path = `/Users/demo/Downloads/copy-${request.group}-${request.copy}`;
+      copyPreviews.set(preview, path);
+      return {
+        kind: "ready",
+        preview,
+        hash: planView.hash,
+        path,
+        stays: `/Users/demo/Movies/copy-${request.group}-${request.stays}`,
+        bytes: "1800000000",
+      };
     },
   };
 }

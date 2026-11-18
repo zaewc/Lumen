@@ -25,22 +25,30 @@ import { Topography } from "./Topography";
 /** What happened to the apps the last clean-up moved with it (ADR-0069). */
 function AppOutcomes() {
   const { m } = useI18n();
-  const outcomes = useScanSession().apps;
-  if (outcomes === null || outcomes.length === 0) return null;
+  const session = useScanSession();
+  const outcomes = session.apps ?? [];
+  const copies = session.copies ?? [];
+  if (outcomes.length === 0 && copies.length === 0) return null;
+  const copiesMoved = copies.filter(
+    (copy) => copy.outcome !== null && copy.outcome.result.kind === "quarantined",
+  ).length;
+  const copiesNotMoved = copies.length - copiesMoved;
   const moved = outcomes.filter(
     (app) => app.outcome !== null && app.outcome.result.kind === "quarantined",
   ).length;
   const notMoved = outcomes.length - moved;
   return (
-    <Notice tone={notMoved > 0 ? "warning" : "success"}>
+    <Notice tone={notMoved + copiesNotMoved > 0 ? "warning" : "success"}>
       <p>
         {moved > 0 && m.results.apps.moved(moved)}{" "}
-        {notMoved > 0 && m.results.apps.notMoved(notMoved)}
+        {notMoved > 0 && m.results.apps.notMoved(notMoved)}{" "}
+        {copiesMoved > 0 && m.results.apps.copiesMoved(copiesMoved)}{" "}
+        {copiesNotMoved > 0 && m.results.apps.copiesNotMoved(copiesNotMoved)}
       </p>
-      {outcomes.some((app) => app.error !== null) && (
+      {[...outcomes, ...copies].some((each) => each.error !== null) && (
         <ul className="mt-1 list-disc pl-5 text-[12px] text-ink-2">
-          {outcomes.flatMap((app) =>
-            app.error === null ? [] : [<li key={app.preview}>{app.error}</li>],
+          {[...outcomes, ...copies].flatMap((each) =>
+            each.error === null ? [] : [<li key={each.preview}>{each.error}</li>],
           )}
         </ul>
       )}

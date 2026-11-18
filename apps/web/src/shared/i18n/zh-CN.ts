@@ -110,6 +110,8 @@ export const zhCN: Messages = {
       incomplete: "部分文件夹未能完整读取，其中的文件未比较。",
       unsupported: "这台电脑暂时还不能比较文件。",
       failed: "Lumen 无法比较扫描路径中的文件。",
+      oneStays: "始终保留一个副本。",
+      cannotMove: "此副本现在无法移动：内容已更改，或位于 Lumen 不移动的位置。",
       advice:
         "副本可能是你想保留的备份。Lumen 不会选择或删除任何副本。删除一个副本释放的空间可能小于它的大小。",
     },
@@ -225,6 +227,8 @@ export const zhCN: Messages = {
       refused: "此应用现在无法移动。",
       moved: (n: number) => `已将 ${n} 个应用移到隔离区。`,
       notMoved: (n: number) => `${n} 个应用未能移动。`,
+      copiesMoved: (n: number) => `已将 ${n} 个副本移到隔离区。`,
+      copiesNotMoved: (n: number) => `${n} 个副本未能移动。`,
       title: "应用",
       seeAll: "查看所有已安装的应用",
       outside: (n: number) => `还有 ${count(n)} 个应用位于本次扫描未读取的位置。`,
