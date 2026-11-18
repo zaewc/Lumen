@@ -183,13 +183,15 @@ try {
           ["Scan disk", "디스크 검사"].includes(element.textContent.trim()))`);
       await click(`[...document.querySelectorAll('main button')].find(element =>
         ["Scan disk", "디스크 검사"].includes(element.textContent.trim()))`);
-      await until("document.querySelectorAll('[data-row]').length === 14");
+      // The sample's 14 items (data-inspected marks an item's row; the apps
+      // listed with their owners have rows of their own, ADR-0069).
+      await until("document.querySelectorAll('[data-row][data-inspected]').length === 14");
       await capture("clean-up", locale, theme);
 
       await click(`[...document.querySelectorAll('fieldset label')].find(element =>
         /Needs review|검토 필요/.test(element.textContent))`);
-      await until("document.querySelectorAll('[data-row]').length === 3");
-      await click("[...document.querySelectorAll('[data-row]')].find(element => element.textContent.includes('OldEditor'))");
+      await until("document.querySelectorAll('[data-row][data-inspected]').length === 3");
+      await click("[...document.querySelectorAll('[data-row][data-inspected]')].find(element => element.textContent.includes('OldEditor'))");
       await until("document.querySelector('dialog[open]')?.textContent.includes('OldEditor')");
       await capture("review", locale, theme);
       await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
