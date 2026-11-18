@@ -359,6 +359,20 @@ pub(crate) fn move_with(
     })
 }
 
+/// Whether the executor's record of `prepared` names `identity`. Only the
+/// Unix executor can say; elsewhere it fails closed, so nothing moves.
+fn recorded_is(prepared: &PreparedItem, identity: &lumen_domain::FileIdentity) -> bool {
+    #[cfg(unix)]
+    {
+        lumen_fs_exec::recorded_identity(prepared).as_ref() == Some(identity)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (prepared, identity);
+        false
+    }
+}
+
 /// Records what the held copy frees and that the person chose it, so it is
 /// never removed automatically (ADR-0051).
 fn record(ledger: &mut LedgerStore, operation: OperationId, reclaim: ByteCount) -> Vec<String> {
@@ -426,7 +440,7 @@ fn execute_item(
     };
     // What the executor recorded must be the confirmed copy: it moves the
     // file its record names, not whatever the path names later.
-    if lumen_fs_exec::recorded_identity(&prepared).as_ref() != Some(identity) {
+    if !recorded_is(&prepared, identity) {
         return Ok(CopyResult::Changed);
     }
     // Observed after the executor recorded it: what it recorded is the
@@ -466,6 +480,11 @@ fn execute_item(
 fn on_this_computer<T>(
     run: impl FnOnce(&Mover<'_>) -> Result<T, CopyError>,
 ) -> Result<T, CopyError> {
+    // Only the Unix executor can show which file it recorded (see
+    // [`recorded_is`]); elsewhere copies are not moved yet.
+    if cfg!(not(unix)) {
+        return Err(CopyError::Unsupported);
+    }
     let stores = crate::store::stores().map_err(QuarantineError::Location)?;
     let context = crate::duplicates::context();
     let protected = |path: &RawPath| lumen_policy::protected_location(path, &context).is_some();
