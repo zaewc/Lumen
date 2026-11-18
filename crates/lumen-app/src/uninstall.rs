@@ -620,6 +620,11 @@ mod unix {
         let Ok(prepared) = executor.prepare(&root, &relative) else {
             return Ok(UninstallResult::Changed);
         };
+        // What the executor recorded must be the confirmed bundle: it moves
+        // what its record names, not whatever the path names later.
+        if lumen_fs_exec::recorded_identity(&prepared).as_ref() != Some(identity) {
+            return Ok(UninstallResult::Changed);
+        }
         // Observed after the executor recorded it: what it recorded is the
         // planned bundle, or the executor's own check refuses the move.
         let Some(entry) = enumerator()
