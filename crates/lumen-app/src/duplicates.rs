@@ -184,6 +184,30 @@ pub fn find_in_scan(
     })?
 }
 
+/// The roots of completed scan `scan` at their real paths, as the
+/// comparison reads files: what a copy's move is prepared from (ADR-0069).
+///
+/// # Errors
+///
+/// [`DuplicatesError`] if the scan's roots cannot be read.
+pub fn real_scan_roots(
+    db: &Path,
+    scan: ScanId,
+) -> Result<Vec<lumen_domain::RawPath>, DuplicatesError> {
+    let store = IndexStore::new(open_index(db)?);
+    let roots = store.scan_roots(scan)?;
+    let real = real_roots(&roots);
+    Ok(roots
+        .into_iter()
+        .map(|root| {
+            real.iter()
+                .find(|(given, _)| given.as_slice() == root.as_bytes())
+                .and_then(|(_, target)| lumen_domain::RawPath::from_unix_bytes(target.clone()).ok())
+                .unwrap_or(root)
+        })
+        .collect())
+}
+
 /// Each scan root whose real path differs, with that real path. The scan
 /// records paths as it was given them, and the reader opens no path through a
 /// symlink (`/var` is one on macOS), so files are read at their real path, as

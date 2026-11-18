@@ -502,6 +502,10 @@ export const en = {
     apps: "Apps you chose",
     appsNote:
       "Their data in ~/Library stays. Each app is checked again right before it moves; one that is running or cannot move is left where it is.",
+    copies: "Copies you chose",
+    copiesNote:
+      "Both copies are read again right before the move; a copy moves only if they are still the same. You can restore it from Quarantine.",
+    copyStays: (name: string, stays: string) => `${name}: the copy in ${stays} stays.`,
     uninstallTitle: "Move this app to Quarantine?",
     uninstallNote: "You can restore it from Quarantine.",
     finalizeTitle: "Remove this item for good?",

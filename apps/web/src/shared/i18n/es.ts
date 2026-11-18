@@ -507,6 +507,10 @@ export const es: Messages = {
     apps: "Apps que elegiste",
     appsNote:
       "Sus datos en ~/Library se quedan. Cada app se comprueba de nuevo justo antes de moverla; la que esté abierta o no pueda moverse se queda donde está.",
+    copies: "Copias que elegiste",
+    copiesNote:
+      "Ambas copias se vuelven a leer justo antes de moverlas; solo se mueve si siguen siendo iguales. Puedes restaurarla desde Cuarentena.",
+    copyStays: (name: string, stays: string) => `${name}: la copia en ${stays} se queda.`,
     uninstallTitle: "¿Mover esta app a Cuarentena?",
     uninstallNote: "Puedes restaurarla desde Cuarentena.",
     finalizeTitle: "¿Eliminar este elemento definitivamente?",

@@ -103,6 +103,18 @@ function useQuestion(ask: HostAsk): {
                 <Rows items={ask.apps} more={0} />
               </Group>
             )}
+            {ask.copies.length > 0 && (
+              <Group title={h.copies} note={h.copiesNote}>
+                <Rows items={ask.copies.map((copy) => copy.item)} more={0} />
+                <ul className="mt-1 space-y-0.5 text-[12px] text-ink-2">
+                  {ask.copies.map((copy) => (
+                    <li key={copy.item.path} className="break-all">
+                      {h.copyStays(copy.item.name, copy.stays.path)}
+                    </li>
+                  ))}
+                </ul>
+              </Group>
+            )}
           </>
         ),
       };

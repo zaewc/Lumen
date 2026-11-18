@@ -17,11 +17,11 @@ use std::sync::Arc;
 
 use lumen_api::views::{
     AiSettingsView, AssessProgressView, CandidateView, CompareOutcomeView, CompareProgressView,
-    DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, HelperView, PlanView,
-    QuarantineReportView, QuitView, ReassessRequest, ReassessView, RestoreOutcomeView,
-    ScanProgressView, ScanRequest, ScanView, SelectedAppView, SelectionReportView,
-    SelectionRequest, SoftwareView, ToolRunView, ToolStorageView, UninstallOutcomeView,
-    UninstallPreviewView, UnreadFoldersView, candidate_id,
+    CopyOutcomeView, CopyPreviewView, CopyRequest, DiskView, ExecuteRequest, FinalizeOutcomeView,
+    HeldItemView, HelperView, PlanView, QuarantineReportView, QuitView, ReassessRequest,
+    ReassessView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView, SelectedAppView,
+    SelectedCopyView, SelectionReportView, SelectionRequest, SoftwareView, ToolRunView,
+    ToolStorageView, UninstallOutcomeView, UninstallPreviewView, UnreadFoldersView, candidate_id,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -59,6 +59,12 @@ pub(crate) struct Core {
     /// The running comparison of copies, if any: one at a time, and what
     /// `cancel_comparison` stops.
     pub(crate) comparison: Arc<std::sync::Mutex<Option<CancelToken>>>,
+    /// The latest comparison's groups, as listed, with its ID and the scan's
+    /// real roots: what a copy's preview names (ADR-0069). Digests stay here.
+    pub(crate) compared: Arc<std::sync::Mutex<Option<Compared>>>,
+    /// Each copy preview's copy that stays, digest and roots, by preview:
+    /// given again when the copy moves.
+    pub(crate) kept_copies: Arc<std::sync::Mutex<std::collections::BTreeMap<PlanId, KeptCopy>>>,
     /// Startup's reconciliation (UX-3): run once, when the app starts, and
     /// waited for before the held items are first listed.
     pub(crate) settled: Arc<std::sync::Once>,
@@ -93,6 +99,18 @@ impl std::fmt::Debug for Core {
                     .map(|entries| entries.len()),
             )
             .field("tool_running", &self.tool_running.try_lock().is_err())
+            .field(
+                "compared",
+                &self
+                    .compared
+                    .try_lock()
+                    .ok()
+                    .map(|compared| compared.is_some()),
+            )
+            .field(
+                "kept_copies",
+                &self.kept_copies.try_lock().ok().map(|kept| kept.len()),
+            )
             .field(
                 "assessed",
                 &self.assessed.try_lock().ok().map(|assessed| assessed.len()),
@@ -803,6 +821,29 @@ impl Drop for Comparing {
     }
 }
 
+/// A comparison the host keeps for copy previews (ADR-0069).
+pub(crate) struct Compared {
+    /// What the page names it by.
+    pub(crate) id: String,
+    /// The scan it compared.
+    pub(crate) scan: ScanId,
+    /// Its roots at their real paths.
+    pub(crate) roots: Vec<lumen_domain::RawPath>,
+    /// Its groups, in the order the page lists them.
+    pub(crate) groups: Vec<lumen_app::duplicates::DuplicateGroup>,
+}
+
+/// What a copy's move needs again from the comparison.
+#[derive(Clone)]
+pub(crate) struct KeptCopy {
+    /// The copy that stays.
+    pub(crate) stays: lumen_domain::FilesystemEntry,
+    /// The contents' digest.
+    pub(crate) digest: [u8; 32],
+    /// The scan's real roots.
+    pub(crate) roots: Vec<lumen_domain::RawPath>,
+}
+
 /// Finds identical copies in the roots of the latest completed scan (ADR-0065).
 /// The UI supplies only the scan ID; the host checks it against the index and
 /// reads roots from there. Nothing is chosen, moved or removed. One comparison
@@ -819,6 +860,7 @@ pub(crate) async fn compare_scan(
     let cancel = CancelToken::new();
     let _running = Comparing::start(&core.comparison, &cancel)?;
     let db = core.db.clone();
+    let compared = Arc::clone(&core.compared);
     blocking(move || {
         let folders = scanned_roots(&db, scan)?;
         if folders.is_empty() {
@@ -837,7 +879,99 @@ pub(crate) async fn compare_scan(
                 listening = progress.send(CompareProgressView::new(stage, done)).is_ok();
             }
         });
-        CompareOutcomeView::new(&folders, found).map_err(CommandError::new)
+        let id = lumen_application::ports::IdGenerator::operation_id(&UuidV7Ids).to_string();
+        let kept = match &found {
+            Ok(found) if !found.report.cancelled => Some(Compared {
+                id: id.clone(),
+                scan,
+                roots: lumen_app::duplicates::real_scan_roots(&db, scan)
+                    .map_err(CommandError::new)?,
+                groups: lumen_api::views::ordered(&found.report)
+                    .into_iter()
+                    .cloned()
+                    .collect(),
+            }),
+            _ => None,
+        };
+        *compared
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = kept;
+        CompareOutcomeView::new(&folders, found)
+            .map(|outcome| outcome.with_comparison(&id))
+            .map_err(CommandError::new)
+    })
+    .await
+}
+
+/// Previews moving one copy of the latest comparison (ADR-0069): the page
+/// names the comparison, the group and both copies by their places, never a
+/// path. Reads both copies again in full and stores the preview if the copy
+/// gate passes; moves nothing.
+#[tauri::command]
+pub(crate) async fn copy_preview(
+    core: State<'_, Core>,
+    request: CopyRequest,
+) -> Result<CopyPreviewView, CommandError> {
+    if !lumen_app::duplicates::available() {
+        return Ok(CopyPreviewView::Unsupported);
+    }
+    let picked = {
+        let compared = core
+            .compared
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        compared.as_ref().and_then(|compared| {
+            if compared.id != request.comparison {
+                return None;
+            }
+            let group = compared.groups.get(usize::try_from(request.group).ok()?)?;
+            let at = |place: u32| group.files.get(usize::try_from(place).ok()?).cloned();
+            Some((
+                at(request.copy)?,
+                at(request.stays)?,
+                group.content_id,
+                compared.roots.clone(),
+                compared.scan,
+            ))
+        })
+    };
+    let Some((chosen, stays, digest, roots, scan)) = picked else {
+        return Ok(CopyPreviewView::Stale);
+    };
+    let db = core.db.clone();
+    let kept = Arc::clone(&core.kept_copies);
+    blocking(move || {
+        let store = IndexStore::new(open_index(&db).map_err(CommandError::new)?);
+        if store.latest_completed_scan().map_err(CommandError::new)? != Some(scan) {
+            return Ok(CopyPreviewView::Stale);
+        }
+        let previewed = match lumen_app::copies::preview(
+            &db,
+            &chosen,
+            &stays,
+            &digest,
+            &SystemClock,
+            &UuidV7Ids,
+        ) {
+            Ok(previewed) => previewed,
+            Err(lumen_app::copies::CopyError::Unsupported) => {
+                return Ok(CopyPreviewView::Unsupported);
+            }
+            Err(error) => return Err(CommandError::new(error)),
+        };
+        if let lumen_app::copies::Previewed::Ready(preview) = &previewed {
+            kept.lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .insert(
+                    preview.plan,
+                    KeptCopy {
+                        stays,
+                        digest,
+                        roots,
+                    },
+                );
+        }
+        Ok(CopyPreviewView::from(&previewed))
     })
     .await
 }
@@ -1152,6 +1286,7 @@ pub(crate) async fn execute_selection(
 ) -> Result<SelectionReportView, CommandError> {
     let db = core.db.clone();
     let prompt = Arc::clone(&core.prompt);
+    let kept_copies = Arc::clone(&core.kept_copies);
     let moving = core.activity.moving()?;
     blocking(move || {
         let _moving = moving;
@@ -1159,6 +1294,24 @@ pub(crate) async fn execute_selection(
             text.parse::<PlanId>()
                 .map_err(|_| CommandError::new("not a plan or preview ID"))
         };
+        // Each copy with what the host kept from its preview: the page names
+        // only the preview, never the copy that stays.
+        let copies = request
+            .copies
+            .iter()
+            .map(|copy| {
+                let preview = id(&copy.preview)?;
+                let kept = kept_copies
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .get(&preview)
+                    .cloned()
+                    .ok_or_else(|| {
+                        CommandError::new("that copy was not previewed here; compare again")
+                    })?;
+                Ok((preview, copy.confirmation.as_str(), kept))
+            })
+            .collect::<Result<Vec<_>, CommandError>>()?;
         let plan = request
             .plan
             .as_ref()
@@ -1169,7 +1322,11 @@ pub(crate) async fn execute_selection(
             .iter()
             .map(|app| Ok((id(&app.preview)?, app.confirmation.as_str())))
             .collect::<Result<Vec<_>, CommandError>>()?;
-        crate::confirmation::selection(&db, plan, &apps, &*prompt)?;
+        let named: Vec<_> = copies
+            .iter()
+            .map(|(preview, hash, kept)| (*preview, *hash, &kept.stays.path))
+            .collect();
+        let moving = crate::confirmation::selection(&db, plan, &apps, &named, &*prompt)?;
         let cleanup = plan
             .map(|(plan, hash)| {
                 lumen_app::quarantine::quarantine(
@@ -1184,33 +1341,85 @@ pub(crate) async fn execute_selection(
                 .map_err(CommandError::new)
             })
             .transpose()?;
-        let apps = apps
-            .iter()
-            .map(|(preview, hash)| {
-                match lumen_app::uninstall::uninstall(
-                    &db,
-                    *preview,
-                    hash,
-                    ConfirmationSurface::DesktopApp,
-                    &SystemClock,
-                    &UuidV7Ids,
-                ) {
-                    Ok(report) => SelectedAppView {
-                        preview: preview.to_string(),
-                        outcome: Some(UninstallOutcomeView::from(&report)),
-                        error: None,
-                    },
-                    Err(error) => SelectedAppView {
-                        preview: preview.to_string(),
-                        outcome: None,
-                        error: Some(error.to_string()),
-                    },
-                }
-            })
-            .collect();
-        Ok(SelectionReportView { cleanup, apps })
+        let apps = move_apps(&db, &apps);
+        let copies = move_copies(&db, &copies, &moving, &kept_copies);
+        Ok(SelectionReportView {
+            cleanup,
+            apps,
+            copies,
+        })
     })
     .await
+}
+
+/// Moves each app of a confirmed selection; one app's refusal leaves the rest.
+fn move_apps(db: &Path, apps: &[(PlanId, &str)]) -> Vec<SelectedAppView> {
+    apps.iter()
+        .map(|(preview, hash)| {
+            match lumen_app::uninstall::uninstall(
+                db,
+                *preview,
+                hash,
+                ConfirmationSurface::DesktopApp,
+                &SystemClock,
+                &UuidV7Ids,
+            ) {
+                Ok(report) => SelectedAppView {
+                    preview: preview.to_string(),
+                    outcome: Some(UninstallOutcomeView::from(&report)),
+                    error: None,
+                },
+                Err(error) => SelectedAppView {
+                    preview: preview.to_string(),
+                    outcome: None,
+                    error: Some(error.to_string()),
+                },
+            }
+        })
+        .collect()
+}
+
+/// Moves each copy of a confirmed selection, whose copy that stays must be
+/// outside everything that `moving` names; one copy's refusal leaves the rest.
+fn move_copies(
+    db: &Path,
+    copies: &[(PlanId, &str, KeptCopy)],
+    moving: &[lumen_domain::RawPath],
+    kept_copies: &std::sync::Mutex<std::collections::BTreeMap<PlanId, KeptCopy>>,
+) -> Vec<SelectedCopyView> {
+    copies
+        .iter()
+        .map(|(preview, hash, kept)| {
+            let moved = lumen_app::copies::move_copy(
+                db,
+                *preview,
+                hash,
+                &kept.stays,
+                &kept.digest,
+                &kept.roots,
+                crate::confirmation::outside(&kept.stays.path, moving),
+                ConfirmationSurface::DesktopApp,
+                &SystemClock,
+                &UuidV7Ids,
+            );
+            kept_copies
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .remove(preview);
+            match moved {
+                Ok(report) => SelectedCopyView {
+                    preview: preview.to_string(),
+                    outcome: Some(CopyOutcomeView::from(&report)),
+                    error: None,
+                },
+                Err(error) => SelectedCopyView {
+                    preview: preview.to_string(),
+                    outcome: None,
+                    error: Some(error.to_string()),
+                },
+            }
+        })
+        .collect()
 }
 
 /// The longest software-list key accepted; the list's keys are an origin and
