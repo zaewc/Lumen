@@ -420,6 +420,11 @@ fn execute_item(
     let Ok(prepared) = executor.prepare(&root, &relative) else {
         return Ok(CopyResult::Changed);
     };
+    // What the executor recorded must be the confirmed copy: it moves the
+    // file its record names, not whatever the path names later.
+    if lumen_fs_exec::recorded_identity(&prepared).as_ref() != Some(identity) {
+        return Ok(CopyResult::Changed);
+    }
     // Observed after the executor recorded it: what it recorded is the
     // planned copy, or the executor's own check refuses the move.
     let Some(entry) = enumerator()
