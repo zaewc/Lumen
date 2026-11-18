@@ -69,6 +69,13 @@ pub enum PlanError {
         /// Why.
         why: NotChoosable,
     },
+    /// A path the person left out is not one of the policy's proposals;
+    /// nothing was planned (ADR-0069).
+    #[error("{path} cannot be left out: Lumen does not propose it")]
+    NotProposed {
+        /// The path, for display.
+        path: String,
+    },
     /// The plan could not be stored.
     #[error("the index database failed: {0}")]
     Store(#[from] StoreError),
@@ -201,7 +208,7 @@ pub fn plan(
     judge: &dyn lumen_application::ports::JudgeModel,
     chosen: &[RawPath],
 ) -> Result<Planned, PlanError> {
-    plan_in(db, clock, ids, judge, chosen, true)
+    plan_in(db, clock, ids, judge, chosen, Proposals::All)
 }
 
 /// Plans only the review items at the `chosen` paths (ADR-0051), without
@@ -219,32 +226,86 @@ pub fn plan_chosen(
     judge: &dyn lumen_application::ports::JudgeModel,
     chosen: &[RawPath],
 ) -> Result<Planned, PlanError> {
-    plan_in(db, clock, ids, judge, chosen, false)
+    plan_in(db, clock, ids, judge, chosen, Proposals::None)
 }
 
-/// `picked`, without the policy's proposals unless `proposed`.
-fn scoped(mut picked: Vec<(Assessed, Chooser)>, proposed: bool) -> Vec<(Assessed, Chooser)> {
-    if !proposed {
-        picked.retain(|(_, chooser)| *chooser == Chooser::Person);
+/// Plans the policy's proposals except those at the `left_out` paths, and
+/// the review items at the `chosen` paths (ADR-0069): the person unchecked
+/// some proposals. Leaving out only makes the plan smaller than [`plan`]'s.
+///
+/// # Errors
+///
+/// As [`plan`]; [`PlanError::NotProposed`] when a `left_out` path is not a
+/// proposal of the latest assessment, so a stale choice never goes unnoticed.
+#[tracing::instrument(
+    name = "plan_selected",
+    skip_all,
+    fields(chosen = chosen.len(), left_out = left_out.len())
+)]
+pub fn plan_selected(
+    db: &Path,
+    clock: &dyn Clock,
+    ids: &dyn IdGenerator,
+    judge: &dyn lumen_application::ports::JudgeModel,
+    chosen: &[RawPath],
+    left_out: &[RawPath],
+) -> Result<Planned, PlanError> {
+    plan_in(db, clock, ids, judge, chosen, Proposals::Except(left_out))
+}
+
+/// Which of the policy's proposals enter a plan.
+#[derive(Debug, Clone, Copy)]
+enum Proposals<'a> {
+    /// Every proposal.
+    All,
+    /// None: only what the person chose.
+    None,
+    /// Every proposal except those at these paths, each of which must be one.
+    Except(&'a [RawPath]),
+}
+
+/// `picked`, with the policy's proposals as `proposals` says.
+fn scoped(
+    mut picked: Vec<(Assessed, Chooser)>,
+    proposals: Proposals<'_>,
+) -> Result<Vec<(Assessed, Chooser)>, PlanError> {
+    match proposals {
+        Proposals::All => {}
+        Proposals::None => picked.retain(|(_, chooser)| *chooser == Chooser::Person),
+        Proposals::Except(left_out) => {
+            let left_out: BTreeSet<&RawPath> = left_out.iter().collect();
+            for path in &left_out {
+                if !picked
+                    .iter()
+                    .any(|(a, by)| *by == Chooser::Policy && &a.candidate.path == *path)
+                {
+                    return Err(PlanError::NotProposed {
+                        path: path.display(),
+                    });
+                }
+            }
+            picked
+                .retain(|(a, by)| *by == Chooser::Person || !left_out.contains(&a.candidate.path));
+        }
     }
-    picked
+    Ok(picked)
 }
 
-/// [`plan`] with the policy's proposals (`proposed`) or without them.
+/// [`plan`] with the policy's proposals as `proposals` says.
 fn plan_in(
     db: &Path,
     clock: &dyn Clock,
     ids: &dyn IdGenerator,
     judge: &dyn lumen_application::ports::JudgeModel,
     chosen: &[RawPath],
-    proposed: bool,
+    proposals: Proposals<'_>,
 ) -> Result<Planned, PlanError> {
     let assessed = crate::assess::assess(db, clock, judge, &lumen_application::ports::NoopJudge)?;
     let assessed = carry_demotions(assessed, &recorded_demotions(db)?);
     let picked = scoped(
         pick(assessed, chosen, |a| tool_action(a).is_some())?,
-        proposed,
-    );
+        proposals,
+    )?;
     if picked.is_empty() {
         return Err(PlanError::NothingToPlan);
     }
@@ -434,8 +495,9 @@ mod tests {
         );
         let only: Vec<String> = scoped(
             pick(items.clone(), &chosen, |_| false).unwrap_or_else(|e| unreachable!("{e}")),
-            false,
+            Proposals::None,
         )
+        .unwrap_or_else(|e| unreachable!("{e}"))
         .into_iter()
         .map(|(a, _)| a.candidate.path.display())
         .collect();
@@ -456,6 +518,56 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn left_out_proposals_never_enter_the_plan_and_must_be_proposals() {
+        let items = vec![
+            assessed(
+                "/h/a",
+                decision(Verdict::Quarantine, "classify.devkb-regenerable"),
+            ),
+            assessed(
+                "/h/b",
+                decision(Verdict::Quarantine, "classify.devkb-regenerable"),
+            ),
+            assessed("/h/chosen", decision(Verdict::Review, "default.review")),
+            assessed("/h/kept", decision(Verdict::Keep, "default.keep")),
+        ];
+        let picked = |left_out: &[RawPath]| {
+            scoped(
+                pick(items.clone(), &[raw("/h/chosen")], |_| false)
+                    .unwrap_or_else(|e| unreachable!("{e}")),
+                Proposals::Except(left_out),
+            )
+            .map(|picked| {
+                picked
+                    .into_iter()
+                    .map(|(a, by)| (a.candidate.path.display(), by))
+                    .collect::<Vec<_>>()
+            })
+        };
+        assert_eq!(
+            picked(&[raw("/h/a")]).unwrap_or_else(|e| unreachable!("{e}")),
+            [
+                ("/h/b".to_owned(), Chooser::Policy),
+                ("/h/chosen".to_owned(), Chooser::Person),
+            ],
+            "the left-out proposal is gone; the rest and the choice stay"
+        );
+        assert_eq!(
+            picked(&[raw("/h/a"), raw("/h/b")])
+                .unwrap_or_else(|e| unreachable!("{e}"))
+                .len(),
+            1,
+            "only the chosen item is left"
+        );
+        for path in ["/h/chosen", "/h/kept", "/h/nowhere"] {
+            assert!(
+                matches!(picked(&[raw(path)]), Err(PlanError::NotProposed { .. })),
+                "{path} is not a proposal, so leaving it out is refused"
+            );
+        }
     }
 
     #[test]
