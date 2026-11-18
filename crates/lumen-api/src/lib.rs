@@ -78,6 +78,12 @@ use utoipa::OpenApi;
         views::CompareProgressView,
         views::DuplicateGroupView,
         views::DuplicatesView,
+        views::CopyRequest,
+        views::CopyReasonView,
+        views::CopyPreviewView,
+        views::CopyResultView,
+        views::CopyOutcomeView,
+        views::SelectedCopyView,
         views::CompareOutcomeView,
         views::ReassessRequest,
         views::ReassessGapView,
@@ -165,7 +171,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 101);
+        assert_eq!(schemas, 107);
     }
 
     #[test]

@@ -472,6 +472,9 @@ export const zhCN: Messages = {
     apps: "你选择的应用",
     appsNote:
       "~/Library 中的应用数据会保留。每个应用在移动前都会再次检查；正在运行或无法移动的应用会留在原处。",
+    copies: "你选择的相同文件",
+    copiesNote: "移动前会重新读取两个副本，只有内容仍然相同时才移动。可从隔离区恢复。",
+    copyStays: (name: string, stays: string) => `${name}：${stays} 中的副本会保留。`,
     uninstallTitle: "将此应用移至隔离区？",
     uninstallNote: "你可以从隔离区恢复它。",
     finalizeTitle: "永久移除此项目？",

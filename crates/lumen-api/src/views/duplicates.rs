@@ -4,7 +4,11 @@
 
 use std::path::PathBuf;
 
-use lumen_app::duplicates::{Duplicates, DuplicatesError, HashStage};
+use lumen_app::copies::Previewed;
+use lumen_app::duplicates::{
+    DuplicateGroup, DuplicateReport, Duplicates, DuplicatesError, HashStage,
+};
+use lumen_application::copies::Ineligible;
 use lumen_domain::FilesystemEntry;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -57,6 +61,9 @@ pub struct DuplicateGroupView {
 /// What a comparison found and what it could not cover.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct DuplicatesView {
+    /// This comparison, as the host keeps it: a copy is named by it, its
+    /// group's place in `groups` and the copy's place in `paths` (ADR-0069).
+    pub comparison: String,
     /// The roots of the completed scan.
     pub folders: Vec<String>,
     /// Identical copies, the largest extra copies first. Copies can share
@@ -92,7 +99,32 @@ fn paths(files: &[FilesystemEntry]) -> Vec<String> {
     files.iter().map(|file| file.path.display()).collect()
 }
 
+/// The groups in the order the view lists them, largest extra copies first:
+/// what a group's place in [`DuplicatesView::groups`] refers to.
+#[must_use]
+pub fn ordered(report: &DuplicateReport) -> Vec<&DuplicateGroup> {
+    let mut groups: Vec<_> = report
+        .groups
+        .iter()
+        .filter(|group| !group.files.is_empty())
+        .collect();
+    groups.sort_by_key(|group| std::cmp::Reverse(group.logical_redundancy()));
+    groups
+}
+
 impl CompareOutcomeView {
+    /// The same outcome, naming its comparison `id` (ADR-0069).
+    #[must_use]
+    pub fn with_comparison(self, id: &str) -> Self {
+        match self {
+            Self::Compared { mut report } => {
+                id.clone_into(&mut report.comparison);
+                Self::Compared { report }
+            }
+            other => other,
+        }
+    }
+
     /// The outcome of comparing `folders`.
     ///
     /// # Errors
@@ -111,10 +143,10 @@ impl CompareOutcomeView {
         if report.cancelled {
             return Ok(Self::Cancelled);
         }
-        let mut groups: Vec<_> = report.groups.iter().collect();
-        groups.sort_by_key(|group| std::cmp::Reverse(group.logical_redundancy()));
+        let groups = ordered(report);
         Ok(Self::Compared {
             report: DuplicatesView {
+                comparison: String::new(),
                 folders: folders
                     .iter()
                     .map(|folder| folder.display().to_string())
@@ -135,6 +167,177 @@ impl CompareOutcomeView {
             },
         })
     }
+}
+
+/// A copy to preview for moving (ADR-0069): the comparison, the group's
+/// place in it, the copy that moves and the copy that stays, by their places
+/// in the group's `paths`. Never a path.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CopyRequest {
+    /// [`DuplicatesView::comparison`].
+    pub comparison: String,
+    /// The group's place in [`DuplicatesView::groups`].
+    pub group: u32,
+    /// The copy that moves.
+    pub copy: u32,
+    /// The copy that stays.
+    pub stays: u32,
+}
+
+/// Why a copy cannot move.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CopyReasonView {
+    /// The two are the same file.
+    SameFile,
+    /// One of them is not a regular file.
+    NotAFile,
+    /// One of them has other names (hard links).
+    HardLinked,
+    /// The copy is in a protected location.
+    Protected,
+    /// No copy of the group would stay.
+    NothingStays,
+    /// Their contents differ now, or could not be read and compared.
+    ContentsDiffer,
+}
+
+impl From<Ineligible> for CopyReasonView {
+    fn from(reason: Ineligible) -> Self {
+        match reason {
+            Ineligible::SameFile => Self::SameFile,
+            Ineligible::NotAFile => Self::NotAFile,
+            Ineligible::HardLinked => Self::HardLinked,
+            Ineligible::Protected => Self::Protected,
+            Ineligible::NothingStays => Self::NothingStays,
+            Ineligible::ContentsDiffer => Self::ContentsDiffer,
+        }
+    }
+}
+
+/// A copy's preview, or why there is none.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum CopyPreviewView {
+    /// Ready to confirm by its full hash.
+    Ready {
+        /// The preview's ID.
+        preview: String,
+        /// Its full hash, the confirmation.
+        hash: String,
+        /// The copy that moves; display-escaped.
+        path: String,
+        /// The copy that stays; display-escaped.
+        stays: String,
+        /// What it frees once removed for good, in bytes.
+        bytes: String,
+    },
+    /// The gate refused, with every reason.
+    Refused {
+        /// Why.
+        reasons: Vec<CopyReasonView>,
+    },
+    /// The comparison is not the latest, or names no such copy: compare again.
+    Stale,
+    /// This platform cannot read contents to compare.
+    Unsupported,
+}
+
+impl From<&Previewed> for CopyPreviewView {
+    fn from(previewed: &Previewed) -> Self {
+        match previewed {
+            Previewed::Ready(preview) => Self::Ready {
+                preview: preview.plan.to_string(),
+                hash: preview.hash.clone(),
+                path: preview.path.display(),
+                stays: preview.stays.display(),
+                bytes: preview.reclaim.get().to_string(),
+            },
+            Previewed::Refused(reasons) => Self::Refused {
+                reasons: reasons.iter().copied().map(CopyReasonView::from).collect(),
+            },
+        }
+    }
+}
+
+/// What moving a copy did.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum CopyResultView {
+    /// It is in Quarantine, restorable.
+    Quarantined {
+        /// The operation, for restoring or removing it for good.
+        operation: String,
+    },
+    /// Checked again right before the move, it may not go now; not moved.
+    Refused {
+        /// Every reason, at least one.
+        reasons: Vec<CopyReasonView>,
+    },
+    /// It, the copy that stays or their contents changed; not moved.
+    Changed,
+    /// The move failed.
+    Failed {
+        /// Why.
+        reason: super::FailureView,
+        /// Where the copy is.
+        left: super::LocationView,
+    },
+}
+
+/// A moved copy's preview, executed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct CopyOutcomeView {
+    /// The preview.
+    pub preview: String,
+    /// Where the copy was; display-escaped.
+    pub path: String,
+    /// What removing it for good frees, in bytes.
+    pub size_bytes: String,
+    /// What happened.
+    pub result: CopyResultView,
+    /// Problems that did not stop it.
+    pub warnings: Vec<String>,
+}
+
+impl From<&lumen_app::copies::CopyReport> for CopyOutcomeView {
+    fn from(report: &lumen_app::copies::CopyReport) -> Self {
+        use lumen_app::copies::CopyResult;
+        Self {
+            preview: report.plan.to_string(),
+            path: report.path.display(),
+            size_bytes: report.reclaim.get().to_string(),
+            result: match &report.result {
+                CopyResult::Quarantined(operation) => CopyResultView::Quarantined {
+                    operation: operation.to_string(),
+                },
+                CopyResult::Refused(reasons) => CopyResultView::Refused {
+                    reasons: reasons.iter().copied().map(CopyReasonView::from).collect(),
+                },
+                CopyResult::Changed => CopyResultView::Changed,
+                CopyResult::Failed { reason, left } => CopyResultView::Failed {
+                    reason: (*reason).into(),
+                    left: (*left).into(),
+                },
+            },
+            warnings: report.warnings.clone(),
+        }
+    }
+}
+
+/// What happened to one copy of a selection: its outcome, or why it was not
+/// tried. One copy's refusal never stops the others.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct SelectedCopyView {
+    /// The preview.
+    pub preview: String,
+    /// What happened, when the move was tried.
+    #[schema(required = true)]
+    pub outcome: Option<CopyOutcomeView>,
+    /// Why it was not tried or failed; display text.
+    #[schema(required = true)]
+    pub error: Option<String>,
 }
 
 #[cfg(test)]

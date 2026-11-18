@@ -965,6 +965,7 @@ export function memoryTransport({
       return {
         kind: "compared",
         report: {
+          comparison: "0190f0d2-6c1e-7a3b-8c4d-5e6f70819300",
           folders: ["/Users/demo"],
           groups: [
             {
@@ -1164,7 +1165,13 @@ export function memoryTransport({
           apps.push({ preview: app.preview, outcome: null, error: String(error) });
         }
       }
-      return { cleanup, apps };
+      // The sample host keeps no comparison, so it has no copy to move.
+      const copies = (request.copies ?? []).map((copy) => ({
+        preview: copy.preview,
+        outcome: null,
+        error: "that copy was not previewed here; compare again",
+      }));
+      return { cleanup, apps, copies };
     },
   };
 }

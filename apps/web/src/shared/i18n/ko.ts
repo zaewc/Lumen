@@ -492,6 +492,10 @@ export const ko = {
     apps: "직접 선택한 앱",
     appsNote:
       "~/Library의 앱 데이터는 그대로 둬요. 옮기기 직전에 앱마다 다시 확인하고, 실행 중이거나 옮길 수 없는 앱은 빼고 옮겨요.",
+    copies: "직접 선택한 똑같은 파일",
+    copiesNote:
+      "옮기기 직전에 두 사본을 다시 읽어 내용이 같을 때만 옮겨요. 격리함에서 복원할 수 있어요.",
+    copyStays: (name: string, stays: string) => `${name}: ${stays}에 있는 사본은 그대로 둬요.`,
     uninstallTitle: "이 앱을 격리함으로 옮길까요?",
     uninstallNote: "격리함에서 다시 복원할 수 있어요.",
     finalizeTitle: "이 항목을 영구 삭제할까요?",

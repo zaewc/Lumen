@@ -526,6 +526,9 @@ pub struct SelectionRequest {
     pub plan: Option<ExecuteRequest>,
     /// The checked apps.
     pub apps: Vec<AppConfirmationRequest>,
+    /// The checked copies of identical files, each by its preview and hash.
+    #[serde(default)]
+    pub copies: Vec<AppConfirmationRequest>,
 }
 
 /// What happened to one app of a selection: its outcome, or why it was
@@ -550,4 +553,6 @@ pub struct SelectionReportView {
     pub cleanup: Option<QuarantineReportView>,
     /// Each app, in the order given.
     pub apps: Vec<SelectedAppView>,
+    /// Each copy, in the order given.
+    pub copies: Vec<super::SelectedCopyView>,
 }

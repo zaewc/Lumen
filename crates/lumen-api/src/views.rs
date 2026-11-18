@@ -37,7 +37,9 @@ mod uninstall;
 mod unread;
 
 pub use duplicates::{
-    CompareOutcomeView, CompareProgressView, CompareStageView, DuplicateGroupView, DuplicatesView,
+    CompareOutcomeView, CompareProgressView, CompareStageView, CopyOutcomeView, CopyPreviewView,
+    CopyReasonView, CopyRequest, CopyResultView, DuplicateGroupView, DuplicatesView,
+    SelectedCopyView, ordered,
 };
 pub use facts::{AppDataKindView, BasisView, FactKindView, FactView};
 pub use helper::{HelperReachView, HelperRegistrationView, HelperView};

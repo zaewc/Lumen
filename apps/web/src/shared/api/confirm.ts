@@ -23,6 +23,8 @@ export const zHostAsk = z.discriminatedUnion("kind", [
     chosen: z.array(zItem),
     /** Apps the person chose to move with them (ADR-0069). */
     apps: z.array(zItem),
+    /** Copies the person chose, each with the copy that stays (ADR-0069). */
+    copies: z.array(z.object({ item: zItem, stays: zItem })),
   }),
   z.object({ kind: z.literal("uninstall"), items: z.array(zItem) }),
   z.object({ kind: z.literal("finalize"), item: zItem, chosen: z.boolean() }),

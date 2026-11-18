@@ -492,6 +492,10 @@ export const ja: Messages = {
     apps: "選択したアプリ",
     appsNote:
       "~/Library のアプリデータはそのまま残します。移動の直前にアプリごとに再確認し、実行中や移動できないアプリは残します。",
+    copies: "選択した同一ファイル",
+    copiesNote:
+      "移動の直前に両方のコピーを読み直し、内容が同じときだけ移動します。隔離から復元できます。",
+    copyStays: (name: string, stays: string) => `${name}: ${stays} のコピーは残します。`,
     uninstallTitle: "このアプリを隔離に移動しますか？",
     uninstallNote: "隔離から復元できます。",
     finalizeTitle: "この項目を完全に削除しますか？",
