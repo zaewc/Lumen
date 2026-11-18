@@ -36,7 +36,6 @@ export const ru: Messages = {
     label: "Главное меню",
     overview: "Хранилище",
     quarantine: "Карантин",
-    apps: "Приложения",
     settings: "Настройки",
     held: (n: number) => `${items(n)} в карантине`,
   },

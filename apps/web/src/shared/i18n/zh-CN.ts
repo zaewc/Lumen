@@ -23,7 +23,6 @@ export const zhCN: Messages = {
     label: "主导航",
     overview: "存储空间",
     quarantine: "隔离区",
-    apps: "应用",
     settings: "设置",
     held: (n: number) => `隔离区中有 ${items(n)}`,
   },

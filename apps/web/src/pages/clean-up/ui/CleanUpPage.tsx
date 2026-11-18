@@ -1,6 +1,6 @@
 import type { CopyRequest } from "@lumen/api-client";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { summarize, useScanSession } from "@/entities/scan-session";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
@@ -23,6 +23,7 @@ import { useCleanUpAction } from "./CleanUpAction";
 import { DiskUsage } from "./DiskUsage";
 import { DonePanel } from "./DonePanel";
 import { Duplicates } from "./Duplicates";
+import { InstalledApps } from "./InstalledApps";
 import { ProgressPanel } from "./ProgressPanel";
 import { Results } from "./Results";
 import { StartPanel } from "./StartPanel";
@@ -163,6 +164,17 @@ export function CleanUpPage() {
     onSent: forgetSent,
   });
   const canRescan = step === "results" || step === "done" || step === "decideFailed";
+  // The installed apps (ADR-0069): open before a scan, and when a link or the
+  // former Apps page leads to them (#apps).
+  const [appsOpen, setAppsOpen] = useState(() => window.location.hash === "#apps");
+  useEffect(() => {
+    const follow = () => {
+      if (window.location.hash === "#apps") setAppsOpen(true);
+    };
+    window.addEventListener("hashchange", follow);
+    return () => window.removeEventListener("hashchange", follow);
+  }, []);
+  const showApps = appsOpen || step === "start";
   useShortcut("r", rescan, canRescan && !session.cleaning);
 
   const scanAgain = (
@@ -314,6 +326,21 @@ export function CleanUpPage() {
             : {})}
         />
       )}
+      <details
+        id="apps"
+        open={showApps}
+        onToggle={(event) => setAppsOpen(event.currentTarget.open)}
+        className="pt-8"
+      >
+        <summary className="cursor-pointer text-[13px] text-accent-ink hover:underline">
+          {m.results.apps.seeAll}
+        </summary>
+        {showApps && (
+          <div className="pt-3">
+            <InstalledApps />
+          </div>
+        )}
+      </details>
     </Page>
   );
 }

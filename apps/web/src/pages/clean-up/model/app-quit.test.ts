@@ -4,7 +4,7 @@ import type {
   UninstallReasonView,
 } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
-import { mayBeRunning, onlyRunning, quitStage } from "./quit";
+import { mayBeRunning, onlyRunning, quitStage } from "./app-quit";
 
 const app: UninstallAppView = {
   key: "mac_app:com.spotify.client",

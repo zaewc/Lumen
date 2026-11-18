@@ -1,12 +1,12 @@
 import type { CandidateView, SoftwareItemView } from "@lumen/api-client";
 import { type KeyboardEvent, type ReactNode, useId, useRef, useState } from "react";
-import { softwareTitle } from "@/entities/app-move";
 import { statusOf } from "@/entities/scan-session";
 import { aiNoteText, useI18n } from "@/shared/i18n";
 import { baseName, formatBytes, parentPath } from "@/shared/lib";
 import { Bytes } from "@/shared/ui";
 import { commandLine } from "../lib/command";
 import { moveIndex } from "../lib/keys";
+import { softwareTitle } from "../model/app-title";
 import { type Lens, type LensMark, lensMark } from "../model/lens";
 import type { Owner, OwnerPart } from "../model/owners";
 import { type AppCheck, checkable } from "../model/selection";

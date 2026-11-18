@@ -32,7 +32,6 @@ export const ko = {
     label: "주 메뉴",
     overview: "저장 공간",
     quarantine: "격리함",
-    apps: "앱",
     settings: "설정",
     held: (n: number) => `격리함에 ${items(n)}`,
   },

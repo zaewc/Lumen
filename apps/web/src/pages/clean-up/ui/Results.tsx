@@ -2,12 +2,12 @@ import type { CandidateView, ScanView, SoftwareItemView } from "@lumen/api-clien
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { MoveFlow, MoveResult, softwareTitle } from "@/entities/app-move";
 import { type CandidateSummary, DecisionMap, useScanSession } from "@/entities/scan-session";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, userAgent } from "@/shared/lib";
 import { buttonClass, ErrorNotice, InfoTip, Notice } from "@/shared/ui";
+import { softwareTitle } from "../model/app-title";
 import { closingSummary } from "../model/closing";
 import { coverageOf } from "../model/coverage";
 import { type Filter, shows } from "../model/filter";
@@ -17,6 +17,7 @@ import { candidatesIn, topographyOf, trailTo, unreadEntries } from "../model/top
 import { CandidateList, type Check } from "./CandidateList";
 import { CandidateSheet } from "./CandidateSheet";
 import { FlowStage } from "./FlowStage";
+import { MoveFlow, MoveResult } from "./MoveFlow";
 import { useReviewMove } from "./ReviewMove";
 import { ScanDetails } from "./ScanDetails";
 import { StepHeading } from "./StepHeading";
@@ -238,9 +239,9 @@ export function Results({
       {withApps && installed !== undefined && (
         <div className="space-y-1 px-2 text-[13px]">
           {unmeasured > 0 && <p className="text-ink-2">{m.results.apps.outside(unmeasured)}</p>}
-          <Link to="/apps" className="text-accent-ink hover:underline">
+          <a href="#apps" className="text-accent-ink hover:underline">
             {m.results.apps.seeAll}
-          </Link>
+          </a>
         </div>
       )}
       {app !== null && <MoveFlow item={app} onClose={() => setApp(null)} />}
