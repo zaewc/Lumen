@@ -283,6 +283,10 @@ export const fr: Messages = {
       "L'analyse s'est arrêtée, car le disque est presque plein (Lumen conserve toujours 2 Go d'espace libre). Voici les résultats obtenus jusque-là. Libérez de l'espace et relancez l'analyse.",
   },
   action: {
+    cleanUpSelected: (n: number, size: string) =>
+      `Nettoyer · ${n} élément${n === 1 ? "" : "s"}, ${size}…`,
+    nothingSelected: "Rien n’est sélectionné.",
+    check: (name: string) => `Sélectionner ${name}`,
     cleanUp: "Nettoyer…",
     preparing: "Préparation…",
     nothing: "Aucun élément n'est proposé au nettoyage.",

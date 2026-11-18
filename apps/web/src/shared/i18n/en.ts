@@ -294,6 +294,10 @@ export const en = {
       "The scan stopped because the disk is almost full (Lumen always leaves 2 GB free). Here is what it found until then. Free some space and scan again.",
   },
   action: {
+    cleanUpSelected: (n: number, size: string) =>
+      `Clean up · ${n} ${n === 1 ? "item" : "items"}, ${size}…`,
+    nothingSelected: "Nothing is selected.",
+    check: (name: string) => `Select ${name}`,
     cleanUp: "Clean up…",
     preparing: "Preparing…",
     nothing: "Nothing is proposed for clean-up.",

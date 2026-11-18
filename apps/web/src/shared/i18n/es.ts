@@ -291,6 +291,10 @@ export const es: Messages = {
       "El análisis se detuvo porque el disco está casi lleno (Lumen siempre deja 2 GB libres). Estos son los resultados obtenidos hasta entonces. Libera algo de espacio y vuelve a analizar.",
   },
   action: {
+    cleanUpSelected: (n: number, size: string) =>
+      `Limpiar · ${n} ${n === 1 ? "elemento" : "elementos"}, ${size}…`,
+    nothingSelected: "No hay nada seleccionado.",
+    check: (name: string) => `Seleccionar ${name}`,
     cleanUp: "Limpiar…",
     preparing: "Preparando…",
     nothing: "No hay nada propuesto para limpiar.",
