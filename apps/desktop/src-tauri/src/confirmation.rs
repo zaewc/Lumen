@@ -425,11 +425,28 @@ pub(crate) fn selection(
                 .map(|planned| (entry(planned), item(stays, None))),
         );
     }
+    every_copy_stays(copies.iter().map(|(_, _, stays)| *stays), &moving)?;
     ask(
         prompt,
         &move_ask(items.iter().map(entry).collect(), previewed, chosen_copies)?,
     )?;
     Ok(moving)
+}
+
+/// Refuses, before anything is asked, a selection in which a copy named as
+/// the one that stays is itself moved or inside something that moves, so the
+/// window never says a copy stays when it would not.
+fn every_copy_stays<'a>(
+    stays: impl IntoIterator<Item = &'a RawPath>,
+    moving: &[RawPath],
+) -> Result<(), CommandError> {
+    if stays.into_iter().all(|path| outside(path, moving)) {
+        Ok(())
+    } else {
+        Err(CommandError::new(
+            "a copy chosen to stay is also selected; choose which copy stays and try again; nothing was changed",
+        ))
+    }
 }
 
 /// Whether `path` is outside every one of `moving`: neither one of them nor
@@ -627,6 +644,20 @@ mod tests {
             "too many apps to name"
         );
         Ok(())
+    }
+
+    #[test]
+    fn a_selection_whose_kept_copy_also_moves_is_refused_before_asking() {
+        let moving = [raw("/d/a.mov"), raw("/d/b.mov")];
+        assert!(
+            every_copy_stays([&raw("/d/b.mov")], &moving).is_err(),
+            "A keeps B while B moves"
+        );
+        let c = raw("/d/c.mov");
+        assert!(
+            every_copy_stays([&c, &c], &moving).is_ok(),
+            "A and B both keep an unselected C"
+        );
     }
 
     #[test]
