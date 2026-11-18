@@ -1,7 +1,8 @@
 # Storage in one place (roadmap 16.11)
 
-- Status: **Direction and name accepted by the owner (2026-11-18)**; the rest is the
-  lead's design, open to the owner's revision. Decision record:
+- Status: **Built** (2026-11-18), steps 1–11 (#945, #947–#960 and this one); direction, name, identical copies and checkable apps
+  accepted by the owner (2026-11-18). Copies move on macOS and Linux only for now:
+  Windows needs the executor to report the file it recorded first. Decision record:
   [ADR-0069](../decisions/0069-show-storage-in-one-place-grouped-by-owner.md).
 - Replaces: [apps-in-explore.md](apps-in-explore.md) (Option A, shipped in 0.13.0, is
   the first step towards this).
