@@ -21,7 +21,7 @@ to a tool that decides about people's files. It complements
 
 1. **Predictable hint:** can the user tell what happens next? Buttons name their result
    ("격리함으로 옮기기", not "확인"); a trailing "…" means a confirmation follows.
-   A link to another place names that place ("탐색 열기", "격리함 열기"), and a
+   A link to another place names that place ("격리함 열기", "설정 열기"), and a
    place's name is not reused for something else on another screen.
 2. **Weed cutting:** remove words that change nothing ("앞으로", "현재", "해당", "모든"
    when not needed).
@@ -83,8 +83,7 @@ matching translated terms consistently.
 
 | Korean | English | Meaning |
 | --- | --- | --- |
-| 저장 공간 | Storage | The place: the disk and the last scan at a glance |
-| 탐색 | Explore | The place where a scan runs, its items are explained and cleaned up |
+| 저장 공간 | Storage | The one place for the disk (ADR-0069): the scan, its items under what owns them, the installed apps and identical copies, and the clean-up. "탐색" (Explore) and the separate "앱" (Apps) page are retired |
 | 검사 | Scan | Read-only look at the disk |
 | 읽은 항목 | Entries read | Every file and folder a scan read; a progress count only |
 | 살펴본 항목 | Assessed items | The items the policy decided about; never "찾은 항목" |
@@ -93,7 +92,7 @@ matching translated terms consistently.
 | 똑같은 파일 | Identical copies | Files with the same contents in the roots of the latest completed scan; compared separately after scanning, for review only, and Lumen never picks one to remove ([ADR-0065](../decisions/0065-compare-completed-scan-roots-for-identical-copies.md)) |
 | 검토 필요 | Needs review | The user should look before anything moves |
 | 유지 | Kept | Lumen leaves it alone |
-| 정리하기 | Clean up | Move proposed items to Quarantine (after confirming) |
+| 정리하기 | Clean up | Move what is checked to Quarantine (after one confirmation): Lumen's proposals, and the review items, apps and copies the person checked |
 | 격리함 | Quarantine | Where moved items wait, restorable |
 | 복원 | Restore | Put an item back where it was |
 | 영구 삭제 | Remove for good | Delete from Quarantine; cannot be undone |
