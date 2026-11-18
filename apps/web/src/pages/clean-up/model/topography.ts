@@ -1,11 +1,12 @@
-import type { CandidateView, RootView } from "@lumen/api-client";
+import type { CandidateView, RootView, SoftwareItemView } from "@lumen/api-client";
 import { type Status, statusOf } from "@/entities/scan-session";
-import { type SectionKind, sectionsOf } from "./sections";
+import { ownersOf } from "./owners";
+import type { SectionKind } from "./sections";
 import { type Rect, squarify } from "./squarify";
 
 /**
- * A region of the storage topography (docs/design/visual-language.md): a kind
- * of group, a developer tool inside it, or one item. Areas are what the items
+ * A region of the storage topography (docs/design/visual-language.md): an
+ * owner of items (ADR-0069), or one item. Areas are what the items
  * would free; the map is not a folder tree, since the interface has no
  * directory sizes.
  */
@@ -13,8 +14,9 @@ export type TopoNode =
   | {
       readonly type: "group";
       readonly id: string;
+      /** The kind its items are, for a name when the owner has none. */
       readonly kind: SectionKind;
-      /** The developer tool; `null` for a kind, or a kind's items without one. */
+      /** The owner's name (an app, a tool, an owning ID); `null` for a kind or removed apps. */
       readonly source: string | null;
       readonly bytes: bigint;
       readonly count: number;
@@ -75,38 +77,33 @@ function itemNode(candidate: CandidateView): TopoNode {
 }
 
 /**
- * The topography's groups, in the list's order: one per kind, own-command
- * items first; developer tools split by tool when there is more than one.
+ * The topography's groups: one per owner of the items (ADR-0069), largest
+ * first, each holding its items. The apps themselves are not on the map: it
+ * shows what the scan's items would free.
  */
-export function topographyOf(candidates: readonly CandidateView[]): TopoGroup[] {
-  return sectionsOf(candidates).map((section) => {
-    const children =
-      section.sources.length > 1
-        ? section.sources.map(
-            (group): TopoNode => ({
-              type: "group",
-              id: `${section.kind}/${group.source ?? ""}`,
-              kind: section.kind,
-              source: group.source,
-              bytes: BigInt(group.bytes),
-              count: group.items.length,
-              children: group.items.map(itemNode),
-            }),
-          )
-        : (section.sources[0]?.items ?? []).map(itemNode);
-    return {
-      type: "group",
-      id: section.kind,
-      kind: section.kind,
-      source: null,
-      bytes: BigInt(section.bytes),
-      count: section.count,
-      children,
-    };
-  });
+export function topographyOf(
+  candidates: readonly CandidateView[],
+  software: readonly SoftwareItemView[] = [],
+): TopoGroup[] {
+  return ownersOf(candidates, software)
+    .flatMap((owner) => {
+      const items = owner.parts.flatMap((part) => (part.kind === "item" ? [part.item] : []));
+      const [first] = items;
+      if (first === undefined) return [];
+      const group: TopoGroup = {
+        type: "group",
+        id: owner.key,
+        kind: owner.kind === "removed" ? "removed_app" : first.group.kind,
+        source: owner.kind === "removed" || owner.kind === "kind" ? null : owner.name,
+        bytes: items.reduce((total, item) => total + BigInt(item.reclaimable_bytes), 0n),
+        count: items.length,
+        children: items.map(itemNode),
+      };
+      return [group];
+    })
+    .sort((a, b) => (a.bytes === b.bytes ? a.id.localeCompare(b.id) : a.bytes > b.bytes ? -1 : 1));
 }
 
-/** Entries the scan could not read or did not reach, over every root. */
 export function unreadEntries(roots: readonly RootView[]): bigint {
   const count = (decimal: string) => (/^\d+$/.test(decimal) ? BigInt(decimal) : 0n);
   return roots

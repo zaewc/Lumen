@@ -21,10 +21,7 @@ const HEADER = 22;
 const GAP = 3;
 
 function groupName(m: ReturnType<typeof useI18n>["m"], group: TopoGroup): string {
-  if (group.id === group.kind) {
-    return m.results.groups[group.kind];
-  }
-  return group.source ?? m.results.otherTools;
+  return group.source ?? m.results.groups[group.kind];
 }
 
 function AppIcon({ source }: { readonly source: string | null }) {

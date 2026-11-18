@@ -257,7 +257,6 @@ export const ja: Messages = {
       app_data: "アプリデータ",
       other: "その他",
     },
-    otherTools: "その他のツール",
     removedNote:
       "アプリはもうありませんが、データは残っています。不要なことを確認してから移動してください。",
     commandNote:
