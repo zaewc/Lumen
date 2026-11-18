@@ -231,8 +231,10 @@ export const es: Messages = {
   },
   results: {
     apps: {
+      part: "La app",
+      proposed: (size: string) => `${size} propuesto`,
+      notMeasured: "Tamaño desconocido",
       title: "Apps",
-      line: "Las apps se revisan una a una antes de moverlas a Cuarentena.",
       seeAll: "Ver todas las apps instaladas",
       outside: (n: number) =>
         `Hay ${count(n)} ${n === 1 ? "app más" : "apps más"} en lugares que este análisis no leyó.`,

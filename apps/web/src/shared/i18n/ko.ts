@@ -228,8 +228,10 @@ export const ko = {
   },
   results: {
     apps: {
+      part: "앱 본체",
+      proposed: (size: string) => `정리 제안 ${size}`,
+      notMeasured: "크기 모름",
       title: "앱",
-      line: "앱은 하나씩 확인한 뒤 격리함으로 옮겨요.",
       seeAll: "설치된 앱 모두 보기",
       outside: (n: number) => `검사하지 않은 위치에 앱이 ${count(n)}개 더 있어요.`,
     },

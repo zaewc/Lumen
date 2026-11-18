@@ -1,17 +1,19 @@
-import type { CandidateView, ScanView } from "@lumen/api-client";
+import type { CandidateView, ScanView, SoftwareItemView } from "@lumen/api-client";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { MoveFlow, MoveResult, softwareTitle } from "@/entities/app-move";
 import { type CandidateSummary, DecisionMap } from "@/entities/scan-session";
+import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, userAgent } from "@/shared/lib";
-import { InfoTip, Notice } from "@/shared/ui";
+import { buttonClass, ErrorNotice, InfoTip, Notice } from "@/shared/ui";
 import { closingSummary } from "../model/closing";
 import { coverageOf } from "../model/coverage";
 import { type Filter, shows } from "../model/filter";
 import { lensOf } from "../model/lens";
-import { sectionsOf } from "../model/sections";
+import { listedOwners, ownersOf } from "../model/owners";
 import { candidatesIn, topographyOf, trailTo, unreadEntries } from "../model/topography";
-import { AppsSection } from "./AppsSection";
 import { CandidateList } from "./CandidateList";
 import { CandidateSheet } from "./CandidateSheet";
 import { FlowStage } from "./FlowStage";
@@ -76,7 +78,33 @@ export function Results({
   const [zoom, setZoom] = useState<string | null>(null);
   const zoomed = zoom === null ? undefined : trailTo(groups, zoom)?.at(-1);
   const listed = zoomed === undefined ? candidates : candidatesIn(zoomed);
-  const sections = sectionsOf(listed.filter((candidate) => shows(filter, candidate)));
+  const transport = useTransport();
+  const ask = transport.software;
+  const software = useQuery({
+    queryKey: ["software"],
+    queryFn: () => (ask === undefined ? Promise.reject(new Error("unsupported")) : ask()),
+    enabled: ask !== undefined,
+  });
+  const installed = software.data?.items;
+  const [app, setApp] = useState<SoftwareItemView | null>(null);
+  // Apps have no verdict: only under "All" and the whole map (ADR-0069). With
+  // no items the filter is not shown, so a filter left from before cannot hide them.
+  const withApps = (filter === "all" || candidates.length === 0) && zoomed === undefined;
+  const { owners, unmeasured } = useMemo(
+    () =>
+      listedOwners(
+        ownersOf(
+          listed.filter((candidate) => shows(filter, candidate)),
+          installed ?? [],
+        ),
+        withApps,
+      ),
+    [listed, filter, installed, withApps],
+  );
+  const appName = (key: string) => {
+    const item = installed?.find((each) => each.key === key);
+    return item === undefined ? null : softwareTitle(item);
+  };
   const closing = closingSummary(candidates);
   // The open item as assessed now: checking it again replaces it.
   const shown = open === null ? null : (candidates.find((c) => c.path === open.path) ?? open);
@@ -145,13 +173,38 @@ export function Results({
             lens={lens}
             onOpen={setOpen}
           />
-          <CandidateList sections={sections} onOpen={setOpen} lens={lens} moving={move.moving} />
         </>
       )}
-      {/* Apps have no verdict: only under "All", never in the filter or the map.
-          With no items the filter is not shown, so a filter left from an
-          earlier scan does not hide them. */}
-      {(filter === "all" || candidates.length === 0) && <AppsSection />}
+      {software.isError && (
+        <ErrorNotice message={m.apps.loadFailed} error={software.error}>
+          <button
+            type="button"
+            className={buttonClass("secondary", "sm")}
+            onClick={() => void software.refetch()}
+          >
+            {m.common.tryAgain}
+          </button>
+        </ErrorNotice>
+      )}
+      <MoveResult name={appName} />
+      {(candidates.length > 0 || owners.length > 0) && (
+        <CandidateList
+          owners={owners}
+          onOpen={setOpen}
+          onOpenApp={setApp}
+          lens={lens}
+          moving={move.moving}
+        />
+      )}
+      {withApps && installed !== undefined && (
+        <div className="space-y-1 px-2 text-[13px]">
+          {unmeasured > 0 && <p className="text-ink-2">{m.results.apps.outside(unmeasured)}</p>}
+          <Link to="/apps" className="text-accent-ink hover:underline">
+            {m.results.apps.seeAll}
+          </Link>
+        </div>
+      )}
+      {app !== null && <MoveFlow item={app} onClose={() => setApp(null)} />}
       <ScanDetails scan={scan} />
       <CandidateSheet
         candidate={shown}

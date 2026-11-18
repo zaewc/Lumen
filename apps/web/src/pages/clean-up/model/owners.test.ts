@@ -1,6 +1,6 @@
 import type { CandidateView, SoftwareItemView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
-import { ownersOf } from "./owners";
+import { listedOwners, ownersOf } from "./owners";
 
 function candidate(
   path: string,
@@ -160,5 +160,30 @@ describe("owners", () => {
       o.parts.flatMap((p) => (p.kind === "item" ? [p.item.path] : [])),
     );
     expect(owned.toSorted()).toEqual(["/a", "/b", "/c"]);
+  });
+});
+
+describe("listed owners", () => {
+  const big = app("com.big", "Big", { kind: "complete", bytes: "200000000" });
+  const small = app("com.small", "Small", { kind: "complete", bytes: "5000" });
+  const unscanned = app("com.far", "Far", { kind: "not_scanned" });
+  const cached = app("com.cached", "Cached", { kind: "complete", bytes: "10" });
+  const owners = ownersOf(
+    [candidate("/c", "quarantine", "300", { kind: "app_cache", source: "com.cached" })],
+    [big, small, unscanned, cached],
+  );
+
+  it("lists large measured apps and apps with items, and counts the unmeasured", () => {
+    const listed = listedOwners(owners, true);
+    expect(listed.owners.map((o) => o.key)).toEqual(["app:com.big", "app:com.cached"]);
+    expect(listed.unmeasured).toBe(1);
+    expect(listed.owners[1]?.parts.map((p) => p.kind)).toEqual(["app", "item"]);
+  });
+
+  it("lists only items under a status filter", () => {
+    const listed = listedOwners(owners, false);
+    expect(listed.owners.map((o) => [o.key, o.parts.map((p) => p.kind)])).toEqual([
+      ["app:com.cached", ["item"]],
+    ]);
   });
 });
