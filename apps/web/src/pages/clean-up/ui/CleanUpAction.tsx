@@ -43,10 +43,14 @@ export function useCleanUpAction({
   const mine = latest !== null && latest.item === null;
   const plan = useMutation({
     mutationKey: PLANNING,
-    mutationFn: () => transport.plan(selected.chosen, selected.leftOut),
+    // Only apps checked: no clean-up plan, the apps alone.
+    mutationFn: () =>
+      selected.items > 0
+        ? transport.plan(selected.chosen, selected.leftOut)
+        : Promise.resolve(null),
     onSuccess: (planned) => {
       onConfirm();
-      session.execute(planned);
+      session.execute(planned, selected.apps);
     },
   });
   const nothing = selected.count === 0;

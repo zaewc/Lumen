@@ -234,6 +234,10 @@ export const fr: Messages = {
       part: "L’app elle-même",
       proposed: (size: string) => `${size} proposé`,
       notMeasured: "Taille inconnue",
+      checking: "Vérification du déplacement…",
+      refused: "Cette app ne peut pas être déplacée pour le moment.",
+      moved: (n: number) => `${n} app(s) déplacée(s) en Quarantaine.`,
+      notMoved: (n: number) => `${n} app(s) non déplacée(s).`,
       title: "Apps",
       seeAll: "Voir toutes les apps installées",
       outside: (n) =>

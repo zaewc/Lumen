@@ -1,4 +1,4 @@
-import type { CandidateView } from "@lumen/api-client";
+import type { AppConfirmationRequest, CandidateView } from "@lumen/api-client";
 import { statusOf } from "@/entities/scan-session";
 import { canChooseReview } from "@/shared/api";
 import { sumBytes } from "@/shared/lib";
@@ -11,9 +11,34 @@ import { sumBytes } from "@/shared/lib";
 export interface Selection {
   readonly leftOut: ReadonlySet<string>;
   readonly chosen: ReadonlySet<string>;
+  /** Checked apps by software-list key, each with its fresh preview (ADR-0062). */
+  readonly apps: ReadonlyMap<string, AppCheck>;
 }
 
-export const PROPOSED: Selection = { leftOut: new Set(), chosen: new Set() };
+/**
+ * A checked app: its preview is being made, it is ready to move (by the
+ * preview's ID and hash), or the host refused it. Only a ready app moves.
+ */
+export type AppCheck =
+  | { readonly kind: "checking" }
+  | {
+      readonly kind: "ready";
+      readonly preview: string;
+      readonly hash: string;
+      /** Decimal bytes, as previewed. */
+      readonly bytes: string;
+    }
+  | { readonly kind: "refused" };
+
+export const PROPOSED: Selection = { leftOut: new Set(), chosen: new Set(), apps: new Map() };
+
+/** The selection with app `key` set to `check`, or unchecked with `undefined`. */
+export function withApp(selection: Selection, key: string, check: AppCheck | undefined): Selection {
+  const apps = new Map(selection.apps);
+  if (check === undefined) apps.delete(key);
+  else apps.set(key, check);
+  return { ...selection, apps };
+}
 
 /** A proposal: what a plan holds unless it is left out. */
 function proposed(candidate: CandidateView): boolean {
@@ -47,19 +72,32 @@ export function toggled(selection: Selection, candidate: CandidateView): Selecti
 
 /** What would move, and what to ask the host to plan. */
 export interface Selected {
+  /** Items and ready apps. */
   readonly count: number;
+  /** Items only: whether there is a clean-up plan to make. */
+  readonly items: number;
   /** Decimal bytes. */
   readonly bytes: string;
   readonly chosen: readonly string[];
   readonly leftOut: readonly string[];
+  /** Ready apps, to confirm with the plan. */
+  readonly apps: readonly AppConfirmationRequest[];
 }
 
 /** The checked items of `candidates`; IDs no longer in them are dropped. */
 export function selectedOf(selection: Selection, candidates: readonly CandidateView[]): Selected {
   const checked = candidates.filter((candidate) => isChecked(selection, candidate));
+  const ready = [...selection.apps.values()].flatMap((check) =>
+    check.kind === "ready" ? [check] : [],
+  );
   return {
-    count: checked.length,
-    bytes: sumBytes(checked.map((candidate) => candidate.reclaimable_bytes)),
+    count: checked.length + ready.length,
+    items: checked.length,
+    bytes: sumBytes([
+      ...checked.map((candidate) => candidate.reclaimable_bytes),
+      ...ready.map((app) => app.bytes),
+    ]),
+    apps: ready.map((app) => ({ preview: app.preview, confirmation: app.hash })),
     chosen: checked.filter((candidate) => !proposed(candidate)).map((candidate) => candidate.id),
     leftOut: candidates
       .filter((candidate) => proposed(candidate) && selection.leftOut.has(candidate.id))

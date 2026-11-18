@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { MoveFlow, MoveResult, softwareTitle } from "@/entities/app-move";
-import { type CandidateSummary, DecisionMap } from "@/entities/scan-session";
+import { type CandidateSummary, DecisionMap, useScanSession } from "@/entities/scan-session";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, userAgent } from "@/shared/lib";
@@ -21,6 +21,32 @@ import { useReviewMove } from "./ReviewMove";
 import { ScanDetails } from "./ScanDetails";
 import { StepHeading } from "./StepHeading";
 import { Topography } from "./Topography";
+
+/** What happened to the apps the last clean-up moved with it (ADR-0069). */
+function AppOutcomes() {
+  const { m } = useI18n();
+  const outcomes = useScanSession().apps;
+  if (outcomes === null || outcomes.length === 0) return null;
+  const moved = outcomes.filter(
+    (app) => app.outcome !== null && app.outcome.result.kind === "quarantined",
+  ).length;
+  const notMoved = outcomes.length - moved;
+  return (
+    <Notice tone={notMoved > 0 ? "warning" : "success"}>
+      <p>
+        {moved > 0 && m.results.apps.moved(moved)}{" "}
+        {notMoved > 0 && m.results.apps.notMoved(notMoved)}
+      </p>
+      {outcomes.some((app) => app.error !== null) && (
+        <ul className="mt-1 list-disc pl-5 text-[12px] text-ink-2">
+          {outcomes.flatMap((app) =>
+            app.error === null ? [] : [<li key={app.preview}>{app.error}</li>],
+          )}
+        </ul>
+      )}
+    </Notice>
+  );
+}
 
 /** Folders the scan could not read: a short warning and the way to allow access. */
 function CoverageNotice({ scan }: { readonly scan: ScanView }) {
@@ -190,6 +216,7 @@ export function Results({
         </ErrorNotice>
       )}
       <MoveResult name={appName} />
+      <AppOutcomes />
       {(candidates.length > 0 || owners.length > 0) && (
         <CandidateList
           owners={owners}

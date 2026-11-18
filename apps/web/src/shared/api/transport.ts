@@ -21,6 +21,8 @@ import type {
   ScanProgressView,
   ScanRequest,
   ScanView,
+  SelectionReportView,
+  SelectionRequest,
   SoftwareView,
   ToolRunView,
   ToolStorageView,
@@ -163,6 +165,13 @@ export interface LumenTransport {
    * right before the move. Restorable until removed for good.
    */
   uninstall?(preview: string, confirmation: string): Promise<UninstallOutcomeView>;
+  /**
+   * Moves what the person checked after one confirmation (ADR-0069): a
+   * clean-up plan and apps' previews, each by its full hash. The host checks
+   * each app again right before its move; one app's refusal leaves the
+   * others. Only where the host can (the desktop app).
+   */
+  executeSelection?(request: SelectionRequest): Promise<SelectionReportView>;
   /**
    * Asks the running macOS app the software list shows under `key` to quit,
    * the way its Quit menu item does (roadmap 16.3a): it may ask to save or

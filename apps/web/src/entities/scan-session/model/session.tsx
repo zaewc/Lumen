@@ -1,10 +1,12 @@
 import type {
+  AppConfirmationRequest,
   AssessProgressView,
   CandidateView,
   PlanView,
   QuarantineReportView,
   ScanProgressView,
   ScanView,
+  SelectedAppView,
 } from "@lumen/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useMemo, useRef, useState } from "react";
@@ -38,6 +40,8 @@ export interface ScanSession {
    * candidates stay, without the items it moved.
    */
   readonly report: QuarantineReportView | null;
+  /** What happened to each app the last clean-up moved (ADR-0069), until a new scan. */
+  readonly apps: readonly SelectedAppView[] | null;
   /** Scans these roots (none: the whole disk), read-only. */
   readonly start: (roots: string[]) => void;
   /** Scans the same roots as the last scan again (the whole disk if none). */
@@ -47,7 +51,11 @@ export interface ScanSession {
   /** Confirmed clean-up continues even when its page is no longer open. */
   readonly cleaning: boolean;
   readonly cleanUpError: unknown;
-  readonly execute: (plan: PlanView) => void;
+  /**
+   * Moves a confirmed plan, and with it any checked apps' previews, after
+   * one host confirmation (ADR-0069); `null` when only apps were checked.
+   */
+  readonly execute: (plan: PlanView | null, apps?: readonly AppConfirmationRequest[]) => void;
   readonly resetCleanUp: () => void;
   /**
    * Puts items decided again (ADR-0058) in place of their earlier
@@ -66,6 +74,7 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
   const [assessmentProgress, setAssessmentProgress] = useState<AssessProgressView | null>(null);
   const generation = useRef(0);
   const [report, setReport] = useState<QuarantineReportView | null>(null);
+  const [apps, setApps] = useState<readonly SelectedAppView[] | null>(null);
   const [lastRoots, setLastRoots] = useState<string[]>([]);
   const scan = useMutation({
     mutationFn: (roots: string[]) => {
@@ -92,21 +101,43 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
   });
 
   const { mutate, reset } = scan;
-  const execution = useSessionOperation(MOVING_OPERATIONS.cleanUp, async (confirmed: PlanView) => {
-    const finished = await transport.execute({
-      plan: confirmed.plan,
-      confirmation: confirmed.hash,
-    });
-    // The scan's results stay, without what is now in quarantine.
-    queries.setQueriesData<readonly CandidateView[]>(
-      { queryKey: QUERY_KEYS.assessment },
-      (earlier) => (earlier === undefined ? earlier : remainingAfter(earlier, finished)),
-    );
-    setReport(finished);
-    await queries.invalidateQueries({ queryKey: QUERY_KEYS.held });
-    await queries.invalidateQueries({ queryKey: QUERY_KEYS.disk });
-    return finished;
-  });
+  const execution = useSessionOperation(
+    MOVING_OPERATIONS.cleanUp,
+    async ({
+      plan,
+      chosenApps,
+    }: {
+      readonly plan: PlanView | null;
+      readonly chosenApps: readonly AppConfirmationRequest[];
+    }) => {
+      const request = plan === null ? null : { plan: plan.plan, confirmation: plan.hash };
+      const select = transport.executeSelection;
+      let finished: QuarantineReportView | null;
+      if (chosenApps.length === 0 && request !== null) {
+        finished = await transport.execute(request);
+        setApps(null);
+      } else if (select === undefined) {
+        throw new Error("Apps cannot be moved here.");
+      } else {
+        const selection = await select({ plan: request, apps: [...chosenApps] });
+        finished = selection.cleanup;
+        setApps(selection.apps);
+        await queries.invalidateQueries({ queryKey: ["software"] });
+      }
+      if (finished !== null) {
+        const moved = finished;
+        // The scan's results stay, without what is now in quarantine.
+        queries.setQueriesData<readonly CandidateView[]>(
+          { queryKey: QUERY_KEYS.assessment },
+          (earlier) => (earlier === undefined ? earlier : remainingAfter(earlier, moved)),
+        );
+      }
+      setReport(finished);
+      await queries.invalidateQueries({ queryKey: QUERY_KEYS.held });
+      await queries.invalidateQueries({ queryKey: QUERY_KEYS.disk });
+      return finished;
+    },
+  );
   const cleaning = execution.status === "pending";
   const value = useMemo<ScanSession>(
     () => ({
@@ -119,10 +150,11 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
       assessmentError: assessment.error,
       assessmentProgress,
       report,
+      apps,
       cleaning,
       cleanUpError: execution.error,
-      execute: (confirmed) => {
-        void execution.run(confirmed);
+      execute: (plan, chosenApps = []) => {
+        void execution.run({ plan, chosenApps });
       },
       resetCleanUp: execution.reset,
       replace: (decided) => {
@@ -138,6 +170,7 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
         }
         execution.reset();
         setReport(null);
+        setApps(null);
         setLastRoots(roots);
         mutate(roots);
       },
@@ -147,6 +180,7 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
         }
         execution.reset();
         setReport(null);
+        setApps(null);
         mutate(lastRoots);
       },
       startOver: () => {
@@ -155,6 +189,7 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
         }
         execution.reset();
         setReport(null);
+        setApps(null);
         setProgress(null);
         generation.current += 1;
         setAssessmentProgress(null);
@@ -171,6 +206,7 @@ export function ScanSessionProvider({ children }: { readonly children: ReactNode
       assessment.error,
       assessmentProgress,
       report,
+      apps,
       lastRoots,
       mutate,
       reset,

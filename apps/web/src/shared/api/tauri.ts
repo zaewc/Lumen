@@ -21,6 +21,7 @@ import {
   zReviewReasonsView,
   zScanProgressView,
   zScanView,
+  zSelectionReportView,
   zSoftwareView,
   zToolRunView,
   zToolStorageView,
@@ -141,6 +142,8 @@ export function tauriTransport(): LumenTransport {
       zUninstallPreviewView.parse(await call("uninstall_preview", { key })),
     uninstall: async (preview, confirmation) =>
       zUninstallOutcomeView.parse(await call("uninstall", { preview, confirmation })),
+    executeSelection: async (request) =>
+      zSelectionReportView.parse(await call("execute_selection", { request })),
     quitApp: async (key) => zQuitView.parse(await call("quit_app", { key })),
     helperState: async () => zHelperView.parse(await call("helper_state")),
     helperEnable: async () => zHelperView.parse(await call("helper_enable")),
