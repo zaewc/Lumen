@@ -30,6 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "reassess",
         "uninstall_preview",
         "uninstall",
+        "execute_selection",
         "quit_app",
         "helper_state",
         "helper_enable",

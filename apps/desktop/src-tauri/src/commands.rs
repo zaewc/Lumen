@@ -19,8 +19,9 @@ use lumen_api::views::{
     AiSettingsView, AssessProgressView, CandidateView, CompareOutcomeView, CompareProgressView,
     DiskView, ExecuteRequest, FinalizeOutcomeView, HeldItemView, HelperView, PlanView,
     QuarantineReportView, QuitView, ReassessRequest, ReassessView, RestoreOutcomeView,
-    ScanProgressView, ScanRequest, ScanView, SoftwareView, ToolRunView, ToolStorageView,
-    UninstallOutcomeView, UninstallPreviewView, UnreadFoldersView, candidate_id,
+    ScanProgressView, ScanRequest, ScanView, SelectedAppView, SelectionReportView,
+    SelectionRequest, SoftwareView, ToolRunView, ToolStorageView, UninstallOutcomeView,
+    UninstallPreviewView, UnreadFoldersView, candidate_id,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -1135,6 +1136,79 @@ pub(crate) async fn execute(
         )
         .map_err(CommandError::new)?;
         Ok(QuarantineReportView::from(&report))
+    })
+    .await
+}
+
+/// Moves what the person checked after one confirmation in this app
+/// (ADR-0069): the clean-up plan, if any, then each app's uninstall preview,
+/// all confirmed by their full hashes. A plan that fails stops it before any
+/// app; each app's gate is checked again right before its move, and one
+/// app's refusal leaves the others to go on.
+#[tauri::command]
+pub(crate) async fn execute_selection(
+    core: State<'_, Core>,
+    request: SelectionRequest,
+) -> Result<SelectionReportView, CommandError> {
+    let db = core.db.clone();
+    let prompt = Arc::clone(&core.prompt);
+    let moving = core.activity.moving()?;
+    blocking(move || {
+        let _moving = moving;
+        let id = |text: &str| {
+            text.parse::<PlanId>()
+                .map_err(|_| CommandError::new("not a plan or preview ID"))
+        };
+        let plan = request
+            .plan
+            .as_ref()
+            .map(|plan| Ok::<_, CommandError>((id(&plan.plan)?, plan.confirmation.as_str())))
+            .transpose()?;
+        let apps = request
+            .apps
+            .iter()
+            .map(|app| Ok((id(&app.preview)?, app.confirmation.as_str())))
+            .collect::<Result<Vec<_>, CommandError>>()?;
+        crate::confirmation::selection(&db, plan, &apps, &*prompt)?;
+        let cleanup = plan
+            .map(|(plan, hash)| {
+                lumen_app::quarantine::quarantine(
+                    &db,
+                    plan,
+                    hash,
+                    ConfirmationSurface::DesktopApp,
+                    &SystemClock,
+                    &UuidV7Ids,
+                )
+                .map(|report| QuarantineReportView::from(&report))
+                .map_err(CommandError::new)
+            })
+            .transpose()?;
+        let apps = apps
+            .iter()
+            .map(|(preview, hash)| {
+                match lumen_app::uninstall::uninstall(
+                    &db,
+                    *preview,
+                    hash,
+                    ConfirmationSurface::DesktopApp,
+                    &SystemClock,
+                    &UuidV7Ids,
+                ) {
+                    Ok(report) => SelectedAppView {
+                        preview: preview.to_string(),
+                        outcome: Some(UninstallOutcomeView::from(&report)),
+                        error: None,
+                    },
+                    Err(error) => SelectedAppView {
+                        preview: preview.to_string(),
+                        outcome: None,
+                        error: Some(error.to_string()),
+                    },
+                }
+            })
+            .collect();
+        Ok(SelectionReportView { cleanup, apps })
     })
     .await
 }

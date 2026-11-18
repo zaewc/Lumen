@@ -151,6 +151,7 @@ fn with_commands<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         commands::reassess,
         commands::uninstall_preview,
         commands::uninstall,
+        commands::execute_selection,
         commands::quit_app,
         commands::helper_state,
         commands::helper_enable,

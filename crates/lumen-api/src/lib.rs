@@ -109,6 +109,10 @@ use utoipa::OpenApi;
         views::UninstallPreviewView,
         views::UninstallResultView,
         views::UninstallOutcomeView,
+        views::AppConfirmationRequest,
+        views::SelectionRequest,
+        views::SelectedAppView,
+        views::SelectionReportView,
         views::QuitView,
         views::HelperRegistrationView,
         views::HelperReachView,
@@ -161,7 +165,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 97);
+        assert_eq!(schemas, 101);
     }
 
     #[test]

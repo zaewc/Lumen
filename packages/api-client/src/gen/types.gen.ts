@@ -55,6 +55,21 @@ export type AiSettingsView = {
 };
 
 /**
+ * One app of a selection: its uninstall preview's ID and, as the
+ * confirmation, its full hash (ADR-0062, ADR-0069).
+ */
+export type AppConfirmationRequest = {
+  /**
+   * The preview's full hash, as shown.
+   */
+  confirmation: string;
+  /**
+   * The preview's ID.
+   */
+  preview: string;
+};
+
+/**
  * What kind of location the platform documents an app data folder as.
  */
 export type AppDataKindView =
@@ -1224,6 +1239,45 @@ export type ScanView = {
    * The scan's ID.
    */
   scan: string;
+};
+
+/**
+ * What happened to one app of a selection: its outcome, or why it was
+ * not moved. One app's refusal never stops the others.
+ */
+export type SelectedAppView = {
+  /**
+   * Why it was not tried or failed; display text.
+   */
+  error: string | null;
+  outcome: UninstallOutcomeView | null;
+  /**
+   * The preview.
+   */
+  preview: string;
+};
+
+/**
+ * What a confirmed selection did.
+ */
+export type SelectionReportView = {
+  /**
+   * Each app, in the order given.
+   */
+  apps: Array<SelectedAppView>;
+  cleanup: QuarantineReportView | null;
+};
+
+/**
+ * What a person checked, to move after one confirmation (ADR-0069): a
+ * clean-up plan, apps, or both.
+ */
+export type SelectionRequest = {
+  /**
+   * The checked apps.
+   */
+  apps: Array<AppConfirmationRequest>;
+  plan: ExecuteRequest | null;
 };
 
 /**

@@ -81,6 +81,8 @@ pub(crate) enum Ask {
         proposed: Listed,
         /// Each one, never summarised.
         chosen: Vec<AskItem>,
+        /// Apps the person chose to move with them (ADR-0069), each named.
+        apps: Vec<AskItem>,
     },
     /// Uninstalling an app into Quarantine (ADR-0062).
     Uninstall { items: Vec<AskItem> },
@@ -243,6 +245,44 @@ fn item(path: &RawPath, bytes: Option<u64>) -> AskItem {
     }
 }
 
+/// The items of stored plan `id`, after checking `hash` and its age the way
+/// executing it will, and that it is an uninstall preview exactly when
+/// `uninstall` says so.
+fn checked_items(
+    store: &IndexStore,
+    id: PlanId,
+    hash: &str,
+    uninstall: bool,
+) -> Result<Vec<lumen_domain::PlannedItem>, CommandError> {
+    let stored = lumen_app::quarantine::checked_plan(store, id, hash, SystemClock.now())
+        .map_err(CommandError::new)?;
+    if lumen_application::uninstall::any_uninstall(&stored.decisions) != uninstall {
+        return Err(CommandError::new(
+            "that proposal cannot run through this action; nothing was changed",
+        ));
+    }
+    Ok(stored.plan.items().to_vec())
+}
+
+fn shown(planned: &lumen_domain::PlannedItem) -> AskItem {
+    item(&planned.path, Some(planned.reclaim.reclaimable_now.get()))
+}
+
+/// One planned item as the clean-up question lists it.
+struct Entry {
+    shown: AskItem,
+    bytes: u64,
+    chosen: bool,
+}
+
+fn entry(planned: &lumen_domain::PlannedItem) -> Entry {
+    Entry {
+        shown: shown(planned),
+        bytes: planned.reclaim.reclaimable_now.get(),
+        chosen: planned.chosen_by == Chooser::Person,
+    }
+}
+
 /// Confirms executing stored plan `id`, after checking `hash` and its age the
 /// way executing it will. An uninstall preview (`uninstall`) names the app; a
 /// clean-up lists every item the person chose and the policy's proposals.
@@ -255,41 +295,80 @@ pub(crate) fn plan(
 ) -> Result<(), CommandError> {
     lumen_app::refuse_privileged().map_err(CommandError::new)?;
     let store = IndexStore::new(open_index(db).map_err(CommandError::new)?);
-    let stored = lumen_app::quarantine::checked_plan(&store, id, hash, SystemClock.now())
-        .map_err(CommandError::new)?;
-    if lumen_application::uninstall::any_uninstall(&stored.decisions) != uninstall {
-        return Err(CommandError::new(
-            "that proposal cannot run through this action; nothing was changed",
-        ));
-    }
-    let items = stored.plan.items();
-    let shown = |planned: &lumen_domain::PlannedItem| {
-        item(&planned.path, Some(planned.reclaim.reclaimable_now.get()))
-    };
+    let items = checked_items(&store, id, hash, uninstall)?;
     if uninstall {
         let items = items.iter().map(shown).collect();
         return ask(prompt, &Ask::Uninstall { items });
     }
-    let (chosen, proposed): (Vec<_>, Vec<_>) = items
+    ask(
+        prompt,
+        &move_ask(items.iter().map(entry).collect(), Vec::new())?,
+    )
+}
+
+/// The clean-up question: the policy's proposals, every chosen item, and the
+/// chosen apps, with what they free together.
+fn move_ask(items: Vec<Entry>, apps: Vec<Entry>) -> Result<Ask, CommandError> {
+    let count = items.len() + apps.len();
+    let total: u64 = items
         .iter()
-        .partition(|planned| planned.chosen_by == Chooser::Person);
-    if chosen.len() > MAX_CHOSEN {
+        .chain(&apps)
+        .map(|entry| entry.bytes)
+        .fold(0, u64::saturating_add);
+    let (chosen, proposed): (Vec<_>, Vec<_>) = items.into_iter().partition(|entry| entry.chosen);
+    if chosen.len() > MAX_CHOSEN || apps.len() > MAX_CHOSEN {
         return Err(CommandError::new(
             "too many chosen items to confirm at once; nothing was changed",
         ));
     }
-    let total: u64 = items
-        .iter()
-        .map(|planned| planned.reclaim.reclaimable_now.get())
-        .fold(0, u64::saturating_add);
+    let shown = |entries: Vec<Entry>| entries.into_iter().map(|entry| entry.shown).collect();
+    Ok(Ask::Move {
+        count,
+        total_bytes: total.to_string(),
+        proposed: Listed::of(shown(proposed)),
+        chosen: shown(chosen),
+        apps: shown(apps),
+    })
+}
+
+/// Confirms one selection (ADR-0069): an optional clean-up plan and the
+/// apps' uninstall previews, each checked by its own hash and age the way
+/// executing it will, asked about once. Every app is named.
+pub(crate) fn selection(
+    db: &Path,
+    plan: Option<(PlanId, &str)>,
+    apps: &[(PlanId, &str)],
+    prompt: &Prompt,
+) -> Result<(), CommandError> {
+    lumen_app::refuse_privileged().map_err(CommandError::new)?;
+    if plan.is_none() && apps.is_empty() {
+        return Err(CommandError::new(
+            "nothing was selected; nothing was changed",
+        ));
+    }
+    if apps.len() > MAX_CHOSEN {
+        return Err(CommandError::new(
+            "too many apps to confirm at once; nothing was changed",
+        ));
+    }
+    let ids: BTreeSet<_> = apps.iter().map(|(id, _)| id).collect();
+    if ids.len() != apps.len() || plan.is_some_and(|(id, _)| ids.contains(&id)) {
+        return Err(CommandError::new(
+            "a proposal was given twice; nothing was changed",
+        ));
+    }
+    let store = IndexStore::new(open_index(db).map_err(CommandError::new)?);
+    let items = match plan {
+        Some((id, hash)) => checked_items(&store, id, hash, false)?,
+        None => Vec::new(),
+    };
+    let mut previewed = Vec::new();
+    for (id, hash) in apps {
+        previewed.extend(checked_items(&store, *id, hash, true)?.iter().map(entry));
+    }
     ask(
         prompt,
-        &Ask::Move {
-            count: items.len(),
-            total_bytes: total.to_string(),
-            proposed: Listed::of(proposed.into_iter().map(shown).collect()),
-            chosen: chosen.into_iter().map(shown).collect(),
-        },
+        &move_ask(items.iter().map(entry).collect(), previewed)?,
     )
 }
 
@@ -426,6 +505,65 @@ mod tests {
 
     fn raw(text: &str) -> RawPath {
         RawPath::from_unix_bytes(text.as_bytes().to_vec()).unwrap_or_else(|e| unreachable!("{e}"))
+    }
+
+    #[test]
+    fn a_selection_lists_the_apps_apart_and_counts_them_in() -> Result<(), CommandError> {
+        let at = |path: &str, bytes: u64, chosen: bool| Entry {
+            shown: item(&raw(path), Some(bytes)),
+            bytes,
+            chosen,
+        };
+        let question = move_ask(
+            vec![at("/p/cache", 100, false), at("/p/old", 20, true)],
+            vec![at("/Applications/Xcode.app", 14_800, false)],
+        )?;
+        let Ask::Move {
+            count,
+            total_bytes,
+            proposed,
+            chosen,
+            apps,
+        } = question
+        else {
+            unreachable!("a clean-up question")
+        };
+        assert_eq!((count, total_bytes.as_str()), (3, "14920"));
+        assert_eq!(proposed.items.len(), 1);
+        assert_eq!(chosen.first().map(|c| c.name.as_str()), Some("old"));
+        assert_eq!(apps.first().map(|a| a.name.as_str()), Some("Xcode.app"));
+        let many = (0..=MAX_CHOSEN)
+            .map(|i| at(&format!("/A/{i}.app"), 1, false))
+            .collect();
+        assert!(move_ask(Vec::new(), many).is_err(), "too many apps to name");
+        Ok(())
+    }
+
+    #[test]
+    fn a_selection_needs_something_and_each_proposal_once() {
+        use lumen_application::ports::IdGenerator as _;
+        let never = |_: &Ask| -> bool { unreachable!("nothing may be asked") };
+        let db = Path::new("/nonexistent/index.db");
+        let (one, two) = (
+            lumen_app::UuidV7Ids.plan_id(),
+            lumen_app::UuidV7Ids.plan_id(),
+        );
+        assert!(
+            selection(db, None, &[], &never).is_err(),
+            "nothing selected"
+        );
+        assert!(
+            selection(db, Some((one, "h")), &[(one, "h")], &never).is_err(),
+            "the plan given again as an app"
+        );
+        assert!(
+            selection(db, None, &[(two, "h"), (two, "h")], &never).is_err(),
+            "an app given twice"
+        );
+        let many: Vec<_> = (0..=MAX_CHOSEN)
+            .map(|_| (lumen_app::UuidV7Ids.plan_id(), "h"))
+            .collect();
+        assert!(selection(db, None, &many, &never).is_err(), "too many apps");
     }
 
     #[test]

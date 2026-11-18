@@ -25,6 +25,15 @@ export const zAiSettingsView = z.object({
 });
 
 /**
+ * One app of a selection: its uninstall preview's ID and, as the
+ * confirmation, its full hash (ADR-0062, ADR-0069).
+ */
+export const zAppConfirmationRequest = z.object({
+  confirmation: z.string(),
+  preview: z.string(),
+});
+
+/**
  * What kind of location the platform documents an app data folder as.
  */
 export const zAppDataKindView = z.enum([
@@ -630,6 +639,15 @@ export const zScanView = z.object({
 });
 
 /**
+ * What a person checked, to move after one confirmation (ADR-0069): a
+ * clean-up plan, apps, or both.
+ */
+export const zSelectionRequest = z.object({
+  apps: z.array(zAppConfirmationRequest),
+  plan: zExecuteRequest.nullable(),
+});
+
+/**
  * What kind of background item.
  */
 export const zServiceKindView = z.enum([
@@ -1108,6 +1126,24 @@ export const zUninstallOutcomeView = z.object({
   result: zUninstallResultView,
   size_bytes: z.string(),
   warnings: z.array(z.string()),
+});
+
+/**
+ * What happened to one app of a selection: its outcome, or why it was
+ * not moved. One app's refusal never stops the others.
+ */
+export const zSelectedAppView = z.object({
+  error: z.string().nullable(),
+  outcome: zUninstallOutcomeView.nullable(),
+  preview: z.string(),
+});
+
+/**
+ * What a confirmed selection did.
+ */
+export const zSelectionReportView = z.object({
+  apps: z.array(zSelectedAppView),
+  cleanup: zQuarantineReportView.nullable(),
 });
 
 /**

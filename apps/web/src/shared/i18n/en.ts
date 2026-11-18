@@ -490,6 +490,9 @@ export const en = {
     chosen: "Items you chose",
     chosenNote:
       "Lumen did not propose these. Moving them may affect apps. They stay in Quarantine until you restore or permanently remove them.",
+    apps: "Apps you chose",
+    appsNote:
+      "Their data in ~/Library stays. Each app is checked again right before it moves; one that is running or cannot move is left where it is.",
     uninstallTitle: "Move this app to Quarantine?",
     uninstallNote: "You can restore it from Quarantine.",
     finalizeTitle: "Remove this item for good?",
