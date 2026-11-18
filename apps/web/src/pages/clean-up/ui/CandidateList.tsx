@@ -9,8 +9,39 @@ import { commandLine } from "../lib/command";
 import { moveIndex } from "../lib/keys";
 import { type Lens, type LensMark, lensMark } from "../model/lens";
 import type { Owner, OwnerPart } from "../model/owners";
+import { checkable } from "../model/selection";
 import { CandidateSize } from "./CandidateSize";
 import { StatusText } from "./Status";
+
+/** The checkboxes of the list (ADR-0069). */
+export interface Check {
+  readonly isChecked: (candidate: CandidateView) => boolean;
+  readonly toggle: (candidate: CandidateView) => void;
+}
+
+/** The column every row keeps for a checkbox, so names line up. */
+function CheckCell({
+  candidate,
+  check,
+}: {
+  readonly candidate: CandidateView;
+  readonly check?: Check;
+}) {
+  const { m } = useI18n();
+  return (
+    <span className="flex w-7 shrink-0 justify-center pt-3">
+      {check !== undefined && checkable(candidate) && (
+        <input
+          type="checkbox"
+          checked={check.isChecked(candidate)}
+          onChange={() => check.toggle(candidate)}
+          aria-label={m.action.check(baseName(candidate.path))}
+          className="size-4 cursor-pointer accent-accent"
+        />
+      )}
+    </span>
+  );
+}
 
 /**
  * The list's columns. Wide: name, location, status, size on one line.
@@ -34,8 +65,10 @@ function Row({
   moving,
   onOpen,
   onMove,
+  check,
 }: {
   readonly candidate: CandidateView;
+  readonly check?: Check;
   /** It is being moved to Quarantine now. */
   readonly moving: boolean;
   readonly index: number;
@@ -58,49 +91,52 @@ function Row({
       data-lens={mark ?? undefined}
       className="transition-opacity data-[lens=lowered]:opacity-40 motion-reduce:transition-none"
     >
-      <button
-        type="button"
-        data-row={index}
-        data-inspected={mark === "inspected"}
-        aria-haspopup="dialog"
-        tabIndex={active ? 0 : -1}
-        aria-describedby={active ? hint : undefined}
-        onClick={() => onOpen(candidate)}
-        onKeyDown={(event) => onMove(event, index)}
-        className={`${GRID} w-full items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill data-[inspected=true]:bg-accent-soft data-[inspected=true]:outline-2 data-[inspected=true]:-outline-offset-2 data-[inspected=true]:outline-accent focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
-      >
-        <span
-          title={candidate.path}
-          className={`truncate border-l border-line-strong pl-3 font-medium ${keep ? "text-ink-2" : "text-ink"}`}
+      <div className="flex">
+        <CheckCell candidate={candidate} {...(check === undefined ? {} : { check })} />
+        <button
+          type="button"
+          data-row={index}
+          data-inspected={mark === "inspected"}
+          aria-haspopup="dialog"
+          tabIndex={active ? 0 : -1}
+          aria-describedby={active ? hint : undefined}
+          onClick={() => onOpen(candidate)}
+          onKeyDown={(event) => onMove(event, index)}
+          className={`${GRID} min-w-0 flex-1 items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill data-[inspected=true]:bg-accent-soft data-[inspected=true]:outline-2 data-[inspected=true]:-outline-offset-2 data-[inspected=true]:outline-accent focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
         >
-          {baseName(candidate.path)}
-        </span>
-        <span className="col-start-2 row-start-1 justify-self-end text-right tabular-nums text-ink @xl:col-start-4">
-          <CandidateSize candidate={candidate} />
-        </span>
-        <span
-          title={location}
-          className="row-start-2 truncate text-[12px] text-ink-3 @xl:col-start-2 @xl:row-start-1 @xl:text-[13px]"
-        >
-          {location}
-        </span>
-        <span className="col-start-2 row-start-2 text-right text-[12px] @xl:col-start-3 @xl:row-start-1 @xl:text-left @xl:text-[13px]">
-          <StatusText status={status} />
-        </span>
-      </button>
+          <span
+            title={candidate.path}
+            className={`truncate border-l border-line-strong pl-3 font-medium ${keep ? "text-ink-2" : "text-ink"}`}
+          >
+            {baseName(candidate.path)}
+          </span>
+          <span className="col-start-2 row-start-1 justify-self-end text-right tabular-nums text-ink @xl:col-start-4">
+            <CandidateSize candidate={candidate} />
+          </span>
+          <span
+            title={location}
+            className="row-start-2 truncate text-[12px] text-ink-3 @xl:col-start-2 @xl:row-start-1 @xl:text-[13px]"
+          >
+            {location}
+          </span>
+          <span className="col-start-2 row-start-2 text-right text-[12px] @xl:col-start-3 @xl:row-start-1 @xl:text-left @xl:text-[13px]">
+            <StatusText status={status} />
+          </span>
+        </button>
+      </div>
       {command !== null && (
-        <code className="mx-2 mb-2 block font-mono text-[12px] leading-relaxed break-all text-ink-2 select-all">
+        <code className="mr-2 mb-2 ml-9 block font-mono text-[12px] leading-relaxed break-all text-ink-2 select-all">
           {commandLine(command)}
         </code>
       )}
       {note !== null && (
-        <p className="mx-2 mb-1.5 truncate text-[12px] text-ink-3">{aiNoteText(m, note)}</p>
+        <p className="mr-2 mb-1.5 ml-9 truncate text-[12px] text-ink-3">{aiNoteText(m, note)}</p>
       )}
       {moving && (
         <div
           role="progressbar"
           aria-label={m.confirm.moving}
-          className="mx-2 mb-2 h-1 overflow-hidden rounded-full bg-accent-soft"
+          className="mr-2 mb-2 ml-9 h-1 overflow-hidden rounded-full bg-accent-soft"
         >
           <div className="h-full w-2/5 animate-[indeterminate_1.4s_ease-in-out_infinite] rounded-full bg-accent motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50" />
         </div>
@@ -135,11 +171,16 @@ function ListHeading({
   return (
     <Tag
       id={id}
-      className={`${GRID} items-baseline px-2 ${level === 3 ? "pt-6 pb-2 text-section text-ink" : "pt-3 pb-1 text-[12px] font-medium text-ink-2"}`}
+      className={`${GRID} items-baseline pr-2 pl-9 ${level === 3 ? "pt-6 pb-2 text-section text-ink" : "pt-3 pb-1 text-[12px] font-medium text-ink-2"}`}
     >
       <span className="truncate @xl:col-span-3">
         {name}
         <span className="ml-2 font-normal tabular-nums text-ink-3">{m.common.items(count)}</span>
+        {detail !== undefined && (
+          <span className="ml-2 text-[12px] font-normal tabular-nums text-accent-ink">
+            · {detail}
+          </span>
+        )}
       </span>
       <span className="text-right font-normal tabular-nums text-ink-2">
         {bytes === null ? (
@@ -148,9 +189,6 @@ function ListHeading({
           <Bytes value={bytes} />
         ) : (
           m.details.atLeast(formatBytes(bytes))
-        )}
-        {detail !== undefined && (
-          <span className="block text-[12px] text-accent-ink">{detail}</span>
         )}
       </span>
     </Tag>
@@ -179,7 +217,8 @@ function AppRow({
   const { m } = useI18n();
   const location = part.app.location ?? "";
   return (
-    <li>
+    <li className="flex">
+      <span className="w-7 shrink-0" />
       <button
         type="button"
         data-row={index}
@@ -188,7 +227,7 @@ function AppRow({
         aria-describedby={active ? hint : undefined}
         onClick={onOpen}
         onKeyDown={(event) => onMove(event, index)}
-        className={`${GRID} w-full items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
+        className={`${GRID} min-w-0 flex-1 items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
       >
         <span className="truncate border-l border-line-strong pl-3 font-medium text-ink">
           {m.results.apps.part}
@@ -227,8 +266,11 @@ export function CandidateList({
   onOpenApp,
   lens,
   moving = null,
+  check,
 }: {
   readonly owners: readonly Owner[];
+  /** The checkboxes; none when the results are read-only. */
+  readonly check?: Check;
   readonly onOpen: (candidate: CandidateView) => void;
   /** Opens an app's own move dialog. */
   readonly onOpenApp: (app: SoftwareItemView) => void;
@@ -292,6 +334,7 @@ export function CandidateList({
             mark={lensMark(lens, part.item.path)}
             hint={hint}
             moving={part.item.id === moving}
+            {...(check === undefined ? {} : { check })}
             onOpen={(opened) => {
               setSelected(at);
               onOpen(opened);
@@ -310,7 +353,7 @@ export function CandidateList({
       </p>
       <div
         aria-hidden="true"
-        className={`${GRID} hidden border-b border-line px-2 pb-1 text-[12px] font-medium text-ink-3 @xl:grid`}
+        className={`${GRID} hidden border-b border-line pr-2 pb-1 pl-9 text-[12px] font-medium text-ink-3 @xl:grid`}
       >
         <span>{m.results.columns.name}</span>
         <span>{m.results.columns.location}</span>
@@ -357,7 +400,9 @@ function OwnerSection({
         {...(proposed ? { detail: m.results.apps.proposed(formatBytes(owner.proposedBytes)) } : {})}
       />
       {owner.kind === "removed" && (
-        <p className="px-2 pb-1.5 text-[12px] leading-snug text-ink-3">{m.results.removedNote}</p>
+        <p className="pr-2 pb-1.5 pl-9 text-[12px] leading-snug text-ink-3">
+          {m.results.removedNote}
+        </p>
       )}
       {children}
     </section>

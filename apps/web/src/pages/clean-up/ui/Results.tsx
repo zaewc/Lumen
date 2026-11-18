@@ -14,7 +14,7 @@ import { type Filter, shows } from "../model/filter";
 import { lensOf } from "../model/lens";
 import { listedOwners, ownersOf } from "../model/owners";
 import { candidatesIn, topographyOf, trailTo, unreadEntries } from "../model/topography";
-import { CandidateList } from "./CandidateList";
+import { CandidateList, type Check } from "./CandidateList";
 import { CandidateSheet } from "./CandidateSheet";
 import { FlowStage } from "./FlowStage";
 import { useReviewMove } from "./ReviewMove";
@@ -59,6 +59,7 @@ export function Results({
   onFilterChange,
   focus,
   cleanedUp = false,
+  check,
 }: {
   readonly scan: ScanView;
   readonly candidates: readonly CandidateView[];
@@ -68,6 +69,8 @@ export function Results({
   readonly focus: boolean;
   /** A clean-up of this scan ran; its report is shown above. */
   readonly cleanedUp?: boolean;
+  /** The checkboxes; after a clean-up the results are read-only. */
+  readonly check: Check;
 }) {
   const { m } = useI18n();
   const [open, setOpen] = useState<CandidateView | null>(null);
@@ -190,6 +193,7 @@ export function Results({
       {(candidates.length > 0 || owners.length > 0) && (
         <CandidateList
           owners={owners}
+          {...(cleanedUp ? {} : { check })}
           onOpen={setOpen}
           onOpenApp={setApp}
           lens={lens}

@@ -284,6 +284,9 @@ export const ko = {
       "디스크 공간이 거의 없어서 검사를 멈췄어요(Lumen은 늘 2 GB를 비워 둬요). 그때까지 읽은 부분만 살펴봤어요. 공간을 조금 비운 뒤 다시 검사해 주세요.",
   },
   action: {
+    cleanUpSelected: (n: number, size: string) => `정리하기 · ${count(n)}개 ${size}…`,
+    nothingSelected: "고른 항목이 없어요.",
+    check: (name: string) => `${name} 고르기`,
     cleanUp: "정리하기…",
     preparing: "준비하는 중…",
     nothing: "정리를 제안한 항목이 없어요.",

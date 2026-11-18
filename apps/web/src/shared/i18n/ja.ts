@@ -281,6 +281,9 @@ export const ja: Messages = {
       "ディスクの空き容量が少なくなったため、スキャンを停止しました（Lumenは常に2 GBを空けておきます）。停止するまでに見つかった項目を表示しています。空き容量を確保して再度スキャンしてください。",
   },
   action: {
+    cleanUpSelected: (n: number, size: string) => `整理 · ${n} 件 ${size}…`,
+    nothingSelected: "選択した項目がありません。",
+    check: (name: string) => `${name} を選択`,
     cleanUp: "整理…",
     preparing: "準備中…",
     nothing: "整理候補はありません。",

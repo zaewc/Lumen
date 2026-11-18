@@ -5,6 +5,7 @@ import { useI18n } from "@/shared/i18n";
 import { shortcutProps, useShortcut } from "@/shared/lib";
 import { buttonClass, ErrorDetails, Page } from "@/shared/ui";
 import type { Filter } from "../model/filter";
+import { isChecked, PROPOSED, type Selection, selectedOf, toggled } from "../model/selection";
 import { cleanUpStep } from "../model/step";
 import { useCleanUpAction } from "./CleanUpAction";
 import { DiskUsage } from "./DiskUsage";
@@ -54,8 +55,16 @@ export function CleanUpPage() {
     done: session.report !== null,
   });
   const summary = session.candidates === null ? null : summarize(session.candidates);
+  // What is checked, for the assessment it was made on: a new one starts
+  // from Lumen's proposal again.
+  const [checks, setChecks] = useState<{
+    readonly of: typeof session.candidates;
+    readonly selection: Selection;
+  }>({ of: null, selection: PROPOSED });
+  const selection = checks.of === session.candidates ? checks.selection : PROPOSED;
+  const selected = selectedOf(selection, session.candidates ?? []);
   const cleanUp = useCleanUpAction({
-    proposed: summary?.quarantine.items.length ?? 0,
+    selected,
     onConfirm: () => setActed(true),
   });
   const canRescan = step === "results" || step === "done" || step === "decideFailed";
@@ -130,6 +139,11 @@ export function CleanUpPage() {
             }}
             focus={acted && !cleanedUp}
             cleanedUp={cleanedUp}
+            check={{
+              isChecked: (candidate) => isChecked(selection, candidate),
+              toggle: (candidate) =>
+                setChecks({ of: session.candidates, selection: toggled(selection, candidate) }),
+            }}
           />
         )
       : null;

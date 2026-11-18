@@ -274,6 +274,9 @@ export const zhCN: Messages = {
       "由于磁盘空间即将用满，扫描已停止（Lumen 始终会保留 2 GB 可用空间）。以下是停止前找到的内容。请先释放一些空间，然后重新扫描。",
   },
   action: {
+    cleanUpSelected: (n: number, size: string) => `清理 · ${n} 项 ${size}…`,
+    nothingSelected: "未选择任何项目。",
+    check: (name: string) => `选择 ${name}`,
     cleanUp: "清理…",
     preparing: "正在准备…",
     nothing: "没有建议清理的内容。",
