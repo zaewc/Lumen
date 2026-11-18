@@ -15,7 +15,7 @@ import type {
   UninstallPreviewView,
 } from "@lumen/api-client";
 import { isApiKey, sumBytes } from "@/shared/lib";
-import { canChooseReview, chosenPlan } from "./review-choice";
+import { canChooseReview, chosenPlan, selectedPlan } from "./review-choice";
 import type { LumenTransport } from "./transport";
 
 const HOME = "/Users/ana";
@@ -752,23 +752,37 @@ export function memoryTransport({
       }
       return result;
     },
-    plan: async (chosen = []) => {
+    plan: async (chosen = [], leftOut) => {
       await wait(pace / 2);
       const selected = [...new Set(chosen)].map((id) => {
         const item = candidates.find((candidate) => candidate.id === id);
         if (!item || !canChooseReview(item)) throw new Error("That item cannot be chosen.");
         return item;
       });
+      const out = new Set(leftOut ?? []);
+      for (const id of out) {
+        if (!proposed.some((item) => item.id === id)) {
+          throw new Error("Only Lumen's proposals can be left out.");
+        }
+      }
       plans += 1;
-      pendingPlan = chosenPlan(
-        {
-          ...planView,
-          plan: `${planView.plan.slice(0, -12)}${plans.toString(16).padStart(12, "0")}`,
-          hash: `${planView.hash.slice(0, -8)}${plans.toString(16).padStart(8, "0")}`,
-          items: selected.length > 0 ? selected : [...proposed],
-        },
-        chosen,
-      );
+      const next = {
+        ...planView,
+        plan: `${planView.plan.slice(0, -12)}${plans.toString(16).padStart(12, "0")}`,
+        hash: `${planView.hash.slice(0, -8)}${plans.toString(16).padStart(8, "0")}`,
+      };
+      pendingPlan =
+        leftOut === undefined
+          ? chosenPlan({ ...next, items: selected.length > 0 ? selected : [...proposed] }, chosen)
+          : selectedPlan(
+              { ...next, items: [...proposed.filter((item) => !out.has(item.id)), ...selected] },
+              chosen,
+              leftOut,
+            );
+      if (leftOut !== undefined && pendingPlan.items.length === 0) {
+        pendingPlan = null;
+        throw new Error("Nothing to plan: no proposal is left and none was chosen.");
+      }
       return pendingPlan;
     },
     execute: async (request) => {

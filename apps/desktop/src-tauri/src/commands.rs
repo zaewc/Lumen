@@ -573,20 +573,51 @@ fn check_chosen_identities(
     Ok(())
 }
 
+/// Resolves the proposals the person left out (ADR-0069) from the
+/// assessment shown by this host; each must be one of its proposals.
+fn left_out_paths(
+    latest: &[Assessed],
+    left_out: &[String],
+) -> Result<Vec<lumen_domain::RawPath>, CommandError> {
+    let left_out: std::collections::BTreeSet<&String> = left_out.iter().collect();
+    left_out
+        .into_iter()
+        .map(|id| {
+            let mut matches = latest.iter().filter(|item| candidate_id(item) == *id);
+            let item = matches.next().ok_or_else(|| {
+                CommandError::new("that item is not in the latest assessment; assess again")
+            })?;
+            if matches.next().is_some() {
+                return Err(CommandError::new("that item is ambiguous; assess again"));
+            }
+            if item.decision.verdict() != lumen_domain::Verdict::Quarantine {
+                return Err(CommandError::new("only Lumen's proposals can be left out"));
+            }
+            Ok(item.candidate.path.clone())
+        })
+        .collect()
+}
+
 /// Plans the policy's proposals, or, when the person chose review items,
-/// only those (ADR-0051); moves nothing.
+/// only those (ADR-0051); with `left_out`, the proposals except those plus
+/// the chosen review items (ADR-0069). Moves nothing.
 #[tauri::command]
 pub(crate) async fn plan(
     core: State<'_, Core>,
     chosen: Option<Vec<String>>,
+    left_out: Option<Vec<String>>,
 ) -> Result<PlanView, CommandError> {
-    let chosen = chosen_paths(
-        &core
+    let (chosen, left_out) = {
+        let latest = core
             .assessed
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner),
-        chosen.as_deref().unwrap_or_default(),
-    )?;
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let chosen = chosen_paths(&latest, chosen.as_deref().unwrap_or_default())?;
+        let left_out = left_out
+            .map(|ids| left_out_paths(&latest, &ids))
+            .transpose()?;
+        (chosen, left_out)
+    };
     let db = core.db.clone();
     let secrets = core.secrets.clone();
     let builtin = core.builtin.clone();
@@ -597,17 +628,31 @@ pub(crate) async fn plan(
             secrets.as_deref(),
             builtin.as_ref(),
             |judge, _describer| {
-                if paths.is_empty() {
-                    lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge, &[])
-                } else {
-                    lumen_app::plan_chosen(&db, &SystemClock, &UuidV7Ids, judge, &paths)
+                match &left_out {
+                    Some(out) => {
+                        lumen_app::plan_selected(&db, &SystemClock, &UuidV7Ids, judge, &paths, out)
+                    }
+                    None if paths.is_empty() => {
+                        lumen_app::plan(&db, &SystemClock, &UuidV7Ids, judge, &[])
+                    }
+                    None => lumen_app::plan_chosen(&db, &SystemClock, &UuidV7Ids, judge, &paths),
                 }
                 .map_err(CommandError::new)
             },
             |planned| planned.items.as_slice(),
         )?;
         check_chosen_identities(&chosen, &planned.items)?;
-        if !chosen.is_empty() && planned.items.len() != chosen.len() {
+        if let Some(out) = &left_out
+            && planned
+                .items
+                .iter()
+                .any(|item| out.contains(&item.candidate.path))
+        {
+            return Err(CommandError::new(
+                "the plan holds an item that was left out; nothing was planned",
+            ));
+        }
+        if left_out.is_none() && !chosen.is_empty() && planned.items.len() != chosen.len() {
             return Err(CommandError::new(
                 "the plan holds more than the chosen items; nothing was planned",
             ));
@@ -1353,6 +1398,7 @@ mod tests {
                 "{rule}"
             );
         }
+        let quarantine = decision(Verdict::Quarantine, "classify.devkb-regenerable")?;
         item.decision = review;
         let latest = std::slice::from_ref(&item);
         let id = candidate_id(&item);
@@ -1378,7 +1424,25 @@ mod tests {
         replacement.candidate.size.identity.file = FileId::new(0);
         assert_ne!(candidate_id(&replacement), candidate_id(&item));
         assert!(check_chosen_identities(&selected, &[replacement]).is_err());
-        assert!(check_chosen_identities(&selected, &[item.clone(), item]).is_err());
+        assert!(check_chosen_identities(&selected, &[item.clone(), item.clone()]).is_err());
+
+        // Leaving out (ADR-0069): only the latest assessment's proposals.
+        assert!(
+            left_out_paths(latest, std::slice::from_ref(&id)).is_err(),
+            "a review item"
+        );
+        let mut proposed = item.clone();
+        proposed.decision = quarantine;
+        let proposals = std::slice::from_ref(&proposed);
+        assert_eq!(
+            left_out_paths(proposals, &[id.clone(), id.clone()])?,
+            [proposed.candidate.path.clone()],
+            "a repeated ID is left out once"
+        );
+        assert!(left_out_paths(proposals, &[proposed.candidate.path.display()]).is_err());
+        assert!(left_out_paths(&[], std::slice::from_ref(&id)).is_err());
+        assert!(left_out_paths(&[proposed.clone(), proposed], std::slice::from_ref(&id)).is_err());
+        assert_eq!(left_out_paths(latest, &[])?, Vec::<RawPath>::new());
         Ok(())
     }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { memoryTransport } from "./memory";
-import { canChooseReview, chosenPlan } from "./review-choice";
+import { canChooseReview, chosenPlan, selectedPlan } from "./review-choice";
 
 describe("explicit review choices", () => {
   it("keeps review choices out until selected and confirms their exact plan once", async () => {
@@ -57,5 +57,30 @@ describe("explicit review choices", () => {
         reasons: [{ rule: "classify.devkb-not-regenerable", text: "Not regenerable" }],
       }),
     ).toBe(false);
+  });
+
+  it("leaves unchecked proposals out and keeps chosen review items in", async () => {
+    const transport = memoryTransport();
+    const items = await transport.assess();
+    const proposed = items.filter((c) => c.verdict === "quarantine");
+    const [first, ...rest] = proposed;
+    const review = items.find(canChooseReview);
+    if (!first || rest.length === 0 || !review) throw new Error("fixtures missing");
+    const plan = await transport.plan([review.id], [first.id]);
+    const ids = plan.items.map((c) => c.id).sort();
+    expect(ids).toEqual([...rest.map((c) => c.id), review.id].sort());
+    expect(() => selectedPlan(plan, [review.id], [rest[0]?.id ?? ""])).toThrow();
+    expect(() => selectedPlan(plan, [], [])).toThrow();
+    expect(() =>
+      selectedPlan({ ...plan, items: [...plan.items, ...plan.items] }, [review.id], [first.id]),
+    ).toThrow();
+    await transport.execute({ plan: plan.plan, confirmation: plan.hash });
+    await expect(transport.plan([], [review.id])).rejects.toThrow();
+    await expect(
+      transport.plan(
+        [],
+        proposed.map((c) => c.id),
+      ),
+    ).rejects.toThrow();
   });
 });
