@@ -486,6 +486,9 @@ export const ja: Messages = {
     chosen: "自分で選んだ項目",
     chosenNote:
       "Lumen が提案した項目ではありません。アプリに影響する可能性があり、復元するか完全に削除するまで隔離に残ります。",
+    apps: "選択したアプリ",
+    appsNote:
+      "~/Library のアプリデータはそのまま残します。移動の直前にアプリごとに再確認し、実行中や移動できないアプリは残します。",
     uninstallTitle: "このアプリを隔離に移動しますか？",
     uninstallNote: "隔離から復元できます。",
     finalizeTitle: "この項目を完全に削除しますか？",

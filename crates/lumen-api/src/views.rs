@@ -56,7 +56,8 @@ pub use software::{
 };
 pub use times::{TimeView, TimesView};
 pub use uninstall::{
-    QuitView, UninstallAppView, UninstallNoteView, UninstallOutcomeView, UninstallPreviewView,
+    AppConfirmationRequest, QuitView, SelectedAppView, SelectionReportView, SelectionRequest,
+    UninstallAppView, UninstallNoteView, UninstallOutcomeView, UninstallPreviewView,
     UninstallReasonView, UninstallResultView,
 };
 pub use unread::{UnreadFolderView, UnreadFoldersView, UnreadReasonView};

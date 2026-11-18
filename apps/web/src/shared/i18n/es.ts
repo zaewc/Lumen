@@ -501,6 +501,9 @@ export const es: Messages = {
     chosen: "Elementos que elegiste",
     chosenNote:
       "Lumen no los propuso. Moverlos puede afectar a apps. Se quedan en Cuarentena hasta que los restaures o elimines definitivamente.",
+    apps: "Apps que elegiste",
+    appsNote:
+      "Sus datos en ~/Library se quedan. Cada app se comprueba de nuevo justo antes de moverla; la que esté abierta o no pueda moverse se queda donde está.",
     uninstallTitle: "¿Mover esta app a Cuarentena?",
     uninstallNote: "Puedes restaurarla desde Cuarentena.",
     finalizeTitle: "¿Eliminar este elemento definitivamente?",

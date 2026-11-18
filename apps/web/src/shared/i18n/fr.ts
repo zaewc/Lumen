@@ -488,6 +488,9 @@ export const fr: Messages = {
     chosen: "Éléments que vous avez choisis",
     chosenNote:
       "Lumen ne les a pas proposés. Les déplacer peut affecter des apps. Ils restent en quarantaine jusqu'à ce que vous les restauriez ou les supprimiez définitivement.",
+    apps: "Apps que vous avez choisies",
+    appsNote:
+      "Leurs données dans ~/Library restent. Chaque app est vérifiée juste avant d’être déplacée ; une app ouverte ou impossible à déplacer reste en place.",
     uninstallTitle: "Déplacer cette app en quarantaine ?",
     uninstallNote: "Vous pourrez la restaurer depuis la quarantaine.",
     finalizeTitle: "Supprimer cet élément définitivement ?",

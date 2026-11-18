@@ -466,6 +466,9 @@ export const zhCN: Messages = {
     chosen: "你选择的项目",
     chosenNote:
       "这些不是 Lumen 建议的项目。移动它们可能影响应用，并会一直留在隔离区，直到你恢复或永久移除。",
+    apps: "你选择的应用",
+    appsNote:
+      "~/Library 中的应用数据会保留。每个应用在移动前都会再次检查；正在运行或无法移动的应用会留在原处。",
     uninstallTitle: "将此应用移至隔离区？",
     uninstallNote: "你可以从隔离区恢复它。",
     finalizeTitle: "永久移除此项目？",

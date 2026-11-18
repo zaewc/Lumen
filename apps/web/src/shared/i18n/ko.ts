@@ -486,6 +486,9 @@ export const ko = {
     chosen: "직접 선택한 항목",
     chosenNote:
       "Lumen이 정리를 제안한 항목은 아니에요. 앱 동작에 영향을 줄 수 있고, 직접 복원하거나 영구 삭제할 때까지 격리함에 보관해요.",
+    apps: "직접 선택한 앱",
+    appsNote:
+      "~/Library의 앱 데이터는 그대로 둬요. 옮기기 직전에 앱마다 다시 확인하고, 실행 중이거나 옮길 수 없는 앱은 빼고 옮겨요.",
     uninstallTitle: "이 앱을 격리함으로 옮길까요?",
     uninstallNote: "격리함에서 다시 복원할 수 있어요.",
     finalizeTitle: "이 항목을 영구 삭제할까요?",

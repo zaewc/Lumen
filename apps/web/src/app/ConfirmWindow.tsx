@@ -98,6 +98,11 @@ function useQuestion(ask: HostAsk): {
                 <Rows items={ask.chosen} more={0} />
               </Group>
             )}
+            {ask.apps.length > 0 && (
+              <Group title={h.apps} note={h.appsNote}>
+                <Rows items={ask.apps} more={0} />
+              </Group>
+            )}
           </>
         ),
       };

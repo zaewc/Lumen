@@ -91,6 +91,25 @@
           }
         }
       },
+      "AppConfirmationRequest": {
+        "type": "object",
+        "description": "One app of a selection: its uninstall preview's ID and, as the\nconfirmation, its full hash (ADR-0062, ADR-0069).",
+        "required": [
+          "preview",
+          "confirmation"
+        ],
+        "properties": {
+          "confirmation": {
+            "type": "string",
+            "description": "The preview's full hash, as shown."
+          },
+          "preview": {
+            "type": "string",
+            "description": "The preview's ID."
+          }
+        },
+        "additionalProperties": false
+      },
       "AppDataKindView": {
         "type": "string",
         "description": "What kind of location the platform documents an app data folder as.",
@@ -2332,6 +2351,96 @@
             "description": "The scan's ID."
           }
         }
+      },
+      "SelectedAppView": {
+        "type": "object",
+        "description": "What happened to one app of a selection: its outcome, or why it was\nnot moved. One app's refusal never stops the others.",
+        "required": [
+          "preview",
+          "outcome",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why it was not tried or failed; display text."
+          },
+          "outcome": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UninstallOutcomeView",
+                "description": "What happened, when the move was tried."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preview": {
+            "type": "string",
+            "description": "The preview."
+          }
+        }
+      },
+      "SelectionReportView": {
+        "type": "object",
+        "description": "What a confirmed selection did.",
+        "required": [
+          "cleanup",
+          "apps"
+        ],
+        "properties": {
+          "apps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SelectedAppView"
+            },
+            "description": "Each app, in the order given."
+          },
+          "cleanup": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/QuarantineReportView",
+                "description": "The clean-up's report, when a plan was part of it."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "SelectionRequest": {
+        "type": "object",
+        "description": "What a person checked, to move after one confirmation (ADR-0069): a\nclean-up plan, apps, or both.",
+        "required": [
+          "plan",
+          "apps"
+        ],
+        "properties": {
+          "apps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppConfirmationRequest"
+            },
+            "description": "The checked apps."
+          },
+          "plan": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ExecuteRequest",
+                "description": "The clean-up plan, if any items were checked."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
       },
       "ServiceKindView": {
         "type": "string",

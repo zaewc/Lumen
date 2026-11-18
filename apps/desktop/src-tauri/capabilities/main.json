@@ -29,6 +29,7 @@
     "allow-reassess",
     "allow-uninstall-preview",
     "allow-uninstall",
+    "allow-execute-selection",
     "allow-quit-app",
     "allow-helper-state",
     "allow-helper-enable",
