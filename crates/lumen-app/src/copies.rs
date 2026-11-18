@@ -33,7 +33,7 @@ use lumen_store_sqlite::{
     IndexStore, LedgerJournal, LedgerStore, StoreError, open_index, open_ledger,
 };
 
-use crate::quarantine::{QuarantineError, checked_plan, device, prepare_store};
+use crate::quarantine::{QuarantineError, checked_plan, device};
 use crate::scan::enumerator;
 use crate::store::{LocationError, PrivilegeError, Stores, lock_ledger};
 
@@ -287,10 +287,14 @@ pub(crate) fn move_with(
             StoreError::PlanTransition(_) => QuarantineError::AlreadyConfirmed(plan),
             other => other.into(),
         })?;
+    // On Windows the executor opens the store when it first moves an item.
+    #[cfg(unix)]
     let mut warnings = match mover.stores.locations.first() {
-        Some((base, names)) => prepare_store(base, names)?,
+        Some((base, names)) => crate::quarantine::prepare_store(base, names)?,
         None => Vec::new(),
     };
+    #[cfg(not(unix))]
+    let mut warnings = Vec::new();
     let executor = mover
         .stores
         .executor()
