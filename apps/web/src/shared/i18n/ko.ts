@@ -121,6 +121,8 @@ export const ko = {
       incomplete: "일부 폴더를 끝까지 읽지 못했어요. 그 안의 파일은 비교하지 않았어요.",
       unsupported: "이 컴퓨터에서는 아직 파일을 비교할 수 없어요.",
       failed: "검사한 경로의 파일을 비교하지 못했어요.",
+      oneStays: "하나는 남겨 둬요.",
+      cannotMove: "이 사본은 지금 옮길 수 없어요. 내용이 바뀌었거나 옮길 수 없는 곳이에요.",
       advice:
         "사본은 남겨 두고 싶은 백업일 수 있어요. Lumen은 어느 것도 고르거나 지우지 않아요. 사본을 지워도 그 크기보다 적게 비워질 수 있어요.",
     },
@@ -235,6 +237,8 @@ export const ko = {
       refused: "이 앱은 지금 옮길 수 없어요.",
       moved: (n: number) => `앱 ${count(n)}개를 격리함으로 옮겼어요.`,
       notMoved: (n: number) => `앱 ${count(n)}개는 옮기지 못했어요.`,
+      copiesMoved: (n: number) => `사본 ${count(n)}개를 격리함으로 옮겼어요.`,
+      copiesNotMoved: (n: number) => `사본 ${count(n)}개는 옮기지 못했어요.`,
       title: "앱",
       seeAll: "설치된 앱 모두 보기",
       outside: (n: number) => `검사하지 않은 위치에 앱이 ${count(n)}개 더 있어요.`,

@@ -1,6 +1,15 @@
 import type { CandidateView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
-import { checkable, isChecked, PROPOSED, selectedOf, toggled, withApp } from "./selection";
+import {
+  checkable,
+  copyKey,
+  isChecked,
+  PROPOSED,
+  selectedOf,
+  toggled,
+  withApp,
+  withCopy,
+} from "./selection";
 
 function candidate(id: string, verdict: CandidateView["verdict"], bytes: string): CandidateView {
   return {
@@ -46,6 +55,7 @@ describe("selection", () => {
       chosen: [],
       leftOut: [],
       apps: [],
+      copies: [],
     });
   });
 
@@ -64,6 +74,7 @@ describe("selection", () => {
       chosen: ["r"],
       leftOut: ["a"],
       apps: [],
+      copies: [],
     });
     expect(selectedOf(toggled(selection, a), all).leftOut, "checked again").toEqual([]);
   });
@@ -77,6 +88,7 @@ describe("selection", () => {
       chosen: [],
       leftOut: [],
       apps: [],
+      copies: [],
     });
   });
 
@@ -93,5 +105,17 @@ describe("selection", () => {
     expect([selected.count, selected.items, selected.bytes]).toEqual([2, 1, "1020"]);
     expect(selected.apps).toEqual([{ preview: "p", confirmation: "h" }]);
     expect(selectedOf(withApp(selection, "mac_app:a", undefined), [b]).apps).toEqual([]);
+  });
+
+  it("adds ready copies by their comparison, group and place", () => {
+    const key = copyKey("c1", 0, 1);
+    const selection = withCopy(PROPOSED, key, {
+      check: { kind: "ready", preview: "q", hash: "h2", bytes: "500" },
+      stays: 0,
+    });
+    const selected = selectedOf(selection, []);
+    expect([selected.count, selected.items, selected.bytes]).toEqual([1, 0, "500"]);
+    expect(selected.copies).toEqual([{ preview: "q", confirmation: "h2" }]);
+    expect(withCopy(selection, key, undefined).copies.size).toBe(0);
   });
 });

@@ -50,7 +50,7 @@ export function useCleanUpAction({
         : Promise.resolve(null),
     onSuccess: (planned) => {
       onConfirm();
-      session.execute(planned, selected.apps);
+      session.execute(planned, selected.apps, selected.copies);
     },
   });
   const nothing = selected.count === 0;

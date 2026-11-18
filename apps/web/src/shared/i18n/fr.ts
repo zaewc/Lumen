@@ -115,6 +115,9 @@ export const fr: Messages = {
         "Certains dossiers n'ont pas pu être lus entièrement. Leurs fichiers n'ont pas été comparés.",
       unsupported: "La comparaison de fichiers n'est pas encore disponible sur cet ordinateur.",
       failed: "Lumen n'a pas pu comparer les fichiers de l'analyse.",
+      oneStays: "Une copie reste toujours.",
+      cannotMove:
+        "Cette copie ne peut pas être déplacée : son contenu a changé ou elle est à un endroit que Lumen ne déplace pas.",
       advice:
         "Certaines copies peuvent être des sauvegardes à conserver. Lumen ne choisit ni ne supprime aucune copie. La suppression d'une copie peut libérer moins d'espace que sa taille.",
     },
@@ -238,6 +241,8 @@ export const fr: Messages = {
       refused: "Cette app ne peut pas être déplacée pour le moment.",
       moved: (n: number) => `${n} app(s) déplacée(s) en Quarantaine.`,
       notMoved: (n: number) => `${n} app(s) non déplacée(s).`,
+      copiesMoved: (n: number) => `${n} copie(s) déplacée(s) en Quarantaine.`,
+      copiesNotMoved: (n: number) => `${n} copie(s) non déplacée(s).`,
       title: "Apps",
       seeAll: "Voir toutes les apps installées",
       outside: (n) =>

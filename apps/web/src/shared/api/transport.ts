@@ -7,6 +7,8 @@ import type {
   CandidateView,
   CompareOutcomeView,
   CompareProgressView,
+  CopyPreviewView,
+  CopyRequest,
   DiskView,
   ExecuteRequest,
   FinalizeOutcomeView,
@@ -172,6 +174,12 @@ export interface LumenTransport {
    * others. Only where the host can (the desktop app).
    */
   executeSelection?(request: SelectionRequest): Promise<SelectionReportView>;
+  /**
+   * Previews moving one copy of the latest comparison (ADR-0069), named by
+   * the comparison, its group's place and the copies' places, never a path.
+   * Reads both copies again; moves nothing. Only where the host can.
+   */
+  copyPreview?(request: CopyRequest): Promise<CopyPreviewView>;
   /**
    * Asks the running macOS app the software list shows under `key` to quit,
    * the way its Quit menu item does (roadmap 16.3a): it may ask to save or

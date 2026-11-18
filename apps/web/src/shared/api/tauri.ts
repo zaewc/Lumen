@@ -7,6 +7,7 @@ import {
   zCandidateView,
   zCompareOutcomeView,
   zCompareProgressView,
+  zCopyPreviewView,
   zDiskView,
   zFinalizeOutcomeView,
   zHeldItemView,
@@ -144,6 +145,7 @@ export function tauriTransport(): LumenTransport {
       zUninstallOutcomeView.parse(await call("uninstall", { preview, confirmation })),
     executeSelection: async (request) =>
       zSelectionReportView.parse(await call("execute_selection", { request })),
+    copyPreview: async (request) => zCopyPreviewView.parse(await call("copy_preview", { request })),
     quitApp: async (key) => zQuitView.parse(await call("quit_app", { key })),
     helperState: async () => zHelperView.parse(await call("helper_state")),
     helperEnable: async () => zHelperView.parse(await call("helper_enable")),

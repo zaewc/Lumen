@@ -1,3 +1,4 @@
+import type { CopyRequest } from "@lumen/api-client";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { summarize, useScanSession } from "@/entities/scan-session";
@@ -7,12 +8,14 @@ import { shortcutProps, useShortcut } from "@/shared/lib";
 import { buttonClass, ErrorDetails, Page } from "@/shared/ui";
 import type { Filter } from "../model/filter";
 import {
+  type AppCheck,
   isChecked,
   PROPOSED,
   type Selection,
   selectedOf,
   toggled,
   withApp,
+  withCopy,
 } from "../model/selection";
 import { cleanUpStep } from "../model/step";
 import { useCleanUpAction } from "./CleanUpAction";
@@ -100,6 +103,33 @@ export function CleanUpPage() {
                 hash: answer.hash,
                 bytes: answer.app.size_bytes,
               }
+            : { kind: "refused" },
+        ),
+      () => settle({ kind: "refused" }),
+    );
+  };
+  // Checking a copy asks the host for its preview, with the copy that stays
+  // (ADR-0069); only a ready one joins the selection.
+  const toggleCopy = (key: string, request: CopyRequest) => {
+    if (selection.copies.has(key)) {
+      update((earlier) => withCopy(earlier, key, undefined));
+      return;
+    }
+    const preview = transport.copyPreview;
+    if (preview === undefined) return;
+    const { stays } = request;
+    update((earlier) => withCopy(earlier, key, { check: { kind: "checking" }, stays }));
+    const settle = (check: AppCheck) =>
+      update((earlier) =>
+        earlier.copies.get(key)?.check.kind === "checking"
+          ? withCopy(earlier, key, { check, stays })
+          : earlier,
+      );
+    preview(request).then(
+      (answer) =>
+        settle(
+          answer.kind === "ready"
+            ? { kind: "ready", preview: answer.preview, hash: answer.hash, bytes: answer.bytes }
             : { kind: "refused" },
         ),
       () => settle({ kind: "refused" }),
@@ -248,7 +278,18 @@ export function CleanUpPage() {
       <DiskUsage />
       {view()}
       {scan !== null && !session.scanning && !scan.partial && (
-        <Duplicates key={scan.scan} scanId={scan.scan} />
+        <Duplicates
+          key={scan.scan}
+          scanId={scan.scan}
+          {...(session.report === null && transport.copyPreview !== undefined
+            ? {
+                check: {
+                  state: (key: string) => selection.copies.get(key),
+                  toggle: toggleCopy,
+                },
+              }
+            : {})}
+        />
       )}
     </Page>
   );

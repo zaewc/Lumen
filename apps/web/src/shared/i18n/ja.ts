@@ -116,6 +116,8 @@ export const ja: Messages = {
       incomplete: "一部のフォルダを最後まで読めませんでした。そこにあるファイルは比べていません。",
       unsupported: "このコンピュータでは、まだファイルを比べられません。",
       failed: "スキャンしたファイルを比較できませんでした。",
+      oneStays: "1 つは必ず残します。",
+      cannotMove: "このコピーは今は移動できません。内容が変わったか、移動しない場所にあります。",
       advice:
         "コピーは残しておきたいバックアップかもしれません。Lumen はどれも選んだり削除したりしません。コピーを削除しても、そのサイズ分の空きが増えないことがあります。",
     },
@@ -230,6 +232,8 @@ export const ja: Messages = {
       refused: "このアプリは今は移動できません。",
       moved: (n: number) => `${n} 個のアプリを隔離に移動しました。`,
       notMoved: (n: number) => `${n} 個のアプリは移動できませんでした。`,
+      copiesMoved: (n: number) => `${n} 個のコピーを隔離に移動しました。`,
+      copiesNotMoved: (n: number) => `${n} 個のコピーは移動できませんでした。`,
       title: "アプリ",
       seeAll: "インストール済みのアプリをすべて表示",
       outside: (n: number) =>

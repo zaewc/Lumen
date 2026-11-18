@@ -122,6 +122,9 @@ export const es: Messages = {
         "Algunas carpetas no se pudieron leer por completo. Sus archivos no se compararon.",
       unsupported: "Comparar archivos aún no está disponible en este ordenador.",
       failed: "Lumen no pudo comparar los archivos del análisis.",
+      oneStays: "Siempre queda una copia.",
+      cannotMove:
+        "Esta copia no se puede mover ahora: su contenido cambió o está en un lugar que Lumen no mueve.",
       advice:
         "Las copias pueden ser copias de seguridad que quieres conservar. Lumen no elige ni elimina ninguna. Eliminar una copia puede liberar menos espacio que su tamaño.",
     },
@@ -238,6 +241,8 @@ export const es: Messages = {
       refused: "Esta app no se puede mover ahora.",
       moved: (n: number) => `Se movieron ${n} apps a Cuarentena.`,
       notMoved: (n: number) => `${n} apps no se movieron.`,
+      copiesMoved: (n: number) => `Se movieron ${n} copias a Cuarentena.`,
+      copiesNotMoved: (n: number) => `${n} copias no se movieron.`,
       title: "Apps",
       seeAll: "Ver todas las apps instaladas",
       outside: (n: number) =>

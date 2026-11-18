@@ -126,6 +126,9 @@ export const en = {
       incomplete: "Some folders could not be read completely. Files there were not compared.",
       unsupported: "Comparing files is not available on this computer yet.",
       failed: "Lumen could not compare the scan's files.",
+      oneStays: "One copy always stays.",
+      cannotMove:
+        "This copy can’t be moved now: its contents changed or it is somewhere Lumen does not move.",
       advice:
         "Copies can be backups you want to keep. Lumen does not choose or remove any. Removing a copy can free less space than its size.",
     },
@@ -242,6 +245,8 @@ export const en = {
       refused: "This app can’t be moved now.",
       moved: (n: number) => `Moved ${n} ${n === 1 ? "app" : "apps"} to Quarantine.`,
       notMoved: (n: number) => `${n} ${n === 1 ? "app was" : "apps were"} not moved.`,
+      copiesMoved: (n: number) => `Moved ${n} ${n === 1 ? "copy" : "copies"} to Quarantine.`,
+      copiesNotMoved: (n: number) => `${n} ${n === 1 ? "copy was" : "copies were"} not moved.`,
       title: "Apps",
       seeAll: "See all installed apps",
       outside: (n: number) =>
