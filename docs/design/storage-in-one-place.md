@@ -206,5 +206,11 @@ The Apps page stays until step 9, so no release loses a feature midway.
 - **Name (owner, 2026-11-18):** 저장 공간.
 - **Identical copies like apps (owner, 2026-11-18):** a person may move copies they
   check; Lumen never picks one, and one copy of every group always stays.
+- **Where a copy is checked again (owner, 2026-11-18):** in the app, not the executor.
+  Right before the move, Lumen reads the chosen copy and a copy that stays again with
+  the duplicate engine (identity checked while reading) and compares them; then the
+  executor moves the copy with its usual identity, size and time checks.
+  `lumen-fs-exec` is unchanged. A write in the moment between the two is the
+  accepted risk; the copy stays restorable in Quarantine.
 - **App part checkable (owner, 2026-11-18):** yes, never preselected, so the page has
   one way to move things.
