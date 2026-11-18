@@ -223,8 +223,10 @@ export const ja: Messages = {
   },
   results: {
     apps: {
+      part: "アプリ本体",
+      proposed: (size: string) => `${size} 整理を提案`,
+      notMeasured: "サイズ不明",
       title: "アプリ",
-      line: "アプリは 1 つずつ確認してから隔離に移動します。",
       seeAll: "インストール済みのアプリをすべて表示",
       outside: (n: number) =>
         `このスキャンで読み取っていない場所に、さらに ${count(n)} 個のアプリがあります。`,

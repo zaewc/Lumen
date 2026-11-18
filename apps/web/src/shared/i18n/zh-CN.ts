@@ -218,8 +218,10 @@ export const zhCN: Messages = {
   },
   results: {
     apps: {
+      part: "应用本身",
+      proposed: (size: string) => `${size} 建议清理`,
+      notMeasured: "大小未知",
       title: "应用",
-      line: "应用会逐个检查后再移至隔离区。",
       seeAll: "查看所有已安装的应用",
       outside: (n: number) => `还有 ${count(n)} 个应用位于本次扫描未读取的位置。`,
     },

@@ -235,8 +235,10 @@ export const en = {
   },
   results: {
     apps: {
+      part: "The app itself",
+      proposed: (size: string) => `${size} proposed`,
+      notMeasured: "Size unknown",
       title: "Apps",
-      line: "Apps are checked one at a time before they move to Quarantine.",
       seeAll: "See all installed apps",
       outside: (n: number) =>
         `${count(n)} more ${n === 1 ? "app is" : "apps are"} in places this scan did not read.`,

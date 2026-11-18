@@ -231,8 +231,10 @@ export const fr: Messages = {
   results: {
     ...en.results,
     apps: {
+      part: "L’app elle-même",
+      proposed: (size: string) => `${size} proposé`,
+      notMeasured: "Taille inconnue",
       title: "Apps",
-      line: "Les apps sont vérifiées une par une avant d'être déplacées en quarantaine.",
       seeAll: "Voir toutes les apps installées",
       outside: (n) =>
         `${count(n)} ${n > 1 ? "autres apps se trouvent" : "autre app se trouve"} dans des emplacements que cette analyse n'a pas lus.`,

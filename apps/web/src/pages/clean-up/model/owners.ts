@@ -153,3 +153,37 @@ export function ownersOf(
     })
     .sort(compareOwners);
 }
+
+/** The fewest bytes an app with nothing else listed needs: ADR-0039's floor for large items. */
+export const APP_FLOOR = 100_000_000n;
+
+/** What the list shows of the owners, and the movable apps it leaves out. */
+export interface Listed {
+  readonly owners: readonly Owner[];
+  /** Apps the scan did not measure: never given a made-up size or row. */
+  readonly unmeasured: number;
+}
+
+/**
+ * The owners to list. With `apps` (the "All" view), app parts stay; an app
+ * with nothing else is listed only from [`APP_FLOOR`] and only when the scan
+ * measured it. Otherwise (a status filter) only items are listed, and an
+ * owner left with nothing is left out.
+ */
+export function listedOwners(owners: readonly Owner[], apps: boolean): Listed {
+  let unmeasured = 0;
+  const listed = owners.flatMap((owner): Owner[] => {
+    const parts = apps ? owner.parts : owner.parts.filter((part) => part.kind === "item");
+    if (parts.length === 0) return [];
+    const [only] = parts;
+    if (parts.length === 1 && only?.kind === "app") {
+      if (only.bytes === null) {
+        unmeasured += 1;
+        return [];
+      }
+      if (BigInt(only.bytes) < APP_FLOOR) return [];
+    }
+    return [parts.length === owner.parts.length ? owner : { ...owner, parts }];
+  });
+  return { owners: listed, unmeasured };
+}
