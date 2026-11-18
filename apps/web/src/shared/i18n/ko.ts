@@ -31,7 +31,6 @@ export const ko = {
   nav: {
     label: "주 메뉴",
     overview: "저장 공간",
-    cleanUp: "탐색",
     quarantine: "격리함",
     apps: "앱",
     settings: "설정",

@@ -25,7 +25,6 @@ export const ja: Messages = {
   nav: {
     label: "メイン",
     overview: "ストレージ",
-    cleanUp: "探索",
     quarantine: "隔離",
     apps: "アプリ",
     settings: "設定",

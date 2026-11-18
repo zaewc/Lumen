@@ -23,7 +23,6 @@ export const es: Messages = {
   nav: {
     label: "Principal",
     overview: "Almacenamiento",
-    cleanUp: "Explorar",
     quarantine: "Cuarentena",
     apps: "Apps",
     settings: "Ajustes",

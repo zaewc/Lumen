@@ -22,7 +22,6 @@ export const zhCN: Messages = {
   nav: {
     label: "主导航",
     overview: "存储空间",
-    cleanUp: "探索",
     quarantine: "隔离区",
     apps: "应用",
     settings: "设置",
