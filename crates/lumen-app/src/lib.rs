@@ -8,6 +8,7 @@
 pub mod ai;
 pub mod app_sizes;
 pub mod assess;
+pub mod copies;
 pub mod docker;
 pub mod duplicates;
 #[cfg(any(unix, windows))]

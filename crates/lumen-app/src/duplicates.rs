@@ -239,7 +239,9 @@ fn at_real(mut entry: FilesystemEntry, real: &[(Vec<u8>, Vec<u8>)]) -> Filesyste
     clippy::unnecessary_wraps,
     reason = "other platforms have no reader and say so"
 )]
-fn with_reader<T>(compare: impl FnOnce(&dyn FingerprintReader) -> T) -> Result<T, DuplicatesError> {
+pub(crate) fn with_reader<T>(
+    compare: impl FnOnce(&dyn FingerprintReader) -> T,
+) -> Result<T, DuplicatesError> {
     Ok(compare(&lumen_platform_macos::DuplicateReader))
 }
 
@@ -249,7 +251,9 @@ fn with_reader<T>(compare: impl FnOnce(&dyn FingerprintReader) -> T) -> Result<T
     clippy::unnecessary_wraps,
     reason = "other platforms have no reader and say so"
 )]
-fn with_reader<T>(compare: impl FnOnce(&dyn FingerprintReader) -> T) -> Result<T, DuplicatesError> {
+pub(crate) fn with_reader<T>(
+    compare: impl FnOnce(&dyn FingerprintReader) -> T,
+) -> Result<T, DuplicatesError> {
     Ok(compare(&lumen_platform_windows::DuplicateReader))
 }
 
@@ -259,12 +263,16 @@ fn with_reader<T>(compare: impl FnOnce(&dyn FingerprintReader) -> T) -> Result<T
     clippy::unnecessary_wraps,
     reason = "other platforms have no reader and say so"
 )]
-fn with_reader<T>(compare: impl FnOnce(&dyn FingerprintReader) -> T) -> Result<T, DuplicatesError> {
+pub(crate) fn with_reader<T>(
+    compare: impl FnOnce(&dyn FingerprintReader) -> T,
+) -> Result<T, DuplicatesError> {
     Ok(compare(&lumen_platform_linux::DuplicateReader))
 }
 
 #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
-fn with_reader<T>(_: impl FnOnce(&dyn FingerprintReader) -> T) -> Result<T, DuplicatesError> {
+pub(crate) fn with_reader<T>(
+    _: impl FnOnce(&dyn FingerprintReader) -> T,
+) -> Result<T, DuplicatesError> {
     Err(DuplicatesError::Unsupported)
 }
 
@@ -294,7 +302,7 @@ const fn plain(path: PathBuf) -> PathBuf {
 }
 
 /// Only the roots protected locations are relative to; nothing here acts.
-fn context() -> Context {
+pub(crate) fn context() -> Context {
     let path = |path: Option<PathBuf>| path.and_then(|path| crate::raw_path(&path).ok());
     Context {
         platform: if cfg!(target_os = "macos") {
