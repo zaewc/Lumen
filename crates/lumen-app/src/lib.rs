@@ -8,6 +8,7 @@
 pub mod ai;
 pub mod app_sizes;
 pub mod assess;
+pub mod copies;
 pub mod docker;
 pub mod duplicates;
 #[cfg(any(unix, windows))]
@@ -42,7 +43,7 @@ pub mod usage;
 pub mod xcode;
 
 pub use assess::{AssessError, Assessment, assess, block_on, prepare, with_probes};
-pub use plan::{NotChoosable, PlanError, Planned, plan, plan_chosen};
+pub use plan::{NotChoosable, PlanError, Planned, plan, plan_chosen, plan_selected};
 pub use scan::{RootSummary, ScanError, ScanEvent, ScanSummary, raw_path, scan};
 #[cfg(any(unix, windows))]
 pub use store::{

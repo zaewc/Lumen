@@ -25,6 +25,15 @@ export const zAiSettingsView = z.object({
 });
 
 /**
+ * One app of a selection: its uninstall preview's ID and, as the
+ * confirmation, its full hash (ADR-0062, ADR-0069).
+ */
+export const zAppConfirmationRequest = z.object({
+  confirmation: z.string(),
+  preview: z.string(),
+});
+
+/**
  * What kind of location the platform documents an app data folder as.
  */
 export const zAppDataKindView = z.enum([
@@ -94,6 +103,63 @@ export const zCompareProgressView = z.object({
 export const zConfidenceView = z.enum(["low", "medium", "high"]);
 
 /**
+ * Why a copy cannot move.
+ */
+export const zCopyReasonView = z.enum([
+  "same_file",
+  "not_a_file",
+  "hard_linked",
+  "protected",
+  "nothing_stays",
+  "contents_differ",
+]);
+
+/**
+ * A copy's preview, or why there is none.
+ */
+export const zCopyPreviewView = z.union([
+  z.object({
+    bytes: z.string(),
+    hash: z.string(),
+    kind: z.enum(["ready"]),
+    path: z.string(),
+    preview: z.string(),
+    stays: z.string(),
+  }),
+  z.object({
+    kind: z.enum(["refused"]),
+    reasons: z.array(zCopyReasonView),
+  }),
+  z.object({
+    kind: z.enum(["stale"]),
+  }),
+  z.object({
+    kind: z.enum(["unsupported"]),
+  }),
+]);
+
+/**
+ * A copy to preview for moving (ADR-0069): the comparison, the group's
+ * place in it, the copy that moves and the copy that stays, by their places
+ * in the group's `paths`. Never a path.
+ */
+export const zCopyRequest = z.object({
+  comparison: z.string(),
+  copy: z
+    .int()
+    .gte(0)
+    .max(2147483647, { error: "Invalid value: Expected int32 to be <= 2147483647" }),
+  group: z
+    .int()
+    .gte(0)
+    .max(2147483647, { error: "Invalid value: Expected int32 to be <= 2147483647" }),
+  stays: z
+    .int()
+    .gte(0)
+    .max(2147483647, { error: "Invalid value: Expected int32 to be <= 2147483647" }),
+});
+
+/**
  * How full the disk holding the user's home folder is.
  */
 export const zDiskView = z.object({
@@ -113,6 +179,7 @@ export const zDuplicateGroupView = z.object({
  * What a comparison found and what it could not cover.
  */
 export const zDuplicatesView = z.object({
+  comparison: z.string(),
   folders: z.array(z.string()),
   groups: z.array(zDuplicateGroupView),
   hard_links: z.array(z.array(z.string())),
@@ -359,6 +426,39 @@ export const zAiNoteView = z.object({
  * Where an item is after a failure.
  */
 export const zLocationView = z.enum(["source", "quarantine", "gone"]);
+
+/**
+ * What moving a copy did.
+ */
+export const zCopyResultView = z.union([
+  z.object({
+    kind: z.enum(["quarantined"]),
+    operation: z.string(),
+  }),
+  z.object({
+    kind: z.enum(["refused"]),
+    reasons: z.array(zCopyReasonView),
+  }),
+  z.object({
+    kind: z.enum(["changed"]),
+  }),
+  z.object({
+    kind: z.enum(["failed"]),
+    left: zLocationView,
+    reason: zFailureView,
+  }),
+]);
+
+/**
+ * A moved copy's preview, executed.
+ */
+export const zCopyOutcomeView = z.object({
+  path: z.string(),
+  preview: z.string(),
+  result: zCopyResultView,
+  size_bytes: z.string(),
+  warnings: z.array(z.string()),
+});
 
 /**
  * One end of a relationship. Untrusted text is escaped for display.
@@ -627,6 +727,26 @@ export const zScanView = z.object({
   partial: z.boolean(),
   roots: z.array(zRootView),
   scan: z.string(),
+});
+
+/**
+ * What happened to one copy of a selection: its outcome, or why it was not
+ * tried. One copy's refusal never stops the others.
+ */
+export const zSelectedCopyView = z.object({
+  error: z.string().nullable(),
+  outcome: zCopyOutcomeView.nullable(),
+  preview: z.string(),
+});
+
+/**
+ * What a person checked, to move after one confirmation (ADR-0069): a
+ * clean-up plan, apps, or both.
+ */
+export const zSelectionRequest = z.object({
+  apps: z.array(zAppConfirmationRequest),
+  copies: z.array(zAppConfirmationRequest).optional(),
+  plan: zExecuteRequest.nullable(),
 });
 
 /**
@@ -1108,6 +1228,25 @@ export const zUninstallOutcomeView = z.object({
   result: zUninstallResultView,
   size_bytes: z.string(),
   warnings: z.array(z.string()),
+});
+
+/**
+ * What happened to one app of a selection: its outcome, or why it was
+ * not moved. One app's refusal never stops the others.
+ */
+export const zSelectedAppView = z.object({
+  error: z.string().nullable(),
+  outcome: zUninstallOutcomeView.nullable(),
+  preview: z.string(),
+});
+
+/**
+ * What a confirmed selection did.
+ */
+export const zSelectionReportView = z.object({
+  apps: z.array(zSelectedAppView),
+  cleanup: zQuarantineReportView.nullable(),
+  copies: z.array(zSelectedCopyView),
 });
 
 /**

@@ -32,6 +32,8 @@ const allowed = new Set([
   "reassess",
   "uninstall_preview",
   "uninstall",
+  "execute_selection",
+  "copy_preview",
   "quit_app",
   "helper_state",
   "helper_enable",

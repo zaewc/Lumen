@@ -55,6 +55,21 @@ export type AiSettingsView = {
 };
 
 /**
+ * One app of a selection: its uninstall preview's ID and, as the
+ * confirmation, its full hash (ADR-0062, ADR-0069).
+ */
+export type AppConfirmationRequest = {
+  /**
+   * The preview's full hash, as shown.
+   */
+  confirmation: string;
+  /**
+   * The preview's ID.
+   */
+  preview: string;
+};
+
+/**
  * What kind of location the platform documents an app data folder as.
  */
 export type AppDataKindView =
@@ -222,6 +237,141 @@ export type CompareStageView = "head" | "tail" | "full";
 export type ConfidenceView = "low" | "medium" | "high";
 
 /**
+ * A moved copy's preview, executed.
+ */
+export type CopyOutcomeView = {
+  /**
+   * Where the copy was; display-escaped.
+   */
+  path: string;
+  /**
+   * The preview.
+   */
+  preview: string;
+  /**
+   * What happened.
+   */
+  result: CopyResultView;
+  /**
+   * What removing it for good frees, in bytes.
+   */
+  size_bytes: string;
+  /**
+   * Problems that did not stop it.
+   */
+  warnings: Array<string>;
+};
+
+/**
+ * A copy's preview, or why there is none.
+ */
+export type CopyPreviewView =
+  | {
+      /**
+       * What it frees once removed for good, in bytes.
+       */
+      bytes: string;
+      /**
+       * Its full hash, the confirmation.
+       */
+      hash: string;
+      kind: "ready";
+      /**
+       * The copy that moves; display-escaped.
+       */
+      path: string;
+      /**
+       * The preview's ID.
+       */
+      preview: string;
+      /**
+       * The copy that stays; display-escaped.
+       */
+      stays: string;
+    }
+  | {
+      kind: "refused";
+      /**
+       * Why.
+       */
+      reasons: Array<CopyReasonView>;
+    }
+  | {
+      kind: "stale";
+    }
+  | {
+      kind: "unsupported";
+    };
+
+/**
+ * Why a copy cannot move.
+ */
+export type CopyReasonView =
+  | "same_file"
+  | "not_a_file"
+  | "hard_linked"
+  | "protected"
+  | "nothing_stays"
+  | "contents_differ";
+
+/**
+ * A copy to preview for moving (ADR-0069): the comparison, the group's
+ * place in it, the copy that moves and the copy that stays, by their places
+ * in the group's `paths`. Never a path.
+ */
+export type CopyRequest = {
+  /**
+   * [`DuplicatesView::comparison`].
+   */
+  comparison: string;
+  /**
+   * The copy that moves.
+   */
+  copy: number;
+  /**
+   * The group's place in [`DuplicatesView::groups`].
+   */
+  group: number;
+  /**
+   * The copy that stays.
+   */
+  stays: number;
+};
+
+/**
+ * What moving a copy did.
+ */
+export type CopyResultView =
+  | {
+      kind: "quarantined";
+      /**
+       * The operation, for restoring or removing it for good.
+       */
+      operation: string;
+    }
+  | {
+      kind: "refused";
+      /**
+       * Every reason, at least one.
+       */
+      reasons: Array<CopyReasonView>;
+    }
+  | {
+      kind: "changed";
+    }
+  | {
+      kind: "failed";
+      /**
+       * Where the copy is.
+       */
+      left: LocationView;
+      /**
+       * Why.
+       */
+      reason: FailureView;
+    };
+
+/**
  * How full the disk holding the user's home folder is.
  */
 export type DiskView = {
@@ -253,6 +403,11 @@ export type DuplicateGroupView = {
  * What a comparison found and what it could not cover.
  */
 export type DuplicatesView = {
+  /**
+   * This comparison, as the host keeps it: a copy is named by it, its
+   * group's place in `groups` and the copy's place in `paths` (ADR-0069).
+   */
+  comparison: string;
   /**
    * The roots of the completed scan.
    */
@@ -1224,6 +1379,69 @@ export type ScanView = {
    * The scan's ID.
    */
   scan: string;
+};
+
+/**
+ * What happened to one app of a selection: its outcome, or why it was
+ * not moved. One app's refusal never stops the others.
+ */
+export type SelectedAppView = {
+  /**
+   * Why it was not tried or failed; display text.
+   */
+  error: string | null;
+  outcome: UninstallOutcomeView | null;
+  /**
+   * The preview.
+   */
+  preview: string;
+};
+
+/**
+ * What happened to one copy of a selection: its outcome, or why it was not
+ * tried. One copy's refusal never stops the others.
+ */
+export type SelectedCopyView = {
+  /**
+   * Why it was not tried or failed; display text.
+   */
+  error: string | null;
+  outcome: CopyOutcomeView | null;
+  /**
+   * The preview.
+   */
+  preview: string;
+};
+
+/**
+ * What a confirmed selection did.
+ */
+export type SelectionReportView = {
+  /**
+   * Each app, in the order given.
+   */
+  apps: Array<SelectedAppView>;
+  cleanup: QuarantineReportView | null;
+  /**
+   * Each copy, in the order given.
+   */
+  copies: Array<SelectedCopyView>;
+};
+
+/**
+ * What a person checked, to move after one confirmation (ADR-0069): a
+ * clean-up plan, apps, or both.
+ */
+export type SelectionRequest = {
+  /**
+   * The checked apps.
+   */
+  apps: Array<AppConfirmationRequest>;
+  /**
+   * The checked copies of identical files, each by its preview and hash.
+   */
+  copies?: Array<AppConfirmationRequest>;
+  plan: ExecuteRequest | null;
 };
 
 /**

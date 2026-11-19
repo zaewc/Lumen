@@ -15,7 +15,7 @@ import type {
   UninstallPreviewView,
 } from "@lumen/api-client";
 import { isApiKey, sumBytes } from "@/shared/lib";
-import { canChooseReview, chosenPlan } from "./review-choice";
+import { canChooseReview, chosenPlan, selectedPlan } from "./review-choice";
 import type { LumenTransport } from "./transport";
 
 const HOME = "/Users/ana";
@@ -689,6 +689,9 @@ function operationId(n: number): string {
  * With `builtinKey`, it acts like a release build carrying Lumen's built-in
  * Jeb key (ADR-0042).
  */
+/** The sample comparison's ID. */
+const SAMPLE_COMPARISON = "0190f0d2-6c1e-7a3b-8c4d-5e6f70819300";
+
 export function memoryTransport({
   pace = 0,
   builtinKey = false,
@@ -719,7 +722,9 @@ export function memoryTransport({
     held = held.filter((h) => h.operation !== operation);
     return item;
   };
-  return {
+  // Copy previews made from the sample comparison, by preview ID.
+  const copyPreviews = new Map<string, string>();
+  const transport: LumenTransport = {
     scan: async (_request, onProgress) => {
       // Paced, the scan reports a few growing totals, as a real one does.
       const steps = pace > 0 ? PROGRESS : PROGRESS.slice(-1);
@@ -752,23 +757,37 @@ export function memoryTransport({
       }
       return result;
     },
-    plan: async (chosen = []) => {
+    plan: async (chosen = [], leftOut) => {
       await wait(pace / 2);
       const selected = [...new Set(chosen)].map((id) => {
         const item = candidates.find((candidate) => candidate.id === id);
         if (!item || !canChooseReview(item)) throw new Error("That item cannot be chosen.");
         return item;
       });
+      const out = new Set(leftOut ?? []);
+      for (const id of out) {
+        if (!proposed.some((item) => item.id === id)) {
+          throw new Error("Only Lumen's proposals can be left out.");
+        }
+      }
       plans += 1;
-      pendingPlan = chosenPlan(
-        {
-          ...planView,
-          plan: `${planView.plan.slice(0, -12)}${plans.toString(16).padStart(12, "0")}`,
-          hash: `${planView.hash.slice(0, -8)}${plans.toString(16).padStart(8, "0")}`,
-          items: selected.length > 0 ? selected : [...proposed],
-        },
-        chosen,
-      );
+      const next = {
+        ...planView,
+        plan: `${planView.plan.slice(0, -12)}${plans.toString(16).padStart(12, "0")}`,
+        hash: `${planView.hash.slice(0, -8)}${plans.toString(16).padStart(8, "0")}`,
+      };
+      pendingPlan =
+        leftOut === undefined
+          ? chosenPlan({ ...next, items: selected.length > 0 ? selected : [...proposed] }, chosen)
+          : selectedPlan(
+              { ...next, items: [...proposed.filter((item) => !out.has(item.id)), ...selected] },
+              chosen,
+              leftOut,
+            );
+      if (leftOut !== undefined && pendingPlan.items.length === 0) {
+        pendingPlan = null;
+        throw new Error("Nothing to plan: no proposal is left and none was chosen.");
+      }
       return pendingPlan;
     },
     execute: async (request) => {
@@ -951,6 +970,7 @@ export function memoryTransport({
       return {
         kind: "compared",
         report: {
+          comparison: SAMPLE_COMPARISON,
           folders: ["/Users/demo"],
           groups: [
             {
@@ -1132,6 +1152,63 @@ export function memoryTransport({
       }
       ai = { ...ai, key: "jeb", key_source: "stored" };
       return Promise.resolve(ai);
+    },
+  };
+  return {
+    ...transport,
+    executeSelection: async (request) => {
+      const { execute, uninstall } = transport;
+      const cleanup = request.plan === null ? null : await execute(request.plan);
+      const apps = [];
+      for (const app of request.apps) {
+        try {
+          const outcome = await (uninstall === undefined
+            ? Promise.reject(new Error("unsupported"))
+            : uninstall(app.preview, app.confirmation));
+          apps.push({ preview: app.preview, outcome, error: null });
+        } catch (error) {
+          apps.push({ preview: app.preview, outcome: null, error: String(error) });
+        }
+      }
+      const copies = (request.copies ?? []).map((copy) => {
+        const path = copyPreviews.get(copy.preview);
+        copyPreviews.delete(copy.preview);
+        return path === undefined
+          ? {
+              preview: copy.preview,
+              outcome: null,
+              error: "that copy was not previewed here; compare again",
+            }
+          : {
+              preview: copy.preview,
+              outcome: {
+                preview: copy.preview,
+                path,
+                size_bytes: "1800000000",
+                result: { kind: "quarantined" as const, operation: operationId(900) },
+                warnings: [],
+              },
+              error: null,
+            };
+      });
+      return { cleanup, apps, copies };
+    },
+    copyPreview: async (request) => {
+      await wait(pace / 2);
+      if (request.comparison !== SAMPLE_COMPARISON || request.copy === request.stays) {
+        return { kind: "stale" };
+      }
+      const preview = `copy-preview-${request.group}-${request.copy}`;
+      const path = `/Users/demo/Downloads/copy-${request.group}-${request.copy}`;
+      copyPreviews.set(preview, path);
+      return {
+        kind: "ready",
+        preview,
+        hash: planView.hash,
+        path,
+        stays: `/Users/demo/Movies/copy-${request.group}-${request.stays}`,
+        bytes: "1800000000",
+      };
     },
   };
 }

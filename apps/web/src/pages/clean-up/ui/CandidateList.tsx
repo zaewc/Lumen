@@ -1,4 +1,4 @@
-import type { CandidateView } from "@lumen/api-client";
+import type { CandidateView, SoftwareItemView } from "@lumen/api-client";
 import { type KeyboardEvent, type ReactNode, useId, useRef, useState } from "react";
 import { statusOf } from "@/entities/scan-session";
 import { aiNoteText, useI18n } from "@/shared/i18n";
@@ -6,10 +6,45 @@ import { baseName, formatBytes, parentPath } from "@/shared/lib";
 import { Bytes } from "@/shared/ui";
 import { commandLine } from "../lib/command";
 import { moveIndex } from "../lib/keys";
+import { softwareTitle } from "../model/app-title";
 import { type Lens, type LensMark, lensMark } from "../model/lens";
-import { type KindSection, type SourceGroup, splitBySource } from "../model/sections";
+import type { Owner, OwnerPart } from "../model/owners";
+import { type AppCheck, checkable } from "../model/selection";
 import { CandidateSize } from "./CandidateSize";
 import { StatusText } from "./Status";
+
+/** The checkboxes of the list (ADR-0069). */
+export interface Check {
+  readonly isChecked: (candidate: CandidateView) => boolean;
+  readonly toggle: (candidate: CandidateView) => void;
+  /** A checked app's preview state, by software-list key. */
+  readonly appState: (key: string) => AppCheck | undefined;
+  readonly toggleApp: (key: string) => void;
+}
+
+/** The column every row keeps for a checkbox, so names line up. */
+function CheckCell({
+  candidate,
+  check,
+}: {
+  readonly candidate: CandidateView;
+  readonly check?: Check;
+}) {
+  const { m } = useI18n();
+  return (
+    <span className="flex w-7 shrink-0 justify-center pt-3">
+      {check !== undefined && checkable(candidate) && (
+        <input
+          type="checkbox"
+          checked={check.isChecked(candidate)}
+          onChange={() => check.toggle(candidate)}
+          aria-label={m.action.check(baseName(candidate.path))}
+          className="size-4 cursor-pointer accent-accent"
+        />
+      )}
+    </span>
+  );
+}
 
 /**
  * The list's columns. Wide: name, location, status, size on one line.
@@ -33,8 +68,10 @@ function Row({
   moving,
   onOpen,
   onMove,
+  check,
 }: {
   readonly candidate: CandidateView;
+  readonly check?: Check;
   /** It is being moved to Quarantine now. */
   readonly moving: boolean;
   readonly index: number;
@@ -57,49 +94,52 @@ function Row({
       data-lens={mark ?? undefined}
       className="transition-opacity data-[lens=lowered]:opacity-40 motion-reduce:transition-none"
     >
-      <button
-        type="button"
-        data-row={index}
-        data-inspected={mark === "inspected"}
-        aria-haspopup="dialog"
-        tabIndex={active ? 0 : -1}
-        aria-describedby={active ? hint : undefined}
-        onClick={() => onOpen(candidate)}
-        onKeyDown={(event) => onMove(event, index)}
-        className={`${GRID} w-full items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill data-[inspected=true]:bg-accent-soft data-[inspected=true]:outline-2 data-[inspected=true]:-outline-offset-2 data-[inspected=true]:outline-accent focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
-      >
-        <span
-          title={candidate.path}
-          className={`truncate font-medium ${splitBySource(candidate.group.kind) ? "border-l border-line-strong pl-3" : ""} ${keep ? "text-ink-2" : "text-ink"}`}
+      <div className="flex">
+        <CheckCell candidate={candidate} {...(check === undefined ? {} : { check })} />
+        <button
+          type="button"
+          data-row={index}
+          data-inspected={mark === "inspected"}
+          aria-haspopup="dialog"
+          tabIndex={active ? 0 : -1}
+          aria-describedby={active ? hint : undefined}
+          onClick={() => onOpen(candidate)}
+          onKeyDown={(event) => onMove(event, index)}
+          className={`${GRID} min-w-0 flex-1 items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill data-[inspected=true]:bg-accent-soft data-[inspected=true]:outline-2 data-[inspected=true]:-outline-offset-2 data-[inspected=true]:outline-accent focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
         >
-          {baseName(candidate.path)}
-        </span>
-        <span className="col-start-2 row-start-1 justify-self-end text-right tabular-nums text-ink @xl:col-start-4">
-          <CandidateSize candidate={candidate} />
-        </span>
-        <span
-          title={location}
-          className="row-start-2 truncate text-[12px] text-ink-3 @xl:col-start-2 @xl:row-start-1 @xl:text-[13px]"
-        >
-          {location}
-        </span>
-        <span className="col-start-2 row-start-2 text-right text-[12px] @xl:col-start-3 @xl:row-start-1 @xl:text-left @xl:text-[13px]">
-          <StatusText status={status} />
-        </span>
-      </button>
+          <span
+            title={candidate.path}
+            className={`truncate border-l border-line-strong pl-3 font-medium ${keep ? "text-ink-2" : "text-ink"}`}
+          >
+            {baseName(candidate.path)}
+          </span>
+          <span className="col-start-2 row-start-1 justify-self-end text-right tabular-nums text-ink @xl:col-start-4">
+            <CandidateSize candidate={candidate} />
+          </span>
+          <span
+            title={location}
+            className="row-start-2 truncate text-[12px] text-ink-3 @xl:col-start-2 @xl:row-start-1 @xl:text-[13px]"
+          >
+            {location}
+          </span>
+          <span className="col-start-2 row-start-2 text-right text-[12px] @xl:col-start-3 @xl:row-start-1 @xl:text-left @xl:text-[13px]">
+            <StatusText status={status} />
+          </span>
+        </button>
+      </div>
       {command !== null && (
-        <code className="mx-2 mb-2 block font-mono text-[12px] leading-relaxed break-all text-ink-2 select-all">
+        <code className="mr-2 mb-2 ml-9 block font-mono text-[12px] leading-relaxed break-all text-ink-2 select-all">
           {commandLine(command)}
         </code>
       )}
       {note !== null && (
-        <p className="mx-2 mb-1.5 truncate text-[12px] text-ink-3">{aiNoteText(m, note)}</p>
+        <p className="mr-2 mb-1.5 ml-9 truncate text-[12px] text-ink-3">{aiNoteText(m, note)}</p>
       )}
       {moving && (
         <div
           role="progressbar"
           aria-label={m.confirm.moving}
-          className="mx-2 mb-2 h-1 overflow-hidden rounded-full bg-accent-soft"
+          className="mr-2 mb-2 ml-9 h-1 overflow-hidden rounded-full bg-accent-soft"
         >
           <div className="h-full w-2/5 animate-[indeterminate_1.4s_ease-in-out_infinite] rounded-full bg-accent motion-reduce:w-full motion-reduce:animate-none motion-reduce:opacity-50" />
         </div>
@@ -116,46 +156,155 @@ function ListHeading({
   count,
   bytes,
   exact,
+  detail,
 }: {
   readonly level: 3 | 4;
   readonly id?: string;
   readonly name: string;
   readonly count: number;
-  readonly bytes: string;
+  /** Decimal bytes; `null` when no part's size is known. */
+  readonly bytes: string | null;
   /** Whether `bytes` is exact; otherwise it shows as "at least". */
   readonly exact: boolean;
+  /** A second line under the size, such as what is proposed. */
+  readonly detail?: string;
 }) {
   const { m } = useI18n();
   const Tag = level === 3 ? "h3" : "h4";
   return (
     <Tag
       id={id}
-      className={`${GRID} items-baseline px-2 ${level === 3 ? "pt-6 pb-2 text-section text-ink" : "pt-3 pb-1 text-[12px] font-medium text-ink-2"}`}
+      className={`${GRID} items-baseline pr-2 pl-9 ${level === 3 ? "pt-6 pb-2 text-section text-ink" : "pt-3 pb-1 text-[12px] font-medium text-ink-2"}`}
     >
       <span className="truncate @xl:col-span-3">
         {name}
         <span className="ml-2 font-normal tabular-nums text-ink-3">{m.common.items(count)}</span>
+        {detail !== undefined && (
+          <span className="ml-2 text-[12px] font-normal tabular-nums text-accent-ink">
+            · {detail}
+          </span>
+        )}
       </span>
       <span className="text-right font-normal tabular-nums text-ink-2">
-        {exact ? <Bytes value={bytes} /> : m.details.atLeast(formatBytes(bytes))}
+        {bytes === null ? (
+          m.results.apps.notMeasured
+        ) : exact ? (
+          <Bytes value={bytes} />
+        ) : (
+          m.details.atLeast(formatBytes(bytes))
+        )}
       </span>
     </Tag>
   );
 }
 
 /**
- * The candidates in sections by kind (developer tools by tool), in aligned
- * columns, or a note when the filter leaves none. It is one stop for Tab:
- * ↑ and ↓ (and Page Up, Page Down, Home, End) move between rows.
+ * An installed app itself (ADR-0069), under its owner: opens the app's own
+ * move dialog, which checks it afresh (ADR-0062). It has no verdict.
+ */
+function AppRow({
+  part,
+  index,
+  active,
+  hint,
+  onOpen,
+  onMove,
+  check,
+}: {
+  readonly part: Extract<OwnerPart, { kind: "app" }>;
+  /** The checkboxes; an app is never checked unless the person checks it. */
+  readonly check?: Check;
+  readonly index: number;
+  readonly active: boolean;
+  readonly hint: string;
+  readonly onOpen: () => void;
+  readonly onMove: (event: KeyboardEvent, from: number) => void;
+}) {
+  const { m } = useI18n();
+  const location = part.app.location ?? "";
+  const state = check?.appState(part.app.key);
+  return (
+    <li>
+      <div className="flex">
+        <span className="flex w-7 shrink-0 justify-center pt-3">
+          {check !== undefined && (
+            <input
+              type="checkbox"
+              checked={state !== undefined && state.kind !== "refused"}
+              disabled={state?.kind === "checking"}
+              onChange={() => check.toggleApp(part.app.key)}
+              aria-label={m.action.check(softwareTitle(part.app))}
+              className="size-4 cursor-pointer accent-accent disabled:cursor-wait"
+            />
+          )}
+        </span>
+        <button
+          type="button"
+          data-row={index}
+          aria-haspopup="dialog"
+          tabIndex={active ? 0 : -1}
+          aria-describedby={active ? hint : undefined}
+          onClick={onOpen}
+          onKeyDown={(event) => onMove(event, index)}
+          className={`${GRID} min-w-0 flex-1 items-center gap-y-1 rounded px-2 py-2.5 text-left transition-colors hover:bg-fill focus-visible:bg-accent-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:bg-fill-strong motion-reduce:transition-none`}
+        >
+          <span className="truncate border-l border-line-strong pl-3 font-medium text-ink">
+            {m.results.apps.part}
+          </span>
+          <span className="col-start-2 row-start-1 justify-self-end text-right whitespace-nowrap tabular-nums text-ink @xl:col-start-4">
+            {part.bytes === null ? (
+              m.results.apps.notMeasured
+            ) : part.atLeast ? (
+              m.details.atLeast(formatBytes(part.bytes))
+            ) : (
+              <Bytes value={part.bytes} />
+            )}
+          </span>
+          <span
+            title={location}
+            className="row-start-2 truncate text-[12px] text-ink-3 @xl:col-start-2 @xl:row-start-1 @xl:text-[13px]"
+          >
+            {location}
+          </span>
+          <span className="col-start-2 row-start-2 text-right text-[12px] text-ink-2 @xl:col-start-3 @xl:row-start-1 @xl:text-left @xl:text-[13px]">
+            {m.results.apps.title}
+          </span>
+        </button>
+      </div>
+      {state?.kind === "checking" && (
+        <p className="mr-2 mb-1.5 ml-9 text-[12px] text-ink-3">{m.results.apps.checking}</p>
+      )}
+      {state?.kind === "refused" && (
+        <p className="mr-2 mb-1.5 ml-9 text-[12px] text-attention">
+          {m.results.apps.refused}{" "}
+          <button type="button" onClick={onOpen} className="text-accent-ink hover:underline">
+            {m.common.details}
+          </button>
+        </p>
+      )}
+    </li>
+  );
+}
+
+/**
+ * The candidates and installed apps under what owns them (ADR-0069), in
+ * aligned columns, or a note when the filter leaves none. It is one stop for
+ * Tab: ↑ and ↓ (and Page Up, Page Down, Home, End) move between rows.
  */
 export function CandidateList({
-  sections,
+  owners,
   onOpen,
+  onOpenApp,
   lens,
   moving = null,
+  check,
 }: {
-  readonly sections: readonly KindSection[];
+  readonly owners: readonly Owner[];
+  /** The checkboxes; none when the results are read-only. */
+  readonly check?: Check;
   readonly onOpen: (candidate: CandidateView) => void;
+  /** Opens an app's own move dialog. */
+  readonly onOpenApp: (app: SoftwareItemView) => void;
   /** The item being moved to Quarantine now, by ID; its row shows it. */
   readonly moving?: string | null;
   /** The open item's lens: it lowers what is unrelated to that item. */
@@ -165,11 +314,11 @@ export function CandidateList({
   const hint = useId();
   const list = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState(0);
-  const count = sections.reduce((total, section) => total + section.count, 0);
+  const count = owners.reduce((total, owner) => total + owner.parts.length, 0);
   // A filter may have shortened the list since.
   const active = Math.min(selected, count - 1);
 
-  if (sections.length === 0) {
+  if (owners.length === 0) {
     return <p className="py-6 text-center text-ink-3">{m.results.emptyFilter}</p>;
   }
 
@@ -183,22 +332,41 @@ export function CandidateList({
     list.current?.querySelector<HTMLElement>(`[data-row="${next}"]`)?.focus();
   };
 
-  // Each row's place in reading order, across sections and tools.
-  const ordered = sections.flatMap((section) => section.sources.flatMap((group) => group.items));
-  const order = new Map(ordered.map((candidate, at) => [candidate.path, at]));
-  const rows = (group: SourceGroup) => (
+  // Each row's place in reading order, across owners.
+  const starts: number[] = [];
+  let next = 0;
+  for (const owner of owners) {
+    starts.push(next);
+    next += owner.parts.length;
+  }
+  const rows = (owner: Owner, start: number) => (
     <ul className="divide-y divide-line">
-      {group.items.map((candidate) => {
-        const at = order.get(candidate.path) ?? 0;
-        return (
-          <Row
-            key={candidate.path}
-            candidate={candidate}
+      {owner.parts.map((part, i) => {
+        const at = start + i;
+        return part.kind === "app" ? (
+          <AppRow
+            key={part.app.key}
+            part={part}
+            {...(check === undefined ? {} : { check })}
             index={at}
             active={at === active}
-            mark={lensMark(lens, candidate.path)}
             hint={hint}
-            moving={candidate.id === moving}
+            onOpen={() => {
+              setSelected(at);
+              onOpenApp(part.app);
+            }}
+            onMove={onMove}
+          />
+        ) : (
+          <Row
+            key={part.item.path}
+            candidate={part.item}
+            index={at}
+            active={at === active}
+            mark={lensMark(lens, part.item.path)}
+            hint={hint}
+            moving={part.item.id === moving}
+            {...(check === undefined ? {} : { check })}
             onOpen={(opened) => {
               setSelected(at);
               onOpen(opened);
@@ -217,63 +385,58 @@ export function CandidateList({
       </p>
       <div
         aria-hidden="true"
-        className={`${GRID} hidden border-b border-line px-2 pb-1 text-[12px] font-medium text-ink-3 @xl:grid`}
+        className={`${GRID} hidden border-b border-line pr-2 pb-1 pl-9 text-[12px] font-medium text-ink-3 @xl:grid`}
       >
         <span>{m.results.columns.name}</span>
         <span>{m.results.columns.location}</span>
         <span>{m.results.columns.status}</span>
         <span className="text-right">{m.results.columns.size}</span>
       </div>
-      {sections.map((section) => (
-        <Section key={section.kind} section={section} rows={rows} />
+      {owners.map((owner, i) => (
+        <OwnerSection key={owner.key} owner={owner}>
+          {rows(owner, starts[i] ?? 0)}
+        </OwnerSection>
       ))}
     </div>
   );
 }
 
-/**
- * One kind of group: its heading with totals, then its rows (by tool for
- * developer tools, by app for a removed app's data).
- */
-function Section({
-  section,
-  rows,
+/** One owner: its name with its total and what is proposed, then its parts. */
+function OwnerSection({
+  owner,
+  children,
 }: {
-  readonly section: KindSection;
-  readonly rows: (group: SourceGroup) => ReactNode;
+  readonly owner: Owner;
+  readonly children: ReactNode;
 }) {
   const { m } = useI18n();
   const heading = useId();
+  const name =
+    owner.app !== null
+      ? softwareTitle(owner.app)
+      : owner.kind === "removed"
+        ? m.results.groups.removed_app
+        : owner.kind === "kind"
+          ? m.results.groups[owner.group ?? "other"]
+          : (owner.name ?? m.results.groups.other);
+  const proposed = BigInt(owner.proposedBytes) > 0n;
   return (
-    <section aria-labelledby={heading} className="border-b border-line">
+    <section aria-labelledby={heading} className="border-b border-line pb-1">
       <ListHeading
         level={3}
         id={heading}
-        name={m.results.groups[section.kind]}
-        count={section.count}
-        bytes={section.bytes}
-        exact={section.exact}
+        name={name}
+        count={owner.parts.length}
+        bytes={owner.bytes}
+        exact={!owner.atLeast}
+        {...(proposed ? { detail: m.results.apps.proposed(formatBytes(owner.proposedBytes)) } : {})}
       />
-      {section.kind === "command" && (
-        <p className="px-2 pb-1.5 text-[12px] leading-snug text-ink-3">{m.results.commandNote}</p>
+      {owner.kind === "removed" && (
+        <p className="pr-2 pb-1.5 pl-9 text-[12px] leading-snug text-ink-3">
+          {m.results.removedNote}
+        </p>
       )}
-      {section.kind === "removed_app" && (
-        <p className="px-2 pb-1.5 text-[12px] leading-snug text-ink-3">{m.results.removedNote}</p>
-      )}
-      {splitBySource(section.kind)
-        ? section.sources.map((group) => (
-            <div key={group.source ?? ""}>
-              <ListHeading
-                level={4}
-                name={group.source ?? m.results.otherTools}
-                count={group.items.length}
-                bytes={group.bytes}
-                exact={group.exact}
-              />
-              {rows(group)}
-            </div>
-          ))
-        : section.sources.map((group) => <div key={group.source ?? ""}>{rows(group)}</div>)}
+      {children}
     </section>
   );
 }

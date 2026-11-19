@@ -23,9 +23,7 @@ export const es: Messages = {
   nav: {
     label: "Principal",
     overview: "Almacenamiento",
-    cleanUp: "Explorar",
     quarantine: "Cuarentena",
-    apps: "Apps",
     settings: "Ajustes",
     held: (n: number) => `${items(n)} en Cuarentena`,
   },
@@ -123,6 +121,9 @@ export const es: Messages = {
         "Algunas carpetas no se pudieron leer por completo. Sus archivos no se compararon.",
       unsupported: "Comparar archivos aún no está disponible en este ordenador.",
       failed: "Lumen no pudo comparar los archivos del análisis.",
+      oneStays: "Siempre queda una copia.",
+      cannotMove:
+        "Esta copia no se puede mover ahora: su contenido cambió o está en un lugar que Lumen no mueve.",
       advice:
         "Las copias pueden ser copias de seguridad que quieres conservar. Lumen no elige ni elimina ninguna. Eliminar una copia puede liberar menos espacio que su tamaño.",
     },
@@ -232,8 +233,16 @@ export const es: Messages = {
   },
   results: {
     apps: {
+      part: "La app",
+      proposed: (size: string) => `${size} propuesto`,
+      notMeasured: "Tamaño desconocido",
+      checking: "Comprobando si se puede mover…",
+      refused: "Esta app no se puede mover ahora.",
+      moved: (n: number) => `Se movieron ${n} apps a Cuarentena.`,
+      notMoved: (n: number) => `${n} apps no se movieron.`,
+      copiesMoved: (n: number) => `Se movieron ${n} copias a Cuarentena.`,
+      copiesNotMoved: (n: number) => `${n} copias no se movieron.`,
       title: "Apps",
-      line: "Las apps se revisan una a una antes de moverlas a Cuarentena.",
       seeAll: "Ver todas las apps instaladas",
       outside: (n: number) =>
         `Hay ${count(n)} ${n === 1 ? "app más" : "apps más"} en lugares que este análisis no leyó.`,
@@ -261,7 +270,6 @@ export const es: Messages = {
       app_data: "Datos de aplicaciones",
       other: "Otros",
     },
-    otherTools: "Otras herramientas",
     removedNote:
       "Las aplicaciones ya no están, pero sus datos siguen aquí. Comprueba que no los necesitas antes de moverlos.",
     commandNote:
@@ -290,6 +298,10 @@ export const es: Messages = {
       "El análisis se detuvo porque el disco está casi lleno (Lumen siempre deja 2 GB libres). Estos son los resultados obtenidos hasta entonces. Libera algo de espacio y vuelve a analizar.",
   },
   action: {
+    cleanUpSelected: (n: number, size: string) =>
+      `Limpiar · ${n} ${n === 1 ? "elemento" : "elementos"}, ${size}…`,
+    nothingSelected: "No hay nada seleccionado.",
+    check: (name: string) => `Seleccionar ${name}`,
     cleanUp: "Limpiar…",
     preparing: "Preparando…",
     nothing: "No hay nada propuesto para limpiar.",
@@ -496,6 +508,13 @@ export const es: Messages = {
     chosen: "Elementos que elegiste",
     chosenNote:
       "Lumen no los propuso. Moverlos puede afectar a apps. Se quedan en Cuarentena hasta que los restaures o elimines definitivamente.",
+    apps: "Apps que elegiste",
+    appsNote:
+      "Sus datos en ~/Library se quedan. Cada app se comprueba de nuevo justo antes de moverla; la que esté abierta o no pueda moverse se queda donde está.",
+    copies: "Copias que elegiste",
+    copiesNote:
+      "Ambas copias se vuelven a leer justo antes de moverlas; solo se mueve si siguen siendo iguales. Puedes restaurarla desde Cuarentena.",
+    copyStays: (name: string, stays: string) => `${name}: la copia en ${stays} se queda.`,
     uninstallTitle: "¿Mover esta app a Cuarentena?",
     uninstallNote: "Puedes restaurarla desde Cuarentena.",
     finalizeTitle: "¿Eliminar este elemento definitivamente?",

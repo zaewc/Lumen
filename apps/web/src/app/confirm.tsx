@@ -44,6 +44,30 @@ const SAMPLE: HostAsk = {
       bytes: "760000000",
     },
   ],
+  apps: [
+    {
+      path: "/Applications/Xcode.app",
+      name: "Xcode.app",
+      folder: "/Applications",
+      bytes: "14800000000",
+    },
+  ],
+  copies: [
+    {
+      item: {
+        path: "/Users/ana/Downloads/tutorial.mov",
+        name: "tutorial.mov",
+        folder: "/Users/ana/Downloads",
+        bytes: "1800000000",
+      },
+      stays: {
+        path: "/Users/ana/Movies/tutorial.mov",
+        name: "tutorial.mov",
+        folder: "/Users/ana/Movies",
+        bytes: null,
+      },
+    },
+  ],
 };
 const sample: typeof confirmHost = {
   request: () => Promise.resolve(SAMPLE),

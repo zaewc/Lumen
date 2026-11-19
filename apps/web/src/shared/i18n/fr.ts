@@ -19,9 +19,7 @@ export const fr: Messages = {
   nav: {
     label: "Menu principal",
     overview: "Stockage",
-    cleanUp: "Explorer",
     quarantine: "Quarantaine",
-    apps: "Apps",
     settings: "Paramètres",
     held: (n) => `${items(n)} en quarantaine`,
   },
@@ -116,6 +114,9 @@ export const fr: Messages = {
         "Certains dossiers n'ont pas pu être lus entièrement. Leurs fichiers n'ont pas été comparés.",
       unsupported: "La comparaison de fichiers n'est pas encore disponible sur cet ordinateur.",
       failed: "Lumen n'a pas pu comparer les fichiers de l'analyse.",
+      oneStays: "Une copie reste toujours.",
+      cannotMove:
+        "Cette copie ne peut pas être déplacée : son contenu a changé ou elle est à un endroit que Lumen ne déplace pas.",
       advice:
         "Certaines copies peuvent être des sauvegardes à conserver. Lumen ne choisit ni ne supprime aucune copie. La suppression d'une copie peut libérer moins d'espace que sa taille.",
     },
@@ -232,8 +233,16 @@ export const fr: Messages = {
   results: {
     ...en.results,
     apps: {
+      part: "L’app elle-même",
+      proposed: (size: string) => `${size} proposé`,
+      notMeasured: "Taille inconnue",
+      checking: "Vérification du déplacement…",
+      refused: "Cette app ne peut pas être déplacée pour le moment.",
+      moved: (n: number) => `${n} app(s) déplacée(s) en Quarantaine.`,
+      notMoved: (n: number) => `${n} app(s) non déplacée(s).`,
+      copiesMoved: (n: number) => `${n} copie(s) déplacée(s) en Quarantaine.`,
+      copiesNotMoved: (n: number) => `${n} copie(s) non déplacée(s).`,
       title: "Apps",
-      line: "Les apps sont vérifiées une par une avant d'être déplacées en quarantaine.",
       seeAll: "Voir toutes les apps installées",
       outside: (n) =>
         `${count(n)} ${n > 1 ? "autres apps se trouvent" : "autre app se trouve"} dans des emplacements que cette analyse n'a pas lus.`,
@@ -259,7 +268,6 @@ export const fr: Messages = {
       app_data: "Données d'applications",
       other: "Autre",
     },
-    otherTools: "Autres outils",
     removedNote:
       "Les applications ne sont plus là, mais leurs données restent. Vérifiez que vous n'en avez plus besoin avant de les déplacer.",
     commandNote:
@@ -282,6 +290,10 @@ export const fr: Messages = {
       "L'analyse s'est arrêtée, car le disque est presque plein (Lumen conserve toujours 2 Go d'espace libre). Voici les résultats obtenus jusque-là. Libérez de l'espace et relancez l'analyse.",
   },
   action: {
+    cleanUpSelected: (n: number, size: string) =>
+      `Nettoyer · ${n} élément${n === 1 ? "" : "s"}, ${size}…`,
+    nothingSelected: "Rien n’est sélectionné.",
+    check: (name: string) => `Sélectionner ${name}`,
     cleanUp: "Nettoyer…",
     preparing: "Préparation…",
     nothing: "Aucun élément n'est proposé au nettoyage.",
@@ -483,6 +495,13 @@ export const fr: Messages = {
     chosen: "Éléments que vous avez choisis",
     chosenNote:
       "Lumen ne les a pas proposés. Les déplacer peut affecter des apps. Ils restent en quarantaine jusqu'à ce que vous les restauriez ou les supprimiez définitivement.",
+    apps: "Apps que vous avez choisies",
+    appsNote:
+      "Leurs données dans ~/Library restent. Chaque app est vérifiée juste avant d’être déplacée ; une app ouverte ou impossible à déplacer reste en place.",
+    copies: "Copies que vous avez choisies",
+    copiesNote:
+      "Les deux copies sont relues juste avant le déplacement ; une copie n’est déplacée que si elles sont encore identiques. Vous pouvez la restaurer depuis la Quarantaine.",
+    copyStays: (name: string, stays: string) => `${name} : la copie dans ${stays} reste.`,
     uninstallTitle: "Déplacer cette app en quarantaine ?",
     uninstallNote: "Vous pourrez la restaurer depuis la quarantaine.",
     finalizeTitle: "Supprimer cet élément définitivement ?",

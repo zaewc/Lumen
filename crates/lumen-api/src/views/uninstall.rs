@@ -12,7 +12,7 @@ use lumen_application::uninstall::Ineligible;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::{FailureView, LocationView};
+use super::{ExecuteRequest, FailureView, LocationView, QuarantineReportView};
 
 /// Why an application cannot be uninstalled into quarantine. Each `*_unknown`
 /// reason is a check Lumen could not answer, which never counts as passing.
@@ -503,4 +503,56 @@ mod tests {
             .is_err()
         );
     }
+}
+
+/// One app of a selection: its uninstall preview's ID and, as the
+/// confirmation, its full hash (ADR-0062, ADR-0069).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AppConfirmationRequest {
+    /// The preview's ID.
+    pub preview: String,
+    /// The preview's full hash, as shown.
+    pub confirmation: String,
+}
+
+/// What a person checked, to move after one confirmation (ADR-0069): a
+/// clean-up plan, apps, or both.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SelectionRequest {
+    /// The clean-up plan, if any items were checked.
+    #[schema(required = true)]
+    pub plan: Option<ExecuteRequest>,
+    /// The checked apps.
+    pub apps: Vec<AppConfirmationRequest>,
+    /// The checked copies of identical files, each by its preview and hash.
+    #[serde(default)]
+    pub copies: Vec<AppConfirmationRequest>,
+}
+
+/// What happened to one app of a selection: its outcome, or why it was
+/// not moved. One app's refusal never stops the others.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct SelectedAppView {
+    /// The preview.
+    pub preview: String,
+    /// What happened, when the move was tried.
+    #[schema(required = true)]
+    pub outcome: Option<UninstallOutcomeView>,
+    /// Why it was not tried or failed; display text.
+    #[schema(required = true)]
+    pub error: Option<String>,
+}
+
+/// What a confirmed selection did.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct SelectionReportView {
+    /// The clean-up's report, when a plan was part of it.
+    #[schema(required = true)]
+    pub cleanup: Option<QuarantineReportView>,
+    /// Each app, in the order given.
+    pub apps: Vec<SelectedAppView>,
+    /// Each copy, in the order given.
+    pub copies: Vec<super::SelectedCopyView>,
 }

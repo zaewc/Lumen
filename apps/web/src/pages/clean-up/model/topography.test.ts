@@ -64,23 +64,24 @@ describe("app icon rules", () => {
 });
 
 describe("topographyOf", () => {
-  it("groups by kind, and developer tools by tool when there are several", () => {
+  it("groups by owner, largest first, with the owner's name", () => {
     const groups = topographyOf([
       candidate("/a", "300", xcode),
       candidate("/b", "100", npm),
       candidate("/c", "50", cache),
+      candidate("/d", "70", xcode),
     ]);
-    expect(groups.map((g) => [g.id, g.bytes, g.count])).toEqual([
-      ["developer", 400n, 2],
-      ["app_cache", 50n, 1],
+    expect(groups.map((g) => [g.id, g.source, g.bytes, g.count])).toEqual([
+      ["tool:Xcode", "Xcode", 370n, 2],
+      ["tool:npm", "npm", 100n, 1],
+      ["source:com.example.app", "com.example.app", 50n, 1],
     ]);
-    expect(groups[0]?.children.map((n) => n.id)).toEqual(["developer/Xcode", "developer/npm"]);
-    expect(groups[1]?.children.map((n) => n.id)).toEqual(["item:/c"]);
+    expect(groups[0]?.children.map((n) => n.id)).toEqual(["item:/a", "item:/d"]);
   });
 
-  it("puts a single tool's items straight under its kind", () => {
-    const [developer] = topographyOf([candidate("/a", "3", xcode), candidate("/b", "5", xcode)]);
-    expect(developer?.children.map((n) => n.id)).toEqual(["item:/b", "item:/a"]);
+  it("names items nothing owns by their kind", () => {
+    const [other] = topographyOf([candidate("/k", "1")]);
+    expect([other?.id, other?.source, other?.kind]).toEqual(["kind:other", null, "other"]);
   });
 
   it("marks each item with its status", () => {
@@ -93,11 +94,7 @@ describe("trailTo", () => {
   const groups = topographyOf([candidate("/a", "3", xcode), candidate("/b", "5", npm)]);
 
   it("walks from the top to a group", () => {
-    expect(trailTo(groups, "developer/npm")?.map((g) => g.id)).toEqual([
-      "developer",
-      "developer/npm",
-    ]);
-    expect(trailTo(groups, "developer")?.map((g) => g.id)).toEqual(["developer"]);
+    expect(trailTo(groups, "tool:npm")?.map((g) => g.id)).toEqual(["tool:npm"]);
   });
 
   it("finds no group for an item or a missing ID", () => {
@@ -115,13 +112,17 @@ describe("layoutTopography", () => {
     ]);
     const placed = layoutTopography(groups, frame, 0n);
     const top = placed.filter((p) => p.depth === 0);
-    expect(top.map(idOf)).toEqual(["developer", "app_cache"]);
-    for (const p of top) {
-      expect(area(p)).toBeCloseTo(40000, 6);
-    }
-    const tools = placed.filter((p) => p.depth === 1 && idOf(p).startsWith("developer/"));
-    expect(tools.map(area)).toEqual([expect.closeTo(30000, 6), expect.closeTo(10000, 6)]);
-    expect(placed.filter((p) => p.depth === 2).map(idOf)).toEqual(["item:/a", "item:/b"]);
+    expect(top.map(idOf)).toEqual(["source:com.example.app", "tool:Xcode", "tool:npm"]);
+    expect(top.map(area)).toEqual([
+      expect.closeTo(40000, 6),
+      expect.closeTo(30000, 6),
+      expect.closeTo(10000, 6),
+    ]);
+    expect(placed.filter((p) => p.depth === 1).map(idOf)).toEqual([
+      "item:/c",
+      "item:/a",
+      "item:/b",
+    ]);
   });
 
   it("keeps room for a group's label and edge", () => {
@@ -140,7 +141,7 @@ describe("layoutTopography", () => {
     const smaller = placed.find((p) => p.region.type === "smaller");
     expect(smaller?.region).toEqual({
       type: "smaller",
-      id: "app_cache/smaller",
+      id: "source:com.example.app/smaller",
       count: 2,
       bytes: 30n,
     });
@@ -175,7 +176,7 @@ describe("layoutTopography", () => {
 
   it("lays out a group's children when zoomed into it", () => {
     const groups = topographyOf([candidate("/a", "3", xcode), candidate("/b", "1", npm)]);
-    const npmGroup = trailTo(groups, "developer/npm")?.at(-1);
+    const npmGroup = trailTo(groups, "tool:npm")?.at(-1);
     const placed = layoutTopography(npmGroup?.children ?? [], frame, 0n);
     expect(placed.map(idOf)).toEqual(["item:/b"]);
     expect(placed[0]?.rect).toEqual(frame);
@@ -201,10 +202,10 @@ describe("candidatesIn", () => {
   it("collects every item under a group", () => {
     const groups = topographyOf([
       candidate("/a", "3", xcode),
-      candidate("/b", "1", npm),
+      candidate("/b", "1", xcode),
       candidate("/c", "2", cache),
     ]);
-    const [developer] = groups;
-    expect(developer && candidatesIn(developer).map((c) => c.path)).toEqual(["/a", "/b"]);
+    const [tool] = groups;
+    expect(tool && candidatesIn(tool).map((c) => c.path)).toEqual(["/a", "/b"]);
   });
 });

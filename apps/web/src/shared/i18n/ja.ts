@@ -25,9 +25,7 @@ export const ja: Messages = {
   nav: {
     label: "メイン",
     overview: "ストレージ",
-    cleanUp: "探索",
     quarantine: "隔離",
-    apps: "アプリ",
     settings: "設定",
     held: (n: number) => `隔離中：${items(n)}`,
   },
@@ -117,6 +115,8 @@ export const ja: Messages = {
       incomplete: "一部のフォルダを最後まで読めませんでした。そこにあるファイルは比べていません。",
       unsupported: "このコンピュータでは、まだファイルを比べられません。",
       failed: "スキャンしたファイルを比較できませんでした。",
+      oneStays: "1 つは必ず残します。",
+      cannotMove: "このコピーは今は移動できません。内容が変わったか、移動しない場所にあります。",
       advice:
         "コピーは残しておきたいバックアップかもしれません。Lumen はどれも選んだり削除したりしません。コピーを削除しても、そのサイズ分の空きが増えないことがあります。",
     },
@@ -224,8 +224,16 @@ export const ja: Messages = {
   },
   results: {
     apps: {
+      part: "アプリ本体",
+      proposed: (size: string) => `${size} 整理を提案`,
+      notMeasured: "サイズ不明",
+      checking: "移動できるか確認しています…",
+      refused: "このアプリは今は移動できません。",
+      moved: (n: number) => `${n} 個のアプリを隔離に移動しました。`,
+      notMoved: (n: number) => `${n} 個のアプリは移動できませんでした。`,
+      copiesMoved: (n: number) => `${n} 個のコピーを隔離に移動しました。`,
+      copiesNotMoved: (n: number) => `${n} 個のコピーは移動できませんでした。`,
       title: "アプリ",
-      line: "アプリは 1 つずつ確認してから隔離に移動します。",
       seeAll: "インストール済みのアプリをすべて表示",
       outside: (n: number) =>
         `このスキャンで読み取っていない場所に、さらに ${count(n)} 個のアプリがあります。`,
@@ -252,7 +260,6 @@ export const ja: Messages = {
       app_data: "アプリデータ",
       other: "その他",
     },
-    otherTools: "その他のツール",
     removedNote:
       "アプリはもうありませんが、データは残っています。不要なことを確認してから移動してください。",
     commandNote:
@@ -280,6 +287,9 @@ export const ja: Messages = {
       "ディスクの空き容量が少なくなったため、スキャンを停止しました（Lumenは常に2 GBを空けておきます）。停止するまでに見つかった項目を表示しています。空き容量を確保して再度スキャンしてください。",
   },
   action: {
+    cleanUpSelected: (n: number, size: string) => `整理 · ${n} 件 ${size}…`,
+    nothingSelected: "選択した項目がありません。",
+    check: (name: string) => `${name} を選択`,
     cleanUp: "整理…",
     preparing: "準備中…",
     nothing: "整理候補はありません。",
@@ -482,6 +492,13 @@ export const ja: Messages = {
     chosen: "自分で選んだ項目",
     chosenNote:
       "Lumen が提案した項目ではありません。アプリに影響する可能性があり、復元するか完全に削除するまで隔離に残ります。",
+    apps: "選択したアプリ",
+    appsNote:
+      "~/Library のアプリデータはそのまま残します。移動の直前にアプリごとに再確認し、実行中や移動できないアプリは残します。",
+    copies: "選択した同一ファイル",
+    copiesNote:
+      "移動の直前に両方のコピーを読み直し、内容が同じときだけ移動します。隔離から復元できます。",
+    copyStays: (name: string, stays: string) => `${name}: ${stays} のコピーは残します。`,
     uninstallTitle: "このアプリを隔離に移動しますか？",
     uninstallNote: "隔離から復元できます。",
     finalizeTitle: "この項目を完全に削除しますか？",

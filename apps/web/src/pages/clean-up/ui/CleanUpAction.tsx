@@ -3,8 +3,10 @@ import type { ReactNode } from "react";
 import { useScanSession } from "@/entities/scan-session";
 import { declined, useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
+import { formatBytes } from "@/shared/lib";
 import { buttonClass, ErrorNotice } from "@/shared/ui";
 import { PLANNING, useLatestPlan } from "../model/move";
+import type { Selected } from "../model/selection";
 
 /** The parts of the clean-up action, for the page to place. */
 export interface CleanUpAction {
@@ -15,20 +17,24 @@ export interface CleanUpAction {
 }
 
 /**
- * The one action that cleans up: the button makes a plan of every proposed
- * item (which moves nothing) and asks to execute exactly that plan. The
+ * The one action that cleans up: the button names what is checked and makes
+ * a plan of exactly that (ADR-0069): the proposals not left out and the
+ * chosen review items. Planning moves nothing; it asks to execute that plan. The
  * desktop host then asks the person in its own confirmation window (FS-1),
  * which lists what moves; nothing moves unless they confirm there, and
- * closing it is no failure. With nothing proposed the button is disabled
+ * closing it is no failure. With nothing checked the button is disabled
  * and its tooltip says why.
  */
 export function useCleanUpAction({
-  proposed,
+  selected,
   onConfirm,
+  onSent,
 }: {
-  /** How many items the assessment proposes. */
-  readonly proposed: number;
+  /** What is checked. */
+  readonly selected: Selected;
   readonly onConfirm: () => void;
+  /** What was sent to be moved, once planned. */
+  readonly onSent: (sent: Selected) => void;
 }): CleanUpAction {
   const { m } = useI18n();
   const transport = useTransport();
@@ -40,16 +46,20 @@ export function useCleanUpAction({
   const mine = latest !== null && latest.item === null;
   const plan = useMutation({
     mutationKey: PLANNING,
-    mutationFn: () => transport.plan(),
-    onSuccess: (planned) => {
+    // What was checked when the button was pressed, for planning and moving
+    // alike; only apps or copies checked: no clean-up plan.
+    mutationFn: (sent: Selected) =>
+      sent.items > 0 ? transport.plan(sent.chosen, sent.leftOut) : Promise.resolve(null),
+    onSuccess: (planned, sent) => {
       onConfirm();
-      session.execute(planned);
+      onSent(sent);
+      session.execute(planned, sent.apps, sent.copies);
     },
   });
-  const nothing = proposed === 0;
+  const nothing = selected.count === 0;
   const prepare = () => {
     session.resetCleanUp();
-    plan.mutate();
+    plan.mutate(selected);
   };
   const retry = (
     <button type="button" onClick={prepare} className={buttonClass("secondary", "sm")}>
@@ -62,14 +72,16 @@ export function useCleanUpAction({
         type="button"
         onClick={prepare}
         disabled={nothing || planning || session.cleaning}
-        title={nothing ? m.action.nothing : undefined}
+        title={nothing ? m.action.nothingSelected : undefined}
         className={buttonClass("primary")}
       >
         {session.cleaning
           ? m.confirm.moving
           : plan.isPending
             ? m.action.preparing
-            : m.action.cleanUp}
+            : nothing
+              ? m.action.cleanUp
+              : m.action.cleanUpSelected(selected.count, formatBytes(selected.bytes))}
       </button>
     ),
     error:

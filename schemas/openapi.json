@@ -7,7 +7,7 @@
       "name": "Apache-2.0",
       "identifier": "Apache-2.0"
     },
-    "version": "0.13.1"
+    "version": "0.14.0"
   },
   "paths": {},
   "components": {
@@ -90,6 +90,25 @@
             ]
           }
         }
+      },
+      "AppConfirmationRequest": {
+        "type": "object",
+        "description": "One app of a selection: its uninstall preview's ID and, as the\nconfirmation, its full hash (ADR-0062, ADR-0069).",
+        "required": [
+          "preview",
+          "confirmation"
+        ],
+        "properties": {
+          "confirmation": {
+            "type": "string",
+            "description": "The preview's full hash, as shown."
+          },
+          "preview": {
+            "type": "string",
+            "description": "The preview's ID."
+          }
+        },
+        "additionalProperties": false
       },
       "AppDataKindView": {
         "type": "string",
@@ -405,6 +424,275 @@
           "high"
         ]
       },
+      "CopyOutcomeView": {
+        "type": "object",
+        "description": "A moved copy's preview, executed.",
+        "required": [
+          "preview",
+          "path",
+          "size_bytes",
+          "result",
+          "warnings"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Where the copy was; display-escaped."
+          },
+          "preview": {
+            "type": "string",
+            "description": "The preview."
+          },
+          "result": {
+            "$ref": "#/components/schemas/CopyResultView",
+            "description": "What happened."
+          },
+          "size_bytes": {
+            "type": "string",
+            "description": "What removing it for good frees, in bytes."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Problems that did not stop it."
+          }
+        }
+      },
+      "CopyPreviewView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Ready to confirm by its full hash.",
+            "required": [
+              "preview",
+              "hash",
+              "path",
+              "stays",
+              "bytes",
+              "kind"
+            ],
+            "properties": {
+              "bytes": {
+                "type": "string",
+                "description": "What it frees once removed for good, in bytes."
+              },
+              "hash": {
+                "type": "string",
+                "description": "Its full hash, the confirmation."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "ready"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "description": "The copy that moves; display-escaped."
+              },
+              "preview": {
+                "type": "string",
+                "description": "The preview's ID."
+              },
+              "stays": {
+                "type": "string",
+                "description": "The copy that stays; display-escaped."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The gate refused, with every reason.",
+            "required": [
+              "reasons",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "refused"
+                ]
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CopyReasonView"
+                },
+                "description": "Why."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The comparison is not the latest, or names no such copy: compare again.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "stale"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "This platform cannot read contents to compare.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unsupported"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "A copy's preview, or why there is none."
+      },
+      "CopyReasonView": {
+        "type": "string",
+        "description": "Why a copy cannot move.",
+        "enum": [
+          "same_file",
+          "not_a_file",
+          "hard_linked",
+          "protected",
+          "nothing_stays",
+          "contents_differ"
+        ]
+      },
+      "CopyRequest": {
+        "type": "object",
+        "description": "A copy to preview for moving (ADR-0069): the comparison, the group's\nplace in it, the copy that moves and the copy that stays, by their places\nin the group's `paths`. Never a path.",
+        "required": [
+          "comparison",
+          "group",
+          "copy",
+          "stays"
+        ],
+        "properties": {
+          "comparison": {
+            "type": "string",
+            "description": "[`DuplicatesView::comparison`]."
+          },
+          "copy": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The copy that moves.",
+            "minimum": 0
+          },
+          "group": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The group's place in [`DuplicatesView::groups`].",
+            "minimum": 0
+          },
+          "stays": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The copy that stays.",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "CopyResultView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "It is in Quarantine, restorable.",
+            "required": [
+              "operation",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "quarantined"
+                ]
+              },
+              "operation": {
+                "type": "string",
+                "description": "The operation, for restoring or removing it for good."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Checked again right before the move, it may not go now; not moved.",
+            "required": [
+              "reasons",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "refused"
+                ]
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CopyReasonView"
+                },
+                "description": "Every reason, at least one."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It, the copy that stays or their contents changed; not moved.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The move failed.",
+            "required": [
+              "reason",
+              "left",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "failed"
+                ]
+              },
+              "left": {
+                "$ref": "#/components/schemas/LocationView",
+                "description": "Where the copy is."
+              },
+              "reason": {
+                "$ref": "#/components/schemas/FailureView",
+                "description": "Why."
+              }
+            }
+          }
+        ],
+        "description": "What moving a copy did."
+      },
       "DiskView": {
         "type": "object",
         "description": "How full the disk holding the user's home folder is.",
@@ -448,6 +736,7 @@
         "type": "object",
         "description": "What a comparison found and what it could not cover.",
         "required": [
+          "comparison",
           "folders",
           "groups",
           "hard_links",
@@ -456,6 +745,10 @@
           "incomplete"
         ],
         "properties": {
+          "comparison": {
+            "type": "string",
+            "description": "This comparison, as the host keeps it: a copy is named by it, its\ngroup's place in `groups` and the copy's place in `paths` (ADR-0069)."
+          },
           "folders": {
             "type": "array",
             "items": {
@@ -2332,6 +2625,144 @@
             "description": "The scan's ID."
           }
         }
+      },
+      "SelectedAppView": {
+        "type": "object",
+        "description": "What happened to one app of a selection: its outcome, or why it was\nnot moved. One app's refusal never stops the others.",
+        "required": [
+          "preview",
+          "outcome",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why it was not tried or failed; display text."
+          },
+          "outcome": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UninstallOutcomeView",
+                "description": "What happened, when the move was tried."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preview": {
+            "type": "string",
+            "description": "The preview."
+          }
+        }
+      },
+      "SelectedCopyView": {
+        "type": "object",
+        "description": "What happened to one copy of a selection: its outcome, or why it was not\ntried. One copy's refusal never stops the others.",
+        "required": [
+          "preview",
+          "outcome",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why it was not tried or failed; display text."
+          },
+          "outcome": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CopyOutcomeView",
+                "description": "What happened, when the move was tried."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preview": {
+            "type": "string",
+            "description": "The preview."
+          }
+        }
+      },
+      "SelectionReportView": {
+        "type": "object",
+        "description": "What a confirmed selection did.",
+        "required": [
+          "cleanup",
+          "apps",
+          "copies"
+        ],
+        "properties": {
+          "apps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SelectedAppView"
+            },
+            "description": "Each app, in the order given."
+          },
+          "cleanup": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/QuarantineReportView",
+                "description": "The clean-up's report, when a plan was part of it."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "copies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SelectedCopyView"
+            },
+            "description": "Each copy, in the order given."
+          }
+        }
+      },
+      "SelectionRequest": {
+        "type": "object",
+        "description": "What a person checked, to move after one confirmation (ADR-0069): a\nclean-up plan, apps, or both.",
+        "required": [
+          "plan",
+          "apps"
+        ],
+        "properties": {
+          "apps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppConfirmationRequest"
+            },
+            "description": "The checked apps."
+          },
+          "copies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppConfirmationRequest"
+            },
+            "description": "The checked copies of identical files, each by its preview and hash."
+          },
+          "plan": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ExecuteRequest",
+                "description": "The clean-up plan, if any items were checked."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
       },
       "ServiceKindView": {
         "type": "string",

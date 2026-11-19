@@ -7,6 +7,7 @@ import {
   zCandidateView,
   zCompareOutcomeView,
   zCompareProgressView,
+  zCopyPreviewView,
   zDiskView,
   zFinalizeOutcomeView,
   zHeldItemView,
@@ -21,6 +22,7 @@ import {
   zReviewReasonsView,
   zScanProgressView,
   zScanView,
+  zSelectionReportView,
   zSoftwareView,
   zToolRunView,
   zToolStorageView,
@@ -33,7 +35,7 @@ import { Channel, type InvokeArgs, invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { hostError } from "./host-error";
 import { zAppIcon } from "./icon";
-import { chosenPlan } from "./review-choice";
+import { chosenPlan, selectedPlan } from "./review-choice";
 import type { LumenTransport } from "./transport";
 
 // Older hosts omit these additive descriptors. Normalize them at the boundary
@@ -90,8 +92,16 @@ export function tauriTransport(): LumenTransport {
       };
       return zCompatibleCandidate.array().parse(await call("assess", { progress }));
     },
-    plan: async (chosen = []) =>
-      chosenPlan(zCompatiblePlan.parse(await call("plan", { chosen: [...chosen] })), chosen),
+    plan: async (chosen = [], leftOut) =>
+      leftOut === undefined
+        ? chosenPlan(zCompatiblePlan.parse(await call("plan", { chosen: [...chosen] })), chosen)
+        : selectedPlan(
+            zCompatiblePlan.parse(
+              await call("plan", { chosen: [...chosen], leftOut: [...leftOut] }),
+            ),
+            chosen,
+            leftOut,
+          ),
     execute: async (request) => zQuarantineReportView.parse(await call("execute", { request })),
     held: async () => zHeldItemView.array().parse(await call("held")),
     restore: async (operationId) =>
@@ -133,6 +143,9 @@ export function tauriTransport(): LumenTransport {
       zUninstallPreviewView.parse(await call("uninstall_preview", { key })),
     uninstall: async (preview, confirmation) =>
       zUninstallOutcomeView.parse(await call("uninstall", { preview, confirmation })),
+    executeSelection: async (request) =>
+      zSelectionReportView.parse(await call("execute_selection", { request })),
+    copyPreview: async (request) => zCopyPreviewView.parse(await call("copy_preview", { request })),
     quitApp: async (key) => zQuitView.parse(await call("quit_app", { key })),
     helperState: async () => zHelperView.parse(await call("helper_state")),
     helperEnable: async () => zHelperView.parse(await call("helper_enable")),

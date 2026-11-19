@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { compareNotes } from "./duplicates";
 
 const report: DuplicatesView = {
+  comparison: "c",
   folders: ["/Users/a/Downloads"],
   groups: [],
   hard_links: [],

@@ -1,6 +1,8 @@
 # Apps inside the scan (roadmap 16.2)
 
-- Status: **Accepted: Option A** (owner, 2026-11-09), steps 1–4 built (the section, without the other-account hint: the host has no cheap owner check yet, so the move dialog says it). See [Decisions](#decisions) at the end.
+- Status: **Superseded** by [storage-in-one-place.md](storage-in-one-place.md)
+  ([ADR-0069](../decisions/0069-show-storage-in-one-place-grouped-by-owner.md), 2026-11-18);
+  Option A shipped in 0.13.0 as its first step. Earlier status: **Accepted: Option A** (owner, 2026-11-09), steps 1–4 built (the section, without the other-account hint: the host has no cheap owner check yet, so the move dialog says it). See [Decisions](#decisions) at the end.
 - Roadmap: [Phase 16, item 16.2](../architecture/roadmap.md#phase-16-installed-software-after-0100)
 - Builds on: [ui-principles.md](ui-principles.md), [ux-writing.md](ux-writing.md),
   [ADR-0039](../decisions/0039-ask-for-review-only-where-a-person-can-act.md),

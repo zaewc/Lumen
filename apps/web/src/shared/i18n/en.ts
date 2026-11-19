@@ -34,9 +34,7 @@ export const en = {
   nav: {
     label: "Main",
     overview: "Storage",
-    cleanUp: "Explore",
     quarantine: "Quarantine",
-    apps: "Apps",
     settings: "Settings",
     held: (n: number) => `${items(n)} in Quarantine`,
   },
@@ -127,6 +125,9 @@ export const en = {
       incomplete: "Some folders could not be read completely. Files there were not compared.",
       unsupported: "Comparing files is not available on this computer yet.",
       failed: "Lumen could not compare the scan's files.",
+      oneStays: "One copy always stays.",
+      cannotMove:
+        "This copy can’t be moved now: its contents changed or it is somewhere Lumen does not move.",
       advice:
         "Copies can be backups you want to keep. Lumen does not choose or remove any. Removing a copy can free less space than its size.",
     },
@@ -236,8 +237,16 @@ export const en = {
   },
   results: {
     apps: {
+      part: "The app itself",
+      proposed: (size: string) => `${size} proposed`,
+      notMeasured: "Size unknown",
+      checking: "Checking whether it can move…",
+      refused: "This app can’t be moved now.",
+      moved: (n: number) => `Moved ${n} ${n === 1 ? "app" : "apps"} to Quarantine.`,
+      notMoved: (n: number) => `${n} ${n === 1 ? "app was" : "apps were"} not moved.`,
+      copiesMoved: (n: number) => `Moved ${n} ${n === 1 ? "copy" : "copies"} to Quarantine.`,
+      copiesNotMoved: (n: number) => `${n} ${n === 1 ? "copy was" : "copies were"} not moved.`,
       title: "Apps",
-      line: "Apps are checked one at a time before they move to Quarantine.",
       seeAll: "See all installed apps",
       outside: (n: number) =>
         `${count(n)} more ${n === 1 ? "app is" : "apps are"} in places this scan did not read.`,
@@ -265,7 +274,6 @@ export const en = {
       app_data: "App data",
       other: "Other",
     },
-    otherTools: "Other tools",
     removedNote:
       "The apps are gone, but their data is still here. Check that you don't need it before moving it.",
     commandNote:
@@ -293,6 +301,10 @@ export const en = {
       "The scan stopped because the disk is almost full (Lumen always leaves 2 GB free). Here is what it found until then. Free some space and scan again.",
   },
   action: {
+    cleanUpSelected: (n: number, size: string) =>
+      `Clean up · ${n} ${n === 1 ? "item" : "items"}, ${size}…`,
+    nothingSelected: "Nothing is selected.",
+    check: (name: string) => `Select ${name}`,
     cleanUp: "Clean up…",
     preparing: "Preparing…",
     nothing: "Nothing is proposed for clean-up.",
@@ -491,6 +503,13 @@ export const en = {
     chosen: "Items you chose",
     chosenNote:
       "Lumen did not propose these. Moving them may affect apps. They stay in Quarantine until you restore or permanently remove them.",
+    apps: "Apps you chose",
+    appsNote:
+      "Their data in ~/Library stays. Each app is checked again right before it moves; one that is running or cannot move is left where it is.",
+    copies: "Copies you chose",
+    copiesNote:
+      "Both copies are read again right before the move; a copy moves only if they are still the same. You can restore it from Quarantine.",
+    copyStays: (name: string, stays: string) => `${name}: the copy in ${stays} stays.`,
     uninstallTitle: "Move this app to Quarantine?",
     uninstallNote: "You can restore it from Quarantine.",
     finalizeTitle: "Remove this item for good?",

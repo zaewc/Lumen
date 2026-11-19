@@ -1,24 +1,61 @@
-import type { CandidateView, ScanView } from "@lumen/api-client";
+import type { CandidateView, ScanView, SoftwareItemView } from "@lumen/api-client";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { type CandidateSummary, DecisionMap } from "@/entities/scan-session";
+import { type CandidateSummary, DecisionMap, useScanSession } from "@/entities/scan-session";
+import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, userAgent } from "@/shared/lib";
-import { InfoTip, Notice } from "@/shared/ui";
+import { buttonClass, ErrorNotice, InfoTip, Notice } from "@/shared/ui";
+import { softwareTitle } from "../model/app-title";
 import { closingSummary } from "../model/closing";
 import { coverageOf } from "../model/coverage";
 import { type Filter, shows } from "../model/filter";
 import { lensOf } from "../model/lens";
-import { sectionsOf } from "../model/sections";
+import { listedOwners, ownersOf } from "../model/owners";
 import { candidatesIn, topographyOf, trailTo, unreadEntries } from "../model/topography";
-import { AppsSection } from "./AppsSection";
-import { CandidateList } from "./CandidateList";
+import { CandidateList, type Check } from "./CandidateList";
 import { CandidateSheet } from "./CandidateSheet";
 import { FlowStage } from "./FlowStage";
+import { MoveFlow, MoveResult } from "./MoveFlow";
 import { useReviewMove } from "./ReviewMove";
 import { ScanDetails } from "./ScanDetails";
 import { StepHeading } from "./StepHeading";
 import { Topography } from "./Topography";
+
+/** What happened to the apps the last clean-up moved with it (ADR-0069). */
+function AppOutcomes() {
+  const { m } = useI18n();
+  const session = useScanSession();
+  const outcomes = session.apps ?? [];
+  const copies = session.copies ?? [];
+  if (outcomes.length === 0 && copies.length === 0) return null;
+  const copiesMoved = copies.filter(
+    (copy) => copy.outcome !== null && copy.outcome.result.kind === "quarantined",
+  ).length;
+  const copiesNotMoved = copies.length - copiesMoved;
+  const moved = outcomes.filter(
+    (app) => app.outcome !== null && app.outcome.result.kind === "quarantined",
+  ).length;
+  const notMoved = outcomes.length - moved;
+  return (
+    <Notice tone={notMoved + copiesNotMoved > 0 ? "warning" : "success"}>
+      <p>
+        {moved > 0 && m.results.apps.moved(moved)}{" "}
+        {notMoved > 0 && m.results.apps.notMoved(notMoved)}{" "}
+        {copiesMoved > 0 && m.results.apps.copiesMoved(copiesMoved)}{" "}
+        {copiesNotMoved > 0 && m.results.apps.copiesNotMoved(copiesNotMoved)}
+      </p>
+      {[...outcomes, ...copies].some((each) => each.error !== null) && (
+        <ul className="mt-1 list-disc pl-5 text-[12px] text-ink-2">
+          {[...outcomes, ...copies].flatMap((each) =>
+            each.error === null ? [] : [<li key={each.preview}>{each.error}</li>],
+          )}
+        </ul>
+      )}
+    </Notice>
+  );
+}
 
 /** Folders the scan could not read: a short warning and the way to allow access. */
 function CoverageNotice({ scan }: { readonly scan: ScanView }) {
@@ -57,6 +94,7 @@ export function Results({
   onFilterChange,
   focus,
   cleanedUp = false,
+  check,
 }: {
   readonly scan: ScanView;
   readonly candidates: readonly CandidateView[];
@@ -66,17 +104,45 @@ export function Results({
   readonly focus: boolean;
   /** A clean-up of this scan ran; its report is shown above. */
   readonly cleanedUp?: boolean;
+  /** The checkboxes; after a clean-up the results are read-only. */
+  readonly check: Check;
 }) {
   const { m } = useI18n();
   const [open, setOpen] = useState<CandidateView | null>(null);
   const move = useReviewMove();
   const proposed = summary.quarantine;
-  const groups = useMemo(() => topographyOf(candidates), [candidates]);
+  const transport = useTransport();
+  const ask = transport.software;
+  const software = useQuery({
+    queryKey: ["software"],
+    queryFn: () => (ask === undefined ? Promise.reject(new Error("unsupported")) : ask()),
+    enabled: ask !== undefined,
+  });
+  const installed = software.data?.items;
+  const groups = useMemo(() => topographyOf(candidates, installed), [candidates, installed]);
   // The group the map is zoomed into, if it is still in this assessment.
   const [zoom, setZoom] = useState<string | null>(null);
   const zoomed = zoom === null ? undefined : trailTo(groups, zoom)?.at(-1);
   const listed = zoomed === undefined ? candidates : candidatesIn(zoomed);
-  const sections = sectionsOf(listed.filter((candidate) => shows(filter, candidate)));
+  const [app, setApp] = useState<SoftwareItemView | null>(null);
+  // Apps have no verdict: only under "All" and the whole map (ADR-0069). With
+  // no items the filter is not shown, so a filter left from before cannot hide them.
+  const withApps = (filter === "all" || candidates.length === 0) && zoomed === undefined;
+  const { owners, unmeasured } = useMemo(
+    () =>
+      listedOwners(
+        ownersOf(
+          listed.filter((candidate) => shows(filter, candidate)),
+          installed ?? [],
+        ),
+        withApps,
+      ),
+    [listed, filter, installed, withApps],
+  );
+  const appName = (key: string) => {
+    const item = installed?.find((each) => each.key === key);
+    return item === undefined ? null : softwareTitle(item);
+  };
   const closing = closingSummary(candidates);
   // The open item as assessed now: checking it again replaces it.
   const shown = open === null ? null : (candidates.find((c) => c.path === open.path) ?? open);
@@ -145,13 +211,40 @@ export function Results({
             lens={lens}
             onOpen={setOpen}
           />
-          <CandidateList sections={sections} onOpen={setOpen} lens={lens} moving={move.moving} />
         </>
       )}
-      {/* Apps have no verdict: only under "All", never in the filter or the map.
-          With no items the filter is not shown, so a filter left from an
-          earlier scan does not hide them. */}
-      {(filter === "all" || candidates.length === 0) && <AppsSection />}
+      {software.isError && (
+        <ErrorNotice message={m.apps.loadFailed} error={software.error}>
+          <button
+            type="button"
+            className={buttonClass("secondary", "sm")}
+            onClick={() => void software.refetch()}
+          >
+            {m.common.tryAgain}
+          </button>
+        </ErrorNotice>
+      )}
+      <MoveResult name={appName} />
+      <AppOutcomes />
+      {(candidates.length > 0 || owners.length > 0) && (
+        <CandidateList
+          owners={owners}
+          {...(cleanedUp ? {} : { check })}
+          onOpen={setOpen}
+          onOpenApp={setApp}
+          lens={lens}
+          moving={move.moving}
+        />
+      )}
+      {withApps && installed !== undefined && (
+        <div className="space-y-1 px-2 text-[13px]">
+          {unmeasured > 0 && <p className="text-ink-2">{m.results.apps.outside(unmeasured)}</p>}
+          <a href="#apps" className="text-accent-ink hover:underline">
+            {m.results.apps.seeAll}
+          </a>
+        </div>
+      )}
+      {app !== null && <MoveFlow item={app} onClose={() => setApp(null)} />}
       <ScanDetails scan={scan} />
       <CandidateSheet
         candidate={shown}

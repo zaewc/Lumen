@@ -7,10 +7,8 @@ import {
 } from "@tanstack/react-router";
 import { useState } from "react";
 import { useAiSettings } from "@/entities/ai-review";
-import { AppsPage } from "@/pages/apps";
 import { CleanUpPage, cleanUpSearch } from "@/pages/clean-up";
 import { FirstLaunchPage } from "@/pages/first-launch";
-import { OverviewPage } from "@/pages/overview";
 import { QuarantinePage } from "@/pages/quarantine";
 import { SettingsPage } from "@/pages/settings";
 import { Sidebar } from "@/widgets/sidebar";
@@ -52,50 +50,61 @@ function Layout() {
 
 // Routes live in the app layer and only render pages (ADR-0009).
 const root = createRootRoute({ component: Layout });
-const overview = createRoute({ getParentRoute: () => root, path: "/", component: OverviewPage });
-const cleanUp = createRoute({
+// Storage is one page (ADR-0069): the former Overview and Explore.
+const storage = createRoute({
+  getParentRoute: () => root,
+  path: "/",
+  validateSearch: cleanUpSearch,
+  component: CleanUpPage,
+});
+const formerExplore = createRoute({
   getParentRoute: () => root,
   path: "/clean",
   validateSearch: cleanUpSearch,
-  component: CleanUpPage,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/", search });
+  },
 });
 const quarantine = createRoute({
   getParentRoute: () => root,
   path: "/quarantine",
   component: QuarantinePage,
 });
-const apps = createRoute({
+// The installed apps are a section of Storage (ADR-0069).
+const formerApps = createRoute({
   getParentRoute: () => root,
   path: "/apps",
-  component: AppsPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/", hash: "apps" });
+  },
 });
 const settings = createRoute({
   getParentRoute: () => root,
   path: "/settings",
   component: SettingsPage,
 });
-// The former Scan and Plan pages are now steps of Clean up.
+// The former Scan and Plan pages are now steps of Storage.
 const formerScan = createRoute({
   getParentRoute: () => root,
   path: "/scan",
   beforeLoad: () => {
-    throw redirect({ to: "/clean" });
+    throw redirect({ to: "/" });
   },
 });
 const formerPlan = createRoute({
   getParentRoute: () => root,
   path: "/plan",
   beforeLoad: () => {
-    throw redirect({ to: "/clean" });
+    throw redirect({ to: "/" });
   },
 });
 
 export const router = createRouter({
   routeTree: root.addChildren([
-    overview,
-    cleanUp,
+    storage,
+    formerExplore,
     quarantine,
-    apps,
+    formerApps,
     settings,
     formerScan,
     formerPlan,

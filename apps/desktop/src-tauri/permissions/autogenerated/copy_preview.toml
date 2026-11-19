@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-copy-preview"
+description = "Enables the copy_preview command without any pre-configured scope."
+commands.allow = ["copy_preview"]
+
+[[permission]]
+identifier = "deny-copy-preview"
+description = "Denies the copy_preview command without any pre-configured scope."
+commands.deny = ["copy_preview"]

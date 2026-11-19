@@ -31,9 +31,7 @@ export const ko = {
   nav: {
     label: "주 메뉴",
     overview: "저장 공간",
-    cleanUp: "탐색",
     quarantine: "격리함",
-    apps: "앱",
     settings: "설정",
     held: (n: number) => `격리함에 ${items(n)}`,
   },
@@ -122,6 +120,8 @@ export const ko = {
       incomplete: "일부 폴더를 끝까지 읽지 못했어요. 그 안의 파일은 비교하지 않았어요.",
       unsupported: "이 컴퓨터에서는 아직 파일을 비교할 수 없어요.",
       failed: "검사한 경로의 파일을 비교하지 못했어요.",
+      oneStays: "하나는 남겨 둬요.",
+      cannotMove: "이 사본은 지금 옮길 수 없어요. 내용이 바뀌었거나 옮길 수 없는 곳이에요.",
       advice:
         "사본은 남겨 두고 싶은 백업일 수 있어요. Lumen은 어느 것도 고르거나 지우지 않아요. 사본을 지워도 그 크기보다 적게 비워질 수 있어요.",
     },
@@ -229,8 +229,16 @@ export const ko = {
   },
   results: {
     apps: {
+      part: "앱 본체",
+      proposed: (size: string) => `정리 제안 ${size}`,
+      notMeasured: "크기 모름",
+      checking: "옮길 수 있는지 확인하는 중…",
+      refused: "이 앱은 지금 옮길 수 없어요.",
+      moved: (n: number) => `앱 ${count(n)}개를 격리함으로 옮겼어요.`,
+      notMoved: (n: number) => `앱 ${count(n)}개는 옮기지 못했어요.`,
+      copiesMoved: (n: number) => `사본 ${count(n)}개를 격리함으로 옮겼어요.`,
+      copiesNotMoved: (n: number) => `사본 ${count(n)}개는 옮기지 못했어요.`,
       title: "앱",
-      line: "앱은 하나씩 확인한 뒤 격리함으로 옮겨요.",
       seeAll: "설치된 앱 모두 보기",
       outside: (n: number) => `검사하지 않은 위치에 앱이 ${count(n)}개 더 있어요.`,
     },
@@ -256,7 +264,6 @@ export const ko = {
       app_data: "앱 데이터",
       other: "기타",
     },
-    otherTools: "기타 도구",
     removedNote: "앱은 이미 없지만 데이터는 남아 있어요. 필요 없는지 확인한 뒤 옮겨 주세요.",
     commandNote:
       "도구의 명령으로만 정리할 수 있는 항목이에요. 항목을 열어 명령을 실행할 수 있어요. 실행하면 되돌릴 수 없으니 무엇을 지우는지 먼저 확인해 주세요.",
@@ -283,6 +290,9 @@ export const ko = {
       "디스크 공간이 거의 없어서 검사를 멈췄어요(Lumen은 늘 2 GB를 비워 둬요). 그때까지 읽은 부분만 살펴봤어요. 공간을 조금 비운 뒤 다시 검사해 주세요.",
   },
   action: {
+    cleanUpSelected: (n: number, size: string) => `정리하기 · ${count(n)}개 ${size}…`,
+    nothingSelected: "고른 항목이 없어요.",
+    check: (name: string) => `${name} 고르기`,
     cleanUp: "정리하기…",
     preparing: "준비하는 중…",
     nothing: "정리를 제안한 항목이 없어요.",
@@ -482,6 +492,13 @@ export const ko = {
     chosen: "직접 선택한 항목",
     chosenNote:
       "Lumen이 정리를 제안한 항목은 아니에요. 앱 동작에 영향을 줄 수 있고, 직접 복원하거나 영구 삭제할 때까지 격리함에 보관해요.",
+    apps: "직접 선택한 앱",
+    appsNote:
+      "~/Library의 앱 데이터는 그대로 둬요. 옮기기 직전에 앱마다 다시 확인하고, 실행 중이거나 옮길 수 없는 앱은 빼고 옮겨요.",
+    copies: "직접 선택한 똑같은 파일",
+    copiesNote:
+      "옮기기 직전에 두 사본을 다시 읽어 내용이 같을 때만 옮겨요. 격리함에서 복원할 수 있어요.",
+    copyStays: (name: string, stays: string) => `${name}: ${stays}에 있는 사본은 그대로 둬요.`,
     uninstallTitle: "이 앱을 격리함으로 옮길까요?",
     uninstallNote: "격리함에서 다시 복원할 수 있어요.",
     finalizeTitle: "이 항목을 영구 삭제할까요?",

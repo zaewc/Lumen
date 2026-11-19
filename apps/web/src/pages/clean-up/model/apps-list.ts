@@ -6,7 +6,7 @@ export interface Filter {
   readonly all: boolean;
 }
 
-export { softwareTitle as title } from "@/entities/app-move";
+export { softwareTitle as title } from "./app-title";
 
 /**
  * The rows the filter keeps. Without `all`, packages installed only as

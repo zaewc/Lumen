@@ -3,7 +3,7 @@
 //! ```text
 //! lumen scan [<PATH>...] [--db <FILE>] [--unread] [--json]
 //! lumen assess --db <FILE> [--json] [--jev | --no-ai]
-//! lumen plan --db <FILE> [--choose <PATH>]... [--jev | --no-ai]
+//! lumen plan --db <FILE> [--choose <PATH>]... [--leave-out <PATH>]... [--jev | --no-ai]
 //! lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>
 //! lumen list --db <FILE>
 //! lumen restore --db <FILE> --op <ID>
@@ -63,7 +63,7 @@ mod reassess;
 #[cfg(any(unix, windows))]
 mod report;
 
-const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--unread] [--json]   (no path: the whole disk; --unread: list the folders not read, needs --db)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]...   (--choose: a review item you choose to quarantine; repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)\n       lumen inspect xcode|docker|packages [--json]   (read-only tool storage inventory)\n       lumen duplicates <PATH>... [--json]   (identical copies in chosen folders, for review)\n       lumen reassess --db <FILE> [--choose <PATH>]... [--json]   (check items again with fresh read-only evidence)";
+const USAGE: &str = "usage: lumen scan [<PATH>...] [--db <FILE>] [--unread] [--json]   (no path: the whole disk; --unread: list the folders not read, needs --db)\n       lumen assess --db <FILE> [--json]\n       lumen plan --db <FILE> [--choose <PATH>]... [--leave-out <PATH>]...   (--choose: a review item you choose to quarantine; --leave-out: a proposal to keep out of the plan; both repeatable)\n       lumen quarantine --db <FILE> --plan <ID> --confirm <HASH>\n       lumen list --db <FILE>\n       lumen restore --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --op <ID>\n       lumen finalize --db <FILE> --expired\n       lumen jev key set|clear|status [--openrouter]   (Jeb by default; set reads the key from standard input)\n       lumen ai on|off|status --db <FILE>   (AI review for every assess and plan; --jev / --no-ai override one run)\n       lumen inspect xcode|docker|packages [--json]   (read-only tool storage inventory)\n       lumen duplicates <PATH>... [--json]   (identical copies in chosen folders, for review)\n       lumen reassess --db <FILE> [--choose <PATH>]... [--json]   (check items again with fresh read-only evidence)";
 
 /// Parsed `scan` arguments.
 #[derive(Debug, PartialEq, Eq)]
@@ -189,6 +189,7 @@ fn parse_plan(args: &[String]) -> Result<Command, String> {
     let mut db = None;
     let mut ai = AiChoice::Setting;
     let mut chosen = Vec::new();
+    let mut left_out = Vec::new();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--jev" => ai = AiChoice::On,
@@ -203,12 +204,23 @@ fn parse_plan(args: &[String]) -> Result<Command, String> {
                 iter.next()
                     .ok_or("--choose needs the path of a review item")?,
             )),
+            "--leave-out" => left_out.push(PathBuf::from(
+                iter.next()
+                    .ok_or("--leave-out needs the path of a proposed item")?,
+            )),
             "-h" | "--help" => return Ok(Command::Help),
             other => return Err(format!("unknown argument: {other}")),
         }
     }
-    let db = db.ok_or("plan needs --db <FILE> [--choose <PATH>]... [--jev | --no-ai]")?;
-    Ok(Command::Plan(PlanArgs { db, ai, chosen }))
+    let db = db.ok_or(
+        "plan needs --db <FILE> [--choose <PATH>]... [--leave-out <PATH>]... [--jev | --no-ai]",
+    )?;
+    Ok(Command::Plan(PlanArgs {
+        db,
+        ai,
+        chosen,
+        left_out,
+    }))
 }
 
 /// Parsed `plan` arguments.
@@ -218,6 +230,8 @@ struct PlanArgs {
     ai: AiChoice,
     /// Review items the person chose (ADR-0051), as given.
     chosen: Vec<PathBuf>,
+    /// Proposals the person keeps out of the plan (ADR-0069), as given.
+    left_out: Vec<PathBuf>,
 }
 
 fn parse_ai(args: &[String]) -> Result<Command, String> {
@@ -595,24 +609,29 @@ fn run_assess(_args: &AssessArgs) -> Result<(), Box<dyn Error>> {
 #[cfg(any(unix, windows))]
 fn run_plan(args: &PlanArgs) -> Result<(), Box<dyn Error>> {
     // Absolute, as scanned; never resolved, so a link is chosen as itself.
-    let chosen = args
-        .chosen
-        .iter()
-        .map(|path| {
-            let absolute = std::path::absolute(path)?;
-            lumen_app::raw_path(&absolute).map_err(|e| format!("{}: {e}", path.display()).into())
-        })
-        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+    let raw = |paths: &[PathBuf]| {
+        paths
+            .iter()
+            .map(|path| {
+                let absolute = std::path::absolute(path)?;
+                lumen_app::raw_path(&absolute)
+                    .map_err(|e| format!("{}: {e}", path.display()).into())
+            })
+            .collect::<Result<Vec<_>, Box<dyn Error>>>()
+    };
+    let chosen = raw(&args.chosen)?;
+    let left_out = raw(&args.left_out)?;
     let planned = with_judge(
         args.ai,
         &args.db,
         |judge, _describer| {
-            Ok(lumen_app::plan(
+            Ok(lumen_app::plan_selected(
                 &args.db,
                 &lumen_app::SystemClock,
                 &lumen_app::UuidV7Ids,
                 judge,
                 &chosen,
+                &left_out,
             )?)
         },
         |planned| planned.items.as_slice(),
@@ -821,6 +840,7 @@ mod tests {
                 db: "x.db".into(),
                 ai: AiChoice::Setting,
                 chosen: Vec::new(),
+                left_out: Vec::new(),
             }))
         );
         assert_eq!(
@@ -831,9 +851,29 @@ mod tests {
                 db: "x.db".into(),
                 ai: AiChoice::Setting,
                 chosen: vec!["/a".into(), "/b c".into()],
+                left_out: Vec::new(),
             })),
             "one path per --choose, in order"
         );
+        assert_eq!(
+            parse(&args(&[
+                "plan",
+                "--db",
+                "x.db",
+                "--leave-out",
+                "/p",
+                "--choose",
+                "/a"
+            ])),
+            Ok(Command::Plan(PlanArgs {
+                db: "x.db".into(),
+                ai: AiChoice::Setting,
+                chosen: vec!["/a".into()],
+                left_out: vec!["/p".into()],
+            })),
+            "a proposal kept out of the plan"
+        );
+        assert!(parse(&args(&["plan", "--db", "x.db", "--leave-out"])).is_err());
         assert!(parse(&args(&["plan", "--db", "x.db", "--choose"])).is_err());
         assert!(
             parse(&args(&["plan", "--db", "x.db", "--choose-all"])).is_err(),
@@ -936,6 +976,7 @@ mod tests {
                 db: "x.db".into(),
                 ai: AiChoice::On,
                 chosen: Vec::new(),
+                left_out: Vec::new(),
             }))
         );
         assert!(matches!(

@@ -7,6 +7,8 @@ import type {
   CandidateView,
   CompareOutcomeView,
   CompareProgressView,
+  CopyPreviewView,
+  CopyRequest,
   DiskView,
   ExecuteRequest,
   FinalizeOutcomeView,
@@ -21,6 +23,8 @@ import type {
   ScanProgressView,
   ScanRequest,
   ScanView,
+  SelectionReportView,
+  SelectionRequest,
   SoftwareView,
   ToolRunView,
   ToolStorageView,
@@ -59,8 +63,12 @@ export interface LumenTransport {
   scan(request: ScanRequest, onProgress?: (progress: ScanProgressView) => void): Promise<ScanView>;
   /** Decides the latest completed scan; moves nothing. */
   assess(onProgress?: (progress: AssessProgressView) => void): Promise<readonly CandidateView[]>;
-  /** Plans the policy's proposals, or only the chosen review IDs; moves nothing. */
-  plan(chosen?: readonly string[]): Promise<PlanView>;
+  /**
+   * Plans the policy's proposals, or only the chosen review IDs; with
+   * `leftOut`, the proposals except those IDs plus the chosen review IDs
+   * (ADR-0069). Moves nothing.
+   */
+  plan(chosen?: readonly string[], leftOut?: readonly string[]): Promise<PlanView>;
   /** Executes one plan, confirmed by its full hash. */
   execute(request: ExecuteRequest): Promise<QuarantineReportView>;
   /** What quarantine holds. */
@@ -159,6 +167,19 @@ export interface LumenTransport {
    * right before the move. Restorable until removed for good.
    */
   uninstall?(preview: string, confirmation: string): Promise<UninstallOutcomeView>;
+  /**
+   * Moves what the person checked after one confirmation (ADR-0069): a
+   * clean-up plan and apps' previews, each by its full hash. The host checks
+   * each app again right before its move; one app's refusal leaves the
+   * others. Only where the host can (the desktop app).
+   */
+  executeSelection?(request: SelectionRequest): Promise<SelectionReportView>;
+  /**
+   * Previews moving one copy of the latest comparison (ADR-0069), named by
+   * the comparison, its group's place and the copies' places, never a path.
+   * Reads both copies again; moves nothing. Only where the host can.
+   */
+  copyPreview?(request: CopyRequest): Promise<CopyPreviewView>;
   /**
    * Asks the running macOS app the software list shows under `key` to quit,
    * the way its Quit menu item does (roadmap 16.3a): it may ask to save or

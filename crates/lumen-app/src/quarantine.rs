@@ -232,7 +232,7 @@ pub fn checked_plan(
 }
 
 /// [`checked_plan`] for a cleanup: refused for a privileged process and for
-/// an uninstall plan (ADR-0062).
+/// an uninstall plan (ADR-0062) or a copy's preview (ADR-0069).
 fn checked_cleanup(
     index: &IndexStore,
     plan: PlanId,
@@ -241,7 +241,9 @@ fn checked_cleanup(
 ) -> Result<StoredPlan, QuarantineError> {
     refuse_privileged()?;
     let stored = checked_plan(index, plan, confirm, now)?;
-    if lumen_application::uninstall::any_uninstall(&stored.decisions) {
+    if lumen_application::uninstall::any_uninstall(&stored.decisions)
+        || lumen_application::copies::any_copy(&stored.decisions)
+    {
         return Err(QuarantineError::NotACleanup(plan));
     }
     Ok(stored)

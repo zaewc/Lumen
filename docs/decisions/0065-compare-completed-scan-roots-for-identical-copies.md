@@ -1,6 +1,7 @@
 # ADR-0065: Compare completed scan roots for identical copies
 
-- Status: Accepted
+- Status: Accepted; amended by [ADR-0069](0069-show-storage-in-one-place-grouped-by-owner.md)
+  (a person may move the copies they choose; one always stays)
 - Date: 2026-11-09
 - Supersedes in part: [ADR-0057](0057-host-chooses-folders-to-compare.md)
   (desktop comparison scope and consent)

@@ -69,6 +69,24 @@ impl Listed {
     }
 }
 
+/// A copy the person chose to move, and the copy of it that stays.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct AskCopy {
+    pub(crate) item: AskItem,
+    pub(crate) stays: AskItem,
+}
+
+/// What a stored plan must be to run through an action.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Kind {
+    /// The policy's proposals and chosen review items.
+    Cleanup,
+    /// An app's uninstall preview (ADR-0062).
+    Uninstall,
+    /// A copy's preview (ADR-0069).
+    Copy,
+}
+
 /// What the host asks the person to confirm.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -81,6 +99,11 @@ pub(crate) enum Ask {
         proposed: Listed,
         /// Each one, never summarised.
         chosen: Vec<AskItem>,
+        /// Apps the person chose to move with them (ADR-0069), each named.
+        apps: Vec<AskItem>,
+        /// Copies of identical files the person chose, each with the copy
+        /// that stays (ADR-0069).
+        copies: Vec<AskCopy>,
     },
     /// Uninstalling an app into Quarantine (ADR-0062).
     Uninstall { items: Vec<AskItem> },
@@ -243,6 +266,46 @@ fn item(path: &RawPath, bytes: Option<u64>) -> AskItem {
     }
 }
 
+/// The items of stored plan `id`, after checking `hash` and its age the way
+/// executing it will, and that it is an uninstall preview exactly when
+/// `uninstall` says so.
+fn checked_items(
+    store: &IndexStore,
+    id: PlanId,
+    hash: &str,
+    kind: Kind,
+) -> Result<Vec<lumen_domain::PlannedItem>, CommandError> {
+    let stored = lumen_app::quarantine::checked_plan(store, id, hash, SystemClock.now())
+        .map_err(CommandError::new)?;
+    if lumen_application::uninstall::any_uninstall(&stored.decisions) != (kind == Kind::Uninstall)
+        || lumen_application::copies::any_copy(&stored.decisions) != (kind == Kind::Copy)
+    {
+        return Err(CommandError::new(
+            "that proposal cannot run through this action; nothing was changed",
+        ));
+    }
+    Ok(stored.plan.items().to_vec())
+}
+
+fn shown(planned: &lumen_domain::PlannedItem) -> AskItem {
+    item(&planned.path, Some(planned.reclaim.reclaimable_now.get()))
+}
+
+/// One planned item as the clean-up question lists it.
+struct Entry {
+    shown: AskItem,
+    bytes: u64,
+    chosen: bool,
+}
+
+fn entry(planned: &lumen_domain::PlannedItem) -> Entry {
+    Entry {
+        shown: shown(planned),
+        bytes: planned.reclaim.reclaimable_now.get(),
+        chosen: planned.chosen_by == Chooser::Person,
+    }
+}
+
 /// Confirms executing stored plan `id`, after checking `hash` and its age the
 /// way executing it will. An uninstall preview (`uninstall`) names the app; a
 /// clean-up lists every item the person chose and the policy's proposals.
@@ -255,42 +318,151 @@ pub(crate) fn plan(
 ) -> Result<(), CommandError> {
     lumen_app::refuse_privileged().map_err(CommandError::new)?;
     let store = IndexStore::new(open_index(db).map_err(CommandError::new)?);
-    let stored = lumen_app::quarantine::checked_plan(&store, id, hash, SystemClock.now())
-        .map_err(CommandError::new)?;
-    if lumen_application::uninstall::any_uninstall(&stored.decisions) != uninstall {
-        return Err(CommandError::new(
-            "that proposal cannot run through this action; nothing was changed",
-        ));
-    }
-    let items = stored.plan.items();
-    let shown = |planned: &lumen_domain::PlannedItem| {
-        item(&planned.path, Some(planned.reclaim.reclaimable_now.get()))
+    let kind = if uninstall {
+        Kind::Uninstall
+    } else {
+        Kind::Cleanup
     };
+    let items = checked_items(&store, id, hash, kind)?;
     if uninstall {
         let items = items.iter().map(shown).collect();
         return ask(prompt, &Ask::Uninstall { items });
     }
-    let (chosen, proposed): (Vec<_>, Vec<_>) = items
+    ask(
+        prompt,
+        &move_ask(items.iter().map(entry).collect(), Vec::new(), Vec::new())?,
+    )
+}
+
+/// The clean-up question: the policy's proposals, every chosen item, and the
+/// chosen apps, with what they free together.
+fn move_ask(
+    items: Vec<Entry>,
+    apps: Vec<Entry>,
+    copies: Vec<(Entry, AskItem)>,
+) -> Result<Ask, CommandError> {
+    let count = items.len() + apps.len() + copies.len();
+    let total: u64 = items
         .iter()
-        .partition(|planned| planned.chosen_by == Chooser::Person);
-    if chosen.len() > MAX_CHOSEN {
+        .chain(&apps)
+        .chain(copies.iter().map(|(entry, _)| entry))
+        .map(|entry| entry.bytes)
+        .fold(0, u64::saturating_add);
+    let (chosen, proposed): (Vec<_>, Vec<_>) = items.into_iter().partition(|entry| entry.chosen);
+    if chosen.len() > MAX_CHOSEN || apps.len() > MAX_CHOSEN || copies.len() > MAX_CHOSEN {
         return Err(CommandError::new(
             "too many chosen items to confirm at once; nothing was changed",
         ));
     }
-    let total: u64 = items
+    let shown = |entries: Vec<Entry>| entries.into_iter().map(|entry| entry.shown).collect();
+    Ok(Ask::Move {
+        count,
+        total_bytes: total.to_string(),
+        proposed: Listed::of(shown(proposed)),
+        chosen: shown(chosen),
+        apps: shown(apps),
+        copies: copies
+            .into_iter()
+            .map(|(entry, stays)| AskCopy {
+                item: entry.shown,
+                stays,
+            })
+            .collect(),
+    })
+}
+
+/// Confirms one selection (ADR-0069): an optional clean-up plan, the apps'
+/// uninstall previews and the copies' previews (each with the copy that
+/// stays), each checked by its own hash and age the way executing it will,
+/// asked about once. Every app and copy is named. Returns every path the
+/// selection moves, for the copies' "one copy stays" check.
+pub(crate) fn selection(
+    db: &Path,
+    plan: Option<(PlanId, &str)>,
+    apps: &[(PlanId, &str)],
+    copies: &[(PlanId, &str, &RawPath)],
+    prompt: &Prompt,
+) -> Result<Vec<RawPath>, CommandError> {
+    lumen_app::refuse_privileged().map_err(CommandError::new)?;
+    if plan.is_none() && apps.is_empty() && copies.is_empty() {
+        return Err(CommandError::new(
+            "nothing was selected; nothing was changed",
+        ));
+    }
+    if apps.len() > MAX_CHOSEN || copies.len() > MAX_CHOSEN {
+        return Err(CommandError::new(
+            "too many apps or copies to confirm at once; nothing was changed",
+        ));
+    }
+    let ids: BTreeSet<_> = apps
         .iter()
-        .map(|planned| planned.reclaim.reclaimable_now.get())
-        .fold(0, u64::saturating_add);
+        .map(|(id, _)| id)
+        .chain(copies.iter().map(|(id, _, _)| id))
+        .collect();
+    if ids.len() != apps.len() + copies.len() || plan.is_some_and(|(id, _)| ids.contains(&id)) {
+        return Err(CommandError::new(
+            "a proposal was given twice; nothing was changed",
+        ));
+    }
+    let store = IndexStore::new(open_index(db).map_err(CommandError::new)?);
+    let items = match plan {
+        Some((id, hash)) => checked_items(&store, id, hash, Kind::Cleanup)?,
+        None => Vec::new(),
+    };
+    let mut moving: Vec<RawPath> = items.iter().map(|planned| planned.path.clone()).collect();
+    let mut previewed = Vec::new();
+    for (id, hash) in apps {
+        let app = checked_items(&store, *id, hash, Kind::Uninstall)?;
+        moving.extend(app.iter().map(|planned| planned.path.clone()));
+        previewed.extend(app.iter().map(entry));
+    }
+    let mut chosen_copies = Vec::new();
+    for (id, hash, stays) in copies {
+        let copy = checked_items(&store, *id, hash, Kind::Copy)?;
+        moving.extend(copy.iter().map(|planned| planned.path.clone()));
+        chosen_copies.extend(
+            copy.iter()
+                .map(|planned| (entry(planned), item(stays, None))),
+        );
+    }
+    every_copy_stays(copies.iter().map(|(_, _, stays)| *stays), &moving)?;
     ask(
         prompt,
-        &Ask::Move {
-            count: items.len(),
-            total_bytes: total.to_string(),
-            proposed: Listed::of(proposed.into_iter().map(shown).collect()),
-            chosen: chosen.into_iter().map(shown).collect(),
-        },
-    )
+        &move_ask(items.iter().map(entry).collect(), previewed, chosen_copies)?,
+    )?;
+    Ok(moving)
+}
+
+/// Refuses, before anything is asked, a selection in which a copy named as
+/// the one that stays is itself moved or inside something that moves, so the
+/// window never says a copy stays when it would not.
+fn every_copy_stays<'a>(
+    stays: impl IntoIterator<Item = &'a RawPath>,
+    moving: &[RawPath],
+) -> Result<(), CommandError> {
+    if stays.into_iter().all(|path| outside(path, moving)) {
+        Ok(())
+    } else {
+        Err(CommandError::new(
+            "a copy chosen to stay is also selected; choose which copy stays and try again; nothing was changed",
+        ))
+    }
+}
+
+/// Whether `path` is outside every one of `moving`: neither one of them nor
+/// inside one (ADR-0069's "one copy stays").
+pub(crate) fn outside(path: &RawPath, moving: &[RawPath]) -> bool {
+    let separator = match path.flavor() {
+        lumen_domain::PathFlavor::Unix => b'/',
+        lumen_domain::PathFlavor::Windows => b'\\',
+    };
+    moving.iter().all(|other| {
+        let (inner, outer) = (path.as_bytes(), other.as_bytes());
+        !(inner == outer
+            || inner.strip_prefix(outer).is_some_and(|rest| {
+                rest.first() == Some(&separator) || outer.last() == Some(&separator)
+            }))
+    })
 }
 
 /// Confirms removing held item `operation` for good, naming where it was.
@@ -426,6 +598,116 @@ mod tests {
 
     fn raw(text: &str) -> RawPath {
         RawPath::from_unix_bytes(text.as_bytes().to_vec()).unwrap_or_else(|e| unreachable!("{e}"))
+    }
+
+    #[test]
+    fn a_selection_lists_the_apps_apart_and_counts_them_in() -> Result<(), CommandError> {
+        let at = |path: &str, bytes: u64, chosen: bool| Entry {
+            shown: item(&raw(path), Some(bytes)),
+            bytes,
+            chosen,
+        };
+        let question = move_ask(
+            vec![at("/p/cache", 100, false), at("/p/old", 20, true)],
+            vec![at("/Applications/Xcode.app", 14_800, false)],
+            vec![(
+                at("/Users/ana/Downloads/a.mov", 1_000, true),
+                item(&raw("/Users/ana/Movies/a.mov"), None),
+            )],
+        )?;
+        let Ask::Move {
+            count,
+            total_bytes,
+            proposed,
+            chosen,
+            apps,
+            copies,
+        } = question
+        else {
+            unreachable!("a clean-up question")
+        };
+        assert_eq!((count, total_bytes.as_str()), (4, "15920"));
+        assert_eq!(
+            copies
+                .first()
+                .map(|c| (c.item.name.as_str(), c.stays.folder.as_str())),
+            Some(("a.mov", "/Users/ana/Movies"))
+        );
+        assert_eq!(proposed.items.len(), 1);
+        assert_eq!(chosen.first().map(|c| c.name.as_str()), Some("old"));
+        assert_eq!(apps.first().map(|a| a.name.as_str()), Some("Xcode.app"));
+        let many = (0..=MAX_CHOSEN)
+            .map(|i| at(&format!("/A/{i}.app"), 1, false))
+            .collect();
+        assert!(
+            move_ask(Vec::new(), many, Vec::new()).is_err(),
+            "too many apps to name"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_selection_whose_kept_copy_also_moves_is_refused_before_asking() {
+        let moving = [raw("/d/a.mov"), raw("/d/b.mov")];
+        assert!(
+            every_copy_stays([&raw("/d/b.mov")], &moving).is_err(),
+            "A keeps B while B moves"
+        );
+        let c = raw("/d/c.mov");
+        assert!(
+            every_copy_stays([&c, &c], &moving).is_ok(),
+            "A and B both keep an unselected C"
+        );
+    }
+
+    #[test]
+    fn a_copy_stays_only_outside_everything_that_moves() {
+        let stays = raw("/Users/ana/Movies/a.mov");
+        assert!(outside(&stays, &[raw("/Users/ana/Downloads/a.mov")]));
+        assert!(
+            outside(&stays, &[raw("/Users/ana/Mov")]),
+            "a name prefix is not a folder"
+        );
+        assert!(
+            !outside(&stays, &[raw("/Users/ana/Movies/a.mov")]),
+            "the copy itself"
+        );
+        assert!(
+            !outside(&stays, &[raw("/Users/ana/Movies")]),
+            "inside a moving folder"
+        );
+        assert!(!outside(&stays, &[raw("/")]), "inside the root");
+        assert!(outside(&stays, &[]));
+    }
+
+    #[test]
+    fn a_selection_needs_something_and_each_proposal_once() {
+        use lumen_application::ports::IdGenerator as _;
+        let never = |_: &Ask| -> bool { unreachable!("nothing may be asked") };
+        let db = Path::new("/nonexistent/index.db");
+        let (one, two) = (
+            lumen_app::UuidV7Ids.plan_id(),
+            lumen_app::UuidV7Ids.plan_id(),
+        );
+        assert!(
+            selection(db, None, &[], &[], &never).is_err(),
+            "nothing selected"
+        );
+        assert!(
+            selection(db, Some((one, "h")), &[(one, "h")], &[], &never).is_err(),
+            "the plan given again as an app"
+        );
+        assert!(
+            selection(db, None, &[(two, "h"), (two, "h")], &[], &never).is_err(),
+            "an app given twice"
+        );
+        let many: Vec<_> = (0..=MAX_CHOSEN)
+            .map(|_| (lumen_app::UuidV7Ids.plan_id(), "h"))
+            .collect();
+        assert!(
+            selection(db, None, &many, &[], &never).is_err(),
+            "too many apps"
+        );
     }
 
     #[test]

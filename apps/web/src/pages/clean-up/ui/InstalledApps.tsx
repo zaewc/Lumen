@@ -2,14 +2,22 @@ import type { SoftwareItemView } from "@lumen/api-client";
 import { useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useAiSettings } from "@/entities/ai-review";
-import { MoveFlow, MoveResult } from "@/entities/app-move";
 import { useTransport } from "@/shared/api";
 import { softwareNoteText, useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
-import { Bytes, buttonClass, ErrorNotice, Notice, Page } from "@/shared/ui";
+import { Bytes, buttonClass, ErrorNotice, Notice } from "@/shared/ui";
+import {
+  iconsShown,
+  type Order,
+  ordered,
+  partial,
+  title,
+  tucked,
+  visible,
+} from "../model/apps-list";
 import { removalFacts } from "../model/facts";
-import { iconsShown, type Order, ordered, partial, title, tucked, visible } from "../model/list";
 import { AppIcon } from "./AppIcon";
+import { MoveFlow, MoveResult } from "./MoveFlow";
 
 function AppRow({
   item,
@@ -89,13 +97,14 @@ function AppRow({
 }
 
 /**
- * Everything the platform says is installed (ADR-0060): applications and
- * packages from each inventory, read when the page opens. Nothing moves
+ * Everything the platform says is installed (ADR-0060), as a section of
+ * 저장 공간 (ADR-0069): applications and packages from each inventory, read
+ * when it opens. Nothing moves
  * without a confirmed preview: a user-owned macOS app can be moved to
  * Quarantine (ADR-0062), and the host decides whether it may. Absent where
  * the host cannot read inventories (a browser).
  */
-export function AppsPage() {
+export function InstalledApps() {
   const { m } = useI18n();
   const a = m.apps;
   const transport = useTransport();
@@ -131,14 +140,19 @@ export function AppsPage() {
   const hiddenCount = tucked(items);
   const icons = transport.appIcon !== undefined && iconsShown(items);
 
+  const heading = useId();
   return (
-    <Page
-      title={a.title}
-      accessory={
-        list !== undefined && <span className="tabular-nums">{m.common.items(items.length)}</span>
-      }
-      actions={
-        ask !== undefined && (
+    <section aria-labelledby={heading} className="space-y-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 id={heading} className="text-section text-ink">
+          {a.title}
+          {list !== undefined && (
+            <span className="ml-2 font-normal tabular-nums text-ink-3">
+              {m.common.items(items.length)}
+            </span>
+          )}
+        </h2>
+        {ask !== undefined && (
           <button
             type="button"
             disabled={software.isFetching}
@@ -151,9 +165,8 @@ export function AppsPage() {
           >
             {software.isFetching ? a.reading : a.readAgain}
           </button>
-        )
-      }
-    >
+        )}
+      </div>
       {ask === undefined && <p className="text-[13px] text-ink-2">{a.desktopOnly}</p>}
       {software.isError && ask !== undefined && (
         <ErrorNotice message={a.loadFailed} error={software.error} />
@@ -234,6 +247,6 @@ export function AppsPage() {
         </div>
       )}
       {moving !== null && <MoveFlow item={moving} onClose={() => setMoving(null)} />}
-    </Page>
+    </section>
   );
 }

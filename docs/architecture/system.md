@@ -547,8 +547,9 @@ Windows the roots lose `canonicalize`'s `\\?\` prefix for drive paths, as the
 scanner adds it itself. Other platforms report that the analysis is unsupported
 rather than finding nothing.
 
-In the desktop app, Explore starts `compare_scan` after a non-partial scan
-finishes (ADR-0065). It sends only the scan ID; the host checks that it is the
+In the desktop app, the Storage page starts `compare_scan` after a non-partial
+scan finishes (ADR-0065). The host keeps that comparison, so the person can check
+copies to move by its ID and their places, never a path (ADR-0069). It sends only the scan ID; the host checks that it is the
 latest completed scan and reads its roots from the index. The comparison is a
 separate operation from scanning, has its own progress and cancellation, and
 never accepts paths from the webview. macOS, Windows and Linux use the same

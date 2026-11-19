@@ -22,9 +22,7 @@ export const zhCN: Messages = {
   nav: {
     label: "主导航",
     overview: "存储空间",
-    cleanUp: "探索",
     quarantine: "隔离区",
-    apps: "应用",
     settings: "设置",
     held: (n: number) => `隔离区中有 ${items(n)}`,
   },
@@ -111,6 +109,8 @@ export const zhCN: Messages = {
       incomplete: "部分文件夹未能完整读取，其中的文件未比较。",
       unsupported: "这台电脑暂时还不能比较文件。",
       failed: "Lumen 无法比较扫描路径中的文件。",
+      oneStays: "始终保留一个副本。",
+      cannotMove: "此副本现在无法移动：内容已更改，或位于 Lumen 不移动的位置。",
       advice:
         "副本可能是你想保留的备份。Lumen 不会选择或删除任何副本。删除一个副本释放的空间可能小于它的大小。",
     },
@@ -219,8 +219,16 @@ export const zhCN: Messages = {
   },
   results: {
     apps: {
+      part: "应用本身",
+      proposed: (size: string) => `${size} 建议清理`,
+      notMeasured: "大小未知",
+      checking: "正在检查能否移动…",
+      refused: "此应用现在无法移动。",
+      moved: (n: number) => `已将 ${n} 个应用移到隔离区。`,
+      notMoved: (n: number) => `${n} 个应用未能移动。`,
+      copiesMoved: (n: number) => `已将 ${n} 个副本移到隔离区。`,
+      copiesNotMoved: (n: number) => `${n} 个副本未能移动。`,
       title: "应用",
-      line: "应用会逐个检查后再移至隔离区。",
       seeAll: "查看所有已安装的应用",
       outside: (n: number) => `还有 ${count(n)} 个应用位于本次扫描未读取的位置。`,
     },
@@ -246,7 +254,6 @@ export const zhCN: Messages = {
       app_data: "应用数据",
       other: "其他",
     },
-    otherTools: "其他工具",
     removedNote: "应用已经不在了，但数据还在。请确认不再需要后再移走。",
     commandNote:
       "这些项目只能由对应工具移除。打开某项即可运行其命令；运行前请检查移除的内容，因为操作无法撤销。",
@@ -273,6 +280,9 @@ export const zhCN: Messages = {
       "由于磁盘空间即将用满，扫描已停止（Lumen 始终会保留 2 GB 可用空间）。以下是停止前找到的内容。请先释放一些空间，然后重新扫描。",
   },
   action: {
+    cleanUpSelected: (n: number, size: string) => `清理 · ${n} 项 ${size}…`,
+    nothingSelected: "未选择任何项目。",
+    check: (name: string) => `选择 ${name}`,
     cleanUp: "清理…",
     preparing: "正在准备…",
     nothing: "没有建议清理的内容。",
@@ -462,6 +472,12 @@ export const zhCN: Messages = {
     chosen: "你选择的项目",
     chosenNote:
       "这些不是 Lumen 建议的项目。移动它们可能影响应用，并会一直留在隔离区，直到你恢复或永久移除。",
+    apps: "你选择的应用",
+    appsNote:
+      "~/Library 中的应用数据会保留。每个应用在移动前都会再次检查；正在运行或无法移动的应用会留在原处。",
+    copies: "你选择的相同文件",
+    copiesNote: "移动前会重新读取两个副本，只有内容仍然相同时才移动。可从隔离区恢复。",
+    copyStays: (name: string, stays: string) => `${name}：${stays} 中的副本会保留。`,
     uninstallTitle: "将此应用移至隔离区？",
     uninstallNote: "你可以从隔离区恢复它。",
     finalizeTitle: "永久移除此项目？",

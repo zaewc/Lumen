@@ -37,7 +37,9 @@ mod uninstall;
 mod unread;
 
 pub use duplicates::{
-    CompareOutcomeView, CompareProgressView, CompareStageView, DuplicateGroupView, DuplicatesView,
+    CompareOutcomeView, CompareProgressView, CompareStageView, CopyOutcomeView, CopyPreviewView,
+    CopyReasonView, CopyRequest, CopyResultView, DuplicateGroupView, DuplicatesView,
+    SelectedCopyView, ordered,
 };
 pub use facts::{AppDataKindView, BasisView, FactKindView, FactView};
 pub use helper::{HelperReachView, HelperRegistrationView, HelperView};
@@ -56,7 +58,8 @@ pub use software::{
 };
 pub use times::{TimeView, TimesView};
 pub use uninstall::{
-    QuitView, UninstallAppView, UninstallNoteView, UninstallOutcomeView, UninstallPreviewView,
+    AppConfirmationRequest, QuitView, SelectedAppView, SelectionReportView, SelectionRequest,
+    UninstallAppView, UninstallNoteView, UninstallOutcomeView, UninstallPreviewView,
     UninstallReasonView, UninstallResultView,
 };
 pub use unread::{UnreadFolderView, UnreadFoldersView, UnreadReasonView};

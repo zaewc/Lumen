@@ -17,6 +17,7 @@ pub mod cloud;
 pub mod collect;
 pub mod confirm;
 pub mod consult;
+pub mod copies;
 pub mod describe;
 pub mod duplicates;
 pub mod finalize;
