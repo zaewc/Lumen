@@ -82,6 +82,10 @@ toolchain, crates.io, npm, GitHub and artifact storage; the desktop job audits i
 network use while its package mirrors are pinned down. The macOS and Windows runners
 cannot enforce that limit.
 
+The Linux desktop allow-list includes the Ubuntu runner's Azure and AWS mirrors,
+its canonical HTTPS fallbacks, and the security repository. Keep these aligned with
+the [runner's APT configuration](../research/38-release-ubuntu-mirrors.md).
+
 A pull request that changes the workflow runs the builds as a dry run; nothing is
 attested or published, and no secret is used. The `sign` job then signs with a
 throwaway key, so its steps and egress allow-list are exercised too.
