@@ -232,6 +232,7 @@ export const fr: Messages = {
   },
   results: {
     ...en.results,
+    search: "Chercher noms, chemins, ID d’app",
     apps: {
       part: "L’app elle-même",
       proposed: (size: string) => `${size} proposé`,
@@ -245,9 +246,6 @@ export const fr: Messages = {
       copiesMoved: (n: number) => `${n} copie(s) déplacée(s) en Quarantaine.`,
       copiesNotMoved: (n: number) => `${n} copie(s) non déplacée(s).`,
       title: "Apps",
-      seeAll: "Voir toutes les apps installées",
-      outside: (n) =>
-        `${count(n)} ${n > 1 ? "autres apps se trouvent" : "autre app se trouve"} dans des emplacements que cette analyse n'a pas lus.`,
     },
     map: {
       label: "Carte des éléments évalués, par taille",
@@ -648,21 +646,14 @@ export const fr: Messages = {
   apps: {
     order: { label: "Ordre", name: "Par nom", size: "Par taille" },
     title: "Apps",
-    desktopOnly: "Lumen affiche les apps installées dans l'app de bureau.",
     reading: "Lecture des apps installées…",
     readAgain: "Relire",
     loadFailed: "Lumen n'a pas pu lire les apps installées.",
     search: "Rechercher des apps",
-    showAll: (n: number) => `Afficher les dépendances et éléments masqués (${n})`,
-    none: "Aucune app ne correspond.",
     protected: "Fait partie du système",
     protectedTip: "Lumen ne supprime jamais ceci.",
     partial: (names: string) =>
       `Certaines listes n'ont été lues qu'en partie, des apps peuvent donc manquer : ${names}.`,
-    readOnly:
-      "Cette liste est lue sur votre ordinateur et y reste. Une app est déplacée uniquement après votre confirmation.",
-    readOnlyAi:
-      "Tant que l’analyse par IA est activée, le nom, l’éditeur et la version de ces apps lui sont envoyés, sans chemin. Une app est déplacée uniquement après votre confirmation.",
     move: {
       action: "Déplacer en quarantaine…",
       title: (name: string) => `Déplacer « ${name} » en quarantaine ?`,

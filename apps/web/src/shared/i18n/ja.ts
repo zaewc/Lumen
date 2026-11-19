@@ -223,6 +223,7 @@ export const ja: Messages = {
     failed: "見つかった項目を判断できませんでした。ファイルは変更されていません。",
   },
   results: {
+    search: "名前・パス・アプリ ID を検索",
     apps: {
       part: "アプリ本体",
       proposed: (size: string) => `${size} 整理を提案`,
@@ -236,9 +237,6 @@ export const ja: Messages = {
       copiesMoved: (n: number) => `${n} 個のコピーを隔離に移動しました。`,
       copiesNotMoved: (n: number) => `${n} 個のコピーは移動できませんでした。`,
       title: "アプリ",
-      seeAll: "インストール済みのアプリをすべて表示",
-      outside: (n: number) =>
-        `このスキャンで読み取っていない場所に、さらに ${count(n)} 個のアプリがあります。`,
     },
     map: {
       label: "確認済み項目のサイズ別マップ",
@@ -642,21 +640,14 @@ export const ja: Messages = {
   apps: {
     order: { label: "並べ替え", name: "名前順", size: "サイズ順" },
     title: "アプリ",
-    desktopOnly: "インストール済みのアプリはデスクトップアプリで表示できます。",
     reading: "インストール済みのアプリを読み込んでいます…",
     readAgain: "もう一度読み込む",
     loadFailed: "インストール済みのアプリを読み込めませんでした。",
     search: "アプリを検索",
-    showAll: (n: number) => `依存関係と非表示の項目 ${n} 件も表示`,
-    none: "一致するアプリはありません。",
     protected: "システムの一部",
     protectedTip: "Lumen はこれを削除しません。",
     partial: (names: string) =>
       `一部の一覧は途中までしか読めなかったため、表示されていないアプリがある可能性があります: ${names}。`,
-    readOnly:
-      "この一覧はコンピュータから読み取り、外部には送りません。アプリは確認してから移動します。",
-    readOnlyAi:
-      "AIレビューがオンの間は、アプリの名前、発行元、バージョンをパスなしで送信します。アプリは確認してから移動します。",
     move: {
       action: "隔離へ移動…",
       title: (name: string) => `「${name}」を隔離へ移動しますか？`,

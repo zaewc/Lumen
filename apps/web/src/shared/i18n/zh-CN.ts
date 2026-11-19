@@ -218,6 +218,7 @@ export const zhCN: Messages = {
     failed: "Lumen 无法判断找到的内容。你的文件没有变化。",
   },
   results: {
+    search: "搜索名称、路径、应用 ID",
     apps: {
       part: "应用本身",
       proposed: (size: string) => `${size} 建议清理`,
@@ -231,8 +232,6 @@ export const zhCN: Messages = {
       copiesMoved: (n: number) => `已将 ${n} 个副本移到隔离区。`,
       copiesNotMoved: (n: number) => `${n} 个副本未能移动。`,
       title: "应用",
-      seeAll: "查看所有已安装的应用",
-      outside: (n: number) => `还有 ${count(n)} 个应用位于本次扫描未读取的位置。`,
     },
     map: {
       label: "已评估项目分布图，按大小排列",
@@ -620,19 +619,13 @@ export const zhCN: Messages = {
   apps: {
     order: { label: "排序", name: "按名称", size: "按大小" },
     title: "应用",
-    desktopOnly: "已安装的应用列表可在桌面应用中查看。",
     reading: "正在读取已安装的应用…",
     readAgain: "重新读取",
     loadFailed: "无法读取已安装的应用。",
     search: "搜索应用",
-    showAll: (n: number) => `同时显示 ${n} 个依赖项和隐藏项`,
-    none: "没有匹配的应用。",
     protected: "系统组件",
     protectedTip: "Lumen 绝不会删除此项。",
     partial: (names: string) => `部分列表未能完整读取，可能缺少一些应用：${names}。`,
-    readOnly: "此列表从你的电脑读取并保留在本机。只有确认后才会移动应用。",
-    readOnlyAi:
-      "启用 AI 审查时，会向其发送这些应用的名称、发布者和版本，不含路径。只有确认后才会移动应用。",
     move: {
       action: "移至隔离区…",
       title: (name: string) => `将“${name}”移至隔离区？`,

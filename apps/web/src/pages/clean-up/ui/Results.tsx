@@ -1,9 +1,7 @@
 import type { CandidateView, ScanView, SoftwareItemView } from "@lumen/api-client";
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { type CandidateSummary, DecisionMap, useScanSession } from "@/entities/scan-session";
-import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
 import { formatBytes, userAgent } from "@/shared/lib";
 import { buttonClass, ErrorNotice, InfoTip, Notice } from "@/shared/ui";
@@ -12,16 +10,19 @@ import { closingSummary } from "../model/closing";
 import { coverageOf } from "../model/coverage";
 import { type Filter, shows } from "../model/filter";
 import { lensOf } from "../model/lens";
-import { listedOwners, ownersOf } from "../model/owners";
+import { listedOwners, type OwnerOrder, ownersOf } from "../model/owners";
 import { candidatesIn, topographyOf, trailTo, unreadEntries } from "../model/topography";
 import { CandidateList, type Check } from "./CandidateList";
 import { CandidateSheet } from "./CandidateSheet";
 import { FlowStage } from "./FlowStage";
 import { MoveFlow, MoveResult } from "./MoveFlow";
+import { OwnerControls } from "./OwnerControls";
 import { useReviewMove } from "./ReviewMove";
 import { ScanDetails } from "./ScanDetails";
+import { SoftwareDetails } from "./SoftwareDetails";
 import { StepHeading } from "./StepHeading";
 import { Topography } from "./Topography";
+import { useSoftware } from "./useSoftware";
 
 /** What happened to the apps the last clean-up moved with it (ADR-0069). */
 function AppOutcomes() {
@@ -111,14 +112,11 @@ export function Results({
   const [open, setOpen] = useState<CandidateView | null>(null);
   const move = useReviewMove();
   const proposed = summary.quarantine;
-  const transport = useTransport();
-  const ask = transport.software;
-  const software = useQuery({
-    queryKey: ["software"],
-    queryFn: () => (ask === undefined ? Promise.reject(new Error("unsupported")) : ask()),
-    enabled: ask !== undefined,
-  });
-  const installed = software.data?.items;
+  const software = useSoftware();
+  const installed = software.list?.items;
+  const [query, setQuery] = useState("");
+  const [order, setOrder] = useState<OwnerOrder>("size");
+  const [info, setInfo] = useState<SoftwareItemView | null>(null);
   const groups = useMemo(() => topographyOf(candidates, installed), [candidates, installed]);
   // The group the map is zoomed into, if it is still in this assessment.
   const [zoom, setZoom] = useState<string | null>(null);
@@ -135,9 +133,9 @@ export function Results({
           listed.filter((candidate) => shows(filter, candidate)),
           installed ?? [],
         ),
-        { apps: withApps },
+        { apps: withApps, query, order },
       ),
-    [listed, filter, installed, withApps],
+    [listed, filter, installed, withApps, query, order],
   );
   const appName = (key: string) => {
     const item = installed?.find((each) => each.key === key);
@@ -213,12 +211,12 @@ export function Results({
           />
         </>
       )}
-      {software.isError && (
+      {software.failed && (
         <ErrorNotice message={m.apps.loadFailed} error={software.error}>
           <button
             type="button"
             className={buttonClass("secondary", "sm")}
-            onClick={() => void software.refetch()}
+            onClick={software.readAgain}
           >
             {m.common.tryAgain}
           </button>
@@ -226,6 +224,13 @@ export function Results({
       )}
       <MoveResult name={appName} />
       <AppOutcomes />
+      <OwnerControls
+        query={query}
+        onQuery={setQuery}
+        order={order}
+        onOrder={setOrder}
+        software={software}
+      />
       {(candidates.length > 0 || owners.length + small.length + system.length > 0) && (
         <CandidateList
           owners={owners}
@@ -233,16 +238,20 @@ export function Results({
           {...(cleanedUp ? {} : { check })}
           onOpen={setOpen}
           onOpenApp={setApp}
+          onInfo={setInfo}
           lens={lens}
           moving={move.moving}
         />
       )}
-      {withApps && installed !== undefined && (
-        <div className="space-y-1 px-2 text-[13px]">
-          <a href="#apps" className="text-accent-ink hover:underline">
-            {m.results.apps.seeAll}
-          </a>
-        </div>
+      {info !== null && (
+        <SoftwareDetails
+          item={info}
+          onClose={() => setInfo(null)}
+          onMove={(item) => {
+            setInfo(null);
+            setApp(item);
+          }}
+        />
       )}
       {app !== null && <MoveFlow item={app} onClose={() => setApp(null)} />}
       <ScanDetails scan={scan} />

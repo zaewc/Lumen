@@ -70,12 +70,12 @@ const quarantine = createRoute({
   path: "/quarantine",
   component: QuarantinePage,
 });
-// The installed apps are a section of Storage (ADR-0069).
+// The installed apps are in the Storage list (ADR-0069).
 const formerApps = createRoute({
   getParentRoute: () => root,
   path: "/apps",
   beforeLoad: () => {
-    throw redirect({ to: "/", hash: "apps" });
+    throw redirect({ to: "/" });
   },
 });
 const settings = createRoute({

@@ -236,6 +236,7 @@ export const en = {
     failed: "Lumen could not decide about what it found. Your files are unchanged.",
   },
   results: {
+    search: "Search names, paths, app IDs",
     apps: {
       part: "The app itself",
       proposed: (size: string) => `${size} proposed`,
@@ -249,9 +250,6 @@ export const en = {
       copiesMoved: (n: number) => `Moved ${n} ${n === 1 ? "copy" : "copies"} to Quarantine.`,
       copiesNotMoved: (n: number) => `${n} ${n === 1 ? "copy was" : "copies were"} not moved.`,
       title: "Apps",
-      seeAll: "See all installed apps",
-      outside: (n: number) =>
-        `${count(n)} more ${n === 1 ? "app is" : "apps are"} in places this scan did not read.`,
     },
     map: {
       label: "Map of the assessed items, by size",
@@ -656,21 +654,14 @@ export const en = {
   apps: {
     order: { label: "Order", name: "By name", size: "By size" },
     title: "Apps",
-    desktopOnly: "Lumen lists installed apps in the desktop app.",
     reading: "Reading installed apps…",
     readAgain: "Read again",
     loadFailed: "Lumen couldn't read the installed apps.",
     search: "Search apps",
-    showAll: (n: number) => `Show dependencies and hidden items (${n})`,
-    none: "No apps match.",
     protected: "Part of the system",
     protectedTip: "Lumen never removes this.",
     partial: (names: string) =>
       `Some lists were read only in part, so apps may be missing: ${names}.`,
-    readOnly:
-      "This list is read from your computer and stays on it. An app moves only after you confirm.",
-    readOnlyAi:
-      "While AI review is on, the names, publishers and versions of these apps are sent to it, without paths. An app moves only after you confirm.",
     move: {
       action: "Move to Quarantine…",
       title: (name: string) => `Move “${name}” to Quarantine?`,
