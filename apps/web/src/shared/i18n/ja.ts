@@ -227,6 +227,8 @@ export const ja: Messages = {
       part: "アプリ本体",
       proposed: (size: string) => `${size} 整理を提案`,
       notMeasured: "サイズ不明",
+      smallGroup: (n: number) => `小さなアプリとパッケージ ${n} 件`,
+      systemGroup: (n: number) => `システムアプリ ${n} 件`,
       checking: "移動できるか確認しています…",
       refused: "このアプリは今は移動できません。",
       moved: (n: number) => `${n} 個のアプリを隔離に移動しました。`,

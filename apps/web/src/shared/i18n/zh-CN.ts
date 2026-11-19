@@ -222,6 +222,8 @@ export const zhCN: Messages = {
       part: "应用本身",
       proposed: (size: string) => `${size} 建议清理`,
       notMeasured: "大小未知",
+      smallGroup: (n: number) => `较小的应用和软件包 ${n} 个`,
+      systemGroup: (n: number) => `系统应用 ${n} 个`,
       checking: "正在检查能否移动…",
       refused: "此应用现在无法移动。",
       moved: (n: number) => `已将 ${n} 个应用移到隔离区。`,

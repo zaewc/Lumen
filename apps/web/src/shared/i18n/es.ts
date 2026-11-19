@@ -236,6 +236,8 @@ export const es: Messages = {
       part: "La app",
       proposed: (size: string) => `${size} propuesto`,
       notMeasured: "Tamaño desconocido",
+      smallGroup: (n: number) => `${n} apps y paquetes pequeños`,
+      systemGroup: (n: number) => `${n} apps del sistema`,
       checking: "Comprobando si se puede mover…",
       refused: "Esta app no se puede mover ahora.",
       moved: (n: number) => `Se movieron ${n} apps a Cuarentena.`,

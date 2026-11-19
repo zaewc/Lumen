@@ -236,6 +236,8 @@ export const fr: Messages = {
       part: "L’app elle-même",
       proposed: (size: string) => `${size} proposé`,
       notMeasured: "Taille inconnue",
+      smallGroup: (n: number) => `${n} petites apps et paquets`,
+      systemGroup: (n: number) => `${n} apps du système`,
       checking: "Vérification du déplacement…",
       refused: "Cette app ne peut pas être déplacée pour le moment.",
       moved: (n: number) => `${n} app(s) déplacée(s) en Quarantaine.`,

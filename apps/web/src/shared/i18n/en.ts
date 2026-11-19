@@ -240,6 +240,8 @@ export const en = {
       part: "The app itself",
       proposed: (size: string) => `${size} proposed`,
       notMeasured: "Size unknown",
+      smallGroup: (n: number) => `${n} small ${n === 1 ? "app or package" : "apps and packages"}`,
+      systemGroup: (n: number) => `${n} system ${n === 1 ? "app" : "apps"}`,
       checking: "Checking whether it can move…",
       refused: "This app can’t be moved now.",
       moved: (n: number) => `Moved ${n} ${n === 1 ? "app" : "apps"} to Quarantine.`,

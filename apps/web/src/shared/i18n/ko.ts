@@ -232,6 +232,8 @@ export const ko = {
       part: "앱 본체",
       proposed: (size: string) => `정리 제안 ${size}`,
       notMeasured: "크기 모름",
+      smallGroup: (n: number) => `작은 앱과 패키지 ${count(n)}개`,
+      systemGroup: (n: number) => `시스템 앱 ${count(n)}개`,
       checking: "옮길 수 있는지 확인하는 중…",
       refused: "이 앱은 지금 옮길 수 없어요.",
       moved: (n: number) => `앱 ${count(n)}개를 격리함으로 옮겼어요.`,
