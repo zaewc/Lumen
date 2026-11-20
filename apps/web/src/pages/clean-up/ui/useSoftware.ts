@@ -40,8 +40,13 @@ export function useSoftware(): Software {
     retry: false,
     refetchOnWindowFocus: false,
   });
+  // The explained list only while AI review is on, its last read succeeded
+  // and it is no older than the inventory: a failed or stale explanation
+  // never hides a newer read.
+  const explainedFresh =
+    aiOn && explained.status === "success" && explained.dataUpdatedAt >= software.dataUpdatedAt;
   return {
-    list: explained.data ?? software.data,
+    list: explainedFresh ? explained.data : software.data,
     available: ask !== undefined,
     reading: software.isFetching,
     explaining: explained.isFetching,
