@@ -208,10 +208,13 @@ function AppRow({
   active,
   hint,
   onOpen,
+  onDetails,
   onMove,
   check,
 }: {
   readonly part: Extract<OwnerPart, { kind: "app" }>;
+  /** Opens the app's move dialog, which says why it cannot move. */
+  readonly onDetails: () => void;
   /** The checkboxes; an app is never checked unless the person checks it. */
   readonly check?: Check;
   readonly index: number;
@@ -277,7 +280,7 @@ function AppRow({
       {state?.kind === "refused" && (
         <p className="mr-2 mb-1.5 ml-9 text-[12px] text-attention">
           {m.results.apps.refused}{" "}
-          <button type="button" onClick={onOpen} className="text-accent-ink hover:underline">
+          <button type="button" onClick={onDetails} className="text-accent-ink hover:underline">
             {m.common.details}
           </button>
         </p>
@@ -290,7 +293,13 @@ function AppRow({
  * A package its manager installed (ADR-0060): what it is and where; it moves
  * only through its manager, so it has no checkbox and no row of the keyboard's.
  */
-function PackageRow({ item }: { readonly item: SoftwareItemView }) {
+function PackageRow({
+  item,
+  onInfo,
+}: {
+  readonly item: SoftwareItemView;
+  readonly onInfo?: (item: SoftwareItemView) => void;
+}) {
   const { m } = useI18n();
   const details = [m.apps.origins[item.origin], item.version]
     .filter((part): part is string => part !== null)
@@ -298,7 +307,13 @@ function PackageRow({ item }: { readonly item: SoftwareItemView }) {
   return (
     <li className="flex">
       <span className="w-7 shrink-0" />
-      <div className={`${GRID} min-w-0 flex-1 items-center gap-y-1 px-2 py-2.5`}>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        disabled={onInfo === undefined}
+        onClick={() => onInfo?.(item)}
+        className={`${GRID} min-w-0 flex-1 items-center gap-y-1 rounded px-2 py-2.5 text-left hover:bg-fill disabled:hover:bg-transparent`}
+      >
         <span className="truncate border-l border-line-strong pl-3 font-medium text-ink">
           {softwareTitle(item)}
         </span>
@@ -318,7 +333,7 @@ function PackageRow({ item }: { readonly item: SoftwareItemView }) {
         <span className="col-start-2 row-start-2 text-right text-[12px] text-ink-2 @xl:col-start-3 @xl:row-start-1 @xl:text-left @xl:text-[13px]">
           {details}
         </span>
-      </div>
+      </button>
     </li>
   );
 }
@@ -371,8 +386,11 @@ export function CandidateList({
   moving = null,
   check,
   folded,
+  onInfo,
 }: {
   readonly owners: readonly Owner[];
+  /** Opens what Lumen knows about an installed app or package. */
+  readonly onInfo?: (item: SoftwareItemView) => void;
   /** Owners folded into their own rows at the end: the small ones and the system's apps. */
   readonly folded?: { readonly small: readonly Owner[]; readonly system: readonly Owner[] };
   /** The checkboxes; none when the results are read-only. */
@@ -428,8 +446,15 @@ export function CandidateList({
       <ul className="divide-y divide-line">
         {owner.parts.map((part, i) => {
           const at = places[i] ?? -1;
-          if (part.kind === "package")
-            return <PackageRow key={part.package.key} item={part.package} />;
+          if (part.kind === "package") {
+            return (
+              <PackageRow
+                key={part.package.key}
+                item={part.package}
+                {...(onInfo === undefined ? {} : { onInfo })}
+              />
+            );
+          }
           return part.kind === "app" ? (
             <AppRow
               key={part.app.key}
@@ -440,8 +465,9 @@ export function CandidateList({
               hint={hint}
               onOpen={() => {
                 setSelected(at);
-                onOpenApp(part.app);
+                (onInfo ?? onOpenApp)(part.app);
               }}
+              onDetails={() => onOpenApp(part.app)}
               onMove={onMove}
             />
           ) : (

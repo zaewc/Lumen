@@ -232,6 +232,7 @@ export const es: Messages = {
     failed: "Lumen no pudo decidir qué hacer con lo encontrado. Tus archivos no han cambiado.",
   },
   results: {
+    search: "Buscar nombres, rutas, ID de apps",
     apps: {
       part: "La app",
       proposed: (size: string) => `${size} propuesto`,
@@ -245,9 +246,6 @@ export const es: Messages = {
       copiesMoved: (n: number) => `Se movieron ${n} copias a Cuarentena.`,
       copiesNotMoved: (n: number) => `${n} copias no se movieron.`,
       title: "Apps",
-      seeAll: "Ver todas las apps instaladas",
-      outside: (n: number) =>
-        `Hay ${count(n)} ${n === 1 ? "app más" : "apps más"} en lugares que este análisis no leyó.`,
     },
     map: {
       label: "Mapa de los elementos evaluados, por tamaño",
@@ -665,21 +663,14 @@ export const es: Messages = {
   apps: {
     order: { label: "Orden", name: "Por nombre", size: "Por tamaño" },
     title: "Apps",
-    desktopOnly: "Lumen muestra las apps instaladas en la app de escritorio.",
     reading: "Leyendo las apps instaladas…",
     readAgain: "Volver a leer",
     loadFailed: "Lumen no pudo leer las apps instaladas.",
     search: "Buscar apps",
-    showAll: (n: number) => `Mostrar dependencias y elementos ocultos (${n})`,
-    none: "Ninguna app coincide.",
     protected: "Parte del sistema",
     protectedTip: "Lumen nunca elimina esto.",
     partial: (names: string) =>
       `Algunas listas se leyeron solo en parte, así que pueden faltar apps: ${names}.`,
-    readOnly:
-      "Esta lista se lee de tu ordenador y se queda en él. Una app solo se mueve después de que lo confirmes.",
-    readOnlyAi:
-      "Mientras la revisión con IA está activada, se le envían el nombre, el editor y la versión de estas apps, sin rutas. Una app solo se mueve después de que lo confirmes.",
     move: {
       action: "Mover a Cuarentena…",
       title: (name: string) => `¿Mover «${name}» a Cuarentena?`,

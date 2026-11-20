@@ -1,6 +1,6 @@
 import type { CopyRequest } from "@lumen/api-client";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { summarize, useScanSession } from "@/entities/scan-session";
 import { useTransport } from "@/shared/api";
 import { useI18n } from "@/shared/i18n";
@@ -19,11 +19,11 @@ import {
   withCopy,
 } from "../model/selection";
 import { cleanUpStep } from "../model/step";
+import { BeforeScan } from "./BeforeScan";
 import { useCleanUpAction } from "./CleanUpAction";
 import { DiskUsage } from "./DiskUsage";
 import { DonePanel } from "./DonePanel";
 import { Duplicates } from "./Duplicates";
-import { InstalledApps } from "./InstalledApps";
 import { ProgressPanel } from "./ProgressPanel";
 import { Results } from "./Results";
 import { StartPanel } from "./StartPanel";
@@ -164,17 +164,14 @@ export function CleanUpPage() {
     onSent: forgetSent,
   });
   const canRescan = step === "results" || step === "done" || step === "decideFailed";
-  // The installed apps (ADR-0069): open before a scan, and when a link or the
-  // former Apps page leads to them (#apps).
-  const [appsOpen, setAppsOpen] = useState(() => window.location.hash === "#apps");
-  useEffect(() => {
-    const follow = () => {
-      if (window.location.hash === "#apps") setAppsOpen(true);
-    };
-    window.addEventListener("hashchange", follow);
-    return () => window.removeEventListener("hashchange", follow);
-  }, []);
-  const showApps = appsOpen || step === "start";
+  // The checkboxes, for the list before a scan and after it (ADR-0069).
+  const check = {
+    isChecked: (candidate: Parameters<typeof isChecked>[1]) => isChecked(selection, candidate),
+    toggle: (candidate: Parameters<typeof toggled>[1]) =>
+      update((earlier) => toggled(earlier, candidate)),
+    appState: (key: string) => selection.apps.get(key),
+    toggleApp,
+  };
   useShortcut("r", rescan, canRescan && !session.cleaning);
 
   const scanAgain = (
@@ -202,7 +199,16 @@ export function CleanUpPage() {
   const actions = (): ReactNode => {
     switch (step) {
       case "start":
-        return (
+        // An app checked before a scan moves with the one primary action;
+        // scanning is then secondary.
+        return selected.count > 0 ? (
+          <>
+            <button type="button" onClick={() => start([])} className={buttonClass("secondary")}>
+              {m.common.scanDisk}
+            </button>
+            {cleanUp.button}
+          </>
+        ) : (
           <button type="button" onClick={() => start([])} className={buttonClass("primary")}>
             {m.common.scanDisk}
           </button>
@@ -246,12 +252,7 @@ export function CleanUpPage() {
             }}
             focus={acted && !cleanedUp}
             cleanedUp={cleanedUp}
-            check={{
-              isChecked: (candidate) => isChecked(selection, candidate),
-              toggle: (candidate) => update((earlier) => toggled(earlier, candidate)),
-              appState: (key) => selection.apps.get(key),
-              toggleApp,
-            }}
+            check={check}
           />
         )
       : null;
@@ -326,21 +327,7 @@ export function CleanUpPage() {
             : {})}
         />
       )}
-      <details
-        id="apps"
-        open={showApps}
-        onToggle={(event) => setAppsOpen(event.currentTarget.open)}
-        className="pt-8"
-      >
-        <summary className="cursor-pointer text-[13px] text-accent-ink hover:underline">
-          {m.results.apps.seeAll}
-        </summary>
-        {showApps && (
-          <div className="pt-3">
-            <InstalledApps />
-          </div>
-        )}
-      </details>
+      {step === "start" && <BeforeScan check={check} />}
     </Page>
   );
 }

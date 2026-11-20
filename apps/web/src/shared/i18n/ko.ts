@@ -228,6 +228,7 @@ export const ko = {
     failed: "검사한 항목을 판단하지 못했어요. 파일은 모두 그대로 있어요.",
   },
   results: {
+    search: "이름, 경로, 앱 ID 검색",
     apps: {
       part: "앱 본체",
       proposed: (size: string) => `정리 제안 ${size}`,
@@ -241,8 +242,6 @@ export const ko = {
       copiesMoved: (n: number) => `사본 ${count(n)}개를 격리함으로 옮겼어요.`,
       copiesNotMoved: (n: number) => `사본 ${count(n)}개는 옮기지 못했어요.`,
       title: "앱",
-      seeAll: "설치된 앱 모두 보기",
-      outside: (n: number) => `검사하지 않은 위치에 앱이 ${count(n)}개 더 있어요.`,
     },
     map: {
       label: "이번 검사에서 살펴본 항목 지도, 크기 기준",
@@ -642,20 +641,13 @@ export const ko = {
   apps: {
     order: { label: "정렬", name: "이름순", size: "크기순" },
     title: "앱",
-    desktopOnly: "설치된 앱 목록은 데스크톱 앱에서 볼 수 있어요.",
     reading: "설치된 앱을 읽고 있어요…",
     readAgain: "다시 읽기",
     loadFailed: "설치된 앱 목록을 읽지 못했어요.",
     search: "앱 검색",
-    showAll: (n: number) => `의존성과 숨은 항목 ${n}개도 보기`,
-    none: "찾는 앱이 없어요.",
     protected: "시스템 구성 요소",
     protectedTip: "Lumen은 이 항목을 지우지 않아요.",
     partial: (names: string) => `일부 목록은 다 읽지 못해서 빠진 앱이 있을 수 있어요: ${names}.`,
-    readOnly:
-      "이 목록은 컴퓨터에서 읽었고 컴퓨터 밖으로 나가지 않아요. 앱은 직접 확인한 뒤에만 옮겨요.",
-    readOnlyAi:
-      "AI 검토가 켜져 있는 동안에는 이 앱들의 이름, 게시자, 버전을 경로 없이 AI 검토로 보내요. 앱은 직접 확인한 뒤에만 옮겨요.",
     move: {
       action: "격리함으로 옮기기…",
       title: (name: string) => `${name} 앱을 격리함으로 옮길까요?`,

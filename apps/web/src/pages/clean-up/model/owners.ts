@@ -106,7 +106,11 @@ export function ownersOf(
   software: readonly SoftwareItemView[],
 ): Owner[] {
   const apps = software.filter((item) => item.origin === "mac_app");
-  const packages = software.filter((item) => item.origin !== "mac_app");
+  // What the person installed: not a package installed only for another, nor
+  // one the platform's own list hides.
+  const packages = software.filter(
+    (item) => item.origin !== "mac_app" && item.explicit !== false && !item.hidden,
+  );
   const managers = new Set(packages.map(managerOf));
   const byId = new Map(apps.map((app) => [app.id, app]));
   const byName = new Map(
