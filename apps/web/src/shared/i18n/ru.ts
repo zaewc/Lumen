@@ -243,6 +243,8 @@ export const ru: Messages = {
       part: "Само приложение",
       proposed: (size: string) => `${size} предложено`,
       notMeasured: "Размер неизвестен",
+      smallGroup: (n: number) => `Небольшие приложения и пакеты: ${n}`,
+      systemGroup: (n: number) => `Системные приложения: ${n}`,
       checking: "Проверяем, можно ли переместить…",
       refused: "Это приложение сейчас нельзя переместить.",
       moved: (n: number) => `Перемещено в карантин приложений: ${n}.`,

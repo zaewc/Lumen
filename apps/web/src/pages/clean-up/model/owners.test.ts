@@ -89,7 +89,7 @@ describe("owners", () => {
       ["app:com.tinyspeck.slackmacgap", "app", "Slack"],
     ]);
     const [first, second] = owners;
-    expect(first?.parts.map((p) => (p.kind === "app" ? "app" : p.item.path))).toEqual([
+    expect(first?.parts.map((p) => (p.kind === "item" ? p.item.path : p.kind))).toEqual([
       "app",
       "/dd",
       "/sim",
@@ -125,18 +125,19 @@ describe("owners", () => {
     expect(owners[2]?.atLeast, "an inexact item makes its total a lower bound").toBe(true);
   });
 
-  it("lists every movable app, never the system's, and never sizes an unmeasured one", () => {
+  it("lists every app, the system's too, and never sizes an unmeasured one", () => {
     const owners = ownersOf([], [xcode, steam, calculator]);
     expect(owners.map((o) => o.key)).toEqual([
       "app:com.apple.dt.Xcode",
+      "app:com.apple.calculator",
       "app:com.valvesoftware.steam",
     ]);
-    const unmeasured = owners[1];
+    const unmeasured = owners[2];
     expect([unmeasured?.bytes, unmeasured?.atLeast]).toEqual([null, true]);
     expect(unmeasured?.parts[0]).toMatchObject({ kind: "app", bytes: null });
   });
 
-  it("keeps a system app's items under it, without an app part", () => {
+  it("keeps a system app's items under it, with the app itself", () => {
     const owners = ownersOf(
       [
         candidate("/calc-cache", "quarantine", "50", {
@@ -147,7 +148,28 @@ describe("owners", () => {
       [calculator],
     );
     expect(owners).toHaveLength(1);
-    expect(owners[0]?.parts.map((p) => p.kind)).toEqual(["item"]);
+    expect(owners[0]?.parts.map((p) => p.kind)).toEqual(["app", "item"]);
+  });
+
+  it("puts packages under their manager, Homebrew's casks and cache included", () => {
+    const formula = app("act", "act", null, { origin: "homebrew", key: "homebrew:act" });
+    const cask = app("docker", "docker", null, {
+      origin: "homebrew_cask",
+      key: "homebrew_cask:docker",
+    });
+    const pkg = app("com.example.driver", "driver", null, {
+      origin: "mac_installer",
+      key: "mac_installer:driver",
+    });
+    const owners = ownersOf(
+      [candidate("/brew-cache", "review", "900", { kind: "developer", source: "Homebrew" })],
+      [formula, cask, pkg],
+    );
+    const brew = owners.find((o) => o.key === "packages:homebrew");
+    expect(brew?.kind).toBe("packages");
+    expect(brew?.manager).toBe("homebrew");
+    expect(brew?.parts.map((p) => p.kind)).toEqual(["item", "package", "package"]);
+    expect(owners.find((o) => o.key === "packages:mac_installer")?.parts).toHaveLength(1);
   });
 
   it("puts every candidate under exactly one owner", () => {
@@ -170,20 +192,35 @@ describe("listed owners", () => {
   const cached = app("com.cached", "Cached", { kind: "complete", bytes: "10" });
   const owners = ownersOf(
     [candidate("/c", "quarantine", "300", { kind: "app_cache", source: "com.cached" })],
-    [big, small, unscanned, cached],
+    [big, small, unscanned, cached, calculator],
   );
 
-  it("lists large measured apps and apps with items, and counts the unmeasured", () => {
-    const listed = listedOwners(owners, true);
+  it("lists large apps and owners with items, folds the small and the system's", () => {
+    const listed = listedOwners(owners, { apps: true });
     expect(listed.owners.map((o) => o.key)).toEqual(["app:com.big", "app:com.cached"]);
-    expect(listed.unmeasured).toBe(1);
+    expect(listed.small.map((o) => o.key).toSorted()).toEqual(["app:com.far", "app:com.small"]);
+    expect(listed.system.map((o) => o.key)).toEqual(["app:com.apple.calculator"]);
     expect(listed.owners[1]?.parts.map((p) => p.kind)).toEqual(["app", "item"]);
   });
 
   it("lists only items under a status filter", () => {
-    const listed = listedOwners(owners, false);
+    const listed = listedOwners(owners, { apps: false });
     expect(listed.owners.map((o) => [o.key, o.parts.map((p) => p.kind)])).toEqual([
       ["app:com.cached", ["item"]],
+    ]);
+    expect([listed.small, listed.system]).toEqual([[], []]);
+  });
+
+  it("finds owners by any word, unfolded, and orders by name on request", () => {
+    expect(listedOwners(owners, { apps: true, query: "SMALL" }).owners.map((o) => o.key)).toEqual([
+      "app:com.small",
+    ]);
+    expect(listedOwners(owners, { apps: true, query: "/c" }).owners.map((o) => o.key)).toEqual([
+      "app:com.cached",
+    ]);
+    expect(listedOwners(owners, { apps: true, order: "name" }).owners.map((o) => o.name)).toEqual([
+      "Big",
+      "Cached",
     ]);
   });
 });

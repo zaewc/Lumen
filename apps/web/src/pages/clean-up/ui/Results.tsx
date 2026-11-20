@@ -128,14 +128,14 @@ export function Results({
   // Apps have no verdict: only under "All" and the whole map (ADR-0069). With
   // no items the filter is not shown, so a filter left from before cannot hide them.
   const withApps = (filter === "all" || candidates.length === 0) && zoomed === undefined;
-  const { owners, unmeasured } = useMemo(
+  const { owners, small, system } = useMemo(
     () =>
       listedOwners(
         ownersOf(
           listed.filter((candidate) => shows(filter, candidate)),
           installed ?? [],
         ),
-        withApps,
+        { apps: withApps },
       ),
     [listed, filter, installed, withApps],
   );
@@ -226,9 +226,10 @@ export function Results({
       )}
       <MoveResult name={appName} />
       <AppOutcomes />
-      {(candidates.length > 0 || owners.length > 0) && (
+      {(candidates.length > 0 || owners.length + small.length + system.length > 0) && (
         <CandidateList
           owners={owners}
+          folded={{ small, system }}
           {...(cleanedUp ? {} : { check })}
           onOpen={setOpen}
           onOpenApp={setApp}
@@ -238,7 +239,6 @@ export function Results({
       )}
       {withApps && installed !== undefined && (
         <div className="space-y-1 px-2 text-[13px]">
-          {unmeasured > 0 && <p className="text-ink-2">{m.results.apps.outside(unmeasured)}</p>}
           <a href="#apps" className="text-accent-ink hover:underline">
             {m.results.apps.seeAll}
           </a>

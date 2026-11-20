@@ -227,7 +227,7 @@ function AppRow({
     <li>
       <div className="flex">
         <span className="flex w-7 shrink-0 justify-center pt-3">
-          {check !== undefined && (
+          {check !== undefined && !part.app.protected && (
             <input
               type="checkbox"
               checked={state !== undefined && state.kind !== "refused"}
@@ -267,7 +267,7 @@ function AppRow({
             {location}
           </span>
           <span className="col-start-2 row-start-2 text-right text-[12px] text-ink-2 @xl:col-start-3 @xl:row-start-1 @xl:text-left @xl:text-[13px]">
-            {m.results.apps.title}
+            {part.app.protected ? m.apps.protected : m.results.apps.title}
           </span>
         </button>
       </div>
@@ -287,6 +287,78 @@ function AppRow({
 }
 
 /**
+ * A package its manager installed (ADR-0060): what it is and where; it moves
+ * only through its manager, so it has no checkbox and no row of the keyboard's.
+ */
+function PackageRow({ item }: { readonly item: SoftwareItemView }) {
+  const { m } = useI18n();
+  const details = [m.apps.origins[item.origin], item.version]
+    .filter((part): part is string => part !== null)
+    .join(" · ");
+  return (
+    <li className="flex">
+      <span className="w-7 shrink-0" />
+      <div className={`${GRID} min-w-0 flex-1 items-center gap-y-1 px-2 py-2.5`}>
+        <span className="truncate border-l border-line-strong pl-3 font-medium text-ink">
+          {softwareTitle(item)}
+        </span>
+        <span className="col-start-2 row-start-1 justify-self-end text-right whitespace-nowrap tabular-nums text-ink-2 @xl:col-start-4">
+          {item.size === null || item.size.kind === "not_scanned"
+            ? ""
+            : item.size.kind === "at_least"
+              ? m.details.atLeast(formatBytes(item.size.bytes))
+              : formatBytes(item.size.bytes)}
+        </span>
+        <span
+          title={item.location ?? ""}
+          className="row-start-2 truncate text-[12px] text-ink-3 @xl:col-start-2 @xl:row-start-1 @xl:text-[13px]"
+        >
+          {item.location ?? ""}
+        </span>
+        <span className="col-start-2 row-start-2 text-right text-[12px] text-ink-2 @xl:col-start-3 @xl:row-start-1 @xl:text-left @xl:text-[13px]">
+          {details}
+        </span>
+      </div>
+    </li>
+  );
+}
+
+/** A row that folds owners away: the small ones, or the system's apps. */
+function FoldRow({
+  label,
+  open,
+  onToggle,
+}: {
+  readonly label: string;
+  readonly open: boolean;
+  readonly onToggle: () => void;
+}) {
+  return (
+    <div className="border-b border-line">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className="flex w-full items-center gap-2 py-3 pr-2 pl-9 text-left text-section text-ink hover:bg-fill"
+      >
+        <span
+          aria-hidden="true"
+          className={`text-ink-3 transition-transform ${open ? "rotate-90" : ""}`}
+        >
+          ›
+        </span>
+        {label}
+      </button>
+    </div>
+  );
+}
+
+/** A part the keyboard moves between: the app itself or an item, not a package. */
+function isRow(part: OwnerPart): boolean {
+  return part.kind !== "package";
+}
+
+/**
  * The candidates and installed apps under what owns them (ADR-0069), in
  * aligned columns, or a note when the filter leaves none. It is one stop for
  * Tab: ↑ and ↓ (and Page Up, Page Down, Home, End) move between rows.
@@ -298,8 +370,11 @@ export function CandidateList({
   lens,
   moving = null,
   check,
+  folded,
 }: {
   readonly owners: readonly Owner[];
+  /** Owners folded into their own rows at the end: the small ones and the system's apps. */
+  readonly folded?: { readonly small: readonly Owner[]; readonly system: readonly Owner[] };
   /** The checkboxes; none when the results are read-only. */
   readonly check?: Check;
   readonly onOpen: (candidate: CandidateView) => void;
@@ -314,11 +389,17 @@ export function CandidateList({
   const hint = useId();
   const list = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState(0);
-  const count = owners.reduce((total, owner) => total + owner.parts.length, 0);
+  const [smallOpen, setSmallOpen] = useState(false);
+  const [systemOpen, setSystemOpen] = useState(false);
+  const small = folded?.small ?? [];
+  const system = folded?.system ?? [];
+  // Every owner drawn now, in reading order: the folded ones only while open.
+  const drawn = [...owners, ...(smallOpen ? small : []), ...(systemOpen ? system : [])];
+  const count = drawn.reduce((total, owner) => total + owner.parts.filter(isRow).length, 0);
   // A filter may have shortened the list since.
   const active = Math.min(selected, count - 1);
 
-  if (owners.length === 0) {
+  if (owners.length === 0 && small.length === 0 && system.length === 0) {
     return <p className="py-6 text-center text-ink-3">{m.results.emptyFilter}</p>;
   }
 
@@ -335,47 +416,59 @@ export function CandidateList({
   // Each row's place in reading order, across owners.
   const starts: number[] = [];
   let next = 0;
-  for (const owner of owners) {
+  for (const owner of drawn) {
     starts.push(next);
-    next += owner.parts.length;
+    next += owner.parts.filter(isRow).length;
   }
-  const rows = (owner: Owner, start: number) => (
-    <ul className="divide-y divide-line">
-      {owner.parts.map((part, i) => {
-        const at = start + i;
-        return part.kind === "app" ? (
-          <AppRow
-            key={part.app.key}
-            part={part}
-            {...(check === undefined ? {} : { check })}
-            index={at}
-            active={at === active}
-            hint={hint}
-            onOpen={() => {
-              setSelected(at);
-              onOpenApp(part.app);
-            }}
-            onMove={onMove}
-          />
-        ) : (
-          <Row
-            key={part.item.path}
-            candidate={part.item}
-            index={at}
-            active={at === active}
-            mark={lensMark(lens, part.item.path)}
-            hint={hint}
-            moving={part.item.id === moving}
-            {...(check === undefined ? {} : { check })}
-            onOpen={(opened) => {
-              setSelected(at);
-              onOpen(opened);
-            }}
-            onMove={onMove}
-          />
-        );
-      })}
-    </ul>
+  const rows = (owner: Owner, start: number) => {
+    const places = owner.parts.map((part, i) =>
+      isRow(part) ? start + owner.parts.slice(0, i).filter(isRow).length : -1,
+    );
+    return (
+      <ul className="divide-y divide-line">
+        {owner.parts.map((part, i) => {
+          const at = places[i] ?? -1;
+          if (part.kind === "package")
+            return <PackageRow key={part.package.key} item={part.package} />;
+          return part.kind === "app" ? (
+            <AppRow
+              key={part.app.key}
+              part={part}
+              {...(check === undefined ? {} : { check })}
+              index={at}
+              active={at === active}
+              hint={hint}
+              onOpen={() => {
+                setSelected(at);
+                onOpenApp(part.app);
+              }}
+              onMove={onMove}
+            />
+          ) : (
+            <Row
+              key={part.item.path}
+              candidate={part.item}
+              index={at}
+              active={at === active}
+              mark={lensMark(lens, part.item.path)}
+              hint={hint}
+              moving={part.item.id === moving}
+              {...(check === undefined ? {} : { check })}
+              onOpen={(opened) => {
+                setSelected(at);
+                onOpen(opened);
+              }}
+              onMove={onMove}
+            />
+          );
+        })}
+      </ul>
+    );
+  };
+  const section = (owner: Owner) => (
+    <OwnerSection key={owner.key} owner={owner}>
+      {rows(owner, starts[drawn.indexOf(owner)] ?? 0)}
+    </OwnerSection>
   );
 
   return (
@@ -392,11 +485,23 @@ export function CandidateList({
         <span>{m.results.columns.status}</span>
         <span className="text-right">{m.results.columns.size}</span>
       </div>
-      {owners.map((owner, i) => (
-        <OwnerSection key={owner.key} owner={owner}>
-          {rows(owner, starts[i] ?? 0)}
-        </OwnerSection>
-      ))}
+      {owners.map(section)}
+      {small.length > 0 && (
+        <FoldRow
+          label={m.results.apps.smallGroup(small.length)}
+          open={smallOpen}
+          onToggle={() => setSmallOpen(!smallOpen)}
+        />
+      )}
+      {smallOpen && small.map(section)}
+      {system.length > 0 && (
+        <FoldRow
+          label={m.results.apps.systemGroup(system.length)}
+          open={systemOpen}
+          onToggle={() => setSystemOpen(!systemOpen)}
+        />
+      )}
+      {systemOpen && system.map(section)}
     </div>
   );
 }
@@ -418,7 +523,9 @@ function OwnerSection({
         ? m.results.groups.removed_app
         : owner.kind === "kind"
           ? m.results.groups[owner.group ?? "other"]
-          : (owner.name ?? m.results.groups.other);
+          : owner.kind === "packages" && owner.manager !== null
+            ? m.apps.origins[owner.manager]
+            : (owner.name ?? m.results.groups.other);
   const proposed = BigInt(owner.proposedBytes) > 0n;
   return (
     <section aria-labelledby={heading} className="border-b border-line pb-1">
