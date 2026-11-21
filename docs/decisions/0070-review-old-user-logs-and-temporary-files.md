@@ -1,7 +1,7 @@
 # ADR-0070: Show old user logs and temporary files for review, and keep recent ones
 
-- Status: Proposed (lead, 2026-11-21; awaits the owner's confirmation, in particular of
-  option 2 below)
+- Status: Accepted (option 1, within the owner's 2026-11-21 instruction to proceed
+  with the roadmap; option 2 is not selected)
 - Date: 2026-11-21
 - Refines: [ADR-0014](0014-deterministic-safety-policy-engine.md) (a classification
   rule may read file times, only to add caution),
@@ -85,9 +85,10 @@ Chosen option: **1**.
      metadata-change time of the subject and of every entry below it, and when the
      scan read them. Access times are not used (ADR-0053). It is recorded only when the
      subtree was read completely and every entry had both a modification time and a
-     metadata-change time (`st_ctime` on macOS, `ChangeTime` on Windows), which a
-     program cannot set back through ordinary calls; otherwise it is absent, and the
-     age is unknown. Times are evidence, not proof: see the limits below.
+     metadata-change time (`st_ctime` on macOS, `ChangeTime` on Windows); otherwise
+     it is absent, and the age is unknown. Times are evidence, not proof: Windows
+     permits setting `ChangeTime` as well as suppressing its updates; see the
+     limits below.
    - `DiagnosticReport { marker }`: the subject is, or holds at any depth, a macOS
      crash, spin or diagnostic report, recognised by entry names only (as
      `BrowserProfile` is): a `DiagnosticReports` folder, or a name ending in `.ips`,
@@ -158,8 +159,10 @@ Chosen option: **1**.
 - Limit: times can be held back. Windows lets a program suppress `ChangeTime` and
   `LastWriteTime` updates on its own handle
   ([`FILE_BASIC_INFORMATION`](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_file_basic_information)),
-  so a file written that way looks old. Matching times are not proof that nothing
-  changed. What stands between such a file and a move is that a person chose it, the
+  or set these members with `FILE_WRITE_ATTRIBUTES` access. A program can restore
+  old timestamps after a write and close its handle before the re-check, which
+  then sees an old age without an open handle. Matching times are not proof that
+  nothing changed. What stands between such a file and a move is that a person chose it, the
   live in-use check just before the move (ADR-0030), and quarantine, which can be
   undone until retention ends (ADR-0015).
 - Limit: a file, or a report, written inside a folder after the re-check read it and
