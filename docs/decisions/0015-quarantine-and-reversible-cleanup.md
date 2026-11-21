@@ -68,6 +68,12 @@ Mechanics (desktop):
   file identity, size facts, timestamps, mode, owner, flags and xattr list, reason,
   `policy_decision` (with `policy_version` and `evidence_hash`), user confirmation,
   result, `rollback_possible`, and the linked Jev trace, if any.
+  On Unix, the executor writes and flushes the sidecar before the rename. A failed
+  record write leaves the source untouched; a failure after the rename retains a
+  record for recovery, including the helper's held-item recovery without the ledger.
+  An interruption before the rename can leave a record with the item still at its
+  source; reconciliation checks its location rather than treating the record as
+  proof of a completed move.
 - Verification after the move: the source is gone, the destination has the same
   identity and link count, and size facts match.
 - Restore: a no-replace rename back after checking that the original parent exists and

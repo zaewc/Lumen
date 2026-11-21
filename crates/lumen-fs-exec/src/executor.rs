@@ -276,6 +276,11 @@ impl QuarantineExecutor for Executor {
             .open_on(plan.expected.identity.dev)
             .map_err(at_source)?;
         let name = operation.to_string();
+        // The helper recovers through this record, without Lumen's ledger.
+        // Make it durable before anything can leave the source, including
+        // when the rename succeeds but its verification fails.
+        write_sidecar(&store, name.as_bytes(), manifest)
+            .map_err(|_| at_source(QuarantineFailure::VerificationFailed))?;
         move_into(&verified, &store, name.as_bytes(), &plan.expected).map_err(|error| {
             let reason = match error {
                 MoveError::OtherVolume | MoveError::NoReplaceUnsupported => {
@@ -291,12 +296,6 @@ impl QuarantineExecutor for Executor {
                 Left::InStore => ItemLocation::Quarantine,
             };
             failure(reason, left)
-        })?;
-        write_sidecar(&store, name.as_bytes(), manifest).map_err(|_| {
-            failure(
-                QuarantineFailure::VerificationFailed,
-                ItemLocation::Quarantine,
-            )
         })
     }
 
@@ -486,6 +485,90 @@ mod tests {
             .join(format!("{}.manifest.json", op(1)));
         assert_eq!(std::fs::read(sidecar).unwrap_or_default(), b"{\"m\":1}");
         assert_eq!(executor.locate(&prepared, op(1)), Located::InStore);
+    }
+
+    #[test]
+    fn a_failed_record_write_never_moves_the_item() {
+        use crate::fault::{Point, arm};
+        use rustix::io::Errno;
+
+        for error in [Errno::IO, Errno::NOSPC, Errno::ACCESS] {
+            let (_fx, root, executor) = setup();
+            let prepared = executor
+                .prepare(&raw(&root), &relative())
+                .unwrap_or_else(|e| unreachable!("{e}"));
+            arm(Some((Point::SidecarWrite, error)));
+            let result = executor.quarantine(&prepared, op(20), b"record");
+            arm(None);
+            assert_eq!(
+                result,
+                Err(at_source(QuarantineFailure::VerificationFailed))
+            );
+            assert_eq!(executor.locate(&prepared, op(20)), Located::AtSource);
+            assert!(!root.join("Quarantine").join(op(20).to_string()).exists());
+            assert_eq!(
+                std::fs::read(root.join("cache/app/data.bin")).unwrap_or_default(),
+                b"0123456789"
+            );
+        }
+    }
+
+    #[test]
+    fn a_failed_move_check_keeps_a_record_and_a_restorable_item() {
+        use crate::fault::{Point, arm};
+        use rustix::io::Errno;
+
+        for point in [Point::MoveSync, Point::MoveCheck] {
+            for error in [Errno::IO, Errno::NOSPC, Errno::ACCESS] {
+                let (_fx, root, executor) = setup();
+                let prepared = executor
+                    .prepare(&raw(&root), &relative())
+                    .unwrap_or_else(|e| unreachable!("{e}"));
+                arm(Some((point, error)));
+                let result = executor.quarantine(&prepared, op(21), b"record");
+                arm(None);
+                assert_eq!(
+                    result,
+                    Err(failure(
+                        QuarantineFailure::VerificationFailed,
+                        ItemLocation::Quarantine
+                    ))
+                );
+                let store = executor.current_store().unwrap_or_else(|| unreachable!()).0;
+                assert_eq!(
+                    crate::read_sidecar(&store, op(21).to_string().as_bytes()),
+                    Ok(b"record".to_vec())
+                );
+                assert_eq!(executor.locate(&prepared, op(21)), Located::InStore);
+                assert!(executor.restore(&prepared, op(21)).is_ok());
+                assert_eq!(
+                    std::fs::read(root.join("cache/app/data.bin")).unwrap_or_default(),
+                    b"0123456789"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn an_existing_record_is_not_overwritten_and_nothing_moves() {
+        let (_fx, root, executor) = setup();
+        let prepared = executor
+            .prepare(&raw(&root), &relative())
+            .unwrap_or_else(|e| unreachable!("{e}"));
+        let store = executor.current_store().unwrap_or_else(|| unreachable!()).0;
+        let name = op(22).to_string();
+        assert_eq!(write_sidecar(&store, name.as_bytes(), b"original"), Ok(()));
+        assert_eq!(
+            executor.quarantine(&prepared, op(22), b"replacement"),
+            Err(at_source(QuarantineFailure::VerificationFailed))
+        );
+        assert_eq!(
+            crate::read_sidecar(&store, name.as_bytes()),
+            Ok(b"original".to_vec())
+        );
+        assert_eq!(executor.locate(&prepared, op(22)), Located::AtSource);
+        assert!(root.join("cache/app/data.bin").exists());
+        assert!(!root.join("Quarantine").join(name).exists());
     }
 
     #[test]

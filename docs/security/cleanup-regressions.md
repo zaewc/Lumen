@@ -26,6 +26,12 @@ The concurrency regression releases two quarantine attempts from a barrier,
 requires exactly one winner and restores its byte-identical file. It accepts
 either winner; no timing or scheduler seed affects the invariant.
 
+The Unix executor writes and flushes the manifest before moving an item. Its
+record-write fault cases (`EIO`, `ENOSPC`, `EACCES`) must leave the source intact;
+post-move flush/check failures must retain a readable record and restore the
+original bytes. An existing sidecar refuses the move without replacing the record.
+This also protects the helper, whose held-item recovery requires its sidecar.
+
 ## Coverage by platform
 
 | Scenario | Linux | macOS | Windows |
