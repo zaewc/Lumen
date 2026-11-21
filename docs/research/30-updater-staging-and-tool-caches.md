@@ -158,3 +158,34 @@ but it also updates every toolchain, so it is not a cleanup command.
   this Mac.
 - Android Gradle intermediates, `node_modules`, Xcode, SwiftPM, React Native and Expo
   are covered in other PRs.
+
+## Re-check, 2026-11-21 (roadmap 15.5)
+
+Both left-out tool caches were checked again against their official documentation
+before closing 15.5. Neither reason has changed, so neither gets an entry.
+
+- **Yarn.** The [yarnrc reference](https://yarnpkg.com/configuration/yarnrc) still
+  says only that, with `enableGlobalCache` (default `true`), Yarn stores the cache
+  "into a folder located within `globalFolder`" (default `${HOME}/.yarn/berry`), which
+  holds "global cache, metadata cache, ...". The cache's own subfolder is still not
+  named. [`yarn cache clean`](https://yarnpkg.com/cli/cache/clean) still removes the
+  cache the working directory's configuration selects; `--mirror` removes "the global
+  cache files instead of the local cache files". So the two blockers from research 10
+  row 35 stand: the tool command, run in the home folder (ADR-0049), reaches Corepack's
+  Yarn 1 there and not Berry's global cache, and quarantining the undocumented
+  subfolder directly breaks Plug'n'Play projects until `yarn install` runs. Yarn 1's
+  [cache page](https://classic.yarnpkg.com/en/docs/cli/cache) still gives no default
+  path ("in your user directory"; use `yarn cache dir`). A project's `.yarn/cache`,
+  committed for zero-installs, is never a cache and stays out either way.
+  Unblocking it needs a runner that controls the working directory and checks
+  `yarn config get enableGlobalCache` first.
+- **Android downloads.** Android Developers'
+  [environment variables](https://developer.android.com/tools/variables) page
+  describes `ANDROID_USER_HOME` (`~/.android`) only as "the user preferences
+  directory", and its emulator and AVD data; neither it nor the
+  [`sdkmanager`](https://developer.android.com/tools/sdkmanager) or
+  [`android sdk`](https://developer.android.com/tools/agents/android-cli/commands/sdk)
+  pages describe a download or temporary folder (`~/.android/cache`, or the SDK's
+  `.temp` and `.downloadIntermediates`), or a command that clears one. Without a
+  source, they stay unassessed. AVDs hold app data and stay out regardless
+  (research 10).

@@ -435,7 +435,7 @@ their sources before merge.
 | 15.2 | `feat(devkb)`: Android Gradle module intermediates and `.cxx` beside a Gradle build file | done (#549; `.cxx` left out, see research 26) |
 | 15.3 | `feat(devkb)`: iOS, React Native, Expo and SwiftPM build caches | done (#553, #555, #557; `ios/build` left out: it can hold signed builds) |
 | 15.4 | `feat(devkb)`: Chromium caches of browsers (Chrome, Arc, Edge, Brave) and large Electron apps | done (#550, #552, #554, #556, #558; profiles kept by #568, #570) |
-| 15.5 | `feat(devkb)`: Electron update staging and tool caches (Yarn, dotslash, pnpm metadata, Poetry, Android and rustup downloads) | done (#560–#564); Yarn and Android downloads open |
+| 15.5 | `feat(devkb)`: Electron update staging and tool caches (Yarn, dotslash, pnpm metadata, Poetry, Android and rustup downloads) | done (#560–#564); Yarn and Android downloads left out after a re-check on 2026-11-21: Yarn names no global cache folder and its command depends on the working directory; Android documents no download cache ([research 30](../research/30-updater-staging-and-tool-caches.md#re-check-2026-11-21-roadmap-155)) |
 | 15.6 | `feat(devkb)`: `node_modules` beside a lockfile | done (#551) |
 | 15.7 | `feat`: say which running apps hold proposable caches ("quit Spotify to free 1.1 GB"), without changing a verdict | done (#565–#567) |
 | 15.8 | `feat(app)`: plans record who chose each item; chosen review items are confirmed as review items and never removed automatically (ADR-0051) | done in the core and CLI (#571–#573); desktop (#574) waits for a host-rendered confirmation (FS-1 in the [readiness audit](../security/public-beta-readiness.md)) |
