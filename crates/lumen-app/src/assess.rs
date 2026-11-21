@@ -178,14 +178,17 @@ fn add_platform_markers(
 /// After pass 1: the removed apps whose data pass 2 links (ADR-0068). None
 /// unless every inventory was read completely, since only then can the
 /// owner's absence be stated and the data reviewed rather than decided as an
-/// installed app's. Each candidate is claimed only when `spotlight`, asked
-/// about its vendor part (the first two labels), answers that no bundle of
-/// that vendor is installed anywhere it sees (`Some(false)`); an unanswered
-/// lookup claims nothing. Every candidate is looked up; Spotlight only vetoes.
+/// installed app's. Lumen's own uninstall records (`uninstalled`) corroborate
+/// an ID as a container does. Each candidate is claimed only when
+/// `spotlight`, asked about its vendor part (the first two labels), answers
+/// that no bundle of that vendor is installed anywhere it sees
+/// (`Some(false)`); an unanswered lookup claims nothing. Every candidate is
+/// looked up; Spotlight only vetoes.
 #[cfg(target_os = "macos")]
 fn claim_removed_apps(
     markers: &mut PlatformMarkers,
     inventory: &PlatformInventory,
+    uninstalled: &[&str],
     spotlight: &mut dyn FnMut(&str) -> Option<bool>,
 ) {
     let complete = !inventory.reports.is_empty()
@@ -196,7 +199,7 @@ fn claim_removed_apps(
     markers.claimed = if complete {
         markers
             .removed
-            .candidates(&inventory.apps)
+            .candidates(&inventory.apps, uninstalled)
             .into_iter()
             .filter(|id| {
                 let raw = id.value.raw();
@@ -212,13 +215,60 @@ fn claim_removed_apps(
     };
 }
 
-/// Whether Spotlight finds a bundle whose ID is `vendor` or starts with it;
-/// `None` if it could not answer.
+/// Whether Spotlight finds a bundle whose ID is `vendor` or starts with it,
+/// outside Lumen's own files (`own`): an app held in Lumen's quarantine is
+/// not installed. `None` if it could not answer.
 #[cfg(target_os = "macos")]
-fn spotlight_related(vendor: &str) -> Option<bool> {
+fn spotlight_related(vendor: &str, own: &[RawPath]) -> Option<bool> {
     crate::usage::found_related(vendor)
         .ok()
-        .map(|found| !found.is_empty())
+        .map(|found| found.iter().any(|path| !inside_own(path, own)))
+}
+
+/// Whether `path` is one of `own` or inside one, component by component. A
+/// path that cannot be compared is not Lumen's, so it still vetoes a claim.
+#[cfg(target_os = "macos")]
+fn inside_own(path: &Path, own: &[RawPath]) -> bool {
+    let Ok(path) = crate::raw_path(path) else {
+        return false;
+    };
+    let path = path.as_bytes();
+    own.iter().any(|root| {
+        path == root.as_bytes()
+            || path
+                .strip_prefix(root.as_bytes())
+                .is_some_and(|rest| rest.starts_with(b"/"))
+    })
+}
+
+/// The bundle IDs Lumen's own uninstalls moved (ADR-0062), from the ledger
+/// beside the index at `db`; none if there is no ledger yet. A ledger that
+/// cannot be read gives none too, and says so in the log: fewer IDs only
+/// means fewer claims (ADR-0068), never a less cautious decision.
+#[cfg(target_os = "macos")]
+fn uninstalled_ids(db: &Path) -> Vec<String> {
+    let ledger = db.with_file_name("ledger.db");
+    if !ledger.exists() {
+        return Vec::new();
+    }
+    match lumen_store_sqlite::open_ledger(&ledger)
+        .map(lumen_store_sqlite::LedgerStore::new)
+        .and_then(|ledger| ledger.uninstalled_apps())
+    {
+        Ok(apps) => apps
+            .into_iter()
+            .map(|app| app.bundle_id.raw().to_owned())
+            .collect(),
+        Err(error) => {
+            tracing::warn!(%error, "uninstall records unreadable; none corroborates a removed app");
+            Vec::new()
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn uninstalled_ids(_db: &Path) -> Vec<String> {
+    Vec::new()
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -663,6 +713,12 @@ struct Places<'a> {
     home: Option<&'a RawPath>,
     /// Lumen's own files and folders.
     own: Vec<RawPath>,
+    /// The bundle IDs Lumen's own uninstalls moved.
+    #[cfg_attr(
+        not(target_os = "macos"),
+        expect(dead_code, reason = "only macOS links a removed app's data")
+    )]
+    uninstalled: Vec<String>,
 }
 
 /// Lumen's own files and folders, never offered as large folders: the index
@@ -724,7 +780,15 @@ fn find(
         report(progress, AssessStage::Markers, completed, total);
     })?;
     #[cfg(target_os = "macos")]
-    claim_removed_apps(&mut platform_markers, inventory, &mut spotlight_related);
+    {
+        let uninstalled: Vec<&str> = places.uninstalled.iter().map(String::as_str).collect();
+        claim_removed_apps(
+            &mut platform_markers,
+            inventory,
+            &uninstalled,
+            &mut |vendor| spotlight_related(vendor, &places.own),
+        );
+    }
     let mut found = Found {
         evidence: Vec::new(),
         relationships: Vec::new(),
@@ -821,6 +885,7 @@ fn prepare_with_progress(
         &Places {
             home: home.as_ref(),
             own: own_paths(db),
+            uninstalled: uninstalled_ids(db),
         },
         (scanned_at, now),
         progress,
@@ -1696,6 +1761,7 @@ mod tests {
                 &Places {
                     home: None,
                     own: Vec::new(),
+                    uninstalled: Vec::new(),
                 },
                 (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
                 &mut |event| events.push(event),
@@ -1777,6 +1843,7 @@ mod tests {
             &Places {
                 home: None,
                 own: Vec::new(),
+                uninstalled: Vec::new(),
             },
             (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
             &mut |_| {},
@@ -1848,6 +1915,7 @@ mod tests {
             &Places {
                 home: None,
                 own: Vec::new(),
+                uninstalled: Vec::new(),
             },
             (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
             &mut |_| {},
@@ -2012,6 +2080,8 @@ mod tests {
             scanned("/Users/ana/Library/Containers/net.example.Notes", 1, 0),
             scanned("/Users/ana/Library/Containers/org.vendor.Vpn", 2, 0),
             scanned("/Users/ana/Library/Containers/io.other.Unasked", 3, 0),
+            // No container: only Lumen's own uninstall record vouches for it.
+            scanned("/Users/ana/Library/Caches/dev.example.Editor", 4, 0),
         ];
         let inventory = |status| PlatformInventory {
             reports: vec![app_report(status, &["com.other.App"])],
@@ -2021,7 +2091,7 @@ mod tests {
         let mut spotlight = |id: &str| {
             asked.push(id.to_owned());
             match id {
-                "net.example" => Some(false),
+                "net.example" | "dev.example" => Some(false),
                 "org.vendor" => Some(true),
                 _ => None,
             }
@@ -2030,12 +2100,14 @@ mod tests {
         claim_removed_apps(
             &mut markers,
             &inventory(SourceStatus::Partial),
+            &[],
             &mut spotlight,
         );
         assert!(markers.claimed.is_empty());
         claim_removed_apps(
             &mut markers,
             &inventory(SourceStatus::Complete),
+            &["DEV.example.editor"],
             &mut spotlight,
         );
         assert_eq!(
@@ -2044,14 +2116,28 @@ mod tests {
                 .iter()
                 .map(|id| id.value.raw())
                 .collect::<Vec<_>>(),
-            ["net.example.Notes"],
+            ["dev.example.Editor", "net.example.Notes"],
             "found related, or not answered: not claimed"
         );
         assert_eq!(
             asked,
-            ["io.other", "net.example", "org.vendor"],
+            ["dev.example", "io.other", "net.example", "org.vendor"],
             "every candidate's vendor is looked up, only when complete"
         );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn only_spotlight_hits_outside_lumens_own_files_count() {
+        let own = [RawPath::from_unix_bytes(
+            b"/Users/ana/Library/Application Support/Lumen/Quarantine".to_vec(),
+        )
+        .unwrap_or_else(|e| unreachable!("{e}"))];
+        let held = Path::new("/Users/ana/Library/Application Support/Lumen/Quarantine/1/Zed.app");
+        let sibling = Path::new("/Users/ana/Library/Application Support/Lumen/QuarantineX/Zed.app");
+        assert!(inside_own(held, &own));
+        assert!(!inside_own(sibling, &own), "compared by component");
+        assert!(!inside_own(Path::new("/Applications/Zed.app"), &own));
     }
 
     /// End to end on a Mac: a removed app's data is linked, its absence comes
@@ -2073,7 +2159,7 @@ mod tests {
                 .collect(),
         };
         let mut markers = markers_for(&entries);
-        claim_removed_apps(&mut markers, &inventory, &mut |_| Some(false));
+        claim_removed_apps(&mut markers, &inventory, &[], &mut |_| Some(false));
         let home = RawPath::from_unix_bytes(b"/Users/ana".to_vec()).ok();
         let produced = platform_contributions(
             &PlatformInventory {
@@ -2243,6 +2329,7 @@ mod tests {
             &Places {
                 home: None,
                 own: Vec::new(),
+                uninstalled: Vec::new(),
             },
             (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
             &mut |_| {},
@@ -2330,6 +2417,7 @@ mod tests {
             &Places {
                 home: None,
                 own: Vec::new(),
+                uninstalled: Vec::new(),
             },
             (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
             &mut |_| {},

@@ -2,6 +2,10 @@
 
 - Status: **Accepted** (owner, 2026-11-16): every recommended answer below, Q1–Q6.
   Q1–Q2 are recorded as [ADR-0068](../decisions/0068-recognise-a-removed-apps-data-only-with-corroboration.md).
+  Built: plan steps 1–2 (#930, #931), step 3 as one owner on 저장 공간 (#931, #950;
+  Explore became 저장 공간 in [ADR-0069](../decisions/0069-show-storage-in-one-place-grouped-by-owner.md)),
+  and Q3's corroboration by Lumen's uninstall records. Left: Q3's name and "in
+  Quarantine" line with Q5's per-app grouping, and Q2's extensions of installed apps.
 - Roadmap: [Phase 16, item 16.9](../architecture/roadmap.md#phase-16-installed-software-after-0100),
   issue #810 (part of #804)
 - Builds on: [ADR-0008](../decisions/0008-capability-model-and-coverage.md),
@@ -131,6 +135,11 @@ name.
 its ID. While the app can still be restored, its data shows with "{app} is in
 Quarantine; restoring it uses this data". It stays `REVIEW`. This is a second step,
 after the name-and-container step.
+
+*As built:* a recorded ID corroborates only itself (not names that extend it), and
+every other rule of Q1 still applies. A bundle Spotlight finds inside Lumen's own
+quarantine stores does not veto the claim, since an app held there is not installed;
+any other hit still does. A ledger that cannot be read corroborates nothing.
 
 ### Q4. Folders that are not named by bundle ID?
 

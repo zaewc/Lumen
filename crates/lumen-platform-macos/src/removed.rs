@@ -11,7 +11,7 @@
 //!    (the same locations and suffixes as [`crate::support`]);
 //! 2. macOS made a sandbox container `~/Library/Containers/<id>` for it, or for
 //!    an ID that extends it (`<id>.<more>`: an embedded bundle's ID starts with
-//!    its app's ID);
+//!    its app's ID), or Lumen's own uninstall record names it (ADR-0062);
 //! 3. no installed application is related to it: none has the same ID, an ID
 //!    it extends or that extends it, or the same vendor part (the first two
 //!    labels).
@@ -162,10 +162,15 @@ impl RemovedApps {
     }
 
     /// The IDs that may belong to a removed app: corroborated by a container
-    /// and related to none of the installed `apps`. Spotlight is still to be
+    /// or by Lumen's own uninstall records (`uninstalled`, bundle IDs), and
+    /// related to none of the installed `apps`. Spotlight is still to be
     /// asked about each (ADR-0068 rule 1.3).
     #[must_use]
-    pub fn candidates(&self, apps: &[Application]) -> BTreeSet<AppId> {
+    pub fn candidates(&self, apps: &[Application], uninstalled: &[&str]) -> BTreeSet<AppId> {
+        let recorded: BTreeSet<String> = uninstalled
+            .iter()
+            .map(|id| id.to_ascii_lowercase())
+            .collect();
         let installed: Vec<String> = apps
             .iter()
             .flat_map(|app| &app.ids)
@@ -176,7 +181,8 @@ impl RemovedApps {
             .iter()
             .filter(|(lower, _)| {
                 let extension = format!("{lower}.");
-                let corroborated = self.containers.contains(*lower)
+                let corroborated = recorded.contains(*lower)
+                    || self.containers.contains(*lower)
                     || self
                         .containers
                         .range(extension.clone()..)
@@ -297,7 +303,7 @@ mod tests {
         noted.add(&home(), &entries(paths));
         let apps: Vec<Application> = installed.iter().map(|id| app(id)).collect();
         noted
-            .candidates(&apps)
+            .candidates(&apps, &[])
             .into_iter()
             .map(|id| id.value.raw().to_owned())
             .collect()
@@ -374,7 +380,26 @@ mod tests {
         let mut file = entry("Containers/net.example.Tool", 1);
         file.kind = EntryKind::File;
         noted.add(&home(), &[file, entry("Caches/net.example.Tool", 2)]);
-        assert!(noted.candidates(&[]).is_empty());
+        assert!(noted.candidates(&[], &[]).is_empty());
+    }
+
+    #[test]
+    fn lumens_own_uninstall_record_corroborates_without_a_container() {
+        let mut noted = RemovedApps::new();
+        noted.add(
+            &home(),
+            &entries(&[
+                "Caches/dev.example.Editor",
+                "Preferences/dev.example.Editor.plist",
+                "Caches/dev.other.Tool",
+            ]),
+        );
+        let claimed: Vec<String> = noted
+            .candidates(&[], &["DEV.EXAMPLE.EDITOR"])
+            .into_iter()
+            .map(|id| id.value.raw().to_owned())
+            .collect();
+        assert_eq!(claimed, ["dev.example.Editor"]);
     }
 
     #[test]
@@ -437,7 +462,7 @@ mod tests {
         let other =
             RawPath::from_unix_bytes(b"/Users/bob".to_vec()).unwrap_or_else(|_| unreachable!());
         noted.add(&other, &entries(&["Containers/net.example.notes"]));
-        assert!(noted.candidates(&[]).is_empty(), "another home");
+        assert!(noted.candidates(&[], &[]).is_empty(), "another home");
     }
 
     #[test]
