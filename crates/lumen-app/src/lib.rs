@@ -24,6 +24,8 @@ mod probes;
 pub mod quarantine;
 pub mod reassess;
 pub mod roots;
+#[cfg(any(unix, windows))]
+pub mod routed;
 mod runtime;
 pub mod scan;
 pub mod software;
