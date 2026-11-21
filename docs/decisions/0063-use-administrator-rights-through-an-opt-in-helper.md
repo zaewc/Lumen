@@ -250,7 +250,9 @@ release. So Windows uses **Lumen's own code key**:
   re-checked with full rights.
 - Bad (amended 2026-11-16): any account on the computer can move an app another
   account owns into its own quarantine. The app stays restorable, but until then it
-  is gone for every account. A shared computer's administrator can turn the helper
+  is gone for every account. The same account may then finalize it through the
+  helper, permanently removing another account's app after the usual held-item
+  and complete in-use checks. A shared computer's administrator can turn the helper
   off in Settings.
 - Bad: Lumen ships a component that runs as root or SYSTEM, a standing attack surface
   while it is installed. A bug in its checks could move something it should not; the
