@@ -396,6 +396,10 @@ pub enum RelationMethod {
     /// `Pre-Depends`, matched to the installed packages of that name and
     /// those that `Provides` it.
     DpkgStatus,
+    /// pacman's local database (`/var/lib/pacman/local/<package>/desc`)
+    /// lists it under the package's `%DEPENDS%`, matched to the installed
+    /// packages of that name and those whose `%PROVIDES%` name it.
+    PacmanLocalDatabase,
 }
 
 /// Whether a relation was recorded or inferred.
@@ -417,7 +421,8 @@ impl RelationMethod {
             | Self::CaskUninstallArtifacts
             | Self::CaskDefinition
             | Self::ReceiptFileList
-            | Self::DpkgStatus => RelationBasis::Recorded,
+            | Self::DpkgStatus
+            | Self::PacmanLocalDatabase => RelationBasis::Recorded,
             Self::CaskDefaultAppFolder => RelationBasis::Inferred,
         }
     }
