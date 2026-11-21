@@ -12,7 +12,9 @@ use std::collections::{BTreeSet, HashSet};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use lumen_application::assess::{Assessed, Sources, decide_candidate, nested, select};
+use lumen_application::assess::{
+    Assessed, RemovedAppRecord, Sources, decide_candidate, nested, select,
+};
 use lumen_application::collect::{Inventory, ScanDomains, summarize};
 use lumen_application::gather::gather;
 use lumen_application::large::LargeFolders;
@@ -241,34 +243,95 @@ fn inside_own(path: &Path, own: &[RawPath]) -> bool {
     })
 }
 
-/// The bundle IDs Lumen's own uninstalls moved (ADR-0062), from the ledger
-/// beside the index at `db`; none if there is no ledger yet. A ledger that
-/// cannot be read gives none too, and says so in the log: fewer IDs only
-/// means fewer claims (ADR-0068), never a less cautious decision.
+/// Lumen's own uninstall records (ADR-0062), from the ledger beside the
+/// index at `db`: [`records_by_id`]. None if there is no ledger yet. A ledger
+/// that cannot be read gives none too, and says so in the log: fewer records
+/// only means fewer claims (ADR-0068), never a less cautious decision.
 #[cfg(target_os = "macos")]
-fn uninstalled_ids(db: &Path) -> Vec<String> {
+fn uninstall_records(db: &Path) -> Uninstalls {
+    use lumen_domain::{ItemLocation, QuarantineState};
     let ledger = db.with_file_name("ledger.db");
     if !ledger.exists() {
-        return Vec::new();
+        return Uninstalls::new();
     }
-    match lumen_store_sqlite::open_ledger(&ledger)
-        .map(lumen_store_sqlite::LedgerStore::new)
-        .and_then(|ledger| ledger.uninstalled_apps())
-    {
-        Ok(apps) => apps
+    let read = || -> Result<Uninstalls, StoreError> {
+        let ledger =
+            lumen_store_sqlite::LedgerStore::new(lumen_store_sqlite::open_ledger(&ledger)?);
+        // Restorable: retained, or left in the store by a failed step.
+        let held = ledger
+            .operations()?
             .into_iter()
-            .map(|app| app.bundle_id.raw().to_owned())
-            .collect(),
-        Err(error) => {
-            tracing::warn!(%error, "uninstall records unreadable; none corroborates a removed app");
-            Vec::new()
-        }
-    }
+            .filter(|(state, _)| {
+                matches!(
+                    state,
+                    QuarantineState::Retained
+                        | QuarantineState::Failed {
+                            at: ItemLocation::Quarantine,
+                            ..
+                        }
+                )
+            })
+            .filter_map(|(_, entries)| entries.first().map(|entry| entry.operation))
+            .collect();
+        Ok(records_by_id(ledger.uninstalled_apps()?, &held))
+    };
+    read().unwrap_or_else(|error| {
+        tracing::warn!(%error, "uninstall records unreadable; none corroborates a removed app");
+        Uninstalls::new()
+    })
 }
 
 #[cfg(not(target_os = "macos"))]
-fn uninstalled_ids(_db: &Path) -> Vec<String> {
-    Vec::new()
+fn uninstall_records(_db: &Path) -> Uninstalls {
+    Uninstalls::new()
+}
+
+/// What Lumen recorded about each app it removed, by bundle ID compared
+/// without case.
+type Uninstalls = std::collections::BTreeMap<String, RemovedAppRecord>;
+
+/// `apps` (oldest first) by bundle ID without case: an ID is held when any of
+/// its uninstalls is still in `held`, and named by the latest record with a
+/// name.
+#[cfg(any(target_os = "macos", test))]
+fn records_by_id(
+    apps: Vec<lumen_store_sqlite::UninstalledApp>,
+    held: &BTreeSet<lumen_domain::OperationId>,
+) -> Uninstalls {
+    let mut by_id = Uninstalls::new();
+    for app in apps {
+        let record = by_id
+            .entry(app.bundle_id.raw().to_ascii_lowercase())
+            .or_insert(RemovedAppRecord {
+                name: None,
+                held: false,
+            });
+        record.held |= held.contains(&app.operation);
+        if app.name.is_some() {
+            record.name = app.name;
+        }
+    }
+    by_id
+}
+
+/// Gives each item of a removed app Lumen removed what Lumen recorded about
+/// that app (display only).
+fn attach_uninstalls(assessed: &mut [Assessed], uninstalls: &Uninstalls) {
+    if uninstalls.is_empty() {
+        return;
+    }
+    for item in assessed {
+        item.removed_app = uninstall_of(&group(item), uninstalls);
+    }
+}
+
+/// What Lumen recorded about the removed app that owns an item in `group`;
+/// `None` for any other group, or a removed app Lumen did not remove.
+fn uninstall_of(group: &Group, uninstalls: &Uninstalls) -> Option<RemovedAppRecord> {
+    match (&group.kind, &group.source) {
+        (GroupKind::RemovedApp, Some(id)) => uninstalls.get(&id.to_ascii_lowercase()).cloned(),
+        _ => None,
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -619,6 +682,8 @@ pub struct Assessment {
     /// Where each installed application is, for asking whether it runs
     /// (ADR-0059); empty where the platform does not say.
     pub apps: Vec<(lumen_domain::AppId, RawPath)>,
+    /// What Lumen recorded about each app it removed (ADR-0062).
+    uninstalls: Uninstalls,
     store: IndexStore,
     scan: ScanId,
 }
@@ -877,6 +942,7 @@ fn prepare_with_progress(
     // The scan's facts and what is derived from them alone are dated by the
     // scan, so assessing it again records nothing new.
     let scanned_at = store.scan_finished_at(scan)?.unwrap_or(now);
+    let uninstalls = uninstall_records(db);
     let found = find(
         &store,
         scan,
@@ -885,7 +951,7 @@ fn prepare_with_progress(
         &Places {
             home: home.as_ref(),
             own: own_paths(db),
-            uninstalled: uninstalled_ids(db),
+            uninstalled: uninstalls.keys().cloned().collect(),
         },
         (scanned_at, now),
         progress,
@@ -940,6 +1006,7 @@ fn prepare_with_progress(
         inventories_complete,
         store_volumes: stores.and_then(|s| s.volumes),
         apps,
+        uninstalls,
         store,
         scan,
     })
@@ -1336,6 +1403,7 @@ pub fn assess_with_progress(
             );
         },
     ));
+    attach_uninstalls(&mut assessed, &assessment.uninstalls);
     let count = |verdict: lumen_domain::Verdict| {
         assessed
             .iter()
@@ -2739,6 +2807,62 @@ mod tests {
                 source: Some("net.example.Notes".to_owned())
             }
         );
+    }
+
+    #[test]
+    fn lumens_record_names_a_removed_app_and_says_whether_it_is_held()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use lumen_domain::{OperationId, UntrustedText};
+        use lumen_store_sqlite::UninstalledApp;
+        let operation =
+            |n: u8| format!("0190f0d2-6c1e-7a3b-8c4d-5e6f7081920{n}").parse::<OperationId>();
+        let (first, again, other) = (operation(1)?, operation(2)?, operation(3)?);
+        let app = |operation, id: &str, name: Option<&str>| UninstalledApp {
+            operation,
+            bundle_id: UntrustedText::new(id),
+            name: name.map(UntrustedText::new),
+        };
+        let records = records_by_id(
+            vec![
+                app(first, "dev.zed.Zed", Some("Zed")),
+                app(again, "DEV.ZED.ZED", None),
+                app(other, "net.example.Notes", Some("Notes")),
+            ],
+            &BTreeSet::from([first]),
+        );
+        let zed = RemovedAppRecord {
+            name: Some(UntrustedText::new("Zed")),
+            held: true,
+        };
+        assert_eq!(
+            records.get("dev.zed.zed"),
+            Some(&zed),
+            "any held, last name"
+        );
+        assert_eq!(
+            records.get("net.example.notes").map(|r| r.held),
+            Some(false),
+            "restored or removed for good"
+        );
+        let removed = |kind, source: &str| Group {
+            kind,
+            source: Some(source.to_owned()),
+        };
+        assert_eq!(
+            uninstall_of(&removed(GroupKind::RemovedApp, "dev.zed.Zed"), &records),
+            Some(zed)
+        );
+        assert_eq!(
+            uninstall_of(&removed(GroupKind::AppData, "dev.zed.Zed"), &records),
+            None,
+            "only a removed app's data"
+        );
+        assert_eq!(
+            uninstall_of(&removed(GroupKind::RemovedApp, "io.other.App"), &records),
+            None,
+            "removed without Lumen"
+        );
+        Ok(())
     }
 
     #[cfg(target_os = "macos")]
