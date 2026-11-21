@@ -9,7 +9,9 @@
 //! installed, or keeps its database elsewhere. A record that cannot be parsed
 //! makes the report partial rather than being guessed at.
 
-use lumen_domain::{Package, PackageManager, UntrustedText};
+use lumen_domain::{Package, PackageManager, RelationMethod, UntrustedText};
+
+use crate::relations::{Declared, link};
 
 /// The `name: value` fields of one control paragraph. Continuation lines
 /// (starting with a space or tab) belong to the previous field and are not
@@ -20,6 +22,148 @@ fn fields(paragraph: &str) -> impl Iterator<Item = (&str, &str)> {
         .filter(|line| !line.starts_with([' ', '\t']))
         .filter_map(|line| line.split_once(':'))
         .map(|(name, value)| (name.trim(), value.trim()))
+}
+
+/// A field's value with its continuation lines joined, so a folded value
+/// keeps its tail. Relationship fields are folded only in source control files
+/// ([Debian Policy 7.1]), but a status file is untrusted text.
+///
+/// [Debian Policy 7.1]: https://www.debian.org/doc/debian-policy/ch-relationships.html#syntax-of-relationship-fields
+fn folded(paragraph: &str, name: &str) -> Option<String> {
+    let mut lines = paragraph.lines();
+    while let Some(line) = lines.next() {
+        let Some((field, value)) = line.split_once(':') else {
+            continue;
+        };
+        if line.starts_with([' ', '\t']) || field.trim() != name {
+            continue;
+        }
+        let mut joined = value.trim().to_owned();
+        for next in lines.take_while(|l| l.starts_with([' ', '\t'])) {
+            joined.push(' ');
+            joined.push_str(next.trim());
+        }
+        return Some(joined);
+    }
+    None
+}
+
+/// Whether `name` is a package name as Debian Policy 5.6.1 allows: lower-case
+/// letters, digits, `+`, `-` and `.`, at least two long, starting with a
+/// letter or digit.
+fn is_package_name(name: &str) -> bool {
+    name.len() >= 2
+        && name.starts_with(|c: char| c.is_ascii_lowercase() || c.is_ascii_digit())
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"+-.".contains(&b))
+}
+
+/// The package name of one relation, `name[:arch] [(op version)]`
+/// ([deb-control(5)]), or `None` if it is not that shape. The architecture
+/// qualifier is dropped: every installed package of the name is a candidate,
+/// which can only make a need more ambiguous, never pin it to the wrong one.
+///
+/// [deb-control(5)]: https://manpages.debian.org/unstable/dpkg-dev/deb-control.5.en.html
+fn relation_name(text: &str) -> Option<String> {
+    relation(text, false)
+}
+
+/// Validate a relation before dropping its version. `Provides` permits only
+/// equality. A version constraint is not evaluated against installed versions.
+fn relation(text: &str, provides: bool) -> Option<String> {
+    let text = text.trim();
+    let (head, rest) = text.split_at(
+        text.find(|c: char| c.is_whitespace() || c == '(')
+            .unwrap_or(text.len()),
+    );
+    let rest = rest.trim();
+    if !rest.is_empty() {
+        let clause = rest.strip_prefix('(')?.strip_suffix(')')?.trim();
+        let operators: &[&str] = if provides {
+            &["="]
+        } else {
+            &["<<", "<=", "=", ">=", ">>"]
+        };
+        let version = operators
+            .iter()
+            .find_map(|op| clause.strip_prefix(op))?
+            .trim();
+        if !is_debian_version(version) {
+            return None;
+        }
+    }
+    let (name, arch) = head.split_once(':').unwrap_or((head, "any"));
+    let arch_ok = !arch.is_empty()
+        && arch
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
+    (arch_ok && is_package_name(name)).then(|| name.to_owned())
+}
+
+/// Debian Policy 5.6.12: optional numeric epoch, upstream version, optional
+/// Debian revision. Invalid syntax makes the record unknown, never empty.
+fn is_debian_version(version: &str) -> bool {
+    let upstream = if let Some((epoch, rest)) = version.split_once(':') {
+        if epoch.is_empty() || !epoch.bytes().all(|b| b.is_ascii_digit()) {
+            return false;
+        }
+        rest
+    } else {
+        version
+    };
+    let (upstream, revision) = upstream
+        .rsplit_once('-')
+        .map_or((upstream, None), |(u, r)| (u, Some(r)));
+    upstream.starts_with(|c: char| c.is_ascii_digit())
+        && upstream
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b".+-:~".contains(&b))
+        && revision.is_none_or(|r| {
+            !r.is_empty()
+                && r.bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"+.~".contains(&b))
+        })
+}
+
+/// A relationship field's needs, each as its alternatives (`a | b`); `None`
+/// if any part is not a relation.
+fn needs(value: &str) -> Option<Vec<Vec<String>>> {
+    if value.trim().is_empty() {
+        return Some(Vec::new());
+    }
+    value
+        .split(',')
+        .map(|need| need.split('|').map(relation_name).collect())
+        .collect()
+}
+
+/// A package's record of needs and provided names, from its paragraph.
+fn declared(paragraph: &str, name: &str) -> (Declared, bool) {
+    let field = |f| folded(paragraph, f).unwrap_or_default();
+    let all_needs = needs(&field("Pre-Depends")).zip(needs(&field("Depends")));
+    let raw_provides = field("Provides");
+    let provides = if raw_provides.is_empty() {
+        Some(Vec::new())
+    } else {
+        raw_provides.split(',').map(|p| relation(p, true)).collect()
+    };
+    let read = provides.is_some();
+    (
+        Declared {
+            name: name.to_owned(),
+            // Names alone cannot prove that this package meets a versioned
+            // need. Keep all candidates when any constraint was recorded.
+            allow_self_satisfaction: !field("Pre-Depends").contains('(')
+                && !field("Depends").contains('('),
+            provides: provides.unwrap_or_default(),
+            needs: all_needs.map(|(mut pre, depends)| {
+                pre.extend(depends);
+                pre
+            }),
+        },
+        read,
+    )
 }
 
 /// dpkg states in which a package's files are on disk. `not-installed` and
@@ -38,9 +182,17 @@ const DPKG_PRESENT: [&str; 6] = [
 ///
 /// A package is identified as dpkg does: by name, with its architecture unless
 /// it is `all`, so `libc6:amd64` and `libc6:i386` stay apart.
+///
+/// Its relations are what its `Pre-Depends` and `Depends` state, matched to
+/// the installed packages (see [`crate::relations`]). A package whose fields
+/// cannot be read has unknown relations. If any paragraph cannot be read, or
+/// any package's `Provides`, a need's candidates are not known whole, so no
+/// package's relations are known.
 #[must_use]
 pub fn parse_dpkg_status(status: &str) -> (Vec<Package>, usize) {
     let mut packages = Vec::new();
+    let mut declarations = Vec::new();
+    let mut provides_read = true;
     let mut malformed = 0;
     for paragraph in status.split("\n\n").filter(|p| !p.trim().is_empty()) {
         let mut name = None;
@@ -71,6 +223,9 @@ pub fn parse_dpkg_status(status: &str) -> (Vec<Package>, usize) {
             Some(arch) => format!("{name}:{arch}"),
             None => name.to_owned(),
         };
+        let (declared, read) = declared(paragraph, name);
+        provides_read &= read;
+        declarations.push(declared);
         packages.push(Package {
             manager: PackageManager::Dpkg,
             id: UntrustedText::new(id),
@@ -82,6 +237,9 @@ pub fn parse_dpkg_status(status: &str) -> (Vec<Package>, usize) {
             explicit: None,
             relations: None,
         });
+    }
+    if malformed == 0 && provides_read {
+        link(&mut packages, &declarations, RelationMethod::DpkgStatus);
     }
     (packages, malformed)
 }
@@ -325,6 +483,152 @@ Version: 1
         assert_eq!(malformed, 2);
     }
 
+    const LINKED: &str = "\
+Package: mutt
+Status: install ok installed
+Architecture: amd64
+Version: 2.2.12-0.1
+Pre-Depends: libc6 (>= 2.34)
+Depends: postfix | mail-transport-agent,
+ libgpgme11t64:any (>= 1.18), gone
+Description: text-based mailreader
+ Depends: not a field
+
+Package: postfix
+Status: install ok installed
+Architecture: amd64
+Provides: default-mta, mail-transport-agent (= 3.8)
+Depends: libc6
+
+Package: libc6
+Status: install ok installed
+Architecture: amd64
+
+Package: libgpgme11t64
+Status: install ok installed
+Architecture: amd64
+
+Package: broken
+Status: install ok installed
+Architecture: amd64
+Depends: libc6 [amd64]
+
+Package: removed
+Status: deinstall ok config-files
+Architecture: amd64
+Provides: mail-transport-agent
+";
+
+    /// Each relation of a package as the identifiers it names.
+    fn relations(package: &Package) -> Option<Vec<Vec<String>>> {
+        use lumen_domain::{PackageRelationKind, RelationMethod};
+        package.relations.as_ref().map(|relations| {
+            relations
+                .iter()
+                .map(|r| {
+                    assert_eq!(r.method, RelationMethod::DpkgStatus);
+                    match &r.kind {
+                        PackageRelationKind::DependsOn { package, .. } => {
+                            vec![package.id.raw().to_owned()]
+                        }
+                        PackageRelationKind::DependsOnOneOf { packages, .. } => {
+                            let mut ids: Vec<String> =
+                                packages.iter().map(|p| p.id.raw().to_owned()).collect();
+                            ids.insert(0, "one of".to_owned());
+                            ids
+                        }
+                        other => unreachable!("{other:?}"),
+                    }
+                })
+                .collect()
+        })
+    }
+
+    #[test]
+    fn dpkg_needs_are_read_and_alternatives_stay_ambiguous() {
+        let (packages, malformed) = parse_dpkg_status(LINKED);
+        assert_eq!(malformed, 0);
+        let of = |id: &str| {
+            packages
+                .iter()
+                .find(|p| p.id.raw() == id)
+                .and_then(relations)
+        };
+        let owned = |ids: &[&str]| ids.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        assert_eq!(
+            of("mutt:amd64"),
+            Some(vec![
+                owned(&["libc6:amd64"]),
+                // Removed packages provide nothing.
+                owned(&["one of", "postfix:amd64"]),
+                owned(&["libgpgme11t64:amd64"]),
+                owned(&["gone"]),
+            ])
+        );
+        assert_eq!(of("postfix:amd64"), Some(vec![owned(&["libc6:amd64"])]));
+        assert_eq!(of("libc6:amd64"), Some(Vec::new()));
+        assert_eq!(of("broken:amd64"), None, "not a relation: unknown");
+    }
+
+    #[test]
+    fn an_unreadable_paragraph_or_provides_leaves_every_relation_unknown() {
+        let (packages, malformed) = parse_dpkg_status(STATUS);
+        assert_eq!(malformed, 2);
+        assert!(packages.iter().all(|p| p.relations.is_none()));
+        let bad_provides =
+            LINKED.replace("Provides: default-mta,", "Provides: default-mta | other,");
+        let (packages, malformed) = parse_dpkg_status(&bad_provides);
+        assert_eq!(malformed, 0);
+        assert!(packages.iter().all(|p| p.relations.is_none()));
+    }
+
+    #[test]
+    fn invalid_provides_and_versioned_self_providers_do_not_hide_needs() {
+        for value in ["api (>= 2)", "api ()", "api (= garbage)", "api | other"] {
+            let input = format!("Package: impl\nStatus: install ok installed\nProvides: {value}\n");
+            let (packages, _) = parse_dpkg_status(&input);
+            assert!(packages[0].relations.is_none(), "{value}");
+        }
+        let input = "Package: impl\nStatus: install ok installed\nProvides: api\nDepends: api (>= 2)\n\nPackage: external\nStatus: install ok installed\nProvides: api (= 2)\n";
+        let (packages, _) = parse_dpkg_status(input);
+        assert_eq!(
+            relations(&packages[0]),
+            Some(vec![vec![
+                "one of".into(),
+                "impl".into(),
+                "external".into()
+            ]])
+        );
+        let (packages, _) = parse_dpkg_status(&input.replace("api (>= 2)", "api"));
+        assert_eq!(relations(&packages[0]), Some(Vec::new()));
+    }
+
+    #[test]
+    fn relation_names_follow_debian_policy() {
+        for (text, name) in [
+            ("libc6", Some("libc6")),
+            (" libc6:any (>= 2.34) ", Some("libc6")),
+            ("g++-14:amd64", Some("g++-14")),
+            ("python3(>=3.12)", Some("python3")),
+            ("Libc6", None),
+            ("x", None),
+            ("libc6 [amd64]", None),
+            ("libc6 <!nocheck>", None),
+            ("libc6:", None),
+            ("libc6 (>= 1) extra", None),
+            ("libc6 ()", None),
+            ("libc6 (garbage)", None),
+            ("libc6 (>=)", None),
+            ("libc6 (== 1)", None),
+            ("libc6 (>= 1 bad)", None),
+            ("libc6 (= 1-)", None),
+            ("libc6 (= 1:2.0-1)", Some("libc6")),
+            ("", None),
+        ] {
+            assert_eq!(relation_name(text).as_deref(), name, "{text:?}");
+        }
+    }
+
     #[test]
     fn an_empty_status_file_lists_nothing() {
         assert_eq!(parse_dpkg_status(""), (Vec::new(), 0));
@@ -392,6 +696,12 @@ mod linux_tests {
                 .iter()
                 .any(|p| p.id.raw().starts_with("libc6:"))
         );
+        // Every package's needs are read, and some name libc6.
+        assert!(dpkg.packages.iter().all(|p| p.relations.is_some()));
+        assert!(dpkg.packages.iter().flat_map(|p| p.relations.iter().flatten()).any(
+            |r| matches!(&r.kind, lumen_domain::PackageRelationKind::DependsOn { package, .. }
+                if package.id.raw().starts_with("libc6:"))
+        ));
         let pacman = PacmanInventory.collect(&CancelToken::new());
         assert_eq!(pacman.source.as_str(), "linux.pacman");
         if std::path::Path::new("/var/lib/pacman/local").exists() {
