@@ -82,6 +82,31 @@ pub enum Fact {
     },
     /// Content last modified.
     LastModified(Timestamp),
+    /// A direct child of a user log or temporary folder (ADR-0070). The
+    /// containing root itself is never a subject. Location is not permission
+    /// to remove the subject.
+    ScratchLocation {
+        /// What the documented location holds.
+        kind: ScratchKind,
+    },
+    /// The newest modification, creation or metadata-change time across a
+    /// completely observed subject and its subtree (ADR-0070). A producer must
+    /// omit this fact if any entry lacks modification or metadata-change time.
+    /// Matching times do not prove an absence of writes.
+    NewestChange {
+        /// Newest change observed, including creation time when available.
+        at: Timestamp,
+        /// When the subtree was observed; age is derived from this timestamp,
+        /// never from a clock read while evaluating the policy.
+        as_of: Timestamp,
+    },
+    /// The subject is or contains a diagnostic report, recognised only by
+    /// entry names without opening files (ADR-0070).
+    DiagnosticReport {
+        /// The first recognised entry, relative to the subject, or the
+        /// subject's name when the subject itself is a report.
+        marker: UntrustedText,
+    },
     /// Last accessed (weak evidence; access times are often not maintained).
     LastAccessed(Timestamp),
     /// Whether a running process holds the subject open or depends on it.
@@ -157,6 +182,30 @@ pub enum Fact {
     /// modification time of its marker files (ADR-0059). Shown, never decided
     /// on.
     ProjectActivity(Timestamp),
+}
+
+/// User-domain locations whose individual children may be reviewed (ADR-0070).
+/// Age only adds caution; neither kind establishes that data is regenerable.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum ScratchKind {
+    /// User logs, such as the direct children of macOS `~/Library/Logs`.
+    Logs,
+    /// User temporary files, within the accepted Windows temporary location.
+    Temporary,
 }
 
 /// Kinds of per-application data locations the platforms document.

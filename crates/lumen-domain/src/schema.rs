@@ -104,6 +104,57 @@ mod tests {
     }
 
     #[test]
+    fn scratch_evidence_conforms_and_preserves_its_identity()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let facts = [
+            Fact::ScratchLocation {
+                kind: ScratchKind::Logs,
+            },
+            Fact::ScratchLocation {
+                kind: ScratchKind::Temporary,
+            },
+            Fact::NewestChange {
+                at: "2026-10-01T00:00:00Z".parse()?,
+                as_of: "2026-11-21T00:00:00Z".parse()?,
+            },
+            Fact::DiagnosticReport {
+                marker: UntrustedText::new("nested/failure.crash"),
+            },
+        ];
+        let mut ids = BTreeSet::new();
+        for fact in facts {
+            let evidence = Evidence {
+                subject: Subject::File {
+                    identity: identity(7)?,
+                },
+                fact,
+                basis: Basis::Observed,
+                provenance: Provenance {
+                    source: SourceName::new("macos.scratch")?,
+                    observed_at: "2026-11-21T00:00:00Z".parse()?,
+                },
+            };
+            validate(&evidence)?;
+            let decoded: Evidence = serde_json::from_slice(&evidence.canonical_bytes())?;
+            assert_eq!(decoded, evidence);
+            assert_eq!(decoded.id(), evidence.id());
+            assert!(
+                ids.insert(evidence.id()),
+                "different facts have different IDs"
+            );
+        }
+        assert!(rejects::<Fact>(&serde_json::json!({
+            "fact": "scratch_location", "value": { "kind": "system_logs" }
+        })));
+        assert!(rejects::<Fact>(&serde_json::json!({
+            "fact": "newest_change", "value": {
+                "at": "2026-11-21T00:00:00Z"
+            }
+        })));
+        Ok(())
+    }
+
+    #[test]
     fn app_data_location_evidence_conforms() -> Result<(), Box<dyn std::error::Error>> {
         for kind in [
             AppDataKind::Caches,

@@ -249,6 +249,89 @@
           ]
         },
         {
+          "description": "A direct child of a user log or temporary folder (ADR-0070). The\ncontaining root itself is never a subject. Location is not permission\nto remove the subject.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "scratch_location"
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "description": "What the documented location holds.",
+                  "$ref": "#/$defs/ScratchKind"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "The newest modification, creation or metadata-change time across a\ncompletely observed subject and its subtree (ADR-0070). A producer must\nomit this fact if any entry lacks modification or metadata-change time.\nMatching times do not prove an absence of writes.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "newest_change"
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "as_of": {
+                  "description": "When the subtree was observed; age is derived from this timestamp,\nnever from a clock read while evaluating the policy.",
+                  "$ref": "#/$defs/Timestamp"
+                },
+                "at": {
+                  "description": "Newest change observed, including creation time when available.",
+                  "$ref": "#/$defs/Timestamp"
+                }
+              },
+              "required": [
+                "at",
+                "as_of"
+              ]
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
+          "description": "The subject is or contains a diagnostic report, recognised only by\nentry names without opening files (ADR-0070).",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "diagnostic_report"
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "marker": {
+                  "description": "The first recognised entry, relative to the subject, or the\nsubject's name when the subject itself is a report.",
+                  "$ref": "#/$defs/UntrustedText"
+                }
+              },
+              "required": [
+                "marker"
+              ]
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
           "description": "Last accessed (weak evidence; access times are often not maintained).",
           "type": "object",
           "properties": {
@@ -656,6 +739,21 @@
       "required": [
         "source",
         "observed_at"
+      ]
+    },
+    "ScratchKind": {
+      "description": "User-domain locations whose individual children may be reviewed (ADR-0070).\nAge only adds caution; neither kind establishes that data is regenerable.",
+      "oneOf": [
+        {
+          "description": "User logs, such as the direct children of macOS `~/Library/Logs`.",
+          "type": "string",
+          "const": "logs"
+        },
+        {
+          "description": "User temporary files, within the accepted Windows temporary location.",
+          "type": "string",
+          "const": "temporary"
+        }
       ]
     },
     "ServiceKind": {

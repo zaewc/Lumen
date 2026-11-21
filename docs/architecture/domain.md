@@ -31,7 +31,7 @@ or a malicious peer cannot introduce a value the rules forbid.
 | `entry` | `Volume`, `FilesystemEntry`, `EntryKind`, `EntryTimes`, `Protection` | Scanner output |
 | `inventory` | `Application`, `AppId`, `Process`, `Service`, `Package`, `PackageId`, `PackageRelation`, `RelationMethod`, `CodeSignature` | Graph anchors; what a package's own record says it needs and installed, recorded or inferred ([ADR-0064](../decisions/0064-read-package-relations-from-each-managers-own-records.md)) |
 | `digest` | `EvidenceHash`, `PlanHash`, `PayloadHash` | BLAKE3, text form `b3:<64 hex>` |
-| `evidence` | `Evidence`, `EvidenceId`, `Subject`, `Fact`, `Basis`, `Provenance` | Immutable, content-addressed |
+| `evidence` | `Evidence`, `EvidenceId`, `Subject`, `Fact`, `Basis`, `Provenance`, `ScratchKind` | Immutable, content-addressed; user log/temporary location, subtree age and diagnostic-report facts (ADR-0070) |
 | `relationship` | `Relationship`, `RelationKind`, `SubjectType` | Typed, evidence-backed edges |
 | `decision` | `Verdict`, `Risk`, `RuleId`, `FiredRule`, `PolicyStage`, `JevEffect`, `PolicyDecision` | Policy contract |
 | `review` | `ReviewReason` | Descriptive uncertainty categories; never an action authorization |
