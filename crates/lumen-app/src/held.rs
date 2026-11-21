@@ -30,10 +30,11 @@ use lumen_domain::{
     ByteCount, Chooser, FileIdentity, ItemLocation, OperationId, QuarantineEvent, QuarantineState,
     RawPath, Timestamp,
 };
-use lumen_fs_exec::{Executor, original_path};
+use lumen_fs_exec::Executor;
 use lumen_store_sqlite::{JournalEntry, LedgerJournal, LedgerStore, StoreError, open_ledger};
 
 use crate::assess::{AssessError, with_probes};
+use crate::routed::{Routed, original_path, with_helper};
 use crate::space_change::{SpaceChange, SpaceWatch};
 use crate::store::{LocationError, PrivilegeError, lock_ledger, refuse_privileged, stores};
 
@@ -237,7 +238,7 @@ pub fn list(db: &Path, clock: &dyn Clock) -> Result<Vec<HeldItem>, HeldError> {
         db,
         &|| {
             refuse_privileged()?;
-            executor()
+            own_executor()
         },
         clock,
     )
@@ -280,7 +281,7 @@ fn list_with(
             })
     };
     if let Some((executor, _lock)) = &settling
-        && let Err(error) = settle(executor, &mut ledger, clock)
+        && let Err(error) = settle(&with_helper(executor.clone()), &mut ledger, clock)
     {
         tracing::warn!(%error, "interrupted operations could not be reconciled");
     }
@@ -322,10 +323,16 @@ pub fn get(db: &Path, operation: OperationId) -> Result<HeldItem, HeldError> {
     Ok(item)
 }
 
-fn executor() -> Result<Executor, HeldError> {
+/// Lumen's own executor.
+fn own_executor() -> Result<Executor, HeldError> {
     stores()?
         .executor()
         .ok_or(HeldError::Location(LocationError::NoHome))
+}
+
+/// Lumen's executor, with the items its helper holds routed to the helper.
+fn executor() -> Result<Routed<'static, Executor>, HeldError> {
+    Ok(with_helper(own_executor()?))
 }
 
 /// The in-use probe for held items (ADR-0030, ADR-0046): a partial answer

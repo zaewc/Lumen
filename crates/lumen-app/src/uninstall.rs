@@ -715,6 +715,17 @@ mod unix {
         }
     }
 
+    /// Lumen's executor, with the items its helper holds routed to it.
+    fn routed(
+        computer: &Computer<'_>,
+    ) -> Result<crate::routed::Routed<'static, lumen_fs_exec::Executor>, UninstallError> {
+        let own = computer
+            .stores
+            .executor()
+            .ok_or(QuarantineError::Location(LocationError::NoHome))?;
+        Ok(crate::routed::with_helper(own))
+    }
+
     pub(super) fn uninstall_with(
         computer: &Computer<'_>,
         db: &Path,
@@ -755,10 +766,7 @@ mod unix {
             Some((base, names)) => prepare_store(base, names)?,
             None => Vec::new(),
         };
-        let executor = computer
-            .stores
-            .executor()
-            .ok_or(QuarantineError::Location(LocationError::NoHome))?;
+        let executor = routed(computer)?;
         let mut ledger = LedgerStore::new(open_ledger(&db.with_file_name("ledger.db"))?);
         let mut journal = LedgerJournal::new(&mut ledger, clock);
         let resolved = reconcile(&executor, &mut journal)?.len();

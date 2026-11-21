@@ -294,7 +294,7 @@ pub fn quarantine(
     let executor = quarantine_stores.executor().ok_or(LocationError::NoHome)?;
     let mut ledger = LedgerStore::new(open_ledger(&db.with_file_name("ledger.db"))?);
     let mut journal = LedgerJournal::new(&mut ledger, clock);
-    let resolved = reconcile(&executor, &mut journal)?.len();
+    let resolved = reconcile(&crate::routed::with_helper(executor.clone()), &mut journal)?.len();
     let device = device(db, ids)?;
     let assessment = prepare(db, clock)?;
     #[cfg(target_os = "macos")]

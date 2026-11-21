@@ -301,7 +301,8 @@ pub(crate) fn move_with(
         .ok_or(QuarantineError::Location(LocationError::NoHome))?;
     let mut ledger = LedgerStore::new(open_ledger(&db.with_file_name("ledger.db"))?);
     let mut journal = LedgerJournal::new(&mut ledger, clock);
-    let resolved = reconcile(&executor, &mut journal)?.len();
+    // Every unfinished operation, the helper's too (ADR-0063 rule 6).
+    let resolved = reconcile(&crate::routed::with_helper(executor.clone()), &mut journal)?.len();
     let device = device(db, ids)?;
     index.apply_plan_event(plan, PlanEvent::Start)?;
     let manifest = |entry: &FilesystemEntry, prepared: &PreparedItem, operation| {

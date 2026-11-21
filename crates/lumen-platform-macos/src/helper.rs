@@ -96,8 +96,17 @@ pub fn connect() -> Result<Client, HelperLinkError> {
 /// what XPC refused, including [`XpcError::BadReply`] for an answer that is not
 /// one.
 pub fn status() -> Result<HelperResponse, HelperLinkError> {
+    ask(&HelperRequest::Status)
+}
+
+/// Sends `question` to the helper and reads its answer.
+///
+/// # Errors
+///
+/// As for [`status`].
+pub fn ask(question: &HelperRequest) -> Result<HelperResponse, HelperLinkError> {
     let client = connect()?;
-    let body = client.request(&request(&HelperRequest::Status))?;
+    let body = client.request(&request(question))?;
     response(&body).ok_or(HelperLinkError::Xpc(XpcError::BadReply))
 }
 

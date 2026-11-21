@@ -188,6 +188,21 @@ enum Link {
     Failed,
 }
 
+/// The connection Lumen's held-item flows use to reach its helper
+/// ([`crate::routed`]). Off macOS there is none, and every question goes
+/// unanswered.
+#[must_use]
+pub fn link() -> &'static dyn crate::routed::HelperLink {
+    #[cfg(target_os = "macos")]
+    {
+        &mac::Xpc
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        &crate::routed::NoHelper
+    }
+}
+
 #[cfg(target_os = "macos")]
 mod mac {
     //! This Mac's `SMAppService` registration and the XPC status call.
@@ -196,6 +211,20 @@ mod mac {
     use lumen_platform_macos::xpc::XpcError;
 
     use super::{HelperError, HelperReach, HelperRegistration, HelperState, Link, reach_of};
+
+    /// The helper over XPC: an answer, or none if it could not be asked.
+    pub(super) struct Xpc;
+
+    impl crate::routed::HelperLink for Xpc {
+        fn ask(
+            &self,
+            request: &lumen_application::helper::HelperRequest,
+        ) -> Option<lumen_application::helper::HelperResponse> {
+            platform::ask(request)
+                .inspect_err(|error| tracing::warn!(%error, "the helper could not be asked"))
+                .ok()
+        }
+    }
 
     fn registration() -> HelperRegistration {
         match platform::registration() {
