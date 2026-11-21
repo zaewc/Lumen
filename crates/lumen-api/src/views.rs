@@ -409,6 +409,36 @@ pub struct GroupView {
     /// identifier, as untrusted display text; `null` when unknown.
     #[schema(required = true)]
     pub source: Option<String>,
+    /// For data left by an app Lumen itself removed (ADR-0062): what Lumen
+    /// recorded about that app. `null` otherwise. Optional on input for
+    /// compatibility with older hosts.
+    #[serde(default)]
+    pub removed_app: Option<RemovedAppView>,
+}
+
+/// What Lumen recorded when it moved an app into Quarantine, shown with the
+/// data that app left (ADR-0068, design Q3). Display only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct RemovedAppView {
+    /// The app's display name when it was moved, if it had one;
+    /// display-escaped.
+    #[schema(required = true)]
+    pub name: Option<String>,
+    /// The app is still held in Quarantine: restoring it would use this data
+    /// again.
+    pub held: bool,
+}
+
+impl From<&lumen_application::assess::RemovedAppRecord> for RemovedAppView {
+    fn from(record: &lumen_application::assess::RemovedAppRecord) -> Self {
+        Self {
+            name: record
+                .name
+                .as_ref()
+                .map(lumen_domain::UntrustedText::display),
+            held: record.held,
+        }
+    }
 }
 
 impl From<lumen_app::assess::Group> for GroupView {
@@ -423,6 +453,7 @@ impl From<lumen_app::assess::Group> for GroupView {
                 GroupKind::Other => GroupKindView::Other,
             },
             source: group.source,
+            removed_app: None,
         }
     }
 }
@@ -663,7 +694,10 @@ impl From<&Assessed> for CandidateView {
                     .collect(),
             ),
             tool_command: tool_action(assessed).map(ToolCommandView::from),
-            group: lumen_app::assess::group(assessed).into(),
+            group: GroupView {
+                removed_app: assessed.removed_app.as_ref().map(RemovedAppView::from),
+                ..lumen_app::assess::group(assessed).into()
+            },
             ai_note: assessed
                 .note
                 .filter(|note| note.shown() && assessed.decision.verdict() == Verdict::Review)

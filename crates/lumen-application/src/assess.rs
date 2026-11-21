@@ -35,7 +35,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use lumen_domain::{
     AppDataKind, AppId, Basis, CleanupMechanism, EntryKind, Evidence, EvidenceId, Fact,
     FilesystemEntry, ItemNote, JevRequest, JevTrace, PathFlavor, PolicyDecision, Process,
-    Provenance, RawPath, Relationship, SourceName, Subject, Timestamp, Verdict, VolumeId,
+    Provenance, RawPath, Relationship, SourceName, Subject, Timestamp, UntrustedText, Verdict,
+    VolumeId,
 };
 use lumen_graph::{EvidenceBundle, Graph};
 use lumen_policy::{Context, KnowledgeClass, PolicyError, PolicyInput, evaluate, explain};
@@ -448,6 +449,21 @@ pub struct Assessed {
     /// Whether closing the processes that use it would let the policy propose
     /// it ([`FreeWhenClosed`]). Display only: nothing decides from it.
     pub free_when_closed: Option<FreeWhenClosed>,
+    /// What Lumen's own uninstall records say about the removed app that
+    /// left it, if Lumen removed that app ([`RemovedAppRecord`]). Display
+    /// only: nothing decides from it.
+    pub removed_app: Option<RemovedAppRecord>,
+}
+
+/// What Lumen recorded when it moved an app into Quarantine (ADR-0062), as
+/// shown with the data that app left (ADR-0068, design Q3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemovedAppRecord {
+    /// The app's display name when it was moved, if it had one.
+    pub name: Option<UntrustedText>,
+    /// Whether the app is still held in Quarantine, so restoring it would
+    /// use this data again.
+    pub held: bool,
 }
 
 /// Probes `candidate`, assembles its input and decides it. Jev is consulted
@@ -495,6 +511,7 @@ pub async fn decide_candidate(
         relationships,
         note: None,
         note_trace: None,
+        removed_app: None,
     })
 }
 
