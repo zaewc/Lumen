@@ -6,6 +6,8 @@
   [ADR-0030](0030-partial-in-use-visibility.md) (in-use answers),
   [ADR-0039](0039-ask-for-review-only-where-a-person-can-act.md) (what is worth a
   review)
+- Amended by: [ADR-0070](0070-review-old-user-logs-and-temporary-files.md) (proposed:
+  `NewestChange` is read again before a move, never reused)
 - Issue: #708
 
 ## Context and problem statement
