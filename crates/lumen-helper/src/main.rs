@@ -9,10 +9,11 @@
 //! itself, checked by XPC on every message; it reads who is asking from the
 //! connection, never from the request; and it decides every request itself
 //! ([`lumen_application::helper::answer`]). It answers `status` (roadmap
-//! 16.3b) and `quarantine` (16.3c): moving an app another account owns from
+//! 16.3b); `quarantine` (16.3c): moving an app another account owns from
 //! `/Applications` into the caller's root-owned store, through
-//! `lumen-fs-exec`, after gathering its own evidence as root ([`host`]). It
-//! deletes nothing.
+//! `lumen-fs-exec`, after gathering its own evidence as root ([`host`]); and
+//! `locate`, `restore` and `finalize` (16.3d) for what it holds for the
+//! caller, from its own record. It removes nothing outside that store.
 
 #![allow(
     clippy::print_stderr,
