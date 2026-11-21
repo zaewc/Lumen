@@ -61,7 +61,9 @@ Chosen: **option 2**, read from the managers' own files, with these rules.
    - `kind` is `DependsOn { package: PackageId, direct }`, `Installed { location }`
      (an application bundle or folder, by absolute path) or
      `InstalledPackage { package: PackageId }` (an installer package a cask runs and
-     removes as its own);
+     removes as its own); a need any one of several packages meets, where the record
+     does not say which (dpkg's `a | b`, or a name other packages provide), is
+     `DependsOnOneOf { packages, direct }` and is never narrowed to one of them;
    - `PackageId` is the manager and the identifier together (ADR-0060 rule 1);
    - `method` names the record (`HomebrewRuntimeDependencies`,
      `CaskUninstallArtifacts`, `CaskDefinition`, `ReceiptFileList`) or the default it
@@ -72,8 +74,9 @@ Chosen: **option 2**, read from the managers' own files, with these rules.
    `resolve_relations` matches each relation to a listed package by `PackageId`, or to
    a listed application whose recorded install location is the same location,
    component by component. It marks:
-   - ambiguous: several matches, or packages that did not install one another each
-     claiming the same application;
+   - ambiguous: several matches, every candidate of a `DependsOnOneOf` (even a lone
+     listed one), or packages that did not install one another each claiming the
+     same application;
    - unlisted: no match, which means "not installed" only where the inventory that
      would list it was read whole (ADR-0008);
    - verified: recorded, one listed match, and unambiguous. An inferred relation is

@@ -13,9 +13,11 @@
 //! - **Dependencies.** What a package's record says it needs (every other
 //!   package it names, listed or not: the record's own statement), and which
 //!   listed packages' records say they need it, counted only where the
-//!   relation is verified. "None needs it" holds only where every inventory
-//!   was read whole, every package's relations were read, and no dependency
-//!   naming it is ambiguous (ADR-0008): a dependent may sit in any report.
+//!   relation is verified; a set of alternatives counts as one need, and
+//!   makes each candidate's dependents a lower bound. "None needs it" holds
+//!   only where every inventory was read whole, every package's relations
+//!   were read, and no dependency naming it is ambiguous (ADR-0008): a
+//!   dependent may sit in any report.
 //!
 //! Protection is the list's to decide (it also looks at install locations), so
 //! it is left `false` here. The model's answer is never an input.
@@ -23,8 +25,8 @@
 use std::collections::BTreeSet;
 
 use lumen_domain::{
-    Application, Package, PackageManager, PackageRelationKind, RelationCount, RemovalFacts,
-    RemovalMechanism, SourceStatus,
+    Application, Package, PackageId, PackageManager, PackageRelationKind, RelationCount,
+    RemovalFacts, RemovalMechanism, SourceStatus,
 };
 
 use crate::ports::InventoryReport;
@@ -98,15 +100,24 @@ pub fn inventory_facts(reports: &[InventoryReport]) -> InventoryFacts {
         .map(|(p, package)| {
             let (mechanism, needs_administrator) = manager_facts(package.manager);
             let needs = package.relations.as_ref().map(|relations| {
-                let needed: BTreeSet<_> = relations
+                let own = package.package_id();
+                // One need per named package, and one per set of alternatives
+                // it does not meet itself.
+                let needed: BTreeSet<Vec<&PackageId>> = relations
                     .iter()
                     .filter_map(|r| match &r.kind {
                         PackageRelationKind::DependsOn {
                             package: needed, ..
-                        } => Some(needed),
+                        } => Some(vec![needed]),
+                        PackageRelationKind::DependsOnOneOf { packages, .. } => {
+                            let mut set: Vec<_> = packages.iter().collect();
+                            set.sort_unstable();
+                            set.dedup();
+                            Some(set)
+                        }
                         _ => None,
                     })
-                    .filter(|&needed| *needed != package.package_id())
+                    .filter(|needed| !needed.contains(&&own))
                     .collect();
                 count(needed.len(), true)
             });
@@ -368,6 +379,56 @@ mod tests {
             facts.packages[2].needs.map(|c| c.count),
             Some(1),
             "the record names `lib` once, and itself does not count"
+        );
+    }
+
+    #[test]
+    fn alternatives_are_one_need_and_leave_each_candidates_dependents_open() {
+        const DPKG: PackageManager = PackageManager::Dpkg;
+        let one_of = |names: &[&str]| PackageRelation {
+            kind: PackageRelationKind::DependsOnOneOf {
+                packages: names
+                    .iter()
+                    .map(|n| PackageId {
+                        manager: DPKG,
+                        id: UntrustedText::new(*n),
+                    })
+                    .collect(),
+                direct: Some(true),
+            },
+            method: RelationMethod::HomebrewRuntimeDependencies,
+        };
+        let packages = vec![
+            package(DPKG, "postfix", Some(Vec::new())),
+            package(DPKG, "exim4", Some(Vec::new())),
+            package(
+                DPKG,
+                "mutt",
+                Some(vec![
+                    one_of(&["postfix", "exim4"]),
+                    one_of(&["exim4", "postfix"][..1]),
+                    depends(DPKG, "libc6"),
+                ]),
+            ),
+            package(
+                DPKG,
+                "self-mta",
+                Some(vec![one_of(&["self-mta", "postfix"])]),
+            ),
+        ];
+        let facts = inventory_facts(&[report(SourceStatus::Complete, Vec::new(), packages)]);
+        let needed_by = |i: usize| facts.packages[i].needed_by.map(|c| (c.count, c.complete));
+        assert_eq!(needed_by(0), Some((0, false)), "`mutt` may need postfix");
+        assert_eq!(needed_by(1), Some((0, false)), "or exim4");
+        assert_eq!(
+            facts.packages[2].needs.map(|c| c.count),
+            Some(3),
+            "two sets of alternatives and one package"
+        );
+        assert_eq!(
+            facts.packages[3].needs.map(|c| c.count),
+            Some(0),
+            "a set it meets itself is no need"
         );
     }
 

@@ -14,7 +14,9 @@
 //! - When packages that did not install one another each record installing
 //!   the same application, none of them is its owner: every such claim is
 //!   marked ambiguous and none is verified. A location or identifier that
-//!   matches several entries is ambiguous too.
+//!   matches several entries is ambiguous too, and so is every candidate of a
+//!   dependency any one of several packages meets
+//!   ([`PackageRelationKind::DependsOnOneOf`]).
 //! - A relation whose target is in no inventory given is
 //!   [`RelationTarget::Unlisted`]. That is "not installed" only where the
 //!   inventory that would list it was read whole (ADR-0008), which the caller
@@ -118,6 +120,18 @@ pub fn resolve_relations(
                         matches,
                         ambiguous,
                     )
+                }
+                // Any one of several: every candidate is ambiguous, even a
+                // lone listed one, since the record does not say which.
+                PackageRelationKind::DependsOnOneOf { packages, direct } => {
+                    let mut matches: Vec<RelationTarget> =
+                        packages.iter().flat_map(named).collect();
+                    matches.sort_unstable_by_key(|t| match t {
+                        RelationTarget::Package(p) | RelationTarget::Application(p) => *p,
+                        RelationTarget::Unlisted => usize::MAX,
+                    });
+                    matches.dedup();
+                    (ResolvedKind::DependsOn { direct: *direct }, matches, true)
                 }
                 PackageRelationKind::InstalledPackage { package } => {
                     let matches = named(package);
@@ -266,6 +280,16 @@ mod tests {
         }
     }
 
+    fn one_of(manager: PackageManager, names: &[&str]) -> PackageRelation {
+        PackageRelation {
+            kind: PackageRelationKind::DependsOnOneOf {
+                packages: names.iter().map(|n| id(manager, n)).collect(),
+                direct: Some(true),
+            },
+            method: RelationMethod::HomebrewRuntimeDependencies,
+        }
+    }
+
     fn installed(location: &str, method: RelationMethod) -> PackageRelation {
         PackageRelation {
             kind: PackageRelationKind::Installed {
@@ -319,6 +343,44 @@ mod tests {
             vec![depends(PackageManager::Homebrew, "x264")],
         )];
         assert_eq!(resolve(&[], &packages), [(0, Unlisted, false)]);
+    }
+
+    #[test]
+    fn every_candidate_of_one_of_several_is_ambiguous() {
+        const DPKG: PackageManager = PackageManager::Dpkg;
+        let packages = [
+            package(
+                DPKG,
+                "mutt",
+                vec![one_of(DPKG, &["postfix", "exim4", "exim4"])],
+            ),
+            package(DPKG, "postfix", vec![]),
+            package(DPKG, "exim4", vec![]),
+            package(DPKG, "sendmail", vec![one_of(DPKG, &["postfix"])]),
+            package(DPKG, "tool", vec![one_of(DPKG, &["gone", "absent"])]),
+        ];
+        let resolved: Vec<_> = {
+            let packages: Vec<&Package> = packages.iter().collect();
+            resolve_relations(&[], &packages)
+        };
+        assert_eq!(
+            resolved
+                .iter()
+                .map(|r| (r.package, r.target, r.ambiguous, r.verified()))
+                .collect::<Vec<_>>(),
+            [
+                (0, Pkg(1), true, false),
+                (0, Pkg(2), true, false),
+                // A lone listed candidate is still not the one.
+                (3, Pkg(1), true, false),
+                (4, Unlisted, true, false),
+            ]
+        );
+        assert!(
+            resolved
+                .iter()
+                .all(|r| r.kind == ResolvedKind::DependsOn { direct: Some(true) })
+        );
     }
 
     #[test]

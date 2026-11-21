@@ -91,6 +91,14 @@ fn recorded_label(kind: &PackageRelationKind) -> Option<String> {
         PackageRelationKind::DependsOn { package, .. }
         | PackageRelationKind::InstalledPackage { package } => Some(package.id.display()),
         PackageRelationKind::Installed { location } => Some(location.display()),
+        // As Debian writes alternatives.
+        PackageRelationKind::DependsOnOneOf { packages, .. } => Some(
+            packages
+                .iter()
+                .map(|p| p.id.display())
+                .collect::<Vec<_>>()
+                .join(" | "),
+        ),
         _ => None,
     }
 }
@@ -306,6 +314,40 @@ mod tests {
             row(&view, "Homebrew:unread").relations_read,
             Some(false),
             "an unread record is unknown, never none"
+        );
+    }
+
+    #[test]
+    fn alternatives_show_every_candidate_as_ambiguous() {
+        use SoftwareRelationKindView::{NeededBy, Needs};
+        let dpkg = |id: &str| PackageId {
+            manager: PackageManager::Dpkg,
+            id: UntrustedText::new(id),
+        };
+        let mut status = report("linux.dpkg");
+        status.packages = vec![
+            package(
+                PackageManager::Dpkg,
+                "mutt",
+                Some(vec![PackageRelation {
+                    kind: PackageRelationKind::DependsOnOneOf {
+                        packages: vec![dpkg("postfix"), dpkg("exim4")],
+                        direct: Some(true),
+                    },
+                    method: RelationMethod::HomebrewRuntimeDependencies,
+                }]),
+            ),
+            package(PackageManager::Dpkg, "postfix", Some(Vec::new())),
+        ];
+        let view = SoftwareView::from_reports(&[status]);
+        let mutt = row(&view, "Dpkg:mutt");
+        assert_eq!(
+            brief(mutt),
+            [(Needs, Some("Dpkg:postfix"), "postfix | exim4", false, true)]
+        );
+        assert_eq!(
+            brief(row(&view, "Dpkg:postfix")),
+            [(NeededBy, Some("Dpkg:mutt"), "mutt", false, true)]
         );
     }
 

@@ -346,6 +346,18 @@ pub enum PackageRelationKind {
         /// The package it installed.
         package: PackageId,
     },
+    /// It needs any one of these packages to run, and the record does not say
+    /// which one does: alternatives (dpkg's `a | b`), or a name that other
+    /// packages provide (a virtual package). Never resolved to one of them:
+    /// each is a candidate, none is verified.
+    DependsOnOneOf {
+        /// The packages that could meet the need, as the record names them
+        /// or as the packages that provide the name.
+        packages: Vec<PackageId>,
+        /// Whether the package itself declares the need, rather than through
+        /// another dependency; `None` where the record does not say.
+        direct: Option<bool>,
+    },
 }
 
 /// Which record a relation was read from.
