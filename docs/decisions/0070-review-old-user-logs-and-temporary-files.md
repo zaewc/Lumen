@@ -85,9 +85,9 @@ Chosen option: **1**.
      metadata-change time of the subject and of every entry below it, and when the
      scan read them. Access times are not used (ADR-0053). It is recorded only when the
      subtree was read completely and every entry had both a modification time and a
-     metadata-change time (`st_ctime` on macOS, `ChangeTime` on Windows), which every
-     write updates even when a program restores the modification time; otherwise it
-     is absent, and the age is unknown.
+     metadata-change time (`st_ctime` on macOS, `ChangeTime` on Windows), which a
+     program cannot set back through ordinary calls; otherwise it is absent, and the
+     age is unknown. Times are evidence, not proof: see the limits below.
    - `DiagnosticReport { marker }`: the subject is, or holds at any depth, a macOS
      crash, spin or diagnostic report, recognised by entry names only (as
      `BrowserProfile` is): a `DiagnosticReports` folder, or a name ending in `.ips`,
@@ -104,8 +104,8 @@ Chosen option: **1**.
      source gives an age, and a log is evidence of a problem that may surface later).
      The most cautious proposal wins, so recent and unknown items are kept.
    - `classify.scratch-report` proposes `KEEP` for an item with `DiagnosticReport`:
-     a report itself, or a folder that holds one anywhere below it, so a report is
-     never moved together with the log folder around it. The extensions are those the
+     a report itself, or a folder that holds one anywhere below it, so a report the
+     scan or the re-check sees is not moved together with the log folder around it. The extensions are those the
      [Console guide](https://support.apple.com/guide/console/cnsl664be99a/mac) gives
      for crash, spin and diagnostic reports, and `.crash`, which Apple's
      [Acquiring crash reports and diagnostic logs](https://developer.apple.com/documentation/xcode/acquiring-crash-reports-and-diagnostic-logs)
@@ -155,6 +155,16 @@ Chosen option: **1**.
 - Neutral: an app that stores data it needs in `%TEMP%` against Microsoft's guidance
   loses nothing: Lumen only shows it, and a chosen item stays in quarantine until
   retention ends.
+- Limit: times can be held back. Windows lets a program suppress `ChangeTime` and
+  `LastWriteTime` updates on its own handle
+  ([`FILE_BASIC_INFORMATION`](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_file_basic_information)),
+  so a file written that way looks old. Matching times are not proof that nothing
+  changed. What stands between such a file and a move is that a person chose it, the
+  live in-use check just before the move (ADR-0030), and quarantine, which can be
+  undone until retention ends (ADR-0015).
+- Limit: a file, or a report, written inside a folder after the re-check read it and
+  before the rename is moved with the folder: the executor checks the folder's own
+  identity, not every entry below it (ADR-0016). The same backstops apply.
 
 ## More information
 
