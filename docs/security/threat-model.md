@@ -271,8 +271,10 @@ GOAL: a file the user needs is permanently lost because of Lumen
   (ADR-0063, amended 2026-11-16): a standard account can move an app another account
   owns, such as one an administrator installed in `/Applications`, into its own
   quarantine. It stays restorable by that account, but until then it is gone for
-  every account; only that account sees it in Quarantine. An administrator can turn
-  the helper off in Settings.
+  every account; only that account sees it in Quarantine. That account may also
+  finalize it through the helper, permanently removing the app after the usual
+  held-item and complete in-use checks. An administrator can turn the helper off
+  in Settings.
 - The helper's `quarantine` (ADR-0063) reads a bundle's helper folders by path, as
   root, like the unprivileged gate; in a bundle another account can write (some
   installers leave theirs world-writable), they can change between the check and the
