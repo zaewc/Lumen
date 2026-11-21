@@ -689,6 +689,7 @@ export type GroupView = {
    * The kind of group.
    */
   kind: GroupKindView;
+  removed_app?: RemovedAppView | null;
   /**
    * The developer tool (e.g. `Xcode`) or the owning application's
    * identifier, as untrusted display text; `null` when unknown.
@@ -1199,6 +1200,23 @@ export type RemovalMechanismView =
   | "windows_installer"
   | "own_uninstaller"
   | "none_recorded";
+
+/**
+ * What Lumen recorded when it moved an app into Quarantine, shown with the
+ * data that app left (ADR-0068, design Q3). Display only.
+ */
+export type RemovedAppView = {
+  /**
+   * The app is still held in Quarantine: restoring it would use this data
+   * again.
+   */
+  held: boolean;
+  /**
+   * The app's display name when it was moved, if it had one;
+   * display-escaped.
+   */
+  name: string | null;
+};
 
 /**
  * How much a failed removal took.

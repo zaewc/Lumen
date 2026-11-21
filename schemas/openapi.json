@@ -1365,6 +1365,17 @@
             "$ref": "#/components/schemas/GroupKindView",
             "description": "The kind of group."
           },
+          "removed_app": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RemovedAppView",
+                "description": "For data left by an app Lumen itself removed (ADR-0062): what Lumen\nrecorded about that app. `null` otherwise. Optional on input for\ncompatibility with older hosts."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "source": {
             "type": [
               "string",
@@ -2352,6 +2363,27 @@
           "own_uninstaller",
           "none_recorded"
         ]
+      },
+      "RemovedAppView": {
+        "type": "object",
+        "description": "What Lumen recorded when it moved an app into Quarantine, shown with the\ndata that app left (ADR-0068, design Q3). Display only.",
+        "required": [
+          "name",
+          "held"
+        ],
+        "properties": {
+          "held": {
+            "type": "boolean",
+            "description": "The app is still held in Quarantine: restoring it would use this data\nagain."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The app's display name when it was moved, if it had one;\ndisplay-escaped."
+          }
+        }
       },
       "RemovedView": {
         "type": "string",
