@@ -30,7 +30,7 @@ use lumen_domain::{
 pub const RULE: &str = "uninstall.macos-app";
 
 /// The version of [`gate`], recorded as the decision's policy version.
-pub const GATE_VERSION: PolicyVersion = PolicyVersion::new(1, 0, 0);
+pub const GATE_VERSION: PolicyVersion = PolicyVersion::new(1, 1, 0);
 
 /// Domain separation for [`Binding::hash`].
 const HASH_DOMAIN: &[u8] = b"lumen.uninstall/1\0";
@@ -109,6 +109,17 @@ pub enum Ineligible {
     StoreUnknown,
     /// Its volume has no quarantine store, so it cannot be moved by renaming.
     NoStoreOnVolume,
+    /// Whether it is security software could not be told.
+    SecurityUnknown,
+    /// It is security software: its signature carries the Endpoint Security
+    /// entitlement (ADR-0060 rule 4, owner decision 2026-11-16).
+    SecuritySoftware,
+    /// Whether an organization manages it could not be told.
+    ManagedUnknown,
+    /// An organization may manage it: the Mac is enrolled in MDM, or managed
+    /// preferences exist for it (ADR-0060 rule 4, owner decision
+    /// 2026-11-16).
+    Managed,
 }
 
 /// Fresh, read-only evidence about one bundle, gathered right before the
@@ -134,6 +145,11 @@ pub struct BundleEvidence {
     pub running: Option<bool>,
     /// Its volume has a quarantine store.
     pub store_on_volume: Option<bool>,
+    /// Its signature carries the Endpoint Security entitlement.
+    pub security_software: Option<bool>,
+    /// An organization may manage it (MDM enrollment or managed
+    /// preferences).
+    pub managed: Option<bool>,
 }
 
 /// Why the gate refused: at least one reason, in a fixed order.
@@ -239,6 +255,16 @@ pub fn gate(evidence: &BundleEvidence) -> Result<(), Refusal> {
         Some(true) => {}
         Some(false) => refuse(Ineligible::NoStoreOnVolume),
         None => refuse(Ineligible::StoreUnknown),
+    }
+    match evidence.security_software {
+        Some(false) => {}
+        Some(true) => refuse(Ineligible::SecuritySoftware),
+        None => refuse(Ineligible::SecurityUnknown),
+    }
+    match evidence.managed {
+        Some(false) => {}
+        Some(true) => refuse(Ineligible::Managed),
+        None => refuse(Ineligible::ManagedUnknown),
     }
     if reasons.is_empty() {
         Ok(())
@@ -364,6 +390,8 @@ mod tests {
             helpers: HelperFolder::ALL.map(|f| (f, Some(false))).into(),
             running: Some(false),
             store_on_volume: Some(true),
+            security_software: Some(false),
+            managed: Some(false),
         }
     }
 
@@ -436,7 +464,14 @@ mod tests {
     #[test]
     fn every_failed_or_unknown_check_refuses_with_its_reason() {
         type Change = fn(&mut BundleEvidence);
-        let cases: [(Change, Ineligible); 12] = [
+        let cases: [(Change, Ineligible); 16] = [
+            (
+                |e| e.security_software = Some(true),
+                Ineligible::SecuritySoftware,
+            ),
+            (|e| e.security_software = None, Ineligible::SecurityUnknown),
+            (|e| e.managed = Some(true), Ineligible::Managed),
+            (|e| e.managed = None, Ineligible::ManagedUnknown),
             (|e| e.directory = Some(false), Ineligible::NotABundle),
             (|e| e.directory = None, Ineligible::NotABundle),
             (
@@ -489,6 +524,8 @@ mod tests {
             helpers: BTreeMap::new(),
             running: None,
             store_on_volume: None,
+            security_software: None,
+            managed: None,
         };
         assert_eq!(
             refused(&evidence),
@@ -501,6 +538,8 @@ mod tests {
                 Ineligible::HelpersUnknown,
                 Ineligible::RunningUnknown,
                 Ineligible::StoreUnknown,
+                Ineligible::SecurityUnknown,
+                Ineligible::ManagedUnknown,
             ]
         );
     }

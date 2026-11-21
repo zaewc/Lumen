@@ -325,6 +325,8 @@ pub(crate) mod fake {
                         helpers: HelperFolder::ALL.map(|f| (f, Some(false))).into(),
                         running: Some(false),
                         store_on_volume: Some(true),
+                        security_software: Some(false),
+                        managed: Some(false),
                     },
                     identity: Some(identity(7)),
                     owner: Some(0),

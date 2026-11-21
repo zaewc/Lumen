@@ -673,6 +673,10 @@ export const zhCN: Messages = {
         running: "应用正在运行。请退出后重新检查。",
         store_unknown: "无法确认此驱动器是否有隔离区存储位置。",
         no_store_on_volume: "此驱动器没有隔离区存储位置。",
+        security_unknown: "无法确认这是否为安全软件。",
+        security_software: "这是安全软件。请使用它自带的卸载程序移除。",
+        managed_unknown: "无法确认你的组织是否管理此应用。",
+        managed: "你的组织可能管理此应用，因此交由其管理员处理。",
       },
     },
     facts: {

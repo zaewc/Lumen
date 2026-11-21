@@ -711,6 +711,12 @@ export const fr: Messages = {
         running: "Cette app est en cours d’exécution. Quittez-la et vérifiez à nouveau.",
         store_unknown: "Lumen n’a pas pu vérifier si ce disque dispose d’un espace de quarantaine.",
         no_store_on_volume: "Ce disque n’a pas d’espace de quarantaine.",
+        security_unknown: "Lumen n’a pas pu vérifier s’il s’agit d’un logiciel de sécurité.",
+        security_software:
+          "C’est un logiciel de sécurité. Supprimez-le avec son propre programme de désinstallation.",
+        managed_unknown: "Lumen n’a pas pu vérifier si votre organisation gère cette app.",
+        managed:
+          "Votre organisation peut gérer cette app ; Lumen la laisse donc à son administrateur.",
       },
     },
     facts: {
