@@ -83,6 +83,11 @@ Chosen option: **1**.
      scan read them. Access times are not used (ADR-0053). It is recorded only when the
      subtree was read completely and every entry had a modification time; otherwise it
      is absent, and the age is unknown.
+   - `DiagnosticReport { marker }`: the subject is, or holds at any depth, a macOS
+     crash, spin or diagnostic report, recognised by entry names only (as
+     `BrowserProfile` is): a `DiagnosticReports` folder, or a name ending in `.ips`,
+     `.spin`, `.diag` or `.dpsub`. The marker is the first such entry, relative to the
+     subject. No file is opened.
 
    Age is `as_of - at`, from the fact itself, never the clock at decision time, so a
    decision replays exactly.
@@ -93,10 +98,13 @@ Chosen option: **1**.
      Disk Cleanup default above) and **30 days** for logs (Lumen's choice: no Apple
      source gives an age, and a log is evidence of a problem that may surface later).
      The most cautious proposal wins, so recent and unknown items are kept.
-   - `classify.scratch-report` proposes `KEEP` for macOS crash and diagnostic reports:
-     the `DiagnosticReports` folder, and items whose names end in the extensions the
+   - `classify.scratch-report` proposes `KEEP` for an item with `DiagnosticReport`:
+     a report itself, or a folder that holds one anywhere below it, so a report is
+     never moved together with the log folder around it. The extensions are those the
      [Console guide](https://support.apple.com/guide/console/cnsl664be99a/mac) gives
-     for crash, spin and diagnostic reports (`.ips`, `.spin`, `.diag`, `.dpsub`).
+     for crash, spin and diagnostic reports. A folder whose entries were not all read
+     is already kept as incompletely scanned, so an unseen report is never moved
+     either.
    - No rule proposes `QUARANTINE` for these items. An old item is moved only when a
      person chooses it, as a review item without a tool command (ADR-0051), and after
      the fresh re-check of ADR-0058: a file written since the scan makes it recent, so
@@ -111,10 +119,10 @@ Chosen option: **1**.
    under it (ADR-0069).
 6. **AI.** Jev sees the new facts as metadata, as it sees `LastModified`, and may only
    make a decision more cautious (ADR-0020). It cannot change a `REVIEW` or `KEEP`.
-7. **Order of work, one PR each:** the two facts in `lumen-domain` (with the schema);
+7. **Order of work, one PR each:** the three facts in `lumen-domain` (with the schema);
    the three rules, their explanations and translations, with property tests that no
-   such item is ever `QUARANTINE` and that recent, unknown, report, in-use and
-   cloud items are `KEEP`; gathering on macOS; gathering on Windows; showing the items
+   such item is ever `QUARANTINE` and that recent, unknown, report-holding, in-use
+   and cloud items are `KEEP`; gathering on macOS; gathering on Windows; showing the items
    grouped by location on the Storage page.
 
 ### Consequences
