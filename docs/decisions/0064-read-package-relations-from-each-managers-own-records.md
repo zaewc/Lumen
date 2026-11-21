@@ -142,3 +142,32 @@ Measured on macOS 26.6.2 with Homebrew 7.0.12, 2026-11-09:
   `cask/artifact/relocated.rb` (an `app` target is relative to the configured
   `appdir`), `keg.rb` and `formula.rb` (installed kegs read dependencies from the
   tab).
+
+Linux, dpkg (2026-11-21):
+
+- `/var/lib/dpkg/status` is read whole (as for the list, #806). A present package's
+  `Pre-Depends` and `Depends` are its needs (`DpkgStatus`); `Recommends` and
+  `Suggests` are not needs to run. A need for a name is met by the package of that
+  name or by any package that `Provides` it, and alternatives (`a | b`) by any one
+  ([Debian Policy 7.1 and 7.5](https://www.debian.org/doc/debian-policy/ch-relationships.html)).
+  Only a single name that exactly one installed package has, and none provides,
+  becomes `DependsOn`; any other need is `DependsOnOneOf` with every candidate.
+- An architecture qualifier (`:any`, `:amd64`;
+  [deb-control(5)](https://manpages.debian.org/unstable/dpkg-dev/deb-control.5.en.html))
+  is dropped, and every installed architecture of the name is a candidate: Multi-Arch
+  rules would narrow it, but a wrong narrowing would hide the package that meets the
+  need, while a wider set only makes it ambiguous.
+- A relation that is not `name[:arch] [(op version)]` with a name Debian Policy
+  5.6.1 allows makes that package's relations unknown. A paragraph without a name or
+  status, or a `Provides` that cannot be read, makes every package's relations
+  unknown, since a need's candidates are then not known whole.
+- `/var/lib/dpkg/info/<package>.list` (the files a package installed) is not read:
+  no Linux inventory lists applications by install location for it to link to, and
+  per-package file lists for removal previews are #809.
+
+- Before linking, version clauses must contain a Debian relationship operator
+  and valid version syntax; `Provides` permits only `=`. Versions are not
+  evaluated: if any need is versioned, a package's own name or provided name
+  does not prove self-satisfaction, so all candidates are retained. This keeps
+  external providers visible when an unversioned self-provide cannot meet a
+  versioned need (Debian Policy 7.5).

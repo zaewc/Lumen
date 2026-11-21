@@ -392,6 +392,10 @@ pub enum RelationMethod {
     /// The installer receipt's file list (its bill of materials) records the
     /// bundle's `Contents/Info.plist` as a file it installed.
     ReceiptFileList,
+    /// dpkg's status file lists it under the package's `Depends` or
+    /// `Pre-Depends`, matched to the installed packages of that name and
+    /// those that `Provides` it.
+    DpkgStatus,
 }
 
 /// Whether a relation was recorded or inferred.
@@ -412,7 +416,8 @@ impl RelationMethod {
             Self::HomebrewRuntimeDependencies
             | Self::CaskUninstallArtifacts
             | Self::CaskDefinition
-            | Self::ReceiptFileList => RelationBasis::Recorded,
+            | Self::ReceiptFileList
+            | Self::DpkgStatus => RelationBasis::Recorded,
             Self::CaskDefaultAppFolder => RelationBasis::Inferred,
         }
     }
