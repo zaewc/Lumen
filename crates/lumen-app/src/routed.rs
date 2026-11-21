@@ -26,7 +26,11 @@
 //! where the item is; otherwise the helper is asked where it is, and an item
 //! it may hold is reported in the store, failed, so Lumen keeps track of it
 //! and the person can put it back. It is never reported at its source unless
-//! the helper says so.
+//! the helper says so. A restore that fails or goes unanswered is checked the
+//! same way: only the helper's "at its source" reports it put back. A
+//! finalize that goes unanswered may have removed part of the item, so it is
+//! never reported intact; only the helper's own refusal says nothing was
+//! removed.
 
 use std::path::PathBuf;
 
@@ -222,23 +226,39 @@ impl<E: QuarantineExecutor> QuarantineExecutor for Routed<'_, E> {
         if HelperItem::of(item).is_none() {
             return self.own.restore(item, operation);
         }
-        match self.ask_held(HelperRequest::Restore, operation) {
+        let mut failure = match self.ask_held(HelperRequest::Restore, operation) {
             Some(HelperResponse::Restored {
                 parent_replaced,
                 matches_record,
-            }) => Ok(RestoredItem {
-                parent_replaced,
-                matches_record,
-            }),
-            Some(HelperResponse::NotRestored { reason, left }) => Err(RestoreFailure {
+            }) => {
+                return Ok(RestoredItem {
+                    parent_replaced,
+                    matches_record,
+                });
+            }
+            Some(HelperResponse::NotRestored { reason, left }) => RestoreFailure {
                 reason: reason.into(),
                 left,
-            }),
-            _ => Err(RestoreFailure {
+            },
+            _ => RestoreFailure {
                 reason: NotRestored::Failed,
                 left: ItemLocation::Quarantine,
-            }),
+            },
+        };
+        // A lost answer may follow a completed restore, including one from
+        // a previous process. Locate after refusal too: a retry can find no
+        // held item because that earlier restore already put it back.
+        if failure.left == ItemLocation::Quarantine
+            && matches!(
+                self.ask_held(HelperRequest::Locate, operation),
+                Some(HelperResponse::Located {
+                    whereabouts: Whereabouts::AtSource
+                })
+            )
+        {
+            failure.left = ItemLocation::Source;
         }
+        Err(failure)
     }
 
     fn finalize(&self, item: &PreparedItem, operation: OperationId) -> Result<(), Removal> {
@@ -250,9 +270,15 @@ impl<E: QuarantineExecutor> QuarantineExecutor for Routed<'_, E> {
             Some(HelperResponse::NotFinalized {
                 reason: FinalizeRefusal::FailedPartly,
             }) => Err(Removal::Partly),
-            // In use, not in the store, failed intact, or unanswered:
-            // nothing was removed.
-            _ => Err(Removal::Nothing),
+            // Explicit refusal establishes that nothing was removed.
+            Some(
+                HelperResponse::NotFinalized { .. }
+                | HelperResponse::Refused { .. }
+                | HelperResponse::NotHeld,
+            ) => Err(Removal::Nothing),
+            // A lost answer may follow partial removal. Never claim the
+            // held item is intact when its whereabouts are unknown.
+            _ => Err(Removal::Partly),
         }
     }
 
@@ -567,8 +593,61 @@ mod tests {
         );
         assert_eq!(
             routed.finalize(&wrapped(), operation()),
-            Err(Removal::Nothing)
+            Err(Removal::Partly)
         );
+        assert_eq!(own.asked(), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn a_lost_restore_answer_is_reconciled_without_inventing_success() {
+        let own = Own::default();
+        for (whereabouts, left) in [
+            (Whereabouts::AtSource, ItemLocation::Source),
+            (Whereabouts::InStore, ItemLocation::Quarantine),
+            (Whereabouts::Unknown, ItemLocation::Quarantine),
+        ] {
+            let helper = Script::new([None, Some(HelperResponse::Located { whereabouts })]);
+            assert_eq!(
+                Routed::new(&own, &helper).restore(&wrapped(), operation()),
+                Err(RestoreFailure {
+                    reason: NotRestored::Failed,
+                    left
+                })
+            );
+        }
+        let retry = Script::new([
+            Some(HelperResponse::NotRestored {
+                reason: RestoreRefusal::ItemChanged,
+                left: ItemLocation::Quarantine,
+            }),
+            Some(HelperResponse::Located {
+                whereabouts: Whereabouts::AtSource,
+            }),
+        ]);
+        assert_eq!(
+            Routed::new(&own, &retry).restore(&wrapped(), operation()),
+            Err(RestoreFailure {
+                reason: NotRestored::ItemChanged,
+                left: ItemLocation::Source
+            })
+        );
+        for answer in [
+            None,
+            Some(HelperResponse::Located {
+                whereabouts: Whereabouts::InStore,
+            }),
+            Some(HelperResponse::NotHeld),
+        ] {
+            let helper = Helper::answering(answer);
+            assert_eq!(
+                Routed::new(&own, &helper).finalize(&wrapped(), operation()),
+                Err(if matches!(helper.answer, Some(HelperResponse::NotHeld)) {
+                    Removal::Nothing
+                } else {
+                    Removal::Partly
+                })
+            );
+        }
         assert_eq!(own.asked(), Vec::<&str>::new());
     }
 
