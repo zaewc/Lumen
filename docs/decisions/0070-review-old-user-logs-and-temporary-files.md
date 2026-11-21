@@ -86,7 +86,7 @@ Chosen option: **1**.
    - `DiagnosticReport { marker }`: the subject is, or holds at any depth, a macOS
      crash, spin or diagnostic report, recognised by entry names only (as
      `BrowserProfile` is): a `DiagnosticReports` folder, or a name ending in `.ips`,
-     `.spin`, `.diag` or `.dpsub`. The marker is the first such entry, relative to the
+     `.crash`, `.spin`, `.diag` or `.dpsub`. The marker is the first such entry, relative to the
      subject. No file is opened.
 
    Age is `as_of - at`, from the fact itself, never the clock at decision time, so a
@@ -102,7 +102,9 @@ Chosen option: **1**.
      a report itself, or a folder that holds one anywhere below it, so a report is
      never moved together with the log folder around it. The extensions are those the
      [Console guide](https://support.apple.com/guide/console/cnsl664be99a/mac) gives
-     for crash, spin and diagnostic reports. A folder whose entries were not all read
+     for crash, spin and diagnostic reports, and `.crash`, which Apple's
+     [Acquiring crash reports and diagnostic logs](https://developer.apple.com/documentation/xcode/acquiring-crash-reports-and-diagnostic-logs)
+     names with `.ips` as the common crash-report extensions. A folder whose entries were not all read
      is already kept as incompletely scanned, so an unseen report is never moved
      either.
    - No rule proposes `QUARANTINE` for these items. An old item is moved only when a
