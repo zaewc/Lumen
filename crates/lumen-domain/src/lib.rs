@@ -71,7 +71,8 @@ pub use entry::{
     Volume, VolumeLocation,
 };
 pub use evidence::{
-    AppDataKind, Basis, Evidence, EvidenceId, EvidenceIdError, Fact, Provenance, Subject,
+    AppDataKind, Basis, Evidence, EvidenceId, EvidenceIdError, Fact, Provenance, ScratchKind,
+    Subject,
 };
 pub use id::{
     DeviceId, FileId, FileIdentity, IdError, OperationId, PlanId, ScanId, SnapshotId, VolumeId,
