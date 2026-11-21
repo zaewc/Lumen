@@ -78,3 +78,4 @@ recommended option.
 | [0067](0067-set-up-the-helper-and-full-disk-access-on-first-launch.md) | Set up the helper and Full Disk Access on first launch | Accepted |
 | [0068](0068-recognise-a-removed-apps-data-only-with-corroboration.md) | Recognise a removed app's data only when macOS or Lumen corroborates the ID | Accepted |
 | [0069](0069-show-storage-in-one-place-grouped-by-owner.md) | Show storage in one place, grouped by what owns it | Accepted |
+| [0070](0070-review-old-user-logs-and-temporary-files.md) | Show old user logs and temporary files for review, and keep recent ones | Proposed |

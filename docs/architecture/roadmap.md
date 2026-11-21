@@ -441,7 +441,7 @@ their sources before merge.
 | 15.8 | `feat(app)`: plans record who chose each item; chosen review items are confirmed as review items and never removed automatically (ADR-0051) | done in the core and CLI (#571–#573); desktop (#574) waits for a host-rendered confirmation (FS-1 in the [readiness audit](../security/public-beta-readiness.md)) |
 | 15.9 | `feat(application)`: large unrecognised folders as review candidates (ADR-0051) | done (#575), after FS-2 (#587, #588) and FS-3 (#591) made the policy keep folders below a sync root or holding cloud content, a protected location or a browser profile |
 | 15.10 | `feat(web)`: choose review items to quarantine, with AI notes beside them (ADR-0051) | done (#897): a review item's sheet has a "격리함으로 옮기기…" button that moves that item alone, after the host's confirmation window (FS-1) lists it as an item the person chose; "정리하기…" still moves only the policy's proposals |
-| 15.11 | Later: user-domain logs and Windows `%TEMP%` with age rules; orphaned app caches | open |
+| 15.11 | User-domain logs (`~/Library/Logs`) and the user's Windows `%TEMP%`: each item reviewed, recent (7 days temporary, 30 days logs) or unknown-age items and macOS crash reports kept, never proposed by age ([ADR-0070](../decisions/0070-review-old-user-logs-and-temporary-files.md), proposed). Steps: 1. `ScratchLocation` and `NewestChange` facts; 2. the three policy rules; 3. macOS gathering; 4. Windows gathering; 5. Storage page grouping. Orphaned app caches are 16.9 (removed-app leftovers) | ADR (this row); steps open |
 
 ## Phase 16: Installed software after 0.10.0
 
