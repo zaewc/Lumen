@@ -31,8 +31,9 @@ decision?
 - Safety outranks space. Logs are records, not caches: no platform documents them as
   re-creatable, and a log can be the only record of a problem that shows up later.
 - Age only adds caution (ADR-0059). Unknown age is never "old" (ADR-0008).
-- Files in use, cloud and sync-root content, crash reports a person may need and
-  logs of security software are never proposed.
+- Files in use, cloud and sync-root content and crash reports a person may need are
+  kept. Logs of security software are never proposed for quarantine; at most a person
+  chooses one after reading what it is (rule 5).
 - User domain only. Machine-wide logs and `C:\Windows\Temp` belong to the helper
   (ADR-0063, roadmap 16.10).
 - Every location and age comes from an official source or is named as Lumen's own
@@ -109,8 +110,10 @@ Chosen option: **1**.
      either.
    - No rule proposes `QUARANTINE` for these items. An old item is moved only when a
      person chooses it, as a review item without a tool command (ADR-0051), and after
-     the fresh re-check of ADR-0058: a file written since the scan makes it recent, so
-     it is kept and not moved.
+     the fresh re-check of ADR-0058, which reads `NewestChange` again. The plan
+     records the `at` the person saw; if the fresh `at` is later (anything below was
+     written since), or the fresh age is below the threshold, the item is kept and not
+     moved.
    - The existing protections apply first and keep the item: in use (`protect.in-use`,
      including partial and unknown answers), cloud-backed, below or holding a sync
      root or other protected location, operating-system protected, not observed, or
