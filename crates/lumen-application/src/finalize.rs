@@ -6,7 +6,10 @@
 //!
 //! - in the store: it is probed for use first, as it is held there (ADR-0030):
 //!   only `No`, or `Partial` (the store is the user's own, under their home),
-//!   lets it be removed permanently, and then `Finalize` is journaled;
+//!   lets it be removed permanently, and then `Finalize` is journaled. An
+//!   executor that checks use itself (Lumen's helper, which sees every process
+//!   and passes only `No`) is not second-guessed by a probe that cannot see
+//!   into its store;
 //! - at its source: a restore happened whose journal entry was lost, so
 //!   `Restore` is journaled and nothing is removed;
 //! - anywhere else: nothing happens and the user is told.
@@ -93,14 +96,16 @@ pub fn finalize_item(
         }
         Located::Unknown => return Ok(FinalizeOutcome::NotFound),
     }
-    let free = executor
-        .held(item, operation)
-        .is_some_and(|(path, identity)| {
-            matches!(
-                probe.probe(&path, &identity),
-                InUse::No | InUse::Partial { .. }
-            )
-        });
+    // An executor that checks use itself refuses to finalize an item in use.
+    let free = executor.checks_use_itself(item)
+        || executor
+            .held(item, operation)
+            .is_some_and(|(path, identity)| {
+                matches!(
+                    probe.probe(&path, &identity),
+                    InUse::No | InUse::Partial { .. }
+                )
+            });
     if !free {
         return Ok(FinalizeOutcome::MaybeInUse);
     }
@@ -128,6 +133,7 @@ mod tests {
         result: Result<(), Removal>,
         calls: Mutex<usize>,
         held: bool,
+        checks_itself: bool,
     }
 
     impl QuarantineExecutor for Executor {
@@ -166,6 +172,10 @@ mod tests {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner) += 1;
             self.result
+        }
+
+        fn checks_use_itself(&self, _item: &PreparedItem) -> bool {
+            self.checks_itself
         }
 
         fn held(
@@ -237,6 +247,7 @@ mod tests {
             result,
             calls: Mutex::new(0),
             held,
+            checks_itself: false,
         };
         let mut journal = Journal::default();
         let outcome = finalize_item(
@@ -309,6 +320,46 @@ mod tests {
             let (outcome, journal, calls) = run(Located::InStore, Ok(()), state);
             assert_eq!(outcome, FinalizeOutcome::NotFinalizable(state));
             assert_eq!((journal.len(), calls), (0, 0));
+        }
+    }
+
+    #[test]
+    fn an_executor_that_checks_use_itself_is_not_second_guessed() {
+        // Lumen's helper: Lumen cannot see into its store (`held` is `None`)
+        // and its own probe would say unknown; the helper refuses itself.
+        for result in [Ok(()), Err(Removal::Nothing)] {
+            let executor = Executor {
+                located: Located::InStore,
+                result,
+                calls: Mutex::new(0),
+                held: false,
+                checks_itself: true,
+            };
+            let mut journal = Journal::default();
+            let outcome = finalize_item(
+                &executor,
+                &mut journal,
+                "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a3"
+                    .parse()
+                    .unwrap_or_else(|_| unreachable!()),
+                QuarantineState::Retained,
+                &PreparedItem(b"{}".to_vec()),
+                FinalizeReason::UserRequest,
+                &Probe(InUse::Unknown { reason: "unseen" }),
+            )
+            .unwrap_or_else(|_| unreachable!());
+            let expected = match result {
+                Ok(()) => FinalizeOutcome::Finalized,
+                Err(removed) => FinalizeOutcome::Failed { removed },
+            };
+            assert_eq!(outcome, expected);
+            assert_eq!(
+                *executor
+                    .calls
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner),
+                1
+            );
         }
     }
 

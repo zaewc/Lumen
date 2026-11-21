@@ -420,6 +420,16 @@ pub trait QuarantineExecutor: Send + Sync {
     /// How much a failed finalization removed.
     fn finalize(&self, item: &PreparedItem, operation: OperationId) -> Result<(), Removal>;
 
+    /// Whether this executor asks every process about the item itself
+    /// before it finalizes it, and refuses unless none uses it, so the
+    /// caller's own probe is not asked (Lumen's helper, which sees every
+    /// process, ADR-0063 rule 5). An executor that cannot say keeps the
+    /// default, and the caller probes.
+    fn checks_use_itself(&self, item: &PreparedItem) -> bool {
+        let _ = item;
+        false
+    }
+
     /// The item's Unix mode and owner as prepared, for its manifest
     /// (ADR-0015). `None` where the platform has none.
     fn unix_ownership(&self, item: &PreparedItem) -> Option<UnixOwnership> {
