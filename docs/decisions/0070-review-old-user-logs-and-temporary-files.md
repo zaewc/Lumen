@@ -7,6 +7,8 @@
   rule may read file times, only to add caution),
   [ADR-0051](0051-quarantine-review-items-the-user-chooses.md) (which items a person may
   choose)
+- Amends: [ADR-0058](0058-reassess-chosen-items-with-fresh-read-only-evidence.md) rule 5
+  (`NewestChange` is never reused; it is read again before a move)
 - Stays within: [ADR-0059](0059-use-application-usage-as-cautious-evidence.md) ("age
   never moves an item towards `QUARANTINE`")
 - Roadmap: 15.11. Research: [26](../research/26-reference-cleaners-and-recovery-gap.md)
@@ -31,9 +33,9 @@ decision?
 - Safety outranks space. Logs are records, not caches: no platform documents them as
   re-creatable, and a log can be the only record of a problem that shows up later.
 - Age only adds caution (ADR-0059). Unknown age is never "old" (ADR-0008).
-- Files in use, cloud and sync-root content and crash reports a person may need are
-  kept. Logs of security software are never proposed for quarantine; at most a person
-  chooses one after reading what it is (rule 5).
+- Files in use, cloud and sync-root content, crash reports a person may need, and
+  logs Lumen attributes to security software (ADR-0014's hard protection) are kept.
+  A folder Lumen cannot attribute is never proposed for quarantine (rule 5).
 - User domain only. Machine-wide logs and `C:\Windows\Temp` belong to the helper
   (ADR-0063, roadmap 16.10).
 - Every location and age comes from an official source or is named as Lumen's own
@@ -82,7 +84,9 @@ Chosen option: **1**.
    - `NewestChange { at, as_of }`: the newest modification, creation or
      metadata-change time of the subject and of every entry below it, and when the
      scan read them. Access times are not used (ADR-0053). It is recorded only when the
-     subtree was read completely and every entry had a modification time; otherwise it
+     subtree was read completely and every entry had both a modification time and a
+     metadata-change time (`st_ctime` on macOS, `ChangeTime` on Windows), which every
+     write updates even when a program restores the modification time; otherwise it
      is absent, and the age is unknown.
    - `DiagnosticReport { marker }`: the subject is, or holds at any depth, a macOS
      crash, spin or diagnostic report, recognised by entry names only (as
@@ -105,26 +109,34 @@ Chosen option: **1**.
      [Console guide](https://support.apple.com/guide/console/cnsl664be99a/mac) gives
      for crash, spin and diagnostic reports, and `.crash`, which Apple's
      [Acquiring crash reports and diagnostic logs](https://developer.apple.com/documentation/xcode/acquiring-crash-reports-and-diagnostic-logs)
-     names with `.ips` as the common crash-report extensions. A folder whose entries were not all read
-     is already kept as incompletely scanned, so an unseen report is never moved
-     either.
+     names with `.ips` as the common crash-report extensions. A folder whose entries
+     were not all read is already kept as incompletely scanned, so an unseen report
+     is never moved either.
    - No rule proposes `QUARANTINE` for these items. An old item is moved only when a
      person chooses it, as a review item without a tool command (ADR-0051), and after
-     the fresh re-check of ADR-0058, which reads `NewestChange` again. The plan
-     records the `at` the person saw; if the fresh `at` is later (anything below was
+     the fresh re-check of ADR-0058, which reads the subtree and `NewestChange` again
+     just before the move, never reusing a listing (a write to a nested file does not
+     change the folder's own modification time). The plan records the `at` the
+     person saw; if the fresh `at` is later (anything below was
      written since), or the fresh age is below the threshold, the item is kept and not
      moved.
    - The existing protections apply first and keep the item: in use (`protect.in-use`,
      including partial and unknown answers), cloud-backed, below or holding a sync
      root or other protected location, operating-system protected, not observed, or
      incompletely scanned.
-5. **Security software and other owners.** A log folder named after a security
-   product is still only a review item; the review sheet says what it is, and nothing
-   is preselected (ADR-0051). When an owning application is known, the item is shown
-   under it (ADR-0069).
+5. **Security software and other owners.** An item whose `OwningApplication` the
+   software inventory identifies as security software (ADR-0060 rule 4) is kept by
+   ADR-0014's security-software protection. The policy has no rule for it yet; step 7
+   adds `protect.security-software`, from evidence the software inventory supplies.
+   Until then such an item is at most a review item, never proposed. A folder Lumen
+   cannot attribute to an owner, even one named after a security product, is
+   recognised only by its location: it is a review item, never proposed, its sheet
+   says what it is, and nothing is preselected (ADR-0051). When an owner is known, the item is shown under it
+   (ADR-0069).
 6. **AI.** Jev sees the new facts as metadata, as it sees `LastModified`, and may only
    make a decision more cautious (ADR-0020). It cannot change a `REVIEW` or `KEEP`.
 7. **Order of work, one PR each:** the three facts in `lumen-domain` (with the schema);
+   `protect.security-software` and its evidence;
    the three rules, their explanations and translations, with property tests that no
    such item is ever `QUARANTINE` and that recent, unknown, report-holding, in-use
    and cloud items are `KEEP`; gathering on macOS; gathering on Windows; showing the items
