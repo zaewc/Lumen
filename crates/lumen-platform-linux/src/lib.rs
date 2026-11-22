@@ -3,11 +3,13 @@
 //! must not do: reading file contents, for duplicate analysis of folders the
 //! user chose ([`DuplicateReader`], ADR-0019), and the installed packages that
 //! dpkg and pacman record ([`packages`], #806), RPM reports ([`rpm`]), and
-//! Flatpak applications and snaps (`sandboxed`, Linux only).
+//! Flatpak applications and snaps (`sandboxed`, Linux only), with what each
+//! package's record says it needs (`relations`, ADR-0064).
 
 #[cfg(target_os = "linux")]
 mod duplicates;
 pub mod packages;
+mod relations;
 pub mod rpm;
 #[cfg(target_os = "linux")]
 mod sandboxed;
