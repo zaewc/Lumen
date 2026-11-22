@@ -276,6 +276,8 @@ export const en = {
     },
     removedNote:
       "The apps are gone, but their data is still here. Check that you don't need it before moving it.",
+    removedHeld: (app: string) =>
+      `${app} is in Quarantine. If you restore it, it uses this data again.`,
     commandNote:
       "Only their tool should remove these. Open one to run its command; check what it removes first, as it cannot be undone.",
     status: {
