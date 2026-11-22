@@ -273,12 +273,20 @@ GOAL: a file the user needs is permanently lost because of Lumen
   move, and the bundle then goes into quarantine as it is, restorable. It reads the
   background items of the system and of the caller only, never other accounts'
   homes, so another account's login item for a shared app can be left broken until
-  the app is restored. Security software is recognised by the Endpoint Security entitlement in its
-  main executable's signature, and managed apps by the Mac's MDM enrollment or
-  managed preferences (ADR-0060 rule 4, amended ADR-0062); security software that
-  holds no such entitlement (a network filter or an older kernel-extension product,
-  say) is refused only through its helper folders or linked background items, so one
-  that carries neither is not told apart.
+  the app is restored. Security software is recognised by the Endpoint Security
+  entitlement in its main executable's signature, and managed apps by the Mac's MDM
+  enrollment or managed preferences (ADR-0060 rule 4, amended ADR-0062); security
+  software that holds no such entitlement (a network filter or an older
+  kernel-extension product, say) is refused only through its helper folders or
+  linked background items, so one that carries neither is not told apart.
+- The helper's probes (helper folders, background items, running, the bundle
+  identifier, the entitlement read by `codesign`, managed preferences) look the bundle
+  up by path; only its identity is bound to what moves, by handle. Someone who can
+  write `/Applications` itself (on a standard Mac, only an administrator) could swap the entry for another while the probes run and swap it back
+  before the move, so a refusal answer comes from the other bundle. `codesign` takes
+  only a path, so its answer cannot be bound to a handle. The result is a bundle in
+  that caller's quarantine, restorable; such a writer could already remove the
+  bundle without Lumen.
 - A compromised webview can still ask for a clean-up, an uninstall, a removal for good
   or a tool command at any time, and a person who clicks through the host's confirmation window
   without reading it authorizes it. The window names what it acts on, so this needs
