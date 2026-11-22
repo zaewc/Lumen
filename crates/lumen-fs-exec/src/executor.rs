@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use crate::finalize::{Removed, finalize, forget};
 use crate::move_into::{Left, MoveError, move_into};
 use crate::restore::{RestoreError, restore};
-use crate::sidecar::write_sidecar;
+use crate::sidecar::{SidecarError, write_sidecar};
 use crate::store::{Store, StoreError, open_store};
 use crate::verify::{
     ExpectedLeaf, LeafKind, PlanItem, UnixIdentity, check_held, identity, ownership, verify,
@@ -279,8 +279,15 @@ impl QuarantineExecutor for Executor {
         // The helper recovers through this record, without Lumen's ledger.
         // Make it durable before anything can leave the source, including
         // when the rename succeeds but its verification fails.
-        write_sidecar(&store, name.as_bytes(), manifest)
-            .map_err(|_| at_source(QuarantineFailure::VerificationFailed))?;
+        write_sidecar(&store, name.as_bytes(), manifest).map_err(|error| {
+            // A failed write may leave part of the record this call created:
+            // take it back. `Exists` names a record this call did not create,
+            // which stays.
+            if !matches!(error, SidecarError::Exists) {
+                let _forgotten: bool = forget(&store, name.as_bytes()).is_ok();
+            }
+            at_source(QuarantineFailure::VerificationFailed)
+        })?;
         move_into(&verified, &store, name.as_bytes(), &plan.expected).map_err(|error| {
             let reason = match error {
                 MoveError::OtherVolume | MoveError::NoReplaceUnsupported => {
@@ -514,6 +521,9 @@ mod tests {
             );
             assert_eq!(executor.locate(&prepared, op(20)), Located::AtSource);
             assert!(!root.join("Quarantine").join(op(20).to_string()).exists());
+            // The partly written record is taken back.
+            let store = executor.current_store().unwrap_or_else(|| unreachable!()).0;
+            assert!(crate::read_sidecar(&store, op(20).to_string().as_bytes()).is_err());
             assert_eq!(
                 std::fs::read(root.join("cache/app/data.bin")).unwrap_or_default(),
                 b"0123456789"
