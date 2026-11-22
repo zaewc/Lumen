@@ -941,6 +941,13 @@ export const fr: Messages = {
       "classify.app-state":
         "Conservé : il contient des données, réglages ou documents de l'application ; Lumen n'y touche pas.",
       "classify.orphan": "À examiner : l'application à laquelle il appartient semble désinstallée.",
+      "classify.scratch":
+        "À examiner : il se trouve dans votre dossier de journaux ou de fichiers temporaires et n'a pas changé depuis un moment.",
+      "classify.scratch-recent": "Conservé : il a changé récemment, il peut donc encore servir.",
+      "classify.scratch-age-unknown":
+        "Conservé : Lumen n'a pas pu déterminer quand il a changé pour la dernière fois.",
+      "classify.scratch-report":
+        "Conservé : c'est ou il contient un rapport de plantage ou de diagnostic dont vous pourriez avoir besoin.",
       "jev.demote": "À examiner : l'analyse par IA recommande la prudence.",
     },
   },

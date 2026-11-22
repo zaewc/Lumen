@@ -278,6 +278,13 @@ orphaned application data, whose owner every inventory says is gone, is reviewed
 (`classify.orphan`). Items with a tool's own cleanup command stay `REVIEW`, and the
 interface lists them on their own, with the command (ADR-0035).
 
+An item directly inside the user's log folder (macOS `~/Library/Logs`) or temporary
+folder (Windows) is `REVIEW` (`classify.scratch`), never proposed
+([ADR-0070](../decisions/0070-review-old-user-logs-and-temporary-files.md)). Age only
+keeps: it is `KEEP` when it changed within 7 days (temporary) or 30 days (logs)
+(`classify.scratch-recent`), when its age is unknown (`classify.scratch-age-unknown`),
+or when it is or holds a crash or diagnostic report (`classify.scratch-report`).
+
 A known artifact inside an application's state is decided on its own
 ([ADR-0040](../decisions/0040-decide-known-artifacts-inside-app-state-on-their-own.md)):
 a knowledge-base match nested in a candidate identified only as app state (such as an

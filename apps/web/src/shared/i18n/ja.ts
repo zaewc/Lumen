@@ -916,6 +916,11 @@ export const ja: Messages = {
       "classify.app-cache": "整理候補：アプリのキャッシュであり、アプリが再作成できます。",
       "classify.app-state": "維持：アプリ固有のデータ、設定、書類が含まれているため、触れません。",
       "classify.orphan": "要確認：この項目に関連するアプリはアンインストール済みのようです。",
+      "classify.scratch": "要確認：ログまたは一時フォルダにあり、しばらく変更されていません。",
+      "classify.scratch-recent": "維持：最近変更されたため、まだ使われている可能性があります。",
+      "classify.scratch-age-unknown": "維持：最後に変更された時期を確認できませんでした。",
+      "classify.scratch-report":
+        "維持：必要になる可能性があるクラッシュレポートまたは診断レポートが含まれています。",
       "jev.demote": "要確認：AIレビューが慎重な判断を勧めました。",
     } satisfies { readonly [R in RuleId]: string },
   },

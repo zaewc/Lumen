@@ -10,10 +10,13 @@ use lumen_domain::{
     AccessState, AppDataKind, AppId, AppIdScheme, Assessment, Basis, ByteCount, CleanupMechanism,
     EntryKind, EntryTimes, Evidence, EvidenceHash, Fact, FileId, FileIdentity, FilesystemEntry,
     ItemRef, JevEffect, Judgment, JudgmentConfidence, Platform, PolicyDecision, PolicyStage,
-    Protection, Provenance, RawPath, ReasonCode, ReclaimEstimate, SizeFacts, SizeFlags, SourceName,
-    Subject, Timestamp, UntrustedText, Verdict, VolumeId,
+    Protection, Provenance, RawPath, ReasonCode, ReclaimEstimate, ScratchKind, SizeFacts,
+    SizeFlags, SourceName, Subject, Timestamp, UntrustedText, Verdict, VolumeId,
 };
-use lumen_policy::{Context, KnowledgeClass, Observed, PolicyInput, REVIEW_MIN_BYTES, evaluate};
+use lumen_policy::{
+    Context, KnowledgeClass, LOGS_KEEP_DAYS, Observed, PolicyInput, REVIEW_MIN_BYTES,
+    TEMPORARY_KEEP_DAYS, evaluate,
+};
 use proptest::prelude::*;
 
 fn subject() -> Subject {
@@ -80,7 +83,24 @@ fn fact() -> impl Strategy<Value = Fact> {
         Just(Fact::LargeUnrecognised {
             reclaimable: ByteCount::new(1 << 30),
         }),
+        prop_oneof![Just(ScratchKind::Logs), Just(ScratchKind::Temporary)]
+            .prop_map(|kind| Fact::ScratchLocation { kind }),
+        // Ages from a week in the future to a year old, around the keep periods.
+        (-7_i64..365, 0_i64..86_400).prop_map(|(days, secs)| Fact::NewestChange {
+            at: day(NOW - days * 86_400 - secs),
+            as_of: day(NOW),
+        }),
+        Just(Fact::DiagnosticReport {
+            marker: UntrustedText::new("App/crash.ips"),
+        }),
     ]
+}
+
+/// The observation time of the generated `NewestChange` facts.
+const NOW: i64 = 1_800_000_000;
+
+fn day(secs: i64) -> Timestamp {
+    Timestamp::from_unix(secs, 0).unwrap_or_else(|_| unreachable!())
 }
 
 fn class() -> impl Strategy<Value = KnowledgeClass> {
@@ -361,6 +381,8 @@ proptest! {
                     | Fact::AppDataLocation { .. }
                     | Fact::BrowserProfile { .. }
                     | Fact::LargeUnrecognised { .. }
+                    | Fact::ScratchLocation { .. }
+                    | Fact::DiagnosticReport { .. }
             )
         });
         let mut folder = without.clone();
@@ -492,6 +514,49 @@ proptest! {
         }
         if input.observed.as_ref().is_some_and(|o| o.reclaim.reclaimable_now == ByteCount::ZERO) {
             prop_assert_eq!(decision.verdict(), Verdict::Keep, "frees nothing");
+        }
+    }
+
+    /// ADR-0070: an item in the user's log or temporary folder is never
+    /// proposed, and age only adds caution: an item that changed within its
+    /// keep period, whose age is unknown, or that is or holds a crash report,
+    /// is kept.
+    #[test]
+    fn logs_and_temporary_files_are_never_proposed_and_recent_ones_are_kept(input in policy_input()) {
+        let about: Vec<&Fact> = input
+            .evidence
+            .iter()
+            .filter(|e| e.subject == input.subject)
+            .map(|e| &e.fact)
+            .collect();
+        let decision = decide(&input)?;
+        if about.iter().any(|f| matches!(f, Fact::DiagnosticReport { .. })) {
+            prop_assert_eq!(decision.verdict(), Verdict::Keep, "a report is kept");
+        }
+        let kinds: Vec<ScratchKind> = about
+            .iter()
+            .filter_map(|f| match f {
+                Fact::ScratchLocation { kind } => Some(*kind),
+                _ => None,
+            })
+            .collect();
+        if kinds.is_empty() {
+            return Ok(());
+        }
+        prop_assert_ne!(decision.verdict(), Verdict::Quarantine);
+        let keep_days = if kinds.contains(&ScratchKind::Logs) {
+            LOGS_KEEP_DAYS
+        } else {
+            TEMPORARY_KEEP_DAYS
+        };
+        let mut ages = about.iter().filter_map(|f| match f {
+            Fact::NewestChange { at, as_of } => Some((*at, *as_of)),
+            _ => None,
+        });
+        let unknown = ages.clone().next().is_none();
+        let recent = ages.any(|(at, as_of)| at > as_of || as_of.whole_days_since(at) < keep_days);
+        if unknown || recent {
+            prop_assert_eq!(decision.verdict(), Verdict::Keep);
         }
     }
 

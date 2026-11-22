@@ -35,6 +35,10 @@ export const RULE_IDS = [
   "classify.app-cache",
   "classify.app-state",
   "classify.orphan",
+  "classify.scratch",
+  "classify.scratch-recent",
+  "classify.scratch-age-unknown",
+  "classify.scratch-report",
   "jev.demote",
 ] as const;
 
