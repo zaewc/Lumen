@@ -257,6 +257,9 @@ fn uninstall_records(db: &Path) -> Uninstalls {
     let read = || -> Result<Uninstalls, StoreError> {
         let ledger =
             lumen_store_sqlite::LedgerStore::new(lumen_store_sqlite::open_ledger(&ledger)?);
+        // The records first, then the states, so every recorded uninstall's
+        // state is read at least as late as its record (both append-only).
+        let apps = ledger.uninstalled_apps()?;
         // Restorable: retained, or left in the store by a failed step.
         let held = ledger
             .operations()?
@@ -273,7 +276,7 @@ fn uninstall_records(db: &Path) -> Uninstalls {
             })
             .filter_map(|(_, entries)| entries.first().map(|entry| entry.operation))
             .collect();
-        Ok(records_by_id(ledger.uninstalled_apps()?, &held))
+        Ok(records_by_id(apps, &held))
     };
     read().unwrap_or_else(|error| {
         tracing::warn!(%error, "uninstall records unreadable; none corroborates a removed app");
