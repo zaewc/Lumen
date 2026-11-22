@@ -438,11 +438,17 @@ export function CandidateList({
     starts.push(next);
     next += owner.parts.filter(isRow).length;
   }
-  // The owner's parts from `from` up to `to`.
-  const rows = (owner: Owner, start: number, from = 0, to = owner.parts.length) => {
-    const places = owner.parts.map((part, i) =>
-      isRow(part) ? start + owner.parts.slice(0, i).filter(isRow).length : -1,
-    );
+  // Each of the owner's parts' place in reading order from `start`; -1 for a package.
+  const placesOf = (owner: Owner, start: number): number[] => {
+    let place = start;
+    return owner.parts.map((part) => {
+      if (!isRow(part)) return -1;
+      place += 1;
+      return place - 1;
+    });
+  };
+  // The owner's parts from `from` up to `to`, at their `places`.
+  const rows = (owner: Owner, places: readonly number[], from = 0, to = owner.parts.length) => {
     return (
       <ul className="divide-y divide-line">
         {owner.parts.slice(from, to).map((part, j) => {
@@ -493,16 +499,16 @@ export function CandidateList({
     );
   };
   const section = (owner: Owner) => {
-    const start = starts[drawn.indexOf(owner)] ?? 0;
+    const places = placesOf(owner, starts[drawn.indexOf(owner)] ?? 0);
     return (
       <OwnerSection key={owner.key} owner={owner}>
         {owner.kind === "removed"
           ? removedApps(owner).map((app) => (
               <RemovedAppGroup key={app.id ?? ""} app={app}>
-                {rows(owner, start, app.from, app.to)}
+                {rows(owner, places, app.from, app.to)}
               </RemovedAppGroup>
             ))
-          : rows(owner, start)}
+          : rows(owner, places)}
       </OwnerSection>
     );
   };
