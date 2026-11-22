@@ -30,7 +30,7 @@ use lumen_domain::{
 pub const RULE: &str = "uninstall.macos-app";
 
 /// The version of [`gate`], recorded as the decision's policy version.
-pub const GATE_VERSION: PolicyVersion = PolicyVersion::new(1, 1, 0);
+pub const GATE_VERSION: PolicyVersion = PolicyVersion::new(1, 2, 0);
 
 /// Domain separation for [`Binding::hash`].
 const HASH_DOMAIN: &[u8] = b"lumen.uninstall/1\0";
@@ -273,6 +273,45 @@ pub fn gate(evidence: &BundleEvidence) -> Result<(), Refusal> {
     }
 }
 
+/// Who moves an app the gate admits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Mover {
+    /// Lumen itself, with the person's rights (ADR-0062).
+    Lumen,
+    /// Lumen's helper, because another account owns the app and every other
+    /// check passed (ADR-0063 rule 2). The helper decides again itself.
+    Helper,
+}
+
+/// Who may move the app `evidence` describes: Lumen if [`gate`] passes, or
+/// Lumen's helper if `helper_ready`, the app is directly in `/Applications`
+/// (the only folder the helper takes apps from, ADR-0063 rule 2) and the one
+/// refusal is that another account owns it.
+///
+/// # Errors
+///
+/// The gate's [`Refusal`] otherwise.
+pub fn mover(evidence: &BundleEvidence, helper_ready: bool) -> Result<Mover, Refusal> {
+    match gate(evidence) {
+        Ok(()) => Ok(Mover::Lumen),
+        Err(refusal)
+            if helper_ready
+                && in_applications(&evidence.path)
+                && refusal.reasons() == [Ineligible::NotOwnedByUser] =>
+        {
+            Ok(Mover::Helper)
+        }
+        Err(refusal) => Err(refusal),
+    }
+}
+
+/// Whether `path` is one name directly in `/Applications`.
+fn in_applications(path: &RawPath) -> bool {
+    path.as_bytes()
+        .strip_prefix(b"/Applications/")
+        .is_some_and(|leaf| !leaf.is_empty() && !leaf.contains(&b'/'))
+}
+
 /// What a person confirms about the app, besides the plan's own fields: the
 /// facts its preview showed. Any change between preview and move changes
 /// [`Binding::hash`], and the move is refused.
@@ -296,6 +335,10 @@ pub struct Binding<'a> {
     pub reclaim: ReclaimEstimate,
     /// Every folder inside it was listed.
     pub size_complete: bool,
+    /// Lumen's helper moves it, because another account owns it (ADR-0063).
+    /// The person confirms who moves it, so a preview made for one is never
+    /// executed by the other.
+    pub by_helper: bool,
 }
 
 impl Binding<'_> {
@@ -314,6 +357,7 @@ impl Binding<'_> {
             "identity": self.identity,
             "reclaim": self.size_complete.then_some(self.reclaim),
             "size_complete": self.size_complete,
+            "by_helper": self.by_helper,
         });
         let bytes = serde_json::to_vec(&value)
             .unwrap_or_else(|e| unreachable!("binding serialization is infallible: {e}"));
@@ -568,6 +612,7 @@ mod tests {
             identity: &one,
             reclaim: ReclaimEstimate::default(),
             size_complete: true,
+            by_helper: false,
         };
         assert_eq!(base.hash(), base.clone().hash(), "deterministic");
         let changed = [
@@ -606,9 +651,46 @@ mod tests {
                 size_complete: false,
                 ..base.clone()
             },
+            Binding {
+                by_helper: true,
+                ..base.clone()
+            },
         ];
         for other in changed {
             assert_ne!(other.hash(), base.hash(), "{other:?}");
+        }
+    }
+
+    #[test]
+    fn the_helper_moves_only_what_only_the_owner_check_refuses() {
+        let path = "/Applications/Zed.app";
+        assert_eq!(mover(&eligible(path), false), Ok(Mover::Lumen));
+        assert_eq!(mover(&eligible(path), true), Ok(Mover::Lumen));
+        let mut other = eligible(path);
+        other.owned_by_user = Some(false);
+        assert_eq!(mover(&other, true), Ok(Mover::Helper));
+        // Only from `/Applications`: never a home folder's apps.
+        let mut home = eligible("/Users/ana/Applications/Zed.app");
+        home.owned_by_user = Some(false);
+        assert!(mover(&home, true).is_err());
+        assert_eq!(
+            mover(&other, false).map_err(|r| r.reasons().to_vec()),
+            Err(vec![Ineligible::NotOwnedByUser])
+        );
+        // Any other reason, an unknown owner included, keeps it refused.
+        let mut changes: Vec<fn(&mut BundleEvidence)> = vec![
+            |e| e.owned_by_user = None,
+            |e| e.running = Some(true),
+            |e| e.security_software = Some(true),
+            |e| e.managed = None,
+            |e| {
+                e.helpers.insert(HelperFolder::LoginItems, Some(true));
+            },
+        ];
+        for change in changes.drain(..) {
+            let mut evidence = other.clone();
+            change(&mut evidence);
+            assert!(mover(&evidence, true).is_err(), "{evidence:?}");
         }
     }
 

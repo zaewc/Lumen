@@ -3722,12 +3722,17 @@
               "hash",
               "created_at",
               "app",
+              "by_helper",
               "kind"
             ],
             "properties": {
               "app": {
                 "$ref": "#/components/schemas/UninstallAppView",
                 "description": "The application."
+              },
+              "by_helper": {
+                "type": "boolean",
+                "description": "Lumen's helper moves it, because another account owns it\n(ADR-0063); the confirmation covers this."
               },
               "created_at": {
                 "type": "string",

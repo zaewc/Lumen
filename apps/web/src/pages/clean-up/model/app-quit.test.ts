@@ -27,6 +27,7 @@ const ready: UninstallPreviewView = {
   hash: `b3:${"0".repeat(64)}`,
   created_at: "2026-11-08T00:00:00Z",
   app,
+  by_helper: false,
 };
 
 describe("quitting a running app (roadmap 16.3a)", () => {
