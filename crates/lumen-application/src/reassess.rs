@@ -168,7 +168,10 @@ pub async fn reassess(
             outcome: Outcome::Changed,
         });
     };
-    let after = decide_candidate(current, sources, probes, &NoopJudge, clock, &|_| None).await?;
+    let mut after =
+        decide_candidate(current, sources, probes, &NoopJudge, clock, &|_| None).await?;
+    // Lumen's own record of the app that left it does not change on a recheck.
+    after.removed_app.clone_from(&before.removed_app);
     let known: BTreeSet<EvidenceId> = before.input.evidence.iter().map(Evidence::id).collect();
     let added = after
         .input

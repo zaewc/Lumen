@@ -10,6 +10,7 @@ import {
   zCopyPreviewView,
   zDiskView,
   zFinalizeOutcomeView,
+  zGroupView,
   zHeldItemView,
   zHelperView,
   zPlanView,
@@ -18,6 +19,7 @@ import {
   zReassessedItemView,
   zReassessGapView,
   zReassessView,
+  zRemovedAppView,
   zRestoreOutcomeView,
   zReviewReasonsView,
   zScanProgressView,
@@ -41,6 +43,7 @@ import type { LumenTransport } from "./transport";
 // Older hosts omit these additive descriptors. Normalize them at the boundary
 // so Zod's optional output also satisfies exactOptionalPropertyTypes.
 const zCompatibleCandidate = zCandidateView.extend({
+  group: zGroupView.extend({ removed_app: zRemovedAppView.nullable().default(null) }),
   review_reasons: zReviewReasonsView.nullable().default(null),
   rechecks: zReassessGapView.array().nullable().default(null),
 });

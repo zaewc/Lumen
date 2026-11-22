@@ -465,6 +465,7 @@ mod tests {
             note: None,
             note_trace: None,
             free_when_closed: None,
+            removed_app: None,
         }
     }
 

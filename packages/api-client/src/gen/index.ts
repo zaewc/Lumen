@@ -62,6 +62,7 @@ export type {
   RemovalFactsView,
   RemovalImpactView,
   RemovalMechanismView,
+  RemovedAppView,
   RemovedView,
   RestoreOutcomeView,
   RestoreView,

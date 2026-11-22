@@ -327,14 +327,6 @@ export const zGroupKindView = z.enum([
 ]);
 
 /**
- * The group an item is presented in, and what it belongs to when known.
- */
-export const zGroupView = z.object({
-  kind: zGroupKindView,
-  source: z.string().nullable(),
-});
-
-/**
  * Why an item is held.
  */
 export const zHeldStateView = z.enum(["retained", "held_after_failure", "needs_attention"]);
@@ -616,6 +608,24 @@ export const zRemovalMechanismView = z.enum([
   "own_uninstaller",
   "none_recorded",
 ]);
+
+/**
+ * What Lumen recorded when it moved an app into Quarantine, shown with the
+ * data that app left (ADR-0068, design Q3). Display only.
+ */
+export const zRemovedAppView = z.object({
+  held: z.boolean(),
+  name: z.string().nullable(),
+});
+
+/**
+ * The group an item is presented in, and what it belongs to when known.
+ */
+export const zGroupView = z.object({
+  kind: zGroupKindView,
+  removed_app: zRemovedAppView.nullish(),
+  source: z.string().nullable(),
+});
 
 /**
  * How much a failed removal took.

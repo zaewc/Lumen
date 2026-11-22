@@ -109,5 +109,6 @@ pub(crate) fn assessed(kind: EntryKind, access: AccessState, evidence: Vec<Evide
         note: None,
         note_trace: None,
         free_when_closed: None,
+        removed_app: None,
     }
 }
