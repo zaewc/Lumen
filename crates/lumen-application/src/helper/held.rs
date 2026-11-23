@@ -20,7 +20,11 @@
 //!      reconciled by `locate`;
 //!    - `finalize` removes it for good, only if it is in the store and every
 //!      process is asked and none uses it (with full rights only `No`
-//!      passes), after the executor checks the whole held tree.
+//!      passes), after the executor checks the whole held tree;
+//!    - `forget` (protocol 4) removes the record once the item is back at its
+//!      source, after Lumen has journaled the restore (owner decision
+//!      2026-11-16: the record stays after a restore, and is cleaned up
+//!      later). An item in the store, or one not found, keeps its record.
 
 use lumen_domain::OperationId;
 use serde::{Deserialize, Serialize};
@@ -210,6 +214,22 @@ pub(super) fn finalize(
     }
 }
 
+/// Answers `forget` from `caller`.
+pub(super) fn forget(caller: u32, request: &HeldRequest, host: &dyn HelperHost) -> HelperResponse {
+    let item = match admitted(caller, request, host) {
+        Ok(item) => item,
+        Err(response) => return response,
+    };
+    if host.locate(caller, &item, request.operation) != Located::AtSource {
+        return HelperResponse::NotForgotten;
+    }
+    if host.forget(caller, &item, request.operation) {
+        HelperResponse::Forgotten
+    } else {
+        HelperResponse::NotForgotten
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use lumen_domain::{EvidenceHash, ItemLocation, Timestamp};
@@ -265,11 +285,52 @@ mod tests {
         })
     }
 
-    const VERBS: [fn(HeldRequest) -> HelperRequest; 3] = [
+    const VERBS: [fn(HeldRequest) -> HelperRequest; 4] = [
         HelperRequest::Locate,
         HelperRequest::Restore,
         HelperRequest::Finalize,
+        HelperRequest::Forget,
     ];
+
+    #[test]
+    fn only_the_record_of_an_item_back_at_its_source_is_forgotten() {
+        let host = Host {
+            located: Located::AtSource,
+            ..holding()
+        };
+        assert_eq!(
+            ask(&host, HelperRequest::Forget),
+            Some(HelperResponse::Forgotten)
+        );
+        assert!(host.calls().contains(&Call::Forget(CALLER, operation())));
+        for located in [Located::InStore, Located::Unknown] {
+            let host = Host {
+                located,
+                ..holding()
+            };
+            assert_eq!(
+                ask(&host, HelperRequest::Forget),
+                Some(HelperResponse::NotForgotten),
+                "{located:?}"
+            );
+            assert!(
+                !host
+                    .calls()
+                    .iter()
+                    .any(|call| matches!(call, Call::Forget(..))),
+                "{located:?}"
+            );
+        }
+        let failed = Host {
+            located: Located::AtSource,
+            forgotten: false,
+            ..holding()
+        };
+        assert_eq!(
+            ask(&failed, HelperRequest::Forget),
+            Some(HelperResponse::NotForgotten)
+        );
+    }
 
     #[test]
     fn each_verb_acts_on_the_helpers_own_record() {
