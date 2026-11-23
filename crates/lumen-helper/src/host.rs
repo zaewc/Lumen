@@ -334,6 +334,10 @@ impl HelperHost for Mac {
     ) -> Result<(), Removal> {
         self.executor(caller).finalize(item, operation)
     }
+
+    fn forget(&self, caller: u32, item: &PreparedItem, operation: OperationId) -> bool {
+        self.executor(caller).forget(item, operation)
+    }
 }
 
 #[cfg(test)]
@@ -734,6 +738,11 @@ mod tests {
             held(&mac, caller(), HelperRequest::Locate),
             located(Whereabouts::AtSource)
         );
+        // Another account cannot drop this caller's record.
+        assert_eq!(
+            held(&mac, caller() + 1, HelperRequest::Forget),
+            Some(HelperResponse::NotHeld)
+        );
         assert_eq!(
             held(&mac, caller(), HelperRequest::Finalize),
             Some(HelperResponse::NotFinalized {
@@ -741,6 +750,36 @@ mod tests {
             })
         );
         assert!(mac.applications.join("Word.app").is_dir());
+        // Once back, its record can be dropped; then nothing is held.
+        assert_eq!(
+            held(&mac, caller(), HelperRequest::Forget),
+            Some(HelperResponse::Forgotten)
+        );
+        assert_eq!(
+            held(&mac, caller(), HelperRequest::Locate),
+            Some(HelperResponse::NotHeld)
+        );
+        assert!(mac.applications.join("Word.app").is_dir());
+    }
+
+    #[test]
+    fn a_held_item_keeps_its_record() {
+        let (_fx, mac) = computer(&app("Word.app"));
+        let id = identity_of(&mac, "Word.app");
+        assert!(matches!(
+            ask(&mac, caller(), "Word.app", id),
+            Some(HelperResponse::Quarantined { .. })
+        ));
+        assert_eq!(
+            held(&mac, caller(), HelperRequest::Forget),
+            Some(HelperResponse::NotForgotten)
+        );
+        assert_eq!(
+            held(&mac, caller(), HelperRequest::Locate),
+            Some(HelperResponse::Located {
+                whereabouts: Whereabouts::InStore
+            })
+        );
     }
 
     #[test]

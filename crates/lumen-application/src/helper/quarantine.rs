@@ -118,6 +118,14 @@ pub trait HelperHost {
         None
     }
 
+    /// Removes the record of `operation` once its item is back at its
+    /// source, only while nothing in the store has the item's name; whether
+    /// no record remains. A host that holds nothing keeps the default.
+    fn forget(&self, caller: u32, item: &PreparedItem, operation: OperationId) -> bool {
+        let _ = (caller, item, operation);
+        false
+    }
+
     /// Removes the held item for good, after checking its whole tree, then
     /// its record.
     ///
@@ -288,6 +296,7 @@ pub(crate) mod fake {
         Restore(u32, Vec<u8>, OperationId),
         Held(u32, OperationId),
         Finalize(u32, Vec<u8>, OperationId),
+        Forget(u32, OperationId),
     }
 
     pub(crate) struct Host {
@@ -300,6 +309,7 @@ pub(crate) mod fake {
         pub(crate) restored: Result<RestoredItem, RestoreFailure>,
         pub(crate) held: Option<(RawPath, FileIdentity)>,
         pub(crate) finalized: Result<(), Removal>,
+        pub(crate) forgotten: bool,
         pub(crate) calls: Mutex<Vec<Call>>,
     }
 
@@ -335,6 +345,7 @@ pub(crate) mod fake {
                 }),
                 held: Some((raw("/Library/held"), identity(7))),
                 finalized: Ok(()),
+                forgotten: true,
                 calls: Mutex::new(Vec::new()),
             }
         }
@@ -427,6 +438,11 @@ pub(crate) mod fake {
         ) -> Result<(), Removal> {
             self.call(Call::Finalize(caller, item.0.clone(), operation));
             self.finalized
+        }
+
+        fn forget(&self, caller: u32, _item: &PreparedItem, operation: OperationId) -> bool {
+            self.call(Call::Forget(caller, operation));
+            self.forgotten
         }
     }
 }

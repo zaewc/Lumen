@@ -18,11 +18,11 @@
 //! (ADR-0063 rule 9).
 //!
 //! Versions: [`PROTOCOL`] 2 added `quarantine`, 3 added `locate`, `restore`
-//! and `finalize`. A client asks `status` first and sends the other verbs only
-//! to a helper of its own protocol; an older helper does not know a newer verb
-//! and answers it as malformed. Each request but `status` also names the
-//! client's protocol, and a helper of another refuses it
-//! ([`HelperRefusal::OtherProtocol`]).
+//! and `finalize`, 4 added `forget`. A client asks `status` first and sends
+//! the other verbs only to a helper of its own protocol; an older helper does
+//! not know a newer verb and answers it as malformed. Each request but
+//! `status` also names the client's protocol, and a helper of another
+//! refuses it ([`HelperRefusal::OtherProtocol`]).
 
 pub mod gate;
 pub mod held;
@@ -38,7 +38,7 @@ pub use quarantine::{HELD_SCHEMA, HeldRecord, HelperHost};
 
 /// The protocol version; a client and helper that differ set the helper up
 /// again.
-pub const PROTOCOL: u32 = 3;
+pub const PROTOCOL: u32 = 4;
 
 /// A request to the helper.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,6 +55,8 @@ pub enum HelperRequest {
     Restore(HeldRequest),
     /// Remove an item the helper holds for the caller for good.
     Finalize(HeldRequest),
+    /// Drop the helper's record of an item it put back where it was.
+    Forget(HeldRequest),
 }
 
 /// A planned item the person confirmed by hash (ADR-0034), as Lumen sends
@@ -157,6 +159,11 @@ pub enum HelperResponse {
         /// Why, and how much was removed.
         reason: FinalizeRefusal,
     },
+    /// The record of an item back at its source is gone.
+    Forgotten,
+    /// The record stays: the item is not back at its source, or the record
+    /// could not be removed.
+    NotForgotten,
 }
 
 /// The helper's answer to `body`, sent by the account `caller_uid`, from a
@@ -181,6 +188,7 @@ pub fn answer(body: &str, caller_uid: u32, version: &str, host: &dyn HelperHost)
         Ok(HelperRequest::Locate(request)) => held::locate(caller_uid, &request, host),
         Ok(HelperRequest::Restore(request)) => held::restore(caller_uid, &request, host),
         Ok(HelperRequest::Finalize(request)) => held::finalize(caller_uid, &request, host),
+        Ok(HelperRequest::Forget(request)) => held::forget(caller_uid, &request, host),
     };
     serde_json::to_string(&response).unwrap_or_else(|_| {
         // Serializing these plain types cannot fail; refuse rather than panic.
