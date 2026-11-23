@@ -1177,6 +1177,10 @@ export const zUninstallReasonView = z.enum([
   "running",
   "store_unknown",
   "no_store_on_volume",
+  "security_unknown",
+  "security_software",
+  "managed_unknown",
+  "managed",
 ]);
 
 /**

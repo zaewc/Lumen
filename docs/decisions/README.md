@@ -70,7 +70,7 @@ recommended option.
 | [0059](0059-use-application-usage-as-cautious-evidence.md) | Use application usage only as cautious, explained evidence | Accepted |
 | [0060](0060-list-software-and-remove-it-only-through-its-own-mechanism.md) | List installed software, and remove it only through its own mechanism | Accepted |
 | [0061](0061-send-installed-software-to-ai-review.md) | While AI review is on, it also explains installed software | Accepted |
-| [0062](0062-uninstall-macos-apps-into-quarantine.md) | Uninstall a user-owned macOS app by moving it into quarantine | Accepted (amended 2026-11-08; amended by 0069) |
+| [0062](0062-uninstall-macos-apps-into-quarantine.md) | Uninstall a user-owned macOS app by moving it into quarantine | Accepted (amended 2026-11-16; amended by 0069) |
 | [0063](0063-use-administrator-rights-through-an-opt-in-helper.md) | Use administrator rights through an opt-in helper, so permissions never stand in the way | Accepted (amended 2026-11-16) |
 | [0064](0064-read-package-relations-from-each-managers-own-records.md) | Read package relations from each manager's own records | Accepted |
 | [0065](0065-compare-completed-scan-roots-for-identical-copies.md) | Compare completed scan roots for identical copies | Accepted (amended by 0069) |
