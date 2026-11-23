@@ -195,17 +195,23 @@ pub fn forget(store: &Store, name: &[u8]) -> Result<(), FinalizeError> {
     if !plain(name) {
         return Err(FinalizeError::InvalidName);
     }
-    match statat(store.handle(), name, AtFlags::SYMLINK_NOFOLLOW) {
+    match fault::check(Point::ForgetCheck)
+        .and_then(|()| statat(store.handle(), name, AtFlags::SYMLINK_NOFOLLOW))
+    {
         Err(Errno::NOENT) => {}
         Ok(_) => return Err(FinalizeError::Unreadable(Errno::EXIST)),
         Err(errno) => return Err(FinalizeError::Unreadable(errno)),
     }
     let sidecar = sidecar_name(name).map_err(|_| FinalizeError::InvalidName)?;
-    match unlinkat(store.handle(), sidecar.as_slice(), AtFlags::empty()) {
+    match fault::check(Point::ForgetUnlink)
+        .and_then(|()| unlinkat(store.handle(), sidecar.as_slice(), AtFlags::empty()))
+    {
         Ok(()) | Err(Errno::NOENT) => {}
         Err(errno) => return Err(FinalizeError::Sidecar(errno)),
     }
-    fsync(store.handle()).map_err(FinalizeError::Sidecar)
+    fsync(store.handle())
+        .and_then(|()| fault::check(Point::ForgetSync))
+        .map_err(FinalizeError::Sidecar)
 }
 
 #[cfg(test)]

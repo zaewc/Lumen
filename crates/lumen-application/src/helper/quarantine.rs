@@ -9,10 +9,10 @@
 //! 3. The executor records the item by handle from `/Applications`, and the
 //!    item it recorded must have the confirmed identity.
 //! 4. Every process is asked whether it uses the item; only `No` passes.
-//! 5. The executor moves it, without replacing anything, into the caller's
-//!    store (`/Library/Application Support/Lumen/Quarantine/<uid>/`, owned by
-//!    root, mode 0700), verifies it there and writes the helper's
-//!    [`HeldRecord`] next to it.
+//! 5. In the caller's store (`/Library/Application Support/Lumen/Quarantine/<uid>/`,
+//!    owned by root, mode 0700), the executor durably writes the helper's
+//!    [`HeldRecord`] before moving the item without replacing anything and
+//!    verifying it there. If the record cannot be written, nothing moves.
 //!
 //! Lumen journals the operation before it asks and records the outcome after
 //! (ADR-0015); the record is the helper's own account of what it holds, so
@@ -58,8 +58,8 @@ pub trait HelperHost {
     /// Whether any process uses the item at `path` with `identity`.
     fn in_use(&self, path: &RawPath, identity: &FileIdentity) -> InUse;
 
-    /// Moves the recorded item into `caller`'s store as `operation`, without
-    /// replacing anything, verifies it there and writes `record` next to it.
+    /// Durably writes `record` in `caller`'s store before moving the recorded
+    /// item there as `operation`, without replacing anything, and verifying it.
     ///
     /// # Errors
     ///

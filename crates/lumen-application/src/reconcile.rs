@@ -12,10 +12,12 @@
 //! | moved | in the store | `Fail` | in the store, to roll back |
 //! | verified | in the store | `Retain` | retained |
 //!
-//! An item moved but never journaled as verified may lack its manifest
-//! sidecar (the executor writes it after the move), so it is not retained: it
-//! fails in the store, where restore rolls it back (ADR-0015). Only an item
-//! whose verification was journaled is retained.
+//! An item moved but never journaled as verified is not retained: its
+//! verification may not have finished (and an executor that writes its
+//! manifest sidecar after the move may lack it), so it fails in the store,
+//! where restore rolls it back (ADR-0015). Only an item whose verification
+//! was journaled is retained. A sidecar alone never proves a move: the Unix
+//! executor writes it before the rename, so the item is always located.
 //!
 //! Anything else (unknown location, or a location the journal contradicts) is
 //! left untouched and reported for the user's attention: reconciliation never
