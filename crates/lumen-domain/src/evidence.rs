@@ -72,6 +72,12 @@ pub enum Fact {
     /// The subject belongs to this application (by location convention, receipt,
     /// signature or knowledge base, see provenance).
     OwningApplication(AppId),
+    /// The subject belongs to an application the platform identifies as
+    /// security software (ADR-0014). This is a positive observation of the
+    /// owner's security role, never an inference from a display name or AI.
+    /// An unreadable security-role probe must not produce this fact or a
+    /// claim that the owner is not security software.
+    OwningSecuritySoftware(AppId),
     /// Whether this application is installed. `false` is only meaningful with a
     /// [`Basis::Absence`] that names the searched sources.
     ApplicationPresent {

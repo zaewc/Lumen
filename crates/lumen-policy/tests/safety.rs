@@ -71,6 +71,10 @@ fn fact() -> impl Strategy<Value = Fact> {
             scheme: AppIdScheme::BundleId,
             value: UntrustedText::new("com.example.app"),
         })),
+        Just(Fact::OwningSecuritySoftware(AppId {
+            scheme: AppIdScheme::BundleId,
+            value: UntrustedText::new("com.example.security"),
+        })),
         prop_oneof![
             Just(AppDataKind::Caches),
             Just(AppDataKind::Container),
@@ -283,7 +287,7 @@ fn must_keep(input: &PolicyInput) -> bool {
     let facts: Vec<&Fact> = input.evidence.iter().map(|e| &e.fact).collect();
     let protected = facts.iter().any(|f| match f {
         Fact::Protected(p) => p.os_protected() || p.system_attribute,
-        Fact::CloudBacked(true) | Fact::InUse(true) => true,
+        Fact::CloudBacked(true) | Fact::InUse(true) | Fact::OwningSecuritySoftware(_) => true,
         _ => false,
     });
     let complete_no = facts.contains(&&Fact::InUse(false));
@@ -364,6 +368,24 @@ fn cloud(input: &PolicyInput) -> bool {
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(2048))]
+
+    /// Security software is kept even when other facts classify the subject
+    /// as a regenerable cache, ownership is contradictory, or AI says unused.
+    #[test]
+    fn security_software_is_always_kept(mut input in policy_input()) {
+        let security = evidence(Fact::OwningSecuritySoftware(AppId {
+            scheme: AppIdScheme::BundleId,
+            value: UntrustedText::new("com.example.security"),
+        }));
+        let id = security.id();
+        input.evidence.push(security);
+        let decision = decide(&input)?;
+        prop_assert_eq!(decision.verdict(), Verdict::Keep);
+        prop_assert!(decision.fired_rules().iter().any(|rule|
+            rule.rule.as_str() == "protect.security-software"
+                && rule.stage == PolicyStage::HardProtection
+                && rule.evidence.contains(&id)));
+    }
 
     /// ADR-0051: a large folder nothing else names carries only
     /// `LargeUnrecognised`, which no rule reads. It is decided exactly as

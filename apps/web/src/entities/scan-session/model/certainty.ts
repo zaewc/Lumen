@@ -20,6 +20,7 @@ const BY_RULE: { readonly [R in RuleId]: Certainty } = {
   "protect.cloud-backed": "resolved",
   "protect.in-use": "resolved",
   "protect.app-running": "resolved",
+  "protect.security-software": "resolved",
   "protect.in-use-partial": "partial",
   "protect.in-use-unknown": "unknown",
   "protect.not-observed": "unknown",

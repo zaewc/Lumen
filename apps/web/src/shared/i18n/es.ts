@@ -916,6 +916,7 @@ export const es: Messages = {
       "protect.in-use": "Se conserva: una aplicación en ejecución lo está usando.",
       "protect.app-running":
         "Se conserva: la aplicación a la que pertenece está en ejecución. Ciérrala y vuelve a analizar para limpiarlo.",
+      "protect.security-software": "Se conserva: pertenece a un software de seguridad.",
       "protect.in-use-partial":
         "Se conserva: ninguna aplicación visible para Lumen lo usa, pero Lumen no pudo comprobar todas las aplicaciones.",
       "protect.in-use-unknown": "Se conserva: Lumen no ha comprobado si algo lo está usando.",
