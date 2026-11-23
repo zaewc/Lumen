@@ -149,6 +149,12 @@ impl<'a, E: QuarantineExecutor> Routed<'a, E> {
     }
 }
 
+/// Lumen's executor `own`, with its helper's items routed to the helper
+/// ([`crate::helper::link`]).
+pub fn with_helper<E: QuarantineExecutor>(own: E) -> Routed<'static, E> {
+    Routed::new(own, crate::helper::link())
+}
+
 /// Nothing moved.
 const AT_SOURCE: ExecutionFailure = ExecutionFailure {
     reason: QuarantineFailure::MoveFailed,
