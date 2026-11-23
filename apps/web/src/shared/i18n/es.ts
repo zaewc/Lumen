@@ -272,6 +272,8 @@ export const es: Messages = {
     },
     removedNote:
       "Las aplicaciones ya no están, pero sus datos siguen aquí. Comprueba que no los necesitas antes de moverlos.",
+    removedHeld: (app: string) =>
+      `${app} está en Cuarentena. Si la restauras, volverá a usar estos datos.`,
     commandNote:
       "Solo la herramienta correspondiente debería eliminar estos elementos. Abre uno para ejecutar su comando; antes comprueba qué elimina, porque no se puede deshacer.",
     status: {

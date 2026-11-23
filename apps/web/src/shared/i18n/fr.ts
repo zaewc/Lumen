@@ -270,6 +270,8 @@ export const fr: Messages = {
     },
     removedNote:
       "Les applications ne sont plus là, mais leurs données restent. Vérifiez que vous n'en avez plus besoin avant de les déplacer.",
+    removedHeld: (app: string) =>
+      `${app} est en quarantaine. Si vous la restaurez, elle utilisera de nouveau ces données.`,
     commandNote:
       "Seul l'outil concerné devrait supprimer ces éléments. Ouvrez-le pour exécuter sa commande et vérifiez d'abord ce qu'elle supprime : cette action est irréversible.",
     status: {

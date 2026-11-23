@@ -1,6 +1,6 @@
 import type { CandidateView, SoftwareItemView } from "@lumen/api-client";
 import { describe, expect, it } from "vitest";
-import { listedOwners, ownersOf } from "./owners";
+import { listedOwners, ownersOf, removedApps } from "./owners";
 
 function candidate(
   path: string,
@@ -123,6 +123,49 @@ describe("owners", () => {
     ]);
     expect(owners[1]?.parts).toHaveLength(2);
     expect(owners[2]?.atLeast, "an inexact item makes its total a lower bound").toBe(true);
+  });
+
+  it("keeps each removed app together, with recorded names, held state and lower bounds", () => {
+    const owners = ownersOf(
+      [
+        candidate("/notes-a", "review", "500", { kind: "removed_app", source: "net.notes.App" }),
+        candidate("/editor", "review", "700", {
+          kind: "removed_app",
+          source: "dev.editor.App",
+          removed_app: { name: "Editor", held: true },
+        }),
+        candidate(
+          "/notes-b",
+          "review",
+          "400",
+          { kind: "removed_app", source: "net.notes.App" },
+          false,
+        ),
+      ],
+      [],
+    );
+    const owner = owners[0];
+    if (owner === undefined) throw new Error("expected removed apps");
+    expect(owner.parts.map((part) => (part.kind === "item" ? part.item.path : null))).toEqual([
+      "/notes-a",
+      "/notes-b",
+      "/editor",
+    ]);
+    expect(removedApps(owner)).toEqual([
+      { id: "net.notes.App", name: null, held: false, from: 0, to: 2, bytes: "900", atLeast: true },
+      {
+        id: "dev.editor.App",
+        name: "Editor",
+        held: true,
+        from: 2,
+        to: 3,
+        bytes: "700",
+        atLeast: false,
+      },
+    ]);
+    expect(listedOwners(owners, { apps: false, query: "EDITOR" }).owners).toEqual([owner]);
+    expect(owner.proposedBytes, "review items are never proposed").toBe("0");
+    expect(removedApps({ ...owner, kind: "kind" })).toEqual([]);
   });
 
   it("lists every app, the system's too, and never sizes an unmeasured one", () => {

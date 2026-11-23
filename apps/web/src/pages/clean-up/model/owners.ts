@@ -88,6 +88,76 @@ function ownerKey(
   return kind === "developer" ? `tool:${source}` : `source:${source}`;
 }
 
+/** One removed app's data under the removed apps' owner (ADR-0068). */
+export interface RemovedApp {
+  /** The app's bundle ID as the item's name spells it; `null` when the host gave none. */
+  readonly id: string | null;
+  /** The app's name when Lumen removed it (design Q3); `null` otherwise. */
+  readonly name: string | null;
+  /** Lumen still holds the app in Quarantine: restoring it uses this data. */
+  readonly held: boolean;
+  /** Its parts are the owner's parts from `from` up to, not including, `to`. */
+  readonly from: number;
+  readonly to: number;
+  /** Decimal bytes of its items. */
+  readonly bytes: string;
+  /** Some item's size is a lower bound, so `bytes` is one too. */
+  readonly atLeast: boolean;
+}
+
+/** Items of removed apps, app by app: largest app first, each largest first. */
+function byRemovedApp(items: readonly CandidateView[]): CandidateView[] {
+  const apps = new Map<string | null, CandidateView[]>();
+  for (const item of items) {
+    apps.set(item.group.source, [...(apps.get(item.group.source) ?? []), item]);
+  }
+  const total = (members: readonly CandidateView[]) =>
+    BigInt(sumBytes(members.map((item) => item.reclaimable_bytes)));
+  return [...apps]
+    .toSorted(([a, x], [b, y]) => {
+      const [p, q] = [total(x), total(y)];
+      return p !== q ? (p > q ? -1 : 1) : (a ?? "").localeCompare(b ?? "");
+    })
+    .flatMap(([, members]) => members);
+}
+
+/**
+ * The removed apps of the removed apps' owner, in the order of its parts:
+ * each app's items are next to each other (`ownersOf` puts them so, and a
+ * filter keeps the order). Any other owner has none.
+ */
+export function removedApps(owner: Owner): RemovedApp[] {
+  if (owner.kind !== "removed") return [];
+  const apps: RemovedApp[] = [];
+  owner.parts.forEach((part, at) => {
+    if (part.kind !== "item") return;
+    const { source, removed_app: record } = part.item.group;
+    const last = apps.at(-1);
+    const bytes = part.item.reclaimable_bytes;
+    if (last !== undefined && last.id === source) {
+      apps[apps.length - 1] = {
+        ...last,
+        name: last.name ?? record?.name ?? null,
+        held: last.held || record?.held === true,
+        to: at + 1,
+        bytes: sumBytes([last.bytes, bytes]),
+        atLeast: last.atLeast || !part.item.reclaimable_exact,
+      };
+    } else {
+      apps.push({
+        id: source,
+        name: record?.name ?? null,
+        held: record?.held === true,
+        from: at,
+        to: at + 1,
+        bytes,
+        atLeast: !part.item.reclaimable_exact,
+      });
+    }
+  });
+  return apps;
+}
+
 function compareOwners(a: Owner, b: Owner): number {
   const [x, y] = [BigInt(a.bytes ?? "0"), BigInt(b.bytes ?? "0")];
   if (x !== y) return x > y ? -1 : 1;
@@ -128,7 +198,8 @@ export function ownersOf(
   ]);
   return [...keys]
     .map((key): Owner => {
-      const owned = (items.get(key) ?? []).toSorted(largestFirst);
+      const sorted = (items.get(key) ?? []).toSorted(largestFirst);
+      const owned = key === "removed" ? byRemovedApp(sorted) : sorted;
       const app = key.startsWith("app:") ? (byId.get(key.slice(4)) ?? null) : null;
       const manager = key.startsWith("packages:")
         ? (key.slice("packages:".length) as SoftwareOriginView)
@@ -204,13 +275,16 @@ export interface Listed {
   readonly system: readonly Owner[];
 }
 
-/** Everything an owner can be found by: its name, its apps' and packages' names and IDs, its items' paths. */
+/**
+ * Everything an owner can be found by: its name, its apps' and packages'
+ * names and IDs, its items' paths, and the names Lumen recorded for removed apps.
+ */
 function words(owner: Owner): string {
   return [
     owner.name,
     ...owner.parts.flatMap((part) =>
       part.kind === "item"
-        ? [part.item.path]
+        ? [part.item.path, part.item.group.removed_app?.name ?? null]
         : part.kind === "app"
           ? [part.app.name, part.app.id, part.app.vendor]
           : [part.package.name, part.package.id, part.package.vendor],

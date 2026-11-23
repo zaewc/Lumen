@@ -256,6 +256,7 @@ export const zhCN: Messages = {
       other: "其他",
     },
     removedNote: "应用已经不在了，但数据还在。请确认不再需要后再移走。",
+    removedHeld: (app: string) => `${app} 在隔离区中。恢复它后，会再次使用这些数据。`,
     commandNote:
       "这些项目只能由对应工具移除。打开某项即可运行其命令；运行前请检查移除的内容，因为操作无法撤销。",
     status: {

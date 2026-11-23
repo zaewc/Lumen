@@ -8,7 +8,7 @@ import { commandLine } from "../lib/command";
 import { moveIndex } from "../lib/keys";
 import { softwareTitle } from "../model/app-title";
 import { type Lens, type LensMark, lensMark } from "../model/lens";
-import type { Owner, OwnerPart } from "../model/owners";
+import { type Owner, type OwnerPart, type RemovedApp, removedApps } from "../model/owners";
 import { type AppCheck, checkable } from "../model/selection";
 import { CandidateSize } from "./CandidateSize";
 import { StatusText } from "./Status";
@@ -438,14 +438,21 @@ export function CandidateList({
     starts.push(next);
     next += owner.parts.filter(isRow).length;
   }
-  const rows = (owner: Owner, start: number) => {
-    const places = owner.parts.map((part, i) =>
-      isRow(part) ? start + owner.parts.slice(0, i).filter(isRow).length : -1,
-    );
+  // Each of the owner's parts' place in reading order from `start`; -1 for a package.
+  const placesOf = (owner: Owner, start: number): number[] => {
+    let place = start;
+    return owner.parts.map((part) => {
+      if (!isRow(part)) return -1;
+      place += 1;
+      return place - 1;
+    });
+  };
+  // The owner's parts from `from` up to `to`, at their `places`.
+  const rows = (owner: Owner, places: readonly number[], from = 0, to = owner.parts.length) => {
     return (
       <ul className="divide-y divide-line">
-        {owner.parts.map((part, i) => {
-          const at = places[i] ?? -1;
+        {owner.parts.slice(from, to).map((part, j) => {
+          const at = places[from + j] ?? -1;
           if (part.kind === "package") {
             return (
               <PackageRow
@@ -491,11 +498,20 @@ export function CandidateList({
       </ul>
     );
   };
-  const section = (owner: Owner) => (
-    <OwnerSection key={owner.key} owner={owner}>
-      {rows(owner, starts[drawn.indexOf(owner)] ?? 0)}
-    </OwnerSection>
-  );
+  const section = (owner: Owner) => {
+    const places = placesOf(owner, starts[drawn.indexOf(owner)] ?? 0);
+    return (
+      <OwnerSection key={owner.key} owner={owner}>
+        {owner.kind === "removed"
+          ? removedApps(owner).map((app) => (
+              <RemovedAppGroup key={app.id ?? ""} app={app}>
+                {rows(owner, places, app.from, app.to)}
+              </RemovedAppGroup>
+            ))
+          : rows(owner, places)}
+      </OwnerSection>
+    );
+  };
 
   return (
     <div ref={list} className="@container relative">
@@ -571,5 +587,38 @@ function OwnerSection({
       )}
       {children}
     </section>
+  );
+}
+
+/**
+ * One removed app's data under the removed apps' owner (ADR-0068): its name
+ * as Lumen recorded it, else its ID, with its total; and, while Lumen still
+ * holds the app, that restoring it uses this data (design Q3).
+ */
+function RemovedAppGroup({
+  app,
+  children,
+}: {
+  readonly app: RemovedApp;
+  readonly children: ReactNode;
+}) {
+  const { m } = useI18n();
+  const name = app.name ?? app.id ?? m.results.groups.removed_app;
+  return (
+    <div>
+      <ListHeading
+        level={4}
+        name={name}
+        count={app.to - app.from}
+        bytes={app.bytes}
+        exact={!app.atLeast}
+      />
+      {app.held && (
+        <p className="pr-2 pb-1.5 pl-9 text-[12px] leading-snug text-ink-3">
+          {m.results.removedHeld(name)}
+        </p>
+      )}
+      {children}
+    </div>
   );
 }
