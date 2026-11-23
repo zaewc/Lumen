@@ -14,10 +14,10 @@
 //! - no flag protects it: SIP's `restricted`, or `immutable`, `append-only` or
 //!   `no-unlink`, set by the system or a user.
 //!
-//! Who the caller is, and whether they are an administrator, is decided before
-//! this from the connection, never from the request. Whether anything uses the
-//! item is asked right before the move, where only `No` passes. Unknown is
-//! never eligible. Pure and IO-free.
+//! Who the caller is comes from the connection, never from the request; any
+//! account but root may ask (ADR-0063, amended 2026-11-16). Whether anything
+//! uses the item is asked right before the move, where only `No` passes.
+//! Unknown is never eligible. Pure and IO-free.
 
 use std::collections::BTreeSet;
 
