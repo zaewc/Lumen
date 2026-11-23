@@ -928,8 +928,7 @@ export const en = {
       "classify.app-state":
         "Kept: it holds an app's own data, settings or documents, so Lumen leaves it alone.",
       "classify.orphan": "Needs review: the app it belongs to seems to be uninstalled.",
-      "classify.scratch":
-        "Needs review: it is in your log or temporary folder and has not changed for a while.",
+      "classify.scratch": "Needs review: it is in your log or temporary folder.",
       "classify.scratch-recent": "Kept: it changed recently, so something may still need it.",
       "classify.scratch-age-unknown": "Kept: Lumen couldn't tell when it last changed.",
       "classify.scratch-report": "Kept: it is or holds a crash or diagnostic report you may need.",

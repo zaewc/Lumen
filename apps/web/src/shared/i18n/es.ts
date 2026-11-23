@@ -956,7 +956,7 @@ export const es: Messages = {
       "classify.orphan":
         "Requiere revisión: parece que la aplicación a la que pertenece está desinstalada.",
       "classify.scratch":
-        "Requiere revisión: está en su carpeta de registros o de archivos temporales y no ha cambiado desde hace un tiempo.",
+        "Requiere revisión: está en su carpeta de registros o de archivos temporales.",
       "classify.scratch-recent":
         "Conservado: cambió hace poco, así que algo podría necesitarlo todavía.",
       "classify.scratch-age-unknown":

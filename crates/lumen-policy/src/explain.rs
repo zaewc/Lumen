@@ -76,9 +76,7 @@ fn template(rule: &str) -> Option<String> {
             "Kept: it holds an application's own data, settings or documents; Lumen leaves it alone."
         }
         "classify.orphan" => "Review: the application it belongs to appears to be uninstalled.",
-        "classify.scratch" => {
-            "Review: it is in your log or temporary folder, and has not changed for a while."
-        }
+        "classify.scratch" => "Review: it is in your log or temporary folder.",
         "classify.scratch-recent" => "Kept: it changed recently, so something may still need it.",
         "classify.scratch-age-unknown" => "Kept: Lumen could not tell when it last changed.",
         "classify.scratch-report" => {
