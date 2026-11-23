@@ -689,6 +689,10 @@ export const es: Messages = {
       expires: (date: string) =>
         `Esta vista previa caduca el ${date}, 24 horas después de crearla.`,
       moved: (name: string) => `Se movió «${name}» a Cuarentena.`,
+      byHelper:
+        "Otra cuenta instaló esta app, así que el asistente de administrador de Lumen la vuelve a comprobar y la mueve a tu Cuarentena.",
+      helperHint:
+        "Otra cuenta instaló esta app. Para moverla, activa el asistente de administrador en Ajustes.",
       noSpace: "El espacio se libera al eliminar la app definitivamente de Cuarentena.",
       changed: "La app ha cambiado. Cierra esta vista previa y vuelve a comprobarla.",
       failedMove: "Lumen no pudo terminar de mover la app.",
@@ -836,7 +840,8 @@ export const es: Messages = {
         title: "Asistente de administrador",
         intro:
           "Sirve para limpiar lo que necesita permisos de administrador, como apps que instaló otra cuenta. Las reglas de seguridad de Lumen no cambian y todo lo que se mueve se puede restaurar desde la Cuarentena.",
-        notYet: "Por ahora solo comprueba la conexión; no mueve nada.",
+        scope:
+          "Solo mueve apps que otra cuenta instaló en /Applications, tras volver a comprobarlas, a la Cuarentena de quien lo pidió. Cuando está activado, todas las cuentas de este Mac pueden usarlo.",
         off: "Desactivado.",
         waiting:
           "Permite Lumen en Ajustes del Sistema › General › Ítems de inicio. Te pedirá una contraseña de administrador.",

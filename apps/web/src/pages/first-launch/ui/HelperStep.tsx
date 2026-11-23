@@ -58,7 +58,7 @@ export function HelperStep({
     <>
       <StepHeading id={titleId} title={s.helper.title} intro={h.intro} focus />
       <p className="mt-2 text-ink-2">{s.helper.approval}</p>
-      <p className="mt-2 text-[13px] text-ink-3">{h.notYet}</p>
+      <p className="mt-2 text-[13px] text-ink-3">{h.scope}</p>
       {status !== null && (
         <p className="mt-5 font-medium text-ink" aria-live="polite">
           {status}

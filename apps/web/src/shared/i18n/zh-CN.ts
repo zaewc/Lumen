@@ -641,6 +641,9 @@ export const zhCN: Messages = {
       atLeast: (size: string) => `至少 ${size}`,
       expires: (date: string) => `此预览在创建 24 小时后的 ${date} 到期。`,
       moved: (name: string) => `已将“${name}”移至隔离区。`,
+      byHelper:
+        "此应用由其他账户安装，因此 Lumen 的管理员权限助手会再次检查后，将其移到你的隔离区。",
+      helperHint: "此应用由其他账户安装。要移动它，请在设置中开启管理员权限助手。",
       noSpace: "只有从隔离区永久删除应用后，才会释放空间。",
       changed: "应用已发生变化。请关闭预览并重新检查。",
       failedMove: "未能完成应用移动。",
@@ -774,7 +777,8 @@ export const zhCN: Messages = {
         title: "管理员权限助手",
         intro:
           "用于清理需要管理员权限的项目，例如其他账户安装的应用。Lumen 的安全规则不变，移走的项目都可以从隔离区恢复。",
-        notYet: "目前它只检查连接，不会移动任何东西。",
+        scope:
+          "它只移动其他账户安装在 /Applications 中的应用，再次检查后移到发出请求者的隔离区。开启后，这台 Mac 上的所有账户都能使用它。",
         off: "已关闭。",
         waiting: "请在“系统设置 › 通用 › 登录项”中允许 Lumen。这需要管理员密码。",
         on: (version: string) => `已开启。助手有响应（版本 ${version}）。`,

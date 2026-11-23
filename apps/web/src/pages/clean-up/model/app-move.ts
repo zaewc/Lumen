@@ -5,6 +5,21 @@ import type { Messages } from "@/shared/i18n";
 
 export type ReadyPreview = Extract<UninstallPreviewView, { kind: "ready" }>;
 
+/**
+ * Whether Lumen's administrator helper would move this app if it were on: the
+ * only refusal is that another account owns it, and it is directly in
+ * /Applications, the one folder the helper takes apps from (ADR-0063). The
+ * core decides; this only chooses the hint.
+ */
+export function helperWouldMove(preview: UninstallPreviewView): boolean {
+  if (preview.kind !== "refused") return false;
+  const [only, ...rest] = preview.reasons;
+  const leaf = preview.app.path.startsWith("/Applications/")
+    ? preview.app.path.slice("/Applications/".length)
+    : "";
+  return only === "not_owned_by_user" && rest.length === 0 && leaf !== "" && !leaf.includes("/");
+}
+
 /** Confirmation stays bound to the preview even if the Apps page is left. */
 export function useAppMove() {
   const transport = useTransport();

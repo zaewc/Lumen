@@ -671,6 +671,10 @@ export const fr: Messages = {
       atLeast: (size: string) => `Au moins ${size}`,
       expires: (date: string) => `Cet aperçu expire le ${date}, 24 heures après sa création.`,
       moved: (name: string) => `« ${name} » a été déplacée en quarantaine.`,
+      byHelper:
+        "Un autre compte a installé cette app : l’assistant administrateur de Lumen la vérifie à nouveau, puis la déplace dans votre quarantaine.",
+      helperHint:
+        "Un autre compte a installé cette app. Pour la déplacer, activez l’assistant administrateur dans les réglages.",
       noSpace: "L’espace se libère quand vous supprimez définitivement l’app de la quarantaine.",
       changed: "L’app a changé. Fermez cet aperçu et vérifiez-la à nouveau.",
       failedMove: "Lumen n’a pas pu terminer le déplacement de l’app.",
@@ -822,7 +826,8 @@ export const fr: Messages = {
         title: "Assistant administrateur",
         intro:
           "Sert à nettoyer ce qui demande les droits d’administrateur, comme les apps installées par un autre compte. Les règles de sécurité de Lumen restent les mêmes, et tout ce qui est déplacé peut être restauré depuis la Quarantaine.",
-        notYet: "Pour l’instant, il vérifie seulement la connexion ; il ne déplace rien.",
+        scope:
+          "Il ne déplace que les apps qu’un autre compte a installées dans /Applications, après les avoir vérifiées à nouveau, dans la quarantaine de la personne qui l’a demandé. Une fois activé, tous les comptes de ce Mac peuvent l’utiliser.",
         off: "Désactivé.",
         waiting:
           "Autorisez Lumen dans Réglages Système › Général › Ouverture. Un mot de passe administrateur est demandé.",

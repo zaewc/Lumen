@@ -3,7 +3,7 @@ import { useId, useRef } from "react";
 import { formatDateTime, useI18n } from "@/shared/i18n";
 import { formatBytes } from "@/shared/lib";
 import { buttonClass, Dialog, Disclosure, ErrorNotice } from "@/shared/ui";
-import type { ReadyPreview } from "../model/app-move";
+import { helperWouldMove, type ReadyPreview } from "../model/app-move";
 import { mayBeRunning, type QuitStage } from "../model/app-quit";
 
 export function MoveReasons({ reasons }: { readonly reasons: readonly UninstallReasonView[] }) {
@@ -73,6 +73,7 @@ export function MoveDialog({
           <>
             <p className="font-medium">{a.refused}</p>
             <MoveReasons reasons={preview.reasons} />
+            {helperWouldMove(preview) && <p>{a.helperHint}</p>}
           </>
         );
       case "not_found":
@@ -116,6 +117,7 @@ export function MoveDialog({
             </dl>
             {ready !== null && (
               <>
+                {ready.by_helper && <p>{a.byHelper}</p>}
                 {app.notes.map((note) => (
                   <p key={note}>{a.notes[note]}</p>
                 ))}
