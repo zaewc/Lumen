@@ -1189,6 +1189,7 @@ export const zUninstallReasonView = z.enum([
 export const zUninstallPreviewView = z.union([
   z.object({
     app: zUninstallAppView,
+    by_helper: z.boolean(),
     created_at: z.iso.datetime(),
     hash: z.string(),
     kind: z.enum(["ready"]),

@@ -678,6 +678,7 @@ function uninstallPreviewOf(key: string, n: number, running: boolean): Uninstall
     hash: `b3:${n.toString(16).padStart(64, "0")}`,
     created_at: new Date().toISOString(),
     app,
+    by_helper: false,
   };
 }
 

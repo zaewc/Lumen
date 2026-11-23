@@ -188,6 +188,19 @@ enum Link {
     Failed,
 }
 
+/// Whether the helper behind `link` answers now with this app's protocol and
+/// version, so it may be asked to move something (ADR-0063). Anything else,
+/// including no answer, is not ready.
+#[must_use]
+pub fn ready(link: &dyn crate::routed::HelperLink) -> bool {
+    use lumen_application::helper::{HelperRequest, HelperResponse, PROTOCOL};
+    matches!(
+        link.ask(&HelperRequest::Status),
+        Some(HelperResponse::Status { protocol, version, .. })
+            if protocol == PROTOCOL && version == env!("CARGO_PKG_VERSION")
+    )
+}
+
 /// The connection Lumen's held-item flows use to reach its helper
 /// ([`crate::routed`]). Off macOS there is none, and every question goes
 /// unanswered.
@@ -287,6 +300,31 @@ mod tests {
             protocol,
             version: version.into(),
             caller_uid: 501,
+        }
+    }
+
+    /// A helper that answers `status` with `answer`.
+    struct Answers(Option<HelperResponse>);
+
+    impl crate::routed::HelperLink for Answers {
+        fn ask(&self, _: &lumen_application::helper::HelperRequest) -> Option<HelperResponse> {
+            self.0.clone()
+        }
+    }
+
+    #[test]
+    fn only_a_current_helper_that_answers_is_ready() {
+        let this = env!("CARGO_PKG_VERSION");
+        assert!(ready(&Answers(Some(status(PROTOCOL, this)))));
+        for answer in [
+            None,
+            Some(status(PROTOCOL, "0.0.1")),
+            Some(status(PROTOCOL + 1, this)),
+            Some(HelperResponse::Refused {
+                reason: HelperRefusal::RootCaller,
+            }),
+        ] {
+            assert!(!ready(&Answers(answer.clone())), "{answer:?}");
         }
     }
 

@@ -2031,6 +2031,11 @@ export type UninstallPreviewView =
        */
       app: UninstallAppView;
       /**
+       * Lumen's helper moves it, because another account owns it
+       * (ADR-0063); the confirmation covers this.
+       */
+      by_helper: boolean;
+      /**
        * When it was made; it expires 24 hours later.
        */
       created_at: string;

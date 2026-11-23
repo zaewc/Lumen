@@ -163,6 +163,9 @@ pub enum UninstallPreviewView {
         created_at: lumen_domain::Timestamp,
         /// The application.
         app: UninstallAppView,
+        /// Lumen's helper moves it, because another account owns it
+        /// (ADR-0063); the confirmation covers this.
+        by_helper: bool,
     },
     /// It cannot be uninstalled this way; nothing was stored.
     Refused {
@@ -209,6 +212,7 @@ impl From<&UninstallPreview> for UninstallPreviewView {
                 hash: ready.hash.to_string(),
                 created_at: ready.created_at,
                 app,
+                by_helper: preview.by_helper,
             },
             Err(why) => Self::Refused {
                 app,
@@ -367,9 +371,11 @@ mod tests {
                 hash: lumen_domain::PlanHash::from_bytes([0xab; 32]),
                 created_at: Timestamp::UNIX_EPOCH,
             }),
+            by_helper: true,
         };
         let json = serde_json::to_value(UninstallPreviewView::from(&ready)).unwrap_or_default();
         assert_eq!(json["kind"], "ready");
+        assert_eq!(json["by_helper"], true);
         assert_eq!(json["preview"], "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a3");
         assert!(json["hash"].as_str().is_some_and(|h| h.starts_with("b3:")));
         assert_eq!(json["app"]["size_bytes"], u64::MAX.to_string());
@@ -384,6 +390,7 @@ mod tests {
         let refused = UninstallPreview {
             app: app(),
             ready: Err(vec![Ineligible::NotOwnedByUser, Ineligible::RunningUnknown]),
+            by_helper: false,
         };
         let json = serde_json::to_value(UninstallPreviewView::from(&refused)).unwrap_or_default();
         assert_eq!(json["kind"], "refused");

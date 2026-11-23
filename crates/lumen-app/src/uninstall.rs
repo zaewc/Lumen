@@ -127,6 +127,9 @@ pub struct UninstallPreview {
     /// The preview to confirm, or every reason it cannot be uninstalled this
     /// way (nothing was stored then).
     pub ready: Result<Confirmable, Vec<Ineligible>>,
+    /// Lumen's helper moves it, because another account owns it (ADR-0063);
+    /// the confirmation covers this.
+    pub by_helper: bool,
 }
 
 /// What became of the application.
@@ -287,7 +290,7 @@ mod unix {
     use lumen_application::quarantine::{ConfirmedItem, Outcome, quarantine_item};
     use lumen_application::reconcile::reconcile;
     use lumen_application::uninstall::{
-        Binding, BundleEvidence, GATE_VERSION, decision, gate, is_uninstall,
+        Binding, BundleEvidence, GATE_VERSION, Ineligible, Mover, decision, is_uninstall, mover,
     };
     use std::collections::BTreeMap;
 
@@ -311,6 +314,7 @@ mod unix {
         UninstallReport, UninstallResult, key,
     };
     use crate::quarantine::{QuarantineError, checked_plan, device, prepare_store};
+    use crate::routed::{HelperItem, HelperLink, Routed};
     use crate::scan::{enumerator, excluding_stores};
     use crate::store::{LocationError, PrivilegeError, Stores, lock_ledger};
 
@@ -343,6 +347,9 @@ mod unix {
         pub(super) software: &'a dyn Software,
         /// The live in-use probe, asked again right before the move.
         pub(super) in_use: &'a dyn InUseProbe,
+        /// Lumen's helper, which moves an app another account owns
+        /// (ADR-0063).
+        pub(super) helper: &'a dyn HelperLink,
         /// Refuses a privileged process.
         pub(super) privileged: fn() -> Result<(), PrivilegeError>,
     }
@@ -433,7 +440,7 @@ mod unix {
     }
 
     impl Observed {
-        fn binding(&self) -> Option<Binding<'_>> {
+        fn binding(&self, by: Mover) -> Option<Binding<'_>> {
             Some(Binding {
                 key: &self.app.key,
                 bundle_id: &self.app.bundle_id,
@@ -443,8 +450,17 @@ mod unix {
                 identity: self.entry.as_ref()?.identity(),
                 reclaim: self.app.reclaim,
                 size_complete: self.app.size_complete,
+                by_helper: by == Mover::Helper,
             })
         }
+    }
+
+    /// Who may move the observed app now: Lumen, or its helper if it is set
+    /// up, current and the one refusal is the owner check.
+    fn who(computer: &Computer<'_>, observed: &Observed) -> Result<Mover, Vec<Ineligible>> {
+        let only_owner = observed.evidence.owned_by_user == Some(false);
+        let ready = only_owner && crate::helper::ready(computer.helper);
+        mover(&observed.evidence, ready).map_err(|refusal| refusal.reasons().to_vec())
     }
 
     fn raw(path: &Path) -> Option<RawPath> {
@@ -531,14 +547,18 @@ mod unix {
         ids: &dyn lumen_application::ports::IdGenerator,
     ) -> Result<UninstallPreview, UninstallError> {
         let observed = observe(computer, key_)?;
-        if let Err(refusal) = gate(&observed.evidence) {
-            tracing::info!(reasons = refusal.reasons().len(), "uninstall refused");
-            return Ok(UninstallPreview {
-                app: observed.app,
-                ready: Err(refusal.reasons().to_vec()),
-            });
-        }
-        let (Some(binding), Some(entry)) = (observed.binding(), observed.entry.as_ref()) else {
+        let by = match who(computer, &observed) {
+            Ok(by) => by,
+            Err(reasons) => {
+                tracing::info!(reasons = reasons.len(), "uninstall refused");
+                return Ok(UninstallPreview {
+                    app: observed.app,
+                    ready: Err(reasons),
+                    by_helper: false,
+                });
+            }
+        };
+        let (Some(binding), Some(entry)) = (observed.binding(by), observed.entry.as_ref()) else {
             // The gate passed only for an observed directory.
             return Err(UninstallError::UnknownApp);
         };
@@ -555,7 +575,7 @@ mod unix {
         };
         let plan = CleanupPlan::new(ids.plan_id(), clock.now(), vec![item]);
         IndexStore::new(open_index(db)?).save_plan(&plan, &[decided])?;
-        tracing::info!("uninstall preview stored");
+        tracing::info!(by_helper = by == Mover::Helper, "uninstall preview stored");
         Ok(UninstallPreview {
             app: observed.app,
             ready: Ok(Confirmable {
@@ -563,6 +583,7 @@ mod unix {
                 hash: plan.hash(),
                 created_at: plan.created_at(),
             }),
+            by_helper: by == Mover::Helper,
         })
     }
 
@@ -602,14 +623,16 @@ mod unix {
             }
             Err(error) => return Err(error),
         };
-        if let Err(refusal) = gate(&observed.evidence) {
-            return Ok(UninstallResult::Refused(refusal.reasons().to_vec()));
-        }
+        let by = match who(computer, &observed) {
+            Ok(by) => by,
+            Err(reasons) => return Ok(UninstallResult::Refused(reasons)),
+        };
         // The confirmed plan body and its stored decision must agree with what
-        // is observed now; the body is what the confirmation hash covers.
+        // is observed now; the body is what the confirmation hash covers, and
+        // it names who moves the app.
         let unchanged = observed.app.path == planned.path
             && (!observed.app.size_complete || observed.app.reclaim == planned.reclaim)
-            && observed.binding().is_some_and(|b| {
+            && observed.binding(by).is_some_and(|b| {
                 let hash = b.hash();
                 hash == planned.evidence_hash && hash == stored.evidence_hash()
             })
@@ -648,9 +671,27 @@ mod unix {
         let Some(manifest) = manifest(&entry, &prepared, operation) else {
             return Ok(UninstallResult::Changed);
         };
+        // The helper's item: what it is asked to move, with Lumen's own record.
+        let item = match by {
+            Mover::Lumen => Some(prepared),
+            Mover::Helper => serde_json::from_slice(&prepared.0)
+                .ok()
+                .and_then(|executor| {
+                    HelperItem {
+                        path: planned.path.clone(),
+                        identity: identity.clone(),
+                        evidence_hash: planned.evidence_hash,
+                        executor,
+                    }
+                    .prepared()
+                }),
+        };
+        let Some(item) = item else {
+            return Ok(UninstallResult::Changed);
+        };
         let ready = ConfirmedItem {
             operation,
-            item: prepared,
+            item,
             path: planned.path.clone(),
             identity: identity.clone(),
             manifest,
@@ -659,6 +700,7 @@ mod unix {
             // process's executable path was read with none inside it. A
             // partial answer then only leaves other users' open files unseen,
             // which the rename keeps working. `Yes` and `Unknown` still refuse.
+            // The helper asks every process itself and passes only `No`.
             partial_in_use_accepted: true,
         };
         *moving = Some(observed.app.clone());
@@ -716,14 +758,14 @@ mod unix {
     }
 
     /// Lumen's executor, with the items its helper holds routed to it.
-    fn routed(
-        computer: &Computer<'_>,
-    ) -> Result<crate::routed::Routed<'static, lumen_fs_exec::Executor>, UninstallError> {
+    fn routed<'a>(
+        computer: &Computer<'a>,
+    ) -> Result<Routed<'a, lumen_fs_exec::Executor>, UninstallError> {
         let own = computer
             .stores
             .executor()
             .ok_or(QuarantineError::Location(LocationError::NoHome))?;
-        Ok(crate::routed::with_helper(own))
+        Ok(Routed::new(own, computer.helper))
     }
 
     pub(super) fn uninstall_with(
@@ -892,6 +934,7 @@ mod mac {
             stores: stores().map_err(QuarantineError::Location)?,
             software,
             in_use,
+            helper: crate::helper::link(),
             privileged: refuse_privileged,
         })
     }
@@ -1109,6 +1152,7 @@ mod tests {
                 stores: self.stores(),
                 software: &self.software,
                 in_use: &self.in_use,
+                helper: &crate::routed::NoHelper,
                 privileged: || Ok(()),
             }
         }
