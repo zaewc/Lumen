@@ -6,7 +6,7 @@
   Explore became 저장 공간 in [ADR-0069](../decisions/0069-show-storage-in-one-place-grouped-by-owner.md)),
   Q3's corroboration by Lumen's uninstall records (#972), and Q3's name and "in
   Quarantine" line with Q5's per-app grouping (#979 and the next PR): one "지운 앱이
-  남긴 데이터" owner with each app under it. Left: Q2's extensions of installed apps.
+  남긴 데이터" owner with each app under it. Q2 is built too, except for `Caches` (see Q2).
 - Roadmap: [Phase 16, item 16.9](../architecture/roadmap.md#phase-16-installed-software-after-0100),
   issue #810 (part of #804)
 - Builds on: [ADR-0008](../decisions/0008-capability-model-and-coverage.md),
@@ -126,6 +126,15 @@ on the measured Mac.
   Should they instead be linked to the installed app as its data (then `KEEP` under
   `classify.app-state`, which is more cautious than today)? Decided: yes, as a
   separate PR.
+
+*As built:* names that extend an installed app's ID (`<app id>.<more>`, the app's ID
+having three or more labels) link to the most specific such app with their own
+source, `macos.support-location.bundle-id-extension`. Containers, support files
+and preferences are then kept (`classify.app-state`); web data and saved state are
+decided by the default rules, as for the app's own. **Not in `Caches`:** an
+installed app's cache is proposed (`classify.app-cache`), so linking an extension's
+cache would make it a new proposal rather than more cautious. Whether it should be
+is an open question for the owner; until then it stays unknown ownership.
 
 ### Q3. Use Lumen's own uninstall records?
 
