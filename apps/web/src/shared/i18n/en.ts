@@ -678,6 +678,10 @@ export const en = {
       atLeast: (size: string) => `At least ${size}`,
       expires: (date: string) => `This preview expires at ${date}, 24 hours after it was made.`,
       moved: (name: string) => `Moved “${name}” to Quarantine.`,
+      byHelper:
+        "Another account installed this app, so Lumen's administrator helper moves it into your Quarantine after checking it again.",
+      helperHint:
+        "Another account installed this app. To move it, turn on the administrator helper in Settings.",
       noSpace: "Space is freed only when you remove the app for good from Quarantine.",
       changed: "The app changed. Close this preview and check it again.",
       failedMove: "Lumen could not finish moving the app.",
@@ -818,7 +822,8 @@ export const en = {
         title: "Administrator helper",
         intro:
           "For cleaning up what needs administrator rights, such as apps another account installed. Lumen's safety rules stay the same, and anything moved can be restored from Quarantine.",
-        notYet: "For now it only checks the connection; it moves nothing.",
+        scope:
+          "It moves only apps another account installed in /Applications, after checking them again, into the Quarantine of whoever asked. Once it is on, every account on this Mac can use it.",
         off: "Off.",
         waiting:
           "Allow Lumen in System Settings › General › Login Items. It asks for an administrator password.",

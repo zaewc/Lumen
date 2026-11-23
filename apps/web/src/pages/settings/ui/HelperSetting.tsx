@@ -41,7 +41,7 @@ export function HelperSetting() {
       description={
         <>
           <p>{h.intro}</p>
-          <p className="mt-1">{h.notYet}</p>
+          <p className="mt-1">{h.scope}</p>
           <p className="mt-1 font-medium text-ink" aria-live="polite">
             {status}
           </p>
