@@ -24,6 +24,12 @@ pub(crate) enum Point {
     FinalizeUnlink,
     /// Removing the sidecar after the item.
     FinalizeSidecar,
+    /// `forget`: checking that nothing has the item's name in the store.
+    ForgetCheck,
+    /// `forget`: removing the sidecar.
+    ForgetUnlink,
+    /// `forget`: flushing the store after removing the sidecar.
+    ForgetSync,
 }
 
 #[cfg(test)]
@@ -66,7 +72,7 @@ mod tests {
     use std::path::Path;
 
     use super::*;
-    use crate::finalize::{FinalizeError, Removed, finalize};
+    use crate::finalize::{FinalizeError, Removed, finalize, forget};
     use crate::move_into::tests::{plan, setup};
     use crate::move_into::{Left, MoveError, move_into};
     use crate::restore::{RestoreError, restore};
@@ -132,6 +138,32 @@ mod tests {
         );
     }
 
+    /// A record whose item never left its source, taken back with `point`
+    /// failing: only a failed flush comes after the record is gone.
+    fn a_failed_take_back_leaves_the_source_alone(
+        root: &Path,
+        store: &Store,
+        point: Point,
+        error: Errno,
+    ) {
+        let name = b"fault-matrix";
+        let source = root.join("cache/app/data.bin");
+        let original = std::fs::read(&source).unwrap_or_else(|e| unreachable!("{e}"));
+        write_sidecar(store, name, b"manifest").unwrap_or_else(|e| unreachable!("{e}"));
+        let result = {
+            let _armed = Armed::with_error(point, error);
+            forget(store, name)
+        };
+        assert!(result.is_err(), "{point:?}/{error:?}");
+        assert_eq!(
+            crate::read_sidecar(store, name).is_err(),
+            point == Point::ForgetSync,
+            "{point:?}/{error:?}"
+        );
+        assert_eq!(std::fs::read(&source).unwrap_or_default(), original);
+        assert!(!root.join("Quarantine/fault-matrix").exists());
+    }
+
     #[test]
     fn disk_full_and_permission_faults_preserve_the_reported_location_and_recovery() {
         let points = [
@@ -142,6 +174,9 @@ mod tests {
             Point::RestoreCheck,
             Point::FinalizeUnlink,
             Point::FinalizeSidecar,
+            Point::ForgetCheck,
+            Point::ForgetUnlink,
+            Point::ForgetSync,
         ];
         for point in points {
             for error in [Errno::IO, Errno::NOSPC, Errno::ACCESS] {
@@ -207,6 +242,10 @@ mod tests {
                             "{point:?}/{error:?}"
                         );
                         assert!(!held.exists());
+                        continue;
+                    }
+                    Point::ForgetCheck | Point::ForgetUnlink | Point::ForgetSync => {
+                        a_failed_take_back_leaves_the_source_alone(&root, &store, point, error);
                         continue;
                     }
                 };

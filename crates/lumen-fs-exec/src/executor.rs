@@ -561,6 +561,59 @@ mod tests {
     }
 
     #[test]
+    fn a_failed_take_back_still_reports_the_item_at_its_source() {
+        use crate::fault::{Point, arm};
+        use rustix::io::Errno;
+
+        if rustix::process::geteuid().is_root() {
+            // Root renames out of a read-only folder; nothing to check.
+            return;
+        }
+        // Whether the record is gone after each failed step of `forget`.
+        for (point, gone) in [
+            (Point::ForgetCheck, false),
+            (Point::ForgetUnlink, false),
+            (Point::ForgetSync, true),
+        ] {
+            let (_fx, root, executor) = setup();
+            let prepared = executor
+                .prepare(&raw(&root), &relative())
+                .unwrap_or_else(|e| unreachable!("{e}"));
+            let parent = root.join("cache/app");
+            let mode = |mode| {
+                #[allow(
+                    clippy::disallowed_methods,
+                    reason = "test fixture inside its own temporary directory"
+                )]
+                std::fs::set_permissions(&parent, std::fs::Permissions::from_mode(mode))
+                    .unwrap_or_else(|e| unreachable!("{e}"));
+            };
+            mode(0o555);
+            arm(Some((point, Errno::IO)));
+            let result = executor.quarantine(&prepared, op(24), b"record");
+            arm(None);
+            mode(0o755);
+            assert_eq!(
+                result.map_err(|f| f.left),
+                Err(ItemLocation::Source),
+                "{point:?}"
+            );
+            let store = executor.current_store().unwrap_or_else(|| unreachable!()).0;
+            let record = crate::read_sidecar(&store, op(24).to_string().as_bytes());
+            assert_eq!(record.is_err(), gone, "{point:?}");
+            assert_eq!(
+                executor.locate(&prepared, op(24)),
+                Located::AtSource,
+                "{point:?}"
+            );
+            assert_eq!(
+                std::fs::read(root.join("cache/app/data.bin")).unwrap_or_default(),
+                b"0123456789"
+            );
+        }
+    }
+
+    #[test]
     fn a_failed_move_check_keeps_a_record_and_a_restorable_item() {
         use crate::fault::{Point, arm};
         use rustix::io::Errno;
