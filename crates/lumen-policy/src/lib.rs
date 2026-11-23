@@ -51,7 +51,7 @@ pub use scratch::{LOGS_KEEP_DAYS, TEMPORARY_KEEP_DAYS};
 
 /// The policy version recorded with every decision. A change that can alter
 /// any verdict bumps at least the minor version.
-pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 20, 0);
+pub const POLICY_VERSION: PolicyVersion = PolicyVersion::new(0, 21, 0);
 
 /// The smallest unrecognised item worth a person's review (ADR-0039): 100 MB,
 /// in decimal bytes as Lumen shows sizes. Below it, an item no rule
