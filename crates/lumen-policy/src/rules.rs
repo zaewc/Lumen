@@ -43,6 +43,8 @@ pub mod ids {
     pub const JEV_DEMOTE: &str = "jev.demote";
     /// Keeps an item whose owning application is running (ADR-0059).
     pub const PROTECT_APP_RUNNING: &str = "protect.app-running";
+    /// Keeps an item belonging to security software (ADR-0014).
+    pub const PROTECT_SECURITY_SOFTWARE: &str = "protect.security-software";
 }
 
 /// Every rule the policy evaluates.
@@ -81,6 +83,11 @@ pub(crate) const RULES: &[Rule] = &[
         id: ids::PROTECT_APP_RUNNING,
         stage: PolicyStage::HardProtection,
         check: app_running,
+    },
+    Rule {
+        id: ids::PROTECT_SECURITY_SOFTWARE,
+        stage: PolicyStage::HardProtection,
+        check: security_software,
     },
     Rule {
         id: ids::PROTECT_IN_USE_PARTIAL,
@@ -254,6 +261,15 @@ fn cloud_backed(input: &PolicyInput) -> Option<Finding> {
 /// A process uses the item.
 fn in_use(input: &PolicyInput) -> Option<Finding> {
     keep_if(about(input, |f| *f == Fact::InUse(true)), RiskFactor::InUse)
+}
+
+/// Positive platform evidence ties the subject to security software. No
+/// cache classification or AI answer can override a hard protection.
+fn security_software(input: &PolicyInput) -> Option<Finding> {
+    keep_if(
+        about(input, |f| matches!(f, Fact::OwningSecuritySoftware(_))),
+        RiskFactor::SensitiveData,
+    )
 }
 
 /// The application that owns the item is running (ADR-0059): its cache may be
@@ -778,10 +794,15 @@ mod tests {
 
     #[test]
     fn evidence_about_other_subjects_is_ignored() -> Result<(), PolicyError> {
+        let security_owner = lumen_domain::AppId {
+            scheme: lumen_domain::AppIdScheme::BundleId,
+            value: lumen_domain::UntrustedText::new("com.example.security"),
+        };
         let decision = evaluate(&crate::testing::input(vec![
             fact(file(1), NOT_IN_USE),
             fact(file(2), Fact::InUse(true)),
             fact(file(2), Fact::CloudBacked(true)),
+            fact(file(2), Fact::OwningSecuritySoftware(security_owner)),
         ]))?;
         assert_eq!(decision.verdict(), Verdict::Review);
         Ok(())

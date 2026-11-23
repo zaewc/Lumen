@@ -201,6 +201,23 @@
           ]
         },
         {
+          "description": "The subject belongs to an application the platform identifies as\nsecurity software (ADR-0014). This is a positive observation of the\nowner's security role, never an inference from a display name or AI.\nAn unreadable security-role probe must not produce this fact or a\nclaim that the owner is not security software.",
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "const": "owning_security_software"
+            },
+            "value": {
+              "$ref": "#/$defs/AppId"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ]
+        },
+        {
           "description": "Whether this application is installed. `false` is only meaningful with a\n[`Basis::Absence`] that names the searched sources.",
           "type": "object",
           "properties": {

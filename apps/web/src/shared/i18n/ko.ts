@@ -878,6 +878,7 @@ export const ko = {
       "protect.in-use": "유지: 실행 중인 프로그램이 쓰고 있어요.",
       "protect.app-running":
         "유지: 이 항목의 앱이 실행 중이에요. 앱을 끄고 다시 검사하면 정리할 수 있어요.",
+      "protect.security-software": "유지: 보안 소프트웨어의 항목이에요.",
       "protect.in-use-partial":
         "유지: Lumen이 확인한 프로그램 중에는 쓰는 곳이 없지만, 모든 프로그램을 확인하지는 못했어요.",
       "protect.in-use-unknown": "유지: 사용 중인지 아직 확인하지 않았어요.",

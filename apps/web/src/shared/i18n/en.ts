@@ -895,6 +895,7 @@ export const en = {
       "protect.in-use": "Kept: a running app is using it.",
       "protect.app-running":
         "Kept: the app it belongs to is running. Quit the app, then scan again to clean this up.",
+      "protect.security-software": "Kept: it belongs to security software.",
       "protect.in-use-partial":
         "Kept: no app Lumen can see uses it, but Lumen could not check every app.",
       "protect.in-use-unknown": "Kept: Lumen has not checked whether anything uses it.",

@@ -22,6 +22,7 @@ fn template(rule: &str) -> Option<String> {
             "Kept: it is synced with a cloud service, so removing it here could remove it everywhere."
         }
         "protect.in-use" => "Kept: a running process is using it.",
+        "protect.security-software" => "Kept: it belongs to security software.",
         "protect.app-running" => {
             "Kept: the app it belongs to is running. Quit the app, then scan again to clean this up."
         }

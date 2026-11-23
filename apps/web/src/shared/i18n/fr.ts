@@ -903,6 +903,7 @@ export const fr: Messages = {
       "protect.in-use": "Conservé : une application en cours d'exécution l'utilise.",
       "protect.app-running":
         "Conservé : l'application à laquelle il appartient est en cours d'exécution. Quittez-la, puis relancez l'analyse pour le nettoyer.",
+      "protect.security-software": "Conservé : il appartient à un logiciel de sécurité.",
       "protect.in-use-partial":
         "Conservé : aucune application visible par Lumen ne l'utilise, mais Lumen n'a pas pu vérifier toutes les applications.",
       "protect.in-use-unknown": "Conservé : Lumen n'a pas vérifié si un élément l'utilise.",

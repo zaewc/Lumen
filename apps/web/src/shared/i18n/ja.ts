@@ -885,6 +885,7 @@ export const ja: Messages = {
       "protect.in-use": "維持：実行中のアプリが使用しています。",
       "protect.app-running":
         "維持：この項目のアプリが実行中です。アプリを終了してからもう一度スキャンすると整理できます。",
+      "protect.security-software": "維持：セキュリティソフトウェアの項目です。",
       "protect.in-use-partial":
         "維持：確認できるアプリは使用していませんが、すべてのアプリを確認できませんでした。",
       "protect.in-use-unknown": "維持：使用中かどうかを確認していません。",
