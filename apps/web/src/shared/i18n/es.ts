@@ -955,6 +955,14 @@ export const es: Messages = {
         "Se conserva: contiene datos, ajustes o documentos propios de una aplicación, así que Lumen no lo toca.",
       "classify.orphan":
         "Requiere revisión: parece que la aplicación a la que pertenece está desinstalada.",
+      "classify.scratch":
+        "Requiere revisión: está en su carpeta de registros o de archivos temporales.",
+      "classify.scratch-recent":
+        "Conservado: cambió hace poco, así que algo podría necesitarlo todavía.",
+      "classify.scratch-age-unknown":
+        "Conservado: Lumen no pudo saber cuándo cambió por última vez.",
+      "classify.scratch-report":
+        "Conservado: es o contiene un informe de bloqueo o de diagnóstico que podría necesitar.",
       "jev.demote": "Requiere revisión: la revisión con IA recomendó actuar con cautela.",
     },
   },

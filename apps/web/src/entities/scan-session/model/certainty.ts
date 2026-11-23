@@ -44,6 +44,11 @@ const BY_RULE: { readonly [R in RuleId]: Certainty } = {
   "classify.app-cache": "resolved",
   "classify.app-state": "resolved",
   "classify.orphan": "resolved",
+  "classify.scratch": "resolved",
+  "classify.scratch-recent": "resolved",
+  // Lumen could not read when it last changed.
+  "classify.scratch-age-unknown": "unknown",
+  "classify.scratch-report": "resolved",
   // AI review's caution is a guess, never a measurement.
   "jev.demote": "partial",
 };

@@ -177,6 +177,26 @@ pub(crate) const RULES: &[Rule] = &[
         stage: PolicyStage::Classification,
         check: crate::classify::orphan,
     },
+    Rule {
+        id: "classify.scratch",
+        stage: PolicyStage::Classification,
+        check: crate::scratch::scratch,
+    },
+    Rule {
+        id: "classify.scratch-recent",
+        stage: PolicyStage::Classification,
+        check: crate::scratch::scratch_recent,
+    },
+    Rule {
+        id: "classify.scratch-age-unknown",
+        stage: PolicyStage::Classification,
+        check: crate::scratch::scratch_age_unknown,
+    },
+    Rule {
+        id: "classify.scratch-report",
+        stage: PolicyStage::Classification,
+        check: crate::scratch::scratch_report,
+    },
 ];
 
 /// Evidence about the subject itself whose fact satisfies `test`.
