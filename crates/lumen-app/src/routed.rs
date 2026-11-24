@@ -18,8 +18,10 @@
 //!   complete "not in use" passes), so [`QuarantineExecutor::checks_use_itself`]
 //!   is true and Lumen's own probe, which cannot see into the helper's
 //!   root-owned store, is not asked;
-//! - the helper keeps its record after a restore (owner, 2026-11-16), so
-//!   `forget` removes nothing.
+//! - the helper keeps its record after a restore, so `locate` can reconcile
+//!   a journal entry lost after it, and drops it when Lumen has journaled
+//!   the restore (owner, 2026-11-16): `forget` asks the helper's `forget`,
+//!   which removes the record only for an item back at its source.
 //!
 //! An answer that is not one the verb gives, or no answer, never counts as
 //! success. For `quarantine`, only the helper's own refusal or failure says
@@ -300,8 +302,14 @@ impl<E: QuarantineExecutor> QuarantineExecutor for Routed<'_, E> {
     }
 
     fn forget(&self, item: &PreparedItem, operation: OperationId) -> bool {
-        // The helper keeps its record after a restore (owner, 2026-11-16).
-        HelperItem::of(item).is_none() && self.own.forget(item, operation)
+        if HelperItem::of(item).is_none() {
+            return self.own.forget(item, operation);
+        }
+        // Only the helper's own answer says its record is gone.
+        matches!(
+            self.ask_held(HelperRequest::Forget, operation),
+            Some(HelperResponse::Forgotten)
+        )
     }
 
     fn held(&self, item: &PreparedItem, operation: OperationId) -> Option<(RawPath, FileIdentity)> {
@@ -709,7 +717,21 @@ mod tests {
         }
         let routed = Routed::new(&own, &located);
         assert!(routed.checks_use_itself(&wrapped()));
+        // `located` is not an answer `forget` gives: the record stays.
         assert!(!routed.forget(&wrapped(), operation()));
+        let forgotten = ask(HelperResponse::Forgotten);
+        assert!(Routed::new(&own, &forgotten).forget(&wrapped(), operation()));
+        assert_eq!(
+            forgotten.asked(),
+            [HelperRequest::Forget(HeldRequest {
+                protocol: PROTOCOL,
+                operation: operation()
+            })]
+        );
+        for answer in [HelperResponse::NotForgotten, HelperResponse::NotHeld] {
+            let helper = ask(answer);
+            assert!(!Routed::new(&own, &helper).forget(&wrapped(), operation()));
+        }
         assert_eq!(routed.held(&wrapped(), operation()), None);
         assert_eq!(own.asked(), Vec::<&str>::new());
     }
