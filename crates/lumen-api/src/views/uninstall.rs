@@ -99,7 +99,7 @@ pub enum UninstallNoteView {
     /// good; it is never removed automatically.
     GoesToQuarantine,
     /// Its data in `~/Library` stays. After the next scan it appears in
-    /// Explore as data of an app that is not installed.
+    /// Storage as data of an app that is not installed.
     LibraryDataStays,
 }
 

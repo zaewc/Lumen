@@ -58,7 +58,6 @@ export const ja: Messages = {
       quarantine: "隔離中",
       atLeast: (size: string) => `${size}以上`,
       found: (n: string) => `${n}読み取り済み`,
-      openExplore: "「探索」を開く",
       showProgress: "進行状況を表示",
       cleaned: (n: number, size: string) => `${items(n)}（${size}）を隔離に移動しました。`,
       none: "まだスキャンしていません。ディスクをスキャンして、内容と判断の根拠を確認しましょう。",
@@ -82,7 +81,7 @@ export const ja: Messages = {
       ownCommand: "専用コマンド",
       xcodeManage: "ランタイムは Xcode › Settings › Components で管理します。",
       dockerManage:
-        "Docker が未使用とみなす量にはボリュームや停止したコンテナも含まれ、必要なデータがあるかもしれません。Docker の整理は「探索」で完全なコマンドを確認したあとにだけ実行し、ボリュームは残します。",
+        "Docker が未使用とみなす量にはボリュームや停止したコンテナも含まれ、必要なデータがあるかもしれません。Docker の整理は完全なコマンドを確認したあとにだけ実行し、ボリュームは残します。",
       sharedStoreNote:
         "プロジェクトはこのストアにリンクしています。専用コマンドは使用中のパッケージを残します。",
       cacheNote: "必要に応じて再ダウンロードされます。",
@@ -558,7 +557,7 @@ export const ja: Messages = {
     loadFailed: "隔離を読み込めませんでした。",
     empty: "隔離は空です",
     emptyHint: "整理した項目はここに保管されるため、考えが変わっても元に戻せます。",
-    goCleanUp: "「探索」を開く",
+    goCleanUp: "「ストレージ」を開く",
     interrupted: (n: number) =>
       `整理が途中で停止し、${n === 1 ? "この項目" : `この${count(n)}件の項目`}がどこにあるか確認できません。削除はしていません。${n === 1 ? "項目" : "項目"}の場所を確認してください：`,
     selection: {
@@ -682,7 +681,7 @@ export const ja: Messages = {
         goes_to_quarantine:
           "完全に削除するまでは復元できます。Lumenが自動で削除することはありません。",
         library_data_stays:
-          "~/Libraryのアプリデータは残ります。新しくスキャンした後、探索で確認できます。",
+          "~/Libraryのアプリデータは残ります。新しくスキャンした後、ストレージで確認できます。",
       },
       locations: {
         source: "アプリは元の場所にあります。",

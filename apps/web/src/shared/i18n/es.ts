@@ -56,7 +56,6 @@ export const es: Messages = {
       quarantine: "En Cuarentena",
       atLeast: (size: string) => `al menos ${size}`,
       found: (n: string) => `${n} leídos`,
-      openExplore: "Abrir Explorar",
       showProgress: "Mostrar progreso",
       cleaned: (n: number, size: string) => `${items(n)} (${size}) se movieron a Cuarentena.`,
       none: "Todavía no se ha analizado nada. Analiza el disco para explorar su contenido y las pruebas que respaldan cada decisión.",
@@ -80,7 +79,7 @@ export const es: Messages = {
       ownCommand: "Comando propio",
       xcodeManage: "Gestiona los runtimes en Xcode › Settings › Components.",
       dockerManage:
-        "Lo que Docker cuenta como sin usar incluye volúmenes y contenedores detenidos, que pueden guardar datos que necesitas. Su limpieza solo se ejecuta desde Explorar, después de que confirmes el comando completo, y conserva los volúmenes.",
+        "Lo que Docker cuenta como sin usar incluye volúmenes y contenedores detenidos, que pueden guardar datos que necesitas. Su limpieza solo se ejecuta después de que confirmes el comando completo, y conserva los volúmenes.",
       sharedStoreNote:
         "Los proyectos enlazan a este almacén. Su comando propio conserva lo que aún usan.",
       cacheNote: "Se vuelve a descargar cuando hace falta.",
@@ -578,7 +577,7 @@ export const es: Messages = {
     empty: "Cuarentena está vacía",
     emptyHint:
       "Los elementos que limpias se guardan aquí para que puedas restaurarlos si cambias de opinión.",
-    goCleanUp: "Abrir Explorar",
+    goCleanUp: "Abrir Almacenamiento",
     interrupted: (n: number) =>
       `La limpieza se detuvo a medias y Lumen no puede determinar dónde está ${n === 1 ? "este elemento" : `estos ${count(n)} elementos`}. Lumen no ${n === 1 ? "lo eliminó" : "los eliminó"}. Comprueba dónde ${n === 1 ? "estaba" : "estaban"}:`,
     selection: {
@@ -710,7 +709,7 @@ export const es: Messages = {
         goes_to_quarantine:
           "Puedes restaurarla hasta que la elimines definitivamente. Lumen nunca la elimina automáticamente.",
         library_data_stays:
-          "Sus datos en ~/Library se conservan. Tras un nuevo análisis, puedes revisarlos en Explorar.",
+          "Sus datos en ~/Library se conservan. Tras un nuevo análisis, puedes revisarlos en Almacenamiento.",
       },
       locations: {
         source: "La app sigue en su ubicación original.",
