@@ -8,6 +8,10 @@
 //!   a location Apple's frameworks name that way (`~/Library/Caches/<id>`,
 //!   `Containers/<id>`, `Preferences/<id>.plist`, ...). Names are compared without
 //!   case, as APFS does by default.
+//! - [`EXTENSION_SOURCE`]: the same locations, named after an ID that extends an
+//!   installed app's (`<app id>.<more>`), its extensions and helpers (ADR-0068,
+//!   design Q2). Not in `Caches`: an app's own cache is proposed for
+//!   Quarantine, and this link is only meant to make its other data kept.
 //! - [`NAME_SOURCE`]: `~/Library/Application Support/<name>` where exactly one
 //!   installed app has that display name. Vendor folders shared by several apps
 //!   ("Google", "Microsoft") are never claimed, and short names are ignored.
@@ -28,8 +32,27 @@ use lumen_domain::{
 
 /// Source for links by exact bundle ID.
 pub const BUNDLE_ID_SOURCE: &str = "macos.support-location.bundle-id";
+/// Source for links by an ID that extends an installed app's bundle ID: its
+/// extensions' and helpers' data (ADR-0068, design Q2).
+pub const EXTENSION_SOURCE: &str = "macos.support-location.bundle-id-extension";
 /// Source for links by unique application name.
 pub const NAME_SOURCE: &str = "macos.support-location.app-name";
+
+/// The installed app whose bundle ID `name` (lowercase) extends
+/// (`<app id>.<more>`), the most specific if several do. Apple requires an
+/// embedded bundle's ID to start with its app's ID. Only IDs of three or
+/// more labels count, so a two-label ID never claims a whole vendor.
+fn extended<'a>(by_id: &HashMap<String, &'a AppId>, name: &str) -> Option<&'a AppId> {
+    by_id
+        .iter()
+        .filter(|(id, _)| id.split('.').count() >= 3)
+        .filter(|(id, _)| {
+            name.strip_prefix(id.as_str())
+                .is_some_and(|rest| rest.len() > 1 && rest.starts_with('.'))
+        })
+        .max_by_key(|(id, _)| id.len())
+        .map(|(_, app)| *app)
+}
 
 /// `~/Library` subdirectories whose children are named `<bundle id><suffix>`,
 /// and what each holds.
@@ -119,8 +142,9 @@ pub fn link_support_locations(
     entries: &[FilesystemEntry],
     observed_at: Timestamp,
 ) -> Vec<Link> {
-    let (Ok(by_id_source), Ok(by_name_source)) = (
+    let (Ok(by_id_source), Ok(extension_source), Ok(by_name_source)) = (
         SourceName::new(BUNDLE_ID_SOURCE),
+        SourceName::new(EXTENSION_SOURCE),
         SourceName::new(NAME_SOURCE),
     ) else {
         return Vec::new();
@@ -154,18 +178,20 @@ pub fn link_support_locations(
             let Some(name) = child_name(path, dir) else {
                 continue;
             };
-            let Some(id) = std::str::from_utf8(name)
-                .ok()
-                .and_then(|n| {
-                    n.to_lowercase()
-                        .strip_suffix(&suffix.to_lowercase())
-                        .map(str::to_owned)
-                })
-                .and_then(|n| by_id.get(&n))
-            else {
+            let Some(name) = std::str::from_utf8(name).ok().and_then(|n| {
+                n.to_lowercase()
+                    .strip_suffix(&suffix.to_lowercase())
+                    .map(str::to_owned)
+            }) else {
                 continue;
             };
-            links.extend(link(entry, id, *kind, &by_id_source, observed_at));
+            if let Some(id) = by_id.get(&name) {
+                links.extend(link(entry, id, *kind, &by_id_source, observed_at));
+            } else if *kind != AppDataKind::Caches
+                && let Some(id) = extended(&by_id, &name)
+            {
+                links.extend(link(entry, id, *kind, &extension_source, observed_at));
+            }
         }
         let unique = child_name(path, &support)
             .and_then(|name| std::str::from_utf8(name).ok())
@@ -306,6 +332,57 @@ mod tests {
                 .collect::<Vec<_>>(),
             [("com.tinyspeck.slackmacgap", NAME_SOURCE)]
         );
+    }
+
+    #[test]
+    fn an_installed_apps_extensions_link_to_it_except_their_caches() {
+        let found = links(&[
+            entry(
+                "/Users/ana/Library/Containers/com.tinyspeck.slackmacgap.ShareExtension",
+                1,
+            ),
+            entry(
+                "/Users/ana/Library/Preferences/com.google.Chrome.helper.plist",
+                2,
+            ),
+            entry("/Users/ana/Library/Caches/com.google.Chrome.helper", 3),
+            entry("/Users/ana/Library/Containers/com.google.Chromebook", 4),
+            entry("/Users/ana/Library/Containers/com.google.other", 5),
+        ]);
+        assert_eq!(
+            found,
+            [
+                ("com.google.Chrome".to_owned(), EXTENSION_SOURCE.to_owned()),
+                (
+                    "com.tinyspeck.slackmacgap".to_owned(),
+                    EXTENSION_SOURCE.to_owned()
+                ),
+            ],
+            "a cache, a longer name and a sibling stay unlinked"
+        );
+    }
+
+    #[test]
+    fn an_extension_links_to_the_most_specific_app_and_never_to_a_vendor() {
+        let ids: Vec<AppId> = ["com.example.app", "com.example.app.pro", "org.two"]
+            .iter()
+            .map(|id| AppId {
+                scheme: AppIdScheme::BundleId,
+                value: UntrustedText::new(*id),
+            })
+            .collect();
+        let by_id: HashMap<String, &AppId> = ids
+            .iter()
+            .map(|id| (id.value.raw().to_owned(), id))
+            .collect();
+        let owner = |name: &str| extended(&by_id, name).map(|id| id.value.raw());
+        assert_eq!(
+            owner("com.example.app.pro.widget"),
+            Some("com.example.app.pro")
+        );
+        assert_eq!(owner("com.example.app.widget"), Some("com.example.app"));
+        assert_eq!(owner("org.two.thing"), None, "two labels name a vendor");
+        assert_eq!(owner("com.example.app"), None, "not an extension");
     }
 
     #[test]
