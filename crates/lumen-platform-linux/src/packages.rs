@@ -253,7 +253,13 @@ pub fn parse_pacman_desc(desc: &str) -> Option<Package> {
     let mut reason = None;
     let mut lines = desc.lines().map(str::trim);
     while let Some(line) = lines.next() {
-        let value = || lines.clone().next().filter(|v| !v.is_empty());
+        // A header is the next section, never this one's value.
+        let value = || {
+            lines
+                .clone()
+                .next()
+                .filter(|v| !v.is_empty() && !is_header(v))
+        };
         match line {
             "%NAME%" => name = value(),
             "%VERSION%" => version = value(),
@@ -275,6 +281,126 @@ pub fn parse_pacman_desc(desc: &str) -> Option<Package> {
     })
 }
 
+/// Whether a `desc` line is a section header, `%NAME%`.
+fn is_header(line: &str) -> bool {
+    line.len() > 1 && line.starts_with('%') && line.ends_with('%')
+}
+
+/// The values of one section of a pacman `desc` file: the lines after its
+/// `%HEADER%` up to a blank line or the next header ([alpm-db-desc(5)]).
+/// Empty if the section is absent, as pacman omits a section with no data;
+/// `None` if it is present with no value, which pacman never writes.
+///
+/// [alpm-db-desc(5)]: https://man.archlinux.org/man/alpm-db-desc.5
+fn pacman_section<'a>(desc: &'a str, header: &str) -> Option<Vec<&'a str>> {
+    let mut lines = desc.lines().map(str::trim);
+    if lines.by_ref().all(|l| l != header) {
+        return Some(Vec::new());
+    }
+    let values: Vec<&str> = lines
+        .take_while(|l| !(l.is_empty() || is_header(l)))
+        .collect();
+    (!values.is_empty()).then_some(values)
+}
+
+/// The name in one pacman relation, `name` or `name<op>version`
+/// ([alpm-package-relation(7)], [alpm-comparison(7)]), or `None` if it is not
+/// a name [alpm-package-name(7)] allows. A soname relation
+/// (`lib:libfoo.so.1`) keeps its prefix: only a provision written the same
+/// way meets it.
+///
+/// [alpm-package-relation(7)]: https://man.archlinux.org/man/alpm-package-relation.7.en
+/// [alpm-comparison(7)]: https://man.archlinux.org/man/alpm-comparison.7.en
+/// [alpm-package-name(7)]: https://man.archlinux.org/man/alpm-package-name.7.en
+#[cfg(test)]
+fn pacman_relation_name(value: &str) -> Option<String> {
+    pacman_relation(value, false)
+}
+
+fn pacman_relation(value: &str, provides: bool) -> Option<String> {
+    let split = value.find(['<', '>', '=']).unwrap_or(value.len());
+    let (name, comparison) = value.split_at(split);
+    if !comparison.is_empty() {
+        let operators: &[&str] = if provides {
+            &["="]
+        } else {
+            &["<=", ">=", "<", ">", "="]
+        };
+        let version = operators
+            .iter()
+            .find_map(|op| comparison.strip_prefix(op))?;
+        if version.is_empty()
+            || version
+                .chars()
+                .any(|c| c.is_whitespace() || c.is_control() || "<=>".contains(c))
+        {
+            return None;
+        }
+    }
+    let allowed = !name.is_empty()
+        && !name.starts_with(['-', '.'])
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"@._+-:".contains(&b));
+    allowed.then(|| name.to_owned())
+}
+
+/// A package's `%DEPENDS%` (each a need with no alternatives) and
+/// `%PROVIDES%`, and whether its `%PROVIDES%` was read.
+fn pacman_declared(desc: &str, name: &str) -> (Declared, bool) {
+    let list = |header| -> Option<Vec<String>> {
+        pacman_section(desc, header)?
+            .into_iter()
+            .map(|value| pacman_relation(value, header == "%PROVIDES%"))
+            .collect()
+    };
+    let provides = list("%PROVIDES%");
+    let read = provides.is_some();
+    let declared = Declared {
+        name: name.to_owned(),
+        allow_self_satisfaction: !pacman_section(desc, "%DEPENDS%")
+            .unwrap_or_default()
+            .iter()
+            .any(|d| d.contains(['<', '>', '='])),
+        provides: provides.unwrap_or_default(),
+        needs: list("%DEPENDS%").map(|names| names.into_iter().map(|n| vec![n]).collect()),
+    };
+    (declared, read)
+}
+
+/// The packages of pacman's local database from every package's `desc` text,
+/// and how many name no package.
+///
+/// Relations are each package's `%DEPENDS%` (`%OPTDEPENDS%` are not needed to
+/// run), matched to the installed packages as dpkg's are (see
+/// [`crate::relations`]). They are known only where every `desc` names a
+/// package and every `%PROVIDES%` is read; a `%DEPENDS%` that cannot be read
+/// leaves that package's relations unknown.
+#[must_use]
+pub fn parse_pacman_local(descs: &[&str]) -> (Vec<Package>, usize) {
+    let mut packages = Vec::new();
+    let mut declarations = Vec::new();
+    let mut provides_read = true;
+    for desc in descs {
+        let Some(package) = parse_pacman_desc(desc) else {
+            continue;
+        };
+        let (declared, read) = pacman_declared(desc, package.id.raw());
+        provides_read &= read;
+        declarations.push(declared);
+        packages.push(package);
+    }
+    let malformed = descs.len() - packages.len();
+    if malformed == 0 && provides_read {
+        link(
+            &mut packages,
+            &declarations,
+            RelationMethod::PacmanLocalDatabase,
+        );
+    }
+    (packages, malformed)
+}
+
 #[cfg(target_os = "linux")]
 pub use inventories::{DpkgInventory, PacmanInventory};
 
@@ -287,7 +413,7 @@ mod inventories {
     use lumen_application::ports::{InventoryReport, InventorySource};
     use lumen_domain::{Package, SourceName, SourceStatus};
 
-    use super::{parse_dpkg_status, parse_pacman_desc};
+    use super::{parse_dpkg_status, parse_pacman_local};
 
     /// The largest database file read; a larger one is not read as a whole and
     /// the report is partial.
@@ -375,7 +501,8 @@ mod inventories {
                 }
                 Err(_) => return report(PACMAN, SourceStatus::Partial, Vec::new()),
             };
-            let mut packages = Vec::new();
+            let mut descs = Vec::new();
+            let mut total_bytes = 0u64;
             let mut complete = true;
             for entry in entries {
                 if cancel.is_cancelled() {
@@ -387,13 +514,34 @@ mod inventories {
                     continue;
                 };
                 // `ALPM_DB_VERSION` is a file beside the package directories.
-                if !entry.file_type().is_ok_and(|t| t.is_dir()) {
-                    continue;
+                match entry.file_type() {
+                    Ok(kind) if kind.is_dir() => {}
+                    Ok(_) => continue,
+                    Err(_) => {
+                        complete = false;
+                        continue;
+                    }
                 }
-                match read(&entry.path().join("desc")).map(|t| t.as_deref().map(parse_pacman_desc))
-                {
-                    Ok(Some(Some(package))) => packages.push(package),
+                match read(&entry.path().join("desc")) {
+                    Ok(Some(desc)) => {
+                        total_bytes = total_bytes
+                            .saturating_add(u64::try_from(desc.len()).unwrap_or(u64::MAX));
+                        if total_bytes > MAX_FILE {
+                            complete = false;
+                            break;
+                        }
+                        descs.push(desc);
+                    }
                     _ => complete = false,
+                }
+            }
+            let descs: Vec<&str> = descs.iter().map(String::as_str).collect();
+            let (mut packages, malformed) = parse_pacman_local(&descs);
+            complete &= malformed == 0;
+            if !complete {
+                // A need's candidates are not known whole.
+                for package in &mut packages {
+                    package.relations = None;
                 }
             }
             let status = if complete {
@@ -664,10 +812,141 @@ Provides: mail-transport-agent
     }
 
     #[test]
+    fn pacman_needs_are_read_and_provided_names_stay_ambiguous() {
+        use lumen_domain::{PackageRelationKind, RelationMethod};
+        type Needs<'a> = Option<Vec<(bool, Vec<&'a str>)>>;
+        let firefox = "%NAME%\nfirefox\n\n%VERSION%\n132.0-1\n\n%DEPENDS%\nnss>=3.105\nsh\n\
+                       lib:libdbus-1.so.3\ngone\n\n%OPTDEPENDS%\nnetworkmanager: location\n";
+        let nss = "%NAME%\nnss\n%VERSION%\n3.105-1\n%REASON%\n1\n";
+        let bash = "%NAME%\nbash\n\n%PROVIDES%\nsh\n\n%DEPENDS%\nglibc\n";
+        let dash = "%NAME%\ndash\n\n%PROVIDES%\nsh=0.5\n";
+        let dbus = "%NAME%\ndbus\n\n%PROVIDES%\nlib:libdbus-1.so.3\nlibdbus-1.so=3-64\n";
+        let bad = "%NAME%\nbad\n\n%DEPENDS%\nnot a name\n";
+        let (packages, malformed) = parse_pacman_local(&[firefox, nss, bash, dash, dbus, bad]);
+        assert_eq!(malformed, 0);
+        let needs: Vec<Needs<'_>> = packages
+            .iter()
+            .map(|p| {
+                p.relations.as_ref().map(|relations| {
+                    relations
+                        .iter()
+                        .map(|r| {
+                            assert_eq!(r.method, RelationMethod::PacmanLocalDatabase);
+                            match &r.kind {
+                                PackageRelationKind::DependsOn { package, .. } => {
+                                    (true, vec![package.id.raw()])
+                                }
+                                PackageRelationKind::DependsOnOneOf { packages, .. } => {
+                                    (false, packages.iter().map(|p| p.id.raw()).collect())
+                                }
+                                other => unreachable!("{other:?}"),
+                            }
+                        })
+                        .collect()
+                })
+            })
+            .collect();
+        assert_eq!(
+            needs,
+            [
+                Some(vec![
+                    (true, vec!["nss"]),
+                    (false, vec!["bash", "dash"]),
+                    (false, vec!["dbus"]),
+                    (true, vec!["gone"]),
+                ]),
+                Some(Vec::new()),
+                Some(vec![(true, vec!["glibc"])]),
+                Some(Vec::new()),
+                Some(Vec::new()),
+                None,
+            ]
+        );
+    }
+
+    #[test]
+    fn an_unnamed_desc_or_unread_provides_leaves_every_pacman_relation_unknown() {
+        let firefox = "%NAME%\nfirefox\n\n%DEPENDS%\nnss\n";
+        let nss = "%NAME%\nnss\n";
+        for other in [
+            "%VERSION%\n1\n",
+            "%NAME%\nx\n\n%PROVIDES%\n-bad\n",
+            "%NAME%\nx\n\n%PROVIDES%\nsh>=2\n",
+        ] {
+            let (packages, _) = parse_pacman_local(&[firefox, nss, other]);
+            assert!(packages.iter().all(|p| p.relations.is_none()), "{other:?}");
+        }
+    }
+
+    #[test]
+    fn pacman_versioned_need_keeps_external_providers() {
+        let own = "%NAME%\nimpl\n\n%PROVIDES%\napi\n\n%DEPENDS%\napi>=2\n";
+        let external = "%NAME%\nexternal\n\n%PROVIDES%\napi=2\n";
+        let (packages, _) = parse_pacman_local(&[own, external]);
+        let relations = packages[0].relations.as_deref().unwrap_or_default();
+        assert_eq!(relations.len(), 1);
+        assert!(
+            matches!(&relations[0].kind, lumen_domain::PackageRelationKind::DependsOnOneOf { packages, .. }
+            if packages.iter().map(|p| p.id.raw()).collect::<Vec<_>>() == ["impl", "external"])
+        );
+    }
+
+    #[test]
+    fn pacman_relation_names_follow_alpm() {
+        for (value, name) in [
+            ("glibc", Some("glibc")),
+            ("nss>=3.105", Some("nss")),
+            ("libdbus-1.so=3-64", Some("libdbus-1.so")),
+            ("lib:libdbus-1.so.3", Some("lib:libdbus-1.so.3")),
+            ("qt6-base<6.9", Some("qt6-base")),
+            ("python@3.12", Some("python@3.12")),
+            ("-x", None),
+            (".x", None),
+            ("two words", None),
+            (">=1", None),
+            ("nss>=", None),
+            ("nss==2", None),
+            ("nss=>2", None),
+            ("nss>=two words", None),
+            ("", None),
+        ] {
+            assert_eq!(pacman_relation_name(value).as_deref(), name, "{value:?}");
+        }
+    }
+
+    #[test]
     fn a_pacman_record_without_a_name_is_none() {
         assert_eq!(parse_pacman_desc("%VERSION%\n1.0-1\n"), None);
         assert_eq!(parse_pacman_desc("%NAME%\n\n%VERSION%\n1\n"), None);
         assert_eq!(parse_pacman_desc(""), None);
+        assert_eq!(parse_pacman_desc("%NAME%\n%VERSION%\n1\n"), None);
+    }
+
+    #[test]
+    fn a_missing_name_before_another_header_keeps_all_relations_unknown() {
+        let app = "%NAME%\napp\n%DEPENDS%\nprovider\n";
+        let provider = "%NAME%\nprovider\n%VERSION%\n1\n";
+        let unread = "%NAME%\n%PROVIDES%\nprovider\n";
+        let (packages, malformed) = parse_pacman_local(&[app, provider, unread]);
+        assert_eq!(malformed, 1);
+        assert_eq!(packages.len(), 2);
+        assert_eq!(
+            packages[1].version.as_ref().map(UntrustedText::raw),
+            Some("1")
+        );
+        assert!(packages.iter().all(|p| p.relations.is_none()));
+    }
+
+    #[test]
+    fn a_present_section_without_values_is_unread_not_empty() {
+        let provider = "%NAME%\nprovider\n";
+        let empty_depends = "%NAME%\napp\n\n%DEPENDS%\n\n%VERSION%\n1\n";
+        let (packages, _) = parse_pacman_local(&[provider, empty_depends]);
+        assert_eq!(packages[0].relations, Some(Vec::new()));
+        assert_eq!(packages[1].relations, None, "unread, never none");
+        let empty_provides = "%NAME%\napp\n\n%PROVIDES%\n";
+        let (packages, _) = parse_pacman_local(&[provider, empty_provides]);
+        assert!(packages.iter().all(|p| p.relations.is_none()));
     }
 }
 
