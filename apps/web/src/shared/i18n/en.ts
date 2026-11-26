@@ -67,7 +67,6 @@ export const en = {
       quarantine: "In Quarantine",
       atLeast: (size: string) => `at least ${size}`,
       found: (n: string) => `${n} read`,
-      openExplore: "Open Explore",
       showProgress: "Show progress",
       cleaned: (n: number, size: string) => `${items(n)} (${size}) moved to Quarantine.`,
       none: "No scan yet. Scan your disk to explore its contents and the evidence behind each decision.",
@@ -91,7 +90,7 @@ export const en = {
       ownCommand: "Own command",
       xcodeManage: "Manage runtimes in Xcode › Settings › Components.",
       dockerManage:
-        "Docker's unused count includes volumes and stopped containers, which can hold data you need. Its cleanup runs only from Explore, after you confirm the full command, and keeps volumes.",
+        "Docker's unused count includes volumes and stopped containers, which can hold data you need. Its cleanup runs only after you confirm the full command, and keeps volumes.",
       sharedStoreNote: "Projects link to this store. Its own command keeps what they still use.",
       cacheNote: "Downloaded again when needed.",
     },
@@ -570,7 +569,7 @@ export const en = {
     loadFailed: "Lumen could not load Quarantine.",
     empty: "Quarantine is empty",
     emptyHint: "Items you clean up wait here, so you can restore them if you change your mind.",
-    goCleanUp: "Open Explore",
+    goCleanUp: "Open Storage",
     interrupted: (n: number) =>
       `A clean-up stopped partway, and Lumen cannot tell where ${n === 1 ? "this item is" : `these ${count(n)} items are`}. Lumen did not remove ${n === 1 ? "it" : "them"}. Check where ${n === 1 ? "it was" : "they were"}:`,
     selection: {
@@ -697,7 +696,7 @@ export const en = {
         goes_to_quarantine:
           "You can restore the app until you remove it for good. Lumen never removes it automatically.",
         library_data_stays:
-          "Its data in ~/Library stays. After a new scan, you can review that data in Explore.",
+          "Its data in ~/Library stays. After a new scan, you can review that data in Storage.",
       },
       locations: {
         source: "The app is still in its original location.",

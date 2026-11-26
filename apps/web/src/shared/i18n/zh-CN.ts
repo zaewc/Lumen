@@ -55,7 +55,6 @@ export const zhCN: Messages = {
       quarantine: "隔离区中",
       atLeast: (size: string) => `至少 ${size}`,
       found: (n: string) => `已读取 ${n} 项`,
-      openExplore: "打开“探索”",
       showProgress: "显示进度",
       cleaned: (n: number, size: string) => `${items(n)}（${size}）已移至隔离区。`,
       none: "尚未扫描。扫描磁盘以探索其中的内容，并查看每项决策背后的证据。",
@@ -78,7 +77,7 @@ export const zhCN: Messages = {
       ownCommand: "专用命令",
       xcodeManage: "在 Xcode › Settings › Components 中管理运行时。",
       dockerManage:
-        "Docker 认为未使用的空间包括卷和已停止的容器，其中可能有你需要的数据。Docker 清理只会在“探索”中确认完整命令后运行，并保留卷。",
+        "Docker 认为未使用的空间包括卷和已停止的容器，其中可能有你需要的数据。Docker 清理只会在你确认完整命令后运行，并保留卷。",
       sharedStoreNote: "项目会链接到此存储。它的专用命令会保留仍在使用的包。",
       cacheNote: "需要时会重新下载。",
     },
@@ -537,7 +536,7 @@ export const zhCN: Messages = {
     loadFailed: "Lumen 无法加载隔离区。",
     empty: "隔离区为空",
     emptyHint: "清理的项目会暂存在这里，改变主意时可以恢复。",
-    goCleanUp: "打开“探索”",
+    goCleanUp: "打开“存储空间”",
     interrupted: (n: number) =>
       `清理操作中途停止，Lumen 无法确定 ${n === 1 ? "此项目" : `这 ${count(n)} 个项目`}的位置。Lumen 没有移除${n === 1 ? "它" : "它们"}。请检查${n === 1 ? "它原来" : "它们原来"}的位置：`,
     selection: {
@@ -656,7 +655,7 @@ export const zhCN: Messages = {
       recheck: "重新检查",
       notes: {
         goes_to_quarantine: "永久删除前可以恢复应用。Lumen 不会自动删除它。",
-        library_data_stays: "~/Library 中的应用数据会保留。重新扫描后，可以在探索中查看。",
+        library_data_stays: "~/Library 中的应用数据会保留。重新扫描后，可以在存储空间中查看。",
       },
       locations: {
         source: "应用仍在原来的位置。",

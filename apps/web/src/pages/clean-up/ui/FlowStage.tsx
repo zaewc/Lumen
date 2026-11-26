@@ -1,12 +1,12 @@
 import { useI18n } from "@/shared/i18n";
 
-/** The person's steps on Explore, not the engine's stages or a percentage. */
+/** The person's steps on Storage, not the engine's stages or a percentage. */
 export type Step = "scan" | "results" | "cleanUp";
 
 const STEPS: readonly Step[] = ["scan", "results", "cleanUp"];
 
 /**
- * Where the person is in Explore: scan (and the decisions that follow it),
+ * Where the person is on Storage: scan (and the decisions that follow it),
  * see the results, clean up. Earlier steps are joined by a solid rule, later
  * ones by a dashed one; the current step is the one in ink.
  */

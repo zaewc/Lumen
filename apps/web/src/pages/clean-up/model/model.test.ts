@@ -4,7 +4,6 @@ import { closingSummary } from "./closing";
 import { coverageOf } from "./coverage";
 import { cleanUpSearch, filterCounts, shows } from "./filter";
 import { reportSummary } from "./report";
-import { sectionsOf } from "./sections";
 import { cleanUpStep } from "./step";
 
 function candidate(
@@ -30,10 +29,6 @@ function candidate(
   };
 }
 
-const xcode = { kind: "developer", source: "Xcode" } as const;
-const npm = { kind: "developer", source: "npm" } as const;
-const unknownTool = { kind: "developer", source: null } as const;
-const cache = { kind: "app_cache", source: "com.example.app" } as const;
 const simctl = {
   entry: "e",
   removes_data: false,
@@ -46,85 +41,6 @@ const simctl = {
 function withCommand(c: CandidateView): CandidateView {
   return { ...c, tool_command: simctl };
 }
-
-describe("sectionsOf", () => {
-  const candidates = [
-    candidate("/other", "keep", "0"),
-    candidate("/npm", "quarantine", "1800"),
-    candidate("/cache-b", "review", "20", cache),
-    candidate("/derived", "quarantine", "4200", xcode),
-    candidate("/sim", "review", "3100", xcode),
-    candidate("/tool", "review", "9000", unknownTool),
-    candidate("/cache-a", "quarantine", "18446744073709551615", cache),
-  ].map((c) => (c.path === "/npm" ? { ...c, group: npm } : c));
-
-  it("orders kinds, leaves out empty ones and totals each exactly", () => {
-    const sections = sectionsOf(candidates);
-    expect(sections.map((s) => s.kind)).toEqual(["developer", "app_cache", "other"]);
-    const [developer, appCache, other] = sections;
-    expect(developer?.count).toBe(4);
-    expect(developer?.bytes).toBe("18100");
-    expect(appCache?.bytes).toBe("18446744073709551635");
-    expect(other?.count).toBe(1);
-  });
-
-  it("splits developer tools by tool, largest first, the unknown tool last", () => {
-    const [developer, appCache] = sectionsOf(candidates);
-    expect(developer?.sources.map((s) => [s.source, s.bytes])).toEqual([
-      ["Xcode", "7300"],
-      ["npm", "1800"],
-      [null, "9000"],
-    ]);
-    expect(developer?.sources[0]?.items.map((c) => c.path)).toEqual(["/derived", "/sim"]);
-    expect(appCache?.sources.map((s) => s.source)).toEqual([null]);
-    expect(appCache?.sources[0]?.items.map((c) => c.path)).toEqual(["/cache-a", "/cache-b"]);
-  });
-
-  it("has no sections without candidates", () => {
-    expect(sectionsOf([])).toEqual([]);
-  });
-
-  it("splits a removed app's data by app, and a lower bound stays one", () => {
-    const notes = { kind: "removed_app", source: "net.example.Notes" } as const;
-    const chat = { kind: "removed_app", source: "org.example.Chat" } as const;
-    const sections = sectionsOf([
-      candidate("/notes-cache", "review", "200", notes),
-      { ...candidate("/notes-box", "review", "300", notes), reclaimable_exact: false },
-      candidate("/chat", "review", "50", chat),
-      candidate("/cache-a", "quarantine", "10", cache),
-      candidate("/data", "keep", "1", { kind: "app_data", source: "com.example.app" }),
-    ]);
-    expect(sections.map((s) => [s.kind, s.count, s.bytes, s.exact])).toEqual([
-      ["app_cache", 1, "10", true],
-      ["removed_app", 3, "550", false],
-      ["app_data", 1, "1", true],
-    ]);
-    expect(sections[1]?.sources.map((g) => [g.source, g.bytes, g.exact])).toEqual([
-      ["net.example.Notes", "500", false],
-      ["org.example.Chat", "50", true],
-    ]);
-  });
-});
-
-describe("sectionsOf with commands", () => {
-  it("puts items to review with their own command in their own section, first", () => {
-    const sections = sectionsOf([
-      candidate("/derived", "quarantine", "4200", xcode),
-      withCommand(candidate("/sim", "review", "3100", xcode)),
-      withCommand(candidate("/pnpm", "review", "15000", { kind: "developer", source: "pnpm" })),
-      candidate("/other", "review", "9", { kind: "other", source: null }),
-      withCommand(candidate("/kept", "keep", "7", xcode)),
-    ]);
-    expect(sections.map((s) => [s.kind, s.count, s.bytes])).toEqual([
-      ["command", 2, "18100"],
-      ["developer", 2, "4207"],
-      ["other", 1, "9"],
-    ]);
-    expect(sections[0]?.sources.map((g) => g.items.map((c) => c.path))).toEqual([
-      ["/pnpm", "/sim"],
-    ]);
-  });
-});
 
 describe("filters", () => {
   const candidates = [

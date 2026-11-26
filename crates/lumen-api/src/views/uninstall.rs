@@ -98,8 +98,8 @@ pub enum UninstallNoteView {
     /// It goes to Quarantine and can be restored until it is removed for
     /// good; it is never removed automatically.
     GoesToQuarantine,
-    /// Its data in `~/Library` stays. After the next scan it appears in
-    /// Explore as data of an app that is not installed.
+    /// Its data in `~/Library` stays. After the next scan it appears on the
+    /// Storage page as data left by a removed app (ADR-0068, ADR-0069).
     LibraryDataStays,
 }
 
