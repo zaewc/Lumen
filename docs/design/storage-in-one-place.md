@@ -41,7 +41,10 @@ consistent experience even if Explore is rebuilt (2026-11-18).
 
 **An owner** is something a person recognises: an installed app, a developer tool, a
 package manager, an app that was removed (ADR-0068), or, when nothing owns an item,
-its kind ("기타"). Owners come from data the host already sends:
+its kind: an item in the user's log or temporary folder (ADR-0070) under "로그 파일"
+or "임시 파일", anything else under "기타". A log or temporary item whose owning app
+is known is shown under that app, as review items always are, never preselected.
+Owners come from data the host already sends:
 
 - an item's `group.source` (a tool such as `Xcode`, or an app's bundle ID) and
   `group.kind`;

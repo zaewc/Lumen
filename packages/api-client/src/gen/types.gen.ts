@@ -679,7 +679,14 @@ export type FreeWhenClosedView = {
 /**
  * The kind of group an item is presented in.
  */
-export type GroupKindView = "developer" | "app_cache" | "app_data" | "removed_app" | "other";
+export type GroupKindView =
+  | "developer"
+  | "app_cache"
+  | "app_data"
+  | "removed_app"
+  | "logs"
+  | "temporary"
+  | "other";
 
 /**
  * The group an item is presented in, and what it belongs to when known.

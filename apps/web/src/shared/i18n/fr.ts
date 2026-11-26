@@ -265,6 +265,8 @@ export const fr: Messages = {
       app_cache: "Caches d'applications",
       removed_app: "Données d'applications supprimées",
       app_data: "Données d'applications",
+      logs: "Fichiers journaux",
+      temporary: "Fichiers temporaires",
       other: "Autre",
     },
     removedNote:

@@ -252,6 +252,8 @@ export const zhCN: Messages = {
       app_cache: "应用缓存",
       removed_app: "已删除应用留下的数据",
       app_data: "应用数据",
+      logs: "日志文件",
+      temporary: "临时文件",
       other: "其他",
     },
     removedNote: "应用已经不在了，但数据还在。请确认不再需要后再移走。",
