@@ -15,9 +15,13 @@ use std::path::{Path, PathBuf};
 
 use lumen_application::CancelToken;
 use lumen_application::ports::{InventoryReport, InventorySource};
-use lumen_domain::{Package, PackageManager, RawPath, SourceName, SourceStatus, UntrustedText};
+use lumen_domain::{
+    Package, PackageId, PackageManager, PackageRelationKind, RawPath, SourceName, SourceStatus,
+    UntrustedText,
+};
 
 mod relations;
+mod rights;
 
 const SOURCE: &str = "macos.homebrew";
 
@@ -44,6 +48,75 @@ impl HomebrewInventory {
     #[must_use]
     pub const fn in_prefixes(prefixes: Vec<PathBuf>) -> Self {
         Self { prefixes }
+    }
+}
+
+impl HomebrewInventory {
+    /// Whether Homebrew's own uninstall of `package` runs with this user's
+    /// rights (ADR-0060 rule 6, roadmap 16.7): `Some(false)` if it needs
+    /// administrator rights, `None` if that cannot be told, or the package is
+    /// not installed in exactly one prefix. Only Homebrew's records and the
+    /// folders it would change are read; `brew` is not run.
+    #[must_use]
+    pub fn removal_rights(&self, package: &PackageId) -> Option<bool> {
+        let folder = match package.manager {
+            PackageManager::Homebrew => "Cellar",
+            PackageManager::HomebrewCask => "Caskroom",
+            _ => return None,
+        };
+        let name = package.id.raw();
+        if name.is_empty() || name.starts_with('.') || name.contains('/') {
+            return None;
+        }
+        let mut dirs = self
+            .prefixes
+            .iter()
+            .map(|prefix| prefix.join(folder).join(name))
+            .filter(|dir| dir.is_dir());
+        let (Some(dir), None) = (dirs.next(), dirs.next()) else {
+            return None;
+        };
+        if !rights::mine(&dir)? {
+            return Some(false);
+        }
+        if package.manager == PackageManager::Homebrew {
+            return Some(true);
+        }
+        // What Homebrew's record of the cask says it removes.
+        let version = subdirectories(&dir)?.pop()?;
+        let metadata = dir.join(".metadata");
+        let receipt = read_json(&metadata.join("INSTALL_RECEIPT.json"));
+        let listed = receipt
+            .as_ref()
+            .and_then(|r| r.get("uninstall_artifacts")?.as_array().cloned());
+        let definition = match listed {
+            Some(_) => None,
+            None => stored_definition(&dir, name, &version),
+        };
+        let artifacts = match &listed {
+            Some(list) => list.clone(),
+            None => definition.as_ref()?.get("artifacts")?.as_array()?.clone(),
+        };
+        let steps = rights::cask_steps(&artifacts);
+        // Every app it placed must be this user's, in a folder they may write.
+        let config = read_json(&metadata.join("config.json"));
+        let relations = relations::cask(receipt.as_ref(), definition.as_ref(), config.as_ref())?;
+        let mut apps = Some(true);
+        for relation in &relations {
+            if let PackageRelationKind::Installed { location } = &relation.kind {
+                use std::os::unix::ffi::OsStrExt as _;
+                let path = Path::new(std::ffi::OsStr::from_bytes(location.as_bytes()));
+                match rights::mine(path) {
+                    Some(true) => {}
+                    Some(false) => return Some(false),
+                    None => apps = None,
+                }
+            }
+        }
+        match (steps?, apps?) {
+            (true, true) => Some(true),
+            _ => Some(false),
+        }
     }
 }
 
@@ -303,6 +376,66 @@ mod tests {
                 ),
             ]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn removal_rights_come_from_the_records_and_the_folders_brew_would_change()
+    -> std::io::Result<()> {
+        let prefix = tempfile::tempdir()?;
+        let p = prefix.path();
+        let id = |manager, name: &str| PackageId {
+            manager,
+            id: UntrustedText::new(name),
+        };
+        write(&p.join("Cellar/act/0.2.79/INSTALL_RECEIPT.json"), "{}")?;
+        // A cask whose app is the user's, in the user's own folder.
+        let apps = p.join("Apps");
+        std::fs::create_dir_all(apps.join("Hot.app"))?;
+        let config = format!(r#"{{"explicit": {{"appdir": "{}"}}}}"#, apps.display());
+        write(&p.join("Caskroom/hot/1.0/.keep"), "")?;
+        write(
+            &p.join("Caskroom/hot/.metadata/INSTALL_RECEIPT.json"),
+            r#"{"uninstall_artifacts": [{"app": ["Hot.app"]}, {"zap": [{"trash": ["~/x"]}]}]}"#,
+        )?;
+        write(&p.join("Caskroom/hot/.metadata/config.json"), &config)?;
+        // A cask that removes an installer package.
+        write(&p.join("Caskroom/pwsh/7.5/.keep"), "")?;
+        write(
+            &p.join("Caskroom/pwsh/.metadata/INSTALL_RECEIPT.json"),
+            r#"{"uninstall_artifacts": [{"uninstall": [{"pkgutil": "com.microsoft.powershell"}]}]}"#,
+        )?;
+        // A cask whose app is missing: cannot be told.
+        write(&p.join("Caskroom/gone/1.0/.keep"), "")?;
+        write(
+            &p.join("Caskroom/gone/.metadata/INSTALL_RECEIPT.json"),
+            r#"{"uninstall_artifacts": [{"app": ["Gone.app"]}]}"#,
+        )?;
+        write(&p.join("Caskroom/gone/.metadata/config.json"), &config)?;
+        let brew = HomebrewInventory::in_prefixes(vec![p.to_path_buf()]);
+        assert_eq!(
+            brew.removal_rights(&id(PackageManager::Homebrew, "act")),
+            Some(true)
+        );
+        assert_eq!(
+            brew.removal_rights(&id(PackageManager::HomebrewCask, "hot")),
+            Some(true)
+        );
+        assert_eq!(
+            brew.removal_rights(&id(PackageManager::HomebrewCask, "pwsh")),
+            Some(false)
+        );
+        assert_eq!(
+            brew.removal_rights(&id(PackageManager::HomebrewCask, "gone")),
+            None
+        );
+        for (manager, name) in [
+            (PackageManager::Homebrew, "missing"),
+            (PackageManager::Homebrew, "../act"),
+            (PackageManager::Dpkg, "act"),
+        ] {
+            assert_eq!(brew.removal_rights(&id(manager, name)), None, "{name}");
+        }
         Ok(())
     }
 
