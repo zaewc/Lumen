@@ -395,12 +395,42 @@ fn platform_contributions(
             contributions.evidence.push(link.location);
             contributions.relationships.push(link.relationship);
         }
+        // After every owner link: items an installed security app owns.
+        let security = security_evidence(&inventory.apps, &contributions.evidence, now);
+        contributions.evidence.extend(security);
         // Derived from the scan alone, so dated by it.
         contributions
             .evidence
             .extend(markers.web_profiles.evidence(home, entries, scanned_at));
     }
     contributions
+}
+
+/// `OwningSecuritySoftware` for the items an installed app owns whose
+/// signature carries the Endpoint Security entitlement (ADR-0060 rule 4,
+/// ADR-0070 step 5), read with `codesign` as the person. An unreadable
+/// signature adds nothing.
+#[cfg(target_os = "macos")]
+fn security_evidence(
+    apps: &[lumen_domain::Application],
+    evidence: &[Evidence],
+    now: lumen_domain::Timestamp,
+) -> Vec<Evidence> {
+    use lumen_platform_macos::management::{Run, endpoint_security_client};
+    use std::os::unix::ffi::OsStrExt as _;
+    let Ok(source) = SourceName::new("macos.codesign.endpoint-security") else {
+        return Vec::new();
+    };
+    lumen_application::security_owners::security_owner_evidence(
+        apps,
+        evidence,
+        &source,
+        now,
+        &mut |bundle| {
+            let path = Path::new(std::ffi::OsStr::from_bytes(bundle.as_bytes()));
+            endpoint_security_client(path, Run::AsCaller)
+        },
+    )
 }
 
 /// The most owning applications one gathering asks Spotlight about.
@@ -1449,6 +1479,54 @@ mod tests {
     use lumen_policy::{Observed, PolicyInput};
 
     use super::*;
+
+    /// An app whose signature has no Endpoint Security entitlement marks
+    /// nothing it owns as security software, and an owner with no installed
+    /// bundle is never probed.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn only_an_entitled_signature_marks_owned_items() -> Result<(), Box<dyn std::error::Error>> {
+        use lumen_domain::{
+            AppId, AppIdScheme, Application, Basis, Fact, Provenance, Subject, UntrustedText,
+        };
+        let calculator = AppId {
+            scheme: AppIdScheme::BundleId,
+            value: UntrustedText::new("com.apple.calculator"),
+        };
+        let app = Application {
+            ids: BTreeSet::from([calculator.clone()]),
+            name: None,
+            version: None,
+            vendor: None,
+            signature: None,
+            install_locations: vec![RawPath::from_unix_bytes(
+                b"/System/Applications/Calculator.app".to_vec(),
+            )?],
+            sources: BTreeSet::new(),
+            uninstall: None,
+        };
+        let owned = Evidence {
+            subject: Subject::File {
+                identity: FileIdentity {
+                    volume: VolumeId::new("dev:1")?,
+                    file: FileId::new(1),
+                },
+            },
+            fact: Fact::OwningApplication(calculator),
+            basis: Basis::Observed,
+            provenance: Provenance {
+                source: SourceName::new("test")?,
+                observed_at: Timestamp::UNIX_EPOCH,
+            },
+        };
+        let now = Timestamp::UNIX_EPOCH;
+        assert_eq!(
+            security_evidence(&[app], std::slice::from_ref(&owned), now),
+            Vec::new()
+        );
+        assert_eq!(security_evidence(&[], &[owned], now), Vec::new());
+        Ok(())
+    }
 
     /// Usage facts are only about owning applications, never say an
     /// application is missing, and nothing comes of an owner Spotlight

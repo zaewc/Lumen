@@ -127,9 +127,10 @@ Chosen option: **1**.
      incompletely scanned.
 5. **Security software and other owners.** An item whose `OwningApplication` the
    software inventory identifies as security software (ADR-0060 rule 4) is kept by
-   ADR-0014's security-software protection. The policy has no rule for it yet; step 7
-   adds `protect.security-software`, from evidence the software inventory supplies.
-   Until then such an item is at most a review item, never proposed. A folder Lumen
+   ADR-0014's security-software protection, `protect.security-software` (#988). On
+   macOS the evidence is the Endpoint Security entitlement in the owning app's
+   signature, for items already tied to that installed app; Windows has no producer
+   yet, so there such an item is at most a review item, never proposed. A folder Lumen
    cannot attribute to an owner, even one named after a security product, is
    recognised only by its location: it is a review item, never proposed, its sheet
    says what it is, and nothing is preselected (ADR-0051). When an owner is known, the item is shown under it

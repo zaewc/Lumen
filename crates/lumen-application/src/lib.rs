@@ -35,6 +35,7 @@ pub mod removal_facts;
 pub mod restore;
 pub mod review;
 pub mod scratch;
+pub mod security_owners;
 pub mod software_links;
 pub mod software_notes;
 pub mod software_relations;
