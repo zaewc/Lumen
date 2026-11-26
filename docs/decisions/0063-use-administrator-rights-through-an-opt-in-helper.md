@@ -253,7 +253,8 @@ release. So Windows uses **Lumen's own code key**:
   is gone for every account. The same account may then finalize it through the
   helper, permanently removing another account's app after the usual held-item
   and complete in-use checks. A shared computer's administrator can turn the helper
-  off in Settings.
+  off in Settings. The owner confirmed this on 2026-11-27: finalizing is not limited
+  to administrators.
 - Bad: Lumen ships a component that runs as root or SYSTEM, a standing attack surface
   while it is installed. A bug in its checks could move something it should not; the
   rules above and the shared executor are the defence, and quarantine stays

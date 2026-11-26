@@ -1,7 +1,7 @@
 # ADR-0070: Show old user logs and temporary files for review, and keep recent ones
 
-- Status: Accepted (option 1, within the owner's 2026-11-21 instruction to proceed
-  with the roadmap; option 2 is not selected)
+- Status: Accepted (option 1; confirmed by the owner on 2026-11-27; option 2 is not
+  selected)
 - Date: 2026-11-21
 - Refines: [ADR-0014](0014-deterministic-safety-policy-engine.md) (a classification
   rule may read file times, only to add caution),
