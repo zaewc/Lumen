@@ -53,7 +53,6 @@ export const fr: Messages = {
       quarantine: "En quarantaine",
       atLeast: (size) => `au moins ${size}`,
       found: (n) => `${n} lus`,
-      openExplore: "Ouvrir Explorer",
       showProgress: "Afficher la progression",
       cleaned: (n, size) => `${items(n)} (${size}) déplacés en quarantaine.`,
       none: "Aucune analyse pour le moment. Analysez votre disque pour explorer son contenu et les éléments qui justifient chaque décision.",
@@ -77,7 +76,7 @@ export const fr: Messages = {
       ownCommand: "Commande dédiée",
       xcodeManage: "Gérez les environnements d'exécution dans Xcode › Réglages › Composants.",
       dockerManage:
-        "Le décompte des éléments inutilisés de Docker inclut les volumes et les conteneurs arrêtés, qui peuvent contenir des données utiles. Son nettoyage ne se lance que depuis Explorer, après confirmation de la commande complète, et conserve les volumes.",
+        "Le décompte des éléments inutilisés de Docker inclut les volumes et les conteneurs arrêtés, qui peuvent contenir des données utiles. Son nettoyage ne se lance qu'après confirmation de la commande complète, et conserve les volumes.",
       sharedStoreNote:
         "Les projets sont liés à ce stockage. Sa commande dédiée conserve les éléments encore utilisés.",
       cacheNote: "Téléchargé à nouveau si nécessaire.",
@@ -561,7 +560,7 @@ export const fr: Messages = {
     empty: "La quarantaine est vide",
     emptyHint:
       "Les éléments nettoyés restent ici pour que vous puissiez les restaurer en cas de changement d'avis.",
-    goCleanUp: "Ouvrir Explorer",
+    goCleanUp: "Ouvrir Stockage",
     interrupted: (n) =>
       `Un nettoyage s'est interrompu et Lumen ne peut pas déterminer où se trouve${n === 1 ? " cet élément" : `nt ces ${count(n)} éléments`}. Lumen ne les a pas supprimés. Vérifiez leur emplacement :`,
     selection: {
@@ -693,7 +692,7 @@ export const fr: Messages = {
         goes_to_quarantine:
           "Vous pouvez la restaurer avant de la supprimer définitivement. Lumen ne la supprime jamais automatiquement.",
         library_data_stays:
-          "Ses données dans ~/Library restent en place. Après une nouvelle analyse, vous pouvez les examiner dans Explorer.",
+          "Ses données dans ~/Library restent en place. Après une nouvelle analyse, vous pouvez les examiner dans Stockage.",
       },
       locations: {
         source: "L’app est toujours à son emplacement d’origine.",

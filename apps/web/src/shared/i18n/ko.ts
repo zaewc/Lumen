@@ -64,7 +64,6 @@ export const ko = {
       quarantine: "격리함",
       atLeast: (size: string) => `최소 ${size}`,
       found: (n: string) => `${n}개 읽었어요`,
-      openExplore: "탐색 열기",
       showProgress: "진행 상황 보기",
       cleaned: (n: number, size: string) => `${items(n)}(${size})를 격리함으로 옮겼어요.`,
       none: "아직 검사하지 않았어요. 디스크를 검사하면 어떤 항목이 있는지와 판단 근거를 보여 줘요.",
@@ -88,7 +87,7 @@ export const ko = {
       ownCommand: "명령으로 정리",
       xcodeManage: "런타임은 Xcode › Settings › Components에서 관리해요.",
       dockerManage:
-        "Docker가 쓰지 않는다고 보는 공간에는 볼륨과 멈춘 컨테이너도 들어 있어서, 필요한 데이터가 있을 수 있어요. Docker 정리는 탐색에서 전체 명령을 확인한 뒤에만 실행하고, 볼륨은 남겨요.",
+        "Docker가 쓰지 않는다고 보는 공간에는 볼륨과 멈춘 컨테이너도 들어 있어서, 필요한 데이터가 있을 수 있어요. Docker 정리는 전체 명령을 확인한 뒤에만 실행하고, 볼륨은 남겨요.",
       sharedStoreNote:
         "프로젝트들이 이 저장소를 연결해 써요. 이 도구의 명령은 아직 쓰는 패키지를 남겨요.",
       cacheNote: "필요하면 다시 내려받아요.",
@@ -560,7 +559,7 @@ export const ko = {
     loadFailed: "격리함을 불러오지 못했어요.",
     empty: "격리함이 비어 있어요",
     emptyHint: "정리한 항목은 여기서 기다려요. 마음이 바뀌면 복원할 수 있어요.",
-    goCleanUp: "탐색 열기",
+    goCleanUp: "저장 공간 열기",
     interrupted: (n: number) =>
       `정리가 중간에 멈춰서 ${items(n)}가 어디 있는지 알 수 없어요. Lumen은 삭제하지 않았어요. 원래 있던 곳을 확인해 주세요.`,
     selection: {
@@ -682,7 +681,7 @@ export const ko = {
         goes_to_quarantine:
           "영구 삭제하기 전까지 앱을 복원할 수 있어요. Lumen이 자동으로 지우지 않아요.",
         library_data_stays:
-          "~/Library의 앱 데이터는 그대로 둬요. 새로 검사한 뒤 탐색에서 살펴볼 수 있어요.",
+          "~/Library의 앱 데이터는 그대로 둬요. 새로 검사한 뒤 저장 공간에서 살펴볼 수 있어요.",
       },
       locations: {
         source: "앱은 원래 위치에 있어요.",

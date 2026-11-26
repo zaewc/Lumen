@@ -1,8 +1,10 @@
-import type { CandidateView, RootView, SoftwareItemView } from "@lumen/api-client";
+import type { CandidateView, GroupKindView, RootView, SoftwareItemView } from "@lumen/api-client";
 import { type Status, statusOf } from "@/entities/scan-session";
 import { ownersOf } from "./owners";
-import type { SectionKind } from "./sections";
 import { type Rect, squarify } from "./squarify";
+
+/** What a region's items are: those cleaned up with their tool's own command (ADR-0049), or a kind of group. */
+type SectionKind = "command" | GroupKindView;
 
 /**
  * A region of the storage topography (docs/design/visual-language.md): an

@@ -408,7 +408,7 @@
 }
 
 /*
- * The storage topography on Explore. Items carry their decision's texture
+ * The storage topography on Storage, one region per owner (ADR-0069). Items carry their decision's texture
  * (as in the decision track); groups are outlines with their name on top.
  */
 .topo {
