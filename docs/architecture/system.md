@@ -304,8 +304,11 @@ Security software stays list-only
 ([ADR-0060](../decisions/0060-list-software-and-remove-it-only-through-its-own-mechanism.md)
 rule 4): an item with an `OwningSecuritySoftware` fact, a positive platform
 observation that its owner is security software (never a name or an AI answer), is
-kept as a hard protection (`protect.security-software`). No producer emits it yet;
-until one does, security software's data is kept only by the other protections.
+kept as a hard protection (`protect.security-software`). On macOS, an item gets it
+when it already carries an installed app's `OwningApplication` and one of that app's
+bundles has the Endpoint Security entitlement in its signature, read with `codesign`
+(`lumen_application::security_owners`); an unreadable signature adds nothing. Windows
+has no producer yet.
 
 Application usage counts only towards caution
 ([ADR-0059](../decisions/0059-use-application-usage-as-cautious-evidence.md)):
