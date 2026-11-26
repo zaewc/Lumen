@@ -101,8 +101,11 @@ pub fn inventory_facts(reports: &[InventoryReport]) -> InventoryFacts {
             let (mechanism, needs_administrator) = manager_facts(package.manager);
             let needs = package.relations.as_ref().map(|relations| {
                 let own = package.package_id();
-                // One need per named package, and one per set of alternatives
-                // it does not meet itself.
+                // One need per named package, and one per set of alternatives.
+                // A set the package's own record proves it meets is already
+                // left out by the source; a set that names only itself needs
+                // no other package. A set naming itself and others stays: it
+                // may be met by one of the others.
                 let needed: BTreeSet<Vec<&PackageId>> = relations
                     .iter()
                     .filter_map(|r| match &r.kind {
@@ -117,7 +120,7 @@ pub fn inventory_facts(reports: &[InventoryReport]) -> InventoryFacts {
                         }
                         _ => None,
                     })
-                    .filter(|needed| !needed.contains(&&own))
+                    .filter(|needed| !needed.iter().all(|&n| *n == own))
                     .collect();
                 count(needed.len(), true)
             });
@@ -413,7 +416,10 @@ mod tests {
             package(
                 DPKG,
                 "self-mta",
-                Some(vec![one_of(&["self-mta", "postfix"])]),
+                Some(vec![
+                    one_of(&["self-mta", "postfix"]),
+                    one_of(&["self-mta"]),
+                ]),
             ),
         ];
         let facts = inventory_facts(&[report(SourceStatus::Complete, Vec::new(), packages)]);
@@ -427,8 +433,9 @@ mod tests {
         );
         assert_eq!(
             facts.packages[3].needs.map(|c| c.count),
-            Some(0),
-            "a set it meets itself is no need"
+            Some(1),
+            "a set naming itself and another may be met by the other; \
+             one naming only itself needs no other package"
         );
     }
 
