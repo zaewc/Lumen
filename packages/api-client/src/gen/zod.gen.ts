@@ -932,6 +932,9 @@ export const zSoftwareRelationMethodView = z.enum([
   "cask_definition",
   "cask_default_app_folder",
   "receipt_file_list",
+  "dpkg_status",
+  "pacman_local_database",
+  "rpm_database",
   "other",
 ]);
 
