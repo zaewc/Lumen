@@ -20,6 +20,7 @@ use lumen_application::gather::gather;
 use lumen_application::large::LargeFolders;
 use lumen_application::observe::below;
 use lumen_application::ports::{Clock, InventoryReport, JudgeError, JudgeFuture, JudgeModel};
+use lumen_application::scratch::{ScratchItems, roots as scratch_roots};
 use lumen_devkb::{Environment, KnowledgeBase, Markers, Root};
 use lumen_domain::{
     CaseSensitivity, CleanupMechanism, Evidence, Fact, JevRequest, JudgeDescriptor, Platform,
@@ -811,6 +812,9 @@ struct Places<'a> {
     home: Option<&'a RawPath>,
     /// Lumen's own files and folders.
     own: Vec<RawPath>,
+    /// The user's log and temporary folders (ADR-0070), whose items are
+    /// candidates of their own.
+    scratch: Vec<(RawPath, lumen_domain::ScratchKind)>,
     /// The bundle IDs Lumen's own uninstalls moved.
     #[cfg_attr(
         not(target_os = "macos"),
@@ -895,9 +899,15 @@ fn find(
     };
     completed = 0;
     report(progress, AssessStage::Evidence, completed, total);
-    let mut large = LargeFolders::new(&store.scan_roots(scan)?, store.unlisted_directories(scan)?)
-        .keeping(places.own.iter().cloned());
+    let unlisted = store.unlisted_directories(scan)?;
+    // A large folder is never a scratch folder, around one or inside one:
+    // their items are decided one by one (ADR-0070).
+    let mut large = LargeFolders::new(&store.scan_roots(scan)?, unlisted.iter().cloned())
+        .keeping(places.own.iter().cloned())
+        .keeping(places.scratch.iter().map(|(root, _)| root.clone()));
+    let mut scratch = ScratchItems::new(&places.scratch, unlisted);
     for_each_page(store, scan, |page| {
+        scratch.observe(page);
         let produced = platform_contributions(inventory, &platform_markers, page, home, times);
         let known = matcher.matches(page, &markers, scanned_at);
         large.observe(page, produced.evidence.iter().chain(&known));
@@ -932,6 +942,18 @@ fn find(
     for folder in large.finish() {
         found.evidence.extend(folder.evidence(scanned_at));
         found.entries.push(folder.entry);
+    }
+    // Items of the user's log and temporary folders (ADR-0070), each once.
+    let mut listed: HashSet<_> = found
+        .entries
+        .iter()
+        .map(|entry| entry.identity().clone())
+        .collect();
+    for (entry, evidence) in scratch.finish(scanned_at) {
+        if listed.insert(entry.identity().clone()) {
+            found.entries.push(entry);
+        }
+        found.evidence.extend(evidence);
     }
     Ok(found)
 }
@@ -984,6 +1006,10 @@ fn prepare_with_progress(
         &Places {
             home: home.as_ref(),
             own: own_paths(db),
+            // macOS only for now: Windows declares its user `Temp` folder a
+            // Disk Cleanup cache, which makes the folder itself a candidate
+            // around its items; that is resolved before Windows is added.
+            scratch: scratch_roots(home.as_ref().filter(|_| platform == Platform::Macos), None),
             uninstalled: uninstalls.keys().cloned().collect(),
         },
         (scanned_at, now),
@@ -1927,6 +1953,7 @@ mod tests {
                 &Places {
                     home: None,
                     own: Vec::new(),
+                    scratch: Vec::new(),
                     uninstalled: Vec::new(),
                 },
                 (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
@@ -2009,6 +2036,7 @@ mod tests {
             &Places {
                 home: None,
                 own: Vec::new(),
+                scratch: Vec::new(),
                 uninstalled: Vec::new(),
             },
             (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
@@ -2081,6 +2109,7 @@ mod tests {
             &Places {
                 home: None,
                 own: Vec::new(),
+                scratch: Vec::new(),
                 uninstalled: Vec::new(),
             },
             (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
@@ -2665,6 +2694,7 @@ mod tests {
             &Places {
                 home: None,
                 own: Vec::new(),
+                scratch: Vec::new(),
                 uninstalled: Vec::new(),
             },
             (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),
@@ -2689,6 +2719,109 @@ mod tests {
             Timestamp::UNIX_EPOCH,
         );
         assert_eq!(select(&gathered, &found.entries).len(), 1);
+        Ok(())
+    }
+
+    /// Each item of the user's log folder is a candidate of its own, dated by
+    /// its newest change, and no large folder is chosen around them
+    /// (ADR-0070).
+    #[test]
+    fn log_folder_items_are_candidates_of_their_own() -> Result<(), Box<dyn std::error::Error>> {
+        let fixture = lumen_testkit::Fixture::build(&[])?;
+        let mut store = IndexStore::new(open_index(&fixture.root().join("index.db"))?);
+        let scan: ScanId = "0190f0d2-6c1e-7a3b-8c4d-5e6f708192a7".parse()?;
+        let home = RawPath::from_unix_bytes(b"/Users/ana".to_vec())?;
+        store.begin_scan(scan, Timestamp::UNIX_EPOCH, std::slice::from_ref(&home))?;
+        let gib = 1_u64 << 30;
+        let dated = |path: &str, file: u128, bytes: u64, secs: i64| {
+            let mut entry = scanned(path, file, bytes);
+            let at = Timestamp::from_unix(secs, 0).ok();
+            entry.times.modified = at;
+            entry.times.changed = at;
+            entry
+        };
+        let logs = "/Users/ana/Library/Logs";
+        store.insert_entries(
+            scan,
+            &[
+                dated("/Users/ana", 1, 0, 1),
+                dated("/Users/ana/Library", 2, 0, 1),
+                dated(logs, 3, 0, 1),
+                dated(&format!("{logs}/App"), 4, 0, 10),
+                dated(&format!("{logs}/App/a.log"), 5, 2 * gib, 20),
+                dated(&format!("{logs}/b.log"), 6, 2 * gib, 30),
+            ],
+        )?;
+        let readable = lumen_application::ports::DirOutcome {
+            access: AccessState::Readable,
+            complete: true,
+        };
+        let listed: Vec<_> = ["/Users/ana", "/Users/ana/Library", logs]
+            .into_iter()
+            .chain([format!("{logs}/App").as_str()])
+            .map(|p| RawPath::from_unix_bytes(p.as_bytes().to_vec()).map(|p| (p, readable)))
+            .collect::<Result<_, _>>()?;
+        store.insert_listings(scan, &listed)?;
+        let inventory = PlatformInventory {
+            reports: Vec::new(),
+            #[cfg(target_os = "macos")]
+            apps: Vec::new(),
+            #[cfg(windows)]
+            declarations: Vec::new(),
+        };
+        let kb = KnowledgeBase::builtin()?;
+        let env = Environment {
+            platform: Platform::Linux,
+            volumes: Vec::new(),
+            home: None,
+            local_app_data: None,
+            roaming_app_data: None,
+            vars: Vec::new(),
+        };
+        let scanned_at = Timestamp::from_unix(1_000, 0)?;
+        let found = find(
+            &store,
+            scan,
+            &inventory,
+            &kb.matcher(&env),
+            &Places {
+                home: None,
+                own: Vec::new(),
+                scratch: scratch_roots(Some(&home), None),
+                uninstalled: Vec::new(),
+            },
+            (scanned_at, scanned_at),
+            &mut |_| {},
+        )?;
+        let mut paths: Vec<&[u8]> = found.entries.iter().map(|e| e.path.as_bytes()).collect();
+        paths.sort_unstable();
+        assert_eq!(
+            paths,
+            [
+                format!("{logs}/App").as_bytes(),
+                format!("{logs}/b.log").as_bytes()
+            ],
+            "the items, and no large folder around them"
+        );
+        let newest = |path: &str| {
+            let entry = found
+                .entries
+                .iter()
+                .find(|e| e.path.as_bytes() == path.as_bytes())?;
+            found.evidence.iter().find_map(|record| match record.fact {
+                Fact::NewestChange { at, as_of }
+                    if record.subject
+                        == (Subject::File {
+                            identity: entry.identity().clone(),
+                        }) =>
+                {
+                    Some((at.unix_seconds(), as_of))
+                }
+                _ => None,
+            })
+        };
+        assert_eq!(newest(&format!("{logs}/App")), Some((20, scanned_at)));
+        assert_eq!(newest(&format!("{logs}/b.log")), Some((30, scanned_at)));
         Ok(())
     }
 
@@ -2753,6 +2886,7 @@ mod tests {
             &Places {
                 home: None,
                 own: Vec::new(),
+                scratch: Vec::new(),
                 uninstalled: Vec::new(),
             },
             (Timestamp::UNIX_EPOCH, Timestamp::UNIX_EPOCH),

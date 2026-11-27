@@ -53,8 +53,9 @@ use crate::ports::{
 pub const BUNDLE_DEPTH: usize = 2;
 
 /// Whether `fact` makes a filesystem object worth deciding about: it says
-/// what the object is, or that it is a large folder nothing else names
-/// ([`crate::large`]).
+/// what the object is, that it is a large folder nothing else names
+/// ([`crate::large`]), or that it is an item of the user's log or temporary
+/// folder ([`crate::scratch`]).
 pub(crate) const fn identifies(fact: &Fact) -> bool {
     matches!(
         fact,
@@ -62,6 +63,7 @@ pub(crate) const fn identifies(fact: &Fact) -> bool {
             | Fact::AppDataLocation { .. }
             | Fact::VendorDeclaredCache { .. }
             | Fact::LargeUnrecognised { .. }
+            | Fact::ScratchLocation { .. }
     )
 }
 
