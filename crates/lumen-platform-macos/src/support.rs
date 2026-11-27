@@ -10,8 +10,8 @@
 //!   case, as APFS does by default.
 //! - [`EXTENSION_SOURCE`]: the same locations, named after an ID that extends an
 //!   installed app's (`<app id>.<more>`), its extensions and helpers (ADR-0068,
-//!   design Q2). Not in `Caches`: an app's own cache is proposed for
-//!   Quarantine, and this link is only meant to make its other data kept.
+//!   design Q2). Its `Caches` folder too (owner, 2026-11-27): it is then
+//!   decided as the app's own cache is, every protection included.
 //! - [`NAME_SOURCE`]: `~/Library/Application Support/<name>` where exactly one
 //!   installed app has that display name. Vendor folders shared by several apps
 //!   ("Google", "Microsoft") are never claimed, and short names are ignored.
@@ -41,14 +41,21 @@ pub const NAME_SOURCE: &str = "macos.support-location.app-name";
 /// The installed app whose bundle ID `name` (lowercase) extends
 /// (`<app id>.<more>`), the most specific if several do. Apple requires an
 /// embedded bundle's ID to start with its app's ID. Only IDs of three or
-/// more labels count, so a two-label ID never claims a whole vendor.
+/// more labels count, so a two-label ID never claims a whole vendor. A name
+/// that only adds a location's file suffix (`<app id>.plist` in `Caches`) is
+/// a misplaced file, not an extension, and is never claimed.
 fn extended<'a>(by_id: &HashMap<String, &'a AppId>, name: &str) -> Option<&'a AppId> {
     by_id
         .iter()
         .filter(|(id, _)| id.split('.').count() >= 3)
         .filter(|(id, _)| {
-            name.strip_prefix(id.as_str())
-                .is_some_and(|rest| rest.len() > 1 && rest.starts_with('.'))
+            name.strip_prefix(id.as_str()).is_some_and(|rest| {
+                rest.len() > 1
+                    && rest.starts_with('.')
+                    && !BY_BUNDLE_ID.iter().any(|(_, suffix, _)| {
+                        !suffix.is_empty() && rest.eq_ignore_ascii_case(suffix)
+                    })
+            })
         })
         .max_by_key(|(id, _)| id.len())
         .map(|(_, app)| *app)
@@ -187,9 +194,7 @@ pub fn link_support_locations(
             };
             if let Some(id) = by_id.get(&name) {
                 links.extend(link(entry, id, *kind, &by_id_source, observed_at));
-            } else if *kind != AppDataKind::Caches
-                && let Some(id) = extended(&by_id, &name)
-            {
+            } else if let Some(id) = extended(&by_id, &name) {
                 links.extend(link(entry, id, *kind, &extension_source, observed_at));
             }
         }
@@ -335,7 +340,7 @@ mod tests {
     }
 
     #[test]
-    fn an_installed_apps_extensions_link_to_it_except_their_caches() {
+    fn an_installed_apps_extensions_link_to_it_caches_included() {
         let found = links(&[
             entry(
                 "/Users/ana/Library/Containers/com.tinyspeck.slackmacgap.ShareExtension",
@@ -353,12 +358,13 @@ mod tests {
             found,
             [
                 ("com.google.Chrome".to_owned(), EXTENSION_SOURCE.to_owned()),
+                ("com.google.Chrome".to_owned(), EXTENSION_SOURCE.to_owned()),
                 (
                     "com.tinyspeck.slackmacgap".to_owned(),
                     EXTENSION_SOURCE.to_owned()
                 ),
             ],
-            "a cache, a longer name and a sibling stay unlinked"
+            "the helper's preferences and cache link; a longer name and a sibling stay unlinked"
         );
     }
 
@@ -383,6 +389,11 @@ mod tests {
         assert_eq!(owner("com.example.app.widget"), Some("com.example.app"));
         assert_eq!(owner("org.two.thing"), None, "two labels name a vendor");
         assert_eq!(owner("com.example.app"), None, "not an extension");
+        assert_eq!(
+            owner("com.example.app.savedstate"),
+            None,
+            "a location's suffix is a misplaced file"
+        );
     }
 
     #[test]

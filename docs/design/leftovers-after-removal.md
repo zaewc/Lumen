@@ -6,7 +6,7 @@
   Explore became 저장 공간 in [ADR-0069](../decisions/0069-show-storage-in-one-place-grouped-by-owner.md)),
   Q3's corroboration by Lumen's uninstall records (#972), and Q3's name and "in
   Quarantine" line with Q5's per-app grouping (#979 and the next PR): one "지운 앱이
-  남긴 데이터" owner with each app under it. Q2 is built too, except for `Caches` (see Q2).
+  남긴 데이터" owner with each app under it. Q2 is built too (#993), its `Caches` part by the owner's decision of 2026-11-27.
 - Roadmap: [Phase 16, item 16.9](../architecture/roadmap.md#phase-16-installed-software-after-0100),
   issue #810 (part of #804)
 - Builds on: [ADR-0008](../decisions/0008-capability-model-and-coverage.md),
@@ -131,10 +131,18 @@ on the measured Mac.
 having three or more labels) link to the most specific such app with their own
 source, `macos.support-location.bundle-id-extension`. Containers, support files
 and preferences are then kept (`classify.app-state`); web data and saved state are
-decided by the default rules, as for the app's own. **Not in `Caches`:** an
-installed app's cache is proposed (`classify.app-cache`), so linking an extension's
-cache would make it a new proposal rather than more cautious. Whether it should be
-is an open question for the owner; until then it stays unknown ownership.
+decided by the default rules, as for the app's own (#993). A name that only adds a
+location's file suffix (`<app id>.plist` in `Caches`) is a misplaced file, not an
+extension, and is never linked.
+
+**`Caches` (owner, 2026-11-27):** an extension's `Caches` folder is linked too, by the
+same rules (the most specific installed app, an ID of three or more labels, the
+extension source). It is then proposed for Quarantine as the app's own cache is
+(`classify.app-cache`), and every protection still wins over it, as over the app's
+own: the app running (`protect.app-running`), the item in use, security software
+(`protect.security-software`), cloud sync and the rest. #993 had left it out because
+linking it adds a proposal rather than caution; the owner chose to treat it as the
+app's own cache.
 
 ### Q3. Use Lumen's own uninstall records?
 
