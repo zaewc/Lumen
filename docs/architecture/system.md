@@ -196,7 +196,10 @@ CleanupCandidate
   decisions it relies on, and expected identities. Each item records who chose it
   (`Chooser::Policy` for a proposed item, `Chooser::Person` for a review item the
   person chose), and the hash (`lumen.plan/2`) covers that
-  ([ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md)).
+  ([ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md)). A log or
+  temporary item also binds the newest change shown for it (`scratch_change`,
+  [ADR-0070](../decisions/0070-review-old-user-logs-and-temporary-files.md)); other
+  items omit the field, preserving existing plan bytes and hashes.
 
 ### 6.4 State machines
 

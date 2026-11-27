@@ -219,6 +219,7 @@ mod tests {
                 evidence_hash: EvidenceHash::from_bytes([1; 32]),
                 reclaim: ReclaimEstimate::for_selection([&size]),
                 chosen_by: Chooser::Person,
+                scratch_change: None,
             }],
         ))
     }
@@ -258,6 +259,29 @@ mod tests {
         assert!(matches!(
             store.apply_plan_event(plan.id(), PlanEvent::Start)?,
             PlanState::Executing { .. }
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn a_scratch_change_is_persisted_and_cannot_change_under_confirmation() -> TestResult {
+        let fx = Fixture::build(&[])?;
+        let mut store = IndexStore::new(open_index(&fx.path("index.db")?)?);
+        let original = plan(ID)?;
+        let mut items = original.items().to_vec();
+        items[0].scratch_change = Some(Timestamp::UNIX_EPOCH);
+        let dated = CleanupPlan::new(original.id(), original.created_at(), items);
+        store.save_plan(&dated, &[decision()?])?;
+        assert_eq!(store.plan(dated.id())?.ok_or("missing")?.plan, dated);
+        let mut changed = serde_json::to_value(&dated)?;
+        changed["items"][0]["scratch_change"] = serde_json::Value::Null;
+        store.conn.execute(
+            "UPDATE plans SET body = ?1 WHERE id = ?2",
+            params![serde_json::to_vec(&changed)?, ID],
+        )?;
+        assert!(matches!(
+            store.plan(dated.id()),
+            Err(StoreError::Corrupt { .. })
         ));
         Ok(())
     }

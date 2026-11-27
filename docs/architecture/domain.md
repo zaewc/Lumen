@@ -61,7 +61,7 @@ or a malicious peer cannot introduce a value the rules forbid.
 | `Keep` offers no action; `Quarantine` proposes only reversible actions | `CleanupCandidate::new` |
 | No move without a journal intent; no permanent deletion without retention; failures after the move stay restorable | `QuarantineState::apply` |
 | A plan executes only after confirmation of its exact hash | `PlanState::apply` |
-| A plan's hash covers every item and who chose it (`lumen.plan/2`) | `CleanupPlan::hash` (golden test) |
+| A plan's hash covers every item, who chose it, and a scratch item's observed newest change (`lumen.plan/2`) | `CleanupPlan::hash` (golden test) |
 | Model output is a closed vocabulary citing only evidence it was sent | `Judgment` (`deny_unknown_fields`), `Judgment::validate_for` |
 
 ## Contracts

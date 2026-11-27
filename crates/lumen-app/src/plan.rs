@@ -190,6 +190,31 @@ fn pick(
         .collect())
 }
 
+/// The newest change shown for a scratch item, bound into the plan
+/// (ADR-0070). Unknown age stays unbound and must never authorize a move.
+fn scratch_change(assessed: &Assessed) -> Option<Timestamp> {
+    let about = |record: &&lumen_domain::Evidence| record.subject == assessed.input.subject;
+    if !assessed
+        .input
+        .evidence
+        .iter()
+        .filter(about)
+        .any(|record| matches!(record.fact, lumen_domain::Fact::ScratchLocation { .. }))
+    {
+        return None;
+    }
+    assessed
+        .input
+        .evidence
+        .iter()
+        .filter(about)
+        .filter_map(|record| match record.fact {
+            lumen_domain::Fact::NewestChange { at, .. } => Some(at),
+            _ => None,
+        })
+        .max()
+}
+
 /// Plans every `QUARANTINE` candidate of the latest scan in `db`, and the
 /// review items at the `chosen` paths (ADR-0051), and stores the plan as
 /// proposed, with its decisions. Other `REVIEW` and all `KEEP` candidates
@@ -325,6 +350,7 @@ fn plan_in(
                 .map(|o| o.reclaim)
                 .unwrap_or_default(),
             chosen_by: *chosen_by,
+            scratch_change: scratch_change(a),
         })
         .collect();
     let plan = CleanupPlan::new(ids.plan_id(), clock.now(), items);
@@ -467,6 +493,52 @@ mod tests {
             free_when_closed: None,
             removed_app: None,
         }
+    }
+
+    #[test]
+    fn only_the_scratch_subjects_observed_change_is_planned() {
+        let mut item = assessed("/h/logs/app", decision(Verdict::Review, "classify.scratch"));
+        let evidence = |subject, fact| Evidence {
+            subject,
+            fact,
+            basis: Basis::Observed,
+            provenance: Provenance {
+                source: SourceName::new("lumen.scratch").unwrap_or_else(|_| unreachable!()),
+                observed_at: Timestamp::UNIX_EPOCH,
+            },
+        };
+        let own = item.input.subject.clone();
+        let change = Fact::NewestChange {
+            at: Timestamp::UNIX_EPOCH,
+            as_of: Timestamp::UNIX_EPOCH,
+        };
+        item.input
+            .evidence
+            .push(evidence(own.clone(), change.clone()));
+        assert_eq!(scratch_change(&item), None, "ordinary items are unaffected");
+        item.input.evidence.push(evidence(
+            own.clone(),
+            Fact::ScratchLocation {
+                kind: lumen_domain::ScratchKind::Logs,
+            },
+        ));
+        assert_eq!(scratch_change(&item), Some(Timestamp::UNIX_EPOCH));
+        item.input
+            .evidence
+            .retain(|record| !matches!(record.fact, Fact::NewestChange { .. }));
+        assert_eq!(scratch_change(&item), None, "unknown age has no bound");
+        let other = Subject::File {
+            identity: FileIdentity {
+                volume: VolumeId::new("other").unwrap_or_else(|_| unreachable!()),
+                file: FileId::new(999),
+            },
+        };
+        item.input.evidence.push(evidence(other, change));
+        assert_eq!(
+            scratch_change(&item),
+            None,
+            "another subjects age is not proof"
+        );
     }
 
     #[test]

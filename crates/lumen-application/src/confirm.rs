@@ -70,7 +70,7 @@ pub enum Confirmed {
     /// Not executed; the item stays where it is (`REVIEW`).
     Skipped {
         /// The planned item.
-        item: PlannedItem,
+        item: Box<PlannedItem>,
         /// Why.
         reason: Skip,
     },
@@ -155,7 +155,7 @@ pub async fn confirm_item(
     with: &Confirming<'_>,
 ) -> Confirmed {
     let skip = |reason| Confirmed::Skipped {
-        item: item.clone(),
+        item: Box::new(item.clone()),
         reason,
     };
     let Subject::File { identity } = &item.subject else {
@@ -536,6 +536,7 @@ mod tests {
             evidence_hash: then.decision.evidence_hash(),
             reclaim: then.input.observed.map(|o| o.reclaim).unwrap_or_default(),
             chosen_by: case.chosen_by,
+            scratch_change: None,
         };
         let confirmation = Confirmation {
             plan_hash: PlanHash::from_bytes([0; 32]),
