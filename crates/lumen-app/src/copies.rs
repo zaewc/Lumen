@@ -221,6 +221,7 @@ pub(crate) fn preview_with(
             ..lumen_domain::ReclaimEstimate::default()
         },
         chosen_by: Chooser::Person,
+        scratch_change: None,
     };
     let plan = CleanupPlan::new(ids.plan_id(), clock.now(), vec![item]);
     IndexStore::new(open_index(db)?).save_plan(&plan, &[decision(hash)])?;

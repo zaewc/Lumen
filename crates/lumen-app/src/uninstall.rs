@@ -572,6 +572,7 @@ mod unix {
             evidence_hash: decided.evidence_hash(),
             reclaim: observed.app.reclaim,
             chosen_by: Chooser::Person,
+            scratch_change: None,
         };
         let plan = CleanupPlan::new(ids.plan_id(), clock.now(), vec![item]);
         IndexStore::new(open_index(db)?).save_plan(&plan, &[decided])?;
@@ -1637,6 +1638,7 @@ mod tests {
                 evidence_hash: EvidenceHash::from_bytes([1; 32]),
                 reclaim: ReclaimEstimate::default(),
                 chosen_by: Chooser::Policy,
+                scratch_change: None,
             }],
         );
         let decision = PolicyDecision::new(

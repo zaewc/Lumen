@@ -44,6 +44,12 @@ pub struct PlannedItem {
     pub reclaim: ReclaimEstimate,
     /// Who chose it.
     pub chosen_by: Chooser,
+    /// The newest change shown for a log or temporary item (ADR-0070).
+    /// Confirmation must read it again and refuse a later or unknown change.
+    /// Omitted when absent so older plans keep their canonical bytes and hashes;
+    /// a scratch item without a bound must fail closed when confirmed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scratch_change: Option<Timestamp>,
 }
 
 /// A cleanup plan: the exact set of items a confirmation authorizes.
@@ -129,6 +135,7 @@ mod tests {
             evidence_hash: EvidenceHash::from_bytes([7; 32]),
             reclaim: ReclaimEstimate::for_selection([&size]),
             chosen_by: Chooser::Policy,
+            scratch_change: None,
         }
     }
 
@@ -170,6 +177,32 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&chosen.canonical_bytes())
             .unwrap_or_else(|e| unreachable!("{e}"));
         assert_eq!(json["items"][0]["chosen_by"], "person");
+    }
+
+    #[test]
+    fn scratch_change_is_bound_into_the_confirmation_hash() {
+        let original = plan(vec![item("/a", 1)]);
+        let mut changed = item("/a", 1);
+        changed.scratch_change = Some(Timestamp::UNIX_EPOCH);
+        let dated = plan(vec![changed.clone()]);
+        assert_ne!(original.hash(), dated.hash());
+        changed.scratch_change =
+            Some(Timestamp::from_unix(1, 0).unwrap_or_else(|_| unreachable!()));
+        assert_ne!(dated.hash(), plan(vec![changed]).hash());
+        let round_trip: CleanupPlan =
+            serde_json::from_slice(&dated.canonical_bytes()).unwrap_or_else(|_| unreachable!());
+        assert_eq!(dated, round_trip);
+    }
+
+    #[test]
+    fn an_old_plan_keeps_its_bytes_and_has_no_scratch_bound() {
+        let original = plan(vec![item("/a", 1)]);
+        let bytes = original.canonical_bytes();
+        assert!(!String::from_utf8_lossy(&bytes).contains("scratch_change"));
+        let read: CleanupPlan = serde_json::from_slice(&bytes).unwrap_or_else(|_| unreachable!());
+        assert_eq!(read.items()[0].scratch_change, None);
+        assert_eq!(read.canonical_bytes(), bytes);
+        assert_eq!(read.hash(), original.hash());
     }
 
     #[test]
