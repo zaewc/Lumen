@@ -45,6 +45,9 @@ pub mod ids {
     pub const PROTECT_APP_RUNNING: &str = "protect.app-running";
     /// Keeps an item belonging to security software (ADR-0014).
     pub const PROTECT_SECURITY_SOFTWARE: &str = "protect.security-software";
+    /// Leaves an item of the user's log or temporary folder for review
+    /// (ADR-0070).
+    pub const CLASSIFY_SCRATCH: &str = "classify.scratch";
 }
 
 /// Every rule the policy evaluates.
@@ -185,7 +188,7 @@ pub(crate) const RULES: &[Rule] = &[
         check: crate::classify::orphan,
     },
     Rule {
-        id: "classify.scratch",
+        id: ids::CLASSIFY_SCRATCH,
         stage: PolicyStage::Classification,
         check: crate::scratch::scratch,
     },

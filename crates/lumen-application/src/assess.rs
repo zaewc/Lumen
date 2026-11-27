@@ -481,8 +481,27 @@ pub async fn decide_candidate(
     clock: &dyn Clock,
     request: &dyn Fn(&PolicyInput) -> Option<JevRequest>,
 ) -> Result<Assessed, PolicyError> {
+    decide_candidate_with(candidate, &[], sources, probes, judge, clock, request).await
+}
+
+/// [`decide_candidate`] with `read_now`, facts about `candidate` read again
+/// just before a move (ADR-0070), added to the probed ones.
+///
+/// # Errors
+///
+/// Only the policy's own programming errors; callers treat them as `Keep`.
+pub async fn decide_candidate_with(
+    candidate: &FilesystemEntry,
+    read_now: &[Evidence],
+    sources: &Sources<'_>,
+    probes: &Probes<'_>,
+    judge: &dyn JudgeModel,
+    clock: &dyn Clock,
+    request: &dyn Fn(&PolicyInput) -> Option<JevRequest>,
+) -> Result<Assessed, PolicyError> {
     let observed_at = clock.now();
     let (in_use, mut fresh) = probe(candidate, probes, observed_at);
+    fresh.extend_from_slice(read_now);
     fresh.extend(running_evidence(candidate, sources, probes, observed_at));
     let (input, relationships) = assembled(candidate, &fresh, sources);
     let consulted = match (judge.descriptor(), request(&input)) {

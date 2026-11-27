@@ -13,18 +13,20 @@
 use std::path::Path;
 
 use lumen_application::confirm::{Confirmed, Confirming, Skip, confirm_item};
-use lumen_application::ports::{Clock, IdGenerator, JournalError, NoopJudge};
+use lumen_application::gather::Gathered;
+use lumen_application::ports::{CandidateVerifier, Clock, IdGenerator, JournalError, NoopJudge};
 use lumen_application::quarantine::{Outcome, quarantine_item};
 use lumen_application::reconcile::reconcile;
 use lumen_domain::{
-    ByteCount, Chooser, Confirmation, ConfirmationSurface, DeviceId, ItemLocation, OperationId,
-    PlanEvent, PlanId, QuarantineFailure, RawPath, Timestamp,
+    ByteCount, Chooser, Confirmation, ConfirmationSurface, DeviceId, Evidence, Fact, ItemLocation,
+    OperationId, PlanEvent, PlanId, PlannedItem, PolicyDecision, QuarantineFailure, RawPath,
+    ScratchKind, Subject, Timestamp,
 };
 use lumen_store_sqlite::{
     IndexStore, LedgerJournal, LedgerStore, StoreError, StoredPlan, open_index, open_ledger,
 };
 
-use crate::assess::{AssessError, block_on, prepare};
+use crate::assess::{AssessError, Assessment, Subtree, block_on, prepare};
 use crate::probes::with_decision_probes;
 use crate::store::{LocationError, PrivilegeError, lock_ledger, refuse_privileged, stores};
 
@@ -231,6 +233,66 @@ pub fn checked_plan(
     Ok(stored)
 }
 
+/// The platform's verifier, which re-reads each item through its own handle.
+#[cfg(target_os = "macos")]
+fn verifier() -> impl CandidateVerifier {
+    lumen_platform_macos::BulkEnumerator::new()
+}
+
+/// The platform's verifier, which re-reads each item through its own handle.
+#[cfg(all(unix, not(target_os = "macos")))]
+fn verifier() -> impl CandidateVerifier {
+    lumen_scan::StdFsEnumerator
+}
+
+/// The platform's verifier, which re-reads each item through its own handle.
+#[cfg(windows)]
+fn verifier() -> impl CandidateVerifier {
+    lumen_platform_windows::HandleEnumerator
+}
+
+/// What `item`, planned with `planned`, is decided again from: its own part of
+/// the scan; for a log or temporary item, its subtree as it is now and its
+/// newest change read again (ADR-0070). A log or temporary item the scan no
+/// longer places there gets neither, so it stays where it is.
+fn decided_from(
+    assessment: &Assessment,
+    item: &PlannedItem,
+    planned: &PolicyDecision,
+    clock: &dyn Clock,
+) -> Result<(Subtree, Vec<Evidence>), AssessError> {
+    if !is_scratch(planned) {
+        return Ok((assessment.subtree(&item.path)?, Vec::new()));
+    }
+    Ok(
+        scratch_kind(&assessment.gathered, &item.subject).map_or_else(
+            || (Subtree::default(), Vec::new()),
+            |kind| crate::reassess::scratch_now(&item.path, kind, clock.now()),
+        ),
+    )
+}
+
+/// Whether `planned` left its item for review as an item of the user's log or
+/// temporary folder (ADR-0070).
+fn is_scratch(planned: &PolicyDecision) -> bool {
+    planned
+        .fired_rules()
+        .iter()
+        .any(|fired| fired.rule.as_str() == lumen_policy::ids::CLASSIFY_SCRATCH)
+}
+
+/// The folder kind the scan recorded for `subject`, if it lies in the user's
+/// log or temporary folder.
+fn scratch_kind(gathered: &Gathered, subject: &Subject) -> Option<ScratchKind> {
+    gathered
+        .evidence
+        .iter()
+        .find_map(|record| match record.fact {
+            Fact::ScratchLocation { kind } if record.subject == *subject => Some(kind),
+            _ => None,
+        })
+}
+
 /// [`checked_plan`] for a cleanup: refused for a privileged process and for
 /// an uninstall plan (ADR-0062) or a copy's preview (ADR-0069).
 fn checked_cleanup(
@@ -297,20 +359,15 @@ pub fn quarantine(
     let resolved = reconcile(&crate::routed::with_helper(executor.clone()), &mut journal)?.len();
     let device = device(db, ids)?;
     let assessment = prepare(db, clock)?;
-    #[cfg(target_os = "macos")]
-    let verifier = lumen_platform_macos::BulkEnumerator::new();
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let verifier = lumen_scan::StdFsEnumerator;
-    #[cfg(windows)]
-    let verifier = lumen_platform_windows::HandleEnumerator;
+    let verifier = verifier();
     index.apply_plan_event(plan, PlanEvent::Start)?;
     let items = with_decision_probes(&assessment.apps, |probes| -> Result<_, QuarantineError> {
         let mut items = Vec::new();
         for (item, planned) in stored.plan.items().iter().zip(&stored.decisions) {
-            // Each item is decided again from its own part of the scan.
-            let subtree = assessment.subtree(&item.path)?;
+            let (subtree, read_now) = decided_from(&assessment, item, planned, clock)?;
             let with = Confirming {
                 sources: assessment.sources(&subtree),
+                read_now: &read_now,
                 roots: &assessment.roots,
                 verifier: &verifier,
                 probes: *probes,
