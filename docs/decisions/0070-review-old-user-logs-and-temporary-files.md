@@ -170,6 +170,25 @@ Chosen option: **1**.
   before the rename is moved with the folder: the executor checks the folder's own
   identity, not every entry below it (ADR-0016). The same backstops apply.
 
+## Open question: gathering on Windows (2026-11-27)
+
+Step 5 (Windows gathering) is on hold. Windows declares the user's temporary folder
+a Disk Cleanup cache: the `Temporary Files` handler under `VolumeCaches` names
+`%LOCALAPPDATA%\Temp`, so Lumen records `VendorDeclaredCache` for the folder and
+`classify.vendor-declared-cache` makes the whole folder one review candidate. Gathering
+its items as well would put a candidate around the items, which decision 2 rules out
+("the folder itself is never a candidate"), and a person who chose the folder would
+move recent and unknown-age items that this decision keeps. Before Windows is wired,
+one of these is needed, each with its own PR:
+
+1. Stop treating the user's `Temp` folder as one candidate once its items are
+   gathered (the declaration then only explains where the items are). This follows
+   decision 2, but changes what the Disk Cleanup declaration means for that folder.
+2. Keep the folder as the one review item it is today and leave Windows items
+   ungathered.
+
+Until then only macOS `~/Library/Logs` is gathered.
+
 ## More information
 
 - [Research 26](../research/26-reference-cleaners-and-recovery-gap.md): the
