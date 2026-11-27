@@ -63,7 +63,7 @@ Chosen: **option 2**, introduced in stages, with these rules.
    | Platform | Mechanisms |
    | --- | --- |
    | Windows | `msiexec /x {ProductCode}`; MSIX removal for the current user |
-   | macOS | the vendor's uninstaller when its location and signature are recorded; moving a user-owned `.app` without privileged components to the Trash |
+   | macOS | the vendor's uninstaller when its location and signature are recorded; moving a user-owned `.app` without privileged components to the Trash; `brew uninstall --formula` or `--cask` for software Homebrew installed (clarified 2026-11-27, as ADR-0062 rule 5 and [ADR-0064](0064-read-package-relations-from-each-managers-own-records.md) already state) |
    | Linux | the package manager that owns the package; Flatpak per user |
 
    Each mechanism is added in its own pull request.
