@@ -23,6 +23,7 @@ pub mod duplicates;
 pub mod finalize;
 pub mod gather;
 pub mod helper;
+pub mod homebrew_removal;
 pub mod large;
 pub mod measure;
 pub mod observe;
