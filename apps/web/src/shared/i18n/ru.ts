@@ -274,6 +274,8 @@ export const ru: Messages = {
       app_cache: "Кэши приложений",
       removed_app: "Данные удалённых приложений",
       app_data: "Данные приложений",
+      logs: "Файлы журналов",
+      temporary: "Временные файлы",
       other: "Другое",
     },
     removedNote:

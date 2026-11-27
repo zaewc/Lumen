@@ -262,6 +262,8 @@ export const ko = {
       app_cache: "앱 캐시",
       removed_app: "지운 앱이 남긴 데이터",
       app_data: "앱 데이터",
+      logs: "로그 파일",
+      temporary: "임시 파일",
       other: "기타",
     },
     removedNote: "앱은 이미 없지만 데이터는 남아 있어요. 필요 없는지 확인한 뒤 옮겨 주세요.",

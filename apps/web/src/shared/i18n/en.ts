@@ -271,6 +271,8 @@ export const en = {
       app_cache: "App caches",
       removed_app: "Left by removed apps",
       app_data: "App data",
+      logs: "Log files",
+      temporary: "Temporary files",
       other: "Other",
     },
     removedNote:

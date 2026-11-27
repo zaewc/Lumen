@@ -396,6 +396,10 @@ pub enum GroupKindView {
     AppData,
     /// Data left by an application that is no longer installed (ADR-0068).
     RemovedApp,
+    /// An item in the user's log folder (ADR-0070).
+    Logs,
+    /// An item in the user's temporary folder (ADR-0070).
+    Temporary,
     /// Anything else.
     Other,
 }
@@ -450,6 +454,8 @@ impl From<lumen_app::assess::Group> for GroupView {
                 GroupKind::AppCache => GroupKindView::AppCache,
                 GroupKind::AppData => GroupKindView::AppData,
                 GroupKind::RemovedApp => GroupKindView::RemovedApp,
+                GroupKind::Logs => GroupKindView::Logs,
+                GroupKind::Temporary => GroupKindView::Temporary,
                 GroupKind::Other => GroupKindView::Other,
             },
             source: group.source,

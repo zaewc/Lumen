@@ -125,6 +125,32 @@ describe("owners", () => {
     expect(owners[2]?.atLeast, "an inexact item makes its total a lower bound").toBe(true);
   });
 
+  it("groups old logs and temporary files by location, or under their owner when known", () => {
+    const owners = ownersOf(
+      [
+        candidate("/Logs/a", "review", "900", { kind: "logs", source: null }),
+        candidate("/Logs/b", "review", "300", { kind: "logs", source: null }),
+        candidate("/Temp/x", "review", "500", { kind: "temporary", source: null }),
+        candidate("/Logs/Slack", "review", "200", {
+          kind: "logs",
+          source: "com.tinyspeck.slackmacgap",
+        }),
+        candidate("/Logs/Gone", "review", "100", { kind: "logs", source: "com.gone.app" }),
+      ],
+      [slack],
+    );
+    expect(owners.map((o) => [o.key, o.kind, o.name, o.group])).toEqual([
+      ["kind:logs", "kind", null, "logs"],
+      ["app:com.tinyspeck.slackmacgap", "app", "Slack", null],
+      ["kind:temporary", "kind", null, "temporary"],
+      ["source:com.gone.app", "source", "com.gone.app", null],
+    ]);
+    expect(owners[0]?.parts.map((p) => (p.kind === "item" ? p.item.path : p.kind))).toEqual([
+      "/Logs/a",
+      "/Logs/b",
+    ]);
+  });
+
   it("keeps each removed app together, with recorded names, held state and lower bounds", () => {
     const owners = ownersOf(
       [

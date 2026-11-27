@@ -1350,6 +1350,8 @@
           "app_cache",
           "app_data",
           "removed_app",
+          "logs",
+          "temporary",
           "other"
         ]
       },

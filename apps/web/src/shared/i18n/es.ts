@@ -267,6 +267,8 @@ export const es: Messages = {
       app_cache: "Cachés de aplicaciones",
       removed_app: "Datos de aplicaciones eliminadas",
       app_data: "Datos de aplicaciones",
+      logs: "Archivos de registro",
+      temporary: "Archivos temporales",
       other: "Otros",
     },
     removedNote:

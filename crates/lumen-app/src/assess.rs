@@ -1106,6 +1106,12 @@ pub enum GroupKind {
     /// Data left by an application that is no longer installed (ADR-0068):
     /// linked to it by a corroborated bundle ID, and its absence stated.
     RemovedApp,
+    /// An item directly in the user's log folder (ADR-0070), when nothing
+    /// above classifies it.
+    Logs,
+    /// An item directly in the user's temporary folder (ADR-0070), when
+    /// nothing above classifies it.
+    Temporary,
     /// Anything else.
     Other,
 }
@@ -1135,9 +1141,10 @@ pub fn group(assessed: &Assessed) -> Group {
 
 /// The group of `subject`, from the evidence about it alone: a knowledge-base
 /// match first (named after its tool), then an application data location
-/// (named after the owning application, when known).
+/// (named after the owning application, when known), then the user's log or
+/// temporary folder (ADR-0070; still named after its owner, when known).
 fn group_of(kb: Option<&KnowledgeBase>, subject: &Subject, evidence: &[Evidence]) -> Group {
-    use lumen_domain::AppDataKind;
+    use lumen_domain::{AppDataKind, ScratchKind};
     let about = || {
         evidence
             .iter()
@@ -1193,12 +1200,22 @@ fn group_of(kb: Option<&KnowledgeBase>, subject: &Subject, evidence: &[Evidence]
     // A cache that holds a browser profile is kept as the app's data.
     let cache = cache && !about().any(|fact| matches!(fact, Fact::BrowserProfile { .. }));
     let data = about().any(|fact| matches!(fact, Fact::AppDataLocation { .. }));
+    let scratch = about().find_map(|fact| match fact {
+        Fact::ScratchLocation { kind } => Some(*kind),
+        _ => None,
+    });
     let kind = if cache {
         GroupKind::AppCache
     } else if data {
         GroupKind::AppData
     } else {
-        GroupKind::Other
+        match scratch {
+            Some(ScratchKind::Logs) => GroupKind::Logs,
+            Some(ScratchKind::Temporary) => GroupKind::Temporary,
+            // A location kind added later is shown with the rest until it
+            // has its own group.
+            Some(_) | None => GroupKind::Other,
+        }
     };
     Group {
         kind,
@@ -2842,6 +2859,54 @@ mod tests {
             }
         );
         Ok(())
+    }
+
+    #[test]
+    fn log_and_temporary_items_are_grouped_by_location_under_a_known_owner() {
+        use lumen_domain::{AppId, AppIdScheme, ScratchKind, UntrustedText};
+        let grouped = |facts: &[Fact]| {
+            let input = input(facts);
+            group_of(None, &input.subject, &input.evidence)
+        };
+        let scratch = |kind| Fact::ScratchLocation { kind };
+        assert_eq!(
+            grouped(&[scratch(ScratchKind::Logs)]),
+            Group {
+                kind: GroupKind::Logs,
+                source: None
+            }
+        );
+        assert_eq!(
+            grouped(&[scratch(ScratchKind::Temporary)]),
+            Group {
+                kind: GroupKind::Temporary,
+                source: None
+            }
+        );
+        let owner = Fact::OwningApplication(AppId {
+            scheme: AppIdScheme::BundleId,
+            value: UntrustedText::new("com.example.app"),
+        });
+        assert_eq!(
+            grouped(&[scratch(ScratchKind::Logs), owner.clone()]),
+            Group {
+                kind: GroupKind::Logs,
+                source: Some("com.example.app".to_owned())
+            },
+            "shown under its owner"
+        );
+        assert_eq!(
+            grouped(&[
+                scratch(ScratchKind::Temporary),
+                owner,
+                Fact::AppDataLocation {
+                    kind: AppDataKind::Caches
+                }
+            ])
+            .kind,
+            GroupKind::AppCache,
+            "a cache classification comes first"
+        );
     }
 
     #[test]

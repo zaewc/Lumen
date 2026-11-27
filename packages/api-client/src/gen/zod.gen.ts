@@ -323,6 +323,8 @@ export const zGroupKindView = z.enum([
   "app_cache",
   "app_data",
   "removed_app",
+  "logs",
+  "temporary",
   "other",
 ]);
 

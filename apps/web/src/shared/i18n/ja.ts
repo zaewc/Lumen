@@ -257,6 +257,8 @@ export const ja: Messages = {
       app_cache: "アプリのキャッシュ",
       removed_app: "削除したアプリが残したデータ",
       app_data: "アプリデータ",
+      logs: "ログファイル",
+      temporary: "一時ファイル",
       other: "その他",
     },
     removedNote:
