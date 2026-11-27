@@ -29,8 +29,11 @@ why Windows has no package-relation source yet.
   [package reference counting](https://devblogs.microsoft.com/setup/introducing-package-reference-counting)).
 - Only installers built with WiX write it, the provider key is not the product code,
   and its layout is documented through WiX's sources rather than a specification.
-- Reading it would be a new source with its own identity mapping, an owner decision,
-  and it needs a Windows host to measure. Left open.
+- Reading it would be a new source with its own identity mapping, and it needs a
+  Windows host to measure. Not pursued (decided 2026-11-27 under the owner's
+  delegation): it covers only WiX-built installers, its keys do not map to the product
+  codes Lumen lists, and nothing documents it outside WiX's sources. Revisit only if
+  the removal preview (#809) on Windows needs it.
 
 ## Elsewhere
 
