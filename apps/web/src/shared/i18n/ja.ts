@@ -734,6 +734,22 @@ export const ja: Messages = {
       needs: (n: number) => `ほかの${count(n)}個のパッケージが必要です。`,
       background: (n: number) => `${count(n)}個のバックグラウンド項目が一緒に実行されます。`,
     },
+    relations: {
+      needs: "必要としているもの",
+      neededBy: "これを必要としているもの",
+      atLeast: (n: number) => `少なくとも${count(n)}件`,
+      unread: "記録を読めなかったため、わかりません",
+      verified: "確認済み",
+      candidate: "複数の候補のひとつ",
+      records: {
+        homebrew: "Homebrew",
+        receipt: "インストール記録",
+        dpkg: "dpkg",
+        pacman: "pacman",
+        rpm: "RPM",
+        other: "その他の記録",
+      },
+    },
     ai: {
       explaining: "AIレビューがアプリを説明しています…",
       source: "名前、発行元、バージョンからのAIレビューの推測です。Lumenの動作は変わりません。",

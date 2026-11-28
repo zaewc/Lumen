@@ -54,6 +54,22 @@ function softwareList(explained: boolean): SoftwareView {
     relations_read: null,
     ...extra,
   });
+  /** A dependency relation of the demo rows (ADR-0064). */
+  const dep = (
+    kind: "needs" | "needed_by",
+    label: string,
+    other: string | null,
+    verified: boolean,
+    ambiguous = false,
+  ): SoftwareItemView["relations"][number] => ({
+    kind,
+    other,
+    label,
+    method: "homebrew_runtime_dependencies",
+    direct: kind === "needs" ? true : null,
+    verified,
+    ambiguous,
+  });
   return {
     items: [
       row("homebrew", "act", null, "0.2.79", {
@@ -63,9 +79,14 @@ function softwareList(explained: boolean): SoftwareView {
           mechanism: "package_manager",
           installed_by: null,
           needs_administrator: false,
-          needs: { count: 0, complete: true },
+          needs: { count: 2, complete: true },
           needed_by: { count: 0, complete: true },
         },
+        relations: [
+          dep("needs", "openssl@3", "homebrew:openssl@3", true),
+          dep("needs", "docker | colima", "homebrew_cask:docker", false, true),
+        ],
+        relations_read: true,
       }),
       row("mac_app", "com.apple.calculator", "Calculator", "11.0", {
         size: { kind: "not_scanned" },
@@ -80,8 +101,10 @@ function softwareList(explained: boolean): SoftwareView {
           installed_by: null,
           needs_administrator: false,
           needs: { count: 0, complete: true },
-          needed_by: { count: 0, complete: true },
+          needed_by: { count: 0, complete: false },
         },
+        relations: [dep("needed_by", "act", "homebrew:act", false, true)],
+        relations_read: true,
       }),
       row("mac_installer", "com.example.driver.pkg", null, "2.4.1", {
         location: "/",
@@ -92,6 +115,7 @@ function softwareList(explained: boolean): SoftwareView {
           needs: null,
           needed_by: { count: 0, complete: false },
         },
+        relations_read: false,
       }),
       row("mac_app", "com.example.OldEditor", "OldEditor", "3.2", {
         size: { kind: "complete", bytes: "441000000" },
@@ -115,8 +139,13 @@ function softwareList(explained: boolean): SoftwareView {
           installed_by: null,
           needs_administrator: false,
           needs: { count: 1, complete: true },
-          needed_by: { count: 2, complete: true },
+          needed_by: { count: 1, complete: true },
         },
+        relations: [
+          dep("needs", "ca-certificates", null, false),
+          dep("needed_by", "act", "homebrew:act", true),
+        ],
+        relations_read: true,
         ai_note: {
           purpose: "runtime_or_library",
           removal_impact: "other_software_depends",

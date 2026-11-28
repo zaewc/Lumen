@@ -748,6 +748,22 @@ export const fr: Messages = {
       background: (n: number) =>
         `${count(n)} ${n > 1 ? "éléments d’arrière-plan s’exécutent" : "élément d’arrière-plan s’exécute"} avec elle.`,
     },
+    relations: {
+      needs: "Ce dont il a besoin",
+      neededBy: "Ce qui en a besoin",
+      atLeast: (n: number) => `au moins ${count(n)}`,
+      unread: "Lumen n'a pas pu lire les enregistrements, donc on ne sait pas.",
+      verified: "vérifié",
+      candidate: "un candidat parmi plusieurs",
+      records: {
+        homebrew: "Homebrew",
+        receipt: "reçu d'installation",
+        dpkg: "dpkg",
+        pacman: "pacman",
+        rpm: "RPM",
+        other: "un autre enregistrement",
+      },
+    },
     ai: {
       explaining: "L'analyse par IA décrit les apps…",
       source:

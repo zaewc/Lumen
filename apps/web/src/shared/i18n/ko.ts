@@ -732,6 +732,22 @@ export const ko = {
       needs: (n: number) => `다른 패키지 ${count(n)}개가 필요해요.`,
       background: (n: number) => `백그라운드 항목 ${count(n)}개가 함께 실행돼요.`,
     },
+    relations: {
+      needs: "필요로 하는 것",
+      neededBy: "이것을 필요로 하는 것",
+      atLeast: (n: number) => `최소 ${count(n)}개`,
+      unread: "기록을 읽지 못해서 알 수 없어요",
+      verified: "확인됨",
+      candidate: "여러 후보 중 하나",
+      records: {
+        homebrew: "Homebrew",
+        receipt: "설치 기록",
+        dpkg: "dpkg",
+        pacman: "pacman",
+        rpm: "RPM",
+        other: "다른 기록",
+      },
+    },
     ai: {
       explaining: "AI 검토가 앱을 설명하고 있어요…",
       source:

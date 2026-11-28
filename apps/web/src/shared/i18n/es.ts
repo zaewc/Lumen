@@ -762,6 +762,22 @@ export const es: Messages = {
       background: (n: number) =>
         `${count(n)} ${n === 1 ? "elemento en segundo plano se ejecuta" : "elementos en segundo plano se ejecutan"} con ella.`,
     },
+    relations: {
+      needs: "Lo que necesita",
+      neededBy: "Lo que lo necesita",
+      atLeast: (n: number) => `al menos ${count(n)}`,
+      unread: "Lumen no pudo leer los registros, así que no se sabe.",
+      verified: "verificado",
+      candidate: "uno de varios candidatos",
+      records: {
+        homebrew: "Homebrew",
+        receipt: "registro del instalador",
+        dpkg: "dpkg",
+        pacman: "pacman",
+        rpm: "RPM",
+        other: "otro registro",
+      },
+    },
     ai: {
       explaining: "La revisión con IA está describiendo las apps…",
       source:
