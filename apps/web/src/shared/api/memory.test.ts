@@ -6,6 +6,7 @@ import {
   zFinalizeOutcomeView,
   zHeldItemView,
   zHelperView,
+  zHomebrewOutcomeView,
   zHomebrewPreviewView,
   zPlanView,
   zQuarantineReportView,
@@ -208,6 +209,17 @@ describe("memoryTransport", () => {
     }
     expect(ready.command).toEqual(["/opt/homebrew/bin/brew", "uninstall", "--formula", "act"]);
     expect(ready.package.notes).toContain("cannot_be_undone");
+    await expect(transport.homebrewRemove?.(ready.preview, "b3:00")).rejects.toThrow(
+      "does not match",
+    );
+    const outcome = zHomebrewOutcomeView.parse(
+      await transport.homebrewRemove?.(ready.preview, ready.hash),
+    );
+    expect(outcome.result.kind).toBe("removed");
+    await expect(transport.homebrewRemove?.(ready.preview, ready.hash)).rejects.toThrow(
+      "unknown preview",
+    );
+    expect((await preview("homebrew:act")).kind).toBe("not_found");
   });
 
   it("answers a quit request for a listed macOS app only (roadmap 16.3a)", async () => {

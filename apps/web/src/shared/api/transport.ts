@@ -14,6 +14,7 @@ import type {
   FinalizeOutcomeView,
   HeldItemView,
   HelperView,
+  HomebrewOutcomeView,
   HomebrewPreviewView,
   PlanView,
   QuarantineReportView,
@@ -175,6 +176,13 @@ export interface LumenTransport {
    * Reads only; runs nothing. Off macOS it answers `unsupported`.
    */
   homebrewPreview?(key: string): Promise<HomebrewPreviewView>;
+  /**
+   * Removes the package of one preview through Homebrew, confirmed by the
+   * preview's full hash and then in the host's own window; names the
+   * preview, never a package, path or command. Cannot be undone. Removed
+   * only when a fresh Homebrew list no longer lists it.
+   */
+  homebrewRemove?(preview: string, confirmation: string): Promise<HomebrewOutcomeView>;
   /**
    * Moves what the person checked after one confirmation (ADR-0069): a
    * clean-up plan and apps' previews, each by its full hash. The host checks

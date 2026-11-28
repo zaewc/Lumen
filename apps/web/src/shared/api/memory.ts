@@ -6,6 +6,7 @@ import type {
   CandidateView,
   HeldItemView,
   HelperView,
+  HomebrewOutcomeView,
   HomebrewPackageView,
   HomebrewPreviewView,
   ItemReportView,
@@ -782,6 +783,12 @@ export function memoryTransport({
   let previewed = 0;
   // Previews that may still be confirmed, each once.
   const previews = new Map<string, { hash: string; app: UninstallAppView }>();
+  // Homebrew removal previews by ID, and the packages removed since.
+  const homebrewPreviews = new Map<
+    string,
+    { hash: string; package: HomebrewPackageView; command: readonly string[] }
+  >();
+  const removedPackages = new Set<string>();
   // Lumen's helper (ADR-0063), not set up at first.
   let helper: HelperView = { registration: "not_registered", reach: { kind: "not_asked" } };
   // Apps running in the sample, until asked to quit (roadmap 16.3a).
@@ -1081,7 +1088,42 @@ export function memoryTransport({
     homebrewPreview: async (key) => {
       await wait(pace);
       previewed += 1;
-      return homebrewPreviewOf(key, previewed);
+      if (removedPackages.has(key)) {
+        return { kind: "not_found" };
+      }
+      const preview = homebrewPreviewOf(key, previewed);
+      if (preview.kind === "ready") {
+        homebrewPreviews.set(preview.preview, {
+          hash: preview.hash,
+          package: preview.package,
+          command: preview.command,
+        });
+      }
+      return preview;
+    },
+    homebrewRemove: async (preview, confirmation): Promise<HomebrewOutcomeView> => {
+      await wait(pace);
+      const stored = homebrewPreviews.get(preview);
+      if (stored === undefined) {
+        throw new Error("unknown preview; nothing was run");
+      }
+      if (stored.hash !== confirmation) {
+        throw new Error("the confirmation does not match the preview; nothing was run");
+      }
+      homebrewPreviews.delete(preview);
+      removedPackages.add(stored.package.key);
+      return {
+        preview,
+        package: stored.package,
+        command: [...stored.command],
+        ran: {
+          success: true,
+          exit_code: 0,
+          timed_out: false,
+          output: `==> Uninstalling ${stored.package.name}... (12 files, 9.4MB)`,
+        },
+        result: { kind: "removed" },
+      };
     },
     helperState: async () => {
       await wait(pace);
