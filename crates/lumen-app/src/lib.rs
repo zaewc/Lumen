@@ -14,6 +14,8 @@ pub mod duplicates;
 #[cfg(any(unix, windows))]
 pub mod held;
 pub mod helper;
+#[cfg(any(unix, windows))]
+pub mod homebrew;
 pub mod icons;
 mod inspection;
 mod knowledge;

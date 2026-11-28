@@ -279,6 +279,7 @@ fn checked_items(
         .map_err(CommandError::new)?;
     if lumen_application::uninstall::any_uninstall(&stored.decisions) != (kind == Kind::Uninstall)
         || lumen_application::copies::any_copy(&stored.decisions) != (kind == Kind::Copy)
+        || lumen_application::homebrew_removal::any_removal(&stored.decisions)
     {
         return Err(CommandError::new(
             "that proposal cannot run through this action; nothing was changed",
