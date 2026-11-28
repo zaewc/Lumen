@@ -747,6 +747,22 @@ export const en = {
       background: (n: number) =>
         `${count(n)} background ${n === 1 ? "item runs" : "items run"} with it.`,
     },
+    relations: {
+      needs: "What it needs",
+      neededBy: "What needs it",
+      atLeast: (n: number) => `at least ${count(n)}`,
+      unread: "Lumen couldn't read the records, so this is unknown.",
+      verified: "verified",
+      candidate: "one of several candidates",
+      records: {
+        homebrew: "Homebrew",
+        receipt: "installer receipt",
+        dpkg: "dpkg",
+        pacman: "pacman",
+        rpm: "RPM",
+        other: "another record",
+      },
+    },
     ai: {
       explaining: "AI review is explaining the apps…",
       source:

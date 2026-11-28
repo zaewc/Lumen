@@ -704,6 +704,22 @@ export const zhCN: Messages = {
       needs: (n: number) => `它需要 ${count(n)} 个其他软件包。`,
       background: (n: number) => `有 ${count(n)} 个后台项目随它运行。`,
     },
+    relations: {
+      needs: "它需要的",
+      neededBy: "需要它的",
+      atLeast: (n: number) => `至少 ${count(n)} 个`,
+      unread: "无法读取记录，因此不清楚",
+      verified: "已确认",
+      candidate: "多个候选之一",
+      records: {
+        homebrew: "Homebrew",
+        receipt: "安装记录",
+        dpkg: "dpkg",
+        pacman: "pacman",
+        rpm: "RPM",
+        other: "其他记录",
+      },
+    },
     ai: {
       explaining: "AI 检查正在说明这些应用…",
       source: "这是 AI 审查根据名称、发布者和版本做出的推测，不会改变 Lumen 的操作。",

@@ -218,3 +218,13 @@ The Apps page stays until step 9, so no release loses a feature midway.
   accepted risk; the copy stays restorable in Quarantine.
 - **App part checkable (owner, 2026-11-18):** yes, never preselected, so the page has
   one way to move things.
+- **Package relations in details (agent, under the owner's delegation, 2026-11-27):**
+  what a package needs and what needs it (ADR-0064, roadmap 16.8) appear only in an
+  app's or package's details sheet ("앱 정보 보기"), never as list rows or counts, and
+  never change the selection. Two short sections, "필요로 하는 것" (What it needs)
+  and "이것을 필요로 하는 것" (What needs it); each entry is the package's recorded
+  name, the record it came from (Homebrew, 설치 기록, dpkg, pacman, RPM) and either
+  "확인됨" (verified) or "여러 후보 중 하나" (one of several candidates, for
+  alternatives and provided names). A need several packages could meet is shown once.
+  Records that were not read give one line, "기록을 읽지 못해서 알 수 없어요", never
+  "없음"; dependents that are a lower bound read "최소 N개" after the heading.

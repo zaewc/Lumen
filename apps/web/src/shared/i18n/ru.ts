@@ -772,6 +772,22 @@ export const ru: Messages = {
       background: (n: number) =>
         `Вместе с ним работает ${count(n)} ${plural(n, "фоновый объект", "фоновых объекта", "фоновых объектов")}.`,
     },
+    relations: {
+      needs: "Что ему нужно",
+      neededBy: "Кому он нужен",
+      atLeast: (n: number) => `не меньше ${count(n)}`,
+      unread: "Lumen не удалось прочитать записи, поэтому это неизвестно.",
+      verified: "подтверждено",
+      candidate: "один из нескольких вариантов",
+      records: {
+        homebrew: "Homebrew",
+        receipt: "запись установщика",
+        dpkg: "dpkg",
+        pacman: "pacman",
+        rpm: "RPM",
+        other: "другая запись",
+      },
+    },
     ai: {
       explaining: "ИИ-проверка описывает приложения…",
       source:
