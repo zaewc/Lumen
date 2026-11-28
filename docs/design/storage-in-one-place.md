@@ -228,3 +228,7 @@ The Apps page stays until step 9, so no release loses a feature midway.
   alternatives and provided names). A need several packages could meet is shown once.
   Records that were not read give one line, "기록을 읽지 못해서 알 수 없어요", never
   "없음"; dependents that are a lower bound read "최소 N개" after the heading.
+  Where that section is shown, the "Lumen이 확인한 내용" list leaves out its own
+  line about what needs the package, so "읽지 못했어요" never sits beside listed
+  candidates; it keeps "필요로 하는 다른 패키지는 없어요" only when every record
+  was read and none needs it.

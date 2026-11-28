@@ -70,6 +70,30 @@ describe("Lumen's removal facts", () => {
     expect(texts(needed(3, false))).toEqual(["At least 3 other packages need it. | from Homebrew"]);
   });
 
+  it("leaves what needs a package to its relations section when that is shown", () => {
+    const pkg = (complete: boolean, relations: SoftwareItemView["relations"]) =>
+      row({
+        relations_read: true,
+        relations,
+        facts: { ...row().facts, needed_by: { count: 0, complete } },
+      });
+    const candidate: SoftwareItemView["relations"][number] = {
+      kind: "needed_by",
+      other: "homebrew:act",
+      label: "act",
+      method: "homebrew_runtime_dependencies",
+      direct: null,
+      verified: false,
+      ambiguous: true,
+    };
+    // A candidate is listed as "at least 1": no "could not read" beside it.
+    expect(texts(pkg(false, [candidate]))).toEqual([]);
+    // Unknown and nothing listed: the section says it is unknown.
+    expect(texts(pkg(false, []))).toEqual([]);
+    // Every record read and none needs it: only this line says so.
+    expect(texts(pkg(true, []))).toEqual(["No other installed package needs it. | from Homebrew"]);
+  });
+
   it("credits the package that installed an app, and Windows entries", () => {
     const app = row({
       origin: "mac_app",

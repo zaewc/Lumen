@@ -1,5 +1,6 @@
 import type { SoftwareItemView } from "@lumen/api-client";
 import type { Messages } from "@/shared/i18n";
+import { itemRelations } from "./relations";
 
 /** One thing Lumen observed about removing an app, and where it read it. */
 export interface Fact {
@@ -12,7 +13,8 @@ export interface Fact {
  * source, from the API's `facts` and linked background items only. AI
  * review's note is never an input: these are shown apart from it, as
  * observations (ADR-0061 rule 5). Unknown is said only where it matters, and
- * never as "none" (ADR-0008).
+ * never as "none" (ADR-0008). What needs a package is left to its relations
+ * section whenever that section is shown.
  */
 export function removalFacts(m: Messages, item: SoftwareItemView): readonly Fact[] {
   const f = m.apps.facts;
@@ -31,7 +33,9 @@ export function removalFacts(m: Messages, item: SoftwareItemView): readonly Fact
   if (facts.mechanism !== null) out.push(from(f.mechanisms[facts.mechanism]));
   if (facts.needs_administrator) out.push(from(f.administrator));
   const neededBy = facts.needed_by;
-  if (neededBy !== null) {
+  // Where the details sheet lists what needs it, or says that is unknown,
+  // that section says it; a line here could only repeat or contradict it.
+  if (neededBy !== null && itemRelations(item).neededBy === null) {
     if (neededBy.count > 0) out.push(from(f.neededBy(neededBy.count, neededBy.complete)));
     else out.push(from(neededBy.complete ? f.neededByNone : f.neededByUnknown));
   }
