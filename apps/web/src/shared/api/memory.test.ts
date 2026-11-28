@@ -6,6 +6,7 @@ import {
   zFinalizeOutcomeView,
   zHeldItemView,
   zHelperView,
+  zHomebrewPreviewView,
   zPlanView,
   zQuarantineReportView,
   zQuitView,
@@ -190,6 +191,23 @@ describe("memoryTransport", () => {
     await expect(transport.uninstall?.(ready.preview, ready.hash)).rejects.toThrow(
       "already confirmed",
     );
+  });
+
+  it("previews removing a Homebrew package with its exact command, or says why not", async () => {
+    const transport = memoryTransport();
+    const preview = async (key: string) =>
+      zHomebrewPreviewView.parse(await transport.homebrewPreview?.(key));
+    expect((await preview("mac_app:com.spotify.client")).kind).toBe("not_found");
+    const needed = await preview("homebrew:openssl@3");
+    expect(needed.kind === "refused" ? needed.reasons : []).toEqual(["dependents"]);
+    const cask = await preview("homebrew_cask:docker");
+    expect(cask.kind === "refused" ? cask.reasons : []).toEqual(["needs_administrator"]);
+    const ready = await preview("homebrew:act");
+    if (ready.kind !== "ready") {
+      throw new Error("act may be removed");
+    }
+    expect(ready.command).toEqual(["/opt/homebrew/bin/brew", "uninstall", "--formula", "act"]);
+    expect(ready.package.notes).toContain("cannot_be_undone");
   });
 
   it("answers a quit request for a listed macOS app only (roadmap 16.3a)", async () => {

@@ -1597,6 +1597,199 @@
           }
         }
       },
+      "HomebrewKindView": {
+        "type": "string",
+        "description": "Whether it is a formula or a cask.",
+        "enum": [
+          "formula",
+          "cask"
+        ]
+      },
+      "HomebrewNoteView": {
+        "type": "string",
+        "description": "What removing it through Homebrew does and does not do.",
+        "enum": [
+          "cannot_be_undone",
+          "user_data_stays",
+          "dependencies_stay"
+        ]
+      },
+      "HomebrewPackageView": {
+        "type": "object",
+        "description": "The package a preview is about, as observed now.",
+        "required": [
+          "key",
+          "kind",
+          "name",
+          "version",
+          "apps",
+          "notes"
+        ],
+        "properties": {
+          "apps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The apps a cask placed, which go with it, for showing only;\ndisplay-escaped."
+          },
+          "key": {
+            "type": "string",
+            "description": "The software list's key, as given."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/HomebrewKindView",
+            "description": "A formula or a cask."
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name; display-escaped."
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HomebrewNoteView"
+            },
+            "description": "What removing it does and does not do."
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Its version, if listed; display-escaped."
+          }
+        }
+      },
+      "HomebrewPreviewView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "It may be removed: confirm `hash` to run `command`.",
+            "required": [
+              "preview",
+              "hash",
+              "created_at",
+              "package",
+              "command",
+              "kind"
+            ],
+            "properties": {
+              "command": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The exact command, for showing only: the program by absolute\npath, then its arguments. The page never sends it back."
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When it was made; it expires 24 hours later."
+              },
+              "hash": {
+                "type": "string",
+                "description": "Its full hash: the confirmation."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "ready"
+                ]
+              },
+              "package": {
+                "$ref": "#/components/schemas/HomebrewPackageView",
+                "description": "The package."
+              },
+              "preview": {
+                "type": "string",
+                "description": "The preview's ID."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Lumen does not remove it; nothing was stored.",
+            "required": [
+              "package",
+              "reasons",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "refused"
+                ]
+              },
+              "package": {
+                "$ref": "#/components/schemas/HomebrewPackageView",
+                "description": "The package."
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/HomebrewReasonView"
+                },
+                "description": "Every reason, at least one."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Homebrew lists no package with that key now: list the software again.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "not_found"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Removing a Homebrew package is only for macOS.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unsupported"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What removing a Homebrew package would do."
+      },
+      "HomebrewReasonView": {
+        "type": "string",
+        "description": "Why a Homebrew package is not removed from Lumen. Each `*_unknown` reason\nis a check Lumen could not answer, which never counts as passing.",
+        "enum": [
+          "unsafe_name",
+          "not_listed",
+          "ambiguous",
+          "inventory_incomplete",
+          "protected",
+          "dependents",
+          "dependents_unknown",
+          "needs_administrator",
+          "administrator_unknown",
+          "security_software",
+          "security_unknown",
+          "managed",
+          "managed_unknown",
+          "running",
+          "running_unknown",
+          "other"
+        ]
+      },
       "ItemKindView": {
         "type": "string",
         "description": "What kind of item AI review says a review item most likely is.",

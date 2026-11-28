@@ -28,6 +28,7 @@
     "allow-cancel-comparison",
     "allow-reassess",
     "allow-uninstall-preview",
+    "allow-homebrew-preview",
     "allow-uninstall",
     "allow-execute-selection",
     "allow-copy-preview",

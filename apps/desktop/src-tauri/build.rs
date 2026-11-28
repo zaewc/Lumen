@@ -29,6 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "cancel_comparison",
         "reassess",
         "uninstall_preview",
+        "homebrew_preview",
         "uninstall",
         "execute_selection",
         "copy_preview",

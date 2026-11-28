@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-homebrew-preview"
+description = "Enables the homebrew_preview command without any pre-configured scope."
+commands.allow = ["homebrew_preview"]
+
+[[permission]]
+identifier = "deny-homebrew-preview"
+description = "Denies the homebrew_preview command without any pre-configured scope."
+commands.deny = ["homebrew_preview"]

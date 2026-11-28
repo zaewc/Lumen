@@ -29,6 +29,7 @@ mod facts;
 #[cfg(test)]
 mod fixture;
 mod helper;
+mod homebrew;
 mod reassess;
 mod relations;
 mod software;
@@ -43,6 +44,10 @@ pub use duplicates::{
 };
 pub use facts::{AppDataKindView, BasisView, FactKindView, FactView};
 pub use helper::{HelperReachView, HelperRegistrationView, HelperView};
+pub use homebrew::{
+    HomebrewKindView, HomebrewNoteView, HomebrewPackageView, HomebrewPreviewView,
+    HomebrewReasonView,
+};
 pub use reassess::{
     ReassessGapView, ReassessOutcomeView, ReassessRequest, ReassessView, ReassessedItemView,
     candidate_id,
