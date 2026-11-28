@@ -294,7 +294,8 @@ fn scratch_kind(gathered: &Gathered, subject: &Subject) -> Option<ScratchKind> {
 }
 
 /// [`checked_plan`] for a cleanup: refused for a privileged process and for
-/// an uninstall plan (ADR-0062) or a copy's preview (ADR-0069).
+/// an uninstall plan (ADR-0062), a copy's preview (ADR-0069) or a Homebrew
+/// removal preview (ADR-0060), whose folder must never be quarantined.
 fn checked_cleanup(
     index: &IndexStore,
     plan: PlanId,
@@ -305,6 +306,7 @@ fn checked_cleanup(
     let stored = checked_plan(index, plan, confirm, now)?;
     if lumen_application::uninstall::any_uninstall(&stored.decisions)
         || lumen_application::copies::any_copy(&stored.decisions)
+        || lumen_application::homebrew_removal::any_removal(&stored.decisions)
     {
         return Err(QuarantineError::NotACleanup(plan));
     }
