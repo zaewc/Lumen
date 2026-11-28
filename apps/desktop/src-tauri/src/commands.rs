@@ -18,10 +18,11 @@ use std::sync::Arc;
 use lumen_api::views::{
     AiSettingsView, AssessProgressView, CandidateView, CompareOutcomeView, CompareProgressView,
     CopyOutcomeView, CopyPreviewView, CopyRequest, DiskView, ExecuteRequest, FinalizeOutcomeView,
-    HeldItemView, HelperView, PlanView, QuarantineReportView, QuitView, ReassessRequest,
-    ReassessView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView, SelectedAppView,
-    SelectedCopyView, SelectionReportView, SelectionRequest, SoftwareView, ToolRunView,
-    ToolStorageView, UninstallOutcomeView, UninstallPreviewView, UnreadFoldersView, candidate_id,
+    HeldItemView, HelperView, HomebrewPreviewView, PlanView, QuarantineReportView, QuitView,
+    ReassessRequest, ReassessView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
+    SelectedAppView, SelectedCopyView, SelectionReportView, SelectionRequest, SoftwareView,
+    ToolRunView, ToolStorageView, UninstallOutcomeView, UninstallPreviewView, UnreadFoldersView,
+    candidate_id,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -1442,6 +1443,32 @@ pub(crate) async fn uninstall_preview(
     let db = core.db.clone();
     blocking(move || {
         UninstallPreviewView::from_result(lumen_app::uninstall::preview(
+            &db,
+            &key,
+            &SystemClock,
+            &UuidV7Ids,
+        ))
+        .map_err(CommandError::new)
+    })
+    .await
+}
+
+/// Previews removing the Homebrew formula or cask the software list shows
+/// under `key` through Homebrew (ADR-0060, roadmap 16.7): the package, and
+/// either a preview to confirm with the exact command, or why Lumen does not
+/// remove it. Takes the list's key, never a path or a command; reads only,
+/// and stores the preview. Elsewhere it says it is unsupported.
+#[tauri::command]
+pub(crate) async fn homebrew_preview(
+    core: State<'_, Core>,
+    key: String,
+) -> Result<HomebrewPreviewView, CommandError> {
+    if key.len() > MAX_SOFTWARE_KEY {
+        return Err(CommandError::new("not a software key"));
+    }
+    let db = core.db.clone();
+    blocking(move || {
+        HomebrewPreviewView::from_result(lumen_app::homebrew::preview(
             &db,
             &key,
             &SystemClock,

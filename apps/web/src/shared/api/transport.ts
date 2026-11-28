@@ -14,6 +14,7 @@ import type {
   FinalizeOutcomeView,
   HeldItemView,
   HelperView,
+  HomebrewPreviewView,
   PlanView,
   QuarantineReportView,
   QuitView,
@@ -167,6 +168,13 @@ export interface LumenTransport {
    * right before the move. Restorable until removed for good.
    */
   uninstall?(preview: string, confirmation: string): Promise<UninstallOutcomeView>;
+  /**
+   * Previews removing the Homebrew formula or cask the software list shows
+   * under `key` through Homebrew (ADR-0060): ready to confirm by its hash,
+   * with the exact command shown, or every reason Lumen does not remove it.
+   * Reads only; runs nothing. Off macOS it answers `unsupported`.
+   */
+  homebrewPreview?(key: string): Promise<HomebrewPreviewView>;
   /**
    * Moves what the person checked after one confirmation (ADR-0069): a
    * clean-up plan and apps' previews, each by its full hash. The host checks

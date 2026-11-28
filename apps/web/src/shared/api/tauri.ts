@@ -13,6 +13,7 @@ import {
   zGroupView,
   zHeldItemView,
   zHelperView,
+  zHomebrewPreviewView,
   zPlanView,
   zQuarantineReportView,
   zQuitView,
@@ -144,6 +145,8 @@ export function tauriTransport(): LumenTransport {
     reassess: async (request) => zCompatibleReassess.parse(await call("reassess", { request })),
     uninstallPreview: async (key) =>
       zUninstallPreviewView.parse(await call("uninstall_preview", { key })),
+    homebrewPreview: async (key) =>
+      zHomebrewPreviewView.parse(await call("homebrew_preview", { key })),
     uninstall: async (preview, confirmation) =>
       zUninstallOutcomeView.parse(await call("uninstall", { preview, confirmation })),
     executeSelection: async (request) =>

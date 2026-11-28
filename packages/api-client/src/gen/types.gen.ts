@@ -796,6 +796,115 @@ export type HelperView = {
 };
 
 /**
+ * Whether it is a formula or a cask.
+ */
+export type HomebrewKindView = "formula" | "cask";
+
+/**
+ * What removing it through Homebrew does and does not do.
+ */
+export type HomebrewNoteView = "cannot_be_undone" | "user_data_stays" | "dependencies_stay";
+
+/**
+ * The package a preview is about, as observed now.
+ */
+export type HomebrewPackageView = {
+  /**
+   * The apps a cask placed, which go with it, for showing only;
+   * display-escaped.
+   */
+  apps: Array<string>;
+  /**
+   * The software list's key, as given.
+   */
+  key: string;
+  /**
+   * A formula or a cask.
+   */
+  kind: HomebrewKindView;
+  /**
+   * Its name; display-escaped.
+   */
+  name: string;
+  /**
+   * What removing it does and does not do.
+   */
+  notes: Array<HomebrewNoteView>;
+  /**
+   * Its version, if listed; display-escaped.
+   */
+  version: string | null;
+};
+
+/**
+ * What removing a Homebrew package would do.
+ */
+export type HomebrewPreviewView =
+  | {
+      /**
+       * The exact command, for showing only: the program by absolute
+       * path, then its arguments. The page never sends it back.
+       */
+      command: Array<string>;
+      /**
+       * When it was made; it expires 24 hours later.
+       */
+      created_at: string;
+      /**
+       * Its full hash: the confirmation.
+       */
+      hash: string;
+      kind: "ready";
+      /**
+       * The package.
+       */
+      package: HomebrewPackageView;
+      /**
+       * The preview's ID.
+       */
+      preview: string;
+    }
+  | {
+      kind: "refused";
+      /**
+       * The package.
+       */
+      package: HomebrewPackageView;
+      /**
+       * Every reason, at least one.
+       */
+      reasons: Array<HomebrewReasonView>;
+    }
+  | {
+      kind: "not_found";
+    }
+  | {
+      kind: "unsupported";
+    };
+
+/**
+ * Why a Homebrew package is not removed from Lumen. Each `*_unknown` reason
+ * is a check Lumen could not answer, which never counts as passing.
+ */
+export type HomebrewReasonView =
+  | "unsafe_name"
+  | "not_listed"
+  | "ambiguous"
+  | "inventory_incomplete"
+  | "protected"
+  | "dependents"
+  | "dependents_unknown"
+  | "needs_administrator"
+  | "administrator_unknown"
+  | "security_software"
+  | "security_unknown"
+  | "managed"
+  | "managed_unknown"
+  | "running"
+  | "running_unknown"
+  | "other";
+
+/**
  * What kind of item AI review says a review item most likely is.
  */
 export type ItemKindView =

@@ -6,6 +6,8 @@ import type {
   CandidateView,
   HeldItemView,
   HelperView,
+  HomebrewPackageView,
+  HomebrewPreviewView,
   ItemReportView,
   PlanView,
   ScanView,
@@ -711,6 +713,39 @@ function uninstallPreviewOf(key: string, n: number, running: boolean): Uninstall
   };
 }
 
+// The sample Homebrew removal previews (ADR-0060): act may be removed;
+// openssl@3 is needed by another package; the Docker cask runs an installer
+// package, which needs administrator rights.
+function homebrewPreviewOf(key: string, n: number): HomebrewPreviewView {
+  const row = softwareList(false).items.find((item) => item.key === key);
+  if (row === undefined || (row.origin !== "homebrew" && row.origin !== "homebrew_cask")) {
+    return { kind: "not_found" };
+  }
+  const cask = row.origin === "homebrew_cask";
+  const homebrewPackage: HomebrewPackageView = {
+    key,
+    kind: cask ? "cask" : "formula",
+    name: row.id,
+    version: row.version,
+    apps: cask ? ["/Applications/Docker.app"] : [],
+    notes: ["cannot_be_undone", "user_data_stays", "dependencies_stay"],
+  };
+  if (cask) {
+    return { kind: "refused", package: homebrewPackage, reasons: ["needs_administrator"] };
+  }
+  if ((row.facts.needed_by?.count ?? 0) > 0) {
+    return { kind: "refused", package: homebrewPackage, reasons: ["dependents"] };
+  }
+  return {
+    kind: "ready",
+    preview: `0190f0d2-6c1e-7a3b-8c4d-5e6f7081c0${n.toString().padStart(2, "0")}`,
+    hash: `b3:${(n + 0x100).toString(16).padStart(64, "0")}`,
+    created_at: new Date().toISOString(),
+    package: homebrewPackage,
+    command: ["/opt/homebrew/bin/brew", "uninstall", "--formula", row.id],
+  };
+}
+
 /** A held item's operation ID, made up in the same shape as the core's. */
 function operationId(n: number): string {
   return `0190f0d2-6c1e-7a3b-8c4d-5e6f7081a0${n.toString().padStart(2, "0")}`;
@@ -1042,6 +1077,11 @@ export function memoryTransport({
         previews.set(preview.preview, { hash: preview.hash, app: preview.app });
       }
       return preview;
+    },
+    homebrewPreview: async (key) => {
+      await wait(pace);
+      previewed += 1;
+      return homebrewPreviewOf(key, previewed);
     },
     helperState: async () => {
       await wait(pace);

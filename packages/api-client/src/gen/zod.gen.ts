@@ -394,6 +394,80 @@ export const zHelperView = z.object({
 });
 
 /**
+ * Whether it is a formula or a cask.
+ */
+export const zHomebrewKindView = z.enum(["formula", "cask"]);
+
+/**
+ * What removing it through Homebrew does and does not do.
+ */
+export const zHomebrewNoteView = z.enum([
+  "cannot_be_undone",
+  "user_data_stays",
+  "dependencies_stay",
+]);
+
+/**
+ * The package a preview is about, as observed now.
+ */
+export const zHomebrewPackageView = z.object({
+  apps: z.array(z.string()),
+  key: z.string(),
+  kind: zHomebrewKindView,
+  name: z.string(),
+  notes: z.array(zHomebrewNoteView),
+  version: z.string().nullable(),
+});
+
+/**
+ * Why a Homebrew package is not removed from Lumen. Each `*_unknown` reason
+ * is a check Lumen could not answer, which never counts as passing.
+ */
+export const zHomebrewReasonView = z.enum([
+  "unsafe_name",
+  "not_listed",
+  "ambiguous",
+  "inventory_incomplete",
+  "protected",
+  "dependents",
+  "dependents_unknown",
+  "needs_administrator",
+  "administrator_unknown",
+  "security_software",
+  "security_unknown",
+  "managed",
+  "managed_unknown",
+  "running",
+  "running_unknown",
+  "other",
+]);
+
+/**
+ * What removing a Homebrew package would do.
+ */
+export const zHomebrewPreviewView = z.union([
+  z.object({
+    command: z.array(z.string()),
+    created_at: z.iso.datetime(),
+    hash: z.string(),
+    kind: z.enum(["ready"]),
+    package: zHomebrewPackageView,
+    preview: z.string(),
+  }),
+  z.object({
+    kind: z.enum(["refused"]),
+    package: zHomebrewPackageView,
+    reasons: z.array(zHomebrewReasonView),
+  }),
+  z.object({
+    kind: z.enum(["not_found"]),
+  }),
+  z.object({
+    kind: z.enum(["unsupported"]),
+  }),
+]);
+
+/**
  * What kind of item AI review says a review item most likely is.
  */
 export const zItemKindView = z.enum([

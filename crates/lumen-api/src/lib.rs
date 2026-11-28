@@ -121,6 +121,11 @@ use utoipa::OpenApi;
         views::SelectedAppView,
         views::SelectionReportView,
         views::QuitView,
+        views::HomebrewReasonView,
+        views::HomebrewNoteView,
+        views::HomebrewKindView,
+        views::HomebrewPackageView,
+        views::HomebrewPreviewView,
         views::HelperRegistrationView,
         views::HelperReachView,
         views::HelperView,
@@ -172,7 +177,7 @@ mod tests {
             .as_object()
             .map(serde_json::Map::len)
             .unwrap_or_default();
-        assert_eq!(schemas, 108);
+        assert_eq!(schemas, 113);
     }
 
     #[test]
