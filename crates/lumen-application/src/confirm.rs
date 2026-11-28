@@ -14,6 +14,10 @@
 //!    now carry the time they were observed, so a fresh bundle never hashes
 //!    like the plan's. Any change that alters the decision (in use, ownership,
 //!    the owner's state, the item itself) still skips it;
+//!    A log or temporary item (ADR-0070) is decided with its subtree read
+//!    again just before ([`Confirming::read_now`]): its newest change must
+//!    be known and no later than the one the plan bound
+//!    ([`PlannedItem::scratch_change`]), or it is skipped as changed;
 //! 3. the executor records it as it is now (`prepare`), and its
 //!    `quarantine.manifest/1` is built.
 //!
@@ -24,13 +28,13 @@
 use std::collections::BTreeSet;
 
 use lumen_domain::{
-    Chooser, Confirmation, DeviceId, JevRequest, OperationId, PathFlavor, PlanId, PlannedItem,
-    PolicyDecision, QuarantineManifest, RawPath, Subject, Verdict,
+    Chooser, Confirmation, DeviceId, Evidence, Fact, JevRequest, OperationId, PathFlavor, PlanId,
+    PlannedItem, PolicyDecision, QuarantineManifest, RawPath, Subject, Verdict,
 };
 use lumen_policy::PolicyInput;
 use lumen_policy::ids;
 
-use crate::assess::{Probes, Sources, decide_candidate};
+use crate::assess::{Probes, Sources, decide_candidate_with};
 use crate::ports::{CandidateVerifier, Clock, IdGenerator, JudgeModel, QuarantineExecutor};
 use crate::quarantine::ConfirmedItem;
 
@@ -109,6 +113,10 @@ pub struct Confirming<'a> {
     pub sources: Sources<'a>,
     /// The scan roots.
     pub roots: &'a [RawPath],
+    /// Facts about this item read again just before the move, besides the
+    /// probes: for a log or temporary item, its subtree's newest change and
+    /// reports (ADR-0070). Empty for other items.
+    pub read_now: &'a [Evidence],
     /// Fresh facts about each item.
     pub verifier: &'a dyn CandidateVerifier,
     /// In-use and ownership probes.
@@ -145,6 +153,29 @@ fn rules(decision: &PolicyDecision) -> BTreeSet<&str> {
         .collect()
 }
 
+/// Whether `item`, a log or temporary item when `planned` says so, may still
+/// move: the newest change read just now (`read_now`) must be known and no
+/// later than the change the plan bound (ADR-0070). Anything written below
+/// it since, an age that could not be read again, or a plan without a bound
+/// keeps it where it is. Other items are not affected.
+fn scratch_unchanged(item: &PlannedItem, planned: &PolicyDecision, read_now: &[Evidence]) -> bool {
+    if !rules(planned).contains(ids::CLASSIFY_SCRATCH) {
+        return true;
+    }
+    let Some(bound) = item.scratch_change else {
+        return false;
+    };
+    let newest = read_now
+        .iter()
+        .filter(|record| record.subject == item.subject)
+        .filter_map(|record| match record.fact {
+            Fact::NewestChange { at, .. } => Some(at),
+            _ => None,
+        })
+        .max();
+    newest.is_some_and(|at| at <= bound)
+}
+
 /// Confirms `item` of `plan`, planned with decision `planned`, under
 /// `confirmation`.
 pub async fn confirm_item(
@@ -167,8 +198,12 @@ pub async fn confirm_item(
     let Some((root, relative)) = split(&item.path, with.roots) else {
         return skip(Skip::OutsideRoots);
     };
-    let Ok(assessed) = decide_candidate(
+    if !scratch_unchanged(item, planned, with.read_now) {
+        return skip(Skip::Changed);
+    }
+    let Ok(assessed) = decide_candidate_with(
         &entry,
+        with.read_now,
         &with.sources,
         &with.probes,
         with.judge,
@@ -238,13 +273,14 @@ mod tests {
     use lumen_domain::{
         AccessState, Basis, ByteCount, CleanupMechanism, ConfirmationSurface, EntryKind,
         EntryTimes, Evidence, EvidenceHash, Fact, FileId, FileIdentity, FilesystemEntry, PlanHash,
-        Platform, Protection, Provenance, ScanId, SizeFacts, SizeFlags, SnapshotId, SourceName,
-        Timestamp, VolumeId,
+        Platform, Protection, Provenance, ReclaimEstimate, ScanId, SizeFacts, SizeFlags,
+        SnapshotId, SourceName, Timestamp, VolumeId,
     };
     use lumen_graph::Graph;
     use lumen_policy::{Context, KnowledgeClass};
 
     use super::*;
+    use crate::assess::decide_candidate;
     use crate::gather::Gathered;
     use crate::ports::{
         EnumerateError, ExecutionFailure, InUse, InUseProbe, Located, NoopJudge, OwnershipProbe,
@@ -517,6 +553,7 @@ mod tests {
                 .parse()
                 .unwrap_or_else(|_| unreachable!()),
             request: &|_| None,
+            read_now: &[],
         };
         let then = ready(decide_candidate(
             &entry(),
@@ -696,6 +733,168 @@ mod tests {
             split(&raw("/root"), &roots),
             None,
             "a root itself is never an item"
+        );
+    }
+
+    const DAY: i64 = 86_400;
+
+    /// Day 1000: long after the log below last changed.
+    struct Later;
+
+    impl Clock for Later {
+        fn now(&self) -> Timestamp {
+            Timestamp::from_unix(1_000 * DAY, 0).unwrap_or_else(|_| unreachable!())
+        }
+    }
+
+    fn about_item(fact: Fact) -> Evidence {
+        Evidence {
+            subject: Subject::File {
+                identity: identity(),
+            },
+            fact,
+            basis: Basis::Observed,
+            provenance: Provenance {
+                source: source(),
+                observed_at: Later.now(),
+            },
+        }
+    }
+
+    fn day(n: i64) -> Timestamp {
+        Timestamp::from_unix(n * DAY, 0).unwrap_or_else(|_| unreachable!())
+    }
+
+    /// An old log the person chose, planned with `bound`, and confirmed with
+    /// `read_now` read again just before the move.
+    fn run_log(bound: Option<i64>, read_now: &[Fact]) -> Confirmed {
+        let gathered = Gathered {
+            evidence: vec![
+                about_item(Fact::ScratchLocation {
+                    kind: lumen_domain::ScratchKind::Logs,
+                }),
+                about_item(Fact::NewestChange {
+                    at: day(100),
+                    as_of: day(900),
+                }),
+            ],
+            relationships: Vec::new(),
+        };
+        let scanned = [entry()];
+        let graph = Graph::new();
+        let context = context();
+        let knowledge = BTreeMap::new();
+        let source = source();
+        let sources = Sources {
+            graph: &graph,
+            gathered: &gathered,
+            index: &crate::gather::EvidenceIndex::new(&gathered),
+            scanned: &scanned,
+            listings: &[],
+            context: &context,
+            knowledge: &knowledge,
+            store_volumes: None,
+        };
+        let probes = Probes {
+            in_use: &Free,
+            in_use_source: &source,
+            ownership: &Mine,
+            ownership_source: &source,
+            running: &crate::ports::NoRunningProbe,
+            running_source: &source,
+        };
+        let read_now: Vec<Evidence> = read_now.iter().cloned().map(about_item).collect();
+        let roots = [raw("/root")];
+        let with = Confirming {
+            sources,
+            roots: &roots,
+            read_now: &read_now,
+            verifier: &Verifier(true),
+            probes,
+            executor: &Executor,
+            judge: &NoopJudge,
+            clock: &Later,
+            ids: &Ids,
+            device: "0190f0d2-6c1e-7a3b-8c4d-5e6f70819205"
+                .parse()
+                .unwrap_or_else(|_| unreachable!()),
+            request: &|_| None,
+        };
+        let then = ready(decide_candidate(
+            &entry(),
+            &sources,
+            &probes,
+            &NoopJudge,
+            &Later,
+            &|_| None,
+        ))
+        .unwrap_or_else(|e| unreachable!("{e}"));
+        assert_eq!(then.decision.verdict(), Verdict::Review);
+        let item = PlannedItem {
+            subject: Subject::File {
+                identity: identity(),
+            },
+            path: entry().path,
+            policy_version: then.decision.policy_version(),
+            evidence_hash: then.decision.evidence_hash(),
+            reclaim: ReclaimEstimate::default(),
+            chosen_by: Chooser::Person,
+            scratch_change: bound.map(day),
+        };
+        let confirmation = Confirmation {
+            plan_hash: PlanHash::from_bytes([0; 32]),
+            confirmed_at: Later.now(),
+            surface: ConfirmationSurface::CommandLine,
+        };
+        ready(confirm_item(
+            &item,
+            &then.decision,
+            Ids.plan_id(),
+            &confirmation,
+            &with,
+        ))
+    }
+
+    fn newest(at: i64) -> Fact {
+        Fact::NewestChange {
+            at: day(at),
+            as_of: Later.now(),
+        }
+    }
+
+    #[test]
+    fn an_old_log_unchanged_since_the_plan_moves() {
+        assert!(matches!(
+            run_log(Some(100), &[newest(100)]),
+            Confirmed::Ready(_)
+        ));
+    }
+
+    #[test]
+    fn a_log_changed_since_the_plan_or_of_unknown_age_now_stays() {
+        let changed = [
+            (Some(100), vec![newest(101)], "written below since the plan"),
+            (Some(100), vec![], "its age could not be read again"),
+            (None, vec![newest(100)], "the plan bound no change"),
+            (Some(100), vec![newest(999)], "changed yesterday"),
+        ];
+        for (bound, read_now, why) in changed {
+            assert_eq!(
+                skipped(&run_log(bound, &read_now)),
+                Some(Skip::Changed),
+                "{why}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_report_written_into_a_log_folder_since_keeps_it() {
+        let report = Fact::DiagnosticReport {
+            marker: lumen_domain::UntrustedText::new("x.crash"),
+        };
+        assert_eq!(
+            skipped(&run_log(Some(100), &[newest(100), report])),
+            Some(Skip::NoLongerProposed(Verdict::Keep))
         );
     }
 }

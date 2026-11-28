@@ -16,10 +16,11 @@ use std::time::{Duration, Instant};
 
 use lumen_application::CancelToken;
 use lumen_application::assess::{Assessed, nested, select};
+use lumen_application::ports::DirOutcome;
 use lumen_application::ports::{Clock, DirEnumerator as _};
 use lumen_application::reassess::{Gap, gaps};
 pub use lumen_application::reassess::{MAX_ITEMS, Outcome, Reassessed, Reassessment, Verdicted};
-use lumen_domain::{FilesystemEntry, RawPath};
+use lumen_domain::{Evidence, FilesystemEntry, RawPath, ScratchKind, Timestamp};
 use lumen_policy::PolicyError;
 use lumen_scan::{ScanItem, scan as run_scan};
 
@@ -124,10 +125,24 @@ fn listed_again(
     stores: &[PathBuf],
     cancel: &CancelToken,
 ) -> Result<(Subtree, Option<FilesystemEntry>), ReassessError> {
+    let Some((entries, listings)) = list_now(path, stores, cancel)? else {
+        return Ok((Subtree::default(), None));
+    };
+    let current = entries.iter().find(|entry| entry.path == *path).cloned();
+    Ok((Subtree::listed(entries, listings, nested), current))
+}
+
+/// Everything at and below `path` and the listings, read now as
+/// [`listed_again`] reads them; `None` for a path this platform cannot use.
+fn list_now(
+    path: &RawPath,
+    stores: &[PathBuf],
+    cancel: &CancelToken,
+) -> Result<Option<Listed>, ReassessError> {
     let mut entries: Vec<FilesystemEntry> = Vec::new();
     let mut listings = Vec::new();
     let Some(native) = crate::space_change::native(path) else {
-        return Ok((Subtree::default(), None));
+        return Ok(None);
     };
     let config = excluding_stores(&[native], stores)?;
     let started = Instant::now();
@@ -148,8 +163,31 @@ fn listed_again(
             ControlFlow::Continue(())
         },
     );
-    let current = entries.iter().find(|entry| entry.path == *path).cloned();
-    Ok((Subtree::listed(entries, listings, nested), current))
+    Ok(Some((entries, listings)))
+}
+
+/// Entries and directory listings read from the filesystem.
+type Listed = (Vec<FilesystemEntry>, Vec<(RawPath, DirOutcome)>);
+
+/// A log or temporary item's subtree listed again just before it moves, and
+/// its newest change and reports read from that listing (ADR-0070, amending
+/// ADR-0058 rule 5: the scan's are never reused). A listing that fails,
+/// is refused or is cut short after [`CHECK_LIMIT`] gives no newest change,
+/// so the item stays where it is.
+pub(crate) fn scratch_now(
+    path: &RawPath,
+    kind: ScratchKind,
+    now: Timestamp,
+) -> (Subtree, Vec<Evidence>) {
+    let listed = crate::store::scan_exclusion_paths()
+        .map_err(ScanError::from)
+        .map_err(ReassessError::from)
+        .and_then(|stores| list_now(path, &stores, &CancelToken::new()));
+    let Ok(Some((entries, listings))) = listed else {
+        return (Subtree::default(), Vec::new());
+    };
+    let facts = lumen_application::scratch::recheck(path, kind, &entries, &listings, now);
+    (Subtree::listed(entries, listings, &[]), facts)
 }
 
 #[cfg(test)]

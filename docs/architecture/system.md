@@ -199,7 +199,10 @@ CleanupCandidate
   ([ADR-0051](../decisions/0051-quarantine-review-items-the-user-chooses.md)). A log or
   temporary item also binds the newest change shown for it (`scratch_change`,
   [ADR-0070](../decisions/0070-review-old-user-logs-and-temporary-files.md)); other
-  items omit the field, preserving existing plan bytes and hashes.
+  items omit the field, preserving existing plan bytes and hashes. Just before such an
+  item moves, its subtree is listed again and its newest change read again; the item
+  stays where it is when that change is later than the bound, cannot be read
+  completely, or the plan has no bound.
 
 ### 6.4 State machines
 

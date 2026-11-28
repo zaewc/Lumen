@@ -21,11 +21,12 @@
 use std::collections::{BTreeMap, HashSet};
 
 use lumen_domain::{
-    Basis, EntryKind, Evidence, Fact, FilesystemEntry, PathFlavor, Provenance, RawPath,
-    ScratchKind, SourceName, Subject, Timestamp, UntrustedText,
+    AccessState, Basis, EntryKind, Evidence, Fact, FilesystemEntry, PathFlavor, Provenance,
+    RawPath, ScratchKind, SourceName, Subject, Timestamp, UntrustedText,
 };
 
 use crate::cloud::{key, separator};
+use crate::ports::DirOutcome;
 
 /// The source named in the provenance of the facts recorded here.
 pub const SCRATCH_SOURCE: &str = "lumen.scratch";
@@ -229,6 +230,58 @@ impl ScratchItems {
             })
             .collect()
     }
+}
+
+/// One item's facts read again just before it moves (ADR-0070, amending
+/// ADR-0058 rule 5): `entries` and `listings` are the item and everything
+/// below it, listed now; `now` dates the facts. A directory among `entries`
+/// without a complete, readable listing (refused, cut short, or never
+/// reached) leaves the age unknown, so no [`Fact::NewestChange`] is returned.
+/// Only facts about `item`'s own entry are returned.
+#[must_use]
+pub fn recheck(
+    item: &RawPath,
+    kind: ScratchKind,
+    entries: &[FilesystemEntry],
+    listings: &[(RawPath, DirOutcome)],
+    now: Timestamp,
+) -> Vec<Evidence> {
+    let sep = separator(item);
+    let Some(parent) = item
+        .as_bytes()
+        .iter()
+        .rposition(|&b| b == sep)
+        .and_then(|at| RawPath::from_stored(item.flavor(), item.as_bytes()[..at].to_vec()).ok())
+    else {
+        return Vec::new();
+    };
+    let read: HashSet<Vec<u8>> = listings
+        .iter()
+        .filter(|(_, outcome)| outcome.access == AccessState::Readable && outcome.complete)
+        .map(|(path, _)| key(path))
+        .collect();
+    let unlisted: Vec<RawPath> = entries
+        .iter()
+        .filter(|entry| entry.kind == EntryKind::Directory && !read.contains(&key(&entry.path)))
+        .map(|entry| entry.path.clone())
+        .collect();
+    let within = |entry: &&FilesystemEntry| {
+        entry.path == *item || {
+            let mut prefix = item.as_bytes().to_vec();
+            prefix.push(sep);
+            entry.path.as_bytes().starts_with(&prefix)
+        }
+    };
+    let mut items = ScratchItems::new(&[(parent, kind)], unlisted);
+    for entry in entries.iter().filter(within) {
+        items.note(entry);
+    }
+    items
+        .finish(now)
+        .into_iter()
+        .filter(|(entry, _)| entry.path == *item)
+        .flat_map(|(_, evidence)| evidence)
+        .collect()
 }
 
 #[cfg(test)]
@@ -458,5 +511,66 @@ mod tests {
     fn links_are_not_items() {
         let link = entry(unix(&format!("{LOGS}/link")), EntryKind::Symlink, 2, 10);
         assert_eq!(gather(&[&[link]], &[]).len(), 0);
+    }
+
+    /// The facts of an item read again now, from its listed subtree.
+    fn rechecked(entries: &[FilesystemEntry], listed: &[(&str, bool)]) -> Vec<Fact> {
+        let listings: Vec<(RawPath, DirOutcome)> = listed
+            .iter()
+            .map(|&(path, complete)| {
+                (
+                    unix(path),
+                    DirOutcome {
+                        access: AccessState::Readable,
+                        complete,
+                    },
+                )
+            })
+            .collect();
+        recheck(
+            &unix(&format!("{LOGS}/App")),
+            ScratchKind::Logs,
+            entries,
+            &listings,
+            at(1_000),
+        )
+        .into_iter()
+        .map(|record| record.fact)
+        .collect()
+    }
+
+    #[test]
+    fn a_recheck_dates_the_item_by_what_is_below_it_now() {
+        let item = format!("{LOGS}/App");
+        let entries = [
+            dir(&item, 2, 10),
+            dir(&format!("{item}/sub"), 3, 20),
+            file(&format!("{item}/sub/new.log"), 4, 900),
+            file(&format!("{item}/sub/x.crash"), 5, 30),
+        ];
+        let complete = [(item.as_str(), true), (&*format!("{item}/sub"), true)];
+        let facts = rechecked(&entries, &complete);
+        assert!(facts.contains(&logs()));
+        assert!(facts.contains(&newest(900)), "{facts:?}");
+        assert!(
+            facts
+                .iter()
+                .any(|fact| matches!(fact, Fact::DiagnosticReport { .. }))
+        );
+    }
+
+    #[test]
+    fn a_recheck_without_every_listing_has_no_age() {
+        let item = format!("{LOGS}/App");
+        let entries = [dir(&item, 2, 10), dir(&format!("{item}/sub"), 3, 20)];
+        let sub = format!("{item}/sub");
+        for listed in [
+            vec![(item.as_str(), true)],
+            vec![(item.as_str(), true), (sub.as_str(), false)],
+            vec![(sub.as_str(), true)],
+        ] {
+            assert_eq!(rechecked(&entries, &listed), [logs()], "{listed:?}");
+        }
+        assert_eq!(rechecked(&[], &[]), Vec::<Fact>::new(), "a gone item");
     }
 }
