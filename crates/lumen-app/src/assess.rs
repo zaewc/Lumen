@@ -2128,6 +2128,18 @@ mod tests {
         found: &[FilesystemEntry],
         context: &Context,
     ) -> Result<Vec<Decided>, Box<dyn std::error::Error>> {
+        decided_observing(entries, gathered, found, context, &[])
+    }
+
+    /// As [`decided_with`], with `observed` also seen at decision time, as
+    /// the probes' answers are (an application running, for example).
+    fn decided_observing(
+        entries: &[FilesystemEntry],
+        gathered: &lumen_application::gather::Gathered,
+        found: &[FilesystemEntry],
+        context: &Context,
+        observed: &[Evidence],
+    ) -> Result<Vec<Decided>, Box<dyn std::error::Error>> {
         let mut graph = lumen_graph::Graph::new();
         for relationship in &gathered.relationships {
             graph.add(relationship.clone())?;
@@ -2167,7 +2179,10 @@ mod tests {
                         observed_at: Timestamp::UNIX_EPOCH,
                     },
                 };
-                let input = lumen_application::assess::assemble(candidate, &[free], &sources);
+                let fresh: Vec<Evidence> = std::iter::once(free)
+                    .chain(observed.iter().cloned())
+                    .collect();
+                let input = lumen_application::assess::assemble(candidate, &fresh, &sources);
                 let decision = lumen_policy::evaluate(&input)?;
                 let rules = decision
                     .fired_rules()
@@ -2376,6 +2391,161 @@ mod tests {
                 rules.iter().any(|r| r == "classify.orphan"),
                 "{path}: {rules:?}"
             );
+        }
+        Ok(())
+    }
+
+    /// An installed app's own cache and its helper's cache, `com.example.Editor`.
+    #[cfg(target_os = "macos")]
+    fn editor_cache_entries() -> Vec<FilesystemEntry> {
+        vec![
+            scanned("/Users/ana/Library/Caches/com.example.Editor", 1, 0),
+            scanned(
+                "/Users/ana/Library/Caches/com.example.Editor/Cache.db",
+                2,
+                4_096,
+            ),
+            scanned("/Users/ana/Library/Caches/com.example.Editor.Helper", 3, 0),
+            scanned(
+                "/Users/ana/Library/Caches/com.example.Editor.Helper/Cache.db",
+                4,
+                4_096,
+            ),
+        ]
+    }
+
+    /// [`editor_cache_entries`] linked to the installed app and decided, its
+    /// signature saying it is security software when `security`, and the app
+    /// running when `running`. Sorted by path.
+    #[cfg(target_os = "macos")]
+    fn editor_cache_decided(
+        security: bool,
+        running: bool,
+    ) -> Result<Vec<Decided>, Box<dyn std::error::Error>> {
+        let entries = editor_cache_entries();
+        let reports = vec![app_report(
+            lumen_domain::SourceStatus::Complete,
+            &["com.example.Editor"],
+        )];
+        let mut apps: Vec<lumen_domain::Application> = reports
+            .iter()
+            .flat_map(|r| r.applications.clone())
+            .collect();
+        let bundle = RawPath::from_unix_bytes(b"/Applications/Editor.app".to_vec())?;
+        for app in &mut apps {
+            app.install_locations.push(bundle.clone());
+        }
+        let owner = lumen_domain::AppId {
+            scheme: lumen_domain::AppIdScheme::BundleId,
+            value: lumen_domain::UntrustedText::new("com.example.Editor"),
+        };
+        let home = RawPath::from_unix_bytes(b"/Users/ana".to_vec())?;
+        let (mut evidence, mut relationships) = (Vec::new(), Vec::new());
+        for link in lumen_platform_macos::support::link_support_locations(
+            &home,
+            &apps,
+            &entries,
+            Timestamp::UNIX_EPOCH,
+        ) {
+            evidence.push(link.evidence);
+            evidence.push(link.location);
+            relationships.push(link.relationship);
+        }
+        let source = SourceName::new("test")?;
+        if security {
+            let found = lumen_application::security_owners::security_owner_evidence(
+                &apps,
+                &evidence,
+                &source,
+                Timestamp::UNIX_EPOCH,
+                &mut |_| Some(true),
+            );
+            evidence.extend(found);
+        }
+        let mut domains = ScanDomains::new();
+        domains.add(&entries);
+        let summary = summarize(&reports);
+        let gathered = gather(
+            &entries,
+            &domains,
+            &summary,
+            evidence,
+            relationships,
+            Timestamp::UNIX_EPOCH,
+            Timestamp::UNIX_EPOCH,
+        );
+        let context = Context {
+            platform: Platform::Macos,
+            home: Some(home),
+            windows_dir: None,
+            local_app_data: None,
+            mechanisms: BTreeSet::from([CleanupMechanism::QuarantineRename]),
+            complete_sources: summary.complete_sources.clone(),
+            single_user: false,
+        };
+        let observed: Vec<Evidence> = running
+            .then(|| Evidence {
+                subject: Subject::Application { id: owner.clone() },
+                fact: Fact::ApplicationRunning {
+                    app: owner.clone(),
+                    running: true,
+                },
+                basis: Basis::Observed,
+                provenance: Provenance {
+                    source: source.clone(),
+                    observed_at: Timestamp::UNIX_EPOCH,
+                },
+            })
+            .into_iter()
+            .collect();
+        let mut decided = decided_observing(&entries, &gathered, &entries, &context, &observed)?;
+        decided.sort();
+        Ok(decided)
+    }
+
+    /// Owner decision 2026-11-27 (design Q2): an installed app's extension
+    /// cache is linked to the app and proposed as the app's own cache is;
+    /// every protection still wins over it, the app running and the app
+    /// being security software included.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn an_extension_cache_is_proposed_like_its_apps_unless_protected()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let paths = |decided: &[Decided]| -> Vec<String> {
+            decided.iter().map(|(path, _, _)| path.clone()).collect()
+        };
+        let free = editor_cache_decided(false, false)?;
+        assert_eq!(
+            paths(&free),
+            [
+                "/Users/ana/Library/Caches/com.example.Editor",
+                "/Users/ana/Library/Caches/com.example.Editor.Helper",
+            ]
+        );
+        for (path, verdict, rules) in &free {
+            assert_eq!(*verdict, Verdict::Quarantine, "{path}: {rules:?}");
+            assert!(
+                rules.iter().any(|r| r == "classify.app-cache"),
+                "{path}: {rules:?}"
+            );
+        }
+        for (case, decided, rule) in [
+            (
+                "running",
+                editor_cache_decided(false, true)?,
+                "protect.app-running",
+            ),
+            (
+                "security",
+                editor_cache_decided(true, false)?,
+                "protect.security-software",
+            ),
+        ] {
+            assert_eq!(paths(&decided), paths(&free), "{case}");
+            for (path, verdict, rules) in &decided {
+                assert_eq!(*verdict, Verdict::Keep, "{case} {path}: {rules:?}");
+                assert!(rules.iter().any(|r| r == rule), "{case} {path}: {rules:?}");
+            }
         }
         Ok(())
     }
