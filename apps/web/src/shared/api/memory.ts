@@ -959,7 +959,8 @@ export function memoryTransport({
     },
     software: async () => {
       await wait(pace * 2);
-      return softwareList(false);
+      const list = softwareList(false);
+      return { ...list, items: list.items.filter((item) => !removedPackages.has(item.key)) };
     },
     explainSoftware: async () => {
       await wait(pace * 4);
