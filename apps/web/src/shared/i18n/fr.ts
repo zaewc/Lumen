@@ -732,6 +732,53 @@ export const fr: Messages = {
           "Votre organisation peut gérer cette app ; Lumen la laisse donc à son administrateur.",
       },
     },
+    homebrew: {
+      action: "Supprimer avec Homebrew…",
+      title: (name: string) => `Supprimer « ${name} » avec Homebrew ?`,
+      checking: "Vérification du paquet…",
+      command: "Lumen exécute cette commande :",
+      apps: "Apps supprimées avec lui",
+      confirm: "Supprimer avec Homebrew",
+      removing: (name: string) => `Suppression de « ${name} » avec Homebrew…`,
+      removed: (name: string) => `Homebrew a supprimé « ${name} ».`,
+      stillListed: "Homebrew l’affiche encore. Voyez ci-dessous ce qu’a dit Homebrew.",
+      unverified:
+        "Lumen n’a pas pu relire la liste de Homebrew, il ne sait donc pas si le paquet a disparu. Relisez la liste.",
+      changed: "Le paquet a changé. Fermez ceci et vérifiez-le à nouveau.",
+      refused: "Lumen garde ce paquet",
+      failed: "Lumen n’a pas pu vérifier ni exécuter Homebrew. Rien n’a été supprimé.",
+      stopped: "Homebrew a pris trop de temps, Lumen l’a arrêté.",
+      exit: (code: number) => `Homebrew s’est terminé avec le code ${code}.`,
+      output: "Ce qu’a dit Homebrew",
+      notes: {
+        cannot_be_undone: "Lumen ne pourra pas l’annuler. Rien ne passe par la quarantaine.",
+        user_data_stays: "Ses données dans votre dossier personnel restent.",
+        dependencies_stay: "Les paquets dont il a besoin restent installés.",
+      },
+      reasons: {
+        unsafe_name: "Son nom n’est pas un nom Homebrew ordinaire.",
+        not_listed: "Homebrew ne l’affiche plus. Relisez la liste.",
+        ambiguous: "Homebrew l’affiche plusieurs fois.",
+        inventory_incomplete: "Lumen n’a pas pu lire toute la liste de Homebrew.",
+        protected: "Il fait partie du système.",
+        dependents: "Un autre paquet installé en a besoin.",
+        dependents_unknown: "Lumen n’a pas pu vérifier si un autre paquet en a besoin.",
+        needs_administrator:
+          "Le supprimer demande des droits d’administrateur. Supprimez-le vous-même dans le Terminal.",
+        administrator_unknown:
+          "Lumen n’a pas pu vérifier si le supprimer demande des droits d’administrateur.",
+        security_software:
+          "C’est un logiciel de sécurité. Supprimez-le avec son propre désinstalleur.",
+        security_unknown: "Lumen n’a pas pu vérifier s’il s’agit d’un logiciel de sécurité.",
+        managed: "Votre organisation le gère peut-être, Lumen le laisse donc à son administrateur.",
+        managed_unknown: "Lumen n’a pas pu vérifier si votre organisation le gère.",
+        running:
+          "Quelque chose qu’il a installé est en cours d’exécution. Quittez-le et vérifiez à nouveau.",
+        running_unknown:
+          "Lumen n’a pas pu vérifier si quelque chose qu’il a installé est en cours d’exécution.",
+        other: "Lumen le garde pour une autre raison.",
+      },
+    },
     facts: {
       title: "Ce que Lumen a constaté",
       source: (name: string) => `d’après ${name}`,

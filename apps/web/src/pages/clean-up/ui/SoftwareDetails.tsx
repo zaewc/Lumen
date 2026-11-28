@@ -6,6 +6,7 @@ import { buttonClass, Dialog } from "@/shared/ui";
 import { title } from "../model/apps-list";
 import { removalFacts } from "../model/facts";
 import { AppIcon } from "./AppIcon";
+import { HomebrewRemoval, isHomebrew } from "./HomebrewRemoval";
 import { SoftwareRelations } from "./SoftwareRelations";
 
 /**
@@ -14,7 +15,8 @@ import { SoftwareRelations } from "./SoftwareRelations";
  * about removing it, what it needs and what needs it (ADR-0064), and AI
  * review's note, labelled as AI's guess. A
  * user-owned macOS app can be moved from here through its own dialog
- * (ADR-0062); nothing else moves.
+ * (ADR-0062), and a Homebrew package removed through Homebrew when its
+ * preview allows it (ADR-0060); nothing else is removed.
  */
 export function SoftwareDetails({
   item,
@@ -86,6 +88,7 @@ export function SoftwareDetails({
             <p className="text-[11px] text-ink-3">{a.ai.source}</p>
           </div>
         )}
+        {isHomebrew(item) && <HomebrewRemoval item={item} />}
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className={buttonClass("secondary")}>
             {m.common.close}
