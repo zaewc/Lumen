@@ -25,8 +25,8 @@ Lumen находит, что занимает место на диске, и о�
 ![Статистика языков](https://github-repository-language-graph-wi.vercel.app/api?username=zaewc&repo=Lumen&theme=dark&precision=6)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/clean-up-dark.png">
-  <img src="docs/assets/readme/clean-up-light.png" width="840" alt="Страница «Обзор» Lumen с примерами: состав хранилища по решениям, 9,9 ГБ предложено к очистке и команды очистки самих инструментов.">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/storage-dark.png">
+  <img src="docs/assets/readme/storage-light.png" width="840" alt="Страница «Хранилище» Lumen с примерами: элементы сгруппированы по владельцу, например Xcode, pnpm и Gradle; предложенные к очистке элементы уже отмечены (4 элемента, 9,9 ГБ), а для элементов, которые должен очищать сам инструмент, показана его команда.">
 </picture>
 
 </div>
@@ -56,16 +56,16 @@ Lumen находит, что занимает место на диске, и о�
     <td width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/review-dark.png">
-        <img src="docs/assets/readme/review-light.png" alt="Инспектор элемента: источник, расположение, решение о проверке и его причины, а также необязательная заметка ИИ. Пример данных.">
+        <img src="docs/assets/readme/review-light.png" alt="Панель сведений о данных, оставшихся от удаленного приложения: размер, расположение, причины, по которым нужна проверка, и заметка ИИ, которая не меняет решение. Пример данных.">
       </picture>
       <p align="center"><b>Доказательства</b>: откуда взялся элемент и почему принято решение</p>
     </td>
     <td width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/overview-dark.png">
-        <img src="docs/assets/readme/overview-light.png" alt="Хранилище с примером данных: свободное место, измеренная емкость и результаты последнего сканирования по решениям.">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/map-dark.png">
+        <img src="docs/assets/readme/map-light.png" alt="Хранилище с примером данных: проверенные элементы по статусам, а под ними карта, где у каждого владельца свой блок по размеру занятого места.">
       </picture>
-      <p align="center"><b>Хранилище</b>: емкость диска и результаты последнего сканирования</p>
+      <p align="center"><b>Карта</b>: результаты последнего сканирования по статусам и владельцам</p>
     </td>
   </tr>
   <tr>

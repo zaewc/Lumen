@@ -18,7 +18,7 @@ export const en: Messages = {
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   showcase: {
-    main: "Lumen's Explore page with sample data: storage composition by decision, 9.9 GB proposed across developer tools and app caches, and commands for items their own tool should clean.",
+    main: "Lumen's Storage page with sample data: items grouped under what owns them, such as Xcode, pnpm and Gradle, with the proposed ones checked for Clean up · 4 items, 9.9 GB, and commands for items their own tool should clean.",
   },
   howTo: {
     title: "How to use it",

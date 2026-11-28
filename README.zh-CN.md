@@ -24,8 +24,8 @@ Lumen 会找出占用磁盘空间的内容，并说明每个项目是什么。�
 ![语言统计](https://github-repository-language-graph-wi.vercel.app/api?username=zaewc&repo=Lumen&theme=dark&precision=6)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/clean-up-dark.png">
-  <img src="docs/assets/readme/clean-up-light.png" width="840" alt="Lumen「探索」页面示例：按决策分类的存储空间、建议清理的 9.9 GB，以及由工具自身清理项目的命令。">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/storage-dark.png">
+  <img src="docs/assets/readme/storage-light.png" width="840" alt="Lumen「存储空间」页面示例：项目按所属的应用或工具分组（如 Xcode、pnpm、Gradle），建议清理的项目已预先勾选（4 个项目，9.9 GB），由工具自身清理的项目会显示对应命令。">
 </picture>
 
 </div>
@@ -52,16 +52,16 @@ Lumen 会找出占用磁盘空间的内容，并说明每个项目是什么。�
     <td width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/review-dark.png">
-        <img src="docs/assets/readme/review-light.png" alt="项目证据检查器：来源、位置、检查决策及原因，并可选显示 AI 备注。示例数据。">
+        <img src="docs/assets/readme/review-light.png" alt="已删除应用留下的数据的详情面板：大小、位置、判定为需要检查的依据，以及不会改变决策的 AI 备注。示例数据。">
       </picture>
       <p align="center"><b>证据</b>：项目来源及其决策依据</p>
     </td>
     <td width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/overview-dark.png">
-        <img src="docs/assets/readme/overview-light.png" alt="示例存储空间页面：可用磁盘空间、测量容量视图，以及按决策分组的最近一次扫描结果。">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/map-dark.png">
+        <img src="docs/assets/readme/map-light.png" alt="示例存储空间页面：按状态划分已评估的项目，下方的地图为每个所属应用或工具显示一个按占用空间大小绘制的方块。">
       </picture>
-      <p align="center"><b>存储空间</b>：磁盘容量和最近一次扫描的分类结果</p>
+      <p align="center"><b>地图</b>：按状态和所属对象查看最近一次扫描的结果</p>
     </td>
   </tr>
   <tr>

@@ -101,6 +101,40 @@ async function click(expression) {
     if (!element) return false; element.click(); return true; })()`), true, expression);
 }
 
+// Scroll the page's own scroll area (never the window) so the element's top is
+// `offset` px below the sticky title bar, or so it is centred when offset is null.
+function scrollWithin(expression, offset) {
+  return `(() => { const element = ${expression};
+    if (!element) return null;
+    let scroller = element.parentElement;
+    while (scroller && !/auto|scroll/.test(getComputedStyle(scroller).overflowY)) {
+      scroller = scroller.parentElement;
+    }
+    if (!scroller) return null;
+    const top = document.querySelector('main h1')?.closest('header')?.getBoundingClientRect().bottom ?? 0;
+    const box = element.getBoundingClientRect();
+    scroller.scrollTop += ${offset === null
+      ? "box.top + box.height / 2 - (top + innerHeight) / 2"
+      : `box.top - top - ${offset}`};
+    const moved = element.getBoundingClientRect();
+    return { x: moved.left + moved.width / 2, y: moved.top + moved.height / 2 }; })()`;
+}
+
+async function scrollBelowTitle(expression) {
+  assert.ok(await evaluate(scrollWithin(expression, 24)), expression);
+}
+
+// A pointer click, as a person makes it, so the page shows no keyboard focus ring.
+async function press(expression) {
+  const point = await evaluate(scrollWithin(expression, null));
+  assert.ok(point, expression);
+  for (const type of ["mousePressed", "mouseReleased"]) {
+    await send("Input.dispatchMouseEvent", { type, ...point, button: "left", clickCount: 1 });
+  }
+  // Then move the pointer off the page content, so no hover state is pictured.
+  await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+}
+
 const preview = process.env.LUMEN_CAPTURE_OUT;
 const output = preview ?? (await mkdtemp(join(tmpdir(), "lumen-app-captures-")));
 const readme = join(repo, "docs/assets/readme");
@@ -113,6 +147,7 @@ if (preview === undefined) {
 async function capture(name, locale, theme) {
   await evaluate("document.fonts.ready.then(() => true)");
   assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth"), false);
+  assert.equal(await evaluate("document.scrollingElement.scrollTop"), 0, "The window scrolled");
   assert.equal(await evaluate("document.querySelector('nav').getBoundingClientRect().height < 100"), true);
   const image = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
   const png = Buffer.from(image.data, "base64");
@@ -121,7 +156,7 @@ async function capture(name, locale, theme) {
   console.log(`${locale} ${theme}: ${name}`);
   if (preview !== undefined) return;
   if (locale === "en") await writeFile(join(readme, `${name}-${theme}.png`), png);
-  if (theme === "light" && name !== "overview") {
+  if (theme === "light" && name !== "map") {
     execFileSync("cwebp", [
       "-quiet", "-q", "92", "-m", "6", "-resize", "1600", "0",
       temporary, "-o", join(site, `${name}-${locale}.webp`),
@@ -139,6 +174,7 @@ try {
   });
   await send("Page.bringToFront");
   await send("Emulation.setTimezoneOverride", { timezoneId: "Asia/Seoul" });
+  await send("Emulation.setScrollbarsHidden", { hidden: true });
   for (const locale of ["en", "ko"]) {
     for (const theme of ["light", "dark"]) {
       await send("Emulation.setDeviceMetricsOverride", {
@@ -186,28 +222,32 @@ try {
       // The sample's 14 items (data-inspected marks an item's row; the apps
       // listed with their owners have rows of their own, ADR-0069).
       await until("document.querySelectorAll('[data-row][data-inspected]').length === 14");
-      await capture("clean-up", locale, theme);
+      // The list by owner, from its search field down (ADR-0069).
+      await scrollBelowTitle("document.querySelector('main input[type=search]')");
+      await capture("storage", locale, theme);
+      // The status filter above the map, one tile per owner.
+      const legend = `[...document.querySelectorAll('main fieldset')].find(element =>
+        /Needs review|검토 필요/.test(element.textContent))`;
+      await scrollBelowTitle(legend);
+      await capture("map", locale, theme);
 
-      await click(`[...document.querySelectorAll('fieldset label')].find(element =>
+      await press(`[...${legend}.querySelectorAll('label')].find(element =>
         /Needs review|검토 필요/.test(element.textContent))`);
       await until("document.querySelectorAll('[data-row][data-inspected]').length === 3");
-      await click("[...document.querySelectorAll('[data-row][data-inspected]')].find(element => element.textContent.includes('OldEditor'))");
+      await press("[...document.querySelectorAll('[data-row][data-inspected]')].find(element => element.textContent.includes('OldEditor'))");
       await until("document.querySelector('dialog[open]')?.textContent.includes('OldEditor')");
       await capture("review", locale, theme);
       await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
       await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
       await until("document.querySelector('dialog[open]') === null");
 
-      await click("document.querySelector('nav a[href=\"/\"]')");
-      await until("document.querySelector('main h1')?.textContent === " + JSON.stringify(locale === "ko" ? "저장 공간" : "Storage"));
-      await capture("overview", locale, theme);
       // Two held items fit in the desktop's minimum window height.
       await send("Emulation.setDeviceMetricsOverride", {
         width: 1120, height: 560, deviceScaleFactor: 2, mobile: false,
       });
       await click("document.querySelector('nav a[href=\"/quarantine\"]')");
       await until("document.querySelectorAll('main li[data-selected]').length === 2");
-      await click("document.querySelector('main li input[type=checkbox]')");
+      await press("document.querySelector('main li input[type=checkbox]')");
       await until("document.querySelectorAll('main li[data-selected=true]').length === 1");
       await capture("quarantine", locale, theme);
     }

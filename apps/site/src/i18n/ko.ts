@@ -19,7 +19,7 @@ export const ko: Messages = {
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   showcase: {
-    main: "예시 데이터를 보여 주는 Lumen 탐색 화면. 판단별 용량 구성과 개발 도구·앱 캐시의 정리 제안 9.9 GB를 보여 주고, 도구가 직접 정리해야 하는 항목은 명령과 함께 보여 줘요.",
+    main: "예시 데이터를 보여 주는 Lumen 저장 공간 화면. Xcode, pnpm, Gradle처럼 공간을 쓰는 앱과 도구별로 항목을 묶어 보여 줘요. Lumen이 정리를 제안한 항목은 미리 체크해 둬서 “정리하기 · 4개 9.9 GB”로 한 번에 격리함에 옮길 수 있어요. 도구가 직접 정리해야 하는 항목은 명령과 함께 보여 줘요.",
   },
   howTo: {
     title: "사용 방법",
