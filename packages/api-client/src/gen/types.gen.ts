@@ -806,6 +806,26 @@ export type HomebrewKindView = "formula" | "cask";
 export type HomebrewNoteView = "cannot_be_undone" | "user_data_stays" | "dependencies_stay";
 
 /**
+ * What running a Homebrew removal preview did.
+ */
+export type HomebrewOutcomeView = {
+  /**
+   * The command run, if it ran.
+   */
+  command: Array<string> | null;
+  package: HomebrewPackageView | null;
+  /**
+   * The preview.
+   */
+  preview: string;
+  ran: HomebrewRunView | null;
+  /**
+   * What became of the package.
+   */
+  result: HomebrewResultView;
+};
+
+/**
  * The package a preview is about, as observed now.
  */
 export type HomebrewPackageView = {
@@ -903,6 +923,52 @@ export type HomebrewReasonView =
   | "running"
   | "running_unknown"
   | "other";
+
+/**
+ * What became of the package.
+ */
+export type HomebrewResultView =
+  | {
+      kind: "removed";
+    }
+  | {
+      kind: "still_listed";
+    }
+  | {
+      kind: "unverified";
+    }
+  | {
+      kind: "refused";
+      /**
+       * Every reason, at least one.
+       */
+      reasons: Array<HomebrewReasonView>;
+    }
+  | {
+      kind: "changed";
+    };
+
+/**
+ * How `brew` ended, as it reported.
+ */
+export type HomebrewRunView = {
+  /**
+   * Its exit code, if it exited on its own.
+   */
+  exit_code: number | null;
+  /**
+   * The end of what it printed; untrusted text, shown as is.
+   */
+  output: string;
+  /**
+   * It exited with status 0.
+   */
+  success: boolean;
+  /**
+   * It ran past the time limit and was stopped.
+   */
+  timed_out: boolean;
+};
 
 /**
  * What kind of item AI review says a review item most likely is.

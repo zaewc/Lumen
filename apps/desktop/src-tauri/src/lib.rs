@@ -151,6 +151,7 @@ fn with_commands<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         commands::reassess,
         commands::uninstall_preview,
         commands::homebrew_preview,
+        commands::homebrew_remove,
         commands::uninstall,
         commands::execute_selection,
         commands::copy_preview,

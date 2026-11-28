@@ -29,6 +29,7 @@
     "allow-reassess",
     "allow-uninstall-preview",
     "allow-homebrew-preview",
+    "allow-homebrew-remove",
     "allow-uninstall",
     "allow-execute-selection",
     "allow-copy-preview",

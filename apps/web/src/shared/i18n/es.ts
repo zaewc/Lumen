@@ -531,6 +531,12 @@ export const es: Messages = {
     toolTitle: (tool: string) => `¿Ejecutar el comando de ${tool}?`,
     toolNote: "Lo que elimine no se podrá restaurar.",
     toolButton: "Ejecutar",
+    homebrewTitle: (name: string) => `¿Quitar ${name} con Homebrew?`,
+    homebrewApps: "Apps que se quitan con él",
+    homebrewNote: "Lumen no puede deshacerlo. No pasa por Cuarentena.",
+    homebrewKeeps:
+      "Sus datos en tu carpeta de inicio se quedan, y los paquetes que necesita siguen instalados.",
+    homebrewButton: "Quitar con Homebrew",
     more: (n: number) => `…y ${items(n)} más`,
     unavailable: "Lumen no pudo mostrar qué confirmar. No se cambió nada.",
   },

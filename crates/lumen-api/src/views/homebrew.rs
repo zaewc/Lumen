@@ -5,7 +5,9 @@
 //! exactly as it will run. Every name and path is display-escaped untrusted
 //! text.
 
-use lumen_app::homebrew::{HomebrewError, HomebrewPackage, HomebrewPreview};
+use lumen_app::homebrew::{
+    HomebrewError, HomebrewPackage, HomebrewPreview, RemovalReport, RemovalResult,
+};
 use lumen_application::homebrew_removal::Blocked;
 use lumen_domain::PackageManager;
 use serde::{Deserialize, Serialize};
@@ -212,6 +214,83 @@ impl From<&HomebrewPreview> for HomebrewPreviewView {
                 reasons.dedup();
                 Self::Refused { package, reasons }
             }
+        }
+    }
+}
+
+/// What became of the package.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum HomebrewResultView {
+    /// A fresh Homebrew list, read whole, no longer lists it: removed.
+    Removed,
+    /// A fresh Homebrew list still lists it.
+    StillListed,
+    /// A fresh Homebrew list could not be read whole, so whether it is gone
+    /// is not known.
+    Unverified,
+    /// Checked again right before running, Lumen keeps it; nothing ran.
+    Refused {
+        /// Every reason, at least one.
+        reasons: Vec<HomebrewReasonView>,
+    },
+    /// It is not what the preview showed; nothing ran. Preview it again.
+    Changed,
+}
+
+/// How `brew` ended, as it reported.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct HomebrewRunView {
+    /// It exited with status 0.
+    pub success: bool,
+    /// Its exit code, if it exited on its own.
+    #[schema(required = true)]
+    pub exit_code: Option<i32>,
+    /// It ran past the time limit and was stopped.
+    pub timed_out: bool,
+    /// The end of what it printed; untrusted text, shown as is.
+    pub output: String,
+}
+
+/// What running a Homebrew removal preview did.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct HomebrewOutcomeView {
+    /// The preview.
+    pub preview: String,
+    /// The package, if it was found right before running.
+    #[schema(required = true)]
+    pub package: Option<HomebrewPackageView>,
+    /// The command run, if it ran.
+    #[schema(required = true)]
+    pub command: Option<Vec<String>>,
+    /// How `brew` ended, if it ran.
+    #[schema(required = true)]
+    pub ran: Option<HomebrewRunView>,
+    /// What became of the package.
+    pub result: HomebrewResultView,
+}
+
+impl From<&RemovalReport> for HomebrewOutcomeView {
+    fn from(report: &RemovalReport) -> Self {
+        Self {
+            preview: report.plan.to_string(),
+            package: report.package.as_ref().map(HomebrewPackageView::from),
+            command: report.command.clone(),
+            ran: report.ran.as_ref().map(|ran| HomebrewRunView {
+                success: ran.success,
+                exit_code: ran.exit_code,
+                timed_out: ran.timed_out,
+                output: ran.output.clone(),
+            }),
+            result: match &report.result {
+                RemovalResult::Removed => HomebrewResultView::Removed,
+                RemovalResult::StillListed => HomebrewResultView::StillListed,
+                RemovalResult::Unverified => HomebrewResultView::Unverified,
+                RemovalResult::Refused(why) => HomebrewResultView::Refused {
+                    reasons: why.iter().copied().map(HomebrewReasonView::from).collect(),
+                },
+                RemovalResult::Changed => HomebrewResultView::Changed,
+            },
         }
     }
 }

@@ -18,11 +18,11 @@ use std::sync::Arc;
 use lumen_api::views::{
     AiSettingsView, AssessProgressView, CandidateView, CompareOutcomeView, CompareProgressView,
     CopyOutcomeView, CopyPreviewView, CopyRequest, DiskView, ExecuteRequest, FinalizeOutcomeView,
-    HeldItemView, HelperView, HomebrewPreviewView, PlanView, QuarantineReportView, QuitView,
-    ReassessRequest, ReassessView, RestoreOutcomeView, ScanProgressView, ScanRequest, ScanView,
-    SelectedAppView, SelectedCopyView, SelectionReportView, SelectionRequest, SoftwareView,
-    ToolRunView, ToolStorageView, UninstallOutcomeView, UninstallPreviewView, UnreadFoldersView,
-    candidate_id,
+    HeldItemView, HelperView, HomebrewOutcomeView, HomebrewPreviewView, PlanView,
+    QuarantineReportView, QuitView, ReassessRequest, ReassessView, RestoreOutcomeView,
+    ScanProgressView, ScanRequest, ScanView, SelectedAppView, SelectedCopyView,
+    SelectionReportView, SelectionRequest, SoftwareView, ToolRunView, ToolStorageView,
+    UninstallOutcomeView, UninstallPreviewView, UnreadFoldersView, candidate_id,
 };
 use lumen_app::ai::{ApiKey, Service};
 use lumen_app::{ScanEvent, SystemClock, UuidV7Ids};
@@ -1475,6 +1475,41 @@ pub(crate) async fn homebrew_preview(
             &UuidV7Ids,
         ))
         .map_err(CommandError::new)
+    })
+    .await
+}
+
+/// Removes one Homebrew package through Homebrew: runs the preview `preview`,
+/// confirmed in this app by its full hash and then in the host's own window
+/// (ADR-0060, ADR-0034, FS-1). The core checks the package again right before
+/// running and counts it removed only from a fresh list. Cannot be undone.
+/// One command runs at a time, shared with tool commands (ADR-0049).
+#[tauri::command]
+pub(crate) async fn homebrew_remove(
+    core: State<'_, Core>,
+    preview: String,
+    confirmation: String,
+) -> Result<HomebrewOutcomeView, CommandError> {
+    let db = core.db.clone();
+    let running = Arc::clone(&core.tool_running);
+    let prompt = Arc::clone(&core.prompt);
+    blocking(move || {
+        let plan: PlanId = preview
+            .parse()
+            .map_err(|_| CommandError::new("not a preview ID"))?;
+        let Ok(_one) = running.try_lock() else {
+            return Err(CommandError::new("another command is still running"));
+        };
+        crate::confirmation::homebrew(&db, plan, &confirmation, &*prompt)?;
+        let report = lumen_app::homebrew::remove(
+            &db,
+            plan,
+            &confirmation,
+            ConfirmationSurface::DesktopApp,
+            &SystemClock,
+        )
+        .map_err(CommandError::new)?;
+        Ok(HomebrewOutcomeView::from(&report))
     })
     .await
 }

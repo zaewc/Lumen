@@ -37,6 +37,15 @@ export const zHostAsk = z.discriminatedUnion("kind", [
     chosen: z.number().int().nonnegative(),
   }),
   z.object({ kind: z.literal("tool"), tool: z.string(), command: z.string(), targets: zListed }),
+  /** Removing a Homebrew package through Homebrew, which cannot be undone (ADR-0060). */
+  z.object({
+    kind: z.literal("homebrew"),
+    name: z.string(),
+    version: z.string().nullable(),
+    cask: z.boolean(),
+    command: z.string(),
+    apps: zListed,
+  }),
 ]);
 
 export type HostAsk = z.infer<typeof zHostAsk>;

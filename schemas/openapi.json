@@ -1614,6 +1614,59 @@
           "dependencies_stay"
         ]
       },
+      "HomebrewOutcomeView": {
+        "type": "object",
+        "description": "What running a Homebrew removal preview did.",
+        "required": [
+          "preview",
+          "package",
+          "command",
+          "ran",
+          "result"
+        ],
+        "properties": {
+          "command": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The command run, if it ran."
+          },
+          "package": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/HomebrewPackageView",
+                "description": "The package, if it was found right before running."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preview": {
+            "type": "string",
+            "description": "The preview."
+          },
+          "ran": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/HomebrewRunView",
+                "description": "How `brew` ended, if it ran."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "$ref": "#/components/schemas/HomebrewResultView",
+            "description": "What became of the package."
+          }
+        }
+      },
       "HomebrewPackageView": {
         "type": "object",
         "description": "The package a preview is about, as observed now.",
@@ -1789,6 +1842,126 @@
           "running_unknown",
           "other"
         ]
+      },
+      "HomebrewResultView": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "A fresh Homebrew list, read whole, no longer lists it: removed.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "removed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A fresh Homebrew list still lists it.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "still_listed"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A fresh Homebrew list could not be read whole, so whether it is gone\nis not known.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "unverified"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Checked again right before running, Lumen keeps it; nothing ran.",
+            "required": [
+              "reasons",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "refused"
+                ]
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/HomebrewReasonView"
+                },
+                "description": "Every reason, at least one."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "It is not what the preview showed; nothing ran. Preview it again.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "changed"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What became of the package."
+      },
+      "HomebrewRunView": {
+        "type": "object",
+        "description": "How `brew` ended, as it reported.",
+        "required": [
+          "success",
+          "exit_code",
+          "timed_out",
+          "output"
+        ],
+        "properties": {
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Its exit code, if it exited on its own."
+          },
+          "output": {
+            "type": "string",
+            "description": "The end of what it printed; untrusted text, shown as is."
+          },
+          "success": {
+            "type": "boolean",
+            "description": "It exited with status 0."
+          },
+          "timed_out": {
+            "type": "boolean",
+            "description": "It ran past the time limit and was stopped."
+          }
+        }
       },
       "ItemKindView": {
         "type": "string",

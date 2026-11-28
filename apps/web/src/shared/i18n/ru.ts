@@ -539,6 +539,12 @@ export const ru: Messages = {
     toolTitle: (tool: string) => `Выполнить команду ${tool}?`,
     toolNote: "Удалённое ею восстановить нельзя.",
     toolButton: "Выполнить",
+    homebrewTitle: (name: string) => `Удалить ${name} через Homebrew?`,
+    homebrewApps: "Приложения, которые удалятся вместе с ним",
+    homebrewNote: "Lumen не сможет это отменить. В карантин ничего не попадёт.",
+    homebrewKeeps:
+      "Его данные в домашней папке останутся, а нужные ему пакеты останутся установленными.",
+    homebrewButton: "Удалить через Homebrew",
     more: (n: number) => `…и ещё ${items(n)}`,
     unavailable: "Lumen не смог показать, что нужно подтвердить. Ничего не изменено.",
   },

@@ -175,6 +175,26 @@ function useQuestion(ask: HostAsk): {
           </>
         ),
       };
+    case "homebrew":
+      return {
+        title: h.homebrewTitle(ask.version === null ? ask.name : `${ask.name} ${ask.version}`),
+        action: h.homebrewButton,
+        danger: true,
+        body: (
+          <>
+            <pre className="mt-3 whitespace-pre-wrap break-all rounded bg-fill px-3 py-2 font-mono text-[13px] text-ink select-text">
+              {ask.command}
+            </pre>
+            {ask.apps.items.length > 0 && (
+              <Group title={h.homebrewApps}>
+                <Rows items={ask.apps.items} more={ask.apps.more} />
+              </Group>
+            )}
+            <Notes notes={[h.homebrewKeeps]} />
+            <p className="mt-3 text-[14px] font-medium text-ink">{h.homebrewNote}</p>
+          </>
+        ),
+      };
   }
 }
 

@@ -468,6 +468,53 @@ export const zHomebrewPreviewView = z.union([
 ]);
 
 /**
+ * What became of the package.
+ */
+export const zHomebrewResultView = z.union([
+  z.object({
+    kind: z.enum(["removed"]),
+  }),
+  z.object({
+    kind: z.enum(["still_listed"]),
+  }),
+  z.object({
+    kind: z.enum(["unverified"]),
+  }),
+  z.object({
+    kind: z.enum(["refused"]),
+    reasons: z.array(zHomebrewReasonView),
+  }),
+  z.object({
+    kind: z.enum(["changed"]),
+  }),
+]);
+
+/**
+ * How `brew` ended, as it reported.
+ */
+export const zHomebrewRunView = z.object({
+  exit_code: z
+    .int()
+    .min(-2147483648, { error: "Invalid value: Expected int32 to be >= -2147483648" })
+    .max(2147483647, { error: "Invalid value: Expected int32 to be <= 2147483647" })
+    .nullable(),
+  output: z.string(),
+  success: z.boolean(),
+  timed_out: z.boolean(),
+});
+
+/**
+ * What running a Homebrew removal preview did.
+ */
+export const zHomebrewOutcomeView = z.object({
+  command: z.array(z.string()).nullable(),
+  package: zHomebrewPackageView.nullable(),
+  preview: z.string(),
+  ran: zHomebrewRunView.nullable(),
+  result: zHomebrewResultView,
+});
+
+/**
  * What kind of item AI review says a review item most likely is.
  */
 export const zItemKindView = z.enum([

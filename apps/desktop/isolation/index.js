@@ -32,6 +32,7 @@ const allowed = new Set([
   "reassess",
   "uninstall_preview",
   "homebrew_preview",
+  "homebrew_remove",
   "uninstall",
   "execute_selection",
   "copy_preview",

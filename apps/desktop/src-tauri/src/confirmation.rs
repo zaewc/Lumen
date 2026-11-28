@@ -126,6 +126,16 @@ pub(crate) enum Ask {
         command: String,
         targets: Listed,
     },
+    /// Removing a Homebrew formula or cask through Homebrew, which cannot be
+    /// undone (ADR-0060): the package, the exact command and the apps that
+    /// go with it.
+    Homebrew {
+        name: String,
+        version: Option<String>,
+        cask: bool,
+        command: String,
+        apps: Listed,
+    },
 }
 
 /// The question the confirmation window shows now, and where its answer
@@ -573,6 +583,39 @@ impl Approved {
     }
 }
 
+/// Confirms running Homebrew removal preview `id`, after checking `hash`, its
+/// age and that it still binds what is observed now, the way running it
+/// will. The question names the package, the exact command and a cask's apps,
+/// from what the core observes, never from the page.
+pub(crate) fn homebrew(
+    db: &Path,
+    id: PlanId,
+    hash: &str,
+    prompt: &Prompt,
+) -> Result<(), CommandError> {
+    let question = lumen_app::homebrew::question(db, id, hash, &SystemClock)
+        .map_err(CommandError::new)?
+        .ok_or_else(|| {
+            CommandError::new(
+                "the package changed or may not be removed now; preview it again. Nothing was run",
+            )
+        })?;
+    let package = &question.package;
+    ask(
+        prompt,
+        &Ask::Homebrew {
+            name: package.package.id.display(),
+            version: package
+                .version
+                .as_ref()
+                .map(lumen_domain::UntrustedText::display),
+            cask: package.package.manager == lumen_domain::PackageManager::HomebrewCask,
+            command: question.command.join(" "),
+            apps: Listed::of(package.apps.iter().map(|app| item(app, None)).collect()),
+        },
+    )
+}
+
 /// Confirms running the knowledge base's `command` for `targets`.
 pub(crate) fn tool(
     command: &lumen_app::tools::ToolCommand,
@@ -709,6 +752,23 @@ mod tests {
             selection(db, None, &many, &[], &never).is_err(),
             "too many apps"
         );
+    }
+
+    #[test]
+    fn a_homebrew_question_names_the_package_command_and_apps_as_the_page_reads_them() {
+        let question = Ask::Homebrew {
+            name: "hot".into(),
+            version: Some("1.9.4".into()),
+            cask: true,
+            command: "/opt/homebrew/bin/brew uninstall --cask hot".into(),
+            apps: Listed::of(vec![item(&raw("/Applications/Hot.app"), None)]),
+        };
+        let json = serde_json::to_value(&question).unwrap_or_default();
+        assert_eq!(json["kind"], "homebrew");
+        assert_eq!(json["cask"], true);
+        assert_eq!(json["apps"]["items"][0]["name"], "Hot.app");
+        assert_eq!(json["apps"]["more"], 0);
+        assert!(ask(&|_: &Ask| false, &question).is_err());
     }
 
     #[test]

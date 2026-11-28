@@ -518,6 +518,12 @@ export const fr: Messages = {
     toolTitle: (tool) => `Exécuter la commande de ${tool} ?`,
     toolNote: "Ce qu'elle supprime ne pourra pas être restauré.",
     toolButton: "Exécuter",
+    homebrewTitle: (name: string) => `Supprimer ${name} avec Homebrew ?`,
+    homebrewApps: "Apps supprimées avec lui",
+    homebrewNote: "Lumen ne pourra pas l'annuler. Rien ne passe par la quarantaine.",
+    homebrewKeeps:
+      "Ses données dans votre dossier personnel restent, et les paquets dont il a besoin restent installés.",
+    homebrewButton: "Supprimer avec Homebrew",
     more: (n) => `…et ${items(n)} de plus`,
     unavailable: "Lumen n'a pas pu afficher ce qu'il faut confirmer. Rien n'a été modifié.",
   },

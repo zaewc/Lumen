@@ -45,8 +45,8 @@ pub use duplicates::{
 pub use facts::{AppDataKindView, BasisView, FactKindView, FactView};
 pub use helper::{HelperReachView, HelperRegistrationView, HelperView};
 pub use homebrew::{
-    HomebrewKindView, HomebrewNoteView, HomebrewPackageView, HomebrewPreviewView,
-    HomebrewReasonView,
+    HomebrewKindView, HomebrewNoteView, HomebrewOutcomeView, HomebrewPackageView,
+    HomebrewPreviewView, HomebrewReasonView, HomebrewResultView, HomebrewRunView,
 };
 pub use reassess::{
     ReassessGapView, ReassessOutcomeView, ReassessRequest, ReassessView, ReassessedItemView,
