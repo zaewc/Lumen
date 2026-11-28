@@ -38,6 +38,12 @@ pub enum SoftwareRelationMethodView {
     /// An installer receipt's file list records the bundle's
     /// `Contents/Info.plist`.
     ReceiptFileList,
+    /// dpkg's status file (`Pre-Depends`, `Depends`, `Provides`).
+    DpkgStatus,
+    /// pacman's local database (`%DEPENDS%`, `%PROVIDES%`).
+    PacmanLocalDatabase,
+    /// The RPM database's requirements and provides, and file owners.
+    RpmDatabase,
     /// Another record.
     Other,
 }
@@ -81,6 +87,9 @@ const fn method(method: RelationMethod) -> SoftwareRelationMethodView {
         RelationMethod::CaskDefinition => SoftwareRelationMethodView::CaskDefinition,
         RelationMethod::CaskDefaultAppFolder => SoftwareRelationMethodView::CaskDefaultAppFolder,
         RelationMethod::ReceiptFileList => SoftwareRelationMethodView::ReceiptFileList,
+        RelationMethod::DpkgStatus => SoftwareRelationMethodView::DpkgStatus,
+        RelationMethod::PacmanLocalDatabase => SoftwareRelationMethodView::PacmanLocalDatabase,
+        RelationMethod::RpmDatabase => SoftwareRelationMethodView::RpmDatabase,
         _ => SoftwareRelationMethodView::Other,
     }
 }
@@ -334,7 +343,7 @@ mod tests {
                         packages: vec![dpkg("postfix"), dpkg("exim4")],
                         direct: Some(true),
                     },
-                    method: RelationMethod::HomebrewRuntimeDependencies,
+                    method: RelationMethod::DpkgStatus,
                 }]),
             ),
             package(PackageManager::Dpkg, "postfix", Some(Vec::new())),
@@ -348,6 +357,10 @@ mod tests {
         assert_eq!(
             brief(row(&view, "Dpkg:postfix")),
             [(NeededBy, Some("Dpkg:mutt"), "mutt", false, true)]
+        );
+        assert_eq!(
+            mutt.relations[0].method,
+            SoftwareRelationMethodView::DpkgStatus
         );
     }
 
