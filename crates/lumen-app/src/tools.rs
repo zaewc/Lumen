@@ -312,6 +312,24 @@ pub fn run_program(
     run_command(process(program, args, dir), program, limit)
 }
 
+/// Runs `program` with `args` in `dir`, as [`run`] does, with `envs` added
+/// to its environment.
+///
+/// # Errors
+///
+/// [`ToolError::Spawn`] if it cannot be started or watched.
+pub(crate) fn run_program_with_env(
+    program: &Path,
+    args: &[String],
+    dir: &Path,
+    limit: Duration,
+    envs: &[(&str, &str)],
+) -> Result<ToolRun, ToolError> {
+    let mut command = process(program, args, dir);
+    command.envs(envs.iter().copied());
+    run_command(command, program, limit)
+}
+
 /// Fixed read-only queries use stable, uncoloured output and do not trigger
 /// Homebrew updates or analytics. They never run during a filesystem scan.
 pub(crate) fn inspect_program(
