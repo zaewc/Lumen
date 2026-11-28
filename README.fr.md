@@ -25,8 +25,8 @@ sont mis en quarantaine, où vous pouvez les restaurer.
 ![Statistiques des langages](https://github-repository-language-graph-wi.vercel.app/api?username=zaewc&repo=Lumen&theme=dark&precision=6)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/clean-up-dark.png">
-  <img src="docs/assets/readme/clean-up-light.png" width="840" alt="Page Explorer de Lumen avec des exemples : répartition du stockage selon la décision, 9,9 Go proposés et commandes de nettoyage propres aux outils.">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/storage-dark.png">
+  <img src="docs/assets/readme/storage-light.png" width="840" alt="Page Stockage de Lumen avec des exemples : éléments regroupés selon ce qui les possède, comme Xcode, pnpm et Gradle, avec les éléments proposés déjà cochés pour nettoyer 4 éléments (9,9 Go), et la commande propre à chaque outil pour ce qu'il doit nettoyer.">
 </picture>
 
 </div>
@@ -57,16 +57,16 @@ sont mis en quarantaine, où vous pouvez les restaurer.
     <td width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/review-dark.png">
-        <img src="docs/assets/readme/review-light.png" alt="Inspecteur des preuves d'un élément : origine, emplacement, décision d'examen et raisons, avec une note IA facultative. Données d'exemple.">
+        <img src="docs/assets/readme/review-light.png" alt="Volet de détails des données laissées par une application supprimée : taille, emplacement, preuves qui demandent un examen et note IA qui ne change pas la décision. Données d'exemple.">
       </picture>
       <p align="center"><b>Preuves</b> : origine d'un élément et raisons de la décision</p>
     </td>
     <td width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/overview-dark.png">
-        <img src="docs/assets/readme/overview-light.png" alt="Stockage avec des données d'exemple : espace disponible, vue de la capacité mesurée et dernier scan classé par décision.">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/map-dark.png">
+        <img src="docs/assets/readme/map-light.png" alt="Stockage avec des données d'exemple : les éléments analysés par statut et, en dessous, une carte avec un bloc par propriétaire, selon l'espace qu'il occupe.">
       </picture>
-      <p align="center"><b>Stockage</b> : capacité du disque et composition du dernier scan</p>
+      <p align="center"><b>Carte</b> : ce que le dernier scan a trouvé, par statut et par propriétaire</p>
     </td>
   </tr>
   <tr>

@@ -17,7 +17,7 @@ export const es: Messages = {
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   showcase: {
-    main: "Página Explorar de Lumen con datos de ejemplo: espacio por decisión, 9,9 GB propuestos entre herramientas de desarrollo y cachés de aplicaciones, y comandos para que cada herramienta limpie sus propios elementos.",
+    main: "Página Almacenamiento de Lumen con datos de ejemplo: elementos agrupados por lo que los posee, como Xcode, pnpm y Gradle, con los propuestos marcados para limpiar 4 elementos (9,9 GB), y comandos para que cada herramienta limpie sus propios elementos.",
   },
   howTo: {
     title: "Cómo usarla",

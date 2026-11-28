@@ -17,7 +17,7 @@ export const ja: Messages = {
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   showcase: {
-    main: "サンプルデータを使ったLumenの「探索」画面です。判断別のストレージ内訳、開発ツールとアプリのキャッシュで整理を提案する9.9 GB、ツール自身で整理する項目のコマンドを表示します。",
+    main: "サンプルデータを使ったLumenの「ストレージ」画面です。Xcode、pnpm、Gradle など項目の持ち主ごとにまとめ、整理を提案する4項目（9.9 GB）にあらかじめチェックを入れ、ツール自身で整理する項目のコマンドを表示します。",
   },
   howTo: {
     title: "使い方",

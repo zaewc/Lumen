@@ -24,8 +24,8 @@ Solo mueve a una cuarentena reversible aquello que es seguro limpiar.
 ![Estadísticas de lenguajes](https://github-repository-language-graph-wi.vercel.app/api?username=zaewc&repo=Lumen&theme=dark&precision=6)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/clean-up-dark.png">
-  <img src="docs/assets/readme/clean-up-light.png" width="840" alt="Página Explorar de Lumen con datos de ejemplo: espacio por decisión, 9,9 GB propuestos y comandos de limpieza propios de cada herramienta.">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/storage-dark.png">
+  <img src="docs/assets/readme/storage-light.png" width="840" alt="Página Almacenamiento de Lumen con datos de ejemplo: elementos agrupados por lo que los posee, como Xcode, pnpm y Gradle, con los propuestos ya marcados para limpiar 4 elementos (9,9 GB) y el comando propio de cada herramienta para lo que debe limpiar ella.">
 </picture>
 
 </div>
@@ -55,16 +55,16 @@ Solo mueve a una cuarentena reversible aquello que es seguro limpiar.
     <td width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/review-dark.png">
-        <img src="docs/assets/readme/review-light.png" alt="Inspector de pruebas de un elemento: origen, ubicación, decisión de revisión y sus motivos, con una nota de IA opcional. Datos de ejemplo.">
+        <img src="docs/assets/readme/review-light.png" alt="Panel de detalles de los datos que dejó una aplicación eliminada: tamaño, ubicación, las pruebas por las que necesita revisión y una nota de IA que no cambia la decisión. Datos de ejemplo.">
       </picture>
       <p align="center"><b>Pruebas</b>: origen de un elemento y motivos de la decisión</p>
     </td>
     <td width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/overview-dark.png">
-        <img src="docs/assets/readme/overview-light.png" alt="Almacenamiento con datos de ejemplo: espacio disponible, capacidad medida y último análisis agrupado por decisión.">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/map-dark.png">
+        <img src="docs/assets/readme/map-light.png" alt="Almacenamiento con datos de ejemplo: los elementos analizados por estado y, debajo, un mapa con un bloque por propietario, según el espacio que usa.">
       </picture>
-      <p align="center"><b>Almacenamiento</b>: capacidad del disco y composición del último análisis</p>
+      <p align="center"><b>Mapa</b>: lo que encontró el último análisis, por estado y por propietario</p>
     </td>
   </tr>
   <tr>

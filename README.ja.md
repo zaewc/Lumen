@@ -24,8 +24,8 @@ Lumen はディスクを占めているものを見つけ、項目ごとに内�
 ![言語別統計](https://github-repository-language-graph-wi.vercel.app/api?username=zaewc&repo=Lumen&theme=dark&precision=6)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/clean-up-dark.png">
-  <img src="docs/assets/readme/clean-up-light.png" width="840" alt="サンプルデータを使った Lumen の探索画面。判断別のストレージ内訳、整理候補 9.9 GB、ツール自身で整理するためのコマンドを表示。">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/storage-dark.png">
+  <img src="docs/assets/readme/storage-light.png" width="840" alt="サンプルデータを使った Lumen のストレージ画面。Xcode、pnpm、Gradle など項目の持ち主ごとにまとめ、整理を提案する項目にあらかじめチェック（4 項目、9.9 GB）。ツール自身で整理する項目にはそのコマンドを表示。">
 </picture>
 
 </div>
@@ -53,16 +53,16 @@ Lumen はディスクを占めているものを見つけ、項目ごとに内�
     <td width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/review-dark.png">
-        <img src="docs/assets/readme/review-light.png" alt="項目の根拠インスペクター。出所、場所、確認判断とその理由、任意の AI メモを表示。サンプルデータ。">
+        <img src="docs/assets/readme/review-light.png" alt="削除したアプリが残したデータの詳細シート。サイズ、場所、確認が必要と判断した根拠、判断を変えない AI メモを表示。サンプルデータ。">
       </picture>
       <p align="center"><b>根拠</b>: 項目の出所と判断理由</p>
     </td>
     <td width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/overview-dark.png">
-        <img src="docs/assets/readme/overview-light.png" alt="サンプルデータを使ったストレージ画面。空き容量、計測した容量の表示、判断別にまとめた最新スキャン結果。">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/map-dark.png">
+        <img src="docs/assets/readme/map-light.png" alt="サンプルデータを使ったストレージ画面。調べた項目を状態別に示し、その下のマップで持ち主ごとに使用容量に応じたタイルを一つずつ表示。">
       </picture>
-      <p align="center"><b>ストレージ</b>: ディスク容量と最新スキャンの内訳</p>
+      <p align="center"><b>マップ</b>: 最新スキャンの結果を状態別・持ち主別に表示</p>
     </td>
   </tr>
   <tr>

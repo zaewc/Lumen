@@ -16,7 +16,7 @@ export const zhCN: Messages = {
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   showcase: {
-    main: "Lumen「探索」页面示例：按决策分类的存储空间、开发工具和应用缓存中建议清理的 9.9 GB，以及由工具自身清理的项目和对应命令。",
+    main: "Lumen「存储空间」页面示例：项目按所属的应用或工具分组（如 Xcode、pnpm、Gradle），建议清理的 4 个项目（9.9 GB）已预先勾选，并显示由工具自身清理的项目和对应命令。",
   },
   howTo: {
     title: "使用方法",

@@ -97,15 +97,25 @@ The home page and the README show the app itself (`apps/site/public/screens/` an
 its sample data (a fictional `/Users/ana`, never a real disk) and the built-in-key
 option on so AI notes appear, at the desktop window's default size (1120 × 800 px,
 2x; Quarantine uses the minimum 560 px height to fit its two sample items). They were
-refreshed on 2026-10-31 after the app material pass: continuous navigation, a
-refracting navigation lens and layered command surfaces. Storage composition, evidence
-and workflows remain unchanged.
-The site displays one light Explore capture per available screenshot language:
+retaken on 2026-11-28 for the one 저장 공간 (Storage) page grouped by owner
+([ADR-0069](../decisions/0069-show-storage-in-one-place-grouped-by-owner.md),
+[storage-in-one-place.md](storage-in-one-place.md)), which replaced Overview, Explore
+and Apps. There are four captures:
+
+| Capture | Shows |
+| --- | --- |
+| `storage` | Storage scrolled to its list: owners (Xcode, pnpm, Gradle, …) with their parts, checkboxes, statuses and tool commands, under the sticky title bar and its "Clean up · 4 items, 9.9 GB…" button |
+| `map` | Storage scrolled to the status filter and the map, one tile per owner |
+| `review` | The details sheet of OldEditor's data under "Left by removed apps", with the list filtered to Needs review behind it |
+| `quarantine` | Quarantine with one of its two items selected |
+
+The site displays one light `storage` capture per available screenshot language:
 Korean and English. Other localized pages use the English capture (WebP, 1600 ×
-1143 px). Its other four Korean and English review/Quarantine assets are also
-refreshed; they are not additional home-page sections. The README uses eight English PNGs:
-Explore, Storage and the evidence inspector at 2240 × 1600 px, and Quarantine at
-2240 × 1120 px, each in light and dark.
+1143 px). The Korean and English `review` and `quarantine` WebPs are also refreshed;
+they are not additional home-page sections. The README uses eight English PNGs:
+`storage`, `map` and `review` at 2240 × 1600 px, and `quarantine` at 2240 × 1120 px,
+each in light and dark. `storage` replaced the Explore capture `clean-up`, and `map`
+replaced the Overview capture `overview`.
 
 ### Retaking the captures
 
@@ -134,8 +144,10 @@ served fixture bootstrap to enable sample AI notes; it does not edit the app's s
 or rendered DOM, invoke the native host, access a keychain or contact an AI service.
 It checks the bootstrap shape, chooses AI review through the first-launch screen
 on the fixture transport, pins the sample clock to 2026-10-29, waits for fonts
-and expected data, and rejects runtime exceptions, external requests and horizontal
-overflow. All pictured paths belong to the fictional `/Users/ana`.
+and expected data, and rejects runtime exceptions, external requests, horizontal
+overflow and a scrolled window. It scrolls only the page's own scroll area, hides
+scrollbars through the browser's emulation, and clicks with pointer events, then moves the
+pointer away, so no keyboard focus ring or hover state appears. All pictured paths belong to the fictional `/Users/ana`.
 
 Retake the captures when screens change noticeably. Inspect the results, build the
 site and check both languages at desktop and mobile widths. Stop the temporary

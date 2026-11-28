@@ -24,8 +24,8 @@ Lumen은 디스크 공간을 차지하는 항목을 찾아 무엇인지 알려�
 ![언어 통계](https://github-repository-language-graph-wi.vercel.app/api?username=zaewc&repo=Lumen&theme=dark&precision=6)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/clean-up-dark.png">
-  <img src="docs/assets/readme/clean-up-light.png" width="840" alt="샘플 데이터가 있는 Lumen 탐색 화면: 결정별 저장 공간 구성, 정리 제안 9.9 GB, 도구 자체 정리 명령">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/storage-dark.png">
+  <img src="docs/assets/readme/storage-light.png" width="840" alt="샘플 데이터가 있는 Lumen 저장 공간 화면이에요. Xcode, pnpm, Gradle처럼 앱과 도구별로 항목을 묶고, 정리 제안 항목은 미리 체크해 둬요(정리하기 · 4개 9.9 GB). 도구가 직접 정리하는 항목은 그 명령을 보여 줘요.">
 </picture>
 
 </div>
@@ -53,16 +53,16 @@ Lumen은 디스크 공간을 차지하는 항목을 찾아 무엇인지 알려�
     <td width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/review-dark.png">
-        <img src="docs/assets/readme/review-light.png" alt="샘플 데이터가 있는 항목 근거 화면: 출처, 위치, 검토 결정과 근거, 선택 사항인 AI 의견">
+        <img src="docs/assets/readme/review-light.png" alt="지운 앱이 남긴 데이터의 세부 정보예요. 크기, 위치, 검토 필요로 판단한 근거, 판단을 바꾸지 않는 AI 의견을 보여 줘요. 샘플 데이터예요.">
       </picture>
       <p align="center"><b>근거</b>: 항목의 출처와 결정 이유를 확인해요</p>
     </td>
     <td width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/overview-dark.png">
-        <img src="docs/assets/readme/overview-light.png" alt="샘플 데이터가 있는 저장 공간 화면: 남은 디스크 공간, 측정한 용량 보기, 결정별 최근 검사 결과">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/map-dark.png">
+        <img src="docs/assets/readme/map-light.png" alt="샘플 데이터가 있는 저장 공간이에요. 살펴본 항목을 상태별로 나누고, 그 아래 지도에서 앱과 도구마다 쓰는 공간만큼 타일 하나로 보여 줘요.">
       </picture>
-      <p align="center"><b>저장 공간</b>: 디스크 용량과 최근 검사 결과를 확인해요</p>
+      <p align="center"><b>지도</b>: 최근 검사 결과를 상태별, 앱과 도구별로 확인해요</p>
     </td>
   </tr>
   <tr>

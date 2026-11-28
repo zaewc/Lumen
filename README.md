@@ -24,8 +24,8 @@ what is safe to remove, into a quarantine you can restore from.
 ![Language Stats](https://github-repository-language-graph-wi.vercel.app/api?username=zaewc&repo=Lumen&theme=dark&precision=6)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/clean-up-dark.png">
-  <img src="docs/assets/readme/clean-up-light.png" width="840" alt="Lumen's Explore page with sample data: storage composition by decision, 9.9 GB proposed, and tool-native cleanup commands.">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/storage-dark.png">
+  <img src="docs/assets/readme/storage-light.png" width="840" alt="Lumen's Storage page with sample data: items grouped under what owns them, such as Xcode, pnpm and Gradle, the proposed ones checked for Clean up · 4 items, 9.9 GB, and each tool's own command for the items it should clean.">
 </picture>
 
 </div>
@@ -54,16 +54,16 @@ what is safe to remove, into a quarantine you can restore from.
     <td width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/review-dark.png">
-        <img src="docs/assets/readme/review-light.png" alt="An item's evidence inspector: origin, location, review decision and the reasons behind it, with an optional AI note. Sample data.">
+        <img src="docs/assets/readme/review-light.png" alt="The details sheet of data left by a removed app: size, location, the evidence behind Needs review, and an AI note that cannot change the decision. Sample data.">
       </picture>
       <p align="center"><b>Evidence</b>: an item's origin and the reasons behind its decision</p>
     </td>
     <td width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/overview-dark.png">
-        <img src="docs/assets/readme/overview-light.png" alt="Storage with sample data: available disk space, a measured capacity view and the last scan grouped by decision.">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/map-dark.png">
+        <img src="docs/assets/readme/map-light.png" alt="Storage with sample data: the assessed items by status above a map with one tile per owner, sized by the space it uses.">
       </picture>
-      <p align="center"><b>Storage</b>: disk capacity and the last scan's composition</p>
+      <p align="center"><b>Map</b>: what the last scan found, by status and by owner</p>
     </td>
   </tr>
   <tr>

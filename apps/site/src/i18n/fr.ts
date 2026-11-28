@@ -17,7 +17,7 @@ export const fr: Messages = {
     requirements: "macOS 13+ · Windows 10 22H2+ · Linux x86_64",
   },
   showcase: {
-    main: "Page Explorer de Lumen avec des exemples : répartition du stockage selon la décision, 9,9 Go proposés dans les outils de développement et les caches d'applications, et commandes pour nettoyer les éléments à l'aide de leur outil.",
+    main: "Page Stockage de Lumen avec des exemples : éléments regroupés selon ce qui les possède, comme Xcode, pnpm et Gradle, avec les éléments proposés cochés pour nettoyer 4 éléments (9,9 Go), et commandes pour nettoyer les éléments à l'aide de leur outil.",
   },
   howTo: {
     title: "Comment l'utiliser",
