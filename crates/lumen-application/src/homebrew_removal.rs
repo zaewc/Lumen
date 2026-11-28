@@ -25,9 +25,36 @@
 //! - it runs with the person's own rights: no step needs administrator rights
 //!   (ADR-0060 rule 6). Lumen's helper does not run package managers;
 //! - not security software and not managed by an organization (ADR-0060
-//!   rule 4, owner decision 2026-11-16).
+//!   rule 4, owner decision 2026-11-16);
+//! - nothing runs from it: no process's program lies inside its folder or an
+//!   app it placed, so no open work is lost (as ADR-0062 refuses a running
+//!   app).
+//!
+//! A preview that passes is stored as a one-item plan chosen by the person,
+//! confirmed by its hash (ADR-0034); the page sends only its ID (ADR-0023).
+//! Its decision cites [`RULE`], which the policy never fires, so neither a
+//! clean-up nor an app's uninstall ever runs it, and it never runs as one
+//! ([`is_removal`], [`any_removal`]). Its evidence hash binds what the person
+//! saw ([`Binding`]): the package, its folder, the program and the command.
 
-use lumen_domain::{PackageId, PackageManager, RemovalFacts};
+use std::collections::BTreeSet;
+
+use lumen_domain::{
+    EvidenceHash, FileIdentity, FiredRule, JevEffect, PackageId, PackageManager, PolicyDecision,
+    PolicyStage, PolicyVersion, RawPath, RemovalFacts, Risk, RiskLevel, RuleId, UntrustedText,
+    Verdict,
+};
+
+/// The rule a Homebrew removal preview's decision cites: the gate passed and
+/// the person chose to remove the package. The policy never fires it.
+pub const RULE: &str = "homebrew.uninstall";
+
+/// The version of [`homebrew_removal`], recorded as the decision's policy
+/// version.
+pub const GATE_VERSION: PolicyVersion = PolicyVersion::new(1, 0, 0);
+
+/// Domain separation for [`Binding::hash`].
+const HASH_DOMAIN: &[u8] = b"lumen.homebrew-uninstall/1\0";
 
 /// The program Lumen runs, found as ADR-0049 finds a tool.
 pub const PROGRAM: &str = "brew";
@@ -52,6 +79,8 @@ pub struct HomebrewEvidence<'a> {
     pub security_software: Option<bool>,
     /// An organization may manage it.
     pub managed: Option<bool>,
+    /// A process runs a program inside its folder or an app it placed.
+    pub running: Option<bool>,
 }
 
 /// Why Lumen does not remove it; it stays as it is.
@@ -86,6 +115,10 @@ pub enum Blocked {
     Managed,
     /// Whether an organization manages it could not be told.
     ManagedUnknown,
+    /// Something it installed is running: quit it first.
+    Running,
+    /// Whether something it installed is running could not be told.
+    RunningUnknown,
 }
 
 /// The exact command: [`PROGRAM`] and its arguments.
@@ -181,6 +214,12 @@ pub fn homebrew_removal(evidence: &HomebrewEvidence<'_>) -> Result<HomebrewComma
         Blocked::ManagedUnknown,
         &mut reasons,
     );
+    require_not(
+        evidence.running,
+        Blocked::Running,
+        Blocked::RunningUnknown,
+        &mut reasons,
+    );
     match kind {
         Some(kind) if reasons.is_empty() => Ok(HomebrewCommand {
             args: vec!["uninstall".to_owned(), kind.to_owned(), name.to_owned()],
@@ -191,6 +230,100 @@ pub fn homebrew_removal(evidence: &HomebrewEvidence<'_>) -> Result<HomebrewComma
             Err(reasons)
         }
     }
+}
+
+/// The facts a stored preview binds: what the person confirmed, and what
+/// must still hold right before the command runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Binding<'a> {
+    /// The software list's key.
+    pub key: &'a str,
+    /// The package.
+    pub package: &'a PackageId,
+    /// Its version, as listed.
+    pub version: Option<&'a UntrustedText>,
+    /// Its folder in Homebrew's prefix (`Cellar/<name>` or
+    /// `Caskroom/<token>`).
+    pub folder: &'a RawPath,
+    /// What that folder is.
+    pub identity: &'a FileIdentity,
+    /// The program run, by absolute path, in the same prefix.
+    pub program: &'a RawPath,
+    /// The command.
+    pub command: &'a HomebrewCommand,
+    /// The apps a cask placed, which go with it.
+    pub apps: &'a [RawPath],
+}
+
+impl Binding<'_> {
+    /// BLAKE3 over `lumen.homebrew-uninstall/1\0` and the canonical JSON of
+    /// the facts.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: these types serialize infallibly.
+    pub fn hash(&self) -> EvidenceHash {
+        let value = serde_json::json!({
+            "key": self.key,
+            "package": self.package,
+            "version": self.version,
+            "folder": self.folder,
+            "identity": self.identity,
+            "program": self.program,
+            "args": self.command.args,
+            "apps": self.apps,
+        });
+        let bytes = serde_json::to_vec(&value)
+            .unwrap_or_else(|e| unreachable!("binding serialization is infallible: {e}"));
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(HASH_DOMAIN);
+        hasher.update(&bytes);
+        EvidenceHash::from_bytes(*hasher.finalize().as_bytes())
+    }
+}
+
+/// The decision a removal preview stores: `REVIEW` (the person chose it,
+/// ADR-0051), rule [`RULE`], over `evidence`.
+///
+/// # Panics
+///
+/// Never: the rule ID and decision are valid by construction.
+pub fn decision(evidence: EvidenceHash) -> PolicyDecision {
+    let rule = RuleId::new(RULE).unwrap_or_else(|_| unreachable!("valid rule ID"));
+    PolicyDecision::new(
+        Verdict::Review,
+        GATE_VERSION,
+        evidence,
+        [FiredRule {
+            rule,
+            stage: PolicyStage::Eligibility,
+            evidence: BTreeSet::new(),
+        }],
+        Risk {
+            level: RiskLevel::High,
+            factors: BTreeSet::new(),
+        },
+        JevEffect::None,
+    )
+    .unwrap_or_else(|e| unreachable!("a valid decision: {e}"))
+}
+
+/// Whether `decisions` are a removal preview's: exactly one, citing [`RULE`].
+pub fn is_removal(decisions: &[PolicyDecision]) -> bool {
+    matches!(decisions, [only] if cites_rule(only))
+}
+
+/// Whether any of `decisions` cites [`RULE`]: such a plan is never a
+/// clean-up, an app's uninstall or a copy's move, whatever else it holds.
+pub fn any_removal(decisions: &[PolicyDecision]) -> bool {
+    decisions.iter().any(cites_rule)
+}
+
+fn cites_rule(decision: &PolicyDecision) -> bool {
+    decision
+        .fired_rules()
+        .iter()
+        .any(|fired| fired.rule.as_str() == RULE)
 }
 
 #[cfg(test)]
@@ -231,6 +364,7 @@ mod tests {
             user_rights_only: Some(true),
             security_software: Some(false),
             managed: Some(false),
+            running: Some(false),
         }
     }
 
@@ -284,7 +418,7 @@ mod tests {
     #[test]
     fn every_failed_or_unknown_check_refuses_with_its_reason() {
         type Change = fn(&mut HomebrewEvidence<'_>);
-        let cases: [(Change, Blocked); 11] = [
+        let cases: [(Change, Blocked); 13] = [
             (|e| e.listed = 0, Blocked::NotListed),
             (|e| e.listed = 2, Blocked::Ambiguous),
             (
@@ -305,6 +439,8 @@ mod tests {
             (|e| e.managed = Some(true), Blocked::Managed),
             (|e| e.managed = None, Blocked::ManagedUnknown),
             (|e| e.listed = 3, Blocked::Ambiguous),
+            (|e| e.running = Some(true), Blocked::Running),
+            (|e| e.running = None, Blocked::RunningUnknown),
         ];
         let package = id(PackageManager::HomebrewCask, "docker");
         let none = facts(Some(NONE));
@@ -365,5 +501,51 @@ mod tests {
             homebrew_removal(&removable(&package, &none)),
             Err(vec![Blocked::NotHomebrew])
         );
+    }
+
+    #[test]
+    fn a_preview_binds_its_facts_and_tells_itself_apart() {
+        let raw = |path: &str| {
+            RawPath::from_unix_bytes(path.as_bytes().to_vec()).unwrap_or_else(|_| unreachable!())
+        };
+        let package = id(PackageManager::HomebrewCask, "hot");
+        let folder = raw("/opt/homebrew/Caskroom/hot");
+        let program = raw("/opt/homebrew/bin/brew");
+        let identity = FileIdentity {
+            volume: lumen_domain::VolumeId::new("dev:1").unwrap_or_else(|_| unreachable!()),
+            file: lumen_domain::FileId::new(7),
+        };
+        let command = HomebrewCommand {
+            args: vec!["uninstall".into(), "--cask".into(), "hot".into()],
+        };
+        let binding = Binding {
+            key: "HomebrewCask:hot",
+            package: &package,
+            version: None,
+            folder: &folder,
+            identity: &identity,
+            program: &program,
+            command: &command,
+            apps: &[],
+        };
+        let other = HomebrewCommand {
+            args: vec!["uninstall".into(), "--formula".into(), "hot".into()],
+        };
+        assert_eq!(binding.hash(), binding.hash());
+        assert_ne!(
+            binding.hash(),
+            Binding {
+                command: &other,
+                ..binding
+            }
+            .hash()
+        );
+        let decision = decision(binding.hash());
+        assert_eq!(decision.policy_version(), GATE_VERSION);
+        assert!(is_removal(std::slice::from_ref(&decision)));
+        assert!(!is_removal(&[decision.clone(), decision.clone()]));
+        assert!(any_removal(&[decision]));
+        let app = crate::uninstall::decision(binding.hash());
+        assert!(!any_removal(&[app]));
     }
 }
