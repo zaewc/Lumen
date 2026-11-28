@@ -25,16 +25,34 @@
 //! other action: a clean-up, an app's uninstall and a copy's move each refuse
 //! it, so its folder is never moved into quarantine (ADR-0062 rule 5).
 //!
-//! Nothing is run and no file contents are read beyond Homebrew's own JSON
-//! records. Removal cannot be undone by Lumen; the preview says so.
+//! Making a preview runs nothing, and no file contents are read beyond
+//! Homebrew's own JSON records.
+//!
+//! [`remove`] runs exactly that preview, once (ADR-0060 rules 3 and 7, as
+//! ADR-0049 runs a tool): it refuses a privileged process and a wrong,
+//! expired, reused or foreign confirmation, then gathers the evidence again,
+//! runs the gate again and refuses a package that changed since its preview.
+//! Only then does it run the bound command: `brew` by absolute path in
+//! Homebrew's own prefix, never found on a `PATH`, with no shell, input
+//! closed, its own process group, in the home folder, for at most
+//! [`crate::tools::TIME_LIMIT`], without Homebrew's auto-update. It is never
+//! retried. The package counts as removed only when a fresh Homebrew list,
+//! read whole, no longer lists it; the exit status and the end of the
+//! output are reported as they are. Lumen cannot undo it.
 
 use std::path::Path;
 
 use lumen_application::homebrew_removal::Blocked;
 use lumen_application::ports::{Clock, IdGenerator};
-use lumen_domain::{PackageId, PlanHash, PlanId, RawPath, Timestamp, UntrustedText};
+use lumen_domain::{
+    ConfirmationSurface, PackageId, PlanHash, PlanId, RawPath, Timestamp, UntrustedText,
+};
 
-/// Why no preview was made. Nothing was stored in any of these cases.
+use crate::quarantine::QuarantineError;
+use crate::tools::ToolError;
+
+/// Why no preview was made, or a preview was not run. Nothing was stored or
+/// run in any of these cases, except [`HomebrewError::Run`].
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum HomebrewError {
@@ -47,6 +65,22 @@ pub enum HomebrewError {
     /// The database failed.
     #[error(transparent)]
     Store(#[from] lumen_store_sqlite::StoreError),
+    /// The plan is not a Homebrew removal preview.
+    #[error("plan {0} is not a Homebrew removal preview; nothing was run")]
+    NotARemoval(PlanId),
+    /// The preview may not run: a privileged process, or an unknown, wrong,
+    /// expired or already confirmed preview.
+    #[error(transparent)]
+    Plan(Box<QuarantineError>),
+    /// `brew` could not be started or watched.
+    #[error(transparent)]
+    Run(ToolError),
+}
+
+impl From<QuarantineError> for HomebrewError {
+    fn from(error: QuarantineError) -> Self {
+        Self::Plan(Box::new(error))
+    }
 }
 
 /// The package a preview is about, as observed now.
@@ -87,6 +121,116 @@ pub struct HomebrewPreview {
     /// The preview to confirm, or every reason it is not removed (nothing was
     /// stored then).
     pub ready: Result<Confirmable, Vec<Blocked>>,
+}
+
+/// How `brew` ended.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Ran {
+    /// It exited with status 0.
+    pub success: bool,
+    /// Its exit code, if it exited on its own.
+    pub exit_code: Option<i32>,
+    /// It ran past the time limit and was stopped.
+    pub timed_out: bool,
+    /// The end of what it printed, at most
+    /// [`crate::tools::OUTPUT_LIMIT`] bytes.
+    pub output: String,
+}
+
+/// What became of the package.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RemovalResult {
+    /// A fresh Homebrew list, read whole, no longer lists it.
+    Removed,
+    /// A fresh Homebrew list still lists it.
+    StillListed,
+    /// A fresh Homebrew list could not be read whole, so whether it is gone
+    /// is not known.
+    Unverified,
+    /// Checked again right before running, the gate refused it; nothing ran.
+    Refused(Vec<Blocked>),
+    /// It is not what its preview showed; nothing ran. Preview it again.
+    Changed,
+}
+
+/// What running a preview did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemovalReport {
+    /// The preview run.
+    pub plan: PlanId,
+    /// The package, as observed right before running, if it was found.
+    pub package: Option<HomebrewPackage>,
+    /// The command run, if it ran.
+    pub command: Option<Vec<String>>,
+    /// How it ended, if it ran.
+    pub ran: Option<Ran>,
+    /// What became of the package.
+    pub result: RemovalResult,
+}
+
+/// What the person confirms right before a preview runs: the package and the
+/// exact command, observed now and checked against what the preview bound.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Question {
+    /// The package.
+    pub package: HomebrewPackage,
+    /// The exact command.
+    pub command: Vec<String>,
+}
+
+/// The question for running preview `plan`, after checking `confirm` (its
+/// full hash), its age and that it still binds what is observed now; `None`
+/// if the gate refuses it now or it changed. Reads only.
+///
+/// # Errors
+///
+/// As [`remove`] before it runs anything.
+#[tracing::instrument(name = "homebrew_question", skip_all)]
+pub fn question(
+    db: &Path,
+    plan: PlanId,
+    confirm: &str,
+    clock: &dyn Clock,
+) -> Result<Option<Question>, HomebrewError> {
+    #[cfg(target_os = "macos")]
+    {
+        crate::store::refuse_privileged().map_err(QuarantineError::from)?;
+        unix::question_with(&mac::Mac::new(), db, plan, confirm, clock)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (db, plan, confirm, clock);
+        Err(HomebrewError::Unsupported)
+    }
+}
+
+/// Runs the Homebrew removal preview `plan` from `db`, confirmed on `surface`
+/// by `confirm` (its full hash), once.
+///
+/// # Errors
+///
+/// A [`HomebrewError`] if the preview may not run, the database fails or
+/// `brew` cannot be started. A refusal at the gate, a changed package, a
+/// failed or stopped `brew` and a package still listed are not errors; they
+/// are the report's [`RemovalReport::result`] and [`RemovalReport::ran`].
+#[tracing::instrument(name = "homebrew_remove", skip_all)]
+pub fn remove(
+    db: &Path,
+    plan: PlanId,
+    confirm: &str,
+    surface: ConfirmationSurface,
+    clock: &dyn Clock,
+) -> Result<RemovalReport, HomebrewError> {
+    #[cfg(target_os = "macos")]
+    {
+        crate::store::refuse_privileged().map_err(QuarantineError::from)?;
+        unix::remove_with(&mac::Mac::new(), db, plan, confirm, surface, clock)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (db, plan, confirm, surface, clock);
+        Err(HomebrewError::Unsupported)
+    }
 }
 
 /// Previews removing the Homebrew package listed under `key`, and stores the
@@ -139,8 +283,17 @@ mod unix {
     };
     use lumen_store_sqlite::{IndexStore, open_index};
 
-    use super::{Confirmable, HomebrewError, HomebrewPackage, HomebrewPreview};
+    use lumen_application::homebrew_removal::{GATE_VERSION, is_removal};
+    use lumen_domain::{Confirmation, ConfirmationSurface, PlanEvent, PlanHash, PlanId};
+    use lumen_store_sqlite::StoreError;
+
+    use super::{
+        Confirmable, HomebrewError, HomebrewPackage, HomebrewPreview, Question, Ran, RemovalReport,
+        RemovalResult,
+    };
+    use crate::quarantine::{QuarantineError, checked_plan};
     use crate::scan::enumerator;
+    use crate::tools::ToolError;
 
     /// What a removal looks at: this Mac, or a fixture in tests.
     pub(super) trait Homebrew {
@@ -159,6 +312,9 @@ mod unix {
         fn enrolled(&self) -> Option<bool>;
         /// Whether an organization may manage the app `bundle_id`.
         fn managed(&self, bundle_id: &UntrustedText) -> Option<bool>;
+        /// Runs `program` with `args`, as ADR-0049 runs a tool. Tests use a
+        /// fake; nothing else runs `brew`.
+        fn run(&self, program: &RawPath, args: &[String]) -> Result<Ran, ToolError>;
     }
 
     /// The software list's key of a Homebrew package, as `lumen-api` lists
@@ -383,6 +539,191 @@ mod unix {
             }),
         })
     }
+
+    /// The one item of stored preview `plan` and the preview's hash, after
+    /// checking `confirm`, its age and that it is a Homebrew removal preview.
+    fn stored(
+        index: &IndexStore,
+        plan: PlanId,
+        confirm: &str,
+        now: lumen_domain::Timestamp,
+    ) -> Result<(PlannedItem, PlanHash), HomebrewError> {
+        let stored = checked_plan(index, plan, confirm, now)?;
+        match (stored.plan.items(), stored.decisions.as_slice()) {
+            ([item], [decision])
+                if is_removal(&stored.decisions)
+                    && item.policy_version == GATE_VERSION
+                    && item.chosen_by == Chooser::Person
+                    && item.evidence_hash == decision.evidence_hash() =>
+            {
+                Ok((item.clone(), stored.plan.hash()))
+            }
+            _ => Err(HomebrewError::NotARemoval(plan)),
+        }
+    }
+
+    /// What is observed now about the package `planned` names by its folder.
+    enum Check {
+        /// The gate passes and the preview still binds it.
+        Ready(Box<Observed>),
+        /// The gate refuses it now.
+        Refused(HomebrewPackage, Vec<Blocked>),
+        /// It is not what the preview showed, or not found.
+        Changed(Option<HomebrewPackage>),
+    }
+
+    fn check(brew: &dyn Homebrew, planned: &PlannedItem) -> Result<Check, HomebrewError> {
+        let Subject::File { identity } = &planned.subject else {
+            return Ok(Check::Changed(None));
+        };
+        let report = brew.packages();
+        let mut found = report
+            .packages
+            .iter()
+            .filter(|p| p.install_root.as_ref() == Some(&planned.path))
+            .filter_map(key);
+        let (Some(listed), None) = (found.next(), found.next()) else {
+            return Ok(Check::Changed(None));
+        };
+        let observed = match observe(brew, &listed) {
+            Ok(observed) => observed,
+            Err(HomebrewError::UnknownPackage) => return Ok(Check::Changed(None)),
+            Err(error) => return Err(error),
+        };
+        if let Err(reasons) = &observed.ready {
+            return Ok(Check::Refused(observed.package, reasons.clone()));
+        }
+        // The binding covers the folder, `brew`, the command and the apps.
+        let unchanged = observed.identity.as_ref() == Some(identity)
+            && observed
+                .binding()
+                .is_some_and(|b| b.hash() == planned.evidence_hash);
+        Ok(if unchanged {
+            Check::Ready(Box::new(observed))
+        } else {
+            Check::Changed(Some(observed.package))
+        })
+    }
+
+    pub(super) fn question_with(
+        brew: &dyn Homebrew,
+        db: &Path,
+        plan: PlanId,
+        confirm: &str,
+        clock: &dyn Clock,
+    ) -> Result<Option<Question>, HomebrewError> {
+        let index = IndexStore::new(open_index(db)?);
+        let (planned, _) = stored(&index, plan, confirm, clock.now())?;
+        Ok(match check(brew, &planned)? {
+            Check::Ready(observed) => observed.command().map(|command| Question {
+                package: observed.package,
+                command,
+            }),
+            Check::Refused(..) | Check::Changed(_) => None,
+        })
+    }
+
+    /// Marks `plan` finished; a failure only warns, as nothing more runs
+    /// under it.
+    fn finish(index: &mut IndexStore, plan: PlanId, all_succeeded: bool) {
+        if let Err(error) = index.apply_plan_event(plan, PlanEvent::Finish { all_succeeded }) {
+            tracing::warn!(%error, "the Homebrew removal plan was not marked finished");
+        }
+    }
+
+    pub(super) fn remove_with(
+        brew: &dyn Homebrew,
+        db: &Path,
+        plan: PlanId,
+        confirm: &str,
+        surface: ConfirmationSurface,
+        clock: &dyn Clock,
+    ) -> Result<RemovalReport, HomebrewError> {
+        let now = clock.now();
+        let mut index = IndexStore::new(open_index(db)?);
+        let (planned, plan_hash) = stored(&index, plan, confirm, now)?;
+        // Confirmed once: a second run of the same preview is refused here.
+        let confirmation = Confirmation {
+            plan_hash,
+            confirmed_at: now,
+            surface,
+        };
+        index
+            .apply_plan_event(plan, PlanEvent::Confirm { confirmation })
+            .map_err(|error| match error {
+                StoreError::PlanTransition(_) => QuarantineError::AlreadyConfirmed(plan).into(),
+                other => HomebrewError::from(other),
+            })?;
+        index.apply_plan_event(plan, PlanEvent::Start)?;
+        let report = |package, command, ran, result| RemovalReport {
+            plan,
+            package,
+            command,
+            ran,
+            result,
+        };
+        let observed = match check(brew, &planned) {
+            Ok(Check::Ready(observed)) => observed,
+            Ok(Check::Refused(package, reasons)) => {
+                finish(&mut index, plan, false);
+                tracing::info!(reasons = reasons.len(), "Homebrew removal refused");
+                let result = RemovalResult::Refused(reasons);
+                return Ok(report(Some(package), None, None, result));
+            }
+            Ok(Check::Changed(package)) => {
+                finish(&mut index, plan, false);
+                return Ok(report(package, None, None, RemovalResult::Changed));
+            }
+            Err(error) => {
+                finish(&mut index, plan, false);
+                return Err(error);
+            }
+        };
+        let (Some(command), Ok(bound), Some(program)) = (
+            observed.command(),
+            observed.ready.as_ref(),
+            observed.package.program.as_ref(),
+        ) else {
+            finish(&mut index, plan, false);
+            let package = Some(observed.package);
+            return Ok(report(package, None, None, RemovalResult::Changed));
+        };
+        // Run once; never retried, whatever happens.
+        let ran = match brew.run(program, &bound.args) {
+            Ok(ran) => ran,
+            Err(error) => {
+                finish(&mut index, plan, false);
+                return Err(HomebrewError::Run(error));
+            }
+        };
+        // Success is observed: a fresh list, read whole, without it.
+        let fresh = brew.packages();
+        let listed = fresh
+            .packages
+            .iter()
+            .any(|p| key(p).as_deref() == Some(observed.package.key.as_str()));
+        let result = if listed {
+            RemovalResult::StillListed
+        } else if fresh.status == SourceStatus::Complete {
+            RemovalResult::Removed
+        } else {
+            RemovalResult::Unverified
+        };
+        finish(&mut index, plan, result == RemovalResult::Removed);
+        // The outcome only: never the output, which may name paths.
+        tracing::info!(
+            success = ran.success,
+            timed_out = ran.timed_out,
+            ?result,
+            "Homebrew removal ran"
+        );
+        Ok(report(
+            Some(observed.package),
+            Some(command),
+            Some(ran),
+            result,
+        ))
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -394,7 +735,19 @@ mod mac {
     use lumen_domain::{PackageId, RawPath, UntrustedText};
     use lumen_platform_macos::{AppInventory, HomebrewInventory, ProcessProbe, management};
 
+    use super::Ran;
     use super::unix::{Homebrew, native};
+    use crate::tools::{TIME_LIMIT, ToolError};
+
+    /// Homebrew's own switches: no auto-update or analytics before the
+    /// uninstall, no hints, and plain output.
+    const ENV: [(&str, &str); 5] = [
+        ("HOMEBREW_NO_AUTO_UPDATE", "1"),
+        ("HOMEBREW_NO_ANALYTICS", "1"),
+        ("HOMEBREW_NO_ENV_HINTS", "1"),
+        ("NO_COLOR", "1"),
+        ("LC_ALL", "C"),
+    ];
 
     pub(super) struct Mac {
         homebrew: HomebrewInventory,
@@ -445,6 +798,23 @@ mod mac {
         fn managed(&self, bundle_id: &UntrustedText) -> Option<bool> {
             management::managed(bundle_id.raw())
         }
+
+        fn run(&self, program: &RawPath, args: &[String]) -> Result<Ran, ToolError> {
+            let home = std::env::home_dir().ok_or(ToolError::NoHome)?;
+            let run = crate::tools::run_program_with_env(
+                &native(program),
+                args,
+                &home,
+                TIME_LIMIT,
+                &ENV,
+            )?;
+            Ok(Ran {
+                success: run.success,
+                exit_code: run.exit_code,
+                timed_out: run.timed_out,
+                output: run.output,
+            })
+        }
     }
 }
 
@@ -466,9 +836,9 @@ mod tests {
     };
     use lumen_store_sqlite::{IndexStore, open_index};
 
-    use super::unix::{Homebrew, preview_with};
+    use super::unix::{Homebrew, preview_with, question_with, remove_with};
     use super::*;
-    use crate::quarantine::QuarantineError;
+    use crate::tools::ToolError;
     use crate::{SystemClock, UuidV7Ids};
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -483,7 +853,17 @@ mod tests {
         _dir: lumen_testkit::Fixture,
         prefix: PathBuf,
         db: PathBuf,
-        status: SourceStatus,
+        status: Cell<SourceStatus>,
+        /// `brew` removes `act` when it runs.
+        removes: bool,
+        /// How `brew` ends: its success and whether it was stopped.
+        ends: Cell<(bool, bool)>,
+        /// Homebrew's list after `brew` ran.
+        after: Cell<SourceStatus>,
+        /// `act` is gone.
+        gone: Cell<bool>,
+        /// Every run: the program and its arguments.
+        runs: std::cell::RefCell<Vec<(RawPath, Vec<String>)>>,
         /// Whether `jq` needs `act`.
         needed: bool,
         rights: Cell<Option<bool>>,
@@ -512,7 +892,12 @@ mod tests {
                 prefix,
                 db,
                 _dir: dir,
-                status: SourceStatus::Complete,
+                status: Cell::new(SourceStatus::Complete),
+                removes: true,
+                ends: Cell::new((true, false)),
+                after: Cell::new(SourceStatus::Complete),
+                gone: Cell::new(false),
+                runs: std::cell::RefCell::new(Vec::new()),
                 needed: false,
                 rights: Cell::new(Some(true)),
                 running: Cell::new(Some(false)),
@@ -565,10 +950,14 @@ mod tests {
             }
             InventoryReport {
                 source: SourceName::new("test.homebrew").unwrap(),
-                status: self.status,
+                status: self.status.get(),
                 applications: Vec::new(),
                 services: Vec::new(),
-                packages: vec![act, hot, jq],
+                packages: if self.gone.get() {
+                    vec![hot, jq]
+                } else {
+                    vec![act, hot, jq]
+                },
             }
         }
 
@@ -618,6 +1007,21 @@ mod tests {
 
         fn managed(&self, _: &UntrustedText) -> Option<bool> {
             self.enrolled.get()
+        }
+
+        fn run(&self, program: &RawPath, args: &[String]) -> Result<Ran, ToolError> {
+            self.runs
+                .borrow_mut()
+                .push((program.clone(), args.to_vec()));
+            self.gone.set(self.removes);
+            self.status.set(self.after.get());
+            let (success, timed_out) = self.ends.get();
+            Ok(Ran {
+                success,
+                exit_code: (!timed_out).then_some(i32::from(!success)),
+                timed_out,
+                output: "Uninstalling act... (12 files)".into(),
+            })
         }
     }
 
@@ -710,7 +1114,7 @@ mod tests {
             ("Homebrew:act", |f| f.needed = true, Blocked::Dependents),
             (
                 "Homebrew:act",
-                |f| f.status = SourceStatus::Partial,
+                |f| f.status.set(SourceStatus::Partial),
                 Blocked::InventoryIncomplete,
             ),
             (
@@ -765,6 +1169,142 @@ mod tests {
                 "{key}"
             );
         }
+        Ok(())
+    }
+
+    /// The ready preview of `key`: its ID and hash.
+    fn ready(fake: &Fake, key: &str) -> Result<(PlanId, String), Box<dyn std::error::Error>> {
+        match fake.preview(key)?.ready {
+            Ok(ready) => Ok((ready.plan, ready.hash.to_string())),
+            Err(reasons) => Err(format!("refused: {reasons:?}").into()),
+        }
+    }
+
+    fn remove(fake: &Fake, plan: PlanId, hash: &str) -> Result<RemovalReport, HomebrewError> {
+        remove_with(
+            fake,
+            &fake.db,
+            plan,
+            hash,
+            ConfirmationSurface::DesktopApp,
+            &SystemClock,
+        )
+    }
+
+    #[test]
+    fn a_confirmed_preview_runs_its_exact_command_once_and_is_removed_only_when_gone() -> TestResult
+    {
+        let fake = Fake::new()?;
+        let (plan, hash) = ready(&fake, "Homebrew:act")?;
+        let question = question_with(&fake, &fake.db, plan, &hash, &SystemClock)?;
+        let brew = fake.prefix.join("bin/brew");
+        let command = vec![
+            brew.display().to_string(),
+            "uninstall".into(),
+            "--formula".into(),
+            "act".into(),
+        ];
+        assert_eq!(question.map(|q| q.command), Some(command.clone()));
+        assert!(fake.runs.borrow().is_empty(), "asking runs nothing");
+        let report = remove(&fake, plan, &hash)?;
+        assert_eq!(report.result, RemovalResult::Removed);
+        assert_eq!(report.command, Some(command));
+        assert_eq!(
+            *fake.runs.borrow(),
+            [(
+                raw(&brew),
+                vec!["uninstall".into(), "--formula".into(), "act".into()]
+            )]
+        );
+        // Confirmed once: the same preview never runs again.
+        assert!(matches!(
+            remove(&fake, plan, &hash),
+            Err(HomebrewError::Plan(error)) if matches!(*error, QuarantineError::AlreadyConfirmed(_))
+        ));
+        assert_eq!(fake.runs.borrow().len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn a_failed_or_stopped_brew_reports_what_remains_and_is_not_retried() -> TestResult {
+        for ends in [(false, false), (false, true), (true, false)] {
+            let mut fake = Fake::new()?;
+            fake.removes = false;
+            fake.ends.set(ends);
+            let (plan, hash) = ready(&fake, "Homebrew:act")?;
+            let report = remove(&fake, plan, &hash)?;
+            assert_eq!(report.result, RemovalResult::StillListed, "{ends:?}");
+            let ran = report.ran.ok_or("ran")?;
+            assert_eq!((ran.success, ran.timed_out), ends);
+            assert_eq!(fake.runs.borrow().len(), 1, "{ends:?}: run once");
+        }
+        // Gone, but the fresh list was not read whole: not counted as removed.
+        let fake = Fake::new()?;
+        fake.after.set(SourceStatus::Partial);
+        let (plan, hash) = ready(&fake, "Homebrew:act")?;
+        assert_eq!(
+            remove(&fake, plan, &hash)?.result,
+            RemovalResult::Unverified
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn nothing_runs_for_a_wrong_hash_a_changed_package_or_a_refusal_now() -> TestResult {
+        let fake = Fake::new()?;
+        let (plan, hash) = ready(&fake, "Homebrew:act")?;
+        let wrong = format!("{}0", &hash[..hash.len() - 1]);
+        let wrong = if wrong == hash {
+            format!("{}1", &hash[..hash.len() - 1])
+        } else {
+            wrong
+        };
+        assert!(matches!(
+            remove(&fake, plan, &wrong),
+            Err(HomebrewError::Plan(error)) if matches!(*error, QuarantineError::Mismatch(_))
+        ));
+        // Something now runs from it: refused at the gate.
+        fake.running.set(Some(true));
+        let report = remove(&fake, plan, &hash)?;
+        assert_eq!(
+            report.result,
+            RemovalResult::Refused(vec![Blocked::Running])
+        );
+        // Its folder replaced since the preview: a changed package.
+        let fake = Fake::new()?;
+        let (plan, hash) = ready(&fake, "Homebrew:act")?;
+        let folder = fake.prefix.join("Cellar/act");
+        std::fs::rename(&folder, fake.prefix.join("Cellar/act-old"))?;
+        std::fs::create_dir_all(folder.join("0.2.79"))?;
+        assert_eq!(remove(&fake, plan, &hash)?.result, RemovalResult::Changed);
+        assert!(
+            matches!(
+                question_with(&fake, &fake.db, plan, &hash, &SystemClock),
+                Ok(None)
+            ),
+            "nothing to confirm for a changed package"
+        );
+        assert!(fake.runs.borrow().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn only_a_homebrew_preview_runs_as_one() -> TestResult {
+        let fake = Fake::new()?;
+        let (plan, _) = ready(&fake, "Homebrew:act")?;
+        let mut index = IndexStore::new(open_index(&fake.db)?);
+        let other = lumen_domain::CleanupPlan::new(
+            IdGenerator::plan_id(&UuidV7Ids),
+            SystemClock.now(),
+            Vec::new(),
+        );
+        index.save_plan(&other, &[])?;
+        assert!(matches!(
+            remove(&fake, other.id(), &other.hash().to_string()),
+            Err(HomebrewError::NotARemoval(_))
+        ));
+        assert_ne!(other.id(), plan);
+        assert!(fake.runs.borrow().is_empty());
         Ok(())
     }
 }
